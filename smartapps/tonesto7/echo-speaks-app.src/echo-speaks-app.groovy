@@ -22,6 +22,7 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String appVersion() { return "0.0.1" }
+String appModified() { return "2018-08-31"}
 String appAuthor() { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
@@ -37,9 +38,9 @@ definition(
 	author: "Anthony Santilli",
 	description: "Allow you to create virtual echo devices and send tts to them in SmartThings",
 	category: "My Apps",
-	iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo.1x.png",
-	iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo.2x.png",
-	iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo.3x.png")
+	iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
+	iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x.png",
+	iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x.png")
 
 
 preferences {
@@ -366,7 +367,7 @@ def receiveEventData(Map evtData) {
 								childDevice?.label = devLabel
 							}
 						}
-						logger("info", "Sending Device Data Update to ${devLabel}")
+						logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
 						childDevice?.updateDeviceStatus(echoValue)
 					}
 					modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
@@ -405,7 +406,7 @@ def receiveEventData(Map evtData) {
 
 public sendTtsCommand(deviceId, ttsMsg) {
 	if(deviceId && ttsMsg) {
-		echoServiceCmd("tts", [echoDeviceId: deviceId, ttsMsg: URLEncoder.encode(ttsMsg)])
+		echoServiceCmd("tts", [deviceSerialNumber: deviceId, tts: URLEncoder.encode(ttsMsg)])
 	}
 }
 
@@ -453,10 +454,10 @@ private echoServiceCmd(type, headers={}, body = "") {
 		]
 		switch(type) {
 			case "tts":
-				path = "/alexa-send-tts"
+				path = "/alexa-tts"
 				break
 			case "deviceState":
-				path = "/alexa-get-state"
+				path = "/alexa-getState"
 				break
 		}
 		headers?.each { k,v-> headerMap[k] = v }

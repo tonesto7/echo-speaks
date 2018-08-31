@@ -86,20 +86,11 @@ function startWebServer() {
     });
 
     app.post('/alexa-tts', urlencodedParser, function(req, res) {
-        console.log('tts request: ', req.body);
-        var tts = req.body.tts;
-        var deviceSerialNumber = req.body.deviceSerialNumber;
-        tsLogger('++ Received a Send TTS Request for Device: ' + deviceSerialNumber + ' | Message: ' + tts + ' ++');
+        let hubAct = (req.headers.tts !== undefined || req.headers.deviceserialnumber !== undefined);
+        let tts = req.body.tts || req.headers.tts;
+        let deviceSerialNumber = req.body.deviceSerialNumber || req.headers.deviceserialnumber;
+        tsLogger('++ Received a Send TTS Request for Device: ' + deviceSerialNumber + ' | Message: ' + tts + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
         alexa_api.setTTS(tts, deviceSerialNumber, savedConfig, function(error, response) {
-            res.send(response);
-        });
-    });
-
-    app.post('/alexa-send-tts', urlencodedParser, function(req, res) {
-        let ttsMsg = req.headers.ttsmsg;
-        let echoDeviceId = req.headers.echodeviceid;
-        tsLogger('++ Received a Send TTS Request for Device: ' + echoDeviceId + ' | Message: ' + ttsMsg + ' | Source: (ST HubAction) ++');
-        alexa_api.setTTS(ttsMsg, echoDeviceId, savedConfig, function(error, response) {
             res.send(response);
         });
     });
@@ -118,70 +109,63 @@ function startWebServer() {
     });
 
     app.post('/alexa-getState', urlencodedParser, function(req, res) {
-        var deviceSerialNumber = req.body.deviceSerialNumber;
-        console.log('++ Received a getState Request for Device: ' + deviceSerialNumber + ' ++');
+        let hubAct = (req.headers.deviceserialnumber != undefined);
+        let deviceSerialNumber = req.body.deviceSerialNumber || req.headers.echodeviceid;
+        console.log('++ Received a Device State Request for Device: ' + deviceSerialNumber + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
         alexa_api.getState(deviceSerialNumber, savedConfig, function(error, response) {
             res.send(response);
         });
     });
 
-    app.post('/alexa-get-state', urlencodedParser, function(req, res) {
-        let echoDeviceId = req.headers.echodeviceid;
-        console.log('++ Received a Device State Request for Device: ' + echoDeviceId + ' | Source: (ST HubAction) ++');
-        alexa_api.getState(echoDeviceId, savedConfig, function(error, response) {
+    app.post('/alexa-getActivities', urlencodedParser, function(req, res) {
+        console.log('got request for getActivities');
+        alexa_api.getActivities(savedConfig, function(error, response) {
             res.send(response);
         });
     });
 
-    // app.post('/alexa-getActivities', urlencodedParser, function(req, res) {
-    //     console.log('got request for getActivities');
-    //     alexa_api.getActivities(savedConfig, function(error, response) {
-    //         res.send(response);
-    //     });
-    // });
+    app.post('/alexa-setMedia', urlencodedParser, function(req, res) {
+        var volume = req.body.volume;
+        var deviceSerialNumber = req.body.deviceSerialNumber;
+        if (volume) {
+            command = {
+                type: 'VolumeLevelCommand',
+                volumeLevel: parseInt(volume)
+            };
+        } else {
+            command = {
+                type: req.body.command
+            };
+        }
+        console.log('got set media message with command: ' + command + ' for device: ' + deviceSerialNumber);
+        alexa_api.setMedia(command, deviceSerialNumber, savedConfig, function(error, response) {
+            res.send(response);
+        });
+    });
 
-    // app.post('/alexa-setMedia', urlencodedParser, function(req, res) {
-    //     var volume = req.body.volume;
-    //     var deviceSerialNumber = req.body.deviceSerialNumber;
-    //     if (volume) {
-    //         command = {
-    //             type: 'VolumeLevelCommand',
-    //             volumeLevel: parseInt(volume)
-    //         };
-    //     } else {
-    //         command = {
-    //             type: req.body.command
-    //         };
-    //     }
-    //     console.log('got set media message with command: ' + command + ' for device: ' + deviceSerialNumber);
-    //     alexa_api.setMedia(command, deviceSerialNumber, savedConfig, function(error, response) {
-    //         res.send(response);
-    //     });
-    // });
+    app.post('/alexa-setBluetooth', urlencodedParser, function(req, res) {
+        var mac = req.body.mac;
+        var deviceSerialNumber = req.body.deviceSerialNumber;
+        console.log('got set bluetooth  message with mac: ' + mac + ' for device: ' + deviceSerialNumber);
+        alexa_api.setBluetoothDevice(mac, deviceSerialNumber, savedConfig, function(error, response) {
+            res.send(response);
+        });
+    });
 
-    // app.post('/alexa-setBluetooth', urlencodedParser, function(req, res) {
-    //     var mac = req.body.mac;
-    //     var deviceSerialNumber = req.body.deviceSerialNumber;
-    //     console.log('got set bluetooth  message with mac: ' + mac + ' for device: ' + deviceSerialNumber);
-    //     alexa_api.setBluetoothDevice(mac, deviceSerialNumber, savedConfig, function(error, response) {
-    //         res.send(response);
-    //     });
-    // });
+    app.post('/alexa-getBluetooth', urlencodedParser, function(req, res) {
+        console.log('got get bluetootha message');
+        alexa_api.getBluetoothDevices(savedConfig, function(error, response) {
+            res.send(response);
+        });
+    });
 
-    // app.post('/alexa-getBluetooth', urlencodedParser, function(req, res) {
-    //     console.log('got get bluetootha message');
-    //     alexa_api.getBluetoothDevices(savedConfig, function(error, response) {
-    //         res.send(response);
-    //     });
-    // });
-
-    // app.post('/alexa-disconnectBluetooth', urlencodedParser, function(req, res) {
-    //     var deviceSerialNumber = req.body.deviceSerialNumber;
-    //     console.log('got set bluetooth disconnect for device: ' + deviceSerialNumber);
-    //     alexa_api.disconnectBluetoothDevice(deviceSerialNumber, savedConfig, function(error, response) {
-    //         res.send(response);
-    //     });
-    // });
+    app.post('/alexa-disconnectBluetooth', urlencodedParser, function(req, res) {
+        var deviceSerialNumber = req.body.deviceSerialNumber;
+        console.log('got set bluetooth disconnect for device: ' + deviceSerialNumber);
+        alexa_api.disconnectBluetoothDevice(deviceSerialNumber, savedConfig, function(error, response) {
+            res.send(response);
+        });
+    });
 
     //Returns Status of Service
     app.post('/sendStatusUpdate', urlencodedParser, function(req, res) {

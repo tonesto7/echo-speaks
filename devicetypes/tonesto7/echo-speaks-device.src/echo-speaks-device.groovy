@@ -25,11 +25,15 @@ String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/e
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli") {
         capability "Sensor"
+        capability "Refresh"
         capability "Music Player"
+        capability "Notification"
         capability "Speech Synthesis"
         
         attribute "lastUpdated", "string"
         attribute "firmwareVer", "string"
+
+        command "sendTestTts"
     }
 
     preferences { 
@@ -37,29 +41,34 @@ metadata {
     }
 
     tiles (scale: 2) {
-        multiAttributeTile(name:"genericMulti", type:"generic", width:6, height:4) {
-            tileAttribute("device.power", key: "PRIMARY_CONTROL") {
-                attributeState "power", label: '${currentValue}W', unit: "W",
-                        foregroundColor: "#000000",
-                        backgroundColors:[
-                            [value: 1, color: "#00cc00"], //Light Green
-                            [value: 2000, color: "#79b821"], //Darker Green
-                            [value: 3000, color: "#ffa81e"], //Orange
-                            [value: 4000, color: "#FFF600"], //Yellow
-                            [value: 5000, color: "#fb1b42"] //Bright Red
-                        ]
-            }
-            tileAttribute("device.lastUpdated", key: "SECONDARY_CONTROL") {
-                attributeState "lastUpdated", label:'Last Updated:\n${currentValue}'
-            }
-        }
-        valueTile("power", "device.power", decoration: "flat", width: 1, height: 1) {
-            state "power", label:'${currentValue} W', unit: "W", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/sense_monitor.png",
-                backgroundColors:[
-                    [value: 0, color: "#ffffff"],
-                    [value: 1, color: "#00a0dc"]
-                ]
-        }
+        multiAttributeTile(name: "mediaMulti", type:"mediaPlayer", width:6, height:4) {
+			tileAttribute("device.status", key: "PRIMARY_CONTROL") {
+				attributeState("paused", label:"Paused",)
+				attributeState("playing", label:"Playing")
+				attributeState("stopped", label:"Stopped")
+			}
+			tileAttribute("device.status", key: "MEDIA_STATUS") {
+				attributeState("paused", label:"Paused", action:"music Player.play", nextState: "playing")
+				attributeState("playing", label:"Playing", action:"music Player.pause", nextState: "paused")
+				attributeState("stopped", label:"Stopped", action:"music Player.play", nextState: "playing")
+			}
+			tileAttribute("device.status", key: "PREVIOUS_TRACK") {
+				attributeState("status", action:"music Player.previousTrack", defaultState: true)
+			}
+			tileAttribute("device.status", key: "NEXT_TRACK") {
+				attributeState("status", action:"music Player.nextTrack", defaultState: true)
+			}
+			tileAttribute ("device.level", key: "SLIDER_CONTROL") {
+				attributeState("level", action:"music Player.setLevel")
+			}
+			tileAttribute ("device.mute", key: "MEDIA_MUTED") {
+				attributeState("unmuted", action:"music Player.mute", nextState: "muted")
+				attributeState("muted", action:"music Player.unmute", nextState: "unmuted")
+			}
+			tileAttribute("device.trackDescription", key: "MARQUEE") {
+				attributeState("trackDescription", label:"${currentValue}", defaultState: true)
+			}
+		}
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state("blank1x1", label:'')
         }
@@ -69,40 +78,34 @@ metadata {
         valueTile("firmwareVer", "device.firmwareVer", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("firmwareVer", label:'Firmware:\n${currentValue}')
         }
-        valueTile("phase1Voltage", "device.phase1Voltage", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("phase1Voltage", label:'Phase 1:\n${currentValue}V', unit: "V")
+        standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Send Test TTS', action: 'sendTestTts')
         }
-        valueTile("phase2Voltage", "device.phase2Voltage", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("phase2Voltage", label:'Phase 2:\n${currentValue}V', unit: "V")
-        }
-        valueTile("phase1Usage", "device.phase1Usage", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("phase1Usage", label:'Phase 1 Usage:\n${currentValue}W', unit: "W")
-        }
-        valueTile("phase2Usage", "device.phase2Usage", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("phase2Usage", label:'Phase 2 Usage:\n${currentValue}W', unit: "W")
-        }
-        valueTile("cycleHz", "device.cycleHz", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("cycleHz", label:'Cycle Hz:\n${currentValue}hz', unit: "HZ")
-        }
-        valueTile("wifi_ssid", "device.wifi_ssid", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("wifi_ssid", label:'WiFi SSID:\n${currentValue}')
-        }
-        valueTile("wifi_signal", "device.wifi_signal", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("wifi_signal", label:'WiFi Signal:\n${currentValue}', unit: "dBm")
-        }
-        valueTile("networkDetection", "device.networkDetection", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("networkDetection", label:'Network Detection:\n${currentValue}')
-        }
-        valueTile("detectionsPending", "device.detectionsPending", height: 2, width: 4, inactiveLabel: false, decoration: "flat") {
-            state("detectionsPending", label:'Pending Device Detections:\n${currentValue}')
-        }
-        main(["power"])
-        details(["genericMulti", "dtCreated", "phase1Voltage", "phase2Voltage", "phase1Usage", "phase2Usage", "cycleHz", "wifi_ssid", "wifi_signal", "networkDetection", "detectionsPending", "firmwareVer"])
+        
+        main(["mediaMulti"])
+        details(["mediaMulti", "dtCreated", "firmwareVer", "sendTest"])
     }
+}
+
+def parse(description) {
+	// No parsing will happen
 }
 
 def installed() {
 	log.trace "${device?.displayName} Executing Installed..."
+
+    state.tracks = [
+		"Gangnam Style (강남스타일)\nPSY\nPsy 6 (Six Rules), Part 1",
+		"Careless Whisper\nWham!\nMake It Big",
+		"Never Gonna Give You Up\nRick Astley\nWhenever You Need Somebody",
+		"Shake It Off\nTaylor Swift\n1989",
+		"Ironic\nAlanis Morissette\nJagged Little Pill",
+		"Hotline Bling\nDrake\nHotline Bling - Single"
+	]
+    state.currentTrack = 0
+	sendEvent(name: "level", value: 72)
+	sendEvent(name: "mute", value: "unmuted")
+	sendEvent(name: "status", value: "stopped")
 	initialize()
 }
 
@@ -121,69 +124,17 @@ def getShortDevName(){
     return device?.displayName?.replace("Echo - ", "")
 }
 
-def updateDeviceStatus(Map echoDevice){
+def updateDeviceStatus(Map echoDevice) {
     String devName = getShortDevName()
-    echoDevice?.monitorData?.each { k,v ->
+    echoDevice?.each { k,v ->
         logger("debug", "$k: $v")
     }
-    
-    Float currentPower = echoDevice?.usage?.isNumber() ? echoDevice?.usage as Float : 0.0
-    Float oldPower = device.currentState("power")?.floatValue ?: -1
-    if (oldPower != currentPower) {
-        def usageChange = (currentPower - oldPower).abs()
-        if (isStateChange(device, "power", currentPower?.toString())) {
-            logger("debug", "Updating usage from $oldPower to $currentPower")
-            sendEvent(name: "power", value: currentPower, units: "W", display: true, displayed: true, isStateChange: true)
-        }
-    }
-    // log.debug "usage: ${echoDevice?.usage} | currentPower: $currentPower | oldPower: ${oldPower}"
-    
-    if(echoDevice?.monitorData) {
-        String firmwareVer = echoDevice?.monitorData?.version ?: "Not Set"
+    state?.serialNumber = echoDevice?.serialNumber
+    if(echoDevice?.size()) {
+        state?.serialNumber = echoDevice?.serialNumber
+        String firmwareVer = echoDevice?.softwareVersion ?: "Not Set"
         if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
-            sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), display: true, displayed: true)
-        }
-        logger("debug", "voltage: ${echoDevice?.monitorData?.voltage}")
-        String volt1 = echoDevice?.monitorData?.voltage && echoDevice?.monitorData?.voltage[0] ? echoDevice?.monitorData?.voltage[0] : "Not Set"
-        if(isStateChange(device, "phase1Voltage", volt1?.toString())) {
-            sendEvent(name: "phase1Voltage", value: volt1?.toString(), display: true, displayed: true)
-        }
-
-        String volt2 = echoDevice?.monitorData?.voltage && echoDevice?.monitorData?.voltage[1] ? echoDevice?.monitorData?.voltage[1] : "Not Set"
-        if(isStateChange(device, "phase2Voltage", volt2?.toString())) {
-            sendEvent(name: "phase2Voltage", value: volt2?.toString(), display: true, displayed: true)
-        }
-
-        String phaseUse1 = echoDevice?.monitorData?.phaseUsage && echoDevice?.monitorData?.phaseUsage[0] ? echoDevice?.monitorData?.phaseUsage[0] : "Not Set"
-        if(isStateChange(device, "phase1Usage", phaseUse1?.toString())) {
-            sendEvent(name: "phase1Usage", value: phaseUse1?.toString(), display: true, displayed: true)
-        }
-
-        String phaseUse2 = echoDevice?.monitorData?.phaseUsage && echoDevice?.monitorData?.phaseUsage[1] ? echoDevice?.monitorData?.phaseUsage[1] : "Not Set"
-        if(isStateChange(device, "phase2Usage", phaseUse2?.toString())) {
-            sendEvent(name: "phase2Usage", value: phaseUse2?.toString(), display: true, displayed: true)
-        }
-        String hz = echoDevice?.monitorData?.hz ?: "Not Set"
-        if(isStateChange(device, "cycleHz", hz?.toString())) {
-            sendEvent(name: "cycleHz", value: hz?.toString(), display: true, displayed: true)
-        }
-        String ssid = echoDevice?.monitorData?.wifi_ssid ?: "Not Set"
-        if(isStateChange(device, "cyclwifi_ssideHz", ssid?.toString())) {
-            sendEvent(name: "wifi_ssid", value: ssid?.toString(), display: true, displayed: true)
-        }
-        String signal = echoDevice?.monitorData?.wifi_signal ?: "Not Set"
-        if(isStateChange(device, "wifi_signal", signal?.toString())) {
-            sendEvent(name: "wifi_signal", value: signal?.toString(), display: true, displayed: true)
-        }
-        String netDetect = (echoDevice?.monitorData?.ndt_enabled == true) ? "Enabled" : "Disabled"
-        if(isStateChange(device, "networkDetection", netDetect?.toString())) {
-            sendEvent(name: "networkDetection", value: netDetect?.toString(), display: true, displayed: true)
-        }
-
-        String pending = (echoDevice?.monitorData?.detectionsPending?.size()) ? echoDevice?.monitorData?.detectionsPending?.collect { "${it?.name} (${it?.progress}%)"}?.join("\n") : "Nothing Pending..."
-        logger("debug", "pending: $pending")
-        if(isStateChange(device, "detectionsPending", pending?.toString())) {
-            sendEvent(name: "detectionsPending", value: pending?.toString(), display: true, displayed: true)
+            sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
         }
     }
     setOnlineStatus((echoDevice?.monitorData?.online != false))
@@ -196,6 +147,156 @@ public setOnlineStatus(Boolean isOnline) {
     }
 }
 
+def deviceNotification(String msg) {
+    log.trace "deviceNotification(msg: $msg)"
+    if(msg) { sendTtsMsg(msg) }
+}
+
+def speak(String msg) {
+    log.trace "speak($msg)"
+    if(msg) { sendTtsMsg(msg) }
+}
+
+def play() {
+    log.debug "play() | Not Supported Yet!!!"
+	// sendEvent(name: "status", value: "playing")
+	// sendEvent(name: "trackDescription", value: state.tracks[state.currentTrack])
+}
+
+def pause() {
+    log.debug "pause() | Not Supported Yet!!!"
+	// sendEvent(name: "status", value: "paused")
+	// sendEvent(name: "trackDescription", value: state.tracks[state.currentTrack])
+}
+
+def stop() {
+    log.debug "stop() | Not Supported Yet!!!"
+	// sendEvent(name: "status", value: "stopped")
+}
+
+def previousTrack() {
+    log.debug "previousTrack() | Not Supported Yet!!!"
+	// state.currentTrack = state.currentTrack - 1
+	// if (state.currentTrack < 0) {
+	// 	state.currentTrack = state.tracks.size()-1
+    // }
+	// sendEvent(name: "trackDescription", value: state.tracks[state.currentTrack])
+}
+
+def nextTrack() {
+    log.debug "nextTrack() | Not Supported Yet!!!"
+	// state.currentTrack = state.currentTrack + 1
+	// if (state.currentTrack == state.tracks.size()) {
+	// 	state.currentTrack = 0
+    // }
+	// sendEvent(name: "trackDescription", value: state.tracks[state.currentTrack])
+}
+
+def mute() {
+    log.debug "mute() | Not Supported Yet!!!"
+	// sendEvent(name: "mute", value: "muted")
+}
+
+def unmute() {
+    log.debug "unmute() | Not Supported Yet!!!"
+	// sendEvent(name: "mute", value: "unmuted")
+}
+
+def setLevel(level) {
+    log.debug "setLevel($level) | Not Supported Yet!!!"
+	// sendEvent(name: "level", value: level)
+}
+
+def setTrack(String uri, metaData="") {
+    log.debug "setLevel($level) | Not Supported Yet!!!"
+	// log.debug "Executing 'setTrack'"
+    // sendCommand("track=$uri")
+}
+
+def resumeTrack() {
+    log.debug "resumeTrack() | Not Supported Yet!!!"
+	// log.debug "Executing 'resumeTrack'"
+	// TODO: handle 'resumeTrack' command
+}
+
+def restoreTrack() {
+    log.debug "restoreTrack() | Not Supported Yet!!!"
+	// log.debug "Executing 'restoreTrack'"
+	// TODO: handle 'restoreTrack' command
+}
+
+def playTrackAtVolume(String uri, volume) {
+    log.debug "playTrackAtVolume() | Not Supported Yet!!!"
+    // log.trace "playTrackAtVolume($uri, $volume)"
+	// sendCommand("playTrack&track=${uri}&volume=${volume}")
+}
+
+def playTrackAndResume(uri, duration, volume=null) {
+    log.debug "playTrackAndResume() | Not Supported Yet!!!"
+    
+    // log.debug "playTrackAndResume($uri, $duration, $volume)"
+	// def cmd = "playTrack&track=${uri}&resume"
+	// if (volume) {
+	// 	cmd += "&volume=${volume}"
+    // }
+    // sendCommand(cmd)
+}
+
+def playTextAndResume(text, volume=null) {
+    log.debug "playTextAndResume($text, $volume)"
+    // def sound = textToSpeech(text)
+    // playTrackAndResume(sound.uri, (sound.duration as Integer) + 1, volume)
+    if(text) { sendTtsMsg(text) }
+}
+
+def playTrackAndRestore(uri, duration, volume=null) {
+    log.debug "playTrackAndRestore() | Not Supported Yet!!!"
+    // log.debug "playTrackAndResume($uri, $duration, $volume)"
+	// def cmd = "playTrack&track=${uri}&restore"
+	// if (volume) {
+	// 	cmd += "&volume=${volume}"
+    // }
+    // sendCommand(cmd)
+}
+
+def playTextAndRestore(text, volume=null) {
+    log.debug "playTextAndResume($text, $volume)"
+	// def sound = textToSpeech(text)
+	// playTrackAndRestore(sound.uri, (sound.duration as Integer) + 1, volume)
+    if(text) { sendTtsMsg(text) }
+}
+
+def playURL(theURL) {
+    log.debug "playURL() | Not Supported Yet!!!"
+	// log.debug "Executing 'playURL'"
+    // sendCommand("url=$theURL")
+}
+
+def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
+    log.debug "playSoundAndTrack() | Not Supported Yet!!!"
+	// log.debug "playSoundAndTrack($uri, $duration, $trackData, $volume)"
+	// def cmd = "playTrack&track=${soundUri}&playlist=${trackData.station}"
+	// if (volume) {
+	// 	cmd += "&volume=${volume}"
+    // }
+    // sendCommand(cmd)
+}
+
+def sendTestTts(ttsMsg) {
+    log.trace "sendTestTts"
+    if(!ttsMsg) { ttsMsg = "Testing Testing 1, 2, 3"}
+	sendTtsMsg(ttsMsg)
+}
+
+public sendTtsMsg(String msg) {
+    if(state?.serialNumber && msg) {
+		parent?.echoServiceCmd("tts", [deviceSerialNumber: state?.serialNumber, tts: msg])
+	} else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
+}
+
+/*****************************************************
+                HELPER FUNCTIONS
+******************************************************/
 def formatDt(dt, String tzFmt=("MM/d/yyyy hh:mm:ss a")) {
 	def tf = new SimpleDateFormat(tzFmt); tf.setTimeZone(location.timeZone);
     return tf.format(dt)
