@@ -1,0 +1,13 @@
+{
+    "versions": {
+        "mainApp": {
+            "ver": "0.0.1"
+        },
+        "echoDevice": {
+            "ver": "0.0.1"
+        },
+        "server": {
+            "ver": "0.0.1"
+        }
+    }
+}

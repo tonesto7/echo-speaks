@@ -1,0 +1,23 @@
+{
+  "name": "Alexa Media Player API",
+  "version": "0.5",
+  "slug": "alexaapi",
+  "description": "API to communicate with alexa devices as media players",
+  "url": "https://home-assistant.io/community",
+  "startup": "once",
+  "boot": "manual",
+  "ports": {
+    "8091/tcp": 8091
+   },
+  "options": {
+    "username": null,
+    "password": null,
+    "url": null
+  },
+  "schema": {
+    "username": "str",
+    "password": "str",
+    "url": "str"
+  },
+  "image": "keatontaylor/{arch}-addon-alexa-api"
+}
