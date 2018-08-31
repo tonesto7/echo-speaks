@@ -22,7 +22,7 @@ new_srvc_dest_path="/etc/systemd/system/$cur_srvc_name"
 old_srvc_name="echo-speaks.service"
 old_srvc_path="/etc/systemd/system/$old_srvc_name"
 
-remote_file="https://github.com/tonesto7/echo-speaks/archive/$src_zip_name"
+remote_file="https://github.com/tonesto7/echo-speaks/archive/$src_zip_name" 
 # ----------------------------------------------------------------------------------------
 
 showTitle() {
