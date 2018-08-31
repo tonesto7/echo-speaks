@@ -27,13 +27,13 @@ remote_file="https://github.com/tonesto7/echo-speaks/archive/$src_zip_name"
 
 showTitle() {
     echo "    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-    echo "    ┃                Echo Speaks Utility Script (v$_scriptVer)                       ┃"
+    echo "    ┃                Echo Speaks Utility Script (v$_scriptVer)                      ┃"
     echo "    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 }
 
 showHelp() {
     echo "    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-    echo "    ┃                Echo Speaks Utility Script (v$_scriptVer)                       ┃"
+    echo "    ┃                Echo Speaks Utility Script (v$_scriptVer)                      ┃"
     echo "    ┃                            Help Page                                  ┃"
     echo "    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
     echo ""
@@ -41,7 +41,7 @@ showHelp() {
     echo "    ┌──────────────────────────┬────────────────────────────────────────────┐"
     echo "    │  Default [No Arg]        │ Runs the Full Installation Process         │"
     echo "    │                          │                                            │"
-    echo "    │  [-port 3000]            │ Defines custom port - Default: (3000)      │"
+    echo "    │  [-port $_port]            │ Defines custom port - Default: ($_port)      │"
     echo "    │                          │                                            │"
     echo "    │  [-f | -force]           │ Forcefully Update Files/Service            │"
     echo "    │                          │                                            │"
@@ -228,7 +228,6 @@ modify_srvc_file_for_user() {
 
 create_srvc_file_for_user() {
     echo "Creating Service File with Current User Path [$_userDir]$usedSudoDesc"
-
     echo "[Unit]" >> $new_srvc_src_path
     echo "Description=Echo Speaks Node Server" >> $new_srvc_src_path
     echo "After=network.target remote-fs.target" >> $new_srvc_src_path
@@ -336,7 +335,7 @@ showCleanupOk() {
     echo ""
     echo "=============================================================="
     echo "              Cleanup/Removal Result: (Success)               "
-    echo "          All Speaks Data and Files Removed            "
+    echo "        All Echo Speaks Data, Files, Service Removed"
     echo "=============================================================="
     echo ""
 }
