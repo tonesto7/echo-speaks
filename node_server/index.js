@@ -1,40 +1,55 @@
-const appVer = '0.0.1';
+const appVer = '0.1.0';
 const alexa_api = require('./alexa-api');
 const reqPromise = require("request-promise");
 const logger = require('./logging');
 const express = require('express');
 const bodyParser = require('body-parser');
 const os = require('os');
-const configFile = require('./config-file');
+const editJsonFile = require("edit-json-file");
+let configFile = editJsonFile(`${__dirname}/server_config.json`);
 const fs = require('fs');
+var configData = {};
 const logDir = 'logs';
-const app = express();
+const configApp = express();
+const webApp = express();
+var urlencodedParser = bodyParser.urlencoded({
+    extended: false
+});
 
 // Create the log directory if it does not exist
 if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir);
 }
 
-const user = configFile.user;
-const password = configFile.password;
-const url = configFile.url;
 
-const serverPort = configFile.serverPort || 8091;
+// These the config variables
+var amznUser = "";
+var amznPassword = "";
+var amznUrl = "";
+var smartThingsHubIP = "";
+var serverPort = 8091;
+
+var scheduledUpdatesActive = false;
 var savedConfig = {};
 var command = {};
-var urlencodedParser = bodyParser.urlencoded({
-    extended: false
-});
-var smartThingsHubIP = configFile.smartThingsHubIP;
 var serviceStartTime = Date.now(); //Returns time in millis
 var refreshSeconds = 60;
 var eventCount = 0;
 var echoDevices = {};
-var echoDeviceStates = {}
+loadConfig();
+
+function loadConfig() {
+    configData = configFile.get();
+    console.log(configData);
+    amznUser = configData.user;
+    amznPassword = configData.password;
+    amznUrl = configData.url;
+    smartThingsHubIP = configData.smartThingsHubIP;
+    serverPort = configData.serverPort || 8091;
+}
 
 async function buildEchoDeviceMap(eDevData) {
     // console.log('eDevData: ', eDevData);
-    let promises = [];
     try {
         let removeKeys = ['appDeviceList', 'charging', 'clusterMembers', 'essid', 'macAddress', 'parentClusters', 'deviceTypeFriendlyName', 'registrationId', 'remainingBatteryLevel', 'postalCode', 'language'];
         for (const dev in eDevData) {
@@ -60,13 +75,47 @@ function getDeviceStateInfo(deviceId) {
     });
 }
 
+function startWebConfig() {
+    configApp.listen(serverPort + 1, function() {
+        tsLogger('Echo Speaks Config Service (v' + appVer + ') is Running at (IP: ' + getIPAddress() + ' | Port: ' + (serverPort + 1) + ') | ProcessId: ' + process.pid);
+    });
+    configApp.get('/configWeb', function(req, res) {
+        res.sendFile(__dirname + '/public/index.html');
+    });
+    configApp.post('/configSave', function(req, res) {
+        if (req.headers.user) {
+            configFile.set('user', req.headers.user);
+        };
+        if (req.headers.password) {
+            configFile.set('password', req.headers.password);
+        };
+        if (req.headers.smartthingshubip) {
+            configFile.set('smartThingsHubIP', req.headers.smartthingshubip);
+        };
+        if (req.headers.url) {
+            configFile.set('url', req.headers.url);
+        };
+        console.log('configData(set): ', configData);
+        if (req.headers.user.length && req.headers.password.length && req.headers.smartthingshubip.length && req.headers.url.length) {
+            configFile.save();
+            res.send('done');
+            if (checkConfigValues()) {
+                startWebServer()
+            }
+        } else {
+            res.send('failed');
+        }
+    });
+}
+
 function startWebServer() {
-    alexa_api.login(user, password, url, function(error, response, config) {
+    let loadWebApp = false;
+    alexa_api.login(amznUser, amznPassword, amznUrl, function(error, response, config) {
         savedConfig = config;
         // console.log('error:', error);
         console.log('response: ', response);
         // console.log('config: ', config);
-        if (config.devicesArray) {
+        if (response === 'Logged in' && config.devicesArray) {
             buildEchoDeviceMap(config.devicesArray.devices)
                 .then(function(devOk) {
                     if (Object.keys(echoDevices).length) {
@@ -74,127 +123,125 @@ function startWebServer() {
                         sendDeviceDataToST(echoDevices);
                         tsLogger("** Device Data Refresh Scheduled for Every (" + refreshSeconds + ' sec) **');
                         setInterval(scheduledDataUpdates, refreshSeconds * 1000);
+                        scheduledUpdatesActive = true;
                     }
+                    loadWebApp = true;
                 })
                 .catch(function(err) {
                     console.log(err);
                 });
-        }
-        app.listen(serverPort, function() {
-            tsLogger('Echo Manager Service (v' + appVer + ') is Running at (IP: ' + getIPAddress() + ' | Port: ' + serverPort + ') | ProcessId: ' + process.pid);
-        });
-    });
-
-    app.post('/alexa-tts', urlencodedParser, function(req, res) {
-        let hubAct = (req.headers.tts !== undefined || req.headers.deviceserialnumber !== undefined);
-        let tts = req.body.tts || req.headers.tts;
-        let deviceSerialNumber = req.body.deviceSerialNumber || req.headers.deviceserialnumber;
-        tsLogger('++ Received a Send TTS Request for Device: ' + deviceSerialNumber + ' | Message: ' + tts + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
-        alexa_api.setTTS(tts, deviceSerialNumber, savedConfig, function(error, response) {
-            res.send(response);
-        });
-    });
-
-    app.post('/alexa-getDevices', urlencodedParser, function(req, res) {
-        console.log('++ Received a getDevices Request...  ++');
-        alexa_api.getDevices(savedConfig, function(error, response) {
-            buildEchoDeviceMap(response.devices)
-                .then(function(devOk) {
-                    res.send(echoDevices);
-                })
-                .catch(function(err) {
-                    res.send(null);
-                });
-        });
-    });
-
-    app.post('/alexa-getState', urlencodedParser, function(req, res) {
-        let hubAct = (req.headers.deviceserialnumber != undefined);
-        let deviceSerialNumber = req.body.deviceSerialNumber || req.headers.echodeviceid;
-        console.log('++ Received a Device State Request for Device: ' + deviceSerialNumber + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
-        alexa_api.getState(deviceSerialNumber, savedConfig, function(error, response) {
-            res.send(response);
-        });
-    });
-
-    app.post('/alexa-getActivities', urlencodedParser, function(req, res) {
-        console.log('got request for getActivities');
-        alexa_api.getActivities(savedConfig, function(error, response) {
-            res.send(response);
-        });
-    });
-
-    app.post('/alexa-setMedia', urlencodedParser, function(req, res) {
-        var volume = req.body.volume;
-        var deviceSerialNumber = req.body.deviceSerialNumber;
-        if (volume) {
-            command = {
-                type: 'VolumeLevelCommand',
-                volumeLevel: parseInt(volume)
-            };
-        } else {
-            command = {
-                type: req.body.command
-            };
-        }
-        console.log('got set media message with command: ' + command + ' for device: ' + deviceSerialNumber);
-        alexa_api.setMedia(command, deviceSerialNumber, savedConfig, function(error, response) {
-            res.send(response);
-        });
-    });
-
-    app.post('/alexa-setBluetooth', urlencodedParser, function(req, res) {
-        var mac = req.body.mac;
-        var deviceSerialNumber = req.body.deviceSerialNumber;
-        console.log('got set bluetooth  message with mac: ' + mac + ' for device: ' + deviceSerialNumber);
-        alexa_api.setBluetoothDevice(mac, deviceSerialNumber, savedConfig, function(error, response) {
-            res.send(response);
-        });
-    });
-
-    app.post('/alexa-getBluetooth', urlencodedParser, function(req, res) {
-        console.log('got get bluetootha message');
-        alexa_api.getBluetoothDevices(savedConfig, function(error, response) {
-            res.send(response);
-        });
-    });
-
-    app.post('/alexa-disconnectBluetooth', urlencodedParser, function(req, res) {
-        var deviceSerialNumber = req.body.deviceSerialNumber;
-        console.log('got set bluetooth disconnect for device: ' + deviceSerialNumber);
-        alexa_api.disconnectBluetoothDevice(deviceSerialNumber, savedConfig, function(error, response) {
-            res.send(response);
-        });
-    });
-
-    //Returns Status of Service
-    app.post('/sendStatusUpdate', urlencodedParser, function(req, res) {
-        tsLogger('++ SmartThings is Requesting Device Data Update... | PID: ' + process.pid + ' ++');
-        res.send(0);
-        sendStatusUpdateToST(alexa_api);
-    });
-
-    app.post('/updateSettings', function(req, res) {
-        tsLogger('** Settings Update Received from SmartThings **');
-        if (req.headers.refreshseconds !== undefined && parseInt(req.headers.refreshseconds) !== refreshSeconds) {
-            tsLogger('++ Changed Setting (refreshSeconds) | New Value: (' + req.headers.refreshseconds + ') | Old Value: (' + refreshSeconds + ') ++');
-            refreshSeconds = parseInt(req.headers.refreshseconds);
-            clearInterval(scheduledDataUpdates);
-            tsLogger("** Device Data Refresh Schedule Changed to Every (" + refreshSeconds + ' sec) **');
-            setInterval(scheduledDataUpdates, refreshSeconds * 1000);
-        }
-        if (req.headers.smartthingshubip !== undefined && req.headers.smartthingshubip !== smartThingsHubIP) {
-            tsLogger('++ Changed Setting (smartThingsHubIP) | New Value: (' + req.headers.smartthingshubip + ') | Old Value: (' + smartThingsHubIP + ') ++');
-            smartThingsHubIP = req.headers.smartthingshubip;
+            webApp.listen(serverPort, function() {
+                tsLogger('Echo Speaks Service (v' + appVer + ') is Running at (IP: ' + getIPAddress() + ' | Port: ' + serverPort + ') | ProcessId: ' + process.pid);
+            });
         }
     });
+    if (loadWebApp) {
+        webApp.post('/alexa-tts', urlencodedParser, function(req, res) {
+            let hubAct = (req.headers.tts !== undefined || req.headers.deviceserialnumber !== undefined);
+            let tts = req.body.tts || req.headers.tts;
+            let deviceSerialNumber = req.body.deviceSerialNumber || req.headers.deviceserialnumber;
+            tsLogger('++ Received a Send TTS Request for Device: ' + deviceSerialNumber + ' | Message: ' + tts + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
+            alexa_api.setTTS(tts, deviceSerialNumber, savedConfig, function(error, response) {
+                res.send(response);
+            });
+        });
 
-    process.stdin.resume(); //so the program will not close instantly
-    //do something when app is closing
-    process.on('exit', exitHandler.bind(null, {
-        exit: true
-    }));
+        webApp.post('/alexa-getDevices', urlencodedParser, function(req, res) {
+            console.log('++ Received a getDevices Request...  ++');
+            alexa_api.getDevices(savedConfig, function(error, response) {
+                buildEchoDeviceMap(response.devices)
+                    .then(function(devOk) {
+                        res.send(echoDevices);
+                    })
+                    .catch(function(err) {
+                        res.send(null);
+                    });
+            });
+        });
+
+        webApp.post('/alexa-getState', urlencodedParser, function(req, res) {
+            let hubAct = (req.headers.deviceserialnumber != undefined);
+            let deviceSerialNumber = req.body.deviceSerialNumber || req.headers.echodeviceid;
+            console.log('++ Received a Device State Request for Device: ' + deviceSerialNumber + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
+            alexa_api.getState(deviceSerialNumber, savedConfig, function(error, response) {
+                res.send(response);
+            });
+        });
+
+        webApp.post('/alexa-getActivities', urlencodedParser, function(req, res) {
+            console.log('got request for getActivities');
+            alexa_api.getActivities(savedConfig, function(error, response) {
+                res.send(response);
+            });
+        });
+
+        webApp.post('/alexa-setMedia', urlencodedParser, function(req, res) {
+            var volume = req.body.volume;
+            var deviceSerialNumber = req.body.deviceSerialNumber;
+            if (volume) {
+                command = {
+                    type: 'VolumeLevelCommand',
+                    volumeLevel: parseInt(volume)
+                };
+            } else {
+                command = {
+                    type: req.body.command
+                };
+            }
+            console.log('got set media message with command: ' + command + ' for device: ' + deviceSerialNumber);
+            alexa_api.setMedia(command, deviceSerialNumber, savedConfig, function(error, response) {
+                res.send(response);
+            });
+        });
+
+        webApp.post('/alexa-setBluetooth', urlencodedParser, function(req, res) {
+            var mac = req.body.mac;
+            var deviceSerialNumber = req.body.deviceSerialNumber;
+            console.log('got set bluetooth  message with mac: ' + mac + ' for device: ' + deviceSerialNumber);
+            alexa_api.setBluetoothDevice(mac, deviceSerialNumber, savedConfig, function(error, response) {
+                res.send(response);
+            });
+        });
+
+        webApp.post('/alexa-getBluetooth', urlencodedParser, function(req, res) {
+            console.log('got get bluetootha message');
+            alexa_api.getBluetoothDevices(savedConfig, function(error, response) {
+                res.send(response);
+            });
+        });
+
+        webApp.post('/alexa-disconnectBluetooth', urlencodedParser, function(req, res) {
+            var deviceSerialNumber = req.body.deviceSerialNumber;
+            console.log('got set bluetooth disconnect for device: ' + deviceSerialNumber);
+            alexa_api.disconnectBluetoothDevice(deviceSerialNumber, savedConfig, function(error, response) {
+                res.send(response);
+            });
+        });
+
+        //Returns Status of Service
+        webApp.post('/sendStatusUpdate', urlencodedParser, function(req, res) {
+            tsLogger('++ SmartThings is Requesting Device Data Update... | PID: ' + process.pid + ' ++');
+            res.send(0);
+            sendStatusUpdateToST(alexa_api);
+        });
+
+        webApp.post('/updateSettings', function(req, res) {
+            tsLogger('** Settings Update Received from SmartThings **');
+            if (req.headers.refreshseconds !== undefined && parseInt(req.headers.refreshseconds) !== refreshSeconds) {
+                tsLogger('++ Changed Setting (refreshSeconds) | New Value: (' + req.headers.refreshseconds + ') | Old Value: (' + refreshSeconds + ') ++');
+                refreshSeconds = parseInt(req.headers.refreshseconds);
+                clearInterval(scheduledDataUpdates);
+                tsLogger("** Device Data Refresh Schedule Changed to Every (" + refreshSeconds + ' sec) **');
+                setInterval(scheduledDataUpdates, refreshSeconds * 1000);
+            }
+            if (req.headers.smartthingshubip !== undefined && req.headers.smartthingshubip !== smartThingsHubIP) {
+                tsLogger('++ Changed Setting (smartThingsHubIP) | New Value: (' + req.headers.smartthingshubip + ') | Old Value: (' + smartThingsHubIP + ') ++');
+                smartThingsHubIP = req.headers.smartthingshubip;
+            }
+        });
+    }
 }
+
 
 function sendDeviceDataToST(eDevData) {
     buildEchoDeviceMap(eDevData)
@@ -288,18 +335,6 @@ function tsLogger(msg) {
     console.log(dt + ' | ' + msg);
 }
 
-function exitHandler(options, err) {
-    console.log('exitHandler: (PID: ' + process.pid + ')', options, err);
-    clearInterval(scheduledDataUpdates);
-    if (options.cleanup) {
-        tsLogger('exitHandler: ', 'ClosedByUserConsole');
-    } else if (err) {
-        tsLogger('exitHandler error', err);
-        if (options.exit) process.exit(1);
-    }
-    process.exit();
-}
-
 function getIPAddress() {
     var interfaces = os.networkInterfaces();
     for (var devName in interfaces) {
@@ -346,5 +381,49 @@ function scheduledDataUpdates() {
     sendStatusUpdateToST(alexa_api);
 }
 
-tsLogger('** Echo Manager Service is Starting Up!  Takes about 10-15 seconds before it\'s available... **');
-startWebServer();
+function checkConfigValues() {
+    return (amznUser === '' || amznPassword === '' || amznUrl === '')
+}
+
+startWebConfig()
+if (checkConfigValues()) {
+    tsLogger('** Configurations settings are missing... Please visit http://' + getIPAddress() + ':' + serverPort + '/configWeb to configure settings...');
+} else {
+    tsLogger('** Echo Speaks Web Service Starting Up!  Takes about 10 seconds before it\'s available... **');
+    startWebServer();
+}
+
+//so the program will not close instantly
+process.stdin.resume();
+//do something when app is closing
+process.on('exit', exitHandler.bind(null, {
+    exit: true
+}));
+
+function exitHandler(options, err) {
+    console.log('exitHandler: (PID: ' + process.pid + ')', options, err);
+    if (scheduledUpdatesActive) {
+        clearInterval(scheduledDataUpdates);
+    }
+    if (options.cleanup) {
+        tsLogger('exitHandler: ', 'ClosedByUserConsole');
+    } else if (err) {
+        tsLogger('exitHandler error', err);
+        if (options.exit) process.exit(1);
+    }
+    process.exit();
+}
+
+var gracefulStopNoMsg = function() {
+    tsLogger('gracefulStopNoMsg: ', process.pid);
+    console.log('graceful setting timeout for PID: ' + process.pid);
+    setTimeout(function() {
+        console.error("Could not close connections in time, forcefully shutting down");
+        process.exit(1);
+    }, 2 * 1000);
+};
+
+var gracefulStop = function() {
+    tsLogger('gracefulStop: ', 'ClosedByNodeService ' + process.pid);
+    let a = gracefulStopNoMsg();
+};

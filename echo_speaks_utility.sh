@@ -355,6 +355,7 @@ else
         showTitle
         install_prereqs
         getLatestPackage
+
     elif [ "$1" = "-r" ] || [ "$1" = "-remove" ] || [ "$1" = "-clean" ]; then
         showTitle
         remove_all
@@ -381,7 +382,7 @@ else
         showPkgDlOk
         sudoPreCmd "journalctl -f -u echo-speaks.service"
 
-    elif [ "$1" = "-help" ] || [ "$1" = "-h" ] || [ "$1" = "-?" ] || [ "$1" != "-u" ] || [ "$1" != "-update" ] || [ "$1" != "-f" ] || [ "$1" != "-force" ] || [ "$1" != "-r" ] || [ "$1" != "-remove" ] || [ "$1" != "-clean" ]; then
+    elif [ "$1" = "-help" ] || [ "$1" = "-h" ] || [ "$1" = "-?" ] || [ "$1" != "-u" ] || [ "$1" != "-update" ] || [ "$1" != "-f" ] || [ "$1" != "-force" ] || [ "$1" != "-r" ] || [ "$1" != "-remove" ] || [ "$1" != "-clean" ] || [ "$1" != "-p" ] || [ "$1" != "-port" ]; then
         showHelp
     fi
 fi

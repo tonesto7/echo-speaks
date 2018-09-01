@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=" crossorigin="anonymous"></script>
+    <style>
+        form div {
+            margin-bottom: 0.5em;
+        }
+        
+        form div label,
+        form div input {
+            display: block;
+            margin-bottom: 0.3em;
+        }
+    </style>
+</head>
+
+<body>
+    <form action="#" method="post">
+        <div>
+            <label for="user">Amazon Email</label>
+            <input type="text" name="user" id="user" />
+        </div>
+        <div>
+            <label for="password">AmazonPassword</label>
+            <input type="password" name="password" id="password" />
+        </div>
+        <div>
+            <label for="url">Alexa Url</label>
+            <input type="text" name="url" id="url" />
+        </div>
+        <div>
+            <label for="smartThingsHubIP">SmartThings Hub IP</label>
+            <input type="text" name="smartThingsHubIP" id="smartThingsHubIP" />
+        </div>
+        <p>
+            <input type="submit" value="Send" />
+        </p>
+    </form>
+    <script>
+        console.log('host: ' + window.location.host);
+        let rootUrl = window.location.host;
+        (function($) {
+            $.fn.serializeFormJSON = function() {
+
+                var o = {};
+                var a = this.serializeArray();
+                $.each(a, function() {
+                    if (o[this.name]) {
+                        if (!o[this.name].push) {
+                            o[this.name] = [o[this.name]];
+                        }
+                        o[this.name].push(this.value || '');
+                    } else {
+                        o[this.name] = this.value || '';
+                    }
+                });
+                return o;
+            };
+        })(jQuery);
+
+        $('form').submit(function(e) {
+            e.preventDefault();
+            var config = $(this).serializeFormJSON();
+            if (Object.keys(config)) {
+                console.log(config);
+                var xmlhttp = new XMLHttpRequest();
+                xmlhttp.open("POST", 'http://' + rootUrl + '/configSave');
+                xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                for (const h in config) {
+                    xmlhttp.setRequestHeader(h.toString(), config[h].toString())
+                }
+                xmlhttp.send(JSON.stringify(config));
+            }
+        });
+    </script>
+</body>
+
+</html>
