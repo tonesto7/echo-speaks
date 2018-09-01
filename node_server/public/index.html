@@ -1,62 +1,135 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.blue_grey-deep_orange.min.css" />
-    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>Echo Speaks Configuration</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- Bootstrap core CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Material Design Bootstrap -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.5.9/css/mdb.min.css" rel="stylesheet">
+    <!-- JQuery -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <!-- Bootstrap tooltips -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.13.0/umd/popper.min.js"></script>
+    <!-- Bootstrap core JavaScript -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/js/bootstrap.min.js"></script>
+
     <style>
         form div {
             margin-bottom: 0.5em;
+            margin: 0 auto;
+        }
+        
+        button.btn.btn-info.btn-block.my-4 {
+            max-width: 200px;
+            text-align: center;
+        }
+        
+        .btn-rounded {
+            border-radius: 50px!important;
         }
         
         form div label,
         form div input {
             display: block;
+            /* margin: 0 auto; */
             margin-bottom: 0.3em;
         }
     </style>
 </head>
 
 <body>
-    <form action="#" method="post">
-        <div>
-            <label for="user">Amazon Email</label>
-            <input type="text" name="user" id="user" />
-        </div>
-        <div>
-            <label for="password">AmazonPassword</label>
-            <input type="password" name="password" id="password" />
-        </div>
-        <div>
-            <label for="url">Alexa Url</label>
-            <input type="text" name="url" id="url" />
-        </div>
-        <div>
-            <label for="smartThingsHubIP">SmartThings Hub IP</label>
-            <input type="text" name="smartThingsHubIP" id="smartThingsHubIP" />
-        </div>
-        <div>
-            <label for="refreshSeconds">Send Data to SmartThings Every? (Seconds)</label>
-            <input type="number" name="refreshSeconds" id="refreshSeconds" />
-        </div>
-        <p>
-            <input type="submit" value="Send" />
-        </p>
-    </form>
-    <div aria-live="assertive" aria-atomic="true" aria-relevant="text" class="mdl-snackbar mdl-js-snackbar">
-        <div class="mdl-snackbar__text"></div>
-        <button type="button" class="mdl-snackbar__action"></button>
+    <!-- Settings Form -->
+    <div style="margin: 0 auto; max-width: 500px;">
+        <form class="p-5">
+            <p class="h4 mb-4 text-center">Echo Speaks Configuration</p>
+            <div class="card w-100 mb-3">
+                <div class="card-header deep-orange lighten-1 white-text w-100 text-center">Amazon Login</div>
+                <div class="card-body">
+                    <!-- <h4 class="card-title">Special title treatment</h4>
+                    <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
+                    <a class="btn btn-deep-orange">Go somewhere</a> -->
+                    <div class="md-form mt-0">
+                        <i class="fa fa-user prefix"></i>
+                        <input type="email" id="user" name="user" class="form-control" aria-describedby="emailHelpBlockMD">
+                        <label for="user" data-error="wrong" data-success="right">Email</label>
+                        <small id="emailHelpBlockMD" class="form-text text-muted">
+                            Enter your Amazon login email.
+                        </small>
+                    </div>
+                    <div class="md-form mb-0">
+                        <i class="fa fa-lock prefix"></i>
+                        <input type="password" id="password" name="password" class="form-control" aria-describedby="passwordHelpBlockMD">
+                        <label for="password" data-error="wrong" data-success="right">Password</label>
+                        <small id="passwordHelpBlockMD" class="form-text text-muted">
+                            Your password must be 8-20 characters long, contain letters and numbers, and must not contain spaces, special characters, or emoji.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Material input -->
+            <div class="card w-100 mb-3">
+                <div class="card-header gray lighten-1 w-100 text-center">Other Settings</div>
+                <div class="card-body w-100">
+                    <div class="md-form mt-0">
+                        <i class="fa fa-at prefix"></i>
+                        <input type="text" id="url" name="url" class="form-control" aria-describedby="urlHelpBlockMD">
+                        <label for="url" data-error="wrong" data-success="right">Alexa Web URL</label>
+                        <small id="urlHelpBlockMD" class="form-text text-muted">
+                            Enter the Alexa URL for login `https://alexa.amazon.com`
+                        </small>
+                    </div>
+                    <div class="md-form">
+                        <i class="fa fa-microchip prefix"></i>
+                        <input type="text" id="smartThingsHubIP" name="smartThingsHubIP" class="form-control" aria-describedby="smartThingsHubIPHelpBlockMD">
+                        <label for="smartThingsHubIP" data-error="wrong" data-success="right">SmartThings Hub IP</label>
+                        <small id="smartThingsHubIPHelpBlockMD" class="form-text text-muted">
+                            Enter the IP Address xxx.xxx.xxx.xxx
+                        </small>
+                    </div>
+                    <div class="md-form mb-0">
+                        <i class="fa fa-refresh prefix"></i>
+                        <input type="number" id="refreshSeconds" name="refreshSeconds" class="form-control" aria-describedby="refreshSecondsHelpBlockMD">
+                        <label for="refreshSeconds" data-error="wrong" data-success="right">Device Data Refresh (Seconds)</label>
+                        <small id="refreshSecondsHelpBlockMD" class="form-text text-muted">
+                            Enter a number between 5-3600
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sign in button -->
+            <div class="text-center">
+                <button class="btn btn-success btn-rounded my-4" type="submit"><i class="fa fa-save mr-1"></i>Save Settings</button>
+            </div>
+        </form>
     </div>
+    <!-- MDB core JavaScript -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.5.9/js/mdb.min.js"></script>
+    <!-- Settings Form -->
     <script>
+        // Get Root Page URL for Callback to Send Settings
         console.log('host: ' + window.location.host);
         let rootUrl = window.location.host;
+        $(document).ready(function() {
+            let url = 'http://' + rootUrl + '/configData';
+            $.getJSON(url, function(data) {
+                $.each(data, function(key, val) {
+                    if ($('#' + key)) {
+                        $('#' + key).attr('value', val);
+                    }
+                });
+            });
+        });
+
         (function($) {
             $.fn.serializeFormJSON = function() {
-
                 var o = {};
                 var a = this.serializeArray();
                 $.each(a, function() {
@@ -76,19 +149,21 @@
         $('form').submit(function(e) {
             e.preventDefault();
             var config = $(this).serializeFormJSON();
-            if (Object.keys(config)) {
+            var url = "http://10.0.0.173:8092/configSave";
+            if (Object.keys(config).length) {
                 console.log(config);
+                // $.post(url, {
+                //     "clientId": "1",
+                //     "sensor": "Temp",
+                //     "dateStart": "2016-09-03 00:00:00",
+                //     "dateEnd": "2016-09-03 00:59:59"
+                // })
                 var xmlhttp = new XMLHttpRequest();
                 xmlhttp.open("POST", 'http://' + rootUrl + '/configSave');
                 xmlhttp.onreadystatechange = function() {
                     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
                         console.log(xmlhttp.responseText);
-                        var notification = document.querySelector('.mdl-js-snackbar');
-                        var data = {
-                            message: 'Configuration Saved!',
-                            timeout: 10000
-                        };
-                        notification.MaterialSnackbar.showSnackbar(data);
+                        toastr.success('Configuration Saved!');
                     }
                 }
                 xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
@@ -96,7 +171,6 @@
                     xmlhttp.setRequestHeader(h.toString(), config[h].toString())
                 }
                 xmlhttp.send(JSON.stringify(config));
-
             }
         });
     </script>
