@@ -6,34 +6,25 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const os = require('os');
 const editJsonFile = require("edit-json-file");
-let configFile = editJsonFile(`${__dirname}/server_config.json`);
+const configFile = editJsonFile(`${__dirname}/server_config.json`);
 const fs = require('fs');
-var configData = {};
-const logDir = 'logs';
 const configApp = express();
 const webApp = express();
-var urlencodedParser = bodyParser.urlencoded({
+const urlencodedParser = bodyParser.urlencoded({
     extended: false
 });
-
-// Create the log directory if it does not exist
-if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir);
-}
-
+// const logDir = 'logs';
+// // Create the log directory if it does not exist
+// if (!fs.existsSync(logDir)) {
+//     fs.mkdirSync(logDir);
+// }
 
 // These the config variables
-var amznUser = "";
-var amznPassword = "";
-var amznUrl = "";
-var smartThingsHubIP = "";
-var serverPort = 8091;
-
+var configData = {};
 var scheduledUpdatesActive = false;
 var savedConfig = {};
 var command = {};
 var serviceStartTime = Date.now(); //Returns time in millis
-var refreshSeconds = 60;
 var eventCount = 0;
 var echoDevices = {};
 loadConfig();
@@ -41,11 +32,8 @@ loadConfig();
 function loadConfig() {
     configData = configFile.get();
     console.log(configData);
-    amznUser = configData.user;
-    amznPassword = configData.password;
-    amznUrl = configData.url;
-    smartThingsHubIP = configData.smartThingsHubIP;
-    serverPort = configData.serverPort || 8091;
+    configData.serverPort = configData.serverPort || 8091;
+    configData.refreshSeconds = configData.refreshSeconds || 60;
 }
 
 async function buildEchoDeviceMap(eDevData) {
@@ -76,8 +64,11 @@ function getDeviceStateInfo(deviceId) {
 }
 
 function startWebConfig() {
-    configApp.listen(serverPort + 1, function() {
-        tsLogger('Echo Speaks Config Service (v' + appVer + ') is Running at (IP: ' + getIPAddress() + ' | Port: ' + (serverPort + 1) + ') | ProcessId: ' + process.pid);
+    configApp.listen(configData.serverPort + 1, function() {
+        tsLogger('Echo Speaks Config Service (v' + appVer + ') is Running at (IP: ' + getIPAddress() + ' | Port: ' + (configData.serverPort + 1) + ') | ProcessId: ' + process.pid);
+        if (!configCheckOk()) {
+            tsLogger('** Configurations Settings Missing... Please visit http://' + getIPAddress() + ':' + (configData.serverPort + 1) + '/configWeb to configure settings...');
+        }
     });
     configApp.get('/configWeb', function(req, res) {
         res.sendFile(__dirname + '/public/index.html');
@@ -95,11 +86,16 @@ function startWebConfig() {
         if (req.headers.url) {
             configFile.set('url', req.headers.url);
         };
+        if (req.headers.refreshseconds) {
+            configFile.set('refreshSeconds', parseInt(req.headers.refreshseconds));
+        };
         console.log('configData(set): ', configData);
-        if (req.headers.user.length && req.headers.password.length && req.headers.smartthingshubip.length && req.headers.url.length) {
+        if (req.headers.user.length && req.headers.password.length && req.headers.smartthingshubip.length && req.headers.url.length && req.headers.refreshseconds.length) {
             configFile.save();
+            loadConfig();
             res.send('done');
-            if (checkConfigValues()) {
+            if (configCheckOk()) {
+                tsLogger("** Settings File Updated... Starting Alexa Web Server **")
                 startWebServer()
             }
         } else {
@@ -110,7 +106,7 @@ function startWebConfig() {
 
 function startWebServer() {
     let loadWebApp = false;
-    alexa_api.login(amznUser, amznPassword, amznUrl, function(error, response, config) {
+    alexa_api.login(configData.user, configData.password, configData.url, function(error, response, config) {
         savedConfig = config;
         // console.log('error:', error);
         console.log('response: ', response);
@@ -121,8 +117,8 @@ function startWebServer() {
                     if (Object.keys(echoDevices).length) {
                         // console.log(echoDevices);
                         sendDeviceDataToST(echoDevices);
-                        tsLogger("** Device Data Refresh Scheduled for Every (" + refreshSeconds + ' sec) **');
-                        setInterval(scheduledDataUpdates, refreshSeconds * 1000);
+                        tsLogger("** Device Data Refresh Scheduled for Every (" + configData.refreshSeconds + ' sec) **');
+                        setInterval(scheduledDataUpdates, configData.refreshSeconds * 1000);
                         scheduledUpdatesActive = true;
                     }
                     loadWebApp = true;
@@ -130,8 +126,8 @@ function startWebServer() {
                 .catch(function(err) {
                     console.log(err);
                 });
-            webApp.listen(serverPort, function() {
-                tsLogger('Echo Speaks Service (v' + appVer + ') is Running at (IP: ' + getIPAddress() + ' | Port: ' + serverPort + ') | ProcessId: ' + process.pid);
+            webApp.listen(configData.serverPort, function() {
+                tsLogger('Echo Speaks Service (v' + appVer + ') is Running at (IP: ' + getIPAddress() + ' | Port: ' + configData.serverPort + ') | ProcessId: ' + process.pid);
             });
         }
     });
@@ -227,17 +223,20 @@ function startWebServer() {
 
         webApp.post('/updateSettings', function(req, res) {
             tsLogger('** Settings Update Received from SmartThings **');
-            if (req.headers.refreshseconds !== undefined && parseInt(req.headers.refreshseconds) !== refreshSeconds) {
-                tsLogger('++ Changed Setting (refreshSeconds) | New Value: (' + req.headers.refreshseconds + ') | Old Value: (' + refreshSeconds + ') ++');
-                refreshSeconds = parseInt(req.headers.refreshseconds);
+            if (req.headers.refreshseconds !== undefined && parseInt(req.headers.refreshseconds) !== configData.refreshSeconds) {
+                tsLogger('++ Changed Setting (refreshSeconds) | New Value: (' + req.headers.refreshseconds + ') | Old Value: (' + configData.refreshSeconds + ') ++');
+                configData.refreshSeconds = parseInt(req.headers.refreshseconds);
+                configFile.set('refreshSeconds', parseInt(req.headers.refreshseconds));
                 clearInterval(scheduledDataUpdates);
-                tsLogger("** Device Data Refresh Schedule Changed to Every (" + refreshSeconds + ' sec) **');
-                setInterval(scheduledDataUpdates, refreshSeconds * 1000);
+                tsLogger("** Device Data Refresh Schedule Changed to Every (" + configData.refreshSeconds + ' sec) **');
+                setInterval(scheduledDataUpdates, configData.refreshSeconds * 1000);
             }
-            if (req.headers.smartthingshubip !== undefined && req.headers.smartthingshubip !== smartThingsHubIP) {
-                tsLogger('++ Changed Setting (smartThingsHubIP) | New Value: (' + req.headers.smartthingshubip + ') | Old Value: (' + smartThingsHubIP + ') ++');
-                smartThingsHubIP = req.headers.smartthingshubip;
+            if (req.headers.smartthingshubip !== undefined && req.headers.smartthingshubip !== configData.smartThingsHubIP) {
+                tsLogger('++ Changed Setting (smartThingsHubIP) | New Value: (' + req.headers.smartthingshubip + ') | Old Value: (' + configData.smartThingsHubIP + ') ++');
+                configFile.set('smartThingsHubIP', req.headers.smartthingshubip);
+                configData.smartThingsHubIP = req.headers.smartthingshubip;
             }
+            configFile.save();
         });
     }
 }
@@ -248,7 +247,7 @@ function sendDeviceDataToST(eDevData) {
         .then(function(devOk) {
             let options = {
                 method: 'POST',
-                uri: 'http://' + smartThingsHubIP + ':39500/event',
+                uri: 'http://' + configData.smartThingsHubIP + ':39500/event',
                 headers: {
                     'evtSource': 'Echo_Speaks',
                     'evtType': 'sendStatusData'
@@ -261,11 +260,11 @@ function sendDeviceDataToST(eDevData) {
                         'sessionEvts': eventCount,
                         'startupDt': getServiceUptime(),
                         'ip': getIPAddress(),
-                        'port': serverPort,
+                        'port': configData.serverPort,
                         // 'hostInfo': getHostInfo(),
                         'config': {
-                            'refreshSeconds': refreshSeconds,
-                            'smartThingsHubIP': smartThingsHubIP
+                            'refreshSeconds': configData.refreshSeconds,
+                            'smartThingsHubIP': configData.smartThingsHubIP
                         }
                     }
                 },
@@ -291,7 +290,7 @@ function sendStatusUpdateToST(self) {
             .then(function(devOk) {
                 let options = {
                     method: 'POST',
-                    uri: 'http://' + smartThingsHubIP + ':39500/event',
+                    uri: 'http://' + configData.smartThingsHubIP + ':39500/event',
                     headers: {
                         'evtSource': 'Echo_Speaks',
                         'evtType': 'sendStatusData'
@@ -304,11 +303,11 @@ function sendStatusUpdateToST(self) {
                             'sessionEvts': eventCount,
                             'startupDt': getServiceUptime(),
                             'ip': getIPAddress(),
-                            'port': serverPort,
+                            'port': configData.serverPort,
                             // 'hostInfo': getHostInfo(),
                             'config': {
-                                'refreshSeconds': refreshSeconds,
-                                'smartThingsHubIP': smartThingsHubIP
+                                'refreshSeconds': configData.refreshSeconds,
+                                'smartThingsHubIP': configData.smartThingsHubIP
                             }
                         }
                     },
@@ -381,14 +380,12 @@ function scheduledDataUpdates() {
     sendStatusUpdateToST(alexa_api);
 }
 
-function checkConfigValues() {
-    return (amznUser === '' || amznPassword === '' || amznUrl === '')
+function configCheckOk() {
+    return (configData.user === '' || configData.password === '' || configData.url === '') ? false : true
 }
 
 startWebConfig()
-if (checkConfigValues()) {
-    tsLogger('** Configurations settings are missing... Please visit http://' + getIPAddress() + ':' + serverPort + '/configWeb to configure settings...');
-} else {
+if (configCheckOk()) {
     tsLogger('** Echo Speaks Web Service Starting Up!  Takes about 10 seconds before it\'s available... **');
     startWebServer();
 }

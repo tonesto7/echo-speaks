@@ -39,6 +39,10 @@
             <label for="smartThingsHubIP">SmartThings Hub IP</label>
             <input type="text" name="smartThingsHubIP" id="smartThingsHubIP" />
         </div>
+        <div>
+            <label for="refreshSeconds">Send Data to SmartThings Every? (Seconds)</label>
+            <input type="number" name="refreshSeconds" id="refreshSeconds" />
+        </div>
         <p>
             <input type="submit" value="Send" />
         </p>
@@ -81,8 +85,7 @@
                         console.log(xmlhttp.responseText);
                         var notification = document.querySelector('.mdl-js-snackbar');
                         var data = {
-                            message: 'Message Sent',
-                            actionHandler: function(event) {},
+                            message: 'Configuration Saved!',
                             timeout: 10000
                         };
                         notification.MaterialSnackbar.showSnackbar(data);
