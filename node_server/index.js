@@ -31,7 +31,7 @@ loadConfig();
 
 function loadConfig() {
     configData = configFile.get();
-    console.log(configData);
+    // console.log(configData);
     configData.serverPort = configData.serverPort || 8091;
     configData.refreshSeconds = configData.refreshSeconds || 60;
 }
@@ -64,14 +64,23 @@ function getDeviceStateInfo(deviceId) {
 }
 
 function startWebConfig() {
+    // configApp.use('/configWeb', express.static(__dirname + 'public'))
     configApp.listen(configData.serverPort + 1, function() {
         tsLogger('Echo Speaks Config Service (v' + appVer + ') is Running at (IP: ' + getIPAddress() + ' | Port: ' + (configData.serverPort + 1) + ') | ProcessId: ' + process.pid);
         if (!configCheckOk()) {
             tsLogger('** Configurations Settings Missing... Please visit http://' + getIPAddress() + ':' + (configData.serverPort + 1) + '/configWeb to configure settings...');
         }
     });
+    configApp.use(function(req, res, next) {
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+        next();
+    });
     configApp.get('/configWeb', function(req, res) {
         res.sendFile(__dirname + '/public/index.html');
+    });
+    configApp.get('/configData', function(req, res) {
+        res.send(JSON.stringify(configData));
     });
     configApp.post('/configSave', function(req, res) {
         if (req.headers.user) {
@@ -95,8 +104,10 @@ function startWebConfig() {
             loadConfig();
             res.send('done');
             if (configCheckOk()) {
-                tsLogger("** Settings File Updated... Starting Alexa Web Server **")
-                startWebServer()
+                tsLogger("** Settings File Updated via Web Config **");
+                if (!scheduledUpdatesActive) {
+                    startWebServer()
+                }
             }
         } else {
             res.send('failed');

@@ -261,8 +261,8 @@ remove_old_srvc() {
     echo "Checking for Existing Echo Speaks Service File"
     if [ -f $old_srvc_path ]; then
         check_sudo "true"
-        echo "Result: Found Existing Service File..."
-        echo "Disabling and Removing Existing Echo Speaks Service$usedSudoDesc"
+        echo "Result: Found Existing Echo Speaks Service..."
+        echo "Disabling and Removing Service$usedSudoDesc"
         sudoPreCmd "systemctl stop $old_srvc_name"
         sudoPreCmd "systemctl disable $old_srvc_name"
         sudoPreCmd "rm $old_srvc_path"
@@ -281,14 +281,14 @@ update_srvc() {
     fi
     if [ ! -f "$old_srvc_path" ]; then
         check_sudo "true"
-        echo "Copying Updated Echo Speaks Service File to Systemd Folder$usedSudoDesc"
+        echo "Copying Updated Service File to Systemd Folder$usedSudoDesc"
         sudoPreCmd "cp $new_srvc_src_path $new_srvc_dest_path -f"
         if [ -f $new_srvc_dest_path ]; then
             echo "Reloading Systemd Daemon to Reflect Service File Changes$usedSudoDesc"
             sudoPreCmd "systemctl daemon-reload"
             echo "Enabling Echo Speaks Service (Systemd)$usedSudoDesc"
             sudoPreCmd "systemctl enable $cur_srvc_name"
-            echo "Starting Echo Speaks Streaming Service (v$_srvcVer)$usedSudoDesc"
+            echo "Starting Echo Speaks Service (v$_srvcVer)$usedSudoDesc"
             sudoPreCmd "systemctl start $cur_srvc_name"
         else
             echo "Error: Copying Service File to Systemd folder didn't work"
@@ -308,7 +308,7 @@ pkg_cleanup() {
         if [ checkOwnerOk != "true" ]; then
             set_owner
         fi
-        echo "Removing All Echo Speaks Data and Files$usedSudoDesc"
+        echo "Removing Remaining Data and Files$usedSudoDesc"
         sudoPreCmd "rm -rf $working_app_dir"
         if [ -f $_userDir/$src_zip_name ]; then
             sudoPreCmd "rm -rf $_userDir/$src_zip_name"
