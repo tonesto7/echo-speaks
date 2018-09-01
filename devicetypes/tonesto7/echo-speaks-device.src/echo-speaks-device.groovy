@@ -18,8 +18,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.0.1"}
-String devModified() { return "2018-08-31"}
+String devVersion() { return "0.1.0"}
+String devModified() { return "2018-09-01"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {

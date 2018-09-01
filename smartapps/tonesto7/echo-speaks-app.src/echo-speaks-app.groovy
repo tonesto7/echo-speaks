@@ -2,9 +2,7 @@
  *	Echo Speaks SmartApp
  *
  *	Author: Anthony Santilli
- *  Last Updated: 2018-08-30
  * Based off of Keaton Taylors HomeAssistant Module: https://github.com/keatontaylor/hassio-addons
- *
  *
  *  Copyright 2018 Brian Beaird and Anthony Santilli
  *
@@ -21,8 +19,8 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion() { return "0.0.1" }
-String appModified() { return "2018-08-31"}
+String appVersion() { return "0.1.0" }
+String appModified() { return "2018-09-01"}
 String appAuthor() { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
@@ -335,7 +333,7 @@ def receiveEventData(Map evtData) {
 			}
 			
 			if (evtData?.echoDevices?.size()) {
-				// log.debug "echoDevices: " + evtData?.echoDevices?.size()
+				log.debug "echoDevices: " + evtData?.echoDevices?.size()
 				
 				Map echoDeviceMap = [:]
 				Integer cnt = 0
@@ -367,7 +365,7 @@ def receiveEventData(Map evtData) {
 								childDevice?.label = devLabel
 							}
 						}
-						logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
+						// logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
 						childDevice?.updateDeviceStatus(echoValue)
 					}
 					modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map

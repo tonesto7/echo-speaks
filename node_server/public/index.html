@@ -3,8 +3,11 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.blue_grey-deep_orange.min.css" />
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
     <style>
         form div {
             margin-bottom: 0.5em;
@@ -40,6 +43,10 @@
             <input type="submit" value="Send" />
         </p>
     </form>
+    <div aria-live="assertive" aria-atomic="true" aria-relevant="text" class="mdl-snackbar mdl-js-snackbar">
+        <div class="mdl-snackbar__text"></div>
+        <button type="button" class="mdl-snackbar__action"></button>
+    </div>
     <script>
         console.log('host: ' + window.location.host);
         let rootUrl = window.location.host;
@@ -69,11 +76,24 @@
                 console.log(config);
                 var xmlhttp = new XMLHttpRequest();
                 xmlhttp.open("POST", 'http://' + rootUrl + '/configSave');
+                xmlhttp.onreadystatechange = function() {
+                    if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                        console.log(xmlhttp.responseText);
+                        var notification = document.querySelector('.mdl-js-snackbar');
+                        var data = {
+                            message: 'Message Sent',
+                            actionHandler: function(event) {},
+                            timeout: 10000
+                        };
+                        notification.MaterialSnackbar.showSnackbar(data);
+                    }
+                }
                 xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
                 for (const h in config) {
                     xmlhttp.setRequestHeader(h.toString(), config[h].toString())
                 }
                 xmlhttp.send(JSON.stringify(config));
+
             }
         });
     </script>
