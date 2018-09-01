@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ---------------------------------GLOBAL VARIABLES--------------------------------------
-_scriptVer="0.1"
-_srvcVer="0.0.1"
+_scriptVer="0.2"
+_srvcVer="0.1.0"
 _useSudo="false"
 _instNode="false"
 _port="8091"
@@ -79,6 +79,13 @@ verifySystemd() {
     if [ ! -x "$(command -v systemctl)" ]; then
         echo "Error: Systemd is not available on this device..."
         exit 1
+    fi
+}
+
+verifyNode() {
+    if [ ! -x "$(command -v node)" ]; then
+        echo "Info: NodeJS is not installed... Setting Install to True"
+        $_instNode = "true"
     fi
 }
 
@@ -343,6 +350,7 @@ showCleanupOk() {
 # echo "Executing Script $0 $1"
 clear
 verifySystemd
+verifyNode
 if [ $# -eq 0 ]; then
     showTitle
     install_prereqs
@@ -355,6 +363,7 @@ else
         showTitle
         install_prereqs
         getLatestPackage
+
     elif [ "$1" = "-r" ] || [ "$1" = "-remove" ] || [ "$1" = "-clean" ]; then
         showTitle
         remove_all
@@ -381,7 +390,7 @@ else
         showPkgDlOk
         sudoPreCmd "journalctl -f -u echo-speaks.service"
 
-    elif [ "$1" = "-help" ] || [ "$1" = "-h" ] || [ "$1" = "-?" ] || [ "$1" != "-u" ] || [ "$1" != "-update" ] || [ "$1" != "-f" ] || [ "$1" != "-force" ] || [ "$1" != "-r" ] || [ "$1" != "-remove" ] || [ "$1" != "-clean" ]; then
+    elif [ "$1" = "-help" ] || [ "$1" = "-h" ] || [ "$1" = "-?" ] || [ "$1" != "-u" ] || [ "$1" != "-update" ] || [ "$1" != "-f" ] || [ "$1" != "-force" ] || [ "$1" != "-r" ] || [ "$1" != "-remove" ] || [ "$1" != "-clean" ] || [ "$1" != "-p" ] || [ "$1" != "-port" ]; then
         showHelp
     fi
 fi

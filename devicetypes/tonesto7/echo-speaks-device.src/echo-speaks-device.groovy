@@ -18,8 +18,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.0.1"}
-String devModified() { return "2018-08-31"}
+String devVersion() { return "0.1.0"}
+String devModified() { return "2018-09-01"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -32,6 +32,7 @@ metadata {
         
         attribute "lastUpdated", "string"
         attribute "firmwareVer", "string"
+        attribute "onlineStatus", "string"
 
         command "sendTestTts"
     }
@@ -81,8 +82,10 @@ metadata {
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
         }
-        
-        main(["mediaMulti"])
+        valueTile("status", "device.onlineStatus", height: 1, width: 2, decoration: "flat") {
+            state("default", label: '${currentValue}', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png")
+        }
+        main(["status"])
         details(["mediaMulti", "dtCreated", "firmwareVer", "sendTest"])
     }
 }
@@ -137,13 +140,14 @@ def updateDeviceStatus(Map echoDevice) {
             sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
         }
     }
-    setOnlineStatus((echoDevice?.monitorData?.online != false))
+    setOnlineStatus((echoDevice?.online != false))
     sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
 }
 
 public setOnlineStatus(Boolean isOnline) {
-    if(isStateChange(device, "DeviceWatch-DeviceStatus", (isOnline ? "online" : "offline"))) {
+    if(isStateChange(device, "DeviceWatch-DeviceStatus", (isOnline ? "online" : "offline")) || isStateChange(device, "onlineStatus", (isOnline ? "online" : "offline"))) {
         sendEvent(name: "DeviceWatch-DeviceStatus", value: (isOnline ? "online" : "offline"), displayed: true, isStateChange: true)
+        sendEvent(name: "onlineStatus", value: (isOnline ? "online" : "offline"), displayed: true, isStateChange: true)
     }
 }
 

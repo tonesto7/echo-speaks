@@ -1,6 +1,6 @@
 {
     "env": {
-        "browser": false,
+        "browser": true,
         "commonjs": true,
         "es6": true,
         "node": true
@@ -21,6 +21,24 @@
         "no-unreachable": "warn",
         "no-unused-vars": "warn",
         "constructor-super": "warn",
-        "valid-typeof": "warn"
+        "valid-typeof": "warn",
+        "camelcase": 0,
+        "new-cap": 0,
+        "max-len": 0,
+        "no-mixed-operators": 0,
+        "no-nested-ternary": 0,
+        "no-console": 0,
+        "linebreak-style": 0,
+        "prefer-const": 0,
+        "no-useless-escape": 0,
+        "no-param-reassign": [2, {
+            "props": false
+        }],
+        "prefer-destructuring": ["error", {
+            "array": false,
+            "object": false
+        }, {
+            "enforceForRenamedProperties": false
+        }]
     }
 }
