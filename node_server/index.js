@@ -235,7 +235,6 @@ function startWebServer() {
                 .catch(function(err) {
                     console.log(err);
                 });
-
         }
     });
 }

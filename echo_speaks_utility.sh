@@ -5,6 +5,7 @@ _scriptVer="0.2"
 _srvcVer="0.1.0"
 _useSudo="false"
 _instNode="false"
+_instServ="false"
 _port="8091"
 
 _currentUser="$USER"
@@ -78,6 +79,7 @@ check_sudo() {
 verifySystemd() {
     if [ ! -x "$(command -v systemctl)" ]; then
         echo "Error: Systemd is not available on this device..."
+        echo "Exiting the Echo Speaks Utility..."
         exit 1
     fi
 }
@@ -349,13 +351,13 @@ showCleanupOk() {
 
 # echo "Executing Script $0 $1"
 clear
-verifySystemd
 verifyNode
+verifySystemd
 if [ $# -eq 0 ]; then
+    $_instServ="true"
     showTitle
     install_prereqs
     getLatestPackage
-    
 else
     if [ "$1" = "-p" ] || [ "$1" = "-port" ]; then
         _port="$2"
