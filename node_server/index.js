@@ -252,50 +252,8 @@ function startWebServer() {
 
 
 function sendDeviceDataToST(eDevData) {
-    buildEchoDeviceMap(eDevData)
-        .then(function(devOk) {
-            let options = {
-                method: 'POST',
-                uri: 'http://' + configData.smartThingsHubIP + ':39500/event',
-                headers: {
-                    'evtSource': 'Echo_Speaks',
-                    'evtType': 'sendStatusData'
-                },
-                body: {
-                    'echoDevices': echoDevices,
-                    'timestamp': Date.now(),
-                    'serviceInfo': {
-                        'version': appVer,
-                        'sessionEvts': eventCount,
-                        'startupDt': getServiceUptime(),
-                        'ip': getIPAddress(),
-                        'port': configData.serverPort,
-                        // 'hostInfo': getHostInfo(),
-                        'config': {
-                            'refreshSeconds': configData.refreshSeconds,
-                            'smartThingsHubIP': configData.smartThingsHubIP
-                        }
-                    }
-                },
-                json: true
-            };
-            reqPromise(options)
-                .then(function() {
-                    eventCount++;
-                    tsLogger('** Sent Echo Speaks Data to SmartThings Hub Successfully! **');
-                })
-                .catch(function(err) {
-                    console.log("ERROR: Unable to connect to SmartThings Hub: " + err.message);
-                });
-        })
-        .catch(function(err) {
-            console.log(err);
-        });
-}
-
-function sendStatusUpdateToST(self) {
-    self.getDevices(savedConfig, function(error, response) {
-        buildEchoDeviceMap(response.devices)
+    try {
+        buildEchoDeviceMap(eDevData)
             .then(function(devOk) {
                 let options = {
                     method: 'POST',
@@ -313,7 +271,6 @@ function sendStatusUpdateToST(self) {
                             'startupDt': getServiceUptime(),
                             'ip': getIPAddress(),
                             'port': configData.serverPort,
-                            // 'hostInfo': getHostInfo(),
                             'config': {
                                 'refreshSeconds': configData.refreshSeconds,
                                 'smartThingsHubIP': configData.smartThingsHubIP
@@ -322,7 +279,6 @@ function sendStatusUpdateToST(self) {
                     },
                     json: true
                 };
-                // console.log('echoDevices (statUpd):', echoDevices);
                 reqPromise(options)
                     .then(function() {
                         eventCount++;
@@ -335,6 +291,59 @@ function sendStatusUpdateToST(self) {
             .catch(function(err) {
                 console.log(err);
             });
+    } catch (err) {
+        console.log('sendStatusUpdateToST Error: ', err.message);
+    }
+}
+
+function sendStatusUpdateToST(self) {
+    self.getDevices(savedConfig, function(error, response) {
+        try {
+            buildEchoDeviceMap(response.devices)
+                .then(function(devOk) {
+                    let options = {
+                            method: 'POST',
+                            uri: 'http://' + configData.smartThingsHubIP + ':39500/event',
+                            headers: {
+                                'evtSource': 'Echo_Speaks',
+                                'evtType': 'sendStatusData'
+                            },
+                            body: {
+                                'echoDevices': echoDevices,
+                                'timestamp': Date.now(),
+                                'serviceInfo': {
+                                    'version': appVer,
+                                    'sessionEvts': eventCount,
+                                    'startupDt': getServiceUptime(),
+                                    'ip': getIPAddress(),
+                                    'port': configData.serverPort,
+                                    'config': {
+                                        'refreshSeconds': configData.refreshSeconds,
+                                        'smartThingsHubIP': configData.smartThingsHubIP
+                                    }
+                                }
+                            },
+                            json: true
+                        }
+                        .catch(function(err) {
+                            console.log('sendStatusUpdateToST Error: ', err);
+                        })
+                        // console.log('echoDevices (statUpd):', echoDevices);
+                    reqPromise(options)
+                        .then(function() {
+                            eventCount++;
+                            tsLogger('** Sent Echo Speaks Data to SmartThings Hub Successfully! **');
+                        })
+                        .catch(function(err) {
+                            console.log("ERROR: Unable to connect to SmartThings Hub: " + err.message);
+                        });
+                })
+                .catch(function(err) {
+                    console.log(err);
+                });
+        } catch (err) {
+            console.log('sendStatusUpdateToST Error: ', err.message);
+        }
     });
 }
 
