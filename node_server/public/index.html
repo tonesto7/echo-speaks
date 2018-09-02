@@ -12,12 +12,14 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet">
     <!-- Material Design Bootstrap -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.5.9/css/mdb.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" rel="stylesheet">
     <!-- JQuery -->
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <!-- Bootstrap tooltips -->
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.13.0/umd/popper.min.js"></script>
     <!-- Bootstrap core JavaScript -->
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
 
     <style>
         form div {
@@ -121,8 +123,10 @@
             let url = 'http://' + rootUrl + '/configData';
             $.getJSON(url, function(data) {
                 $.each(data, function(key, val) {
-                    if ($('#' + key)) {
-                        $('#' + key).attr('value', val);
+                    var elem = document.getElementById(key);
+                    if ($(elem)) {
+                        $(elem).attr('value', val);
+                        $(elem).focus();
                     }
                 });
             });
@@ -162,8 +166,26 @@
                 xmlhttp.open("POST", 'http://' + rootUrl + '/configSave');
                 xmlhttp.onreadystatechange = function() {
                     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-                        console.log(xmlhttp.responseText);
-                        toastr.success('Configuration Saved!');
+                        // console.log(xmlhttp.responseText);
+                        // Command: toastr["success"]("Settings Saved", "Success")
+                        toastr.options = {
+                            "closeButton": false,
+                            "debug": false,
+                            "newestOnTop": false,
+                            "progressBar": false,
+                            "positionClass": "toast-bottom-center",
+                            "preventDuplicates": true,
+                            "onclick": null,
+                            "showDuration": 300,
+                            "hideDuration": 1000,
+                            "timeOut": 5000,
+                            "extendedTimeOut": 1000,
+                            "showEasing": "swing",
+                            "hideEasing": "linear",
+                            "showMethod": "fadeIn",
+                            "hideMethod": "fadeOut"
+                        }
+                        toastr.success('Success!', "Setting Saved..")
                     }
                 }
                 xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
@@ -171,6 +193,7 @@
                     xmlhttp.setRequestHeader(h.toString(), config[h].toString())
                 }
                 xmlhttp.send(JSON.stringify(config));
+
             }
         });
     </script>
