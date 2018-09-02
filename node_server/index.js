@@ -98,7 +98,7 @@ function startWebConfig() {
         if (req.headers.refreshseconds) {
             configFile.set('refreshSeconds', parseInt(req.headers.refreshseconds));
         };
-        console.log('configData(set): ', configData);
+        // console.log('configData(set): ', configData);
         if (req.headers.user.length && req.headers.password.length && req.headers.smartthingshubip.length && req.headers.url.length && req.headers.refreshseconds.length) {
             configFile.save();
             loadConfig();
@@ -120,12 +120,11 @@ function startWebServer() {
     alexa_api.login(configData.user, configData.password, configData.url, function(error, response, config) {
         savedConfig = config;
         // console.log('error:', error);
-        console.log('response: ', response);
+        console.log('Alexa Login Status: ', response);
         // console.log('config: ', config);
         if (response === 'Logged in' && config.devicesArray) {
             buildEchoDeviceMap(config.devicesArray.devices)
                 .then(function(devOk) {
-
                     webApp.listen(configData.serverPort, function() {
                         tsLogger('Echo Speaks Service (v' + appVer + ') is Running at (IP: ' + getIPAddress() + ' | Port: ' + configData.serverPort + ') | ProcessId: ' + process.pid);
                     });
@@ -325,9 +324,6 @@ function sendStatusUpdateToST(self) {
                             },
                             json: true
                         }
-                        .catch(function(err) {
-                            console.log('sendStatusUpdateToST Error: ', err);
-                        })
                         // console.log('echoDevices (statUpd):', echoDevices);
                     reqPromise(options)
                         .then(function() {
@@ -339,7 +335,7 @@ function sendStatusUpdateToST(self) {
                         });
                 })
                 .catch(function(err) {
-                    console.log(err);
+                    console.log('sendStatusUpdateToST Error: ', err);
                 });
         } catch (err) {
             console.log('sendStatusUpdateToST Error: ', err.message);
