@@ -1,0 +1,19 @@
+form div {
+    margin-bottom: 0.5em;
+    margin: 0 auto;
+}
+
+button.btn.btn-info.btn-block.my-4 {
+    max-width: 200px;
+    text-align: center;
+}
+
+.btn-rounded {
+    border-radius: 50px !important;
+}
+
+form div label,
+form div input {
+    display: block;
+    margin-bottom: 0.3em;
+}

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ---------------------------------GLOBAL VARIABLES--------------------------------------
-_scriptVer="0.2"
+_scriptVer="0.3"
 _srvcVer="0.1.0"
 _useSudo="false"
 _instNode="false"
@@ -53,6 +53,11 @@ showHelp() {
     echo "    │                          │ latest package file and updates the        │"
     echo "    │                          │ existing files and reinstalls the service  │"
     echo "    │                          │                                            │"
+    echo "    │  [-svc_logs]             │ Display Echo Speaks Logs Output            │"
+    echo "    │                          │                                            │"
+    echo "    │  [-svc_restart]          │ Restart Echo Speak Service                 │"
+    echo "    │                          │                                            │"
+    echo "    │  [-svc_restart_logs]     │ Restart Service and Display Logs           │"
     echo "    ├──────────────────────────┴────────────────────────────────────────────┤"
     echo "    │       You can use the -port parameter by itself or after -update      │"
     echo "    │       and -force                                                      │"
@@ -392,7 +397,29 @@ else
         showPkgDlOk
         sudoPreCmd "journalctl -f -u echo-speaks.service"
 
-    elif [ "$1" = "-help" ] || [ "$1" = "-h" ] || [ "$1" = "-?" ] || [ "$1" != "-u" ] || [ "$1" != "-update" ] || [ "$1" != "-f" ] || [ "$1" != "-force" ] || [ "$1" != "-r" ] || [ "$1" != "-remove" ] || [ "$1" != "-clean" ] || [ "$1" != "-p" ] || [ "$1" != "-port" ]; then
+    elif [ "$1" = "-svc_restart" ] ; then
+        echo ""
+        echo "--------------------------------------------------------------------------"
+        echo "Restarting Echo Speaks Service$usedSudoDesc"
+        echo "--------------------------------------------------------------------------"
+        sudoPreCmd "systemctl restart echo-speaks.service"
+
+    elif [ "$1" = "-svc_logs" ] ; then
+        echo ""
+        echo "--------------------------------------------------------------------------"
+        echo "Showing Echo Speaks Service Logs"
+        echo "--------------------------------------------------------------------------"
+        sudoPreCmd "journalctl -f -u echo-speaks.service"
+    
+    elif [ "$1" = "-svc_restart_logs" ] ; then
+        echo ""
+        echo "--------------------------------------------------------------------------"
+        echo "Restarting Echo Speaks Service$usedSudoDesc"
+        echo "Showing Echo Speaks Service Logs"
+        echo "--------------------------------------------------------------------------"
+        sudoPreCmd "systemctl restart echo-speaks.service && journalctl -f -u echo-speaks.service"
+
+    elif [ "$1" = "-help" ] || [ "$1" = "-h" ] || [ "$1" = "-?" ] || [ "$1" != "-u" ] || [ "$1" != "-update" ] || [ "$1" != "-f" ] || [ "$1" != "-force" ] || [ "$1" != "-r" ] || [ "$1" != "-remove" ] || [ "$1" != "-clean" ] || [ "$1" != "-p" ] || [ "$1" != "-port" ] || [ "$1" != "-svc_restart"] || [ "$1" != "-svc_logs"] || [ "$1" != "-svc_restart_logs"]; then
         showHelp
     fi
 fi
