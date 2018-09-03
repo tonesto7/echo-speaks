@@ -44,7 +44,7 @@
             <p class="h4 mb-4 text-center">Echo Speaks Configuration</p>
             <div class="card w-100 mb-3">
                 <div class="card-header deep-orange lighten-1 white-text w-100 text-center">Amazon Login</div>
-                <div class="card-body">
+                <div class="card-body w-100">
                     <!-- <h4 class="card-title">Special title treatment</h4>
                     <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
                     <a class="btn btn-deep-orange">Go somewhere</a> -->
@@ -56,12 +56,23 @@
                             Enter your Amazon login email.
                         </small>
                     </div>
-                    <div class="md-form mb-0">
+                    <div class="md-form">
                         <i class="fa fa-lock prefix"></i>
                         <input type="password" id="password" name="password" class="form-control" aria-describedby="passwordHelpBlockMD">
                         <label for="password" data-error="wrong" data-success="right">Password</label>
                         <small id="passwordHelpBlockMD" class="form-text text-muted">
-                            Your password must be 8-20 characters long, contain letters and numbers, and must not contain spaces, special characters, or emoji.
+                            No password requirements defined.
+                        </small>
+                    </div>
+                    <div>
+                        <img id="captcha_img" style="display: none; max-width: 200px;" src=""></img>
+                    </div>
+                    <div id="captcha_input" style="display: none;" class="md-form mb-0">
+                        <i class="fa fa-question prefix"></i>
+                        <input type="text" id="captcha" name="captcha" class="form-control" aria-describedby="captchaHelpBlockMD">
+                        <label for="captcha" data-error="wrong" data-success="right">Enter Captcha Text</label>
+                        <small id="captchaHelpBlockMD" class="form-text text-muted">
+                            Nothing here yet.
                         </small>
                     </div>
                 </div>
@@ -111,14 +122,21 @@
         // Get Root Page URL for Callback to Send Settings
         console.log('host: ' + window.location.host);
         let rootUrl = window.location.host;
+
         $(document).ready(function() {
             let url = 'http://' + rootUrl + '/configData';
             $.getJSON(url, function(data) {
+                console.log('configData: ', data);
                 $.each(data, function(key, val) {
                     var elem = document.getElementById(key);
                     if ($(elem)) {
-                        $(elem).attr('value', val);
-                        $(elem).focus();
+                        if (key === 'captcha' && (val !== undefined || val !== "")) {
+                            $('#captcha_input').show();
+                            $('#captcha_input').show().attr("src", val);
+                        } else {
+                            $(elem).attr('value', val);
+                            $(elem).focus();
+                        }
                     }
                 });
             });
@@ -145,7 +163,7 @@
         $('form').submit(function(e) {
             e.preventDefault();
             var config = $(this).serializeFormJSON();
-            var url = "http://10.0.0.173:8092/configSave";
+            var url = 'http://' + rootUrl + '/configSave';
             if (Object.keys(config).length) {
                 console.log(config);
                 // $.post(url, {

@@ -1,10 +1,57 @@
-var request = require('request');
-const reqPromise = require("request-promise");
-var Nightmare = require('nightmare');
-var nightmare = Nightmare({
+const request = require('request');
+const Browser = require('zombie');
+const Nightmare = require('nightmare');
+const nightmare = Nightmare({
     show: false
 });
-var dateFormat = require('dateformat');
+const dateFormat = require('dateformat');
+
+var zombieSession = undefined;
+
+var loginZombie = async function(userName, password, alexa_url, confirmCode = undefined, callback) {
+
+    let browser = new Browser({
+        site: alexa_url
+    });
+    let captchaSrc = undefined;
+    try {
+        // browser.debug();
+        await browser.visit('/');
+        await browser.fill('email', userName);
+        await browser.fill('password', password);
+        await browser.check('rememberMe');
+        await browser.pressButton('#auth-signin-button #signInSubmit');
+        await browser.wait();
+        const captcha = browser.querySelector('#auth-captcha-image');
+        console.log(captcha.src);
+        if (captcha.src !== undefined) {
+            captchaSrc = encodeURI(captcha.src);
+        }
+        // const saveAuth = await browser.querySelector('label input[type="checkbox" name="rememberMe"]');
+        // console.log('saveAuth: ', saveAuth);
+
+        // await browser.fire('#auth-signin-button', 'click');
+        // await browser.document.forms[0].submit();
+        // console.log(await browser.html());
+        // const captcha = browser.querySelector('#auth-captcha-image');
+        // console.log(captcha.src);
+        // const cookies = await browser.saveCookies()
+        // console.log('logs: ', cookies);
+        // console.log(await browser.visit('/api/devices-v2/device?cached=false'));
+    } catch (error) {
+        console.log('loginZombie: ' + error.message);
+        callback(error, 'There was an error: ' + error.message, undefined);
+    } finally {
+        if (captchaSrc) {
+            zombieSession = browser;
+            callback(null, 'Confirmation-Required', { captcha: captchaSrc })
+        } else {
+            browser.destroy();
+            callback(null, 'Logged in', {})
+        };
+    }
+};
+
 
 var login = function(userName, password, alexa_url, callback) {
     var devicesArray = [];
@@ -20,6 +67,15 @@ var login = function(userName, password, alexa_url, callback) {
         .goto(alexa_url)
         .type('#ap_email', userName)
         .type('#ap_password', password)
+        .wait('label input[type="checkbox" name="rememberMe"]')
+        .evaluate(function() {
+            let checkbox = document.querySelector('label input[type="checkbox" name="rememberMe"]');
+            if (checkbox) {
+                console.log('checkbox: ', checkbox);
+                checkbox.click();
+                console.log('checkbox_after: ', checkbox);
+            }
+        })
         .click('#signInSubmit')
         .wait(1000)
         .goto(alexa_url + '/api/devices-v2/device')
@@ -106,7 +162,7 @@ var setReminder = function(message, datetime, deviceSerialNumber, config, callba
             isRecurring: false,
             createdDate: createdDate
         }
-    }, function(error, response, body) {
+    }, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "status": "success"
@@ -144,7 +200,7 @@ var setTTS = function(message, deviceSerialNumber, config, callback) {
         \"customerId\":\"" + device.deviceOwnerCustomerId + "\", \"textToSpeak\": \"" + message + "\"}}}",
             "status": "ENABLED"
         }
-    }, function(error, response, body) {
+    }, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "status": "success"
@@ -175,7 +231,7 @@ var setMedia = function(command, deviceSerialNumber, config, callback) {
             'csrf': config.csrf
         },
         json: command
-    }, function(error, response, body) {
+    }, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "status": "success"
@@ -266,7 +322,7 @@ var setBluetoothDevice = function(mac, deviceSerialNumber, config, callback) {
         json: {
             bluetoothDeviceAddress: mac
         }
-    }, function(error, response, body) {
+    }, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "message": "success"
@@ -293,7 +349,7 @@ var disconnectBluetoothDevice = function(deviceSerialNumber, config, callback) {
             'Cookie': config.cookies,
             'csrf': config.csrf
         },
-    }, function(error, response, body) {
+    }, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "message": "success"
@@ -305,6 +361,7 @@ var disconnectBluetoothDevice = function(deviceSerialNumber, config, callback) {
 };
 
 exports.login = login;
+exports.loginZombie = loginZombie;
 exports.setReminder = setReminder;
 exports.setTTS = setTTS;
 exports.setMedia = setMedia;

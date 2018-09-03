@@ -1,8 +1,8 @@
 {
-    "user": "",
-    "password": "",
-    "url": "https://alexa.amazon.com",
-    "smartThingsHubIP": "10.0.0.200",
-    "serverPort": 8091,
-    "refreshSeconds": 20
+  "user": "tonesto7@gmail.com",
+  "password": "b%Hqu!DIQu0y",
+  "url": "https://alexa.amazon.com",
+  "smartThingsHubIP": "10.0.0.200",
+  "serverPort": 8091,
+  "refreshSeconds": 20
 }

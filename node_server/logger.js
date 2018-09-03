@@ -1,8 +1,10 @@
 'use: strict';
+const homedir = require('os').homedir();
+const logDir = homedir + '/.echo-speaks/logs';
+const logNamePrefix = 'Echo-Speaks';
 const winston = require('winston');
 const moment = require('moment');
 const tsFormat = () => getPrettyDt();
-const logDir = 'logs';
 
 function getPrettyDt() {
     if (moment) {
@@ -38,14 +40,14 @@ const logger = new(winston.Logger)({
     },
     transports: [
         new(winston.transports.Console)({
-            levels: 'trace',
+            levels: 'error',
             colorize: true,
             prettyPrint: true,
             timestamp: tsFormat
         }),
         new(require('winston-daily-rotate-file'))({
-            filename: logDir + '/NST_Streaming_Service-%DATE%.log',
-            levels: 'trace',
+            filename: logDir + '/' + logNamePrefix + '-%DATE%.log',
+            levels: 'error',
             colorize: false,
             prettyPrint: true,
             timestamp: tsFormat,
