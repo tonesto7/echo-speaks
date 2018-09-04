@@ -67,15 +67,8 @@ var login = function(userName, password, alexa_url, callback) {
         .goto(alexa_url)
         .type('#ap_email', userName)
         .type('#ap_password', password)
-        .wait('label input[type="checkbox" name="rememberMe"]')
-        .evaluate(function() {
-            let checkbox = document.querySelector('label input[type="checkbox" name="rememberMe"]');
-            if (checkbox) {
-                console.log('checkbox: ', checkbox);
-                checkbox.click();
-                console.log('checkbox_after: ', checkbox);
-            }
-        })
+        // .wait('label input[type="checkbox" name="rememberMe"]')
+        // .check('rememberMe'),
         .click('#signInSubmit')
         .wait(1000)
         .goto(alexa_url + '/api/devices-v2/device')
