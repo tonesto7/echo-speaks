@@ -90,8 +90,8 @@ function startWebConfig() {
             if (configCheckOk()) {
                 tsLogger("** Settings File Updated via Web Config **");
                 if (!scheduledUpdatesActive) {
-                    // startWebServer()
-                    // startWebServerTest()
+                    startWebServer()
+                        // startWebServerTest()
                 }
             }
         } else {
@@ -102,7 +102,7 @@ function startWebConfig() {
 
 function startWebServerTest() {
     let loadWebApp = false;
-    alexa_api.loginZombie(configData.user, configData.password, configData.url, configData.confirmCode, function(error, response, config) {
+    alexa_api.loginZombie(configData.user, configData.password, configData.url, function(error, response, config) {
         logger.trace('Alexa Login Status: ', response);
         savedConfig = config;
         if (response === 'Logged in' && config.devicesArray) {
@@ -236,7 +236,6 @@ function startWebServerTest() {
 }
 
 function startWebServer() {
-    let loadWebApp = false;
     alexa_api.login(configData.user, configData.password, configData.url, function(error, response, config) {
         savedConfig = config;
         // console.log('error:', error);

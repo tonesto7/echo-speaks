@@ -1,113 +1,55 @@
 const request = require('request');
-const Browser = require('zombie');
+const alexaCookie = require('alexa-cookie2');
+
 const Nightmare = require('nightmare');
 const nightmare = Nightmare({
     show: false
 });
 const dateFormat = require('dateformat');
 
-var zombieSession = undefined;
-
-var loginZombie = async function(userName, password, alexa_url, confirmCode = undefined, callback) {
-
-    let browser = new Browser({
-        site: alexa_url
-    });
-    let captchaSrc = undefined;
-    try {
-        // browser.debug();
-        await browser.visit('/');
-        await browser.fill('email', userName);
-        await browser.fill('password', password);
-        await browser.check('rememberMe');
-        await browser.pressButton('#auth-signin-button #signInSubmit');
-        await browser.wait();
-        const captcha = browser.querySelector('#auth-captcha-image');
-        console.log(captcha.src);
-        if (captcha.src !== undefined) {
-            captchaSrc = encodeURI(captcha.src);
-        }
-        // const saveAuth = await browser.querySelector('label input[type="checkbox" name="rememberMe"]');
-        // console.log('saveAuth: ', saveAuth);
-
-        // await browser.fire('#auth-signin-button', 'click');
-        // await browser.document.forms[0].submit();
-        // console.log(await browser.html());
-        // const captcha = browser.querySelector('#auth-captcha-image');
-        // console.log(captcha.src);
-        // const cookies = await browser.saveCookies()
-        // console.log('logs: ', cookies);
-        // console.log(await browser.visit('/api/devices-v2/device?cached=false'));
-    } catch (error) {
-        console.log('loginZombie: ' + error.message);
-        callback(error, 'There was an error: ' + error.message, undefined);
-    } finally {
-        if (captchaSrc) {
-            zombieSession = browser;
-            callback(null, 'Confirmation-Required', { captcha: captchaSrc })
-        } else {
-            browser.destroy();
-            callback(null, 'Logged in', {})
-        };
-    }
+const alexaOptions = { // options is optional at all
+    logger: console.log, // optional: Logger instance to get (debug) logs
+    amazonPage: 'amazon.com', // optional: possible to use with different countries, default is 'amazon.de'
+    alexaServiceHost: 'pitangui.amazon.com', // optional: possible to use with different countries, default is 'layla.amazon.de'
+    acceptLanguage: 'en-US', // optional: webpage language, should match to amazon-Page, default is 'de-DE'
+    userAgent: '...', // optional: own userAgent to use for all request, overwrites default one
+    setupProxy: true, // optional: should the library setup a proxy to get cookie when automatic way did not worked? Default false!
+    proxyOwnIp: '127.0.0.1', // required if proxy enabled: provide own IP or hostname to later access the proxy. needed to setup all rewriting and proxy stuff internally
+    proxyPort: 3456, // optional: use this port for the proxy, default is 0 means random port is selected
+    proxyListenBind: '0.0.0.0', // optional: set this to bind the proxy to a special IP, default is '0.0.0.0'
+    proxyLogLevel: 'info' // optional: Loglevel of Proxy, default 'warn'
 };
-
 
 var login = function(userName, password, alexa_url, callback) {
     var devicesArray = [];
-    var cookiesArray = [];
     var deviceSerialNumber;
     var deviceType;
     var deviceOwnerCustomerId;
-    var strCookies = '';
-    var csrf = '';
     var config = {};
 
-    nightmare
-        .goto(alexa_url)
-        .type('#ap_email', userName)
-        .type('#ap_password', password)
-        // .wait('label input[type="checkbox" name="rememberMe"]')
-        // .check('rememberMe'),
-        .click('#signInSubmit')
-        .wait(1000)
-        .goto(alexa_url + '/api/devices-v2/device')
-        .wait()
-        .evaluate(function() {
-            return document.body.innerText;
-        })
-        .then(function(result) {
-            devicesArray = JSON.parse(result);
-        })
-        .then(function() {
-            return nightmare
-                .cookies.get({
-                    url: null
-                })
-                .end()
-                .then(cookies => {
-                    cookiesArray = cookies;
-                });
-        })
-        .then(function() {
-            cookiesArray.forEach(function(cookie) {
-                strCookies += cookie.name + '=' + cookie.value + '; ';
-                if (cookie.name === 'csrf') {
-                    csrf = cookie.value;
-                }
-            });
-            config.devicesArray = devicesArray;
-            config.cookies = strCookies;
-            config.csrf = csrf;
-            config.deviceSerialNumber = deviceSerialNumber;
-            config.deviceType = deviceType;
-            config.deviceOwnerCustomerId = deviceOwnerCustomerId;
-            config.alexaURL = alexa_url;
-            callback(null, 'Logged in', config);
-        })
-        .catch(function(error) {
+    alexaCookie.generateAlexaCookie(userName, password, alexaOptions, function(err, result) {
+        if (err) {
+            console.log('error: ', err);
             callback(error, 'There was an error', null);
-        });
+        } else {
+            // IMPORTANT: can be called multiple times!! As soon as a new cookie is fetched or an error happened. Consider that!
+            console.log('cookie: ' + result.cookie || undefined);
+            console.log('csrf: ' + result.csrf || undefined);
+            if (result && result.csrf) {
+                alexaCookie.stopProxyServer();
+                config.devicesArray = devicesArray;
+                config.cookies = result.strCookies;
+                config.csrf = result.csrf;
+                config.deviceSerialNumber = deviceSerialNumber;
+                config.deviceType = deviceType;
+                config.deviceOwnerCustomerId = deviceOwnerCustomerId;
+                config.alexaURL = alexa_url;
+                callback(null, 'Logged in', config);
+            } else {
+                callback(true, 'There was an error getting authentication', null);
+            }
+        }
+    });
 };
 
 var setReminder = function(message, datetime, deviceSerialNumber, config, callback) {
@@ -353,8 +295,19 @@ var disconnectBluetoothDevice = function(deviceSerialNumber, config, callback) {
     });
 };
 
+// function verifyLogin() {
+//     String response = makeRequestAndReturnString(alexaServer + "/api/bootstrap?version=0");
+//     Boolean result = response.contains("\"authenticated\":true");
+//     if (result) {
+//         verifyTime = new Date();
+//         if (loginTime == null) {
+//             loginTime = verifyTime;
+//         }
+//     }
+//     return result;
+// }
+
 exports.login = login;
-exports.loginZombie = loginZombie;
 exports.setReminder = setReminder;
 exports.setTTS = setTTS;
 exports.setMedia = setMedia;
