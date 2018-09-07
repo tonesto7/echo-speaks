@@ -599,12 +599,4 @@ function exitHandler(options, exitCode) {
         console.error("Could not close connections in time, forcefully shutting down");
         process.exit(1);
     }, 2 * 1000);
-    // console.log('exitHandler: (PID: ' + process.pid + ')', options, err);
-    // if (options.cleanup) {
-    //     tsLogger('exitHandler: ClosedByUserConsole');
-    // } else if (err) {
-    //     tsLogger('exitHandler error' + err.message);
-    //     if (options.exit) { process.exit(1); }
-    // }
-    // process.exit();
 }

@@ -1,10 +1,5 @@
 const request = require('request');
 const alexaCookie = require('alexa-cookie2');
-
-const Nightmare = require('nightmare');
-const nightmare = Nightmare({
-    show: false
-});
 const dateFormat = require('dateformat');
 
 const alexaOptions = { // options is optional at all

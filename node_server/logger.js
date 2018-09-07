@@ -12,53 +12,91 @@ function getPrettyDt() {
     }
 }
 
-// This initializes the winston logging instance
-const logger = new(winston.Logger)({
-    levels: {
-        trace: 0,
-        input: 1,
-        verbose: 2,
-        prompt: 3,
-        debug: 4,
-        info: 5,
-        data: 6,
-        help: 7,
-        warn: 8,
-        error: 9
+var options = {
+    file: {
+        level: 'info',
+        filename: logDir + '/' + logNamePrefix + '-%DATE%.log',
+        prettyPrint: true,
+        timestamp: tsFormat,
+        localTime: true,
+        datePattern: 'MM-DD-YYYY',
+        handleExceptions: true,
+        json: true,
+        maxsize: 5242880, // 5MB
+        maxFiles: 5,
+        colorize: false,
+        prepend: true
     },
-    colors: {
-        trace: 'magenta',
-        input: 'grey',
-        verbose: 'cyan',
-        prompt: 'grey',
-        debug: 'yellow',
-        info: 'green',
-        data: 'blue',
-        help: 'cyan',
-        warn: 'orange',
-        error: 'red'
+    console: {
+        level: 'debug',
+        handleExceptions: true,
+        json: false,
+        colorize: true,
+        prepend: true,
+        timestamp: tsFormat
     },
-    transports: [
-        new(winston.transports.Console)({
-            levels: 'error',
-            colorize: true,
-            prettyPrint: true,
-            timestamp: tsFormat
-        }),
-        new(require('winston-daily-rotate-file'))({
-            filename: logDir + '/' + logNamePrefix + '-%DATE%.log',
-            levels: 'error',
-            colorize: false,
-            prettyPrint: true,
-            timestamp: tsFormat,
-            json: false,
-            localTime: true,
-            datePattern: 'MM-DD-YYYY',
-            maxFiles: 20,
-            prepend: true
+};
+
+// var logger = new winston.Logger({
+//     transports: [
+//         new winston.transports.File(options.file),
+//         new winston.transports.Console(options.console)
+//     ],
+//     exitOnError: false, // do not exit on handled exceptions
+// });
+
+let logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.printf(info => {
+            return `${info.timestamp} ${info.level}: ${info.message}`;
         })
-    ],
-    exitOnError: false
+    ),
+    transports: [new winston.transports.Console()]
 });
+
+// This initializes the winston logging instance
+// const logger = new(winston.Logger)({
+//     levels: {
+//         trace: 0,
+//         input: 1,
+//         verbose: 2,
+//         debug: 3,
+//         info: 4,
+//         warn: 5,
+//         error: 6
+//     },
+//     colors: {
+//         trace: 'magenta',
+//         input: 'grey',
+//         verbose: 'cyan',
+//         debug: 'green',
+//         info: 'blue',
+//         warn: 'orange',
+//         error: 'red'
+//     },
+//     transports: [
+//         new(winston.transports.Console)({
+//             levels: 'error',
+//             colorize: true,
+//             prettyPrint: true,
+//             timestamp: tsFormat
+//         }),
+//         new(require('winston-daily-rotate-file'))({
+//             filename: logDir + '/' + logNamePrefix + '-%DATE%.log',
+//             levels: 'error',
+//             colorize: false,
+//             prettyPrint: true,
+//             timestamp: tsFormat,
+//             json: false,
+//             localTime: true,
+//             datePattern: 'MM-DD-YYYY',
+//             maxFiles: 20,
+//             prepend: true
+//         })
+//     ],
+//     exitOnError: false
+// });
 
 module.exports = logger;
