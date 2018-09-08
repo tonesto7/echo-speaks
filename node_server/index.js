@@ -16,7 +16,7 @@ const alexaCookie = require('./alexa-cookie/alexa-cookie');
 const editJsonFile = require("edit-json-file", {
     autosave: true
 });
-const dataFolder = os.homedir() + '/.echo-speaks'
+const dataFolder = os.homedir() + '/.echo-speaks';
 const configFile = editJsonFile(dataFolder + '/es_config.json');
 const fs = require('fs');
 const webApp = express();
@@ -314,14 +314,14 @@ function sendDeviceDataToST(eDevData) {
                     },
                     json: true
                 };
-                // reqPromise(options)
-                //     .then(function() {
-                //         eventCount++;
-                //         logger.info('** Sent Echo Speaks Data to SmartThings Hub Successfully! **');
-                //     })
-                //     .catch(function(err) {
-                //         logger.error("ERROR: Unable to connect to SmartThings Hub: " + err.message);
-                //     });
+                reqPromise(options)
+                    .then(function() {
+                        eventCount++;
+                        logger.info('** Sent Echo Speaks Data to SmartThings Hub Successfully! **');
+                    })
+                    .catch(function(err) {
+                        logger.error("ERROR: Unable to connect to SmartThings Hub: " + err.message);
+                    });
             })
             .catch(function(err) {
                 logger.error(err.message);
@@ -361,14 +361,14 @@ function sendStatusUpdateToST(self) {
                         json: true
                     }
                     logger.debug('echoDevices (statUpd): ' + Object.keys(echoDevices).length + ' devices');
-                    // reqPromise(options)
-                    //     .then(function() {
-                    //         eventCount++;
-                    //         logger.info('** Sent Echo Speaks Data to SmartThings Hub Successfully! **');
-                    //     })
-                    //     .catch(function(err) {
-                    //         logger.error("ERROR: Unable to connect to SmartThings Hub: " + err.message);
-                    //     });
+                    reqPromise(options)
+                        .then(function() {
+                            eventCount++;
+                            logger.info('** Sent Echo Speaks Data to SmartThings Hub Successfully! **');
+                        })
+                        .catch(function(err) {
+                            logger.error("ERROR: Unable to connect to SmartThings Hub: " + err.message);
+                        });
                 })
                 .catch(function(err) {
                     logger.error('sendStatusUpdateToST Error: ' + err.message);
