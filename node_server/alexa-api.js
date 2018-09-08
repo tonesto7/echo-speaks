@@ -18,8 +18,7 @@ var clearSession = function() {
     sessionFile.save();
 };
 
-
-var alexaLogin = function(userName, password, alexaOptions, callback) {
+var alexaLogin = function(username, password, alexaOptions, callback) {
     var devicesArray = [];
     var deviceSerialNumber;
     var deviceType;
@@ -36,7 +35,7 @@ var alexaLogin = function(userName, password, alexaOptions, callback) {
         config.alexaURL = alexaOptions.amazonPage;
         callback(null, 'Logged in', config);
     } else {
-        alexaCookie.generateAlexaCookie(userName, password, alexaOptions, function(err, result) {
+        alexaCookie.generateAlexaCookie(username, password, alexaOptions, function(err, result) {
             if (err && (err.message.startsWith('Login unsuccessful') || err.message.startsWith('Amazon-Login-Error:'))) {
                 logger.debug('Please complete Amazon login by going here: (http://' + alexaOptions.proxyOwnIp + ':' + alexaOptions.proxyPort + '/)');
             } else if (err && !result) {
@@ -68,6 +67,7 @@ var alexaLogin = function(userName, password, alexaOptions, callback) {
                     callback(null, 'Logged in', config);
                 } else {
                     callback(true, 'There was an error getting authentication', null);
+                    clearSession();
                 }
             }
         });
