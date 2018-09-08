@@ -1,64 +1,77 @@
-var request = require('request');
-const reqPromise = require("request-promise");
-var Nightmare = require('nightmare');
-var nightmare = Nightmare({
-    show: false
+const request = require('request');
+const logger = require('./logger');
+const alexaCookie = require('./alexa-cookie/alexa-cookie');
+const dateFormat = require('dateformat');
+const editJsonFile = require("edit-json-file", {
+    autosave: true
 });
-var dateFormat = require('dateformat');
+const dataFolder = require('os').homedir() + '/.echo-speaks';
+const sessionFile = editJsonFile(dataFolder + '/session.json');
 
-var login = function(userName, password, alexa_url, callback) {
+var alexaUrl = 'https://alexa.amazon.com';
+var sessionData = sessionFile.get() || {};
+sessionFile.save();
+
+var clearSession = function() {
+    sessionFile.unset('csrf');
+    sessionFile.unset('cookie');
+    sessionFile.save();
+};
+
+
+var alexaLogin = function(userName, password, alexaOptions, callback) {
     var devicesArray = [];
-    var cookiesArray = [];
     var deviceSerialNumber;
     var deviceType;
     var deviceOwnerCustomerId;
-    var strCookies = '';
-    var csrf = '';
     var config = {};
 
-    nightmare
-        .goto(alexa_url)
-        .type('#ap_email', userName)
-        .type('#ap_password', password)
-        .click('#signInSubmit')
-        .wait(1000)
-        .goto(alexa_url + '/api/devices-v2/device')
-        .wait()
-        .evaluate(function() {
-            return document.body.innerText;
-        })
-        .then(function(result) {
-            devicesArray = JSON.parse(result);
-        })
-        .then(function() {
-            return nightmare
-                .cookies.get({
-                    url: null
-                })
-                .end()
-                .then(cookies => {
-                    cookiesArray = cookies;
-                });
-        })
-        .then(function() {
-            cookiesArray.forEach(function(cookie) {
-                strCookies += cookie.name + '=' + cookie.value + '; ';
-                if (cookie.name === 'csrf') {
-                    csrf = cookie.value;
+    if (sessionData.csrf && sessionData.cookie) {
+        config.devicesArray = devicesArray;
+        config.cookies = sessionData.cookie;
+        config.csrf = sessionData.csrf;
+        config.deviceSerialNumber = deviceSerialNumber;
+        config.deviceType = deviceType;
+        config.deviceOwnerCustomerId = deviceOwnerCustomerId;
+        config.alexaURL = alexaOptions.amazonPage;
+        callback(null, 'Logged in', config);
+    } else {
+        alexaCookie.generateAlexaCookie(userName, password, alexaOptions, function(err, result) {
+            if (err && (err.message.startsWith('Login unsuccessful') || err.message.startsWith('Amazon-Login-Error:'))) {
+                logger.debug('Please complete Amazon login by going here: (http://' + alexaOptions.proxyOwnIp + ':' + alexaOptions.proxyPort + '/)');
+            } else if (err && !result) {
+                logger.error('generateAlexaCookie: ' + err.message);
+                callback(err, 'There was an error', null);
+            } else if (result) {
+                alexaUrl = 'https://alexa.' + alexaOptions.amazonPage;
+                // IMPORTANT: can be called multiple times!! As soon as a new cookie is fetched or an error happened. Consider that!
+                logger.debug('cookie: ' + result.cookie || undefined);
+                logger.debug('csrf: ' + result.csrf || undefined);
+                if (result && result.csrf && result.cookie) {
+                    alexaCookie.stopProxyServer();
+                    if (sessionData['csrf'] === undefined || sessionData['csrf'] !== result.csrf) {
+                        sessionFile.set('csrf', result.csrf);
+                        sessionData['csrf'] = result.csrf;
+                    }
+                    if (sessionData['cookie'] === undefined || sessionData['cookie'] !== result.cookie) {
+                        sessionFile.set('cookie', result.cookie);
+                        sessionData['cookie'] = result.cookie;
+                    }
+                    sessionFile.save();
+                    config.devicesArray = devicesArray;
+                    config.cookies = sessionData.cookie;
+                    config.csrf = sessionData.csrf;
+                    config.deviceSerialNumber = deviceSerialNumber;
+                    config.deviceType = deviceType;
+                    config.deviceOwnerCustomerId = deviceOwnerCustomerId;
+                    config.alexaURL = alexaOptions.amazonPage;
+                    callback(null, 'Logged in', config);
+                } else {
+                    callback(true, 'There was an error getting authentication', null);
                 }
-            });
-            config.devicesArray = devicesArray;
-            config.cookies = strCookies;
-            config.csrf = csrf;
-            config.deviceSerialNumber = deviceSerialNumber;
-            config.deviceType = deviceType;
-            config.deviceOwnerCustomerId = deviceOwnerCustomerId;
-            config.alexaURL = alexa_url;
-            callback(null, 'Logged in', config);
-        })
-        .catch(function(error) {
-            callback(error, 'There was an error', null);
+            }
         });
+    }
 };
 
 var setReminder = function(message, datetime, deviceSerialNumber, config, callback) {
@@ -83,7 +96,7 @@ var setReminder = function(message, datetime, deviceSerialNumber, config, callba
 
     request({
         method: 'PUT',
-        url: config.alexaURL + '/api/notifications/createReminder',
+        url: alexaUrl + '/api/notifications/createReminder',
         headers: {
             'Cookie': config.cookies,
             'csrf': config.csrf
@@ -106,7 +119,7 @@ var setReminder = function(message, datetime, deviceSerialNumber, config, callba
             isRecurring: false,
             createdDate: createdDate
         }
-    }, function(error, response, body) {
+    }, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "status": "success"
@@ -130,7 +143,7 @@ var setTTS = function(message, deviceSerialNumber, config, callback) {
     });
     request({
         method: 'POST',
-        url: config.alexaURL + '/api/behaviors/preview',
+        url: alexaUrl + '/api/behaviors/preview',
         headers: {
             'Cookie': config.cookies,
             'csrf': config.csrf
@@ -144,7 +157,7 @@ var setTTS = function(message, deviceSerialNumber, config, callback) {
         \"customerId\":\"" + device.deviceOwnerCustomerId + "\", \"textToSpeak\": \"" + message + "\"}}}",
             "status": "ENABLED"
         }
-    }, function(error, response, body) {
+    }, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "status": "success"
@@ -168,14 +181,14 @@ var setMedia = function(command, deviceSerialNumber, config, callback) {
     });
     request({
         method: 'POST',
-        url: config.alexaURL + '/api/np/command?deviceSerialNumber=' +
+        url: alexaUrl + '/api/np/command?deviceSerialNumber=' +
             device.deviceSerialNumber + '&deviceType=' + device.deviceType,
         headers: {
             'Cookie': config.cookies,
             'csrf': config.csrf
         },
         json: command
-    }, function(error, response, body) {
+    }, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "status": "success"
@@ -189,14 +202,19 @@ var setMedia = function(command, deviceSerialNumber, config, callback) {
 var getDevices = function(config, callback) {
     request({
         method: 'GET',
-        url: config.alexaURL + '/api/devices-v2/device',
+        url: alexaUrl + '/api/devices-v2/device',
         headers: {
             'Cookie': config.cookies,
             'csrf': config.csrf
         }
     }, function(error, response, body) {
         if (!error && response.statusCode === 200) {
-            config.devicesArray = JSON.parse(body);
+            try {
+                config.devicesArray = JSON.parse(body);
+            } catch (e) {
+                logger.error('getDevices Error: ' + e.message);
+                config.devicesArray = [];
+            }
             callback(null, config.devicesArray);
         } else {
             callback(error, response);
@@ -215,7 +233,7 @@ var getState = function(deviceSerialNumber, config, callback) {
     });
     request({
         method: 'GET',
-        url: config.alexaURL + '/api/np/player?deviceSerialNumber=' + device.deviceSerialNumber + '&deviceType=' + device.deviceType + '&screenWidth=2560',
+        url: alexaUrl + '/api/np/player?deviceSerialNumber=' + device.deviceSerialNumber + '&deviceType=' + device.deviceType + '&screenWidth=2560',
         headers: {
             'Cookie': config.cookies,
             'csrf': config.csrf
@@ -233,7 +251,7 @@ var getState = function(deviceSerialNumber, config, callback) {
 var getBluetoothDevices = function(config, callback) {
     request({
         method: 'GET',
-        url: config.alexaURL + '/api/bluetooth?cached=false',
+        url: alexaUrl + '/api/bluetooth?cached=false',
         headers: {
             'Cookie': config.cookies,
             'csrf': config.csrf
@@ -258,7 +276,7 @@ var setBluetoothDevice = function(mac, deviceSerialNumber, config, callback) {
     });
     request({
         method: 'POST',
-        url: config.alexaURL + '/api/bluetooth/pair-sink/' + device.deviceType + '/' + device.deviceSerialNumber,
+        url: alexaUrl + '/api/bluetooth/pair-sink/' + device.deviceType + '/' + device.deviceSerialNumber,
         headers: {
             'Cookie': config.cookies,
             'csrf': config.csrf
@@ -266,7 +284,7 @@ var setBluetoothDevice = function(mac, deviceSerialNumber, config, callback) {
         json: {
             bluetoothDeviceAddress: mac
         }
-    }, function(error, response, body) {
+    }, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "message": "success"
@@ -288,12 +306,12 @@ var disconnectBluetoothDevice = function(deviceSerialNumber, config, callback) {
     });
     request({
         method: 'POST',
-        url: config.alexaURL + '/api/bluetooth/disconnect-sink/' + device.deviceType + '/' + device.deviceSerialNumber,
+        url: alexaUrl + '/api/bluetooth/disconnect-sink/' + device.deviceType + '/' + device.deviceSerialNumber,
         headers: {
             'Cookie': config.cookies,
             'csrf': config.csrf
         },
-    }, function(error, response, body) {
+    }, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "message": "success"
@@ -304,7 +322,8 @@ var disconnectBluetoothDevice = function(deviceSerialNumber, config, callback) {
     });
 };
 
-exports.login = login;
+exports.alexaLogin = alexaLogin;
+exports.clearSession = clearSession;
 exports.setReminder = setReminder;
 exports.setTTS = setTTS;
 exports.setMedia = setMedia;

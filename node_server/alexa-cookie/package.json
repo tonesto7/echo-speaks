@@ -1,0 +1,49 @@
+{
+    "name": "alexa-cookie2",
+    "version": "0.2.2",
+    "description": "Generate Cookie and CSRF for Alexa Remote",
+    "author": {
+        "name": "Apollon77",
+        "email": "ingo@fischer-ka.de"
+    },
+    "contributors": [{
+            "name": "soef",
+            "email": "soef@gmx.net"
+        },
+        {
+            "name": "Apollon77",
+            "email": "ingo@fischer-ka.de"
+        }
+    ],
+    "homepage": "https://github.com/Apollon77/alexa-cookie",
+    "license": "MIT",
+    "keywords": [
+        "alexa",
+        "echo",
+        "alexa remote",
+        "layla.amazon.de"
+    ],
+    "dependencies": {
+        "https": "^1.0.0",
+        "querystring": "^0.2.0",
+        "express": "^4.16.3",
+        "http-proxy-middleware": "^0.18.0",
+        "http-proxy-response-rewrite": "^0.0.1"
+    },
+    "devDependencies": {
+        "mocha": "^2.3.4",
+        "chai": "^3.4.1"
+    },
+    "scripts": {
+        "test": "node node_modules/mocha/bin/mocha"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/soApollon77ef/alexa-cookie.git"
+    },
+    "bugs": {
+        "url": "https://github.com/Apollon77/alexa-cookie/issues"
+    },
+    "main": "alexa-cookie.js",
+    "readmeFilename": "readme.md"
+}

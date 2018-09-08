@@ -1,8 +1,0 @@
-{
-    "user": "",
-    "password": "",
-    "url": "https://alexa.amazon.com",
-    "smartThingsHubIP": "10.0.0.200",
-    "serverPort": 8091,
-    "refreshSeconds": 20
-}

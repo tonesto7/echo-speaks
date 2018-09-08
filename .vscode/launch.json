@@ -8,7 +8,8 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "program": "${workspaceFolder}/node_server/index.js"
+            "program": "${workspaceFolder}/node_server/index.js",
+            "outputCapture": "std"
         },
         {
             "type": "node",

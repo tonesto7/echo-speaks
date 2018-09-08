@@ -44,7 +44,7 @@
             <p class="h4 mb-4 text-center">Echo Speaks Configuration</p>
             <div class="card w-100 mb-3">
                 <div class="card-header deep-orange lighten-1 white-text w-100 text-center">Amazon Login</div>
-                <div class="card-body">
+                <div class="card-body w-100">
                     <!-- <h4 class="card-title">Special title treatment</h4>
                     <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
                     <a class="btn btn-deep-orange">Go somewhere</a> -->
@@ -52,16 +52,16 @@
                         <i class="fa fa-user prefix"></i>
                         <input type="email" id="user" name="user" class="form-control" aria-describedby="emailHelpBlockMD">
                         <label for="user" data-error="wrong" data-success="right">Email</label>
-                        <small id="emailHelpBlockMD" class="form-text text-muted">
+                        <small id="emailHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
                             Enter your Amazon login email.
                         </small>
                     </div>
-                    <div class="md-form mb-0">
+                    <div class="md-form">
                         <i class="fa fa-lock prefix"></i>
                         <input type="password" id="password" name="password" class="form-control" aria-describedby="passwordHelpBlockMD">
                         <label for="password" data-error="wrong" data-success="right">Password</label>
-                        <small id="passwordHelpBlockMD" class="form-text text-muted">
-                            Your password must be 8-20 characters long, contain letters and numbers, and must not contain spaces, special characters, or emoji.
+                        <small id="passwordHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
+                            No password requirements defined.
                         </small>
                     </div>
                 </div>
@@ -75,15 +75,15 @@
                         <i class="fa fa-at prefix"></i>
                         <input type="text" id="url" name="url" class="form-control" aria-describedby="urlHelpBlockMD">
                         <label for="url" data-error="wrong" data-success="right">Alexa Web URL</label>
-                        <small id="urlHelpBlockMD" class="form-text text-muted">
-                            Enter the Alexa URL for login `https://alexa.amazon.com`
+                        <small id="urlHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
+                            Enter the Alexa URL for login `amazon.com`
                         </small>
                     </div>
                     <div class="md-form">
                         <i class="fa fa-microchip prefix"></i>
                         <input type="text" id="smartThingsHubIP" name="smartThingsHubIP" class="form-control" aria-describedby="smartThingsHubIPHelpBlockMD">
                         <label for="smartThingsHubIP" data-error="wrong" data-success="right">SmartThings Hub IP</label>
-                        <small id="smartThingsHubIPHelpBlockMD" class="form-text text-muted">
+                        <small id="smartThingsHubIPHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
                             Enter the IP Address xxx.xxx.xxx.xxx
                         </small>
                     </div>
@@ -91,7 +91,7 @@
                         <i class="fa fa-refresh prefix"></i>
                         <input type="number" id="refreshSeconds" name="refreshSeconds" class="form-control" aria-describedby="refreshSecondsHelpBlockMD">
                         <label for="refreshSeconds" data-error="wrong" data-success="right">Device Data Refresh (Seconds)</label>
-                        <small id="refreshSecondsHelpBlockMD" class="form-text text-muted">
+                        <small id="refreshSecondsHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
                             Enter a number between 5-3600
                         </small>
                     </div>
@@ -111,9 +111,11 @@
         // Get Root Page URL for Callback to Send Settings
         console.log('host: ' + window.location.host);
         let rootUrl = window.location.host;
+
         $(document).ready(function() {
             let url = 'http://' + rootUrl + '/configData';
             $.getJSON(url, function(data) {
+                console.log('configData: ', data);
                 $.each(data, function(key, val) {
                     var elem = document.getElementById(key);
                     if ($(elem)) {
@@ -145,7 +147,7 @@
         $('form').submit(function(e) {
             e.preventDefault();
             var config = $(this).serializeFormJSON();
-            var url = "http://10.0.0.173:8092/configSave";
+            var url = 'http://' + rootUrl + '/configData';
             if (Object.keys(config).length) {
                 console.log(config);
                 // $.post(url, {
@@ -155,7 +157,7 @@
                 //     "dateEnd": "2016-09-03 00:59:59"
                 // })
                 var xmlhttp = new XMLHttpRequest();
-                xmlhttp.open("POST", 'http://' + rootUrl + '/configSave');
+                xmlhttp.open("POST", 'http://' + rootUrl + '/configData');
                 xmlhttp.onreadystatechange = function() {
                     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
                         // console.log(xmlhttp.responseText);

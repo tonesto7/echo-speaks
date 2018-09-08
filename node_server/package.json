@@ -1,22 +1,45 @@
 {
     "name": "echo-speaks-server",
-    "version": "0.0.1",
+    "version": "0.4.0",
     "author": "Anthony Santilli",
+    "contributors": [
+        {
+            "name": "Corey L.",
+            "email": "no@email.com"
+        },
+        {
+            "name": "Apollon77",
+            "email": "ingo@fischer-ka.de"
+        }
+    ],
     "dependencies": {
-        "body-parser": "^1.18.2",
-        "express": "^4.16.2",
+        "https": "^1.0.0",
+        "querystring": "^0.2.0",
+        "http-proxy-middleware": "^0.19.0",
+        "http-proxy-response-rewrite": "^0.0.1",
+        "body-parser": "^1.18.3",
+        "express": "^4.16.3",
         "edit-json-file": "^1.1.0",
-        "dateformat": "^3.0.2",
-        "nightmare": "^2.10.0",
+        "find-free-port": "^2.0.0",
+        "dateformat": "^3.0.3",
         "request": "^2.88.0",
         "request-promise": "^4.2.2",
-        "node-datetime": "^2.0.9",
+        "node-datetime": "^2.1.0",
         "os": "^0.1.1",
         "getos": "^3.1.0",
         "moment": "^2.22.2",
-        "winston": "^2.4.2",
-        "winston-daily-rotate-file": "^3.1.4"
+        "winston": "^3.1.0",
+        "winston-daily-rotate-file": "^3.3.2"
     },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/tonesto7/echo-speaks.git"
+    },
+    "bugs": {
+        "url": "https://github.com/tonesto7/echo-speaks/issues"
+    },
+    "main": "index.js",
+    "readmeFilename": "readme.md",
     "license": "MIT",
     "private": true
 }
