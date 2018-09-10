@@ -25,8 +25,8 @@ winston.addColors({
     error: 'red',
     warn: 'orange',
     info: 'blue',
-    verbose: 'gray',
-    debug: 'green',
+    verbose: 'green',
+    debug: 'gray',
     silly: 'yellow'
 });
 
