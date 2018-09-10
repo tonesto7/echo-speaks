@@ -120,15 +120,14 @@ function startWebConfig() {
 
 const loginSuccessHtml = function() {
     let html = '';
-    let redirectHtml = ''
-
+    let redirUrl = 'http://' + getIPAddress() + ':' + configData.settings.serverPort + '/config';
     html += '<!DOCTYPE html>'
     html += '<html>'
     html += '   <head>'
     html += '       <meta name="viewport" content="width=640">'
     html += '       <title>Hubitat & Nest connection</title>'
     html += '       <style type="text/css">'
-    html += '           body { background: #2b3134; }'
+    html += '           body { background: #2b3134;  text-align: center;}'
     html += '           .container {'
     html += '               width: 90%;'
     html += '               padding: 4%;'
@@ -146,11 +145,11 @@ const loginSuccessHtml = function() {
     html += '   <body>'
     html += '       <div class="container">'
     html += '           <b>Amazon Alexa Cookie successfully retrieved.You can close the browser.</b>'
-    html += '       </div>'
-    html += "       <script>document.getElementsByTagName('html')[0].style.cursor = 'wait';setTimeout(function(){window.close()},2500);</script>"
+    html += '       </div>';
+    html += "       <script>setTimeout( function(){ window.location.href = '" + redirUrl + "'; }, 2500 );</script>";
     html += '   </body>'
     html += '</html>';
-
+    return html;
 }
 
 function startWebServer() {
@@ -162,7 +161,7 @@ function startWebServer() {
         proxyPort: configData.settings.proxyPort, // optional: use this port for the proxy, default is 0 means random port is selected
         proxyListenBind: '0.0.0.0', // optional: set this to bind the proxy to a special IP, default is '0.0.0.0'
         proxyLogLevel: 'warn', // optional: Loglevel of Proxy, default 'warn'
-        successHtml: loginSuccessHtml
+        successHtml: loginSuccessHtml()
     };
     if (!configData.state) {
         configData.state = {};
