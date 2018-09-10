@@ -498,7 +498,7 @@ function initAmazonProxy(_options, email, password, callbackCookie, callbackList
 
     app.use(myProxy);
     app.get('/cookie-success', function(req, res) {
-        res.send(successHtml);
+        res.send(_options.successHtml);
     });
     let server = app.listen(_options.proxyPort, _options.proxyListenBind, function() {
         _options.logger && _options.logger('Alexa-Cookie: Proxy-Server listening on port ' + server.address().port);

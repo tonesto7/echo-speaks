@@ -4,7 +4,7 @@
  *	Author: Anthony Santilli
  * Based off of Keaton Taylors HomeAssistant Module: https://github.com/keatontaylor/hassio-addons
  *
- *  Copyright 2018 Brian Beaird and Anthony Santilli
+ *  Copyright 2018 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -19,14 +19,14 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion() { return "0.1.0" }
-String appModified() { return "2018-09-01"}
+String appVersion() { return "0.5.0" }
+String appModified() { return "2018-09-10"}
 String appAuthor() { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
 	return [
-		echoDevice: 001,
-		server: 001
+		echoDevice: 050,
+		server: 050
 	]
 }
 
@@ -93,6 +93,7 @@ def mainPage() {
 		}
 		section ("Application Logs") {
 			input (name: "appDebug", type: "bool", title: "Show App Logs in the IDE?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
+			input (name: "appTrace", type: "bool", title: "Show Detailed Trace Logs in the IDE?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
 		}
 		if(!newInstall) {
 			section("") {
@@ -274,7 +275,6 @@ def onAppTouch(evt) {
 	// log.trace "appTouch..."
 	// notificationCheck()
 	// echoServiceUpdate()
-	sendTtsCommand("G090LF0964221599", "Hello There")
 }
 
 private updCodeVerMap() {
@@ -295,14 +295,14 @@ def lanEventHandler(evt) {
 	try {
 		def msg = parseLanMessage(evt?.description)
 		Map headerMap = msg?.headers
-		// log.debug "lanEventHandler... | headers: ${headerMap}"
+		logger("trace", "lanEventHandler... | headers: ${headerMap}", true)
 		Map msgData = [:]
 		if (headerMap?.size()) {
 			if (headerMap?.evtSource && headerMap?.evtSource == "Echo_Speaks") {
 				if (msg?.body != null) {
 					def slurper = new groovy.json.JsonSlurper()
 					msgData = slurper.parseText(msg?.body as String)
-					// log.debug "msgData: $msgData"
+					logger("debug", "msgData: $msgData", true)
 					if(headerMap?.evtType) { 
 						switch(headerMap?.evtType) {
 							case "sendStatusData":
@@ -852,7 +852,8 @@ String getAppDebugDesc() {
 	return (str != "") ? "${str}" : null
 }
 
-private logger(type, msg) {
+private logger(type, msg, traceOnly=false) {
+	if (traceOnly && !settings?.appTrace) { return }
 	if(type && msg && settings?.appDebug) {
 		log."${type}" "${msg}"
 	}

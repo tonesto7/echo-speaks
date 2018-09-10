@@ -1,9 +1,6 @@
 /**
  *	Echo Speaks Device
  *
- *	Author: Anthony Santilli
- ***************************
- *
  *  Copyright 2018 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -18,8 +15,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.1.0"}
-String devModified() { return "2018-09-01"}
+String devVersion() { return "0.5.0"}
+String devModified() { return "2018-09-10"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {

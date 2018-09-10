@@ -77,6 +77,20 @@ function startWebConfig() {
             webApp.get('/config', function(req, res) {
                 res.sendFile(__dirname + '/public/index.html');
             });
+            webApp.get('/clearAuth', urlencodedParser, function(req, res) {
+                logger.verbose('got request for to clear authentication');
+                alexa_api.clearSession();
+                configFile.set('state.loginProxyActive', true);
+                configData.state.loginProxyActive = true;
+                configFile.set('state.loginComplete', false);
+                configData.state.loginComplete = false;
+                configFile.save();
+                if (scheduledUpdatesActive) {
+                    clearInterval(scheduledDataUpdates);
+                }
+                startWebServer();
+                res.send({ result: 'Clear Complete' });
+            });
             webApp.get('/configData', function(req, res) {
                 res.send(JSON.stringify(configData));
             });
@@ -133,7 +147,7 @@ const loginSuccessHtml = function() {
     html += '       <meta name="viewport" content="width=640">'
     html += '       <title>Hubitat & Nest connection</title>'
     html += '       <style type="text/css">'
-    html += '           body { text-align: center; }'
+    html += '           body { background-color: slategray; text-align: center; }'
     html += '           .container {'
     html += '               width: 90%;'
     html += '               padding: 4%;'
@@ -150,10 +164,10 @@ const loginSuccessHtml = function() {
     html += '   </head>'
     html += '   <body>'
     html += '       <div class="container">'
-    html += '           <h3>Amazon Alexa Cookie successfully retrieved.You can close the browser.</h3>'
-    html += '           <h5>You will be redirected back to the config page in 10 seconds.</h5>';
+    html += '           <h3>Amazon Alexa Cookie Retrieved Successfully</h3>'
+    html += '           <h5>You will be redirected back to the config page in 5 seconds.</h5>';
     html += '       </div>';
-    html += "       <script>setTimeout( function(){ window.location.href = '" + redirUrl + "'; }, 2500 );</script>";
+    html += "       <script>setTimeout( function(){ window.location.href = '" + redirUrl + "'; }, 5000 );</script>";
     html += '   </body>'
     html += '</html>';
     return html;
@@ -173,6 +187,8 @@ function startWebServer() {
     };
     configFile.set('state.loginProxyActive', true);
     configData.state.loginProxyActive = true;
+    configFile.set('state.loginComplete', false);
+    configData.state.loginComplete = false;
     configFile.save();
 
     alexa_api.alexaLogin(configData.settings.user, configData.settings.password, alexaOptions, function(error, response, config) {
@@ -185,6 +201,8 @@ function startWebServer() {
         if (response.startsWith('Login Successful') && config.devicesArray) {
             configFile.set('state.loginProxyActive', false);
             configData.state.loginProxyActive = false;
+            configFile.set('state.loginComplete', true);
+            configData.state.loginComplete = true;
             configFile.save();
 
             buildEchoDeviceMap(config.devicesArray.devices)
@@ -368,14 +386,14 @@ function sendDeviceDataToST(eDevData) {
                         },
                         json: true
                     };
-                    reqPromise(options)
-                        .then(function() {
-                            eventCount++;
-                            logger.info('** Sent Echo Speaks Data to SmartThings Hub Successfully! **');
-                        })
-                        .catch(function(err) {
-                            logger.error("ERROR: Unable to connect to SmartThings Hub: " + err.message);
-                        });
+                    // reqPromise(options)
+                    //     .then(function() {
+                    //         eventCount++;
+                    //         logger.info('** Sent Echo Speaks Data to SmartThings Hub Successfully! **');
+                    //     })
+                    //     .catch(function(err) {
+                    //         logger.error("ERROR: Unable to connect to SmartThings Hub: " + err.message);
+                    //     });
                 })
                 .catch(function(err) {
                     logger.error('buildEchoDeviceMap error: ' + err.message);
@@ -419,14 +437,14 @@ function sendStatusUpdateToST(self) {
                             json: true
                         }
                         logger.debug('echoDevices (statUpd): ' + Object.keys(echoDevices).length + ' devices');
-                        reqPromise(options)
-                            .then(function() {
-                                eventCount++;
-                                logger.info('** Sent Echo Speaks Data to SmartThings Hub Successfully! **');
-                            })
-                            .catch(function(err) {
-                                logger.error("ERROR: Unable to connect to SmartThings Hub: " + err.message);
-                            });
+                        // reqPromise(options)
+                        //     .then(function() {
+                        //         eventCount++;
+                        //         logger.info('** Sent Echo Speaks Data to SmartThings Hub Successfully! **');
+                        //     })
+                        //     .catch(function(err) {
+                        //         logger.error("ERROR: Unable to connect to SmartThings Hub: " + err.message);
+                        //     });
                     })
                     .catch(function(err) {
                         logger.error('buildEchoDeviceMap Error: ' + err.message);
