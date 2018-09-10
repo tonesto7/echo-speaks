@@ -150,8 +150,8 @@ const loginSuccessHtml = function() {
     html += '   </head>'
     html += '   <body>'
     html += '       <div class="container">'
-    html += '           <p>Amazon Alexa Cookie successfully retrieved.You can close the browser.</p>'
-    html += '           <p>You will be redirected back to the config page in 10 seconds.</p>';
+    html += '           <h3>Amazon Alexa Cookie successfully retrieved.You can close the browser.</h3>'
+    html += '           <h5>You will be redirected back to the config page in 10 seconds.</h5>';
     html += '       </div>';
     html += "       <script>setTimeout( function(){ window.location.href = '" + redirUrl + "'; }, 2500 );</script>";
     html += '   </body>'
@@ -162,14 +162,14 @@ const loginSuccessHtml = function() {
 function startWebServer() {
     const alexaOptions = { // options is optional at all
         // logger: logger.debug, // optional: Logger instance to get (debug) logs
+        serverPort: configData.settings.serverPort,
         amazonPage: configData.settings.url, // optional: possible to use with different countries, default is 'amazon.de'
         setupProxy: true, // optional: should the library setup a proxy to get cookie when automatic way did not worked? Default false!
         proxyOwnIp: getIPAddress(), // required if proxy enabled: provide own IP or hostname to later access the proxy. needed to setup all rewriting and proxy stuff internally
         proxyPort: configData.settings.proxyPort, // optional: use this port for the proxy, default is 0 means random port is selected
         proxyListenBind: '0.0.0.0', // optional: set this to bind the proxy to a special IP, default is '0.0.0.0'
         proxyLogLevel: 'warn', // optional: Loglevel of Proxy, default 'warn'
-        successHtml: loginSuccessHtml(),
-        serverPort: configData.settings.serverPort
+        successHtml: loginSuccessHtml()
     };
     configFile.set('state.loginProxyActive', true);
     configData.state.loginProxyActive = true;
@@ -182,7 +182,7 @@ function startWebServer() {
             logger.debug('Alexa Login Status: ' + response);
         }
         // console.log('config: ', config);
-        if (response.startsWith('Logged in') && config.devicesArray) {
+        if (response.startsWith('Login Successful') && config.devicesArray) {
             configFile.set('state.loginProxyActive', false);
             configData.state.loginProxyActive = false;
             configFile.save();
