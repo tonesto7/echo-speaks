@@ -47,7 +47,7 @@ var alexaLogin = function(username, password, alexaOptions, callback) {
                 logger.debug('cookie: ' + result.cookie || undefined);
                 logger.debug('csrf: ' + result.csrf || undefined);
                 if (result && result.csrf && result.cookie) {
-                    // alexaCookie.stopProxyServer();
+                    alexaCookie.stopProxyServer();
                     if (sessionData['csrf'] === undefined || sessionData['csrf'] !== result.csrf) {
                         sessionFile.set('csrf', result.csrf);
                         sessionData['csrf'] = result.csrf;

@@ -46,9 +46,6 @@
             <div class="card w-100 mb-3">
                 <div class="card-header deep-orange lighten-1 white-text w-100 text-center">Amazon Login</div>
                 <div id="loginInputDiv" class="card-body w-100">
-                    <!-- <h4 class="card-title">Special title treatment</h4>
-                    <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
-                    <a class="btn btn-deep-orange">Go somewhere</a> -->
                     <div class="md-form mt-0">
                         <i class="fa fa-user prefix"></i>
                         <input type="email" id="user" name="user" class="form-control" aria-describedby="emailHelpBlockMD">
@@ -64,6 +61,12 @@
                         <small id="passwordHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
                             No password requirements defined.
                         </small>
+                    </div>
+                </div>
+                <div id="clearLoginDiv" class="w-100">
+                    <div class="text-center">
+                        <h5 class="my-2">Authentication Good!</h5>
+                        <button id="clearLoginBtn" class="btn btn-amber btn-rounded mt-0 mb-4" type="button"><i class="fa fa-close mr-1"></i>Clear Login Info</button>
                     </div>
                 </div>
                 <div id="proxyLoginDiv" class="w-100">
@@ -138,11 +141,12 @@
 
         $('#proxyLoginDiv').hide();
         $('#loginInputDiv').show();
+        $('#clearLoginDiv').hide();
         var configData = {};
         $(document).ready(function() {
             let url = rootOrigin + '/configData';
             $.getJSON(url, function(data) {
-                console.log('configData: ', data);
+                // console.log('configData: ', data);
                 configData = data;
                 $.each(data.state, function(key, val) {
                     if (key === 'loginProxyActive' && val === true) {
@@ -151,6 +155,10 @@
                     }
                     if (key === 'scriptVersion') {
                         $('#scriptVer').text('v' + val);
+                    }
+                    if (key === 'loginComplete' && val === true) {
+                        $('#loginInputDiv').hide();
+                        $('#clearLoginDiv').show();
                     }
                 });
                 $.each(data.settings, function(key, val) {
@@ -162,8 +170,35 @@
                 });
             });
         });
+
         $("#proxyLoginLink").click(function() {
             window.location.href = 'http://' + rootHost + ':' + configData.settings.proxyPort;
+        });
+        $("#clearLoginBtn").click(function() {
+            let url = rootOrigin + '/clearAuth';
+            $.getJSON(url, function(data) {
+                if (data.result === 'Clear Complete') {
+                    toastr.options = {
+                        "closeButton": false,
+                        "debug": false,
+                        "newestOnTop": false,
+                        "progressBar": false,
+                        "positionClass": "toast-bottom-center",
+                        "preventDuplicates": true,
+                        "onclick": null,
+                        "showDuration": 300,
+                        "hideDuration": 1000,
+                        "timeOut": 5000,
+                        "extendedTimeOut": 1000,
+                        "showEasing": "swing",
+                        "hideEasing": "linear",
+                        "showMethod": "fadeIn",
+                        "hideMethod": "fadeOut"
+                    }
+                    toastr.success('Success!', "Authentication Cleared");
+                    window.location.href = rootOrigin + '/config';
+                }
+            });
         });
         (function($) {
             $.fn.serializeFormJSON = function() {
