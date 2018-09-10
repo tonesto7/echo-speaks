@@ -33,7 +33,7 @@ var alexaLogin = function(username, password, alexaOptions, callback) {
         config.deviceType = deviceType;
         config.deviceOwnerCustomerId = deviceOwnerCustomerId;
         config.alexaURL = alexaOptions.amazonPage;
-        callback(null, 'Logged in', config);
+        callback(null, 'Login Successful (Stored Session)', config);
     } else {
         alexaCookie.generateAlexaCookie(username, password, alexaOptions, function(err, result) {
             if (err && (err.message.startsWith('Login unsuccessful') || err.message.startsWith('Amazon-Login-Error:'))) {
@@ -64,7 +64,7 @@ var alexaLogin = function(username, password, alexaOptions, callback) {
                     config.deviceType = deviceType;
                     config.deviceOwnerCustomerId = deviceOwnerCustomerId;
                     config.alexaURL = alexaOptions.amazonPage;
-                    callback(null, 'Logged in', config);
+                    callback(null, 'Login Successful', config);
                 } else {
                     callback(true, 'There was an error getting authentication', null);
                     clearSession();
