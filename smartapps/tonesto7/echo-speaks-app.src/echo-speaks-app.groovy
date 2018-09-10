@@ -1,9 +1,7 @@
 /**
- *	Echo Speaks SmartApp
+ *  Echo Speaks SmartApp
  *
- *	Author: Anthony Santilli
- * Based off of Keaton Taylors HomeAssistant Module: https://github.com/keatontaylor/hassio-addons
- *
+ *  Based off of Keaton Taylors HomeAssistant Module: https://github.com/keatontaylor/hassio-addons
  *  Copyright 2018 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -19,14 +17,14 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion() { return "0.5.0" }
+String appVersion()	 { return "0.5.1" }
 String appModified() { return "2018-09-10"}
-String appAuthor() { return "Anthony Santilli" }
+String appAuthor()	 { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
 	return [
-		echoDevice: 050,
-		server: 050
+		echoDevice: 051,
+		server: 051
 	]
 }
 
