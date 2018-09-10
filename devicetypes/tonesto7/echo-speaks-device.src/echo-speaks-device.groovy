@@ -15,7 +15,7 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.5.2"}
+String devVersion() { return "0.6.0"}
 String devModified() { return "2018-09-10"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
@@ -82,7 +82,7 @@ metadata {
         valueTile("status", "device.onlineStatus", height: 1, width: 2, decoration: "flat") {
             state("default", label: '${currentValue}', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png")
         }
-        main(["status"])
+        main(["mediaMulti"])
         details(["mediaMulti", "dtCreated", "firmwareVer", "sendTest"])
     }
 }
@@ -94,16 +94,9 @@ def parse(description) {
 def installed() {
 	log.trace "${device?.displayName} Executing Installed..."
 
-    state.tracks = [
-		"Gangnam Style (강남스타일)\nPSY\nPsy 6 (Six Rules), Part 1",
-		"Careless Whisper\nWham!\nMake It Big",
-		"Never Gonna Give You Up\nRick Astley\nWhenever You Need Somebody",
-		"Shake It Off\nTaylor Swift\n1989",
-		"Ironic\nAlanis Morissette\nJagged Little Pill",
-		"Hotline Bling\nDrake\nHotline Bling - Single"
-	]
+    state.tracks = []
     state.currentTrack = 0
-	sendEvent(name: "level", value: 72)
+	sendEvent(name: "level", value: 0)
 	sendEvent(name: "mute", value: "unmuted")
 	sendEvent(name: "status", value: "stopped")
 	initialize()
@@ -124,27 +117,65 @@ def getShortDevName(){
     return device?.displayName?.replace("Echo - ", "")
 }
 
-def updateDeviceStatus(Map echoDevice) {
+def updateDeviceStatus(Map devData) {
     String devName = getShortDevName()
-    echoDevice?.each { k,v ->
-        logger("debug", "$k: $v")
+    devData?.each { k,v ->
+        if(!(k in ["playerState", "capabilities", "deviceAccountId"])) {
+            logger("debug", "$k: $v")
+        }
     }
-    state?.serialNumber = echoDevice?.serialNumber
-    if(echoDevice?.size()) {
-        state?.serialNumber = echoDevice?.serialNumber
-        String firmwareVer = echoDevice?.softwareVersion ?: "Not Set"
+    devData?.playerState?.each { k,v ->
+        if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
+            logger("debug", "$k: $v")
+        }
+    }
+    state?.serialNumber = devData?.serialNumber
+    if(devData?.size()) {
+        state?.serialNumber = devData?.serialNumber
+        state?.deviceType = devData?.deviceType
+        state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
+        String firmwareVer = devData?.softwareVersion ?: "Not Set"
         if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
             sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
         }
+        if(devData?.playerState?.size()) {
+            Map sData = devData?.playerState
+            String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
+            if(isStateChange(device, "status", playState?.toString())) {
+                sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
+            }
+            if(sData?.volume) {
+                if(sData?.volume?.volume) {
+                    Integer level = sData?.volume?.volume
+                    if(level < 0) { level = 0 }
+                    if(level > 100) { level = 100 }
+                    if(isStateChange(device, "level", level?.toString())) {
+                        sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
+                    }
+                }
+                if(sData?.volume?.muted) {
+                    String muteState = sData?.volume?.muted == true ? "muted" : "unmuted"
+                    if(isStateChange(device, "mute", muteState?.toString())) {
+                        sendEvent(name: "mute", value: muteState, descriptionText: "Mute State is ${muteState?.capitialize()}", display: true, displayed: true)
+                    }
+                }
+            }
+        }
     }
-    setOnlineStatus((echoDevice?.online != false))
+    
+    setOnlineStatus((devData?.online != false))
     sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
 }
 
+def updateServiceInfo(String svcHost) {
+    if(svcHost) { state?.serviceHost = svcHost }
+}
+
 public setOnlineStatus(Boolean isOnline) {
-    if(isStateChange(device, "DeviceWatch-DeviceStatus", (isOnline ? "online" : "offline")) || isStateChange(device, "onlineStatus", (isOnline ? "online" : "offline"))) {
-        sendEvent(name: "DeviceWatch-DeviceStatus", value: (isOnline ? "online" : "offline"), displayed: true, isStateChange: true)
-        sendEvent(name: "onlineStatus", value: (isOnline ? "online" : "offline"), displayed: true, isStateChange: true)
+    String onlStatus = (isOnline ? "online" : "offline")
+    if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString()) || isStateChange(device, "onlineStatus", onlStatus?.toString())) {
+        sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), displayed: false, isStateChange: true)
+        sendEvent(name: "onlineStatus", value: onlStatus?.toString(), displayed: true, isStateChange: true)
     }
 }
 
@@ -204,8 +235,20 @@ def unmute() {
 }
 
 def setLevel(level) {
-    log.debug "setLevel($level) | Not Supported Yet!!!"
-	// sendEvent(name: "level", value: level)
+    log.debug "setVolume($level) command received..."
+    if(state?.serialNumber && level) {
+		echoServiceCmd("cmd", [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+            cmdType: "VolumeLevelCommand", 
+            cmdObjVal: [volumeLevel: level?.toInteger()].encodeAsJson()
+        ])
+        if(isStateChange(device, "level", level?.toString())) {
+            sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
+        }
+	} else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Level: ${level}" }
+	
 }
 
 def setTrack(String uri, metaData="") {
@@ -291,8 +334,42 @@ def sendTestTts(ttsMsg) {
 
 public sendTtsMsg(String msg) {
     if(state?.serialNumber && msg) {
-		parent?.echoServiceCmd("tts", [deviceSerialNumber: state?.serialNumber, tts: msg])
+		echoServiceCmd("tts", [deviceSerialNumber: state?.serialNumber, tts: msg])
 	} else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
+}
+
+private echoServiceCmd(type, headers={}, body = null) {
+	log.trace("echoServiceCmd(type: $type, headers: $headers, body: $body)")
+	String host = state?.serviceHost
+	if(!host) { return }
+	logger("trace", "echoServiceCmd($type) | host: ${host}")
+
+	try {
+		String path = ""
+		Map headerMap = ["HOST": host]
+		switch(type) {
+			case "tts":
+				path = "/alexa-tts"
+				break
+			case "deviceState":
+				path = "/alexa-getState"
+				break
+            case "cmd":
+				path = "/alexa-command"
+				break
+		}
+		headers?.each { k,v-> headerMap[k] = v }
+		def hubAction = new physicalgraph.device.HubAction(
+			method: "POST",
+			headers: headerMap,
+			path: path,
+			body: body ?: ""
+		)
+		sendHubCommand(hubAction)
+	}
+	catch (Exception ex) {
+		log.error "echoServiceCmd HubAction Exception, $hubAction", ex
+	}
 }
 
 /*****************************************************
