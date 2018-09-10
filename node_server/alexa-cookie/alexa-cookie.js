@@ -29,6 +29,7 @@ const defaultUserAgentLinux = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.3
 const defaultAcceptLanguage = 'en-US';
 
 let proxyServer;
+var successHtml = '<b>Amazon Alexa Cookie successfully retrieved.You can close the browser.</b>';
 
 function customStringify(v, func, intent) {
     const cache = new Map();
@@ -59,9 +60,11 @@ function addCookies(Cookie, headers) {
 }
 
 function generateAlexaCookie(email, password, _options, callback) {
+    if (_options.successHtml) {
+        successHtml = _options.successHtml;
+    }
 
     function request(options, info, callback) {
-
         _options.logger && _options.logger('Alexa-Cookie: Sending Request with ' + JSON.stringify(options));
         if (typeof info === 'function') {
             callback = info;
@@ -495,7 +498,7 @@ function initAmazonProxy(_options, email, password, callbackCookie, callbackList
 
     app.use(myProxy);
     app.get('/cookie-success', function(req, res) {
-        res.send('<b>Amazon Alexa Cookie successfully retrieved. You can close the browser.</b>');
+        res.send(successHtml);
     });
     let server = app.listen(_options.proxyPort, _options.proxyListenBind, function() {
         _options.logger && _options.logger('Alexa-Cookie: Proxy-Server listening on port ' + server.address().port);
