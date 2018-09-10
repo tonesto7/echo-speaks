@@ -37,7 +37,7 @@ var alexaLogin = function(username, password, alexaOptions, callback) {
     } else {
         alexaCookie.generateAlexaCookie(username, password, alexaOptions, function(err, result) {
             if (err && (err.message.startsWith('Login unsuccessful') || err.message.startsWith('Amazon-Login-Error:'))) {
-                logger.debug('Please complete Amazon login by going here: (http://' + alexaOptions.proxyOwnIp + ':' + alexaOptions.serverPort + '/)');
+                logger.debug('Please complete Amazon login by going here: (http://' + alexaOptions.proxyOwnIp + ':' + alexaOptions.serverPort + '/config)');
             } else if (err && !result) {
                 logger.error('generateAlexaCookie: ' + err.message);
                 callback(err, 'There was an error', null);
