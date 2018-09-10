@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ---------------------------------GLOBAL VARIABLES--------------------------------------
-_scriptVer="0.5.1"
-_srvcVer="0.2.1"
+_scriptVer="0.5.2"
+_srvcVer="0.2.2"
 _useSudo="false"
 _instNode="false"
 _instServ="false"

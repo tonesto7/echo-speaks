@@ -15,7 +15,7 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.5.0"}
+String devVersion() { return "0.5.2"}
 String devModified() { return "2018-09-10"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
