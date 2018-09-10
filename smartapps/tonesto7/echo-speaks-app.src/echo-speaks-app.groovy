@@ -23,8 +23,8 @@ String appAuthor()	 { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
 	return [
-		echoDevice: 051,
-		server: 051
+		echoDevice: 052,
+		server: 052
 	]
 }
 
