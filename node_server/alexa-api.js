@@ -25,53 +25,53 @@ var alexaLogin = function(username, password, alexaOptions, callback) {
     var deviceOwnerCustomerId;
     var config = {};
 
-    // if (sessionData.csrf && sessionData.cookie) {
-    //     config.devicesArray = devicesArray;
-    //     config.cookies = sessionData.cookie;
-    //     config.csrf = sessionData.csrf;
-    //     config.deviceSerialNumber = deviceSerialNumber;
-    //     config.deviceType = deviceType;
-    //     config.deviceOwnerCustomerId = deviceOwnerCustomerId;
-    //     config.alexaURL = alexaOptions.amazonPage;
-    //     callback(null, 'Logged in', config);
-    // } else {
-    alexaCookie.generateAlexaCookie(username, password, alexaOptions, function(err, result) {
-        if (err && (err.message.startsWith('Login unsuccessful') || err.message.startsWith('Amazon-Login-Error:'))) {
-            logger.debug('Please complete Amazon login by going here: (http://' + alexaOptions.proxyOwnIp + ':' + alexaOptions.proxyPort + '/)');
-        } else if (err && !result) {
-            logger.error('generateAlexaCookie: ' + err.message);
-            callback(err, 'There was an error', null);
-        } else if (result) {
-            alexaUrl = 'https://alexa.' + alexaOptions.amazonPage;
-            // IMPORTANT: can be called multiple times!! As soon as a new cookie is fetched or an error happened. Consider that!
-            logger.debug('cookie: ' + result.cookie || undefined);
-            logger.debug('csrf: ' + result.csrf || undefined);
-            if (result && result.csrf && result.cookie) {
-                // alexaCookie.stopProxyServer();
-                if (sessionData['csrf'] === undefined || sessionData['csrf'] !== result.csrf) {
-                    sessionFile.set('csrf', result.csrf);
-                    sessionData['csrf'] = result.csrf;
+    if (sessionData.csrf && sessionData.cookie) {
+        config.devicesArray = devicesArray;
+        config.cookies = sessionData.cookie;
+        config.csrf = sessionData.csrf;
+        config.deviceSerialNumber = deviceSerialNumber;
+        config.deviceType = deviceType;
+        config.deviceOwnerCustomerId = deviceOwnerCustomerId;
+        config.alexaURL = alexaOptions.amazonPage;
+        callback(null, 'Logged in', config);
+    } else {
+        alexaCookie.generateAlexaCookie(username, password, alexaOptions, function(err, result) {
+            if (err && (err.message.startsWith('Login unsuccessful') || err.message.startsWith('Amazon-Login-Error:'))) {
+                logger.debug('Please complete Amazon login by going here: (http://' + alexaOptions.proxyOwnIp + ':' + alexaOptions.serverPort + '/)');
+            } else if (err && !result) {
+                logger.error('generateAlexaCookie: ' + err.message);
+                callback(err, 'There was an error', null);
+            } else if (result) {
+                alexaUrl = 'https://alexa.' + alexaOptions.amazonPage;
+                // IMPORTANT: can be called multiple times!! As soon as a new cookie is fetched or an error happened. Consider that!
+                logger.debug('cookie: ' + result.cookie || undefined);
+                logger.debug('csrf: ' + result.csrf || undefined);
+                if (result && result.csrf && result.cookie) {
+                    // alexaCookie.stopProxyServer();
+                    if (sessionData['csrf'] === undefined || sessionData['csrf'] !== result.csrf) {
+                        sessionFile.set('csrf', result.csrf);
+                        sessionData['csrf'] = result.csrf;
+                    }
+                    if (sessionData['cookie'] === undefined || sessionData['cookie'] !== result.cookie) {
+                        sessionFile.set('cookie', result.cookie);
+                        sessionData['cookie'] = result.cookie;
+                    }
+                    sessionFile.save();
+                    config.devicesArray = devicesArray;
+                    config.cookies = sessionData.cookie;
+                    config.csrf = sessionData.csrf;
+                    config.deviceSerialNumber = deviceSerialNumber;
+                    config.deviceType = deviceType;
+                    config.deviceOwnerCustomerId = deviceOwnerCustomerId;
+                    config.alexaURL = alexaOptions.amazonPage;
+                    callback(null, 'Logged in', config);
+                } else {
+                    callback(true, 'There was an error getting authentication', null);
+                    clearSession();
                 }
-                if (sessionData['cookie'] === undefined || sessionData['cookie'] !== result.cookie) {
-                    sessionFile.set('cookie', result.cookie);
-                    sessionData['cookie'] = result.cookie;
-                }
-                sessionFile.save();
-                config.devicesArray = devicesArray;
-                config.cookies = sessionData.cookie;
-                config.csrf = sessionData.csrf;
-                config.deviceSerialNumber = deviceSerialNumber;
-                config.deviceType = deviceType;
-                config.deviceOwnerCustomerId = deviceOwnerCustomerId;
-                config.alexaURL = alexaOptions.amazonPage;
-                callback(null, 'Logged in', config);
-            } else {
-                callback(true, 'There was an error getting authentication', null);
-                clearSession();
             }
-        }
-    });
-    // }
+        });
+    }
 };
 
 var setReminder = function(message, datetime, deviceSerialNumber, config, callback) {

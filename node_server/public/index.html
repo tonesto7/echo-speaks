@@ -41,10 +41,11 @@
     <!-- Settings Form -->
     <div style="margin: 0 auto; max-width: 500px;">
         <form class="p-5">
-            <p class="h4 mb-4 text-center">Echo Speaks Configuration</p>
+            <p class="h4 mb-0 text-center">Echo Speaks Configuration</p>
+            <p id="scriptVer" class="h5 mt-0 mb-4 text-center"></p>
             <div class="card w-100 mb-3">
                 <div class="card-header deep-orange lighten-1 white-text w-100 text-center">Amazon Login</div>
-                <div class="card-body w-100">
+                <div id="loginInputDiv" class="card-body w-100">
                     <!-- <h4 class="card-title">Special title treatment</h4>
                     <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
                     <a class="btn btn-deep-orange">Go somewhere</a> -->
@@ -136,6 +137,7 @@
         console.log('rootHost: ' + rootHost);
 
         $('#proxyLoginDiv').hide();
+        $('#loginInputDiv').show();
         var configData = {};
         $(document).ready(function() {
             let url = rootOrigin + '/configData';
@@ -144,7 +146,11 @@
                 configData = data;
                 $.each(data.state, function(key, val) {
                     if (key === 'loginProxyActive' && val === true) {
+                        $('#loginInputDiv').hide();
                         $('#proxyLoginDiv').show();
+                    }
+                    if (key === 'scriptVersion') {
+                        $('#scriptVer').text('v' + val);
                     }
                 });
                 $.each(data.settings, function(key, val) {

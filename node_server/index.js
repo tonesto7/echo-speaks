@@ -1,6 +1,6 @@
 "use strict";
 
-const appVer = '0.4.0';
+const appVer = '0.5.0';
 const alexa_api = require('./alexa-api');
 const reqPromise = require("request-promise");
 const logger = require('./logger');
@@ -43,10 +43,16 @@ function initConfig() {
 function loadConfig() {
     configData = configFile.get() || {};
     // console.log(configData);
-    if (!configData.settings) { configData.settings = {}; }
+    if (!configData.settings) {
+        configData.settings = {};
+    }
     configFile.set('settings.serverPort', configData.settings.serverPort || 8091);
     configFile.set('settings.proxyPort', configData.settings.proxyPort || 8092);
     configFile.set('settings.refreshSeconds', configData.settings.refreshSeconds || 60);
+    if (!configData.state) {
+        configData.state = {};
+    }
+    configFile.set('state.scriptVersion', appVer);
     configFile.save();
     configData = configFile.get();
 }
@@ -127,7 +133,7 @@ const loginSuccessHtml = function() {
     html += '       <meta name="viewport" content="width=640">'
     html += '       <title>Hubitat & Nest connection</title>'
     html += '       <style type="text/css">'
-    html += '           body { background: #2b3134;  text-align: center;}'
+    html += '           body { text-align: center; }'
     html += '           .container {'
     html += '               width: 90%;'
     html += '               padding: 4%;'
@@ -144,7 +150,8 @@ const loginSuccessHtml = function() {
     html += '   </head>'
     html += '   <body>'
     html += '       <div class="container">'
-    html += '           <b>Amazon Alexa Cookie successfully retrieved.You can close the browser.</b>'
+    html += '           <p>Amazon Alexa Cookie successfully retrieved.You can close the browser.</p>'
+    html += '           <p>You will be redirected back to the config page in 10 seconds.</p>';
     html += '       </div>';
     html += "       <script>setTimeout( function(){ window.location.href = '" + redirUrl + "'; }, 2500 );</script>";
     html += '   </body>'
@@ -161,11 +168,9 @@ function startWebServer() {
         proxyPort: configData.settings.proxyPort, // optional: use this port for the proxy, default is 0 means random port is selected
         proxyListenBind: '0.0.0.0', // optional: set this to bind the proxy to a special IP, default is '0.0.0.0'
         proxyLogLevel: 'warn', // optional: Loglevel of Proxy, default 'warn'
-        successHtml: loginSuccessHtml()
+        successHtml: loginSuccessHtml(),
+        serverPort: configData.settings.serverPort
     };
-    if (!configData.state) {
-        configData.state = {};
-    }
     configFile.set('state.loginProxyActive', true);
     configData.state.loginProxyActive = true;
     configFile.save();
