@@ -15,7 +15,7 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.6.0"}
+String devVersion() { return "0.7.0"}
 String devModified() { return "2018-09-10"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
@@ -28,9 +28,11 @@ metadata {
         capability "Speech Synthesis"
         
         attribute "lastUpdated", "string"
+        attribute "deviceFamily", "string"
         attribute "firmwareVer", "string"
         attribute "onlineStatus", "string"
-
+        attribute "currentStation", "string"
+        attribute "currentAlbum", "string"
         command "sendTestTts"
     }
 
@@ -41,7 +43,7 @@ metadata {
     tiles (scale: 2) {
         multiAttributeTile(name: "mediaMulti", type:"mediaPlayer", width:6, height:4) {
 			tileAttribute("device.status", key: "PRIMARY_CONTROL") {
-				attributeState("paused", label:"Paused",)
+				attributeState("paused", label:"Paused")
 				attributeState("playing", label:"Playing")
 				attributeState("stopped", label:"Stopped")
 			}
@@ -67,6 +69,12 @@ metadata {
 				attributeState("trackDescription", label:"${currentValue}", defaultState: true)
 			}
 		}
+        standardTile("deviceStatus", "device.status", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
+            state("paused", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png", backgroundColor: "#cccccc")
+            state("playing", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png", backgroundColor: "#00a0dc")
+            state("stopped", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png")
+            state("unavailable", label: "Unavailable", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png", backgroundColor: "#F22000")
+        }
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state("blank1x1", label:'')
         }
@@ -76,14 +84,23 @@ metadata {
         valueTile("firmwareVer", "device.firmwareVer", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("firmwareVer", label:'Firmware:\n${currentValue}')
         }
+        valueTile("deviceFamily", "device.deviceFamily", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("default", label:'Device Family:\n${currentValue}')
+        }
+        valueTile("currentStation", "device.currentStation", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
+            state("default", label:'Station:\n${currentValue}')
+        }
+        valueTile("currentAlbum", "device.currentAlbum", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
+            state("default", label:'Album:\n${currentValue}')
+        }
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
         }
         valueTile("status", "device.onlineStatus", height: 1, width: 2, decoration: "flat") {
             state("default", label: '${currentValue}', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png")
         }
-        main(["mediaMulti"])
-        details(["mediaMulti", "dtCreated", "firmwareVer", "sendTest"])
+        main(["deviceStatus"])
+        details(["mediaMulti","currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "sendTest"])
     }
 }
 
@@ -119,18 +136,18 @@ def getShortDevName(){
 
 def updateDeviceStatus(Map devData) {
     String devName = getShortDevName()
-    devData?.each { k,v ->
-        if(!(k in ["playerState", "capabilities", "deviceAccountId"])) {
-            logger("debug", "$k: $v")
-        }
-    }
-    devData?.playerState?.each { k,v ->
-        if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
-            logger("debug", "$k: $v")
-        }
-    }
-    state?.serialNumber = devData?.serialNumber
     if(devData?.size()) {
+        // devData?.each { k,v ->
+        //     if(!(k in ["playerState", "capabilities", "deviceAccountId"])) {
+        //         logger("debug", "$k: $v")
+        //     }
+        // }
+        devData?.playerState?.each { k,v ->
+            if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
+                logger("debug", "$k: $v")
+            }
+        }
+        state?.serialNumber = devData?.serialNumber
         state?.serialNumber = devData?.serialNumber
         state?.deviceType = devData?.deviceType
         state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
@@ -138,11 +155,35 @@ def updateDeviceStatus(Map devData) {
         if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
             sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
         }
+        log.debug "deviceFamily: ${devData?.deviceFamily}"
+        String devFamily = devData?.deviceFamily ?: ""
+        if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
+            sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
+        }
         if(devData?.playerState?.size()) {
             Map sData = devData?.playerState
             String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
+            log.debug "playState: $playState"
             if(isStateChange(device, "status", playState?.toString())) {
                 sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
+            }
+            if(sData?.infoText) {
+                // infoText: [multiLineMode:false, subText1:The Sixteen & Harry Christophers, subText2:Renaissance Classical Station, title:Veni sancte Spiritus]
+                if(sData?.infoText.title) {
+                    String title = sData?.infoText.title ?: ""
+                    if(isStateChange(device, "trackDescription", title?.toString())) {
+                        sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
+                    }
+
+                    String subText1 = sData?.infoText.subText1 ?: ""
+                    if(isStateChange(device, "currentAlbum", subText1?.toString())) {
+                        sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
+                    }
+                    String subText2 = sData?.infoText.subText2 ?: ""
+                    if(isStateChange(device, "currentStation", subText2?.toString())) {
+                        sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
+                    }
+                }
             }
             if(sData?.volume) {
                 if(sData?.volume?.volume) {
@@ -190,48 +231,97 @@ def speak(String msg) {
 }
 
 def play() {
-    log.debug "play() | Not Supported Yet!!!"
-	// sendEvent(name: "status", value: "playing")
-	// sendEvent(name: "trackDescription", value: state.tracks[state.currentTrack])
+    log.debug "play() command received..."
+    if(state?.serialNumber) {
+		echoServiceCmd("cmd", [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+            cmdType: "PlayCommand"
+        ])
+        if(isStateChange(device, "status", "playing")) {
+            sendEvent(name: "status", value: "playing", descriptionText: "Player Status is playing", display: true, displayed: true)
+        }
+	} else { log.warn "play() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
 def pause() {
-    log.debug "pause() | Not Supported Yet!!!"
-	// sendEvent(name: "status", value: "paused")
+    log.debug "pause() command received..."
+    if(state?.serialNumber) {
+		echoServiceCmd("cmd", [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+            cmdType: "PauseCommand"
+        ])
+        if(isStateChange(device, "status", "stopped")) {
+            sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
+        }
+	} else { log.warn "pause() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 	// sendEvent(name: "trackDescription", value: state.tracks[state.currentTrack])
 }
 
 def stop() {
-    log.debug "stop() | Not Supported Yet!!!"
-	// sendEvent(name: "status", value: "stopped")
+    log.debug "stop() command received..."
+    if(state?.serialNumber) {
+		echoServiceCmd("cmd", [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+            cmdType: "StopCommand"
+        ])
+        if(isStateChange(device, "status", "stopped")) {
+            sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
+        }
+	} else { log.warn "stop() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
 def previousTrack() {
-    log.debug "previousTrack() | Not Supported Yet!!!"
-	// state.currentTrack = state.currentTrack - 1
-	// if (state.currentTrack < 0) {
-	// 	state.currentTrack = state.tracks.size()-1
-    // }
-	// sendEvent(name: "trackDescription", value: state.tracks[state.currentTrack])
+	log.debug "previousTrack() command received..."
+    if(state?.serialNumber) {
+		echoServiceCmd("cmd", [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+            cmdType: "PreviousCommand"
+        ])
+	} else { log.warn "previousTrack() Command Error | You are missing a SerialNumber: ${state?.serialNumber}" }
 }
 
 def nextTrack() {
-    log.debug "nextTrack() | Not Supported Yet!!!"
-	// state.currentTrack = state.currentTrack + 1
-	// if (state.currentTrack == state.tracks.size()) {
-	// 	state.currentTrack = 0
-    // }
-	// sendEvent(name: "trackDescription", value: state.tracks[state.currentTrack])
+    log.debug "nextTrack() command received..."
+    if(state?.serialNumber) {
+		echoServiceCmd("cmd", [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+            cmdType: "NextCommand"
+        ])
+	} else { log.warn "nextTrack() Command Error | You are missing a SerialNumber: ${state?.serialNumber}" }
 }
 
 def mute() {
-    log.debug "mute() | Not Supported Yet!!!"
-	// sendEvent(name: "mute", value: "muted")
+    log.debug "mute() command received..."
+    if(state?.serialNumber) {
+        state.muteLevel = device?.currentState("level")?.integerValue
+        if(isStateChange(device, "mute", "muted")) {
+            sendEvent(name: "mute", value: "muted", descriptionText: "Mute is set to muted", display: true, displayed: true)
+        }
+        setLevel(0)
+	} else { log.warn "mute() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
 def unmute() {
-    log.debug "unmute() | Not Supported Yet!!!"
-	// sendEvent(name: "mute", value: "unmuted")
+    log.debug "unmute() command received..."
+    if(state?.serialNumber) {
+		if(state?.muteLevel) {
+            setLevel(state?.muteLevel)
+            state?.muteLevel = null
+            if(isStateChange(device, "mute", "unmuted")) {
+                sendEvent(name: "mute", value: "unmuted", descriptionText: "Mute is set to unmuted", display: true, displayed: true)
+            }
+        }
+	} else { log.warn "unmute() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
 def setLevel(level) {
@@ -242,13 +332,12 @@ def setLevel(level) {
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
             cmdType: "VolumeLevelCommand", 
-            cmdObjVal: [volumeLevel: level?.toInteger()].encodeAsJson()
+            cmdValObj: [volumeLevel: level?.toInteger()].encodeAsJson()
         ])
         if(isStateChange(device, "level", level?.toString())) {
             sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
         }
-	} else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Level: ${level}" }
-	
+	} else { log.warn "setLevel() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Level: ${level}" }
 }
 
 def setTrack(String uri, metaData="") {
@@ -277,7 +366,6 @@ def playTrackAtVolume(String uri, volume) {
 
 def playTrackAndResume(uri, duration, volume=null) {
     log.debug "playTrackAndResume() | Not Supported Yet!!!"
-    
     // log.debug "playTrackAndResume($uri, $duration, $volume)"
 	// def cmd = "playTrack&track=${uri}&resume"
 	// if (volume) {
@@ -290,7 +378,7 @@ def playTextAndResume(text, volume=null) {
     log.debug "playTextAndResume($text, $volume)"
     // def sound = textToSpeech(text)
     // playTrackAndResume(sound.uri, (sound.duration as Integer) + 1, volume)
-    if(text) { sendTtsMsg(text) }
+    if(text) { sendTtsMsg(text, volume) }
 }
 
 def playTrackAndRestore(uri, duration, volume=null) {
@@ -307,7 +395,7 @@ def playTextAndRestore(text, volume=null) {
     log.debug "playTextAndResume($text, $volume)"
 	// def sound = textToSpeech(text)
 	// playTrackAndRestore(sound.uri, (sound.duration as Integer) + 1, volume)
-    if(text) { sendTtsMsg(text) }
+    if(text) { sendTtsMsg(text, volume) }
 }
 
 def playURL(theURL) {
@@ -329,21 +417,23 @@ def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
 def sendTestTts(ttsMsg) {
     log.trace "sendTestTts"
     if(!ttsMsg) { ttsMsg = "Testing Testing 1, 2, 3"}
-	sendTtsMsg(ttsMsg)
+	sendTtsMsg(ttsMsg, 20)
 }
 
-public sendTtsMsg(String msg) {
+public sendTtsMsg(String msg, Integer volume=null) {
     if(state?.serialNumber && msg) {
+        if(volume) { 
+            setLevel(volume)
+        }
 		echoServiceCmd("tts", [deviceSerialNumber: state?.serialNumber, tts: msg])
 	} else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
 }
 
 private echoServiceCmd(type, headers={}, body = null) {
-	log.trace("echoServiceCmd(type: $type, headers: $headers, body: $body)")
+	// log.trace("echoServiceCmd(type: $type, headers: $headers, body: $body)")
 	String host = state?.serviceHost
 	if(!host) { return }
-	logger("trace", "echoServiceCmd($type) | host: ${host}")
-
+	logger("trace", "echoServiceCmd($type) | headers: ${headers} | body: $body | host: ${host}")
 	try {
 		String path = ""
 		Map headerMap = ["HOST": host]

@@ -1,6 +1,6 @@
 "use strict";
 
-const appVer = '0.6.0';
+const appVer = '0.7.0';
 const alexa_api = require('./alexa-api');
 const reqPromise = require("request-promise");
 const logger = require('./logger');
@@ -117,12 +117,12 @@ function startWebConfig() {
                     configFile.set('settings.proxyPort', req.headers.proxyport);
                 };
                 // console.log('configData(set): ', configData);
-                if (req.headers.user.length && req.headers.password.length && req.headers.smartthingshubip.length && req.headers.url.length && req.headers.refreshseconds.length && req.headers.serverport.length && req.headers.proxyport.length) {
+                if (req.headers.smartthingshubip.length && req.headers.url.length && req.headers.refreshseconds.length && req.headers.serverport.length && req.headers.proxyport.length) {
                     configFile.save();
                     loadConfig();
                     res.send('done');
                     if (configCheckOk()) {
-                        logger.debug("** Settings File Updated via Web Config **");
+                        logger.debug('** Settings File Updated via Web Config **');
                         if (!scheduledUpdatesActive) {
                             startWebServer();
                         }
@@ -233,36 +233,32 @@ function startWebServer() {
                     });
 
                     webApp.post('/alexa-command', urlencodedParser, function(req, res) {
-                        console.log('command headers: ', req.headers);
+                        // console.log('command headers: ', req.headers);
                         let hubAct = (req.headers.deviceserialnumber != undefined);
                         let serialNumber = req.headers.deviceserialnumber;
                         let deviceType = req.headers.devicetype;
                         let deviceOwnerCustomerId = req.headers.deviceownercustomerid;
                         let cmdType = req.headers.cmdtype;
-                        let cmdValObj = req.headers.cmdvalobj ? JSON.parse(req.headers.cmdvalobj) : {};
+                        let cmdValues = (req.headers.cmdvalobj && req.headers.cmdvalobj.length) ? JSON.parse(req.headers.cmdvalobj) : {};
                         let queryParams = {};
                         let bodyData = {};
                         switch (cmdType) {
-                            case 'VolumeLevelCommand':
-                                queryParams = {
-                                    deviceSerialNumber: serialNumber,
-                                    deviceType: deviceType
-                                }
-                                bodyData = {
-                                    type: cmdType
-                                }
-                                break
+                            default: queryParams = {
+                                deviceSerialNumber: serialNumber,
+                                deviceType: deviceType
+                            }
+                            bodyData = {
+                                type: cmdType
+                            }
+                            break
                         }
-                        console.log(JSON.stringify(cmdValObj));
-                        if (cmdValObj.length) {
-                            console.log(JSON.stringify(cmdValObj));
-                            let cmdVals = JSON.parse(JSON.stringify(cmdValObj));
-                            for (const key in cmdVals) {
-                                bodyData[key] = cmdVals[key];
+                        if (Object.keys(cmdValues).length) {
+                            for (const key in cmdValues) {
+                                bodyData[key] = cmdValues[key];
                             }
                         }
                         if (serialNumber) {
-                            logger.debug('++ Received an Execute Command Request for Device: ' + serialNumber + ' | CmdType: ' + cmdType + ' | CmdValObj: ' + cmdValObj + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
+                            logger.debug('++ Received an Execute Command Request for Device: ' + serialNumber + ' | CmdType: ' + cmdType + ' | CmdValObj: ' + cmdValues + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
                             alexa_api.executeCommand(bodyData, queryParams, savedConfig, function(error, response) {
                                 res.send(response);
                             });

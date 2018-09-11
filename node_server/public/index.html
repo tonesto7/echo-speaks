@@ -224,6 +224,10 @@
             var url = rootOrigin + '/configData';
             if (Object.keys(config).length) {
                 console.log(config);
+                if (configData.state.loginComplete === true) {
+                    delete configData.settings.user;
+                    delete configData.settings.password;
+                }
                 // $.post(url, {
                 //     "clientId": "1",
                 //     "sensor": "Temp",
