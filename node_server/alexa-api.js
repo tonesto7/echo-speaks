@@ -247,6 +247,34 @@ var getState = function(deviceSerialNumber, config, callback) {
     });
 };
 
+var getDndStatus = function(_config, callback) {
+    request({
+        method: 'GET',
+        url: alexaUrl + '/api/dnd/device-status-list',
+        headers: {
+            'Cookie': _config.cookies,
+            'csrf': _config.csrf
+        }
+    }, function(error, response, body) {
+        if (!error && response.statusCode === 200) {
+            let items = [];
+            try {
+                let res = JSON.parse(body);
+                if (Object.keys(res).length) {
+                    if (res.doNotDisturbDeviceStatusList.length) {
+                        items = res.doNotDisturbDeviceStatusList;
+                    }
+                }
+            } catch (e) {
+                logger.error('getDevices Error: ' + e.message);
+            }
+            callback(null, items);
+        } else {
+            callback(error, response);
+        }
+    });
+};
+
 
 var getBluetoothDevices = function(config, callback) {
     request({
@@ -265,19 +293,9 @@ var getBluetoothDevices = function(config, callback) {
     });
 };
 
-var executeCommand = function(_bodyData, _queryParams, _config, callback) {
-    let cmdOptions = {
-        method: 'POST',
-        qs: _queryParams,
-        url: alexaUrl + '/api/np/command',
-        headers: {
-            'Cookie': _config.cookies,
-            'csrf': _config.csrf
-        },
-        json: _bodyData
-    };
-    console.log(JSON.stringify(cmdOptions));
-    request(cmdOptions, function(error, response) {
+var executeCommand = function(_cmdOpts, callback) {
+    console.log(JSON.stringify(_cmdOpts));
+    request(_cmdOpts, function(error, response) {
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "message": "success"
@@ -721,6 +739,7 @@ exports.setTTS = setTTS;
 exports.setMedia = setMedia;
 exports.getDevices = getDevices;
 exports.getState = getState;
+exports.getDndStatus = getDndStatus;
 exports.executeCommand = executeCommand;
 exports.getBluetoothDevices = getBluetoothDevices;
 exports.setBluetoothDevice = setBluetoothDevice;
