@@ -20,11 +20,10 @@ String devModified() { return "2018-09-11"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli") {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", ocfResourceType: "x.com.st.mediaplayer") {
         capability "Sensor"
         capability "Refresh"
         capability "Music Player"
-        capability "Media Track Control"
         capability "Notification"
         capability "Speech Synthesis"
         
@@ -38,6 +37,7 @@ metadata {
         command "sendTestTts"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
+        command "setVolumeAndSpeak", ["number", "string"]
     }
 
     preferences { 
@@ -361,25 +361,8 @@ def restoreTrack() {
     logger("warn", "restoreTrack() | Not Supported Yet!!!")
 }
 
-def playTrackAtVolume(String uri, volume) {
-    logger("warn", "playTrackAtVolume() | Not Supported Yet!!!")
-}
-
-def playTrackAndResume(uri, duration, volume=null) {
-    logger("warn", "playTrackAndResume() | Not Supported Yet!!!")
-}
-
-def playTextAndResume(text, volume=null) {
-    logger("trace", "playTextAndResume($text, $volume)")
-    if(text) { sendTtsMsg(text, volume) }
-}
-
-def playTrackAndRestore(uri, duration, volume=null) {
-    logger("warn", "playTrackAndRestore() | Not Supported Yet!!!")
-}
-
-def playTextAndRestore(text, volume=null) {
-    logger("trace", "playTextAndResume($text, $volume)")
+def setVolumeAndSpeak(volume, text) {
+    logger("trace", "setVolumeAndSpeak($volume, $text)")
     if(text) { sendTtsMsg(text, volume) }
 }
 
@@ -387,10 +370,6 @@ def playURL(theURL) {
     logger("warn", "playURL() | Not Supported Yet!!!")
 	// log.debug "Executing 'playURL'"
     // sendCommand("url=$theURL")
-}
-
-def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
-    logger("warn", "playSoundAndTrack() | Not Supported Yet!!!")
 }
 
 public doNotDisturbOff() {
