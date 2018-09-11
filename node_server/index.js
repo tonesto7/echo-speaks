@@ -1,6 +1,6 @@
 "use strict";
 
-const appVer = '0.6.0';
+const appVer = '0.6.1';
 const alexa_api = require('./alexa-api');
 const reqPromise = require("request-promise");
 const logger = require('./logger');
