@@ -248,7 +248,8 @@ function startWebServer() {
                                 deviceType: deviceType
                             }
                             bodyData = {
-                                type: cmdType
+                                type: cmdType,
+                                contentFocusClientId: null
                             }
                             break
                         }
