@@ -15,7 +15,7 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.6.1"}
+String devVersion() { return "0.6.2"}
 String devModified() { return "2018-09-11"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
@@ -30,11 +30,14 @@ metadata {
         
         attribute "lastUpdated", "string"
         attribute "deviceFamily", "string"
+        attribute "doNotDisturb", "boolean"
         attribute "firmwareVer", "string"
         attribute "onlineStatus", "string"
         attribute "currentStation", "string"
         attribute "currentAlbum", "string"
         command "sendTestTts"
+        command "doNotDisturbOn"
+        command "doNotDisturbOff"
     }
 
     preferences { 
@@ -95,13 +98,18 @@ metadata {
             state("default", label:'Album:\n${currentValue}')
         }
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
+            
             state("default", label:'Send Test TTS', action: 'sendTestTts')
+        }
+        standardTile("doNotDisturb", "device.doNotDisturb", height: 2, width: 2, inactiveLabel: false, decoration: "flat") {
+            state "true", label: 'DnD: ON', action: "doNotDisturbOff", nextState: "false"
+            state "false", label: 'DnD: OFF', action: "doNotDisturbOn", nextState: "true"
         }
         valueTile("status", "device.onlineStatus", height: 1, width: 2, decoration: "flat") {
             state("default", label: '${currentValue}', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png")
         }
         main(["deviceStatus"])
-        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "sendTest"])
+        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "doNotDisturb","sendTest"])
     }
 }
 
@@ -141,18 +149,22 @@ def updateDeviceStatus(Map devData) {
         //         logger("debug", "$k: $v")
         //     }
         // }
-        devData?.playerState?.each { k,v ->
-            if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
-                logger("debug", "$k: $v")
-            }
-        }
+        // devData?.playerState?.each { k,v ->
+        //     if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
+        //         logger("debug", "$k: $v")
+        //     }
+        // }
         state?.serialNumber = devData?.serialNumber
         state?.serialNumber = devData?.serialNumber
         state?.deviceType = devData?.deviceType
         state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
+        log.debug "dndEnabled: ${devData?.dndEnabled}"
         String firmwareVer = devData?.softwareVersion ?: "Not Set"
         if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
             sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
+        }
+        if(isStateChange(device, "doNotDisturb", (devData?.dndEnabled == true)?.toString())) {
+            sendEvent(name: "doNotDisturb", value: (devData?.dndEnabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(devData?.dndEnabled == true)}", display: true, displayed: true)
         }
         String devFamily = devData?.deviceFamily ?: ""
         if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
@@ -228,7 +240,7 @@ def speak(String msg) {
 }
 
 def play() {
-    log.debug "play() command received..."
+    logger("trace", "play() command received...")
     if(state?.serialNumber) {
 		echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -243,7 +255,7 @@ def play() {
 }
 
 def pause() {
-    log.debug "pause() command received..."
+    logger("trace", "pause() command received...")
     if(state?.serialNumber) {
 		echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -259,7 +271,7 @@ def pause() {
 }
 
 def stop() {
-    log.debug "stop() command received..."
+    logger("trace", "stop() command received...")
     if(state?.serialNumber) {
 		echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -274,7 +286,7 @@ def stop() {
 }
 
 def previousTrack() {
-	log.debug "previousTrack() command received..."
+	logger("trace", "previousTrack() command received...")
     if(state?.serialNumber) {
 		echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -286,7 +298,7 @@ def previousTrack() {
 }
 
 def nextTrack() {
-    log.debug "nextTrack() command received..."
+    logger("trace", "nextTrack() command received...")
     if(state?.serialNumber) {
 		echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -298,7 +310,7 @@ def nextTrack() {
 }
 
 def mute() {
-    log.debug "mute() command received..."
+    logger("trace", "mute() command received...")
     if(state?.serialNumber) {
         state.muteLevel = device?.currentState("level")?.integerValue
         if(isStateChange(device, "mute", "muted")) {
@@ -309,7 +321,7 @@ def mute() {
 }
 
 def unmute() {
-    log.debug "unmute() command received..."
+    logger("trace", "unmute() command received...")
     if(state?.serialNumber) {
 		if(state?.muteLevel) {
             setLevel(state?.muteLevel)
@@ -322,7 +334,7 @@ def unmute() {
 }
 
 def setLevel(level) {
-    log.debug "setVolume($level) command received..."
+    logger("trace", "setVolume($level) command received...")
     if(state?.serialNumber && level) {
 		echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -338,77 +350,68 @@ def setLevel(level) {
 }
 
 def setTrack(String uri, metaData="") {
-    log.debug "setLevel($level) | Not Supported Yet!!!"
-	// log.debug "Executing 'setTrack'"
-    // sendCommand("track=$uri")
+    logger("warn", "setTrack(uri: $uri, meta: $meta) | Not Supported Yet!!!")
 }
 
 def resumeTrack() {
-    log.debug "resumeTrack() | Not Supported Yet!!!"
-	// log.debug "Executing 'resumeTrack'"
-	// TODO: handle 'resumeTrack' command
+    logger("warn", "resumeTrack() | Not Supported Yet!!!")
 }
 
 def restoreTrack() {
-    log.debug "restoreTrack() | Not Supported Yet!!!"
-	// log.debug "Executing 'restoreTrack'"
-	// TODO: handle 'restoreTrack' command
+    logger("warn", "restoreTrack() | Not Supported Yet!!!")
 }
 
 def playTrackAtVolume(String uri, volume) {
-    log.debug "playTrackAtVolume() | Not Supported Yet!!!"
-    // log.trace "playTrackAtVolume($uri, $volume)"
-	// sendCommand("playTrack&track=${uri}&volume=${volume}")
+    logger("warn", "playTrackAtVolume() | Not Supported Yet!!!")
 }
 
 def playTrackAndResume(uri, duration, volume=null) {
-    log.debug "playTrackAndResume() | Not Supported Yet!!!"
-    // log.debug "playTrackAndResume($uri, $duration, $volume)"
-	// def cmd = "playTrack&track=${uri}&resume"
-	// if (volume) {
-	// 	cmd += "&volume=${volume}"
-    // }
-    // sendCommand(cmd)
+    logger("warn", "playTrackAndResume() | Not Supported Yet!!!")
 }
 
 def playTextAndResume(text, volume=null) {
-    log.debug "playTextAndResume($text, $volume)"
-    // def sound = textToSpeech(text)
-    // playTrackAndResume(sound.uri, (sound.duration as Integer) + 1, volume)
+    logger("trace", "playTextAndResume($text, $volume)")
     if(text) { sendTtsMsg(text, volume) }
 }
 
 def playTrackAndRestore(uri, duration, volume=null) {
-    log.debug "playTrackAndRestore() | Not Supported Yet!!!"
-    // log.debug "playTrackAndResume($uri, $duration, $volume)"
-	// def cmd = "playTrack&track=${uri}&restore"
-	// if (volume) {
-	// 	cmd += "&volume=${volume}"
-    // }
-    // sendCommand(cmd)
+    logger("warn", "playTrackAndRestore() | Not Supported Yet!!!")
 }
 
 def playTextAndRestore(text, volume=null) {
-    log.debug "playTextAndResume($text, $volume)"
-	// def sound = textToSpeech(text)
-	// playTrackAndRestore(sound.uri, (sound.duration as Integer) + 1, volume)
+    logger("trace", "playTextAndResume($text, $volume)")
     if(text) { sendTtsMsg(text, volume) }
 }
 
 def playURL(theURL) {
-    log.debug "playURL() | Not Supported Yet!!!"
+    logger("warn", "playURL() | Not Supported Yet!!!")
 	// log.debug "Executing 'playURL'"
     // sendCommand("url=$theURL")
 }
 
 def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
-    log.debug "playSoundAndTrack() | Not Supported Yet!!!"
-	// log.debug "playSoundAndTrack($uri, $duration, $trackData, $volume)"
-	// def cmd = "playTrack&track=${soundUri}&playlist=${trackData.station}"
-	// if (volume) {
-	// 	cmd += "&volume=${volume}"
-    // }
-    // sendCommand(cmd)
+    logger("warn", "playSoundAndTrack() | Not Supported Yet!!!")
+}
+
+public doNotDisturbOff() {
+    logger("trace", "doNotDisturbOff() command received...")
+    setDoNotDisturb(false)
+}
+
+public doNotDisturbOn() {
+    logger("trace", "doNotDisturbOn() command received...")
+    setDoNotDisturb(true)
+}
+
+public setDoNotDisturb(Boolean val) {
+    logger("trace", "setDoNotDisturb() command received...")
+    echoServiceCmd("cmd", [
+        deviceSerialNumber: state?.serialNumber,
+        deviceType: state?.deviceType,
+        deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+        cmdType: "SetDnd", 
+        cmdValObj: [enabled: (val==true)].encodeAsJson()
+    ])
 }
 
 def sendTestTts(ttsMsg) {
@@ -427,7 +430,7 @@ public sendTtsMsg(String msg, Integer volume=null) {
 }
 
 private echoServiceCmd(type, headers={}, body = null) {
-	// log.trace("echoServiceCmd(type: $type, headers: $headers, body: $body)")
+	logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body)")
 	String host = state?.serviceHost
 	if(!host) { return }
 	logger("trace", "echoServiceCmd($type) | headers: ${headers} | body: $body | host: ${host}")
