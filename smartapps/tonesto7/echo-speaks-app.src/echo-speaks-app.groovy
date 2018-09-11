@@ -17,19 +17,19 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "0.6.0" }
-String appModified() { return "2018-09-10"}
+String appVersion()	 { return "0.6.1" }
+String appModified() { return "2018-09-11"}
 String appAuthor()	 { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
 	return [
-		echoDevice: 060,
+		echoDevice: 061,
 		server: 060
 	]
 }
 
 definition(
-	name: "Echo Speaks App",
+	name: "Echo Speaks",
 	namespace: "tonesto7",
 	author: "Anthony Santilli",
 	description: "Allow you to create virtual echo devices and send tts to them in SmartThings",
@@ -37,7 +37,6 @@ definition(
 	iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
 	iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x.png",
 	iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x.png")
-
 
 preferences {
 	page(name: "mainPage")
@@ -256,6 +255,7 @@ def uninstalled() {
 
 def initialize() {
 	// listen to LAN incoming messages
+	if(app?.getLabel() != "Echo Speaks") { app.label = "Echo Speaks" }
 	runEvery5Minutes("notificationCheck") // This task checks for missed polls and app updates
 	subscribe(app, onAppTouch)
 	subscribe(location, null, lanEventHandler, [filterEvents:false])

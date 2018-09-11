@@ -15,8 +15,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.6.0"}
-String devModified() { return "2018-09-10"}
+String devVersion() { return "0.6.1"}
+String devModified() { return "2018-09-11"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -24,6 +24,7 @@ metadata {
         capability "Sensor"
         capability "Refresh"
         capability "Music Player"
+        capability "Media Track Control"
         capability "Notification"
         capability "Speech Synthesis"
         
@@ -45,12 +46,12 @@ metadata {
 			tileAttribute("device.status", key: "PRIMARY_CONTROL") {
 				attributeState("paused", label:"Paused")
 				attributeState("playing", label:"Playing")
-				attributeState("stopped", label:"Stopped")
+				attributeState("stopped", label:"Stopped", defaultState: true)
 			}
 			tileAttribute("device.status", key: "MEDIA_STATUS") {
 				attributeState("paused", label:"Paused", action:"music Player.play", nextState: "playing")
 				attributeState("playing", label:"Playing", action:"music Player.pause", nextState: "paused")
-				attributeState("stopped", label:"Stopped", action:"music Player.play", nextState: "playing")
+				attributeState("stopped", label:"Stopped", action:"music Player.play", nextState: "playing", defaultState: true)
 			}
 			tileAttribute("device.status", key: "PREVIOUS_TRACK") {
 				attributeState("status", action:"music Player.previousTrack", defaultState: true)
@@ -59,11 +60,11 @@ metadata {
 				attributeState("status", action:"music Player.nextTrack", defaultState: true)
 			}
 			tileAttribute ("device.level", key: "SLIDER_CONTROL") {
-				attributeState("level", action:"music Player.setLevel")
+				attributeState("level", action:"music Player.setLevel", defaultState: true)
 			}
 			tileAttribute ("device.mute", key: "MEDIA_MUTED") {
 				attributeState("unmuted", action:"music Player.mute", nextState: "muted")
-				attributeState("muted", action:"music Player.unmute", nextState: "unmuted")
+				attributeState("muted", action:"music Player.unmute", nextState: "unmuted", defaultState: true)
 			}
 			tileAttribute("device.trackDescription", key: "MARQUEE") {
 				attributeState("trackDescription", label:"${currentValue}", defaultState: true)
@@ -73,7 +74,7 @@ metadata {
             state("paused", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png", backgroundColor: "#cccccc")
             state("playing", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png", backgroundColor: "#00a0dc")
             state("stopped", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png")
-            state("unavailable", label: "Unavailable", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png", backgroundColor: "#F22000")
+            // state("unavailable", label: "Unavailable", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png", backgroundColor: "#F22000")
         }
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state("blank1x1", label:'')
@@ -82,7 +83,7 @@ metadata {
             state("blank1x1", label:'')
         }
         valueTile("firmwareVer", "device.firmwareVer", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("firmwareVer", label:'Firmware:\n${currentValue}')
+            state("default", label:'Firmware:\n${currentValue}')
         }
         valueTile("deviceFamily", "device.deviceFamily", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("default", label:'Device Family:\n${currentValue}')
@@ -100,7 +101,7 @@ metadata {
             state("default", label: '${currentValue}', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png")
         }
         main(["deviceStatus"])
-        details(["mediaMulti","currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "sendTest"])
+        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "sendTest"])
     }
 }
 
@@ -110,12 +111,10 @@ def parse(description) {
 
 def installed() {
 	log.trace "${device?.displayName} Executing Installed..."
-
-    state.tracks = []
-    state.currentTrack = 0
 	sendEvent(name: "level", value: 0)
 	sendEvent(name: "mute", value: "unmuted")
 	sendEvent(name: "status", value: "stopped")
+    sendEvent(name: "trackDescription", value: "")
 	initialize()
 }
 
@@ -155,7 +154,6 @@ def updateDeviceStatus(Map devData) {
         if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
             sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
         }
-        log.debug "deviceFamily: ${devData?.deviceFamily}"
         String devFamily = devData?.deviceFamily ?: ""
         if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
             sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
@@ -163,7 +161,6 @@ def updateDeviceStatus(Map devData) {
         if(devData?.playerState?.size()) {
             Map sData = devData?.playerState
             String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
-            log.debug "playState: $playState"
             if(isStateChange(device, "status", playState?.toString())) {
                 sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
             }
@@ -175,11 +172,11 @@ def updateDeviceStatus(Map devData) {
                         sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
                     }
 
-                    String subText1 = sData?.infoText.subText1 ?: ""
+                    String subText1 = sData?.infoText.subText1 ?: "Idle"
                     if(isStateChange(device, "currentAlbum", subText1?.toString())) {
                         sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
                     }
-                    String subText2 = sData?.infoText.subText2 ?: ""
+                    String subText2 = sData?.infoText.subText2 ?: "Idle"
                     if(isStateChange(device, "currentStation", subText2?.toString())) {
                         sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
                     }
@@ -417,7 +414,7 @@ def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
 def sendTestTts(ttsMsg) {
     log.trace "sendTestTts"
     if(!ttsMsg) { ttsMsg = "Testing Testing 1, 2, 3"}
-	sendTtsMsg(ttsMsg, 20)
+	sendTtsMsg(ttsMsg)
 }
 
 public sendTtsMsg(String msg, Integer volume=null) {
