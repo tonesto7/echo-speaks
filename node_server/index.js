@@ -1,6 +1,6 @@
 "use strict";
 
-const appVer = '0.6.1';
+const appVer = '0.6.2';
 const alexa_api = require('./alexa-api');
 const reqPromise = require("request-promise");
 const logger = require('./logger');
@@ -26,6 +26,7 @@ var savedConfig = {};
 var command = {};
 var serviceStartTime = Date.now(); //Returns time in millis
 var eventCount = 0;
+var alexaUrl = 'https://alexa.amazon.com';
 var echoDevices = {};
 
 function initConfig() {
@@ -185,6 +186,7 @@ function startWebServer() {
         proxyLogLevel: 'warn', // optional: Loglevel of Proxy, default 'warn'
         successHtml: loginSuccessHtml()
     };
+
     configFile.set('state.loginProxyActive', true);
     configData.state.loginProxyActive = true;
     configFile.set('state.loginComplete', false);
@@ -192,6 +194,7 @@ function startWebServer() {
     configFile.save();
 
     alexa_api.alexaLogin(configData.settings.user, configData.settings.password, alexaOptions, function(error, response, config) {
+        alexaUrl = 'https://alexa.' + configData.settings.url;
         savedConfig = config;
         // console.log('error:', error);
         if (response !== undefined && response !== "") {
@@ -240,27 +243,44 @@ function startWebServer() {
                         let deviceOwnerCustomerId = req.headers.deviceownercustomerid;
                         let cmdType = req.headers.cmdtype;
                         let cmdValues = (req.headers.cmdvalobj && req.headers.cmdvalobj.length) ? JSON.parse(req.headers.cmdvalobj) : {};
-                        let queryParams = {};
-                        let bodyData = {};
+
+                        let cmdOpts = {
+                            headers: {
+                                'Cookie': savedConfig.cookies,
+                                'csrf': savedConfig.csrf
+                            },
+                            json: {}
+                        };
                         switch (cmdType) {
-                            default: queryParams = {
-                                deviceSerialNumber: serialNumber,
-                                deviceType: deviceType
-                            }
-                            bodyData = {
-                                type: cmdType,
-                                contentFocusClientId: null
-                            }
-                            break
+                            case 'SetDnd':
+                                cmdOpts.method = 'PUT';
+                                cmdOpts.url = alexaUrl + '/api/dnd/status';
+                                cmdOpts.json = {
+                                    deviceSerialNumber: serialNumber,
+                                    deviceType: deviceType
+                                };
+                                break;
+                            default:
+                                cmdOpts.method = 'POST';
+                                cmdOpts.url = alexaUrl + '/api/np/command';
+                                cmdOpts.qs = {
+                                    deviceSerialNumber: serialNumber,
+                                    deviceType: deviceType
+                                };
+                                cmdOpts.json = {
+                                    type: cmdType,
+                                    contentFocusClientId: null
+                                };
+                                break
                         }
                         if (Object.keys(cmdValues).length) {
                             for (const key in cmdValues) {
-                                bodyData[key] = cmdValues[key];
+                                cmdOpts.json[key] = cmdValues[key];
                             }
                         }
                         if (serialNumber) {
                             logger.debug('++ Received an Execute Command Request for Device: ' + serialNumber + ' | CmdType: ' + cmdType + ' | CmdValObj: ' + cmdValues + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
-                            alexa_api.executeCommand(bodyData, queryParams, savedConfig, function(error, response) {
+                            alexa_api.executeCommand(cmdOpts, function(error, response) {
                                 res.send(response);
                             });
                         } else {
@@ -280,25 +300,6 @@ function startWebServer() {
                     // webApp.post('/alexa-getActivities', urlencodedParser, function(req, res) {
                     //     logger.verbose('got request for getActivities');
                     //     alexa_api.getActivities(savedConfig, function(error, response) {
-                    //         res.send(response);
-                    //     });
-                    // });
-
-                    // webApp.post('/alexa-setMedia', urlencodedParser, function(req, res) {
-                    //     var volume = req.body.volume;
-                    //     var deviceSerialNumber = req.body.deviceSerialNumber;
-                    //     if (volume) {
-                    //         command = {
-                    //             type: 'VolumeLevelCommand',
-                    //             volumeLevel: parseInt(volume)
-                    //         };
-                    //     } else {
-                    //         command = {
-                    //             type: req.body.command
-                    //         };
-                    //     }
-                    //     console.log('got set media message with command: ' + command + ' for device: ' + deviceSerialNumber);
-                    //     alexa_api.setMedia(command, deviceSerialNumber, savedConfig, function(error, response) {
                     //         res.send(response);
                     //     });
                     // });
@@ -380,6 +381,12 @@ async function buildEchoDeviceMap(eDevData) {
                 echoDevices[eDevData[dev].serialNumber].playerState = devState;
             }
         }
+        let dndState = await getDeviceDndInfo();
+        for (const ds in dndState) {
+            if (echoDevices[dndState[ds].deviceSerialNumber] !== undefined) {
+                echoDevices[dndState[ds].deviceSerialNumber].dndEnabled = dndState[ds].enabled || false;
+            }
+        }
     } catch (err) {
         logger.error('buildEchoDeviceMap ERROR:', err);
     }
@@ -389,6 +396,14 @@ function getDeviceStateInfo(deviceId) {
     return new Promise(resolve => {
         alexa_api.getState(deviceId, savedConfig, function(err, resp) {
             resolve(resp.playerInfo || {});
+        });
+    });
+}
+
+function getDeviceDndInfo() {
+    return new Promise(resolve => {
+        alexa_api.getDndStatus(savedConfig, function(err, resp) {
+            resolve(resp || []);
         });
     });
 }
