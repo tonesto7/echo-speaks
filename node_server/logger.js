@@ -21,33 +21,31 @@ function initLogFolder() {
     }
 }
 
-// winston.addColors({
-//     silly: 'magenta',
-//     verbose: 'gray',
-//     debug: 'green',
-//     info: 'blue',
-//     warn: 'orange',
-//     error: 'red',
-//     silly: 'yellow'
-// });
+winston.addColors({
+    error: 'red',
+    warn: 'orange',
+    info: 'blue',
+    verbose: 'green',
+    debug: 'gray',
+    silly: 'yellow'
+});
 
 let logger = createLogger({
     level: 'silly',
-    // levels: {
-    //     error: 0,
-    //     warn: 1,
-    //     info: 2,
-    //     verbose: 3,
-    //     debug: 4,
-    //     silly: 5
-    // },
+    levels: {
+        error: 0,
+        warn: 1,
+        info: 2,
+        verbose: 3,
+        debug: 4,
+        silly: 5
+    },
     format: format.combine(
         format.timestamp({
             format: 'M-D-YYYY - h:mm:ssa'
         }),
-        format.colorize({
-            all: true
-        }),
+        format.colorize({ all: true }),
+        winston.format.simple(),
         format.align(),
         format.prettyPrint(),
         format.printf(info => {

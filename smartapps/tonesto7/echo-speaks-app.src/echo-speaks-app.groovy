@@ -1,10 +1,8 @@
 /**
- *	Echo Speaks SmartApp
+ *  Echo Speaks SmartApp
  *
- *	Author: Anthony Santilli
- * Based off of Keaton Taylors HomeAssistant Module: https://github.com/keatontaylor/hassio-addons
- *
- *  Copyright 2018 Brian Beaird and Anthony Santilli
+ *  Based off of Keaton Taylors HomeAssistant Module: https://github.com/keatontaylor/hassio-addons
+ *  Copyright 2018 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -19,14 +17,14 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion() { return "0.1.0" }
-String appModified() { return "2018-09-01"}
-String appAuthor() { return "Anthony Santilli" }
+String appVersion()	 { return "0.6.0" }
+String appModified() { return "2018-09-10"}
+String appAuthor()	 { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
 	return [
-		echoDevice: 001,
-		server: 001
+		echoDevice: 060,
+		server: 060
 	]
 }
 
@@ -93,6 +91,7 @@ def mainPage() {
 		}
 		section ("Application Logs") {
 			input (name: "appDebug", type: "bool", title: "Show App Logs in the IDE?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
+			input (name: "appTrace", type: "bool", title: "Show Detailed Trace Logs in the IDE?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
 		}
 		if(!newInstall) {
 			section("") {
@@ -274,7 +273,6 @@ def onAppTouch(evt) {
 	// log.trace "appTouch..."
 	// notificationCheck()
 	// echoServiceUpdate()
-	sendTtsCommand("G090LF0964221599", "Hello There")
 }
 
 private updCodeVerMap() {
@@ -291,22 +289,21 @@ private modCodeVerMap(key, val) {
 
 def lanEventHandler(evt) {
 	// log.trace "lanStreamEvtHandler..."
-	def status = [:]
+	def msg = parseLanMessage(evt?.description)
+	Map headerMap = msg?.headers
+	logger("trace", "lanEventHandler... | headers: ${headerMap}", true)
 	try {
-		def msg = parseLanMessage(evt?.description)
-		Map headerMap = msg?.headers
-		// log.debug "lanEventHandler... | headers: ${headerMap}"
 		Map msgData = [:]
 		if (headerMap?.size()) {
 			if (headerMap?.evtSource && headerMap?.evtSource == "Echo_Speaks") {
 				if (msg?.body != null) {
 					def slurper = new groovy.json.JsonSlurper()
-					msgData = slurper.parseText(msg?.body as String)
-					// log.debug "msgData: $msgData"
+					msgData = slurper?.parseText(msg?.body as String)
+					logger("debug", "msgData: $msgData", true)
 					if(headerMap?.evtType) { 
 						switch(headerMap?.evtType) {
 							case "sendStatusData":
-								status = receiveEventData(msgData)
+								receiveEventData(msgData)
 								break
 						}
 					}
@@ -315,13 +312,13 @@ def lanEventHandler(evt) {
 		}
 	} catch (ex) {
 		log.error "lanEventHandler Exception:", ex
-		status = [data:"${ex?.message}", code: 500]
 	}
 }
 
 def receiveEventData(Map evtData) {
 	try {
-		if (evtData?.size()) {
+		logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
+		if (evtData?.keySet()?.size()) {
 			List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
 			
 			//Check for minimum versions before processing
@@ -333,8 +330,7 @@ def receiveEventData(Map evtData) {
 			}
 			
 			if (evtData?.echoDevices?.size()) {
-				log.debug "echoDevices: " + evtData?.echoDevices?.size()
-				
+				logger("debug", "echoDevices: ${evtData?.echoDevices?.size()}")
 				Map echoDeviceMap = [:]
 				Integer cnt = 0
 				evtData?.echoDevices?.each { echoKey, echoValue->
@@ -345,15 +341,16 @@ def receiveEventData(Map evtData) {
 						logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
 						return 
 					}
-					def dni = [app?.id, "echoSpeaks", echoKey].join('|')
+					String dni = [app?.id, "echoSpeaks", echoKey].join('|')
 					def childDevice = getChildDevice(dni)
-					def devLabel = "Echo - " + echoValue?.accountName
-					def childHandlerName = "Echo Speaks Device"
+					String devLabel = "Echo - " + echoValue?.accountName
+					String childHandlerName = "Echo Speaks Device"
+					String hubId = settings?.stHub?.getId()
 					if(!updRequired) {
 						if (!childDevice) {
 							try{
 								log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)"
-								childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
+								childDevice = addChildDevice("tonesto7", childHandlerName, dni, hubId, [name: childHandlerName, label: devLabel, completedSetup: true])
 							} catch(physicalgraph.app.exception.UnknownDeviceTypeException ex) {
 								log.error "AddDevice Error! ", ex
 							}
@@ -367,6 +364,7 @@ def receiveEventData(Map evtData) {
 						}
 						// logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
 						childDevice?.updateDeviceStatus(echoValue)
+						childDevice?.updateServiceInfo(getServiceHostInfo())
 					}
 					modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
 					state?.lastDevDataUpd = getDtNow()
@@ -408,11 +406,15 @@ public sendTtsCommand(deviceId, ttsMsg) {
 	}
 }
 
-private echoServiceUpdate() {
-	// log.trace("echoServiceUpdate")
+public getServiceHostInfo() {
 	String ip = state?.nodeServiceInfo?.ip
 	String port = state?.nodeServiceInfo?.port
-	String host = ip && port ? "${ip}:${port}" : null
+	return ip && port ? "${ip}:${port}" : null
+}
+
+private echoServiceUpdate() {
+	// log.trace("echoServiceUpdate")
+	String host = getServiceHostInfo()
 	String smartThingsHubIp = settings?.stHub?.getLocalIP()
 	if(!host) { return }
 	
@@ -437,9 +439,7 @@ private echoServiceUpdate() {
 
 private echoServiceCmd(type, headers={}, body = "") {
 	log.trace("echoServiceCmd(type: $type, body: $body)")
-	String ip = state?.nodeServiceInfo?.ip
-	String port = state?.nodeServiceInfo?.port
-	String host = ip && port ? "${ip}:${port}" : null
+	String host = getServiceHostInfo()
 	String smartThingsHubIp = settings?.stHub?.getLocalIP()
 	if(!host) { return }
 	logger("trace", "echoServiceCmd($type) | host: ${host}")
@@ -852,7 +852,8 @@ String getAppDebugDesc() {
 	return (str != "") ? "${str}" : null
 }
 
-private logger(type, msg) {
+private logger(type, msg, traceOnly=false) {
+	if (traceOnly && !settings?.appTrace) { return }
 	if(type && msg && settings?.appDebug) {
 		log."${type}" "${msg}"
 	}

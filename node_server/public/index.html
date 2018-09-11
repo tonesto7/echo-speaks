@@ -41,13 +41,11 @@
     <!-- Settings Form -->
     <div style="margin: 0 auto; max-width: 500px;">
         <form class="p-5">
-            <p class="h4 mb-4 text-center">Echo Speaks Configuration</p>
+            <p class="h4 mb-0 text-center">Echo Speaks Configuration</p>
+            <p id="scriptVer" class="h5 mt-0 mb-4 text-center"></p>
             <div class="card w-100 mb-3">
                 <div class="card-header deep-orange lighten-1 white-text w-100 text-center">Amazon Login</div>
-                <div class="card-body w-100">
-                    <!-- <h4 class="card-title">Special title treatment</h4>
-                    <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
-                    <a class="btn btn-deep-orange">Go somewhere</a> -->
+                <div id="loginInputDiv" class="card-body w-100">
                     <div class="md-form mt-0">
                         <i class="fa fa-user prefix"></i>
                         <input type="email" id="user" name="user" class="form-control" aria-describedby="emailHelpBlockMD">
@@ -65,6 +63,17 @@
                         </small>
                     </div>
                 </div>
+                <div id="clearLoginDiv" class="w-100">
+                    <div class="text-center">
+                        <h5 class="my-2">Authentication Good!</h5>
+                        <button id="clearLoginBtn" class="btn btn-amber btn-rounded mt-0 mb-4" type="button"><i class="fa fa-close mr-1"></i>Clear Login Info</button>
+                    </div>
+                </div>
+                <div id="proxyLoginDiv" class="w-100">
+                    <div class="text-center">
+                        <button id="proxyLoginLink" class="btn btn-info btn-rounded my-4" type="button"><i class="fa fa-unlock-alt mr-1"></i>Goto Login Page</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Material input -->
@@ -74,9 +83,9 @@
                     <div class="md-form mt-0">
                         <i class="fa fa-at prefix"></i>
                         <input type="text" id="url" name="url" class="form-control" aria-describedby="urlHelpBlockMD">
-                        <label for="url" data-error="wrong" data-success="right">Alexa Web URL</label>
+                        <label for="url" data-error="wrong" data-success="right">Amazon Login domain</label>
                         <small id="urlHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
-                            Enter the Alexa URL for login `amazon.com`
+                            Enter the Alexa URL for login `amazon.com, amazon.de, etc.`
                         </small>
                     </div>
                     <div class="md-form">
@@ -85,6 +94,22 @@
                         <label for="smartThingsHubIP" data-error="wrong" data-success="right">SmartThings Hub IP</label>
                         <small id="smartThingsHubIPHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
                             Enter the IP Address xxx.xxx.xxx.xxx
+                        </small>
+                    </div>
+                    <div class="md-form mt-0">
+                        <i class="fa fa-info prefix"></i>
+                        <input type="text" id="serverPort" name="serverPort" class="form-control" aria-describedby="serverPortHelpBlockMD">
+                        <label for="serverPort" data-error="wrong" data-success="right">Server Port</label>
+                        <small id="serverPortHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
+                            Enter the port for the Echo Speaks Server.  Default: 8091
+                        </small>
+                    </div>
+                    <div class="md-form mt-0">
+                        <i class="fa fa-info prefix"></i>
+                        <input type="text" id="proxyPort" name="proxyPort" class="form-control" aria-describedby="proxyPortHelpBlockMD">
+                        <label for="proxyPort" data-error="wrong" data-success="right">Login Proxy Port</label>
+                        <small id="proxyPortHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
+                            Enter the port for the Echo Speaks Login Proxy. Default: 8092
                         </small>
                     </div>
                     <div class="md-form mb-0">
@@ -109,14 +134,34 @@
     <!-- Settings Form -->
     <script>
         // Get Root Page URL for Callback to Send Settings
-        console.log('host: ' + window.location.host);
-        let rootUrl = window.location.host;
+        let rootOrigin = window.location.origin;
+        let rootHost = window.location.hostname;
+        console.log('rootOrigin: ' + rootOrigin);
+        console.log('rootHost: ' + rootHost);
 
+        $('#proxyLoginDiv').hide();
+        $('#loginInputDiv').show();
+        $('#clearLoginDiv').hide();
+        var configData = {};
         $(document).ready(function() {
-            let url = 'http://' + rootUrl + '/configData';
+            let url = rootOrigin + '/configData';
             $.getJSON(url, function(data) {
-                console.log('configData: ', data);
-                $.each(data, function(key, val) {
+                // console.log('configData: ', data);
+                configData = data;
+                $.each(data.state, function(key, val) {
+                    if (key === 'loginProxyActive' && val === true) {
+                        $('#loginInputDiv').hide();
+                        $('#proxyLoginDiv').show();
+                    }
+                    if (key === 'scriptVersion') {
+                        $('#scriptVer').text('v' + val);
+                    }
+                    if (key === 'loginComplete' && val === true) {
+                        $('#loginInputDiv').hide();
+                        $('#clearLoginDiv').show();
+                    }
+                });
+                $.each(data.settings, function(key, val) {
                     var elem = document.getElementById(key);
                     if ($(elem)) {
                         $(elem).attr('value', val);
@@ -126,6 +171,35 @@
             });
         });
 
+        $("#proxyLoginLink").click(function() {
+            window.location.href = 'http://' + rootHost + ':' + configData.settings.proxyPort;
+        });
+        $("#clearLoginBtn").click(function() {
+            let url = rootOrigin + '/clearAuth';
+            $.getJSON(url, function(data) {
+                if (data.result === 'Clear Complete') {
+                    toastr.options = {
+                        "closeButton": false,
+                        "debug": false,
+                        "newestOnTop": false,
+                        "progressBar": false,
+                        "positionClass": "toast-bottom-center",
+                        "preventDuplicates": true,
+                        "onclick": null,
+                        "showDuration": 300,
+                        "hideDuration": 1000,
+                        "timeOut": 5000,
+                        "extendedTimeOut": 1000,
+                        "showEasing": "swing",
+                        "hideEasing": "linear",
+                        "showMethod": "fadeIn",
+                        "hideMethod": "fadeOut"
+                    }
+                    toastr.success('Success!', "Authentication Cleared");
+                    window.location.href = rootOrigin + '/config';
+                }
+            });
+        });
         (function($) {
             $.fn.serializeFormJSON = function() {
                 var o = {};
@@ -147,9 +221,13 @@
         $('form').submit(function(e) {
             e.preventDefault();
             var config = $(this).serializeFormJSON();
-            var url = 'http://' + rootUrl + '/configData';
+            var url = rootOrigin + '/configData';
             if (Object.keys(config).length) {
                 console.log(config);
+                if (configData.state.loginComplete === true) {
+                    delete configData.settings.user;
+                    delete configData.settings.password;
+                }
                 // $.post(url, {
                 //     "clientId": "1",
                 //     "sensor": "Temp",
@@ -157,7 +235,7 @@
                 //     "dateEnd": "2016-09-03 00:59:59"
                 // })
                 var xmlhttp = new XMLHttpRequest();
-                xmlhttp.open("POST", 'http://' + rootUrl + '/configData');
+                xmlhttp.open("POST", rootOrigin + '/configData');
                 xmlhttp.onreadystatechange = function() {
                     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
                         // console.log(xmlhttp.responseText);
