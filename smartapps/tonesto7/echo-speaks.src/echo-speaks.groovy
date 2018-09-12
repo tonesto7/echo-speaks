@@ -16,8 +16,8 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "0.6.2" }
-String appModified() { return "2018-09-11"}
+String appVersion()	 { return "0.6.3" }
+String appModified() { return "2018-09-12"}
 String appAuthor()	 { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
@@ -485,6 +485,7 @@ Map notifValEnum(allowCust = true) {
 
 private notificationCheck() {
 	// logger("trace", "notificationCheck")
+	updCodeVerMap()
 	checkVersionData()
 	if(!getOk2Notify()) { return }
 	missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))

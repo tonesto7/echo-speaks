@@ -15,8 +15,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.6.2"}
-String devModified() { return "2018-09-11"}
+String devVersion() { return "0.6.3"}
+String devModified() { return "2018-09-12"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -393,9 +393,16 @@ public setDoNotDisturb(Boolean val) {
     ])
 }
 
+def getRandomItem(items) {
+    def list = new ArrayList<String>();
+    items?.each { list?.add(it) }
+    return list?.get(new Random().nextInt(list?.size()));
+}
+
 def sendTestTts(ttsMsg) {
     log.trace "sendTestTts"
-    if(!ttsMsg) { ttsMsg = "Testing Testing 1, 2, 3"}
+    List items = ["Testing Testing 1, 2, 3", "<speak>Welcome to Car-Fu. <audio src='soundbank://soundlibrary/transportation/amzn_sfx_car_accelerate_01.mp3' /> You can order a ride, or request a fare estimate. Which will it be?</speak>"]
+    if(!ttsMsg) { ttsMsg = getRandomItem(items) }
 	sendTtsMsg(ttsMsg)
 }
 
@@ -404,7 +411,7 @@ public sendTtsMsg(String msg, Integer volume=null) {
         if(volume) { 
             setLevel(volume)
         }
-		echoServiceCmd("tts", [deviceSerialNumber: state?.serialNumber, tts: msg])
+        echoServiceCmd("tts", [deviceSerialNumber: state?.serialNumber, tts: msg])
 	} else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
 }
 

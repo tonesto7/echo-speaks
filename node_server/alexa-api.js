@@ -294,8 +294,13 @@ var getBluetoothDevices = function(config, callback) {
 };
 
 var executeCommand = function(_cmdOpts, callback) {
-    console.log(JSON.stringify(_cmdOpts));
-    request(_cmdOpts, function(error, response) {
+    console.log('Method: ' + _cmdOpts.method);
+    console.log('URL:' + _cmdOpts.url);
+    console.log('Query: ', _cmdOpts.qs);
+    console.log('Body: ', _cmdOpts.json);
+    request(_cmdOpts, function(error, response, body) {
+        console.log('body:', body);
+        console.log('response:(' + response.statusCode + '): ', response.data);
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "message": "success"
