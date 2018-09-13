@@ -235,6 +235,18 @@ function startWebServer() {
                         });
                     });
 
+                    webApp.get('/alexa-testDevices', urlencodedParser, function(req, res) {
+                        console.log('++ Received a testDevices Request... ++');
+                        let ttsMsg = 'Yay!!!!,  This device is Successfully receiving tts messages.';
+                        for (const echo in echoDevices) {
+                            console.log(echoDevices[echo]);
+                            alexa_api.setTTS(ttsMsg, echoDevices[echo].serialNumber, savedConfig, function(error, response) {
+                                console.log('sent testmsg to ' + echoDevices[echo].serialNumber);
+                            });
+                        }
+                        res.send('done');
+                    });
+
                     webApp.post('/alexa-command', urlencodedParser, function(req, res) {
                         // console.log('command headers: ', req.headers);
                         let hubAct = (req.headers.deviceserialnumber != undefined);

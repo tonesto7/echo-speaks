@@ -40,6 +40,7 @@ definition(
 preferences {
 	page(name: "mainPage")
 	page(name: "newSetupPage")
+	page(name: "testAllPage")
 	page(name: "notifPrefPage")
 	page(name: "servPrefPage")
 	page(name: "setNotificationTimePage")
@@ -90,6 +91,7 @@ def mainPage() {
 		section ("Application Logs") {
 			input (name: "appDebug", type: "bool", title: "Show App Logs in the IDE?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
 			input (name: "appTrace", type: "bool", title: "Show Detailed Trace Logs in the IDE?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
+			href "testAllPage", title: "TTS All Devices (Server-Side)", description: ""
 		}
 		if(!newInstall) {
 			section("") {
@@ -223,6 +225,15 @@ def setNotificationTimePage() {
 					options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 			input "quietModes", "mode", title: "When these Modes are Active", multiple: true, submitOnChange: true, required: false, image: getAppImg("mode.png")
 		}
+	}
+}
+
+def testAllPage() {
+	dynamicPage(name: "testAllPage", title: "testAllPage", uninstall: false) {
+		section("") {
+			paragraph "Initiating Server Test to all echo devices"
+		}
+		sendServerTest()
 	}
 }
 
@@ -468,6 +479,29 @@ private echoServiceCmd(type, headers={}, body = "") {
 	}
 	catch (Exception ex) {
 		log.error "echoServiceCmd HubAction Exception, $hubAction", ex
+	}
+}
+
+private sendServerTest() {
+	String host = getServiceHostInfo()
+	String smartThingsHubIp = settings?.stHub?.getLocalIP()
+	if(!host) { return }
+	try {
+		String path = ""
+		Map headerMap = [
+			"HOST": host,
+			"smartThingsHubIp": "${smartThingsHubIp}",
+		]
+		def hubAction = new physicalgraph.device.HubAction(
+			method: "GET",
+			headers: headerMap,
+			path: "alexa-testDevices",
+			body: ""
+		)
+		sendHubCommand(hubAction)
+	}
+	catch (Exception ex) {
+		log.error "sendServerTest HubAction Exception, $hubAction", ex
 	}
 }
 

@@ -422,7 +422,8 @@ private echoServiceCmd(type, headers={}, body = null) {
 	logger("trace", "echoServiceCmd($type) | headers: ${headers} | body: $body | host: ${host}")
 	try {
 		String path = ""
-		Map headerMap = ["HOST": host]
+		Map headerMap = ["HOST": host
+        , CALLBACK: "http://${host}/notify$callbackPath"]
 		switch(type) {
 			case "tts":
 				path = "/alexa-tts"
@@ -446,6 +447,18 @@ private echoServiceCmd(type, headers={}, body = null) {
 	catch (Exception ex) {
 		log.error "echoServiceCmd HubAction Exception, $hubAction", ex
 	}
+}
+
+void calledBackHandler(physicalgraph.device.HubResponse hubResponse) {
+    log.debug "Entered calledBackHandler()..."
+    def body = hubResponse.xml
+    def devices = getDevices()
+    def device = devices.find { it?.key?.contains(body?.device?.UDN?.text()) }
+    if (device) {
+        device.value << [name: body?.device?.roomName?.text(), model: body?.device?.modelName?.text(), serialNumber: body?.device?.serialNum?.text(), verified: true]
+    }
+    log.debug "device in calledBackHandler() is: ${device}"
+    log.debug "body in calledBackHandler() is: ${body}"
 }
 
 /*****************************************************
