@@ -16,7 +16,7 @@
 
 import java.text.SimpleDateFormat
 String devVersion() { return "0.6.3"}
-String devModified() { return "2018-09-12"}
+String devModified() { return "2018-09-21"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -158,7 +158,7 @@ def updateDeviceStatus(Map devData) {
         state?.serialNumber = devData?.serialNumber
         state?.deviceType = devData?.deviceType
         state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
-        log.debug "dndEnabled: ${devData?.dndEnabled}"
+        // log.debug "dndEnabled: ${devData?.dndEnabled}"
         String firmwareVer = devData?.softwareVersion ?: "Not Set"
         if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
             sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
@@ -401,7 +401,12 @@ def getRandomItem(items) {
 
 def sendTestTts(ttsMsg) {
     log.trace "sendTestTts"
-    List items = ["Testing Testing 1, 2, 3", "<speak>Welcome to Car-Fu. <audio src='soundbank://soundlibrary/transportation/amzn_sfx_car_accelerate_01.mp3' /> You can order a ride, or request a fare estimate. Which will it be?</speak>"]
+    List items = ["Testing Testing 1, 2, 3", "Yay!, I'm Alive... Hopefully you can hear me speaking?", "Being able to make me say whatever you want is the coolest thing since sliced bread!",
+    "I said a hip hop, Hippie to the hippie," +
+    "The hip, hip a hop, and you don't stop, a rock it out," +
+    "Bubba to the bang bang boogie, boobie to the boogie" +
+    "To the rhythm of the boogie the beat," +
+    "Now, what you hear is not a test I'm rappin' to the beat"]
     if(!ttsMsg) { ttsMsg = getRandomItem(items) }
 	sendTtsMsg(ttsMsg)
 }

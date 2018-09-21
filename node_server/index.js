@@ -398,9 +398,15 @@ async function buildEchoDeviceMap(eDevData) {
                 echoDevices[dndState[ds].deviceSerialNumber].dndEnabled = dndState[ds].enabled || false;
             }
         }
-    } catch (err) {
-        logger.error('buildEchoDeviceMap ERROR:', err);
+        let notifs = await getNotificationInfo);
+    for (const nd in notifs) {
+        if (echoDevices[notifs[nd].deviceSerialNumber] !== undefined) {
+            echoDevices[notifs[nd].deviceSerialNumber].dndEnabled = notifs[nd].enabled || false;
+        }
     }
+} catch (err) {
+    logger.error('buildEchoDeviceMap ERROR:', err);
+}
 }
 
 function getDeviceStateInfo(deviceId) {
@@ -414,6 +420,14 @@ function getDeviceStateInfo(deviceId) {
 function getDeviceDndInfo() {
     return new Promise(resolve => {
         alexa_api.getDndStatus(savedConfig, function(err, resp) {
+            resolve(resp || []);
+        });
+    });
+}
+
+function getNotificationInfo() {
+    return new Promise(resolve => {
+        alexa_api.getNotifications(savedConfig, function(err, resp) {
             resolve(resp || []);
         });
     });
