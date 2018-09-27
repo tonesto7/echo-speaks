@@ -265,7 +265,7 @@ def uninstalled() {
 
 def initialize() {
 	// listen to LAN incoming messages
-	if(app?.getLabel() != "Echo Speaks") { app.label = "Echo Speaks" }
+	if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
 	runEvery5Minutes("notificationCheck") // This task checks for missed polls and app updates
 	subscribe(app, onAppTouch)
 	subscribe(location, null, lanEventHandler, [filterEvents:false])
