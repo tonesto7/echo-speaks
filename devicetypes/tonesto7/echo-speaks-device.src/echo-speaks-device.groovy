@@ -15,8 +15,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.6.2"}
-String devModified() { return "2018-09-11"}
+String devVersion() { return "0.6.3"}
+String devModified() { return "2018-10-01"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -28,7 +28,8 @@ metadata {
         capability "Speech Synthesis"
         
         attribute "lastUpdated", "string"
-        attribute "deviceFamily", "string"
+        attribute "deviceStatus", "string"
+        attribute "deviceStyle", "string"
         attribute "doNotDisturb", "boolean"
         attribute "firmwareVer", "string"
         attribute "onlineStatus", "string"
@@ -38,6 +39,7 @@ metadata {
         command "doNotDisturbOn"
         command "doNotDisturbOff"
         command "setVolumeAndSpeak", ["number", "string"]
+        command "clearQueue"
     }
 
     preferences { 
@@ -46,38 +48,69 @@ metadata {
 
     tiles (scale: 2) {
         multiAttributeTile(name: "mediaMulti", type:"mediaPlayer", width:6, height:4) {
-			tileAttribute("device.status", key: "PRIMARY_CONTROL") {
-				attributeState("paused", label:"Paused")
-				attributeState("playing", label:"Playing")
-				attributeState("stopped", label:"Stopped", defaultState: true)
-			}
-			tileAttribute("device.status", key: "MEDIA_STATUS") {
-				attributeState("paused", label:"Paused", action:"music Player.play", nextState: "playing")
-				attributeState("playing", label:"Playing", action:"music Player.pause", nextState: "paused")
-				attributeState("stopped", label:"Stopped", action:"music Player.play", nextState: "playing", defaultState: true)
-			}
-			tileAttribute("device.status", key: "PREVIOUS_TRACK") {
-				attributeState("status", action:"music Player.previousTrack", defaultState: true)
-			}
-			tileAttribute("device.status", key: "NEXT_TRACK") {
-				attributeState("status", action:"music Player.nextTrack", defaultState: true)
-			}
-			tileAttribute ("device.level", key: "SLIDER_CONTROL") {
-				attributeState("level", action:"music Player.setLevel", defaultState: true)
-			}
-			tileAttribute ("device.mute", key: "MEDIA_MUTED") {
-				attributeState("unmuted", action:"music Player.mute", nextState: "muted")
-				attributeState("muted", action:"music Player.unmute", nextState: "unmuted", defaultState: true)
-			}
-			tileAttribute("device.trackDescription", key: "MARQUEE") {
-				attributeState("trackDescription", label:"${currentValue}", defaultState: true)
-			}
-		}
-        standardTile("deviceStatus", "device.status", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
-            state("paused", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png", backgroundColor: "#cccccc")
-            state("playing", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png", backgroundColor: "#00a0dc")
-            state("stopped", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png")
-            // state("unavailable", label: "Unavailable", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png", backgroundColor: "#F22000")
+            tileAttribute("device.status", key: "PRIMARY_CONTROL") {
+                attributeState("paused", label:"Paused")
+                attributeState("playing", label:"Playing")
+                attributeState("stopped", label:"Stopped", defaultState: true)
+            }
+            tileAttribute("device.status", key: "MEDIA_STATUS") {
+                attributeState("paused", label:"Paused", action:"music Player.play", nextState: "playing")
+                attributeState("playing", label:"Playing", action:"music Player.pause", nextState: "paused")
+                attributeState("stopped", label:"Stopped", action:"music Player.play", nextState: "playing", defaultState: true)
+            }
+            tileAttribute("device.status", key: "PREVIOUS_TRACK") {
+                attributeState("status", action:"music Player.previousTrack", defaultState: true)
+            }
+            tileAttribute("device.status", key: "NEXT_TRACK") {
+                attributeState("status", action:"music Player.nextTrack", defaultState: true)
+            }
+            tileAttribute ("device.level", key: "SLIDER_CONTROL") {
+                attributeState("level", action:"music Player.setLevel", defaultState: true)
+            }
+            tileAttribute ("device.mute", key: "MEDIA_MUTED") {
+                attributeState("unmuted", action:"music Player.mute", nextState: "muted")
+                attributeState("muted", action:"music Player.unmute", nextState: "unmuted", defaultState: true)
+            }
+            tileAttribute("device.trackDescription", key: "MARQUEE") {
+                attributeState("trackDescription", label:"${currentValue}", defaultState: true)
+            }
+        }
+        standardTile("deviceStatus", "device.deviceStatus", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
+            state("paused_echo_gen1", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_gen1.png", backgroundColor: "#cccccc")
+            state("playing_echo_gen1", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_gen1.png", backgroundColor: "#00a0dc")
+            state("stopped_echo_gen1", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_gen1.png")
+
+            state("paused_echo_gen2", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_gen2.png", backgroundColor: "#cccccc")
+            state("playing_echo_gen2", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_gen2.png", backgroundColor: "#00a0dc")
+            state("stopped_echo_gen2", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_gen2.png")
+            
+            state("paused_echo_dot_gen1", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.jpg", backgroundColor: "#cccccc")
+            state("playing_echo_dot_gen1", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.jpg", backgroundColor: "#00a0dc")
+            state("stopped_echo_dot_gen1", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.jpg")
+
+            state("paused_echo_dot_gen2", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen2.png", backgroundColor: "#cccccc")
+            state("playing_echo_dot_gen2", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen2.png", backgroundColor: "#00a0dc")
+            state("stopped_echo_dot_gen2", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen2.png")
+
+            state("paused_echo_dot_gen3", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen3.jpg", backgroundColor: "#cccccc")
+            state("playing_echo_dot_gen3", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen3.jpg", backgroundColor: "#00a0dc")
+            state("stopped_echo_dot_gen3", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen3.jpg")
+
+            state("paused_echo_spot_gen1", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_spot_gen1.png", backgroundColor: "#cccccc")
+            state("playing_echo_spot_gen1", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_spot_gen1.png", backgroundColor: "#00a0dc")
+            state("stopped_echo_spot_gen1", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_spot_gen1.png")
+
+            state("paused_echo_spot_gen2", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_spot_gen2.png", backgroundColor: "#cccccc")
+            state("playing_echo_spot_gen2", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_spot_gen2.png", backgroundColor: "#00a0dc")
+            state("stopped_echo_spot_gen2", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_spot_gen2.png")
+
+            state("paused_echo_show_gen1", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_show_gen1.png", backgroundColor: "#cccccc")
+            state("playing_echo_show_gen1", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_show_gen1.png", backgroundColor: "#00a0dc")
+            state("stopped_echo_show_gen1", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_show_gen1.png")
+
+            state("paused_echo_show_gen2", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_show_gen2.png", backgroundColor: "#cccccc")
+            state("playing_echo_show_gen2", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_show_gen2.png", backgroundColor: "#00a0dc")
+            state("stopped_echo_show_gen2", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_show_gen2.png")
         }
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state("blank1x1", label:'')
@@ -88,8 +121,8 @@ metadata {
         valueTile("firmwareVer", "device.firmwareVer", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("default", label:'Firmware:\n${currentValue}')
         }
-        valueTile("deviceFamily", "device.deviceFamily", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("default", label:'Device Family:\n${currentValue}')
+        valueTile("deviceStyle", "device.deviceStyle", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("deviceStyle", label:'Device Style:\n${currentValue}')
         }
         valueTile("currentStation", "device.currentStation", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
             state("default", label:'Station:\n${currentValue}')
@@ -98,47 +131,93 @@ metadata {
             state("default", label:'Album:\n${currentValue}')
         }
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
-            
             state("default", label:'Send Test TTS', action: 'sendTestTts')
         }
         standardTile("doNotDisturb", "device.doNotDisturb", height: 2, width: 2, inactiveLabel: false, decoration: "flat") {
             state "true", label: 'DnD: ON', action: "doNotDisturbOff", nextState: "false"
             state "false", label: 'DnD: OFF', action: "doNotDisturbOn", nextState: "true"
         }
-        valueTile("status", "device.onlineStatus", height: 1, width: 2, decoration: "flat") {
-            state("default", label: '${currentValue}', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_device.png")
-        }
         main(["deviceStatus"])
-        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "doNotDisturb","sendTest"])
+        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "doNotDisturb", "deviceStyle", "deviceImage", "sendTest"])
+    }
+}
+
+def installed() {
+    log.trace "${device?.displayName} Executing Installed..."
+    sendEvent(name: "level", value: 0)
+    sendEvent(name: "mute", value: "unmuted")
+    sendEvent(name: "status", value: "stopped")
+    sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
+    sendEvent(name: "trackDescription", value: "")
+    initialize()
+}
+
+def updated() {
+    log.trace "${device?.displayName} Executing Updated..."
+    initialize()
+}
+
+def initialize() {
+    log.trace "${device?.displayName} Executing initialize"
+    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
+    sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
+    clearQueue()
+}
+
+private clearQueue() {
+    log.trace "clearQueue"
+    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
+    cmdQueue?.each { cmdKey, cmdData ->
+        state?.remove(cmdKey)
     }
 }
 
 def parse(description) {
-	// No parsing will happen
-}
-
-def installed() {
-	log.trace "${device?.displayName} Executing Installed..."
-	sendEvent(name: "level", value: 0)
-	sendEvent(name: "mute", value: "unmuted")
-	sendEvent(name: "status", value: "stopped")
-    sendEvent(name: "trackDescription", value: "")
-	initialize()
-}
-
-def updated() {
-	log.trace "${device?.displayName} Executing Updated..."
-	initialize()
-}
-
-def initialize() {
-	log.trace "${device?.displayName} Executing initialize"
- 	sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
-	sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
+    def msg = parseLanMessage(description)
+    log.debug "parse: ${msg}"
+    def headersAsString = msg.header // => headers as a string
+    def headerMap = msg.headers      // => headers as a Map
+    def body = msg.body              // => request body as a string
+    def status = msg.status          // => http status code of the response
+    def json = msg.json              // => any JSON included in response body, as a data structure of lists and maps
+    def xml = msg.xml                // => any XML included in response body, as a document tree structure
+    def data = msg.data              // => either JSON or XML in response body (whichever is specified by content-type header in response)
 }
 
 def getShortDevName(){
     return device?.displayName?.replace("Echo - ", "")
+}
+
+Map getDeviceStyle(String family, String type) {
+    switch(family) {
+        case "KNIGHT":
+            switch (type) {
+                case "A1NL4BVLQ4L3N3":
+                    return [name: "Echo Show", image: "echo_show_gen1"]
+                default:
+                    return [name: "Echo Show", image: "echo_show_gen1"]
+            }
+        case "ECHO":
+            switch (type) {
+                case "AB72C64C86AW2":
+                    return [name: "Echo", image: "echo_gen1"]
+                case "AKNO1N0KSFN8L":
+                    return [name: "Echo Dot", image: "echo_dot_gen1"]
+                case "A3S5BH2HU6VAYF":
+                    return [name: "Echo Dot (Gen2)", image: "echo_dot_gen2"]
+                default:
+                    return [name: "Echo", image: "echo_gen2"]
+            }
+        case "ROOK":
+            switch (type) {
+                case "A10A33FOX2NUBK":
+                    return [name: "Echo Spot", image: "echo_spot_gen1"]
+                default:
+                    return [name: "Echo Spot", image: "echo_spot_gen1"]
+            }
+        default:
+            return [name: "Echo", image: "echo_dot_gen2"]
+    }
 }
 
 def updateDeviceStatus(Map devData) {
@@ -146,7 +225,7 @@ def updateDeviceStatus(Map devData) {
     if(devData?.size()) {
         // devData?.each { k,v ->
         //     if(!(k in ["playerState", "capabilities", "deviceAccountId"])) {
-        //         logger("debug", "$k: $v")
+        //         log.debug("$k: $v")
         //     }
         // }
         // devData?.playerState?.each { k,v ->
@@ -154,11 +233,16 @@ def updateDeviceStatus(Map devData) {
         //         logger("debug", "$k: $v")
         //     }
         // }
-        state?.serialNumber = devData?.serialNumber
+        Map deviceStyle = getDeviceStyle(devData?.deviceFamily as String, devData?.deviceType as String)
+        state?.deviceImage = deviceStyle?.image as String
+        if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
+            sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
+        }
+        logger("info", "deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
         state?.serialNumber = devData?.serialNumber
         state?.deviceType = devData?.deviceType
         state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
-        log.debug "dndEnabled: ${devData?.dndEnabled}"
+        // log.debug "dndEnabled: ${devData?.dndEnabled}"
         String firmwareVer = devData?.softwareVersion ?: "Not Set"
         if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
             sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
@@ -173,8 +257,11 @@ def updateDeviceStatus(Map devData) {
         if(devData?.playerState?.size()) {
             Map sData = devData?.playerState
             String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
-            if(isStateChange(device, "status", playState?.toString())) {
+            String deviceStatus = "${playState}_${deviceStyle?.image}"
+            // log.debug "deviceStatus: ${deviceStatus}"
+            if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
                 sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
+                sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
             }
             if(sData?.infoText) {
                 // infoText: [multiLineMode:false, subText1:The Sixteen & Harry Christophers, subText2:Renaissance Classical Station, title:Veni sancte Spiritus]
@@ -210,6 +297,13 @@ def updateDeviceStatus(Map devData) {
                     }
                 }
             }
+        } else {
+            def deviceStatus = "stopped_echo_gen1"
+            if(deviceStyle?.image) { deviceStatus = "stopped_${deviceStyle?.image}" }
+            // log.debug "deviceStatus: ${deviceStatus}"
+            if(isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
+                sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
+            }
         }
     }
     
@@ -217,7 +311,7 @@ def updateDeviceStatus(Map devData) {
     sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
 }
 
-def updateServiceInfo(String svcHost) {
+public updateServiceInfo(String svcHost) {
     if(svcHost) { state?.serviceHost = svcHost }
 }
 
@@ -242,7 +336,7 @@ def speak(String msg) {
 def play() {
     logger("trace", "play() command received...")
     if(state?.serialNumber) {
-		echoServiceCmd("cmd", [
+        echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
@@ -251,13 +345,13 @@ def play() {
         if(isStateChange(device, "status", "playing")) {
             sendEvent(name: "status", value: "playing", descriptionText: "Player Status is playing", display: true, displayed: true)
         }
-	} else { log.warn "play() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
+    } else { log.warn "play() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
 def pause() {
     logger("trace", "pause() command received...")
     if(state?.serialNumber) {
-		echoServiceCmd("cmd", [
+        echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
@@ -266,14 +360,14 @@ def pause() {
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
         }
-	} else { log.warn "pause() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
-	// sendEvent(name: "trackDescription", value: state.tracks[state.currentTrack])
+    } else { log.warn "pause() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
+    // sendEvent(name: "trackDescription", value: state.tracks[state.currentTrack])
 }
 
 def stop() {
     logger("trace", "stop() command received...")
     if(state?.serialNumber) {
-		echoServiceCmd("cmd", [
+        echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
@@ -282,31 +376,31 @@ def stop() {
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
         }
-	} else { log.warn "stop() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
+    } else { log.warn "stop() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
 def previousTrack() {
-	logger("trace", "previousTrack() command received...")
+    logger("trace", "previousTrack() command received...")
     if(state?.serialNumber) {
-		echoServiceCmd("cmd", [
+        echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
             cmdType: "PreviousCommand"
         ])
-	} else { log.warn "previousTrack() Command Error | You are missing a SerialNumber: ${state?.serialNumber}" }
+    } else { log.warn "previousTrack() Command Error | You are missing a SerialNumber: ${state?.serialNumber}" }
 }
 
 def nextTrack() {
     logger("trace", "nextTrack() command received...")
     if(state?.serialNumber) {
-		echoServiceCmd("cmd", [
+        echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
             cmdType: "NextCommand"
         ])
-	} else { log.warn "nextTrack() Command Error | You are missing a SerialNumber: ${state?.serialNumber}" }
+    } else { log.warn "nextTrack() Command Error | You are missing a SerialNumber: ${state?.serialNumber}" }
 }
 
 def mute() {
@@ -317,26 +411,26 @@ def mute() {
             sendEvent(name: "mute", value: "muted", descriptionText: "Mute is set to muted", display: true, displayed: true)
         }
         setLevel(0)
-	} else { log.warn "mute() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
+    } else { log.warn "mute() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
 def unmute() {
     logger("trace", "unmute() command received...")
     if(state?.serialNumber) {
-		if(state?.muteLevel) {
+        if(state?.muteLevel) {
             setLevel(state?.muteLevel)
             state?.muteLevel = null
             if(isStateChange(device, "mute", "unmuted")) {
                 sendEvent(name: "mute", value: "unmuted", descriptionText: "Mute is set to unmuted", display: true, displayed: true)
             }
         }
-	} else { log.warn "unmute() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
+    } else { log.warn "unmute() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
 def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
     if(state?.serialNumber && level) {
-		echoServiceCmd("cmd", [
+        echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
@@ -346,7 +440,7 @@ def setLevel(level) {
         if(isStateChange(device, "level", level?.toString())) {
             sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
         }
-	} else { log.warn "setLevel() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Level: ${level}" }
+    } else { log.warn "setLevel() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Level: ${level}" }
 }
 
 def setTrack(String uri, metaData="") {
@@ -368,7 +462,7 @@ def setVolumeAndSpeak(volume, text) {
 
 def playURL(theURL) {
     logger("warn", "playURL() | Not Supported Yet!!!")
-	// log.debug "Executing 'playURL'"
+    // log.debug "Executing 'playURL'"
     // sendCommand("url=$theURL")
 }
 
@@ -393,10 +487,22 @@ public setDoNotDisturb(Boolean val) {
     ])
 }
 
+def getRandomItem(items) {
+    def list = new ArrayList<String>();
+    items?.each { list?.add(it) }
+    return list?.get(new Random().nextInt(list?.size()));
+}
+
 def sendTestTts(ttsMsg) {
     log.trace "sendTestTts"
-    if(!ttsMsg) { ttsMsg = "Testing Testing 1, 2, 3"}
-	sendTtsMsg(ttsMsg)
+    List items = ["Testing Testing 1, 2, 3", "Yay!, I'm Alive... Hopefully you can hear me speaking?", "Being able to make me say whatever you want is the coolest thing since sliced bread!",
+    "I said a hip hop, Hippie to the hippie," +
+    "The hip, hip a hop, and you don't stop, a rock it out," +
+    "Bubba to the bang bang boogie, boobie to the boogie" +
+    "To the rhythm of the boogie the beat," +
+    "Now, what you hear is not a test I'm rappin' to the beat"]
+    if(!ttsMsg) { ttsMsg = getRandomItem(items) }
+    sendTtsMsg(ttsMsg)
 }
 
 public sendTtsMsg(String msg, Integer volume=null) {
@@ -404,48 +510,129 @@ public sendTtsMsg(String msg, Integer volume=null) {
         if(volume) { 
             setLevel(volume)
         }
-		echoServiceCmd("tts", [deviceSerialNumber: state?.serialNumber, tts: msg])
-	} else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
+        echoServiceCmd("cmd", [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+            message: msg,
+            cmdType: "SendTTS"
+        ])
+        // echoServiceCmd("tts", [deviceSerialNumber: state?.serialNumber, tts: msg])
+    } else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
 }
 
-private echoServiceCmd(type, headers={}, body = null) {
-	logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body)")
-	String host = state?.serviceHost
-	if(!host) { return }
-	logger("trace", "echoServiceCmd($type) | headers: ${headers} | body: $body | host: ${host}")
-	try {
-		String path = ""
-		Map headerMap = ["HOST": host]
-		switch(type) {
-			case "tts":
-				path = "/alexa-tts"
-				break
-			case "deviceState":
-				path = "/alexa-getState"
-				break
+public queueEchoCmd(type, headers, body=null) {
+    log.trace("queueEchoCmd(type: $type, headers: $headers)")
+    state?.cmdQIndexNum = state?.cmdQIndexNum ? state?.cmdQIndexNum?.toInteger() + 1 : 1
+    log.debug "cmdQIndexNum: ${state?.cmdQIndexNum}"
+    state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
+    // runIn(1, "checkQueue", [overwrite: true])
+}
+
+public checkQueue() {
+    def processQ = false
+    state?.each { key, val->
+        if(key?.startsWith("cmdQueueItem_")) {
+            processQ = true
+        }
+    }
+    if(processQ) {
+        if(state?.cmdQueueWorking != true) { 
+            processCmdQueue()
+        }
+        // runIn(4, "checkQueue")
+    } else {
+        state?.
+        state?.cmdQIndexNum = 1
+    }
+}
+
+private processCmdQueue() {
+    if(parent?.checkIsRateLimiting() == true) {
+        return
+    }
+    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
+    // log.debug "queue items: ${cmdQueue?.collect { it?.key }}"
+    cmdQueue?.each { cmdKey, cmdData ->
+        state?.cmdQueueWorking = true
+        echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body)
+        log.debug "Sent Queue'd Cmd#(${cmdKey}): ${cmdData?.type}, ${cmdData?.headers}, ${cmdData?.body}"
+        state?.remove(cmdKey)
+    }
+    state?.cmdQueueWorking = false
+}
+
+private echoServiceCmd(type, headers={}, body = null, callbackPath="") {
+    logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body)")
+    if(parent?.checkIsRateLimiting() == true) {
+        queueEchoCmd(type, headers, body)
+        return
+    }
+
+    String host = state?.serviceHost
+    if(!host) { return }
+    logger("trace", "echoServiceCmd($type) | headers: ${headers} | body: $body | host: ${host}")
+    try {
+        String path = ""
+        Map headerMap = [
+            HOST: host, 
+            CALLBACK: "http://${host}/notify$callbackPath"
+        ]
+        switch(type) {
+            case "tts":
+                path = "/alexa-tts"
+                break
+            case "deviceState":
+                path = "/alexa-getState"
+                break
             case "cmd":
-				path = "/alexa-command"
-				break
-		}
-		headers?.each { k,v-> headerMap[k] = v }
-		def hubAction = new physicalgraph.device.HubAction(
-			method: "POST",
-			headers: headerMap,
-			path: path,
-			body: body ?: ""
-		)
-		sendHubCommand(hubAction)
-	}
-	catch (Exception ex) {
-		log.error "echoServiceCmd HubAction Exception, $hubAction", ex
-	}
+                path = "/alexa-command"
+                break
+        }
+        headers?.each { k,v-> headerMap[k] = v }
+        def hubAction = new physicalgraph.device.HubAction(
+            method: "POST",
+            headers: headerMap,
+            path: path,
+            body: body ?: ""
+        )
+        sendHubCommand(hubAction)
+        parent?.rateLimitTracking()
+    }
+    catch (Exception ex) {
+        log.error "echoServiceCmd HubAction Exception, $hubAction", ex
+    }
+}
+
+void calledBackHandler(physicalgraph.device.HubResponse hubResponse) {
+    log.debug "Entered calledBackHandler()..."
+    def body = hubResponse.xml
+    def devices = getDevices()
+    def device = devices.find { it?.key?.contains(body?.device?.UDN?.text()) }
+    if (device) {
+        device.value << [name: body?.device?.roomName?.text(), model: body?.device?.modelName?.text(), serialNumber: body?.device?.serialNum?.text(), verified: true]
+    }
+    log.debug "device in calledBackHandler() is: ${device}"
+    log.debug "body in calledBackHandler() is: ${body}"
+}
+
+private getCallBackAddress() {
+    return device.hub.getDataValue("localIP") + ":" + device.hub.getDataValue("localSrvPortTCP")
 }
 
 /*****************************************************
                 HELPER FUNCTIONS
 ******************************************************/
+private Integer convertHexToInt(hex) {
+    return Integer.parseInt(hex,16)
+}
+
+private String convertHexToIP(hex) {
+    return [convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
+}
+
 def formatDt(dt, String tzFmt=("MM/d/yyyy hh:mm:ss a")) {
-	def tf = new SimpleDateFormat(tzFmt); tf.setTimeZone(location.timeZone);
+    def tf = new SimpleDateFormat(tzFmt); tf.setTimeZone(location.timeZone);
     return tf.format(dt)
 }
 
@@ -458,7 +645,7 @@ Boolean ok2Notify() {
 }
 
 private logger(type, msg) {
-	if(type && msg && settings?.showLogs) {
-		log."${type}" "${msg}"
-	}
+    if(type && msg && settings?.showLogs) {
+        log."${type}" "${msg}"
+    }
 }

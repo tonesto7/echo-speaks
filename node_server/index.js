@@ -1,6 +1,6 @@
 "use strict";
 
-const appVer = '0.6.2';
+const appVer = '0.6.3';
 const alexa_api = require('./alexa-api');
 const reqPromise = require("request-promise");
 const logger = require('./logger');
@@ -235,6 +235,18 @@ function startWebServer() {
                         });
                     });
 
+                    webApp.get('/alexa-testDevices', urlencodedParser, function(req, res) {
+                        console.log('++ Received a testDevices Request... ++');
+                        let ttsMsg = 'Yay!!!!,  This device is Successfully receiving tts messages.';
+                        for (const echo in echoDevices) {
+                            console.log(echoDevices[echo]);
+                            alexa_api.setTTS(ttsMsg, echoDevices[echo].serialNumber, savedConfig, function(error, response) {
+                                console.log('sent testmsg to ' + echoDevices[echo].serialNumber);
+                            });
+                        }
+                        res.send('done');
+                    });
+
                     webApp.post('/alexa-command', urlencodedParser, function(req, res) {
                         // console.log('command headers: ', req.headers);
                         let hubAct = (req.headers.deviceserialnumber != undefined);
@@ -243,6 +255,7 @@ function startWebServer() {
                         let deviceOwnerCustomerId = req.headers.deviceownercustomerid;
                         let cmdType = req.headers.cmdtype;
                         let cmdValues = (req.headers.cmdvalobj && req.headers.cmdvalobj.length) ? JSON.parse(req.headers.cmdvalobj) : {};
+                        let message = (req.headers.message) || "";
 
                         let cmdOpts = {
                             headers: {
@@ -260,6 +273,19 @@ function startWebServer() {
                                     deviceType: deviceType
                                 };
                                 break;
+                            case 'SendTTS':
+                                cmdOpts.method = 'POST';
+                                cmdOpts.url = alexaUrl + '/api/behaviors/preview';
+                                cmdOpts.json = {
+                                    "behaviorId": "PREVIEW",
+                                    "sequenceJson": "{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\", \
+                                    \"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\", \
+                                    \"type\":\"Alexa.Speak\",\"operationPayload\":{\"deviceType\":\"" + deviceType + "\", \
+                                    \"deviceSerialNumber\":\"" + serialNumber + "\",\"locale\":\"en-US\", \
+                                    \"customerId\":\"" + deviceOwnerCustomerId + "\", \"textToSpeak\": \"" + message + "\"}}}",
+                                    "status": "ENABLED"
+                                }
+                                break;
                             default:
                                 cmdOpts.method = 'POST';
                                 cmdOpts.url = alexaUrl + '/api/np/command';
@@ -268,8 +294,7 @@ function startWebServer() {
                                     deviceType: deviceType
                                 };
                                 cmdOpts.json = {
-                                    type: cmdType,
-                                    contentFocusClientId: null
+                                    type: cmdType
                                 };
                                 break
                         }
@@ -372,7 +397,7 @@ async function buildEchoDeviceMap(eDevData) {
     try {
         let removeKeys = ['appDeviceList', 'charging', 'clusterMembers', 'essid', 'macAddress', 'parentClusters', 'deviceTypeFriendlyName', 'registrationId', 'remainingBatteryLevel', 'postalCode', 'language'];
         for (const dev in eDevData) {
-            if (eDevData[dev].deviceFamily === 'ECHO' || eDevData[dev].deviceFamily === 'KNIGHT') {
+            if (eDevData[dev].deviceFamily === 'ECHO' || eDevData[dev].deviceFamily === 'KNIGHT' || eDevData[dev].deviceFamily === 'ROOK') {
                 for (const item in removeKeys) {
                     delete eDevData[dev][removeKeys[item]];
                 }
@@ -387,6 +412,12 @@ async function buildEchoDeviceMap(eDevData) {
                 echoDevices[dndState[ds].deviceSerialNumber].dndEnabled = dndState[ds].enabled || false;
             }
         }
+        // let notifs = await getNotificationInfo();
+        // for (const nd in notifs) {
+        //     if (echoDevices[notifs[nd].deviceSerialNumber] !== undefined) {
+        //         echoDevices[notifs[nd].deviceSerialNumber].dndEnabled = notifs[nd].enabled || false;
+        //     }
+        // }
     } catch (err) {
         logger.error('buildEchoDeviceMap ERROR:', err);
     }
@@ -403,6 +434,14 @@ function getDeviceStateInfo(deviceId) {
 function getDeviceDndInfo() {
     return new Promise(resolve => {
         alexa_api.getDndStatus(savedConfig, function(err, resp) {
+            resolve(resp || []);
+        });
+    });
+}
+
+function getNotificationInfo() {
+    return new Promise(resolve => {
+        alexa_api.getNotifications(savedConfig, function(err, resp) {
             resolve(resp || []);
         });
     });
