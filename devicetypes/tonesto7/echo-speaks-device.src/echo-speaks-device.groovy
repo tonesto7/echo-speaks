@@ -39,6 +39,7 @@ metadata {
         command "doNotDisturbOn"
         command "doNotDisturbOff"
         command "setVolumeAndSpeak", ["number", "string"]
+        command "clearQueue"
     }
 
     preferences { 
@@ -158,8 +159,17 @@ def updated() {
 
 def initialize() {
     log.trace "${device?.displayName} Executing initialize"
-     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
+    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
     sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
+    clearQueue()
+}
+
+private clearQueue() {
+    log.trace "clearQueue"
+    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
+    cmdQueue?.each { cmdKey, cmdData ->
+        state?.remove(cmdKey)
+    }
 }
 
 def parse(description) {
@@ -516,10 +526,10 @@ public queueEchoCmd(type, headers, body=null) {
     state?.cmdQIndexNum = state?.cmdQIndexNum ? state?.cmdQIndexNum?.toInteger() + 1 : 1
     log.debug "cmdQIndexNum: ${state?.cmdQIndexNum}"
     state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
-    runIn(1, "checkQueue", [overwrite: true])
+    // runIn(1, "checkQueue", [overwrite: true])
 }
 
-private checkQueue() {
+public checkQueue() {
     def processQ = false
     state?.each { key, val->
         if(key?.startsWith("cmdQueueItem_")) {
@@ -527,30 +537,34 @@ private checkQueue() {
         }
     }
     if(processQ) {
-        if(state?.cmdQueueWorking != true) { processCmdQueue() }
-        runIn(4, "checkQueue")
+        if(state?.cmdQueueWorking != true) { 
+            processCmdQueue()
+        }
+        // runIn(4, "checkQueue")
     } else {
+        state?.
         state?.cmdQIndexNum = 1
     }
 }
 
 private processCmdQueue() {
-    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
-    log.debug "queue items: ${cmdQueue?.collect { it?.key }}"
-    cmdQueue?.each { cmdKey, cmdData ->
-        atomicState?.cmdQueueWorking = true
-        if(echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body)) {
-            log.debug "Sent Queue'd Cmd#(${cmdKey}): ${cmdData?.type}, ${cmdData?.headers}, ${cmdData?.body}"
-            state?.remove(cmdKey)
-        }
+    if(parent?.checkIsRateLimiting() == true) {
+        return
     }
-    atomicState?.cmdQueueWorking = false
+    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
+    // log.debug "queue items: ${cmdQueue?.collect { it?.key }}"
+    cmdQueue?.each { cmdKey, cmdData ->
+        state?.cmdQueueWorking = true
+        echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body)
+        log.debug "Sent Queue'd Cmd#(${cmdKey}): ${cmdData?.type}, ${cmdData?.headers}, ${cmdData?.body}"
+        state?.remove(cmdKey)
+    }
+    state?.cmdQueueWorking = false
 }
 
 private echoServiceCmd(type, headers={}, body = null, callbackPath="") {
-    // logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body)")
-    def rateLimiting = parent?.checkRateLimiting()
-    if(rateLimiting == true) {
+    logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body)")
+    if(parent?.checkIsRateLimiting() == true) {
         queueEchoCmd(type, headers, body)
         return
     }

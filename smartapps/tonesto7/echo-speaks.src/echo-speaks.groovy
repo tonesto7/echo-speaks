@@ -277,6 +277,9 @@ def onAppTouch(evt) {
     // log.trace "appTouch..."
     // notificationCheck()
     // echoServiceUpdate()
+    getChildDevices(true)?.each { cDev->
+        cDev?.clearQueue()
+    }
 }
 
 private clearQueue() {
@@ -447,23 +450,30 @@ private echoServiceUpdate() {
     }
 }
 
-Boolean checkRateLimiting() {
+Boolean checkIsRateLimiting() {
     return (atomicState?.isRateLimiting == true)
 }
 
-public rateLimitTracking() {
+public rateLimitTracking(device) {
+    log.trace "clearRateLimit(${device?.displayName})"
     atomicState?.consecutiveCmdCnt = atomicState?.consecutiveCmdCnt ? atomicState?.consecutiveCmdCnt?.toInteger() + 1 : 1
     log.debug "consecutiveCmdCnt: ${atomicState?.consecutiveCmdCnt}"
-    if(atomicState?.consecutiveCmdCnt >=5) {
+    if(atomicState?.consecutiveCmdCnt > 5) {
+        log.warn "rate limiting active! clearing in 4 seconds..."
         atomicState?.isRateLimiting = true
+        runIn(4, "clearRateLimit", [overwrite: true])
+    } else {
+        clearRateLimit(false)
     }
-    runIn(4, "clearRateLimit", [overwrite: true])
 }
 
-private clearRateLimit() {
-    if(atomicState?.isRateLimiting) {
-        atomicState?.isRateLimiting = false
-        getChildDevices(true)?.each { cDev->
+private clearRateLimit(devUpd = false) {
+    log.trace "clearRateLimit"
+    atomicState?.consecutiveCmdCnt = null
+    atomicState?.isRateLimiting = false
+    // atomicState?.
+    if(devUpd) {
+        getAllChildDevices(true)?.each { cDev->
             cDev?.checkQueue()
         }
     }
