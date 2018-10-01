@@ -170,6 +170,24 @@ var setTTS = function(message, deviceSerialNumber, config, callback) {
     });
 };
 
+var executeCommand = function(_cmdOpts, callback) {
+    console.log('Method: ' + _cmdOpts.method);
+    console.log('URL:' + _cmdOpts.url);
+    console.log('Query: ', _cmdOpts.qs);
+    console.log('Body: ', _cmdOpts.json);
+    request(_cmdOpts, function(error, response, body) {
+        console.log('body:', body);
+        console.log('response:(' + response.statusCode + '): ', response.data);
+        if (!error && response.statusCode === 200) {
+            callback(null, {
+                "message": "success"
+            });
+        } else {
+            callback(error, response);
+        }
+    });
+};
+
 var setMedia = function(command, deviceSerialNumber, config, callback) {
     var device = {};
     config.devicesArray.devices.forEach(function(dev) {
@@ -315,24 +333,6 @@ var getBluetoothDevices = function(config, callback) {
     }, function(error, response, body) {
         if (!error && response.statusCode === 200) {
             callback(null, JSON.parse(body));
-        } else {
-            callback(error, response);
-        }
-    });
-};
-
-var executeCommand = function(_cmdOpts, callback) {
-    console.log('Method: ' + _cmdOpts.method);
-    console.log('URL:' + _cmdOpts.url);
-    console.log('Query: ', _cmdOpts.qs);
-    console.log('Body: ', _cmdOpts.json);
-    request(_cmdOpts, function(error, response, body) {
-        console.log('body:', body);
-        console.log('response:(' + response.statusCode + '): ', response.data);
-        if (!error && response.statusCode === 200) {
-            callback(null, {
-                "message": "success"
-            });
         } else {
             callback(error, response);
         }

@@ -255,6 +255,7 @@ function startWebServer() {
                         let deviceOwnerCustomerId = req.headers.deviceownercustomerid;
                         let cmdType = req.headers.cmdtype;
                         let cmdValues = (req.headers.cmdvalobj && req.headers.cmdvalobj.length) ? JSON.parse(req.headers.cmdvalobj) : {};
+                        let message = (req.headers.message) || "";
 
                         let cmdOpts = {
                             headers: {
@@ -271,6 +272,19 @@ function startWebServer() {
                                     deviceSerialNumber: serialNumber,
                                     deviceType: deviceType
                                 };
+                                break;
+                            case 'SendTTS':
+                                cmdOpts.method = 'POST';
+                                cmdOpts.url = alexaUrl + '/api/behaviors/preview';
+                                cmdOpts.json = {
+                                    "behaviorId": "PREVIEW",
+                                    "sequenceJson": "{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\", \
+                                    \"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\", \
+                                    \"type\":\"Alexa.Speak\",\"operationPayload\":{\"deviceType\":\"" + deviceType + "\", \
+                                    \"deviceSerialNumber\":\"" + serialNumber + "\",\"locale\":\"en-US\", \
+                                    \"customerId\":\"" + deviceOwnerCustomerId + "\", \"textToSpeak\": \"" + message + "\"}}}",
+                                    "status": "ENABLED"
+                                }
                                 break;
                             default:
                                 cmdOpts.method = 'POST';
@@ -398,15 +412,15 @@ async function buildEchoDeviceMap(eDevData) {
                 echoDevices[dndState[ds].deviceSerialNumber].dndEnabled = dndState[ds].enabled || false;
             }
         }
-        let notifs = await getNotificationInfo);
-    for (const nd in notifs) {
-        if (echoDevices[notifs[nd].deviceSerialNumber] !== undefined) {
-            echoDevices[notifs[nd].deviceSerialNumber].dndEnabled = notifs[nd].enabled || false;
-        }
+        // let notifs = await getNotificationInfo();
+        // for (const nd in notifs) {
+        //     if (echoDevices[notifs[nd].deviceSerialNumber] !== undefined) {
+        //         echoDevices[notifs[nd].deviceSerialNumber].dndEnabled = notifs[nd].enabled || false;
+        //     }
+        // }
+    } catch (err) {
+        logger.error('buildEchoDeviceMap ERROR:', err);
     }
-} catch (err) {
-    logger.error('buildEchoDeviceMap ERROR:', err);
-}
 }
 
 function getDeviceStateInfo(deviceId) {
