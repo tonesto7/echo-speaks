@@ -496,11 +496,12 @@ def getRandomItem(items) {
 def sendTestTts(ttsMsg) {
     log.trace "sendTestTts"
     List items = ["Testing Testing 1, 2, 3", "Yay!, I'm Alive... Hopefully you can hear me speaking?", "Being able to make me say whatever you want is the coolest thing since sliced bread!",
-    "I said a hip hop, Hippie to the hippie," +
-    "The hip, hip a hop, and you don't stop, a rock it out," +
-    "Bubba to the bang bang boogie, boobie to the boogie" +
-    "To the rhythm of the boogie the beat," +
-    "Now, what you hear is not a test I'm rappin' to the beat"]
+        "I said a hip hop, Hippie to the hippie," +
+        "The hip, hip a hop, and you don't stop, a rock it out," +
+        "Bubba to the bang bang boogie, boobie to the boogie" +
+        "To the rhythm of the boogie the beat," +
+        "Now, what you hear is not a test I'm rappin' to the beat", "This is how we do it!. It's Friday night, and I feel alright. The party is here on the West side. So I reach for my 40 and I turn it up. Designated driver take the keys to my truck, Hit the shore 'cause I'm faded, Honeys in the street say, Monty, yo we made it!. It feels so good in my hood tonight,  The summertime skirts and the guys in Kani."
+    ]
     if(!ttsMsg) { ttsMsg = getRandomItem(items) }
     sendTtsMsg(ttsMsg)
 }
