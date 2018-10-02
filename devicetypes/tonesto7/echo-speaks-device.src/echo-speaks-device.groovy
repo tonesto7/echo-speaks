@@ -39,7 +39,7 @@ metadata {
         command "doNotDisturbOn"
         command "doNotDisturbOff"
         command "setVolumeAndSpeak", ["number", "string"]
-        command "clearQueue"
+        command "resetQueue"
     }
 
     preferences { 
@@ -161,17 +161,7 @@ def initialize() {
     log.trace "${device?.displayName} Executing initialize"
     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
     sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
-    clearQueue()
-}
-
-private clearQueue() {
-    log.trace "clearQueue"
-    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
-    cmdQueue?.each { cmdKey, cmdData ->
-        state?.remove(cmdKey)
-    }
-    state?.cmdQueueWorking = false
-    state?.cmdQIndexNum = null
+    resetQueue()
 }
 
 def parse(description) {
@@ -240,7 +230,7 @@ def updateDeviceStatus(Map devData) {
         if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
             sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
         }
-        logger("info", "deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
+        // logger("info", "deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
         state?.serialNumber = devData?.serialNumber
         state?.deviceType = devData?.deviceType
         state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
@@ -508,7 +498,12 @@ def sendTestTts(ttsMsg) {
     sendTtsMsg(ttsMsg)
 }
 
-Integer recheckQValue() { return 12 }
+Integer getRecheckDelay(Integer msgLen=null) {
+    if(!msgLen) { return 30 }
+    def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
+    // logger("trace", "getRecheckDelay($msgLen) | delay: $v")
+    return v
+}
 
 public sendTtsMsg(String msg, Integer volume=null) {
     if(state?.serialNumber && msg) {
@@ -523,66 +518,105 @@ public sendTtsMsg(String msg, Integer volume=null) {
     } else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
 }
 
-public queueEchoCmd(type, headers, body=null) {
-    state?.cmdQIndexNum = state?.cmdQIndexNum ? state?.cmdQIndexNum?.toInteger() + 1 : 1
-    log.trace("queueEchoCmd(type: $type, headers: $headers) | cmdQIndexNum: ${state?.cmdQIndexNum}")
-    log.debug "msg length: ${headers?.message?.toString().length()}"
+Integer getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 100000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
 
-    state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
+public queueEchoCmd(type, headers, body=null) {
+    state?.cmdQIndexNum = state?.cmdQIndexNum ? state?.cmdQIndexNum+1 : 1
+    logger("trace", "queueEchoCmd(type: $type, headers: $headers) | cmdQIndexNum: ${state?.cmdQIndexNum}")
+    state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body, msgLength: (headers?.message ? getRecheckDelay(headers?.message?.toString()?.length()) : null)]
+}
+
+private resetQueue() {
+    logger("trace", "resetQueue()")
+    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
+    cmdQueue?.each { cmdKey, cmdData ->
+        state?.remove(cmdKey)
+    }
+    unschedule("checkQueue")
+    state?.cmdQueueWorking = false
+    state?.recheckScheduled = false
+    state?.cmdQIndexNum = null
+    state?.curMsgLen = null
 }
 
 public checkQueue() {
-    def processQ = false
-    state?.each { key, val->
-        if(key?.startsWith("cmdQueueItem_")) { processQ = true }
-    }
+    // log.debug "checkQueue | cmdQueueWorking: ${state?.cmdQueueWorking} | recheckScheduled: ${state?.recheckScheduled}"
+    Boolean processQ = false
+    if(getQueueSize() > 0) { processQ = true }
     if(processQ) {
-        if(state?.cmdQueueWorking != true) { processCmdQueue() }
-        runIn(recheckQValue(), "checkQueue")
+        if(state?.cmdQueueWorking != true) { 
+            processCmdQueue()
+            return
+        }
+        if(state?.recheckScheduled == false) {
+            runIn(getRecheckDelay(state?.curMsgLen), "checkQueue", [overwrite: false])
+            log.debug "checkQueue | Scheduling Re-Check for ${getRecheckDelay(state?.curMsgLen)} seconds..."
+        }
     } else {
-        log.trace "checkQueue | Nothing to Process... Resetting Queue"
-        clearQueue()
+        log.trace "checkQueue | Nothing in the Queue... Resetting Queue"
+        resetQueue()
     }
 }
 
 private processCmdQueue() {
-    if(parent?.checkIsRateLimiting() == true) {
-        return
-    }
+    // if(parent?.checkIsRateLimiting() == true) { return }
+    state?.recheckScheduled = false
     Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
-    // log.debug "queue items: ${cmdQueue?.collect { it?.key }}"
-    cmdQueue?.each { cmdKey, cmdData ->
+    logger("debug", "processCmdQueue | Queue Items: (${getQueueSize()})")
+    Boolean stopProc = false
+    cmdQueue?.sort()?.each { cmdKey, cmdData ->
         state?.cmdQueueWorking = true
-        echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true)
-        log.debug "Sent Queue'd Cmd#(${cmdKey}): ${cmdData?.type}, ${cmdData?.headers}, ${cmdData?.body}"
-        state?.remove(cmdKey)
+        if(stopProc) {
+            // log.debug "stopProc: true"
+            return
+        } else {
+            if(echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true) == true) {
+                // logger("debug", "Sending Queued Command (${cmdKey}) | Type: ${cmdData?.type} | Headers: ${cmdData?.headers} | Body: ${cmdData?.body}")
+                // log.debug "result: true"
+                state?.remove(cmdKey)
+            } else { stopProc = true }
+        }
     }
     state?.cmdQueueWorking = false
 }
 
-def getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 100000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
+private getQueueSize() {
+    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
+    return (cmdQueue?.size() ?: 0)
+}
 
-private echoServiceCmd(type, headers={}, body = null, queueCmd=false) {
-    logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body, queueCmd: $queueCmd)")
-    def lastTtsCmdSec = getLastTtsCmdSec()
-    Boolean isRateLimiting = parent?.rateLimitTracking()
-    if(type == "tts" || (type == "cmd" && headers?.cmdType)) {
+private getQueueSizeStr() { 
+    Integer size = getQueueSize()
+    return "($size) Item${size>1 || size==0 ? "s" : ""}"
+}
+
+private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
+    Integer lastTtsCmdSec = getLastTtsCmdSec()
+    Boolean isRateLimiting = false //parent?.rateLimitTracking(device)
+    // logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body, isQueueCmd: $isQueueCmd) | lastTtsCmdSec: ${lastTtsCmdSec} | cmdQueueWorking: ${state?.cmdQueueWorking} | recheckScheduled: ${state?.recheckScheduled}")
+    if(type == "tts" || (type == "cmd" && headers?.cmdType == "SendTTS")) {
         state?.lastTtsCmdDt = getDtNow()
-    }
-    
-    if(isRateLimiting || lastTtsCmdSec < 10) {
-        if(lastTtsCmdSec<10) {
-            log.warn "echoServiceCmd Too Soon to Send TTS Message... Will resend in ${recheckQValue()} sec."
-            runIn(recheckQValue(), "checkQueue")
-        } 
-        if(isRateLimiting) { log.warn "echoServiceCmd Rate Limiting Active" }
-        if(!queueCmd ) { queueEchoCmd(type, headers, body) }
-        return
+        if(isRateLimiting || lastTtsCmdSec < 4) {
+            if(lastTtsCmdSec < 4 && !isQueueCmd) {
+                log.warn "echoServiceCmd Queuing Command... It's Too Soon to Send Message | ${getQueueSizeStr()} in the Queue"
+            } 
+            if(isRateLimiting) { log.warn "echoServiceCmd Rate Limiting Active" }
+            if(!isQueueCmd) {
+                queueEchoCmd(type, headers, body) 
+            }
+            return false
+        }
+        Integer msgLen = headers?.message ? headers?.message?.toString()?.length() : null
+        state?.curMsgLen = msgLen
+        Integer rcv = getRecheckDelay(msgLen)
+        log.debug "echoServiceCmd | Message Length: $msgLen | Scheduling Queue Check for ${rcv} seconds..."
+        runIn(rcv, "checkQueue", [overwrite:true])
+        state?.recheckScheduled = true
     }
 
     String host = state?.serviceHost
     if(!host) { return }
-    logger("trace", "echoServiceCmd($type) | headers: ${headers} | body: $body | host: ${host}")
+    logger("info", "echoServiceCmd${isQueueCmd ? " (Queued)" : ""} | (type: $type | headers: ${headers} | body: $body | host: ${host} | isQueueCmd: $isQueueCmd)")
     try {
         String path = ""
         Map headerMap = [
@@ -612,6 +646,7 @@ private echoServiceCmd(type, headers={}, body = null, queueCmd=false) {
     catch (Exception ex) {
         log.error "echoServiceCmd HubAction Exception, $hubAction", ex
     }
+    return true
 }
 
 void calledBackHandler(physicalgraph.device.HubResponse hubResponse) {

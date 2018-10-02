@@ -260,7 +260,7 @@ def initialize() {
     runEvery5Minutes("notificationCheck") // This task checks for missed polls and app updates
     subscribe(app, onAppTouch)
     subscribe(location, null, lanEventHandler, [filterEvents:false])
-    clearQueue()
+    resetQueue()
     stateCleanup()
     updCodeVerMap()
     runIn(5, "echoServiceUpdate", [overwrite: true])
@@ -277,12 +277,12 @@ def onAppTouch(evt) {
     // log.trace "appTouch..."
     // notificationCheck()
     // echoServiceUpdate()
-    getChildDevices(true)?.each { cDev->
-        cDev?.clearQueue()
+    app.getChildDevices(true)?.each { cDev->
+        cDev?.resetQueue()
     }
 }
 
-private clearQueue() {
+private resetQueue() {
     Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
     cmdQueue?.each { cmdKey, cmdData ->
         state?.remove(cmdKey)
@@ -454,30 +454,35 @@ public checkIsRateLimiting() {
     return (atomicState?.isRateLimiting == true)
 }
 
+private incCmdCnt() {
+    atomicState?.consecutiveCmdCnt = atomicState?.consecutiveCmdCnt ? (atomicState?.consecutiveCmdCnt?.toInteger() + 1) : 1
+}
+
 public rateLimitTracking(device) {
-    log.trace "clearRateLimit(${device?.displayName})"
-    atomicState?.consecutiveCmdCnt = atomicState?.consecutiveCmdCnt ? atomicState?.consecutiveCmdCnt?.toInteger() + 1 : 1
-    log.debug "consecutiveCmdCnt: ${atomicState?.consecutiveCmdCnt}"
-    if(atomicState?.consecutiveCmdCnt > 5) {
-        log.warn "rate limiting active! clearing in 4 seconds..."
+    // log.trace "rateLimitTracking(${device?.getDisplayName()})"
+    Integer conCmdCnt = atomicState?.consecutiveCmdCnt ? atomicState?.consecutiveCmdCnt+1 : 1
+    atomicState?.consecutiveCmdCnt = conCmdCnt
+    log.debug "consecutiveCmdCnt: ${conCmdCnt}"
+    if(conCmdCnt > 5) {
+        log.warn "Rate Limiting Active! Clearing Limit in 4 seconds..."
         atomicState?.isRateLimiting = true
-        runIn(10, "clearRateLimit", [overwrite: true])
+        runIn(4, "clearRateLimit", [overwrite: true])
         return true
     } else {
-        clearRateLimit(false)
+        runIn(4, "clearRateLimit", [overwrite: true])
         return false
     }
 }
 
 private clearRateLimit(devUpd = true) {
-    log.trace "clearRateLimit"
-    atomicState?.consecutiveCmdCnt = null
-    atomicState?.isRateLimiting = false
-    if(devUpd) {
-        getAllChildDevices(true)?.each { cDev->
+    log.trace "clearRateLimit(devUpd: $devUpd)"
+    if(devUpd && atomicState?.isRateLimiting) {
+        atomicState?.isRateLimiting = false
+        app?.getChildDevices(true)?.each { cDev->
             cDev?.checkQueue()
         }
     }
+    atomicState?.isRateLimiting = false
 }
 
 private echoServiceCmd(type, headers={}, body = null) {
@@ -550,7 +555,7 @@ private missPollNotify(Boolean on, Integer wait) {
         if(sendMsg("${app.name} Data Refresh Issue", msg)) {
             state?.lastMisPollMsgDt = getDtNow()
         }
-        getChildDevices(true)?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
+        app.getChildDevices(true)?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
     }
 }
 
