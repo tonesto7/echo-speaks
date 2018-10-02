@@ -16,13 +16,13 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "0.6.3" }
-String appModified() { return "2018-10-01"}
+String appVersion()	 { return "0.6.4" }
+String appModified() { return "2018-10-02"}
 String appAuthor()	 { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
     return [
-        echoDevice: 063,
+        echoDevice: 064,
         server: 063
     ]
 }
@@ -450,7 +450,7 @@ private echoServiceUpdate() {
     }
 }
 
-Boolean checkIsRateLimiting() {
+public checkIsRateLimiting() {
     return (atomicState?.isRateLimiting == true)
 }
 
@@ -461,17 +461,18 @@ public rateLimitTracking(device) {
     if(atomicState?.consecutiveCmdCnt > 5) {
         log.warn "rate limiting active! clearing in 4 seconds..."
         atomicState?.isRateLimiting = true
-        runIn(4, "clearRateLimit", [overwrite: true])
+        runIn(10, "clearRateLimit", [overwrite: true])
+        return true
     } else {
         clearRateLimit(false)
+        return false
     }
 }
 
-private clearRateLimit(devUpd = false) {
+private clearRateLimit(devUpd = true) {
     log.trace "clearRateLimit"
     atomicState?.consecutiveCmdCnt = null
     atomicState?.isRateLimiting = false
-    // atomicState?.
     if(devUpd) {
         getAllChildDevices(true)?.each { cDev->
             cDev?.checkQueue()

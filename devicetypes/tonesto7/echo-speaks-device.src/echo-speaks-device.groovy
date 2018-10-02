@@ -15,8 +15,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.6.3"}
-String devModified() { return "2018-10-01"}
+String devVersion() { return "0.6.4"}
+String devModified() { return "2018-10-02"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -170,6 +170,8 @@ private clearQueue() {
     cmdQueue?.each { cmdKey, cmdData ->
         state?.remove(cmdKey)
     }
+    state?.cmdQueueWorking = false
+    state?.cmdQIndexNum = null
 }
 
 def parse(description) {
@@ -506,11 +508,11 @@ def sendTestTts(ttsMsg) {
     sendTtsMsg(ttsMsg)
 }
 
+Integer recheckQValue() { return 12 }
+
 public sendTtsMsg(String msg, Integer volume=null) {
     if(state?.serialNumber && msg) {
-        if(volume) { 
-            setLevel(volume)
-        }
+        if(volume) { setLevel(volume) }
         echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
@@ -518,33 +520,28 @@ public sendTtsMsg(String msg, Integer volume=null) {
             message: msg,
             cmdType: "SendTTS"
         ])
-        // echoServiceCmd("tts", [deviceSerialNumber: state?.serialNumber, tts: msg])
     } else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
 }
 
 public queueEchoCmd(type, headers, body=null) {
-    log.trace("queueEchoCmd(type: $type, headers: $headers)")
     state?.cmdQIndexNum = state?.cmdQIndexNum ? state?.cmdQIndexNum?.toInteger() + 1 : 1
-    log.debug "cmdQIndexNum: ${state?.cmdQIndexNum}"
+    log.trace("queueEchoCmd(type: $type, headers: $headers) | cmdQIndexNum: ${state?.cmdQIndexNum}")
+    log.debug "msg length: ${headers?.message?.toString().length()}"
+
     state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
-    // runIn(1, "checkQueue", [overwrite: true])
 }
 
 public checkQueue() {
     def processQ = false
     state?.each { key, val->
-        if(key?.startsWith("cmdQueueItem_")) {
-            processQ = true
-        }
+        if(key?.startsWith("cmdQueueItem_")) { processQ = true }
     }
     if(processQ) {
-        if(state?.cmdQueueWorking != true) { 
-            processCmdQueue()
-        }
-        // runIn(4, "checkQueue")
+        if(state?.cmdQueueWorking != true) { processCmdQueue() }
+        runIn(recheckQValue(), "checkQueue")
     } else {
-        state?.
-        state?.cmdQIndexNum = 1
+        log.trace "checkQueue | Nothing to Process... Resetting Queue"
+        clearQueue()
     }
 }
 
@@ -556,17 +553,30 @@ private processCmdQueue() {
     // log.debug "queue items: ${cmdQueue?.collect { it?.key }}"
     cmdQueue?.each { cmdKey, cmdData ->
         state?.cmdQueueWorking = true
-        echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body)
+        echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true)
         log.debug "Sent Queue'd Cmd#(${cmdKey}): ${cmdData?.type}, ${cmdData?.headers}, ${cmdData?.body}"
         state?.remove(cmdKey)
     }
     state?.cmdQueueWorking = false
 }
 
-private echoServiceCmd(type, headers={}, body = null, callbackPath="") {
-    logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body)")
-    if(parent?.checkIsRateLimiting() == true) {
-        queueEchoCmd(type, headers, body)
+def getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 100000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
+
+private echoServiceCmd(type, headers={}, body = null, queueCmd=false) {
+    logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body, queueCmd: $queueCmd)")
+    def lastTtsCmdSec = getLastTtsCmdSec()
+    Boolean isRateLimiting = parent?.rateLimitTracking()
+    if(type == "tts" || (type == "cmd" && headers?.cmdType)) {
+        state?.lastTtsCmdDt = getDtNow()
+    }
+    
+    if(isRateLimiting || lastTtsCmdSec < 10) {
+        if(lastTtsCmdSec<10) {
+            log.warn "echoServiceCmd Too Soon to Send TTS Message... Will resend in ${recheckQValue()} sec."
+            runIn(recheckQValue(), "checkQueue")
+        } 
+        if(isRateLimiting) { log.warn "echoServiceCmd Rate Limiting Active" }
+        if(!queueCmd ) { queueEchoCmd(type, headers, body) }
         return
     }
 
@@ -577,7 +587,7 @@ private echoServiceCmd(type, headers={}, body = null, callbackPath="") {
         String path = ""
         Map headerMap = [
             HOST: host, 
-            CALLBACK: "http://${host}/notify$callbackPath"
+            CALLBACK: "http://${host}/notify"
         ]
         switch(type) {
             case "tts":
@@ -598,7 +608,6 @@ private echoServiceCmd(type, headers={}, body = null, callbackPath="") {
             body: body ?: ""
         )
         sendHubCommand(hubAction)
-        parent?.rateLimitTracking()
     }
     catch (Exception ex) {
         log.error "echoServiceCmd HubAction Exception, $hubAction", ex
@@ -632,9 +641,27 @@ private String convertHexToIP(hex) {
     return [convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
 }
 
-def formatDt(dt, String tzFmt=("MM/d/yyyy hh:mm:ss a")) {
-    def tf = new SimpleDateFormat(tzFmt); tf.setTimeZone(location.timeZone);
-    return tf.format(dt)
+def getDtNow() {
+	def now = new Date()
+	return formatDt(now, false)
+}
+
+def formatDt(dt, mdy = true) {
+	def formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
+	def tf = new SimpleDateFormat(formatVal)
+	if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+	return tf.format(dt)
+}
+
+def GetTimeDiffSeconds(strtDate, stpDate=null) {
+	if((strtDate && !stpDate) || (strtDate && stpDate)) {
+		def now = new Date()
+		def stopVal = stpDate ? stpDate.toString() : formatDt(now, false)
+		def start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate).getTime()
+		def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal).getTime()
+		def diff = (int) (long) (stop - start) / 1000
+		return diff
+	} else { return null }
 }
 
 def parseDt(dt, dtFmt) {
