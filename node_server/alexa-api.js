@@ -177,7 +177,7 @@ var executeCommand = function(_cmdOpts, callback) {
     console.log('Body: ', _cmdOpts.json);
     request(_cmdOpts, function(error, response, body) {
         console.log('body:', body);
-        console.log('response:(' + response.statusCode + '): ', response.data);
+        console.log('response:(' + response.statusCode || undefined + '): ', response.data || undefined);
         if (!error && response.statusCode === 200) {
             callback(null, {
                 "message": "success"
