@@ -521,9 +521,14 @@ public sendTtsMsg(String msg, Integer volume=null) {
 Integer getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 100000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
 
 public queueEchoCmd(type, headers, body=null) {
+    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") && it?.value?.cmdType == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
+    if(cmdQueue?.size()) { 
+        log.warn "Command Already Exists in QUEUE... SKIPPING"
+        return
+    }
     state?.cmdQIndexNum = state?.cmdQIndexNum ? state?.cmdQIndexNum+1 : 1
     logger("trace", "queueEchoCmd(type: $type, headers: $headers) | cmdQIndexNum: ${state?.cmdQIndexNum}")
-    state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body, msgLength: (headers?.message ? getRecheckDelay(headers?.message?.toString()?.length()) : null)]
+    state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
 }
 
 private resetQueue() {
@@ -556,6 +561,10 @@ public checkQueue() {
         log.trace "checkQueue | Nothing in the Queue... Resetting Queue"
         resetQueue()
     }
+}
+
+private getQueueItems() {
+    return state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
 }
 
 private processCmdQueue() {
@@ -647,18 +656,6 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         log.error "echoServiceCmd HubAction Exception, $hubAction", ex
     }
     return true
-}
-
-void calledBackHandler(physicalgraph.device.HubResponse hubResponse) {
-    log.debug "Entered calledBackHandler()..."
-    def body = hubResponse.xml
-    def devices = getDevices()
-    def device = devices.find { it?.key?.contains(body?.device?.UDN?.text()) }
-    if (device) {
-        device.value << [name: body?.device?.roomName?.text(), model: body?.device?.modelName?.text(), serialNumber: body?.device?.serialNum?.text(), verified: true]
-    }
-    log.debug "device in calledBackHandler() is: ${device}"
-    log.debug "body in calledBackHandler() is: ${body}"
 }
 
 private getCallBackAddress() {
