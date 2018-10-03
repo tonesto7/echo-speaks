@@ -26,7 +26,7 @@ metadata {
         capability "Music Player"
         capability "Notification"
         capability "Speech Synthesis"
-        
+
         attribute "lastUpdated", "string"
         attribute "deviceStatus", "string"
         attribute "deviceStyle", "string"
@@ -42,7 +42,7 @@ metadata {
         command "resetQueue"
     }
 
-    preferences { 
+    preferences {
         input "showLogs", "bool", required: false, title: "Show Debug Logs?", defaultValue: false
     }
 
@@ -83,7 +83,7 @@ metadata {
             state("paused_echo_gen2", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_gen2.png", backgroundColor: "#cccccc")
             state("playing_echo_gen2", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_gen2.png", backgroundColor: "#00a0dc")
             state("stopped_echo_gen2", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_gen2.png")
-            
+
             state("paused_echo_dot_gen1", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.jpg", backgroundColor: "#cccccc")
             state("playing_echo_dot_gen1", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.jpg", backgroundColor: "#00a0dc")
             state("stopped_echo_dot_gen1", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.jpg")
@@ -298,7 +298,7 @@ def updateDeviceStatus(Map devData) {
             }
         }
     }
-    
+
     setOnlineStatus((devData?.online != false))
     sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
 }
@@ -321,7 +321,7 @@ def deviceNotification(String msg) {
 }
 
 def speak(String msg) {
-    log.trace "speak($msg)"
+    log.trace "speak(${msg?.take(200)?.trim()}${msg?.toString()?.length() > 200 ? "..." : ""})"
     if(msg) { sendTtsMsg(msg) }
 }
 
@@ -426,7 +426,7 @@ def setLevel(level) {
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            cmdType: "VolumeLevelCommand", 
+            cmdType: "VolumeLevelCommand",
             cmdValObj: [volumeLevel: level?.toInteger()].encodeAsJson()
         ])
         if(isStateChange(device, "level", level?.toString())) {
@@ -474,7 +474,7 @@ public setDoNotDisturb(Boolean val) {
         deviceSerialNumber: state?.serialNumber,
         deviceType: state?.deviceType,
         deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-        cmdType: "SetDnd", 
+        cmdType: "SetDnd",
         cmdValObj: [enabled: (val==true)].encodeAsJson()
     ])
 }
@@ -499,10 +499,12 @@ def sendTestTts(ttsMsg) {
 }
 
 Integer getRecheckDelay(Integer msgLen=null) {
+    def random = new Random()
+	Integer randomInt = random?.nextInt(7)
     if(!msgLen) { return 30 }
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
-    // logger("trace", "getRecheckDelay($msgLen) | delay: $v")
-    return v
+    // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
+    return v + randomInt
 }
 
 public sendTtsMsg(String msg, Integer volume=null) {
@@ -521,14 +523,29 @@ public sendTtsMsg(String msg, Integer volume=null) {
 Integer getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 100000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
 
 public queueEchoCmd(type, headers, body=null) {
+    List logItems = []
     Map cmdItems = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
-    if(cmdItems?.size()) { 
-        log.warn "Command Already Exists in QUEUE! Ignoring Command..."
+    if(cmdItems?.size()) {
+        if(headers?.message) {
+            Integer ml = headers?.message?.toString()?.length()
+            logItems?.push("│ Message(Len: ${ml}): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
+        }
+        logItems?.push("│ Ignoring (${headers?.cmdType}) Command... It Already Exists in QUEUE!!!")
+        logItems?.push("┌────────── Echo Queue Warning ──────────")
+        processLogItems("warn", logItems, true, true)
         return
     }
     state?.cmdQIndexNum = state?.cmdQIndexNum ? state?.cmdQIndexNum+1 : 1
-    logger("trace", "queueEchoCmd(type: $type, headers: $headers) | cmdQIndexNum: ${state?.cmdQIndexNum}")
     state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
+    if(headers?.message) {
+        logItems?.push("│ Message(Len: ${headers?.message?.toString()?.length()}): ${headers?.message?.take(200)?.trim()}${headers?.message?.toString()?.length() > 200 ? "..." : ""}")
+    }
+    if(headers?.cmdType) { logItems?.push("│ CmdType: (${headers?.cmdType})") }
+    logItems?.push("│ QueueIndex#: (${state?.cmdQIndexNum})")
+    // logItems?.push("│  Type: ($type)")
+    logItems?.push("│ DateTime: (${getDtNow()})")
+    logItems?.push("┌───────── Adding to Echo Queue ─────────")
+    processLogItems("trace", logItems, true, true)
 }
 
 private resetQueue() {
@@ -538,6 +555,7 @@ private resetQueue() {
         state?.remove(cmdKey)
     }
     unschedule("checkQueue")
+    state?.qCmdCycleCnt = null
     state?.cmdQueueWorking = false
     state?.recheckScheduled = false
     state?.cmdQIndexNum = null
@@ -547,9 +565,14 @@ private resetQueue() {
 public checkQueue() {
     // log.debug "checkQueue | cmdQueueWorking: ${state?.cmdQueueWorking} | recheckScheduled: ${state?.recheckScheduled}"
     Boolean processQ = false
+    if(state?.qCmdCycleCnt && state?.qCmdCycleCnt?.toInteger() >= 25) {
+        log.warn "checkQueue | Queue Cycle Count (${state?.qCmdCycleCnt}) is abnormally high... Resetting Queue"
+        resetQueue()
+        return
+    }
     if(getQueueSize() > 0) { processQ = true }
     if(processQ) {
-        if(state?.cmdQueueWorking != true) { 
+        if(state?.cmdQueueWorking != true) {
             processCmdQueue()
             return
         }
@@ -569,6 +592,7 @@ private getQueueItems() {
 
 private processCmdQueue() {
     // if(parent?.checkIsRateLimiting() == true) { return }
+    state?.qCmdCycleCnt = state?.qCmdCycleCnt ? state?.qCmdCycleCnt+1 : 1
     state?.recheckScheduled = false
     Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
     logger("debug", "processCmdQueue | Queue Items: (${getQueueSize()})")
@@ -579,7 +603,6 @@ private processCmdQueue() {
             return
         } else {
             if(echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true) == true) {
-                // logger("debug", "Sending Queued Command (${cmdKey}) | Type: ${cmdData?.type} | Headers: ${cmdData?.headers} | Body: ${cmdData?.body}")
                 state?.remove(cmdKey)
             } else { stopProc = true }
         }
@@ -592,42 +615,53 @@ private getQueueSize() {
     return (cmdQueue?.size() ?: 0)
 }
 
-private getQueueSizeStr() { 
+private getQueueSizeStr() {
     Integer size = getQueueSize()
     return "($size) Item${size>1 || size==0 ? "s" : ""}"
 }
 
+private processLogItems(String logType, List logList, emptyStart=false, emptyEnd=true) {
+    if(logType && logList?.size() && settings?.showLogs) {
+        Integer maxStrLen = 0
+        String endSep = "└──────────────────────────────────"
+        if(emptyEnd) { logger(logType, " ") }
+        logger(logType, endSep)
+        logList?.each { l->
+            logger(logType, l)
+        }
+        if(emptyStart) { logger(logType, " ") }
+    }
+}
+
 private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
+    String host = state?.serviceHost
+    if(!host || !type || !headers) { return false }
     Integer lastTtsCmdSec = getLastTtsCmdSec()
     Boolean isRateLimiting = false //parent?.rateLimitTracking(device)
+    List logItems = []
     // logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body, isQueueCmd: $isQueueCmd) | lastTtsCmdSec: ${lastTtsCmdSec} | cmdQueueWorking: ${state?.cmdQueueWorking} | recheckScheduled: ${state?.recheckScheduled}")
     if(type == "tts" || (type == "cmd" && headers?.cmdType == "SendTTS")) {
         state?.lastTtsCmdDt = getDtNow()
-        if(isRateLimiting || lastTtsCmdSec < 4) {
-            if(lastTtsCmdSec < 4 && !isQueueCmd) {
-                log.warn "echoServiceCmd Queuing Command... It's Too Soon to Send Message | ${getQueueSizeStr()} in the Queue"
-            } 
-            if(isRateLimiting) { log.warn "echoServiceCmd Rate Limiting Active" }
-            if(!isQueueCmd) {
-                queueEchoCmd(type, headers, body) 
-            }
+        Integer qSize = getQueueSize()
+        if(isRateLimiting || lastTtsCmdSec < 4 || (!isQueueCmd && qSize >= 1)) {
+            // if(lastTtsCmdSec < 4 && !isQueueCmd) {
+            //     logger("warn", "echoServiceCmd | Too Soon to Send Message! Command will be Queued | Queue Items: (${getQueueSize()})")
+            // }
+            if(isRateLimiting) { logItems?.push("│ Rate Limiting: (Active)") }
+            if(!isQueueCmd) { queueEchoCmd(type, headers, body) }
             return false
         }
         Integer msgLen = headers?.message ? headers?.message?.toString()?.length() : null
         state?.curMsgLen = msgLen
         Integer rcv = getRecheckDelay(msgLen)
-        log.debug "echoServiceCmd | Message Length: $msgLen | Scheduling Queue Check for ${rcv} seconds..."
         runIn(rcv, "checkQueue", [overwrite:true])
         state?.recheckScheduled = true
+        logItems?.push("│ Recheck Schedule: (${rcv} seconds)")
     }
-
-    String host = state?.serviceHost
-    if(!host) { return }
-    logger("info", "echoServiceCmd${isQueueCmd ? " (Queued)" : ""} | (type: $type | headers: ${headers} | body: $body | host: ${host} | isQueueCmd: $isQueueCmd)")
     try {
         String path = ""
         Map headerMap = [
-            HOST: host, 
+            HOST: host,
             CALLBACK: "http://${host}/notify"
         ]
         switch(type) {
@@ -648,11 +682,23 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
             path: path,
             body: body ?: ""
         )
+        logItems?.push("│ Queue Items: (${getQueueSize()})")
+        if(body) { logItems?.push("│  Body: ${body}") }
+        if(headers?.message) {
+            Integer ml = headers?.message?.toString()?.length()
+            logItems?.push("│ Message(Len: ${ml}): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
+        }
+        if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
+        // logItems?.push("│ Type: ($type)")
+        logItems?.push("│ HostPath: (${host}${path}) ")
+        logItems?.push("│ DateTime: (${getDtNow()})")
         sendHubCommand(hubAction)
     }
     catch (Exception ex) {
         log.error "echoServiceCmd HubAction Exception, $hubAction", ex
     }
+    logItems?.push("┌──────── Echo Command ${isQueueCmd ? " (Queued)" : ""} ────────")
+    processLogItems("debug", logItems)
     return true
 }
 
@@ -707,4 +753,3 @@ private logger(type, msg) {
         log."${type}" "${msg}"
     }
 }
- 
