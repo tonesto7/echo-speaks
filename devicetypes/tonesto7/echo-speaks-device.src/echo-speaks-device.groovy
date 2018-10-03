@@ -15,8 +15,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.6.4"}
-String devModified() { return "2018-10-02"}
+String devVersion() { return "0.6.5"}
+String devModified() { return "2018-10-03"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -521,9 +521,9 @@ public sendTtsMsg(String msg, Integer volume=null) {
 Integer getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 100000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
 
 public queueEchoCmd(type, headers, body=null) {
-    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") && it?.value?.cmdType == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
-    if(cmdQueue?.size()) { 
-        log.warn "Command Already Exists in QUEUE... SKIPPING"
+    Map cmdItems = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
+    if(cmdItems?.size()) { 
+        log.warn "Command Already Exists in QUEUE! Ignoring Command..."
         return
     }
     state?.cmdQIndexNum = state?.cmdQIndexNum ? state?.cmdQIndexNum+1 : 1
@@ -576,12 +576,10 @@ private processCmdQueue() {
     cmdQueue?.sort()?.each { cmdKey, cmdData ->
         state?.cmdQueueWorking = true
         if(stopProc) {
-            // log.debug "stopProc: true"
             return
         } else {
             if(echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true) == true) {
                 // logger("debug", "Sending Queued Command (${cmdKey}) | Type: ${cmdData?.type} | Headers: ${cmdData?.headers} | Body: ${cmdData?.body}")
-                // log.debug "result: true"
                 state?.remove(cmdKey)
             } else { stopProc = true }
         }
@@ -709,3 +707,4 @@ private logger(type, msg) {
         log."${type}" "${msg}"
     }
 }
+ 

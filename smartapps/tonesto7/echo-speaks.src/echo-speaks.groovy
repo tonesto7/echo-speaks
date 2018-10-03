@@ -16,13 +16,13 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "0.6.4" }
-String appModified() { return "2018-10-02"}
+String appVersion()	 { return "0.6.5" }
+String appModified() { return "2018-10-03"}
 String appAuthor()	 { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
     return [
-        echoDevice: 064,
+        echoDevice: 065,
         server: 063
     ]
 }
