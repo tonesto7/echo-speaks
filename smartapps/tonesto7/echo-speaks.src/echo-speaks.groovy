@@ -16,8 +16,8 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "0.6.7" }
-String appModified() { return "2018-10-03"}
+String appVersion()	 { return "0.6.8" }
+String appModified() { return "2018-10-04"}
 String appAuthor()	 { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
@@ -266,11 +266,23 @@ def initialize() {
     runIn(5, "echoServiceUpdate", [overwrite: true])
 }
 
+private checkIfCodeUpdated() {
+	if(state?.codeVersions && state?.codeVersions?.mainApp != appVersion()) {
+		log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
+		state?.pollBlocked = true
+		runIn(5, "updated", [overwrite: false])
+		return true
+	}
+	state?.pollBlocked = false
+	return false
+}
+
 private stateCleanup() {
     List items = ["availableDevices", "lastMsgDt"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
-    atomicState?.isRateLimiting = false 
-    atomicState?.consecutiveCmdCnt = null
+    state?.isRateLimiting = false 
+    state?.consecutiveCmdCnt = null
+    state?.pollBlocked = false
 }
 
 def onAppTouch(evt) {
@@ -331,6 +343,10 @@ def lanEventHandler(evt) {
 
 def receiveEventData(Map evtData) {
     try {
+        if(checkIfCodeUpdated()) { 
+			log.warn "Possible Code Version Update Detected... Device Updates will occur on next cycle."
+			return 0 
+		}
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
@@ -451,21 +467,21 @@ private echoServiceUpdate() {
 }
 
 public checkIsRateLimiting() {
-    return (atomicState?.isRateLimiting == true)
+    return (state?.isRateLimiting == true)
 }
 
 private incCmdCnt() {
-    atomicState?.consecutiveCmdCnt = atomicState?.consecutiveCmdCnt ? (atomicState?.consecutiveCmdCnt?.toInteger() + 1) : 1
+    state?.consecutiveCmdCnt = state?.consecutiveCmdCnt ? (state?.consecutiveCmdCnt?.toInteger() + 1) : 1
 }
 
 public rateLimitTracking(device) {
     // log.trace "rateLimitTracking(${device?.getDisplayName()})"
-    Integer conCmdCnt = atomicState?.consecutiveCmdCnt ? atomicState?.consecutiveCmdCnt+1 : 1
-    atomicState?.consecutiveCmdCnt = conCmdCnt
+    Integer conCmdCnt = state?.consecutiveCmdCnt ? state?.consecutiveCmdCnt+1 : 1
+    state?.consecutiveCmdCnt = conCmdCnt
     log.debug "consecutiveCmdCnt: ${conCmdCnt}"
     if(conCmdCnt > 5) {
         log.warn "Rate Limiting Active! Clearing Limit in 4 seconds..."
-        atomicState?.isRateLimiting = true
+        state?.isRateLimiting = true
         runIn(4, "clearRateLimit", [overwrite: true])
         return true
     } else {
@@ -476,13 +492,13 @@ public rateLimitTracking(device) {
 
 private clearRateLimit(devUpd = true) {
     log.trace "clearRateLimit(devUpd: $devUpd)"
-    if(devUpd && atomicState?.isRateLimiting) {
-        atomicState?.isRateLimiting = false
+    if(devUpd && state?.isRateLimiting) {
+        state?.isRateLimiting = false
         app?.getChildDevices(true)?.each { cDev->
             cDev?.checkQueue()
         }
     }
-    atomicState?.isRateLimiting = false
+    state?.isRateLimiting = false
 }
 
 private echoServiceCmd(type, headers={}, body = null) {
