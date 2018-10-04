@@ -555,7 +555,6 @@ private resetQueue() {
     unschedule("checkQueue")
     state?.qCmdCycleCnt = null
     state?.cmdQueueWorking = false
-    state?.resetQueueOk = false
     state?.recheckScheduled = false
     state?.cmdQIndexNum = null
     state?.curMsgLen = null
@@ -591,7 +590,7 @@ public queueEchoCmd(type, headers, body=null) {
     processLogItems("trace", logItems, true, true)
 }
 
-def checkQueue() {
+private checkQueue() {
     // log.debug "checkQueue | cmdQueueWorking: ${state?.cmdQueueWorking} | recheckScheduled: ${state?.recheckScheduled}"
     Boolean processQ = false
     if(state?.qCmdCycleCnt && state?.qCmdCycleCnt?.toInteger() >= 25) {
@@ -610,13 +609,8 @@ def checkQueue() {
             log.debug "checkQueue | Scheduling Re-Check for ${getRecheckDelay(state?.curMsgLen)} seconds..."
         }
     } else {
-        // if(!state?.resetQueueOk) {
-        //     state?.resetQueueOk = true
-        //     runIn(5, "checkQueue", [overwrite: false])
-        // } else {
-            log.trace "checkQueue | Nothing in the Queue... Resetting Queue"
-            resetQueue()
-        // }
+        log.trace "checkQueue | Nothing in the Queue... Resetting Queue"
+        resetQueue()
     }
 }
 
@@ -624,7 +618,7 @@ private getQueueItems() {
     return state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
 }
 
-def processCmdQueue() {
+private processCmdQueue() {
     // if(parent?.checkIsRateLimiting() == true) { return }
     state?.qCmdCycleCnt = state?.qCmdCycleCnt ? state?.qCmdCycleCnt+1 : 1
     state?.recheckScheduled = false
@@ -644,7 +638,7 @@ def processCmdQueue() {
     state?.cmdQueueWorking = false
 }
 
-def echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
+private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
     String host = state?.serviceHost
     if(!host || !type || !headers) { return false }
     Integer lastTtsCmdSec = getLastTtsCmdSec()
