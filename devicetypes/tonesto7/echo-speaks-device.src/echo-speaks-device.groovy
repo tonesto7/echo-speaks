@@ -15,8 +15,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.6.7"}
-String devModified() { return "2018-10-03"}
+String devVersion() { return "0.6.8"}
+String devModified() { return "2018-10-04"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -175,6 +175,12 @@ def parse(description) {
     def json = msg.json              // => any JSON included in response body, as a data structure of lists and maps
     def xml = msg.xml                // => any XML included in response body, as a document tree structure
     def data = msg.data              // => either JSON or XML in response body (whichever is specified by content-type header in response)
+}
+
+String getHealthStatus(lower=false) {
+	String res = device?.getStatus()
+	if(lower) { return res?.toString()?.toLowerCase() }
+	return res as String
 }
 
 def getShortDevName(){
@@ -590,6 +596,10 @@ public queueEchoCmd(type, headers, body=null) {
     processLogItems("trace", logItems, true, true)
 }
 
+private checkQueueWatchdog() {
+    checkQueue()
+}
+
 private checkQueue() {
     // log.debug "checkQueue | cmdQueueWorking: ${state?.cmdQueueWorking} | recheckScheduled: ${state?.recheckScheduled}"
     Boolean processQ = false
@@ -603,7 +613,13 @@ private checkQueue() {
         if(state?.cmdQueueWorking != true) {
             processCmdQueue()
             return
-        }
+        } 
+        // else {
+        //     log.debug "checkQueue | cmds are processing scheduling watchdog for followup"
+        //     if(state?.curMsgLen) {
+        //         runIn(getRecheckDelay(state?.curMsgLen), "checkQueueWatchdog", [overwrite:false])
+        //     }
+        // }
         if(state?.recheckScheduled == false) {
             runIn(getRecheckDelay(state?.curMsgLen), "checkQueue", [overwrite: false])
             log.debug "checkQueue | Scheduling Re-Check for ${getRecheckDelay(state?.curMsgLen)} seconds..."
@@ -639,6 +655,10 @@ private processCmdQueue() {
 }
 
 private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
+    if(getHealthStatus() != "ACTIVE") {
+        log.warn "Command Ignored... Device is current in OFFLINE State"
+        return false
+    }
     String host = state?.serviceHost
     if(!host || !type || !headers) { return false }
     Integer lastTtsCmdSec = getLastTtsCmdSec()
@@ -652,9 +672,10 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         Integer msgLen = headers?.message ? headers?.message?.toString()?.length() : null
         state?.curMsgLen = msgLen
         Integer rcv = getRecheckDelay(msgLen)
-        runIn(rcv, "checkQueue", [overwrite:true])
+        runIn(rcv, "checkQueue", [overwrite:false])
         state?.recheckScheduled = true
         logItems?.push("│ Recheck Schedule: (${rcv} seconds)")
+        logItems?.push("│ Queue Processing: (${state?.cmdQueueWorking})")
         Integer qSize = getQueueSize()
         if(isRateLimiting || lastTtsCmdSec < 4 || (!isQueueCmd && qSize >= 1)) {
             // if(lastTtsCmdSec < 4 && !isQueueCmd) {
@@ -662,7 +683,10 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
             // }
             if(isRateLimiting) { logItems?.push("│ Rate Limiting: (Active)") }
             // Add command to the Queue if not a previously queued command
-            if(!isQueueCmd) { queueEchoCmd(type, headers, body) }
+            if(!isQueueCmd) {
+                logItems?.push("│ Sending to Queue: (${qSize} in Queue)")
+                queueEchoCmd(type, headers, body) 
+            }
             return false
         }
     }
