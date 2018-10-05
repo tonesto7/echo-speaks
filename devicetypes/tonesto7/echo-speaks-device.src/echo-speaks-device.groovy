@@ -177,6 +177,12 @@ def parse(description) {
     def data = msg.data              // => either JSON or XML in response body (whichever is specified by content-type header in response)
 }
 
+String getHealthStatus(lower=false) {
+	String res = device?.getStatus()
+	if(lower) { return res?.toString()?.toLowerCase() }
+	return res as String
+}
+
 def getShortDevName(){
     return device?.displayName?.replace("Echo - ", "")
 }
@@ -649,6 +655,10 @@ private processCmdQueue() {
 }
 
 private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
+    if(getHealthStatus() != "ACTIVE") {
+        log.warn "Command Ignored... Device is current in OFFLINE State"
+        return false
+    }
     String host = state?.serviceHost
     if(!host || !type || !headers) { return false }
     Integer lastTtsCmdSec = getLastTtsCmdSec()
