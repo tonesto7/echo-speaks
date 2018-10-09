@@ -518,7 +518,7 @@ def sendTestTts(ttsMsg) {
 
 Integer getRecheckDelay(Integer msgLen=null) {
     def random = new Random()
-	Integer randomInt = random?.nextInt(7)
+	Integer randomInt = random?.nextInt(5) //Was using 7 
     if(!msgLen) { return 30 }
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
     // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
@@ -667,7 +667,6 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
     if(!settings?.disableQueue && (type == "tts" || (type == "cmd" && headers?.cmdType == "SendTTS"))) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
         // state?.lastTtsCmdDt = getDtNow()
-        Boolean sendToQueue = false
         Integer msgLen = headers?.message ? headers?.message?.toString()?.length() : null
         state?.prevMsgLen = state?.curMsgLen ?: msgLen
         state?.curMsgLen = msgLen
@@ -688,12 +687,12 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         //     }
         //     return false
         // }
-        sendToQueue = (lastTtsCmdSec < getRecheckDelay(state?.prevMsgLen) || state?.pollUpdateInProgress == true)
+        Boolean sendToQueue = (lastTtsCmdSec < getRecheckDelay(state?.prevMsgLen) || state?.pollUpdateInProgress == true)
         if(sendToQueue || (!isQueueCmd && qSize >= 1)) {
             // Add command to the Queue if not a previously queued command
-            if(!isQueueCmd || sendToQueue) {
+            if(!isQueueCmd && sendToQueue) {
                 queueEchoCmd(type, headers, body)
-            } else { log.info "skipping command because not for queue" }
+            } else { log.info "skipping command | isQueueCmd: $isQueueCmd | lastTtsCmdSec: $lastTtsCmdSec | rcv: ${getRecheckDelay(state?.prevMsgLen)} | pollUpdateInProgress: ${state?.pollUpdateInProgress} | cmdQueueWorking: ${state?.cmdQueueWorking}" }
             return false
         }
     }
