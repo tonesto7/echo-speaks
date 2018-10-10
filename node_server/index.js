@@ -1,6 +1,6 @@
 "use strict";
 
-const appVer = '0.6.3';
+const appVer = '0.7.0';
 const alexa_api = require('./alexa-api');
 const reqPromise = require("request-promise");
 const logger = require('./logger');
@@ -276,6 +276,9 @@ function startWebServer() {
                             case 'SendTTS':
                                 cmdOpts.method = 'POST';
                                 cmdOpts.url = alexaUrl + '/api/behaviors/preview';
+                                cmdOpts.deviceId = req.headers.deviceid || undefined;
+                                cmdOpts.queueKey = req.headers.queuekey || undefined;
+                                cmdOpts.msgDelay = req.headers.msgdelay || undefined;
                                 cmdOpts.json = {
                                     "behaviorId": "PREVIEW",
                                     "sequenceJson": "{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\", \
@@ -304,7 +307,7 @@ function startWebServer() {
                             }
                         }
                         if (serialNumber) {
-                            logger.debug('++ Received an Execute Command Request for Device: ' + serialNumber + ' | CmdType: ' + cmdType + ' | CmdValObj: ' + cmdValues + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
+                            logger.debug('++ Received an Execute Command Request for Device: ' + serialNumber + ' | CmdType: ' + cmdType + ' | CmdValObj: ' + cmdValues + ' | deviceDni: ' + cmdOpts.deviceId + ' ' + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
                             alexa_api.executeCommand(cmdOpts, function(error, response) {
                                 res.send(response);
                             });

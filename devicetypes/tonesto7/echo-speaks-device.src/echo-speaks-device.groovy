@@ -15,8 +15,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.6.8"}
-String devModified() { return "2018-10-04"}
+String devVersion() { return "0.7.0"}
+String devModified() { return "2018-10-10"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -38,7 +38,7 @@ metadata {
         command "sendTestTts"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
-        command "setVolumeAndSpeak", ["number", "string"]
+        // command "setVolumeAndSpeak", ["number", "string"]
         command "resetQueue"
     }
 
@@ -165,18 +165,6 @@ def initialize() {
     resetQueue()
 }
 
-def parse(description) {
-    def msg = parseLanMessage(description)
-    log.debug "parse: ${msg}"
-    def headersAsString = msg.header // => headers as a string
-    def headerMap = msg.headers      // => headers as a Map
-    def body = msg.body              // => request body as a string
-    def status = msg.status          // => http status code of the response
-    def json = msg.json              // => any JSON included in response body, as a data structure of lists and maps
-    def xml = msg.xml                // => any XML included in response body, as a document tree structure
-    def data = msg.data              // => either JSON or XML in response body (whichever is specified by content-type header in response)
-}
-
 String getHealthStatus(lower=false) {
 	String res = device?.getStatus()
 	if(lower) { return res?.toString()?.toLowerCase() }
@@ -219,95 +207,100 @@ Map getDeviceStyle(String family, String type) {
     }
 }
 
-def updateDeviceStatus(Map devData) {
-    String devName = getShortDevName()
-    if(devData?.size()) {
-        // devData?.each { k,v ->
-        //     if(!(k in ["playerState", "capabilities", "deviceAccountId"])) {
-        //         log.debug("$k: $v")
-        //     }
-        // }
-        // devData?.playerState?.each { k,v ->
-        //     if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
-        //         logger("debug", "$k: $v")
-        //     }
-        // }
-        Map deviceStyle = getDeviceStyle(devData?.deviceFamily as String, devData?.deviceType as String)
-        state?.deviceImage = deviceStyle?.image as String
-        if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
-            sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
-        }
-        // logger("info", "deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
-        state?.serialNumber = devData?.serialNumber
-        state?.deviceType = devData?.deviceType
-        state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
-        // log.debug "dndEnabled: ${devData?.dndEnabled}"
-        String firmwareVer = devData?.softwareVersion ?: "Not Set"
-        if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
-            sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
-        }
-        if(isStateChange(device, "doNotDisturb", (devData?.dndEnabled == true)?.toString())) {
-            sendEvent(name: "doNotDisturb", value: (devData?.dndEnabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(devData?.dndEnabled == true)}", display: true, displayed: true)
-        }
-        String devFamily = devData?.deviceFamily ?: ""
-        if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
-            sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
-        }
-        if(devData?.playerState?.size()) {
-            Map sData = devData?.playerState
-            String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
-            String deviceStatus = "${playState}_${deviceStyle?.image}"
-            // log.debug "deviceStatus: ${deviceStatus}"
-            if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
-                sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
-                sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
+public updateDeviceStatus(Map devData) {
+    state?.pollUpdateInProgress == true
+    try {
+        String devName = getShortDevName()
+        if(devData?.size()) {
+            // devData?.each { k,v ->
+            //     if(!(k in ["playerState", "capabilities", "deviceAccountId"])) {
+            //         log.debug("$k: $v")
+            //     }
+            // }
+            // devData?.playerState?.each { k,v ->
+            //     if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
+            //         logger("debug", "$k: $v")
+            //     }
+            // }
+            Map deviceStyle = getDeviceStyle(devData?.deviceFamily as String, devData?.deviceType as String)
+            state?.deviceImage = deviceStyle?.image as String
+            if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
+                sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
             }
-            if(sData?.infoText) {
-                // infoText: [multiLineMode:false, subText1:The Sixteen & Harry Christophers, subText2:Renaissance Classical Station, title:Veni sancte Spiritus]
-                if(sData?.infoText.title) {
-                    String title = sData?.infoText.title ?: ""
-                    if(isStateChange(device, "trackDescription", title?.toString())) {
-                        sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
-                    }
+            // logger("info", "deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
+            state?.serialNumber = devData?.serialNumber
+            state?.deviceType = devData?.deviceType
+            state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
+            // log.debug "dndEnabled: ${devData?.dndEnabled}"
+            String firmwareVer = devData?.softwareVersion ?: "Not Set"
+            if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
+                sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
+            }
+            if(isStateChange(device, "doNotDisturb", (devData?.dndEnabled == true)?.toString())) {
+                sendEvent(name: "doNotDisturb", value: (devData?.dndEnabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(devData?.dndEnabled == true)}", display: true, displayed: true)
+            }
+            String devFamily = devData?.deviceFamily ?: ""
+            if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
+                sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
+            }
+            if(devData?.playerState?.size()) {
+                Map sData = devData?.playerState
+                String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
+                String deviceStatus = "${playState}_${deviceStyle?.image}"
+                // log.debug "deviceStatus: ${deviceStatus}"
+                if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
+                    sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
+                    sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
+                }
+                if(sData?.infoText) {
+                    // infoText: [multiLineMode:false, subText1:The Sixteen & Harry Christophers, subText2:Renaissance Classical Station, title:Veni sancte Spiritus]
+                    if(sData?.infoText.title) {
+                        String title = sData?.infoText.title ?: ""
+                        if(isStateChange(device, "trackDescription", title?.toString())) {
+                            sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
+                        }
 
-                    String subText1 = sData?.infoText.subText1 ?: "Idle"
-                    if(isStateChange(device, "currentAlbum", subText1?.toString())) {
-                        sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
-                    }
-                    String subText2 = sData?.infoText.subText2 ?: "Idle"
-                    if(isStateChange(device, "currentStation", subText2?.toString())) {
-                        sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
-                    }
-                }
-            }
-            if(sData?.volume) {
-                if(sData?.volume?.volume) {
-                    Integer level = sData?.volume?.volume
-                    if(level < 0) { level = 0 }
-                    if(level > 100) { level = 100 }
-                    if(isStateChange(device, "level", level?.toString())) {
-                        sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
+                        String subText1 = sData?.infoText.subText1 ?: "Idle"
+                        if(isStateChange(device, "currentAlbum", subText1?.toString())) {
+                            sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
+                        }
+                        String subText2 = sData?.infoText.subText2 ?: "Idle"
+                        if(isStateChange(device, "currentStation", subText2?.toString())) {
+                            sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
+                        }
                     }
                 }
-                if(sData?.volume?.muted) {
-                    String muteState = sData?.volume?.muted == true ? "muted" : "unmuted"
-                    if(isStateChange(device, "mute", muteState?.toString())) {
-                        sendEvent(name: "mute", value: muteState, descriptionText: "Mute State is ${muteState}", display: true, displayed: true)
+                if(sData?.volume) {
+                    if(sData?.volume?.volume) {
+                        Integer level = sData?.volume?.volume
+                        if(level < 0) { level = 0 }
+                        if(level > 100) { level = 100 }
+                        if(isStateChange(device, "level", level?.toString())) {
+                            sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
+                        }
+                    }
+                    if(sData?.volume?.muted) {
+                        String muteState = sData?.volume?.muted == true ? "muted" : "unmuted"
+                        if(isStateChange(device, "mute", muteState?.toString())) {
+                            sendEvent(name: "mute", value: muteState, descriptionText: "Mute State is ${muteState}", display: true, displayed: true)
+                        }
                     }
                 }
-            }
-        } else {
-            def deviceStatus = "stopped_echo_gen1"
-            if(deviceStyle?.image) { deviceStatus = "stopped_${deviceStyle?.image}" }
-            // log.debug "deviceStatus: ${deviceStatus}"
-            if(isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
-                sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
+            } else {
+                def deviceStatus = "stopped_echo_gen1"
+                if(deviceStyle?.image) { deviceStatus = "stopped_${deviceStyle?.image}" }
+                // log.debug "deviceStatus: ${deviceStatus}"
+                if(isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
+                    sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
+                }
             }
         }
+        setOnlineStatus((devData?.online != false))
+        sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
+    } catch(ex) {
+        log.error "updateDeviceStatus Error: ", ex
     }
-
-    setOnlineStatus((devData?.online != false))
-    sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
+    state?.pollUpdateInProgress = false
 }
 
 public updateServiceInfo(String svcHost) {
@@ -320,16 +313,6 @@ public setOnlineStatus(Boolean isOnline) {
         sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), displayed: false, isStateChange: true)
         sendEvent(name: "onlineStatus", value: onlStatus?.toString(), displayed: true, isStateChange: true)
     }
-}
-
-def deviceNotification(String msg) {
-    log.trace "deviceNotification(msg: $msg)"
-    if(msg) { sendTtsMsg(msg) }
-}
-
-def speak(String msg) {
-    log.trace "speak(${msg?.take(200)?.trim()}${msg?.toString()?.length() > 200 ? "..." : ""})"
-    if(msg) { sendTtsMsg(msg) }
 }
 
 def play() {
@@ -454,11 +437,6 @@ def restoreTrack() {
     logger("warn", "restoreTrack() | Not Supported Yet!!!")
 }
 
-def setVolumeAndSpeak(volume, text) {
-    logger("trace", "setVolumeAndSpeak($volume, $text)")
-    if(text) { sendTtsMsg(text, volume) }
-}
-
 def playURL(theURL) {
     logger("warn", "playURL() | Not Supported Yet!!!")
     // log.debug "Executing 'playURL'"
@@ -486,6 +464,27 @@ public setDoNotDisturb(Boolean val) {
     ])
 }
 
+
+public deviceNotification(String msg) {
+    if(!msg) { log.warn "No Message sent with deviceNotification($msg) command" }
+    log.trace "deviceNotification(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
+    speak(msg as String)
+}
+
+public speak(String msg) {
+    if(!msg) { log.warn "No Message sent with speak($msg) command" }
+    // log.trace "speak(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
+    if(msg != null && state?.serialNumber) {
+        echoServiceCmd("cmd", [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+            message: msg,
+            cmdType: "SendTTS"
+        ])
+    } else { log.warn "speak Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
+}
+
 def getRandomItem(items) {
     def list = new ArrayList<String>();
     items?.each { list?.add(it) }
@@ -499,32 +498,20 @@ def sendTestTts(ttsMsg) {
         "The hip, hip a hop, and you don't stop, a rock it out," +
         "Bubba to the bang bang boogie, boobie to the boogie" +
         "To the rhythm of the boogie the beat," +
-        "Now, what you hear is not a test I'm rappin' to the beat", "This is how we do it!. It's Friday night, and I feel alright. The party is here on the West side. So I reach for my 40 and I turn it up. Designated driver take the keys to my truck, Hit the shore 'cause I'm faded, Honeys in the street say, Monty, yo we made it!. It feels so good in my hood tonight,  The summertime skirts and the guys in Kani."
+        "Now, what you hear is not a test I'm rappin' to the beat", "This is how we do it!. It's Friday night, and I feel alright. The party is here on the West side. So I reach for my 40 and I turn it up. Designated driver take the keys to my truck, Hit the shore 'cause I'm faded, Honeys in the street say, Monty, yo we made it!. It feels so good in my hood tonight,  The summertime skirts and the guys in Kani.",
+        "Teenage Mutant Ninja Turtles, Teenage Mutant Ninja Turtles, Teenage Mutant Ninja Turtles, Heroes in a half-shell Turtle power!...   They're the world's most fearsome fighting team (We're really hip!), They're heroes in a half-shell and they're green (Hey - get a grip!), When the evil Shredder attacks!!!, These Turtle boys don't cut him no slack!."
     ]
     if(!ttsMsg) { ttsMsg = getRandomItem(items) }
-    sendTtsMsg(ttsMsg)
+    speak(ttsMsg as String)
 }
 
 Integer getRecheckDelay(Integer msgLen=null) {
     def random = new Random()
-	Integer randomInt = random?.nextInt(7)
+	Integer randomInt = random?.nextInt(5) //Was using 7 
     if(!msgLen) { return 30 }
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
     // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
     return v + randomInt
-}
-
-public sendTtsMsg(String msg, Integer volume=null) {
-    if(state?.serialNumber && msg) {
-        if(volume) { setLevel(volume) }
-        echoServiceCmd("cmd", [
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            message: msg,
-            cmdType: "SendTTS"
-        ])
-    } else { log.warn "sendTtsMsg Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
 }
 
 Integer getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 1000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
@@ -552,26 +539,32 @@ private processLogItems(String logType, List logList, emptyStart=false, emptyEnd
     }
 }
 
-private resetQueue() {
-    logger("trace", "resetQueue()")
+private resetQueue(showLog=true) {
+    if(showLog) { log.trace "resetQueue()" }
     Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
     cmdQueue?.each { cmdKey, cmdData ->
         state?.remove(cmdKey)
     }
     unschedule("checkQueue")
+    state?.pollUpdateInProgress = false
     state?.qCmdCycleCnt = null
     state?.cmdQueueWorking = false
+    state?.firstCmdFlag = false
     state?.recheckScheduled = false
     state?.cmdQIndexNum = null
     state?.curMsgLen = null
+    state?.isRateLimited = false
 }
 
-public queueEchoCmd(type, headers, body=null) {
+Integer getQueueIndex() {
+    return state?.cmdQIndexNum ? state?.cmdQIndexNum+1 : 1
+}
+
+public queueEchoCmd(type, headers, body=null, firstRun=false) {
     List logItems = []
     Map cmdItems = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
+    logItems?.push("│ Queue Active: (${state?.cmdQueueWorking}) | Recheck: (${state?.recheckScheduled}) ")
     if(cmdItems?.size()) {
-        logItems?.push("│ Queue Work Active: (${state?.cmdQueueWorking}) ")
-        logItems?.push("│ Recheck Scheduled: (${state?.recheckScheduled}) ")
         if(headers?.message) {
             Integer ml = headers?.message?.toString()?.length()
             logItems?.push("│ Message(Len: ${ml}): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
@@ -581,52 +574,43 @@ public queueEchoCmd(type, headers, body=null) {
         processLogItems("warn", logItems, true, true)
         return
     }
-    state?.cmdQIndexNum = state?.cmdQIndexNum ? state?.cmdQIndexNum+1 : 1
+    state?.cmdQIndexNum = getQueueIndex()
     state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
-    logItems?.push("│ Queue Work Active: (${state?.cmdQueueWorking}) ")
-    logItems?.push("│ Recheck Scheduled: (${state?.recheckScheduled}) ")
     if(headers?.message) {
         logItems?.push("│ Message(Len: ${headers?.message?.toString()?.length()}): ${headers?.message?.take(200)?.trim()}${headers?.message?.toString()?.length() > 200 ? "..." : ""}")
     }
     if(headers?.cmdType) { logItems?.push("│ CmdType: (${headers?.cmdType})") }
-    logItems?.push("│ QueueIndex#: (${state?.cmdQIndexNum})")
-    // logItems?.push("│  Type: ($type)")
-    logItems?.push("│ DateTime: (${getDtNow()})")
-    logItems?.push("┌───────── Adding to Echo Queue ─────────")
-    processLogItems("trace", logItems, true, true)
+    logItems?.push("┌───── Added Echo Queue Item (${state?.cmdQIndexNum}) ─────")
+    if(!firstRun) {
+        processLogItems("trace", logItems, false, true) 
+    }
+    if(firstRun) {
+        // runIn(1, processCmdQueue)
+        processCmdQueue()
+    }
 }
 
-private checkQueueWatchdog() {
-    checkQueue()
-}
-
-private checkQueue() {
-    // log.debug "checkQueue | cmdQueueWorking: ${state?.cmdQueueWorking} | recheckScheduled: ${state?.recheckScheduled}"
-    Boolean processQ = false
-    if(state?.qCmdCycleCnt && state?.qCmdCycleCnt?.toInteger() >= 25) {
+private checkQueue(data) {
+    // log.debug "checkQueue | ${data}"
+    if(state?.qCmdCycleCnt && state?.qCmdCycleCnt?.toInteger() >= 10) {
         log.warn "checkQueue | Queue Cycle Count (${state?.qCmdCycleCnt}) is abnormally high... Resetting Queue"
-        resetQueue()
+        resetQueue(false)
         return
     }
-    if(getQueueSize() > 0) { processQ = true }
-    if(processQ) {
+    if(getQueueSize() > 0) {
         if(state?.cmdQueueWorking != true) {
-            processCmdQueue()
-            return
+            if((data && data?.rateLimited == true)) {
+                Integer delay = data?.delay ?: getRecheckDelay(state?.curMsgLen)
+                runIn(delay, "checkQueue", [overwrite: true])
+                state?.recheckScheduled = true
+                log.debug "checkQueue | Scheduling Re-Check for ${delay} seconds...${(data && data?.rateLimited == true) ? " | Recheck for RateLimiting: true" : ""}"
+            }
+            processCmdQueue() 
         } 
-        // else {
-        //     log.debug "checkQueue | cmds are processing scheduling watchdog for followup"
-        //     if(state?.curMsgLen) {
-        //         runIn(getRecheckDelay(state?.curMsgLen), "checkQueueWatchdog", [overwrite:false])
-        //     }
-        // }
-        if(state?.recheckScheduled == false) {
-            runIn(getRecheckDelay(state?.curMsgLen), "checkQueue", [overwrite: false])
-            log.debug "checkQueue | Scheduling Re-Check for ${getRecheckDelay(state?.curMsgLen)} seconds..."
-        }
+        return
     } else {
         log.trace "checkQueue | Nothing in the Queue... Resetting Queue"
-        resetQueue()
+        resetQueue(false)
     }
 }
 
@@ -635,120 +619,132 @@ private getQueueItems() {
 }
 
 private processCmdQueue() {
-    // if(parent?.checkIsRateLimiting() == true) { return }
+    state?.cmdQueueWorking = true
     state?.qCmdCycleCnt = state?.qCmdCycleCnt ? state?.qCmdCycleCnt+1 : 1
     state?.recheckScheduled = false
-    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
-    logger("debug", "processCmdQueue | Queue Items: (${getQueueSize()})")
-    Boolean stopProc = false
-    cmdQueue?.sort()?.each { cmdKey, cmdData ->
-        state?.cmdQueueWorking = true
-        if(stopProc) {
-            return
-        } else {
-            if(echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true) == true) {
-                state?.remove(cmdKey)
-            } else { stopProc = true }
+    Map cmdQueue = getQueueItems()
+    if(cmdQueue?.size()) {
+        Boolean stopProc = false
+        cmdQueue?.sort()?.each { cmdKey, cmdData ->
+            // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }?.size()})")
+            if(!stopProc) {
+                cmdData?.headers['queueKey'] = cmdKey
+                if(echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true) == false) {
+                    stopProc = true
+                    return
+                }
+            }
         }
     }
     state?.cmdQueueWorking = false
 }
 
 private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
-    if(getHealthStatus() != "ACTIVE") {
-        log.warn "Command Ignored... Device is current in OFFLINE State"
-        return false
-    }
+    if(!isQueueCmd) { log.trace "echoServiceCmd($type, ${headers?.cmdType}, $isQueueCmd)" }
     String host = state?.serviceHost
-    if(!host || !type || !headers) { return false }
-    Integer lastTtsCmdSec = getLastTtsCmdSec()
-    Boolean isRateLimiting = false //parent?.rateLimitTracking(device)
+    Boolean isTTS = (type == "cmd" && headers?.cmdType == "SendTTS")
     List logItems = []
-    if(type == "tts" || (type == "cmd" && headers?.cmdType == "SendTTS" && !settings?.disableQueue)) {
+    String healthStatus = getHealthStatus()
+    if(!host || !type || !headers || !(healthStatus in ["ACTIVE", "ONLINE"])) {
+        if(!host || !type || !headers) {
+            log.error "echoServiceCmd | Error${!host ? " | host is missing" : ""}${!type ? " | type is missing" : ""}${!headers ? " | headers are missing" : ""} "
+        }
+        if(!(healthStatus in ["ACTIVE", "ONLINE"])) { log.warn "Command Ignored... Device is current in OFFLINE State" }
+        return true 
+    }
+    Integer lastTtsCmdSec = getLastTtsCmdSec()
+    if(!settings?.disableQueue && isTTS) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
-        // logItems?.push("│ Queue Work Active: (${state?.cmdQueueWorking}) ")
-        // logItems?.push("│ Recheck Scheduled: (${state?.recheckScheduled}) ")
-        state?.lastTtsCmdDt = getDtNow()
+        Boolean isFirstRunCmd = (state?.firstCmdFlag != true)
         Integer msgLen = headers?.message ? headers?.message?.toString()?.length() : null
+        state?.prevMsgLen = state?.curMsgLen ?: msgLen
         state?.curMsgLen = msgLen
-        Integer rcv = getRecheckDelay(msgLen)
-        runIn(rcv, "checkQueue", [overwrite:false])
+        Integer rcv = isFirstRunCmd ? 1 : getRecheckDelay(msgLen)
+        runIn(rcv, "checkQueue", [overwrite: (isQueueCmd==true)])
         state?.recheckScheduled = true
-        logItems?.push("│ Recheck Schedule: (${rcv} seconds)")
-        logItems?.push("│ Queue Processing: (${state?.cmdQueueWorking})")
+        logItems?.push("│ Rechecking: (${rcv} seconds)")
         Integer qSize = getQueueSize()
-        if(isRateLimiting || lastTtsCmdSec < 4 || (!isQueueCmd && qSize >= 1)) {
-            // if(lastTtsCmdSec < 4 && !isQueueCmd) {
-            //     logger("warn", "echoServiceCmd | Too Soon to Send Message! Command will be Queued | Queue Items: (${getQueueSize()})")
-            // }
-            if(isRateLimiting) { logItems?.push("│ Rate Limiting: (Active)") }
-            // Add command to the Queue if not a previously queued command
+        Boolean sendToQueue = (isFirstRunCmd || lastTtsCmdSec < getRecheckDelay(state?.prevMsgLen) || (!isQueueCmd && qSize >= 1))
+        if(sendToQueue) {
             if(!isQueueCmd) {
-                logItems?.push("│ Sending to Queue: (${qSize} in Queue)")
-                queueEchoCmd(type, headers, body) 
+                headers['msgDelay'] = rcv
+                if(isFirstRunCmd) { 
+                    logItems?.push("│ First Command: (${isFirstRunCmd})")
+                    state?.firstCmdFlag = true
+                }
+                queueEchoCmd(type, headers, body, isFirstRunCmd)
             }
-            return false
+            return false 
         }
     }
     try {
         String path = ""
-        Map headerMap = [
-            HOST: host,
-            CALLBACK: "http://${host}/notify"
-        ]
+        Map headerMap = [HOST: host, deviceId: device?.getDeviceNetworkId()]
         switch(type) {
-            case "tts":
-                path = "/alexa-tts"
-                break
-            case "deviceState":
-                path = "/alexa-getState"
-                break
             case "cmd":
                 path = "/alexa-command"
                 break
         }
         headers?.each { k,v-> headerMap[k] = v }
-        def hubAction = new physicalgraph.device.HubAction(
-            method: "POST",
-            headers: headerMap,
-            path: path,
-            body: body ?: ""
+        def result = new physicalgraph.device.HubAction([
+                method: "POST",
+                headers: headerMap,
+                path: path,
+                body: body ?: ""
+            ],
+            null,
+            [callback: cmdCallBackHandler]
         )
-        logItems?.push("│ Queue Items: (${getQueueSize()})")
-        if(body) { logItems?.push("│  Body: ${body}") }
+        logItems?.push("│ Queue Items: (${(getQueueSize()-1).abs()}) │ Working: (${state?.cmdQueueWorking})")
+        if(body) { logItems?.push("│ Body: ${body}") }
         if(headers?.message) {
             Integer ml = headers?.message?.toString()?.length()
             logItems?.push("│ Message(Len: ${ml}): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
         }
         if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
-        // logItems?.push("│ Type: ($type)")
-        logItems?.push("│ HostPath: (${host}${path}) ")
-        logItems?.push("│ DateTime: (${getDtNow()})")
-        sendHubCommand(hubAction)
+        if(isTTS) { state?.lastTtsCmdDt = getDtNow() }
+        sendHubCommand(result)
     }
     catch (Exception ex) {
-        log.error "echoServiceCmd HubAction Exception, $hubAction", ex
+        log.error "echoServiceCmd HubAction Exception:", ex
     }
-    logItems?.push("┌──────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (Queued)" : ""} ────────")
+    logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
     processLogItems("debug", logItems)
     return true
 }
 
-private getCallBackAddress() {
-    return device.hub.getDataValue("localIP") + ":" + device.hub.getDataValue("localSrvPortTCP")
+void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
+    def resp = hubResponse?.json
+    if(resp && resp?.deviceId && (resp?.deviceId == device?.getDeviceNetworkId())) {
+        // log.debug "command resp was: ${resp}"
+        if(resp?.statusCode == 200) {
+            if(resp?.queueKey) {
+                // log.info "commands sent successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay}"
+                state?.remove(resp?.queueKey as String)
+                if(!state?.recheckScheduled) {
+                    Integer delay = resp?.msgDelay as Integer ?: getRecheckDelay(state?.curMsgLen)
+                    state?.recheckScheduled = true
+                    runIn(delay, "checkQueue", [overwrite: true])
+                }
+            }
+            return
+        } else if(resp?.statusCode == 400 && resp?.message && resp?.message == "Rate exceeded") {
+            log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
+            state?.recheckScheduled = true
+            runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (resp?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
+            
+            return
+        } else {
+            log.error "calledBackHandler Error | status: ${resp?.statusCode} | message: ${resp?.message}"
+            resetQueue()
+            return
+        }
+    }
 }
 
 /*****************************************************
                 HELPER FUNCTIONS
 ******************************************************/
-private Integer convertHexToInt(hex) {
-    return Integer.parseInt(hex,16)
-}
-
-private String convertHexToIP(hex) {
-    return [convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
-}
-
 def getDtNow() {
 	def now = new Date()
 	return formatDt(now, false)
