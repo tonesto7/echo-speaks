@@ -165,18 +165,6 @@ def initialize() {
     resetQueue()
 }
 
-def parse(description) {
-    def msg = parseLanMessage(description)
-    log.debug "parse: ${msg}"
-    def headersAsString = msg.header // => headers as a string
-    def headerMap = msg.headers      // => headers as a Map
-    def body = msg.body              // => request body as a string
-    def status = msg.status          // => http status code of the response
-    def json = msg.json              // => any JSON included in response body, as a data structure of lists and maps
-    def xml = msg.xml                // => any XML included in response body, as a document tree structure
-    def data = msg.data              // => either JSON or XML in response body (whichever is specified by content-type header in response)
-}
-
 String getHealthStatus(lower=false) {
 	String res = device?.getStatus()
 	if(lower) { return res?.toString()?.toLowerCase() }
@@ -510,7 +498,8 @@ def sendTestTts(ttsMsg) {
         "The hip, hip a hop, and you don't stop, a rock it out," +
         "Bubba to the bang bang boogie, boobie to the boogie" +
         "To the rhythm of the boogie the beat," +
-        "Now, what you hear is not a test I'm rappin' to the beat", "This is how we do it!. It's Friday night, and I feel alright. The party is here on the West side. So I reach for my 40 and I turn it up. Designated driver take the keys to my truck, Hit the shore 'cause I'm faded, Honeys in the street say, Monty, yo we made it!. It feels so good in my hood tonight,  The summertime skirts and the guys in Kani."
+        "Now, what you hear is not a test I'm rappin' to the beat", "This is how we do it!. It's Friday night, and I feel alright. The party is here on the West side. So I reach for my 40 and I turn it up. Designated driver take the keys to my truck, Hit the shore 'cause I'm faded, Honeys in the street say, Monty, yo we made it!. It feels so good in my hood tonight,  The summertime skirts and the guys in Kani.",
+        "Teenage Mutant Ninja Turtles, Teenage Mutant Ninja Turtles, Teenage Mutant Ninja Turtles, Heroes in a half-shell Turtle power!...   They're the world's most fearsome fighting team (We're really hip!), They're heroes in a half-shell and they're green (Hey - get a grip!), When the evil Shredder attacks!!!, These Turtle boys don't cut him no slack!."
     ]
     if(!ttsMsg) { ttsMsg = getRandomItem(items) }
     speak(ttsMsg as String)
@@ -595,13 +584,8 @@ public queueEchoCmd(type, headers, body=null) {
     processLogItems("trace", logItems, true, true)
 }
 
-private checkQueueWatchdog() {
-    checkQueue()
-}
-
 private checkQueue(data=null) {
     if(data && data?.src) {}
-    // log.debug "checkQueue | cmdQueueWorking: ${state?.cmdQueueWorking} | recheckScheduled: ${state?.recheckScheduled}${data && data?.src ? " | sender: ${data?.src}" : ""}"
     if(state?.qCmdCycleCnt && state?.qCmdCycleCnt?.toInteger() >= 25) {
         log.warn "checkQueue | Queue Cycle Count (${state?.qCmdCycleCnt}) is abnormally high... Resetting Queue"
         resetQueue()
@@ -612,14 +596,8 @@ private checkQueue(data=null) {
             processCmdQueue()
             return
         } 
-        // else {
-        //     log.debug "checkQueue | cmds are processing scheduling watchdog for followup"
-        //     if(state?.curMsgLen) {
-        //         runIn(getRecheckDelay(state?.curMsgLen), "checkQueueWatchdog", [overwrite:false, data:[src:"checkQueue()"]])
-        //     }
-        // }
         if(state?.recheckScheduled == false) {
-            runIn(getRecheckDelay(state?.curMsgLen), "checkQueue", [overwrite:false, data:[src:"checkQueue | recheckScheduled: ${state?.recheckScheduled}"]])
+            runIn(getRecheckDelay(state?.curMsgLen), "checkQueue", [overwrite:false, data:[src: "checkQueue | recheckScheduled: ${state?.recheckScheduled}"]])
             log.debug "checkQueue | Scheduling Re-Check for ${getRecheckDelay(state?.curMsgLen)} seconds..."
         }
     } else {
@@ -642,8 +620,10 @@ private processCmdQueue() {
             // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }?.size()})")
             state?.cmdQueueWorking = true
             if(!stopProc) {
+                cmdData?.headers['respOpts'] = [queueKey: cmdKey]
                 if(echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true)) {
-                    state?.remove(cmdKey)
+                    // state?.remove(cmdKey)
+                    return
                 } else { stopProc = true }
             }
         }
@@ -651,7 +631,7 @@ private processCmdQueue() {
     state?.cmdQueueWorking = false
 }
 
-private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
+private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false, queueKey=null) {
     if(!isQueueCmd) { log.trace "echoServiceCmd($type, ${headers?.cmdType}, $isQueueCmd)" }
     String host = state?.serviceHost
     List logItems = []
@@ -664,9 +644,8 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         return false 
     }
     Integer lastTtsCmdSec = getLastTtsCmdSec()
-    if(!settings?.disableQueue && (type == "tts" || (type == "cmd" && headers?.cmdType == "SendTTS"))) {
+    if(!settings?.disableQueue && (type == "cmd" && headers?.cmdType == "SendTTS")) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
-        // state?.lastTtsCmdDt = getDtNow()
         Integer msgLen = headers?.message ? headers?.message?.toString()?.length() : null
         state?.prevMsgLen = state?.curMsgLen ?: msgLen
         state?.curMsgLen = msgLen
@@ -678,15 +657,6 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         logItems?.push("│ Poll in Progress: (${state?.pollUpdateInProgress})")
         logItems?.push("│ Queue Processing: (${state?.cmdQueueWorking})")
         Integer qSize = getQueueSize()
-        // log.debug "lastTtsCmdSec: $lastTtsCmdSec | rcv: ${getRecheckDelay(state?.prevMsgLen)}"
-        // if(lastTtsCmdSec < getRecheckDelay(state?.prevMsgLen) || state?.pollUpdateInProgress == true || (!isQueueCmd && qSize >= 1)) {
-        //     // Add command to the Queue if not a previously queued command
-        //     if(!isQueueCmd || state?.pollUpdateInProgress == true) {
-        //         logItems?.push("│ Sending to Queue: (${qSize} in Queue)")
-        //         queueEchoCmd(type, headers, body)
-        //     }
-        //     return false
-        // }
         Boolean sendToQueue = (lastTtsCmdSec < getRecheckDelay(state?.prevMsgLen) || state?.pollUpdateInProgress == true)
         if(sendToQueue || (!isQueueCmd && qSize >= 1)) {
             // Add command to the Queue if not a previously queued command
@@ -696,17 +666,10 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
             return false
         }
     }
-    
     try {
         String path = ""
-        Map headerMap = [
-            HOST: host,
-            CALLBACK: "http://${host}/notify"
-        ]
+        Map headerMap = [HOST: host, deviceId: device?.getDeviceNetworkId()]
         switch(type) {
-            case "tts":
-                path = "/alexa-tts"
-                break
             case "deviceState":
                 path = "/alexa-getState"
                 break
@@ -715,11 +678,13 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 break
         }
         headers?.each { k,v-> headerMap[k] = v }
-        def hubAction = new physicalgraph.device.HubAction(
+        def result = new physicalgraph.device.HubAction([
             method: "POST",
             headers: headerMap,
             path: path,
-            body: body ?: ""
+            body: body ?: ""],
+            null,
+            [callback: calledBackHandler]
         )
         logItems?.push("│ Queue Items: (${(getQueueSize()-1).abs()})")
         if(body) { logItems?.push("│  Body: ${body}") }
@@ -731,32 +696,39 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         // logItems?.push("│ Type: ($type)")
         // logItems?.push("│ HostPath: (${host}${path}) ")
         // logItems?.push("│ DateTime: (${getDtNow()})")
-        if(type == "tts" || (type == "cmd" && headers?.cmdType == "SendTTS")) { state?.lastTtsCmdDt = getDtNow() }
-        sendHubCommand(hubAction)
+        if(type == "cmd" && headers?.cmdType == "SendTTS") { state?.lastTtsCmdDt = getDtNow() }
+        sendHubCommand(result)
     }
     catch (Exception ex) {
-        log.error "echoServiceCmd HubAction Exception, $hubAction", ex
+        log.error "echoServiceCmd HubAction Exception:", ex
     }
     logItems?.push("┌──────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : " ──"}──────")
     processLogItems("debug", logItems)
     return true
 }
 
-private getCallBackAddress() {
-    return device.hub.getDataValue("localIP") + ":" + device.hub.getDataValue("localSrvPortTCP")
+void calledBackHandler(physicalgraph.device.HubResponse hubResponse) {
+    def resp = hubResponse?.json
+    if(resp && resp?.deviceId && (resp?.deviceId == device?.getDeviceNetworkId())) {
+        log.debug "command resp was: ${resp}"
+        if(resp?.statusCode == 200) {
+            if(resp?.respOpts && resp?.respOpts?.queueKey) {
+                state?.remove(resp?.respOpts?.queueKey as String)
+            }
+            return
+        } else {
+            if(resp?.statusCode == 400 && resp?.message && resp?.message?.message && resp?.message?.message == "Rate exceeded") {
+                log.warn "commands are being Rate Limited... Attempting Again in 2 Seconds"
+                runIn(3, "checkQueue", [overwrite: true])
+                return
+            }
+        }
+    }
 }
 
 /*****************************************************
                 HELPER FUNCTIONS
 ******************************************************/
-private Integer convertHexToInt(hex) {
-    return Integer.parseInt(hex,16)
-}
-
-private String convertHexToIP(hex) {
-    return [convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
-}
-
 def getDtNow() {
 	def now = new Date()
 	return formatDt(now, false)

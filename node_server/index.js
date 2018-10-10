@@ -256,7 +256,8 @@ function startWebServer() {
                         let cmdType = req.headers.cmdtype;
                         let cmdValues = (req.headers.cmdvalobj && req.headers.cmdvalobj.length) ? JSON.parse(req.headers.cmdvalobj) : {};
                         let message = (req.headers.message) || "";
-
+                        let respOpts = req.headers.respopts || {};
+                        let deviceDni = (req.headers.deviceid) || undefined;
                         let cmdOpts = {
                             headers: {
                                 'Cookie': savedConfig.cookies,
@@ -304,8 +305,8 @@ function startWebServer() {
                             }
                         }
                         if (serialNumber) {
-                            logger.debug('++ Received an Execute Command Request for Device: ' + serialNumber + ' | CmdType: ' + cmdType + ' | CmdValObj: ' + cmdValues + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
-                            alexa_api.executeCommand(cmdOpts, function(error, response) {
+                            logger.debug('++ Received an Execute Command Request for Device: ' + serialNumber + ' | CmdType: ' + cmdType + ' | CmdValObj: ' + cmdValues + ' | deviceDni: ' + deviceDni + ' ' + (hubAct ? ' | Source: (ST HubAction)' : '') + ' ++');
+                            alexa_api.executeCommand(cmdOpts, deviceDni, respOpts, function(error, response) {
                                 res.send(response);
                             });
                         } else {
