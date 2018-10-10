@@ -560,6 +560,17 @@ Integer getQueueIndex() {
     return state?.cmdQIndexNum ? state?.cmdQIndexNum+1 : 1
 }
 
+private schedQueueCheck(Integer delay, overwrite=true, data=null, src) {
+    if(delay) {
+        Map opts = [:]
+        opts["overwrite"] = overwrite
+        if(data) { opts["data"] = data }
+        runIn(delay, "checkQueue", opts)
+        state?.recheckScheduled = true
+        log.debug "checkQueue Scheduled | Delay: ($delay) | Overwrite: $overwrite | recheckScheduled: ${state?.recheckScheduled} | Src: $src"
+    }
+}
+
 public queueEchoCmd(type, headers, body=null, firstRun=false) {
     List logItems = []
     Map cmdItems = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
@@ -567,7 +578,7 @@ public queueEchoCmd(type, headers, body=null, firstRun=false) {
     if(cmdItems?.size()) {
         if(headers?.message) {
             Integer ml = headers?.message?.toString()?.length()
-            logItems?.push("│ Message(Len: ${ml}): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
+            logItems?.push("│ Message(${ml} char): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
         }
         logItems?.push("│ Ignoring (${headers?.cmdType}) Command... It Already Exists in QUEUE!!!")
         logItems?.push("┌────────── Echo Queue Warning ──────────")
@@ -584,10 +595,9 @@ public queueEchoCmd(type, headers, body=null, firstRun=false) {
     if(!firstRun) {
         processLogItems("trace", logItems, false, true) 
     }
-    if(firstRun) {
-        // runIn(1, processCmdQueue)
-        processCmdQueue()
-    }
+    // if(firstRun) {
+    //     processCmdQueue()
+    // }
 }
 
 private checkQueue(data) {
@@ -600,9 +610,8 @@ private checkQueue(data) {
     if(getQueueSize() > 0) {
         if(state?.cmdQueueWorking != true) {
             if((data && data?.rateLimited == true)) {
-                Integer delay = data?.delay ?: getRecheckDelay(state?.curMsgLen)
-                runIn(delay, "checkQueue", [overwrite: true])
-                state?.recheckScheduled = true
+                Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.curMsgLen)
+                schedQueueCheck(delay, true, null, "checkQueue(rate-limit)")
                 log.debug "checkQueue | Scheduling Re-Check for ${delay} seconds...${(data && data?.rateLimited == true) ? " | Recheck for RateLimiting: true" : ""}"
             }
             processCmdQueue() 
@@ -621,20 +630,14 @@ private getQueueItems() {
 private processCmdQueue() {
     state?.cmdQueueWorking = true
     state?.qCmdCycleCnt = state?.qCmdCycleCnt ? state?.qCmdCycleCnt+1 : 1
-    state?.recheckScheduled = false
     Map cmdQueue = getQueueItems()
     if(cmdQueue?.size()) {
-        Boolean stopProc = false
-        cmdQueue?.sort()?.each { cmdKey, cmdData ->
-            // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }?.size()})")
-            if(!stopProc) {
-                cmdData?.headers['queueKey'] = cmdKey
-                if(echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true) == false) {
-                    stopProc = true
-                    return
-                }
-            }
-        }
+        state?.recheckScheduled = false
+        def cmdKey = cmdQueue?.keySet()?.sort()?.first()
+        Map cmdData = state[cmdKey as String]
+        // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }?.size()})")
+        cmdData?.headers['queueKey'] = cmdKey
+        echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true)
     }
     state?.cmdQueueWorking = false
 }
@@ -655,28 +658,28 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
     Integer lastTtsCmdSec = getLastTtsCmdSec()
     if(!settings?.disableQueue && isTTS) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
+        Integer ml = headers?.message?.toString()?.length()
         Boolean isFirstRunCmd = (state?.firstCmdFlag != true)
-        Integer msgLen = headers?.message ? headers?.message?.toString()?.length() : null
-        state?.prevMsgLen = state?.curMsgLen ?: msgLen
-        state?.curMsgLen = msgLen
-        Integer rcv = isFirstRunCmd ? 1 : getRecheckDelay(msgLen)
-        runIn(rcv, "checkQueue", [overwrite: (isQueueCmd==true)])
-        state?.recheckScheduled = true
-        logItems?.push("│ Rechecking: (${rcv} seconds)")
-        Integer qSize = getQueueSize()
-        Boolean sendToQueue = (isFirstRunCmd || lastTtsCmdSec < getRecheckDelay(state?.prevMsgLen) || (!isQueueCmd && qSize >= 1))
+        Boolean sendToQueue = (isFirstRunCmd || lastTtsCmdSec < getRecheckDelay(state?.curMsgLen) || (!isQueueCmd && getQueueSize() >= 1))
+        // log.debug "sendToQueue: $sendToQueue | lastTtsCmdSec: $lastTtsCmdSec | getRecheckDelay: ${getRecheckDelay(state?.curMsgLen)}"
         if(sendToQueue) {
             if(!isQueueCmd) {
-                headers['msgDelay'] = rcv
+                headers['msgDelay'] = getRecheckDelay(ml)
                 if(isFirstRunCmd) { 
                     logItems?.push("│ First Command: (${isFirstRunCmd})")
                     state?.firstCmdFlag = true
                 }
                 queueEchoCmd(type, headers, body, isFirstRunCmd)
             }
+            if(!isFirstRunCmd && state?.recheckScheduled != true) {
+                Integer delay = getRecheckDelay(state?.curMsgLen)
+                schedQueueCheck(delay, true, null, "echoServiceCmd(missing recheck)")
+            }
+            if(isFirstRunCmd) { processCmdQueue() }
             return false 
         }
     }
+
     try {
         String path = ""
         Map headerMap = [HOST: host, deviceId: device?.getDeviceNetworkId()]
@@ -699,18 +702,24 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         if(body) { logItems?.push("│ Body: ${body}") }
         if(headers?.message) {
             Integer ml = headers?.message?.toString()?.length()
-            logItems?.push("│ Message(Len: ${ml}): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
+            state?.curMsgLen = ml
+            Integer rcv = getRecheckDelay(ml)
+            schedQueueCheck(rcv, true, null, "echoServiceCmd(sendHubCommand)")
+            logItems?.push("│ Rechecking: (${rcv} seconds)")
+            logItems?.push("│ Message(${ml} char): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
         }
         if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
         if(isTTS) { state?.lastTtsCmdDt = getDtNow() }
         sendHubCommand(result)
+        
+        logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
+        processLogItems("debug", logItems)
+        return true
     }
     catch (Exception ex) {
         log.error "echoServiceCmd HubAction Exception:", ex
+        return false
     }
-    logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
-    processLogItems("debug", logItems)
-    return true
 }
 
 void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
@@ -721,11 +730,10 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
             if(resp?.queueKey) {
                 // log.info "commands sent successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay}"
                 state?.remove(resp?.queueKey as String)
-                if(!state?.recheckScheduled) {
-                    Integer delay = resp?.msgDelay as Integer ?: getRecheckDelay(state?.curMsgLen)
-                    state?.recheckScheduled = true
-                    runIn(delay, "checkQueue", [overwrite: true])
-                }
+            }
+            if(state?.recheckScheduled != true) {
+                Integer delay = resp?.msgDelay as Integer ?: getRecheckDelay(state?.curMsgLen)
+                schedQueueCheck(delay, true, null, "cmdCallBackHandler(200)")
             }
             return
         } else if(resp?.statusCode == 400 && resp?.message && resp?.message == "Rate exceeded") {
