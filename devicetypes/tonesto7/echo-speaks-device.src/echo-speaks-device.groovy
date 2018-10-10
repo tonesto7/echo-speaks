@@ -695,7 +695,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
             null,
             [callback: cmdCallBackHandler]
         )
-        logItems?.push("│ Queue Status | Items: (${(getQueueSize()-1).abs()}) │ Proc Active: (${state?.cmdQueueWorking})")
+        logItems?.push("│ Queue Items: (${(getQueueSize()-1).abs()}) │ Working: (${state?.cmdQueueWorking})")
         if(body) { logItems?.push("│ Body: ${body}") }
         if(headers?.message) {
             Integer ml = headers?.message?.toString()?.length()
