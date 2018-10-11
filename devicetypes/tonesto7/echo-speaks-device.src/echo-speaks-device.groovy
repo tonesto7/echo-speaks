@@ -737,7 +737,7 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
         // log.debug "command resp was: ${resp}"
         if(resp?.statusCode == 200) {
             if(resp?.queueKey) {
-                // log.info "commands sent successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay}"
+                log.info "commands sent successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay}"
                 state?.remove(resp?.queueKey as String)
                 schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "cmdCallBackHandler(adjDelay)")
             }
