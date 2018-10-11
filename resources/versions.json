@@ -1,13 +1,13 @@
 {
     "versions": {
         "mainApp": {
-            "ver": "0.6.8"
+            "ver": "0.6.0"
         },
         "echoDevice": {
-            "ver": "0.6.8"
+            "ver": "0.6.0"
         },
         "server": {
-            "ver": "0.6.3"
+            "ver": "0.6.0"
         }
     }
 }

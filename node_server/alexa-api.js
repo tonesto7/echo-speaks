@@ -171,19 +171,30 @@ var setTTS = function(message, deviceSerialNumber, config, callback) {
 };
 
 var executeCommand = function(_cmdOpts, callback) {
-    console.log('Method: ' + _cmdOpts.method);
-    console.log('URL:' + _cmdOpts.url);
-    console.log('Query: ', _cmdOpts.qs);
-    console.log('Body: ', _cmdOpts.json);
+    // console.log('Method: ' + _cmdOpts.method);
+    // console.log('URL:' + _cmdOpts.url);
+    // console.log('Query: ', _cmdOpts.qs);
+    // console.log('Body: ', _cmdOpts.json);
     request(_cmdOpts, function(error, response, body) {
         console.log('body:', body);
-        console.log('response:(' + response.statusCode || undefined + '): ', response.data || undefined);
+        console.log('status: (' + response.statusCode + ')');
         if (!error && response.statusCode === 200) {
             callback(null, {
-                "message": "success"
+                "statusCode": response.statusCode,
+                "deviceId": _cmdOpts.deviceId,
+                "message": "success",
+                "queueKey": _cmdOpts.queueKey,
+                "msgDelay": _cmdOpts.msgDelay
             });
         } else {
-            callback(error, response);
+            // console.log('error: ', error.message);
+            callback(error, {
+                "statusCode": response.statusCode,
+                "deviceId": _cmdOpts.deviceId,
+                "message": body.message || null,
+                "queueKey": _cmdOpts.queueKey,
+                "msgDelay": _cmdOpts.msgDelay
+            });
         }
     });
 };
