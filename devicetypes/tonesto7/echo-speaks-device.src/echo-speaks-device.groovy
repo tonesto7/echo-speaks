@@ -208,7 +208,6 @@ Map getDeviceStyle(String family, String type) {
 }
 
 public updateDeviceStatus(Map devData) {
-    state?.pollUpdateInProgress == true
     try {
         String devName = getShortDevName()
         if(devData?.size()) {
@@ -300,7 +299,6 @@ public updateDeviceStatus(Map devData) {
     } catch(ex) {
         log.error "updateDeviceStatus Error: ", ex
     }
-    state?.pollUpdateInProgress = false
 }
 
 public updateServiceInfo(String svcHost) {
@@ -539,6 +537,10 @@ private processLogItems(String logType, List logList, emptyStart=false, emptyEnd
     }
 }
 
+private queueWatchDog() {
+    checkQueue()
+}
+
 private resetQueue(showLog=true) {
     if(showLog) { log.trace "resetQueue()" }
     Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
@@ -546,18 +548,21 @@ private resetQueue(showLog=true) {
         state?.remove(cmdKey)
     }
     unschedule("checkQueue")
-    state?.pollUpdateInProgress = false
     state?.qCmdCycleCnt = null
     state?.cmdQueueWorking = false
     state?.firstCmdFlag = false
     state?.recheckScheduled = false
     state?.cmdQIndexNum = null
     state?.curMsgLen = null
-    state?.isRateLimited = false
+    state?.lastTtsCmdDelay = null
 }
 
 Integer getQueueIndex() {
     return state?.cmdQIndexNum ? state?.cmdQIndexNum+1 : 1
+}
+
+private getQueueItems() {
+    return state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
 }
 
 private schedQueueCheck(Integer delay, overwrite=true, data=null, src) {
@@ -607,24 +612,19 @@ private checkQueue(data) {
         resetQueue(false)
         return
     }
-    if(getQueueSize() > 0) {
-        if(state?.cmdQueueWorking != true) {
-            if((data && data?.rateLimited == true)) {
-                Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.curMsgLen)
-                schedQueueCheck(delay, true, null, "checkQueue(rate-limit)")
-                log.debug "checkQueue | Scheduling Re-Check for ${delay} seconds...${(data && data?.rateLimited == true) ? " | Recheck for RateLimiting: true" : ""}"
-            }
-            processCmdQueue() 
-        } 
-        return
-    } else {
+    Boolean qEmpty = (getQueueSize() == 0)
+    if(qEmpty) {
         log.trace "checkQueue | Nothing in the Queue... Resetting Queue"
         resetQueue(false)
+        return
     }
-}
-
-private getQueueItems() {
-    return state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
+    if(data && data?.rateLimited == true) {
+        Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.curMsgLen)
+        schedQueueCheck(delay, true, null, "checkQueue(rate-limit)")
+        log.debug "checkQueue | Scheduling Re-Check for ${delay} seconds...${(data && data?.rateLimited == true) ? " | Recheck for RateLimiting: true" : ""}"
+    }
+    processCmdQueue()
+    return
 }
 
 private processCmdQueue() {
@@ -642,10 +642,18 @@ private processCmdQueue() {
     state?.cmdQueueWorking = false
 }
 
+Integer getAdjCmdDelay(elap, reqDelay) {
+    if(elap && reqDelay) {
+        Integer res = (elap - reqDelay)?.abs()
+        log.debug "getAdjCmdDelay | reqDelay: $reqDelay | elap: $elap | res: ${res+3}"
+        return res < 3 ? 3 : res+3
+    } 
+    return 5
+}
+
 private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
     if(!isQueueCmd) { log.trace "echoServiceCmd($type, ${headers?.cmdType}, $isQueueCmd)" }
     String host = state?.serviceHost
-    Boolean isTTS = (type == "cmd" && headers?.cmdType == "SendTTS")
     List logItems = []
     String healthStatus = getHealthStatus()
     if(!host || !type || !headers || !(healthStatus in ["ACTIVE", "ONLINE"])) {
@@ -655,12 +663,14 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         if(!(healthStatus in ["ACTIVE", "ONLINE"])) { log.warn "Command Ignored... Device is current in OFFLINE State" }
         return true 
     }
+    Boolean isTTS = (type == "cmd" && headers?.cmdType == "SendTTS")
     Integer lastTtsCmdSec = getLastTtsCmdSec()
+    Boolean sendTheCmd = true
     if(!settings?.disableQueue && isTTS) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
         Integer ml = headers?.message?.toString()?.length()
         Boolean isFirstRunCmd = (state?.firstCmdFlag != true)
-        Boolean sendToQueue = (isFirstRunCmd || lastTtsCmdSec < getRecheckDelay(state?.curMsgLen) || (!isQueueCmd && getQueueSize() >= 1))
+        Boolean sendToQueue = (isFirstRunCmd || (!isQueueCmd && getQueueSize() >= 1))
         // log.debug "sendToQueue: $sendToQueue | lastTtsCmdSec: $lastTtsCmdSec | getRecheckDelay: ${getRecheckDelay(state?.curMsgLen)}"
         if(sendToQueue) {
             if(!isQueueCmd) {
@@ -671,54 +681,53 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 }
                 queueEchoCmd(type, headers, body, isFirstRunCmd)
             }
-            if(!isFirstRunCmd && state?.recheckScheduled != true) {
-                Integer delay = getRecheckDelay(state?.curMsgLen)
-                schedQueueCheck(delay, true, null, "echoServiceCmd(missing recheck)")
-            }
             if(isFirstRunCmd) { processCmdQueue() }
-            return false 
+            sendTheCmd = false 
         }
     }
-
-    try {
-        String path = ""
-        Map headerMap = [HOST: host, deviceId: device?.getDeviceNetworkId()]
-        switch(type) {
-            case "cmd":
-                path = "/alexa-command"
-                break
+    if(sendTheCmd) {
+        try {
+            String path = ""
+            Map headerMap = [HOST: host, deviceId: device?.getDeviceNetworkId()]
+            switch(type) {
+                case "cmd":
+                    path = "/alexa-command"
+                    break
+            }
+            headers?.each { k,v-> headerMap[k] = v }
+            def result = new physicalgraph.device.HubAction([
+                    method: "POST",
+                    headers: headerMap,
+                    path: path,
+                    body: body ?: ""
+                ],
+                null,
+                [callback: cmdCallBackHandler]
+            )
+            logItems?.push("│ Queue Items: (${(getQueueSize()-1).abs()}) │ Working: (${state?.cmdQueueWorking})")
+            if(body) { logItems?.push("│ Body: ${body}") }
+            if(headers?.message) {
+                Integer ml = headers?.message?.toString()?.length()
+                Integer rcv = getRecheckDelay(ml)
+                state?.curMsgLen = ml
+                state?.lastTtsCmdDelay = rcv
+                
+                schedQueueCheck(rcv, true, null, "echoServiceCmd(sendHubCommand)")
+                logItems?.push("│ Rechecking: (${state?.lastTtsCmdDelay} seconds)")
+                logItems?.push("│ Message(${ml} char): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
+            }
+            if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
+            if(isTTS) { 
+                state?.lastTtsCmdDt = getDtNow() 
+            }
+            sendHubCommand(result)
+            
+            logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
+            processLogItems("debug", logItems)
         }
-        headers?.each { k,v-> headerMap[k] = v }
-        def result = new physicalgraph.device.HubAction([
-                method: "POST",
-                headers: headerMap,
-                path: path,
-                body: body ?: ""
-            ],
-            null,
-            [callback: cmdCallBackHandler]
-        )
-        logItems?.push("│ Queue Items: (${(getQueueSize()-1).abs()}) │ Working: (${state?.cmdQueueWorking})")
-        if(body) { logItems?.push("│ Body: ${body}") }
-        if(headers?.message) {
-            Integer ml = headers?.message?.toString()?.length()
-            state?.curMsgLen = ml
-            Integer rcv = getRecheckDelay(ml)
-            schedQueueCheck(rcv, true, null, "echoServiceCmd(sendHubCommand)")
-            logItems?.push("│ Rechecking: (${rcv} seconds)")
-            logItems?.push("│ Message(${ml} char): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
+        catch (Exception ex) {
+            log.error "echoServiceCmd HubAction Exception:", ex
         }
-        if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
-        if(isTTS) { state?.lastTtsCmdDt = getDtNow() }
-        sendHubCommand(result)
-        
-        logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
-        processLogItems("debug", logItems)
-        return true
-    }
-    catch (Exception ex) {
-        log.error "echoServiceCmd HubAction Exception:", ex
-        return false
     }
 }
 
@@ -730,10 +739,7 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
             if(resp?.queueKey) {
                 // log.info "commands sent successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay}"
                 state?.remove(resp?.queueKey as String)
-            }
-            if(state?.recheckScheduled != true) {
-                Integer delay = resp?.msgDelay as Integer ?: getRecheckDelay(state?.curMsgLen)
-                schedQueueCheck(delay, true, null, "cmdCallBackHandler(200)")
+                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "cmdCallBackHandler(adjDelay)")
             }
             return
         } else if(resp?.statusCode == 400 && resp?.message && resp?.message == "Rate exceeded") {
