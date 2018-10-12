@@ -15,8 +15,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.7.0"}
-String devModified() { return "2018-10-10"}
+String devVersion() { return "0.7.1"}
+String devModified() { return "2018-10-12"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -600,9 +600,6 @@ public queueEchoCmd(type, headers, body=null, firstRun=false) {
     if(!firstRun) {
         processLogItems("trace", logItems, false, true) 
     }
-    // if(firstRun) {
-    //     processCmdQueue()
-    // }
 }
 
 private checkQueue(data) {
@@ -637,7 +634,13 @@ private processCmdQueue() {
         Map cmdData = state[cmdKey as String]
         // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }?.size()})")
         cmdData?.headers['queueKey'] = cmdKey
-        echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true)
+        if(state?.lastTtsMsg && (cmdData?.headers?.message == state?.lastTtsMsg) && (getLastTtsCmdSec() < 10)) {
+            state?.remove(cmdKey as String)
+            log.trace "processCmdQueue | Possible loop detected... Last message the same as current sent less than 10 seconds ago. This message will be removed from the queue"
+            schedQueueCheck(2, true, null, "processCmdQueue(removed duplicate)")
+        } else {
+            echoServiceCmd(cmdData?.type, cmdData?.headers, cmdData?.body, true)
+        }
     }
     state?.cmdQueueWorking = false
 }
@@ -715,11 +718,10 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 schedQueueCheck(rcv, true, null, "echoServiceCmd(sendHubCommand)")
                 logItems?.push("│ Rechecking: (${state?.lastTtsCmdDelay} seconds)")
                 logItems?.push("│ Message(${ml} char): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
+                state?.lastTtsMsg = headers.message
+                state?.lastTtsCmdDt = getDtNow()
             }
             if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
-            if(isTTS) { 
-                state?.lastTtsCmdDt = getDtNow() 
-            }
             sendHubCommand(result)
             
             logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
