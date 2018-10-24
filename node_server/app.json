@@ -1,8 +1,0 @@
-{
-    "name": "Start on EchoSpeaks",
-    "description": "A barebones Node.js app using Express 4",
-    "repository": "https://github.com/tonesto7/echo-speaks-dev",
-    "logo": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
-    "keywords": ["node", "express", "heroku"],
-    "image": "heroku/nodejs"
-}
