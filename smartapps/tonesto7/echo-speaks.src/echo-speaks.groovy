@@ -16,9 +16,11 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
+String platform() { return "SmartThings" }
 String appVersion()	 { return "0.7.1" }
 String appModified() { return "2018-10-12"}
 String appAuthor()	 { return "Anthony Santilli" }
+Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
     return [
@@ -36,7 +38,8 @@ definition(
     iconUrl: getAppImg("echo_speaks.1x.png"),
     iconX2Url: getAppImg("echo_speaks.2x.png"),
     iconX3Url: getAppImg("echo_speaks.3x.png"),
-    pausable: true
+    pausable: true,
+    oauth: true
     )
 
 preferences {
@@ -57,6 +60,9 @@ def appInfoSect(sect=true)	{
 }
 
 def mainPage() {
+    if (!state?.accessToken) {
+        createAccessToken()
+    }
     checkVersionData(true)
     Boolean newInstall = !state?.isInstalled
     dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: false, install: !newInstall) {
@@ -83,6 +89,9 @@ def mainPage() {
             section("Echo Service:") {
                 def t0 = getServiceConfDesc()
                 href "servPrefPage", title: "Echo Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
+            }
+            section("Review Configuration:") {
+                href url: getAppEndpointUrl("config"), style: "embedded", required: false, title: "Get Configuration Data", description: "Tap, select, copy, then click \"Done\""
             }
         }
         section("Notifications:") {
@@ -254,8 +263,20 @@ def uninstalled() {
     log.warn "uninstalling app and devices"
 }
 
+mappings {
+    if (isST() && (!params?.access_token || (params?.access_token && params?.access_token != state?.accessToken))) {
+        path("/receiveData") { action: [POST: "processData"] }
+    } else {
+        path("/receiveData") { action: [POST: "processData"] }
+        path("/config") { action: [GET: "renderConfig"]  }
+    }
+}
+
 def initialize() {
     // listen to LAN incoming messages
+    if(!state?.accessToken) {
+        createAccessToken()
+    }
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     runEvery5Minutes("notificationCheck") // This task checks for missed polls and app updates
     subscribe(app, onAppTouch)
@@ -264,6 +285,16 @@ def initialize() {
     stateCleanup()
     updCodeVerMap()
     runIn(5, "echoServiceUpdate", [overwrite: true])
+}
+
+def renderConfig() {
+    Map jsonMap = [
+        url: (isST() ? apiServerUrl("/api/smartapps/installations/") : fullLocalApiServerUrl('')),
+        token: state?.accessToken
+    ]
+    def configJson = new groovy.json.JsonOutput().toJson(jsonMap)
+    def configString = new groovy.json.JsonOutput().prettyPrint(configJson)
+    render contentType: "text/plain", data: configString
 }
 
 private checkIfCodeUpdated() {
@@ -339,6 +370,13 @@ def lanEventHandler(evt) {
     } catch (ex) {
         log.error "lanEventHandler Exception:", ex
     }
+}
+
+def processData() {
+    if(request?.JSON) {
+        receiveEventData(request?.JSON)
+    }
+    render contentType: 'text/html', data: "status received...ok", status: 200
 }
 
 def receiveEventData(Map evtData) {
@@ -690,6 +728,8 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     return sent
 }
 
+String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
+String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
 private getPushoverDevices(){List opts=[];Map pmd=state?.pushoverManager?:[:];pmd?.apps?.each{k,v->if(v&&v?.devices&&v?.appId){Map dm=[:];v?.devices?.sort{}?.each{i->dm["${i}_${v?.appId}"]=i};addInputGrp(opts,v?.appName,dm);}};return opts;}
