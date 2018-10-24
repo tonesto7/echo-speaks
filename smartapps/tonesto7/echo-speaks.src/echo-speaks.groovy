@@ -16,8 +16,8 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "0.7.0" }
-String appModified() { return "2018-10-10"}
+String appVersion()	 { return "0.7.1" }
+String appModified() { return "2018-10-12"}
 String appAuthor()	 { return "Anthony Santilli" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
