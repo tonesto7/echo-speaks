@@ -18,7 +18,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "0.8.0" }
-String appModified() { return "2018-10-25"}
+String appModified() { return "2018-10-26"}
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -289,8 +289,7 @@ def initialize() {
 
 def renderConfig() {
     Map jsonMap = [
-        url: (isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}")}" : fullLocalApiServerUrl('')),
-        token: state?.accessToken
+        url: getAppEndpointUrl("receiveData")
     ]
     def configJson = new groovy.json.JsonOutput().toJson(jsonMap)
     def configString = new groovy.json.JsonOutput().prettyPrint(configJson)
@@ -360,7 +359,7 @@ def lanEventHandler(evt) {
                     if(headerMap?.evtType) { 
                         switch(headerMap?.evtType) {
                             case "sendStatusData":
-                                receiveEventData(msgData)
+                                receiveEventData(msgData, "Local")
                                 break
                         }
                     }
@@ -373,14 +372,14 @@ def lanEventHandler(evt) {
 }
 
 def processData() {
-    log.trace "processData()"
+    // log.trace "processData()"
     if(request?.JSON) {
-        receiveEventData(request?.JSON)
+        receiveEventData(request?.JSON, "Cloud")
     }
     render contentType: 'text/html', data: "status received...ok", status: 200
 }
 
-def receiveEventData(Map evtData) {
+def receiveEventData(Map evtData, String src) {
     try {
         if(checkIfCodeUpdated()) { 
 			log.warn "Possible Code Version Update Detected... Device Updates will occur on next cycle."
@@ -399,7 +398,7 @@ def receiveEventData(Map evtData) {
             }
             
             if (evtData?.echoDevices?.size()) {
-                logger("debug", "echoDevices: ${evtData?.echoDevices?.size()}")
+                logger("debug", "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${src ? " | [$src]" : ""}")
                 Map echoDeviceMap = [:]
                 Integer cnt = 0
                 evtData?.echoDevices?.each { echoKey, echoValue->
