@@ -17,8 +17,8 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "0.7.1" }
-String appModified() { return "2018-10-12"}
+String appVersion()	 { return "0.8.0" }
+String appModified() { return "2018-10-25"}
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -264,12 +264,12 @@ def uninstalled() {
 }
 
 mappings {
-    if (isST() && (!params?.access_token || (params?.access_token && params?.access_token != state?.accessToken))) {
-        path("/receiveData") { action: [POST: "processData"] }
-    } else {
+    // if (isST() && (!params?.access_token || (params?.access_token && params?.access_token != state?.accessToken))) {
+    //     path("/receiveData") { action: [POST: "processData"] }
+    // } else {
         path("/receiveData") { action: [POST: "processData"] }
         path("/config") { action: [GET: "renderConfig"]  }
-    }
+    // }
 }
 
 def initialize() {
@@ -289,7 +289,7 @@ def initialize() {
 
 def renderConfig() {
     Map jsonMap = [
-        url: (isST() ? apiServerUrl("/api/smartapps/installations/") : fullLocalApiServerUrl('')),
+        url: (isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}")}" : fullLocalApiServerUrl('')),
         token: state?.accessToken
     ]
     def configJson = new groovy.json.JsonOutput().toJson(jsonMap)
@@ -373,6 +373,7 @@ def lanEventHandler(evt) {
 }
 
 def processData() {
+    log.trace "processData()"
     if(request?.JSON) {
         receiveEventData(request?.JSON)
     }
