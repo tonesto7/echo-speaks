@@ -264,12 +264,9 @@ def uninstalled() {
 }
 
 mappings {
-    // if (isST() && (!params?.access_token || (params?.access_token && params?.access_token != state?.accessToken))) {
-    //     path("/receiveData") { action: [POST: "processData"] }
-    // } else {
-        path("/receiveData") { action: [POST: "processData"] }
-        path("/config") { action: [GET: "renderConfig"]  }
-    // }
+    path("/receiveData") { action: [POST: "processData"] }
+    path("/config") { action: [GET: "renderConfig"]  }
+    path("/cookie") { action: [GET: "getCookie", POST: "storeCookie"] }
 }
 
 def initialize() {
@@ -377,6 +374,18 @@ def processData() {
         receiveEventData(request?.JSON, "Cloud")
     }
     render contentType: 'text/html', data: "status received...ok", status: 200
+}
+
+def getCookie() {
+    Map cookie = state?.cookie || [:]
+    def configJson = new groovy.json.JsonOutput().toJson(cookie)
+    render contentType: "application/json", data: configJson
+}
+
+def storeCookie() {
+    if(request?.JSON && request?.JSON?.cookie) {
+        state?.cookie = request?.JSON?.cookie
+    }
 }
 
 def receiveEventData(Map evtData, String src) {
