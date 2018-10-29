@@ -15,8 +15,8 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.7.1"}
-String devModified() { return "2018-10-12"}
+String devVersion() { return "0.9.0"}
+String devModified() { return "2018-10-29"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -134,12 +134,15 @@ metadata {
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
         }
+        standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Reset Queue', action: 'resetQueue')
+        }
         standardTile("doNotDisturb", "device.doNotDisturb", height: 2, width: 2, inactiveLabel: false, decoration: "flat") {
             state "true", label: 'DnD: ON', action: "doNotDisturbOff", nextState: "false"
             state "false", label: 'DnD: OFF', action: "doNotDisturbOn", nextState: "true"
         }
         main(["deviceStatus"])
-        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "doNotDisturb", "deviceStyle", "deviceImage", "sendTest"])
+        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "doNotDisturb", "deviceStyle", "deviceImage", "sendTest", "resetQueue"])
     }
 }
 
@@ -301,8 +304,9 @@ public updateDeviceStatus(Map devData) {
     }
 }
 
-public updateServiceInfo(String svcHost) {
+public updateServiceInfo(String svcHost, onHeroku=false) {
     if(svcHost) { state?.serviceHost = svcHost }
+    state?.onHeroku = onHeroku
 }
 
 public setOnlineStatus(Boolean isOnline) {
@@ -722,7 +726,25 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 state?.lastTtsCmdDt = getDtNow()
             }
             if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
-            sendHubCommand(result)
+            if(state?.onHeroku == true) {
+                try {
+                    headerMap.remove("HOST")
+                    Map params = [
+                        uri: host,
+                        headers: headerMap,
+                        path: path,
+                        body: body ?: [:]
+                    ]
+                    log.debug "params: $params"
+                    httpPostJson(params) { resp ->
+                        log.debug "resp: ${resp}"
+                    }
+                } catch (e) {
+                    log.debug "something went wrong: $e"
+                }
+            } else {
+                sendHubCommand(result)
+            }
             
             logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
             processLogItems("debug", logItems)

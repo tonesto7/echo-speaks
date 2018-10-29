@@ -17,8 +17,8 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "0.8.0" }
-String appModified() { return "2018-10-26"}
+String appVersion()	 { return "0.9.0" }
+String appModified() { return "2018-10-29"}
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -266,7 +266,7 @@ def uninstalled() {
 mappings {
     path("/receiveData") { action: [POST: "processData"] }
     path("/config") { action: [GET: "renderConfig"]  }
-    path("/cookie") { action: [GET: "getCookie", POST: "storeCookie"] }
+    path("/cookie") { action: [GET: "getCookie", POST: "storeCookie", DELETE: "clearCookie"] }
 }
 
 def initialize() {
@@ -369,23 +369,31 @@ def lanEventHandler(evt) {
 }
 
 def processData() {
-    // log.trace "processData()"
-    if(request?.JSON) {
-        receiveEventData(request?.JSON, "Cloud")
-    }
+    // log.trace "processData() | Data: ${request.JSON}"
+    if(request?.JSON) { receiveEventData(request?.JSON, "Cloud") }
     render contentType: 'text/html', data: "status received...ok", status: 200
 }
 
 def getCookie() {
-    Map cookie = state?.cookie || [:]
-    def configJson = new groovy.json.JsonOutput().toJson(cookie)
-    render contentType: "application/json", data: configJson
+    log.trace "getCookie() | ${state?.cookie}"
+    Map resp = state?.cookie ?: [:]
+    def json = new groovy.json.JsonOutput().toJson(resp)
+    render contentType: "application/json", data: json
 }
 
 def storeCookie() {
-    if(request?.JSON && request?.JSON?.cookie) {
-        state?.cookie = request?.JSON?.cookie
+    log.trace "storeCookie: ${request.JSON}"
+    if(request?.JSON && request?.JSON?.cookie && request.JSON.csrf) {
+        Map obj = [:]
+        obj?.cookie = request?.JSON?.cookie as String ?: null
+        obj?.csrf = request?.JSON?.csrf as String ?: null
+        state?.cookie = obj
     }
+}
+
+def clearCookie() {
+    log.trace "clearCookie()"
+    state?.remove('cookie')
 }
 
 def receiveEventData(Map evtData, String src) {
@@ -397,17 +405,24 @@ def receiveEventData(Map evtData, String src) {
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
+            Boolean onHeroku = (evtData?.isHeroku == true)
+            // log.debug "onHeroku: ${evtData?.isHeroku} | cloudUrl: ${evtData?.cloudUrl}"
+            state?.onHeroku = onHeroku
+            state?.cloudUrl = (onHeroku && evtData.cloudUrl) ? evtData.cloudUrl : null
             
             //Check for minimum versions before processing
             Boolean updRequired = false
             List updRequiredItems = []
             ["server":"Echo Speaks Server", "echoDevice":"Echo Virtual Device"]?.each { k,v->
                 Map codeVers = state?.codeVersions
-                if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) { updRequired = true; updRequiredItems?.push("$v"); }
+                if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) { 
+                    updRequired = true
+                    updRequiredItems?.push("$v")
+                }
             }
             
             if (evtData?.echoDevices?.size()) {
-                logger("debug", "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${src ? " | [$src]" : ""}")
+                logger("debug", "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${src ? " [$src]" : ""}")
                 Map echoDeviceMap = [:]
                 Integer cnt = 0
                 evtData?.echoDevices?.each { echoKey, echoValue->
@@ -440,7 +455,7 @@ def receiveEventData(Map evtData, String src) {
                         }
                         // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
-                        childDevice?.updateServiceInfo(getServiceHostInfo())
+                        childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
                     }
                     modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
                     state?.lastDevDataUpd = getDtNow()
@@ -453,7 +468,7 @@ def receiveEventData(Map evtData, String src) {
                 Map srvcInfo = evtData?.serviceInfo
                 state?.nodeServiceInfo = srvcInfo
                 Boolean sendSetUpd = false
-                if(srvcInfo?.config && srvcInfo?.config?.size()) {
+                if(srvcInfo?.config && srvcInfo?.config?.size() && !onHeroku) {
                     srvcInfo?.config?.each { k,v->
                         if(settings?.containsKey(k as String)) {
                             if(settings[k as String] != v) { 
@@ -464,7 +479,7 @@ def receiveEventData(Map evtData, String src) {
                     }
                 }
                 modCodeVerMap("server", srvcInfo?.version)
-                if(sendSetUpd) { echoServiceUpdate() }
+                if(sendSetUpd && !onHeroku) { echoServiceUpdate() }
             }
             if(updRequired) {
                 log.error "CODE UPDATES REQUIRED: Echo Speaks Integration will not function until the following items are ALL Updated ${updRequiredItems}..."
@@ -476,16 +491,10 @@ def receiveEventData(Map evtData, String src) {
     }
 }
 
-public sendTtsCommand(deviceId, ttsMsg) {
-    if(deviceId && ttsMsg) {
-        echoServiceCmd("tts", [deviceSerialNumber: deviceId, tts: URLEncoder.encode(ttsMsg)])
-    }
-}
-
 public getServiceHostInfo() {
     String ip = state?.nodeServiceInfo?.ip
     String port = state?.nodeServiceInfo?.port
-    return ip && port ? "${ip}:${port}" : null
+    return (state?.onHeroku && state?.cloudUrl) ? state?.cloudUrl : (ip && port ? "${ip}:${port}" : null)
 }
 
 private echoServiceUpdate() {
@@ -546,44 +555,6 @@ private clearRateLimit(devUpd = true) {
         }
     }
     state?.isRateLimiting = false
-}
-
-private echoServiceCmd(type, headers={}, body = null) {
-    logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body)")
-    String host = getServiceHostInfo()
-    String smartThingsHubIp = settings?.stHub?.getLocalIP()
-    if(!host) { return }
-    logger("trace", "echoServiceCmd($type) | headers: ${headers} | body: $body | host: ${host}")
-    try {
-        String path = ""
-        Map headerMap = [
-            "HOST": host, 
-            "smartThingsHubIp": "${smartThingsHubIp}"
-        ]
-        switch(type) {
-            case "tts":
-                path = "/alexa-tts"
-                break
-            case "deviceState":
-                path = "/alexa-getState"
-                break
-            case "cmd":
-                path = "/alexa-command"
-                break
-        }
-        headers?.each { k,v-> headerMap[k] = v }
-        def hubAction = new physicalgraph.device.HubAction(
-            method: "POST",
-            headers: headerMap,
-            path: path,
-            body: body ?: ""
-        )
-        sendHubCommand(hubAction)
-    }
-    catch (Exception ex) {
-        log.error "echoServiceCmd HubAction Exception, $hubAction", ex
-    }
-    return true
 }
 
 /******************************************
