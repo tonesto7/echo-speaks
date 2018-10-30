@@ -521,6 +521,29 @@ def clearCookie() {
     state?.remove('cookie')
 }
 
+def scheduleHeartbeat() {
+    log.trace "scheduling heartbeat check"
+    state?.heartbeatScheduled = true
+    runEvery5Minutes('cloudServiceHeartbeat')
+}
+
+def cloudServiceHeartbeat() {
+    log.trace "cloud keep alive heartbeat"
+    def params = [
+        uri:  "https://${getRandAppName()}.herokuapp.com/heartbeat",
+        contentType: 'application/json'
+    ]
+    try {
+        httpGet(params) { resp->
+            if(resp?.data && resp?.data?.result) {
+                log.info "CloudHeartBeat Successful"
+            }
+        }
+    } catch(ex) {
+        log.error "cloudServiceHeartbeat Exception: ", ex
+    }
+}
+
 def receiveEventData(Map evtData, String src) {
     try {
         if(checkIfCodeUpdated()) { 
@@ -535,6 +558,9 @@ def receiveEventData(Map evtData, String src) {
             // log.debug "onHeroku: ${evtData?.useHeroku} | cloudUrl: ${evtData?.cloudUrl}"
             state?.onHeroku = onHeroku
             state?.cloudUrl = (onHeroku && evtData.cloudUrl) ? evtData.cloudUrl : null
+            if(onHeroku && !state?.heartbeatScheduled) {
+                scheduleHeartbeat()
+            }
             
             //Check for minimum versions before processing
             Boolean updRequired = false
