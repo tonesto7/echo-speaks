@@ -15,8 +15,9 @@
  */
 
 import java.text.SimpleDateFormat
-String devVersion() { return "0.7.1"}
-String devModified() { return "2018-10-12"}
+include 'asynchttp_v1'
+String devVersion() { return "1.0.0"}
+String devModified() { return "2018-10-30"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -134,12 +135,15 @@ metadata {
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
         }
+        standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Reset Queue', action: 'resetQueue')
+        }
         standardTile("doNotDisturb", "device.doNotDisturb", height: 2, width: 2, inactiveLabel: false, decoration: "flat") {
             state "true", label: 'DnD: ON', action: "doNotDisturbOff", nextState: "false"
             state "false", label: 'DnD: OFF', action: "doNotDisturbOn", nextState: "true"
         }
         main(["deviceStatus"])
-        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "doNotDisturb", "deviceStyle", "deviceImage", "sendTest"])
+        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "doNotDisturb", "deviceStyle", "deviceImage", "sendTest", "resetQueue"])
     }
 }
 
@@ -301,8 +305,9 @@ public updateDeviceStatus(Map devData) {
     }
 }
 
-public updateServiceInfo(String svcHost) {
+public updateServiceInfo(String svcHost, useHeroku=false) {
     if(svcHost) { state?.serviceHost = svcHost }
+    state?.useHeroku = useHeroku
 }
 
 public setOnlineStatus(Boolean isOnline) {
@@ -722,7 +727,23 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 state?.lastTtsCmdDt = getDtNow()
             }
             if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
-            sendHubCommand(result)
+            if(state?.useHeroku == true) {
+                try {
+                    headerMap.remove("HOST")
+                    Map params = [
+                        uri: host,
+                        headers: headerMap,
+                        path: path,
+                        body: body ?: [:]
+                    ]
+                    // log.debug "params: $params"
+                    asynchttp_v1.post('asyncCommandHandler', params, [queueKey: headerMap?.queueKey ?: null])
+                } catch (e) {
+                    log.debug "something went wrong: $e"
+                }
+            } else {
+                sendHubCommand(result)
+            }
             
             logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
             processLogItems("debug", logItems)
@@ -752,6 +773,35 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
             return
         } else {
             log.error "calledBackHandler Error | status: ${resp?.statusCode} | message: ${resp?.message}"
+            resetQueue()
+            return
+        }
+    }
+}
+
+def asyncCommandHandler(response, data) {
+    // log.debug "got response data: ${response.getData()}"
+    // log.debug "data map passed to handler method is: $data"
+    Map resp = response?.json
+    Integer statusCode = response?.status
+    log.debug "resp: $resp"
+    if(resp && resp?.deviceId && (resp?.deviceId == device?.getDeviceNetworkId())) {
+        // log.debug "command resp was: ${resp}"
+        if(statusCode == 200) {
+            if(resp?.queueKey) {
+                log.info "commands sent successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay}"
+                state?.remove(resp?.queueKey as String)
+                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "cmdCallBackHandler(adjDelay)")
+            }
+            return
+        } else if(statusCode == 400 && resp?.message && resp?.message == "Rate exceeded") {
+            log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
+            state?.recheckScheduled = true
+            runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (resp?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
+            
+            return
+        } else {
+            log.error "asyncCommandHandler Error | status: ${statusCode} | message: ${resp?.message}"
             resetQueue()
             return
         }

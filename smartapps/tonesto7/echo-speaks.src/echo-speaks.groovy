@@ -16,15 +16,14 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "0.7.1" }
-String appModified() { return "2018-10-12"}
+String platform() { return "SmartThings" }
+String appVersion()	 { return "1.0.0" }
+String appModified() { return "2018-10-30"}
 String appAuthor()	 { return "Anthony Santilli" }
+Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [
-        echoDevice: 070,
-        server: 070
-    ]
+    return [echoDevice: 100, server: 100]
 }
 
 definition(
@@ -36,7 +35,8 @@ definition(
     iconUrl: getAppImg("echo_speaks.1x.png"),
     iconX2Url: getAppImg("echo_speaks.2x.png"),
     iconX3Url: getAppImg("echo_speaks.3x.png"),
-    pausable: true
+    pausable: true,
+    oauth: true
     )
 
 preferences {
@@ -57,45 +57,52 @@ def appInfoSect(sect=true)	{
 }
 
 def mainPage() {
+    if (!state?.accessToken) {
+        createAccessToken()
+    }
     checkVersionData(true)
     Boolean newInstall = !state?.isInstalled
-    dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: false, install: !newInstall) {
-        appInfoSect()
-        section("Device Preferences:") {
+    if(state?.resumeConfig) {
+        return servPrefPage()
+    } else {
+        return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: false, install: !newInstall) {
+            appInfoSect()
+            section("Device Preferences:") {
+                if(!newInstall) {
+                    List devs = getDeviceList()?.collect { "${it?.value?.name} (Online: ${it?.value?.online ?: false})" }?.sort()
+                    paragraph title: "Discovered Devices:", "${devs?.size() ? devs?.join("\n") : "No Devices Available"}"
+                }
+                input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
+                input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
+            }
+            
+            section("Device Filtering:") {
+                if(newInstall) {
+                    paragraph title:"Notice:", "Device filtering options will be available once app install is complete.", required: true, state: null
+                } else {
+                    Map devs = getDeviceList(true, false)
+                    input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
+                    paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!"
+                }
+            }
             if(!newInstall) {
-                List devs = getDeviceList()?.collect { "${it?.value?.name} (Online: ${it?.value?.online ?: false})" }?.sort()
-                paragraph title: "Discovered Devices:", "${devs?.size() ? devs?.join("\n") : "No Devices Available"}"
+                section("Echo Service:") {
+                    def t0 = getServiceConfDesc()
+                    href "servPrefPage", title: "Echo Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
+                }
             }
-            input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
-            input "autoRenameDevices", "bool", title: "Rename Devices to Match Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
-        }
-        
-        section("Device Filtering:") {
-            if(newInstall) {
-                paragraph title:"Notice:", "Device filtering options will be available once app install is complete.", required: true, state: null
-            } else {
-                Map devs = getDeviceList(true, false)
-                input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
-                paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!"
+            section("Notifications:") {
+                def t0 = getAppNotifConfDesc()
+                href "notifPrefPage", title: "App and Device\nNotifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2.png")
             }
-        }
-        if(!newInstall) {
-            section("Echo Service:") {
-                def t0 = getServiceConfDesc()
-                href "servPrefPage", title: "Echo Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
+            section ("Application Logs") {
+                input (name: "appDebug", type: "bool", title: "Show App Logs in the IDE?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
+                input (name: "appTrace", type: "bool", title: "Show Detailed Trace Logs in the IDE?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
             }
-        }
-        section("Notifications:") {
-            def t0 = getAppNotifConfDesc()
-            href "notifPrefPage", title: "App and Device\nNotifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2.png")
-        }
-        section ("Application Logs") {
-            input (name: "appDebug", type: "bool", title: "Show App Logs in the IDE?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
-            input (name: "appTrace", type: "bool", title: "Show Detailed Trace Logs in the IDE?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
-        }
-        if(!newInstall) {
-            section("") {
-                href "uninstallPage", title: "Uninstall this App", description: "Tap to Remove...", image: getAppImg("uninstall.png")
+            if(!newInstall) {
+                section("") {
+                    href "uninstallPage", title: "Uninstall this App", description: "Tap to Remove...", image: getAppImg("uninstall.png")
+                }
             }
         }
     }
@@ -114,26 +121,74 @@ Map getDeviceList(isInputEnum=false, hideDefaults=true) {
     return isInputEnum ? (devMap?.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
 }
 
+def servTypeSelect() {
+    Boolean newInstall = !state?.isInstalled
+    return dynamicPage(name: "servTypeSelect", install: newInstall) {
+
+    }
+}
+
 def servPrefPage() {
     Boolean newInstall = !state?.isInstalled
-    dynamicPage(name: "servPrefPage", install: newInstall) {
+    Boolean resumeConf = !state?.resumeConfig
+    return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf)) {
+        Boolean herokuOn = (settings?.useHeroku == true)
+        Boolean hubOn = (settings?.stHub != null)
         if(newInstall) {
             section("") {
-                paragraph "Please configure the options below before completing the App install", state: "complete"
+                input "useHeroku", "bool", title: "Will you be deploying to Heroku Cloud?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("heroku.png")
+                if(useHeroku) {
+                    paragraph "Please complete the install and return to the Echo Speaks SmartApp to resume deployment and configuration of the service", required: true, state: null
+                    state?.resumeConfig = true
+                } else {
+                    paragraph "Please Configure these Options before completing the App install", state: "complete"
+                    state?.resumeConfig = false
+                }
             }
         }
-        section("Hub Selection:") {
-            input(name: "stHub", type: "hub", title: "Select Local Hub", description: "IP adress changes will be sent to service.", required: true, submitOnChange: true, image: getAppImg("hub.png"))
-        }
-        if(settings?.stHub) {
-            section("Service Push Settings") {
-                input (name: "refreshSeconds", type: "number", title: "Refresh Device Data Every?", description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time.png"))
-                paragraph title: "Notice", "These changes will be applied on the next server data refresh."
+        if(!newInstall) {
+            state?.resumeConfig = false
+            section("Cloud Service Hosting:") {
+                input "useHeroku", "bool", title: "Use Heroku Cloud to Host Service?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("heroku.png")
+            }
+            if(settings?.useHeroku) {
+                section("Service Preferences") {
+                    input (name: "amazonDomain", type: "enum", title: "Select your Amazon Domain?", description: "", required: true, defaultValue: "amazon.com", options: ["amazon.com":"Amazon.com", "amazon.de":"Amazon.de"], submitOnChange: true, image: getAppImg("delay_time.png"))
+                    input (name: "refreshSeconds", type: "number", title: "Poll Amazon for Device Status (in Seconds)", description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time.png"))
+                }
+                if(!state?.onHeroku) {
+                    section("Deploy the Service:") {
+                        if(settings?.amazonDomain && settings?.refreshSeconds) {
+                            href url: getAppEndpointUrl("config"), style: "external", required: false, title: "Begin Heroku Setup", description: "Tap to proceed", state: "complete"
+                        }
+                    }
+                }
             }
         }
-        if(!newInstall && state?.nodeServiceInfo) {
-            section() {
-                paragraph title: "Service Info:", getServInfoDesc(), state: "complete"
+        if((newInstall && !useHeroku) || !newInstall) {
+            section("Hub Selection:") {
+                input(name: "stHub", type: "hub", title: "Select Local Hub", description: "IP adress changes will be sent to service.", required: true, submitOnChange: true, image: getAppImg("hub.png"))
+            }
+            if(settings?.stHub && !settings?.useHeroku) {
+                section("Service Preferences") {
+                    input (name: "amazonDomain", type: "enum", title: "Select your Amazon Domain?", description: "", required: true, defaultValue: "amazon.com", options: ["amazon.com":"Amazon.com", "amazon.de":"Amazon.de"], submitOnChange: true, image: getAppImg("delay_time.png"))
+                    input (name: "refreshSeconds", type: "number", title: "Poll Amazon for Device Status (in Seconds)", description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time.png"))
+                    if(!newInstall && settings?.stHub && !settings?.useHeroku) {
+                        paragraph title: "Notice", "These changes will be applied on the next server data refresh."
+                    }
+                }
+            }
+        }
+        if(!newInstall) {
+            if(settings?.useHeroku && state?.onHeroku) {
+                section("Heroku Management:") {
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "embedded", required: false, title: "Heroku App Settings", description: "Tap to proceed"
+                }
+            }
+            if(state?.nodeServiceInfo) {
+                section() {
+                    paragraph title: "Service Info:", getServInfoDesc(), state: "complete"
+                }
             }
         }
     }
@@ -254,27 +309,117 @@ def uninstalled() {
     log.warn "uninstalling app and devices"
 }
 
+mappings {
+    path("/receiveData") { action: [POST: "processData"] }
+    path("/config") { action: [GET: "renderConfig"]  }
+    path("/cookie") { action: [GET: "getCookie", POST: "storeCookie", DELETE: "clearCookie"] }
+}
+
 def initialize() {
     // listen to LAN incoming messages
+    if(!state?.accessToken) {
+        createAccessToken()
+    }
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     runEvery5Minutes("notificationCheck") // This task checks for missed polls and app updates
     subscribe(app, onAppTouch)
-    subscribe(location, null, lanEventHandler, [filterEvents:false])
+    if(!settings?.useHeroku && settings?.stHub) { subscribe(location, null, lanEventHandler, [filterEvents:false]) }
     resetQueue()
     stateCleanup()
     updCodeVerMap()
-    runIn(5, "echoServiceUpdate", [overwrite: true])
+    if(!settings?.useHeroku) {
+        runIn(5, "echoServiceUpdate", [overwrite: true])
+    }
+}
+
+def renderConfig() {
+    String title = "Echo Speaks"
+    String html = """<head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="description" content="${title}">
+        <meta name="author" content="Anthony S.">
+        <meta http-equiv="cleartype" content="on">
+        <meta name="MobileOptimized" content="320">
+        <meta name="HandheldFriendly" content="True">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <title>${title}</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.5.13/css/mdb.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" rel="stylesheet">
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/js/bootstrap.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+        <style>
+            .btn-rounded {
+                border-radius: 50px!important;
+            }
+        </style>
+    <head>
+    <body>
+        <div style="margin: 0 auto; max-width: 500px;">
+            <form class="p-1">
+                <p class="h4 mb-3 text-center">Echo Speaks</p>
+                <div class="w-100 mb-3">
+                    
+                    <!--<pre class="prettyprint">${getAppEndpointUrl("receiveData")}</pre>-->
+                    <div class="mt-1 text-center">
+                    <!--
+                        <button class="btn btn-rounded blue" title="Copy URL to Clipboard" data-clipboard-text="${getAppEndpointUrl("receiveData")}">
+                            <i class="fa fa-clipboard" aria-hidden="true"></i> Copy URL
+                        </button>
+                        <span>
+                          <a id="generateEmail" class="btn btn-rounded green" >
+                            <i class="fa fa-envelope" aria-hidden="true"></i> Send as Email</i>
+                          </a>
+                        </span>
+                    --> 
+                        <h5>1. Use the following AppName when asked by Heroku
+                        <pre class="prettyprint">${getRandAppName()}</pre>
+                        <h5>2. Tap Button to deploy to Heroku</h5>
+                        <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server${getEnvParamsStr()}">
+                            <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </body>
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js?lang=java&amp;skin=sunburst"></script>
+    <script>
+        \$('#generateEmail').click(function() {
+            \$("#generateEmail").attr("href", "mailto:example@email.com?subject=Echo Speaks URL Info&body=${getAppEndpointUrl("receiveData")}").attr("target", "_blank");
+        });
+    </script>
+    """
+    render contentType: "text/html", data: html
+}
+
+String getEnvParamsStr() {
+    Map envParams = [:]
+    envParams['smartThingsUrl'] = "${getAppEndpointUrl("receiveData")}"
+    envParams['useHeroku'] = settings?.useHeroku == true ? "true" : "false"
+    envParams['amazonDomain'] = settings?.amazonDomain as String
+    envParams['refreshSeconds'] = settings?.refreshSeconds as String
+    envParams['hostUrl'] = "${getRandAppName()}.herokuapp.com"
+    envParams['HEROKU_APP_NAME'] = "${getRandAppName()}"
+
+    String envs = ""
+    envParams?.each { k, v-> envs += "&env[${k}]=${v}" }
+    return envs
 }
 
 private checkIfCodeUpdated() {
-	if(state?.codeVersions && state?.codeVersions?.mainApp != appVersion()) {
-		log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
-		state?.pollBlocked = true
-		runIn(5, "updated", [overwrite: false])
-		return true
-	}
-	state?.pollBlocked = false
-	return false
+    if(state?.codeVersions && state?.codeVersions?.mainApp != appVersion()) {
+        log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
+        state?.pollBlocked = true
+        runIn(5, "updated", [overwrite: false])
+        return true
+    }
+    state?.pollBlocked = false
+    return false
 }
 
 private stateCleanup() {
@@ -313,6 +458,13 @@ private modCodeVerMap(key, val) {
     state?.codeVersions = cv
 }
 
+String getRandAppName() {
+    if(!state?.generatedHerokuName) {
+        state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(8)}"?.toLowerCase()
+    }
+    return state?.generatedHerokuName as String
+}
+
 def lanEventHandler(evt) {
     // log.trace "lanStreamEvtHandler..."
     def msg = parseLanMessage(evt?.description)
@@ -329,7 +481,7 @@ def lanEventHandler(evt) {
                     if(headerMap?.evtType) { 
                         switch(headerMap?.evtType) {
                             case "sendStatusData":
-                                receiveEventData(msgData)
+                                receiveEventData(msgData, "Local")
                                 break
                         }
                     }
@@ -341,26 +493,62 @@ def lanEventHandler(evt) {
     }
 }
 
-def receiveEventData(Map evtData) {
+def processData() {
+    // log.trace "processData() | Data: ${request.JSON}"
+    if(request?.JSON) { receiveEventData(request?.JSON, "Cloud") }
+    render contentType: 'text/html', data: "status received...ok", status: 200
+}
+
+def getCookie() {
+    log.trace "getCookie() | ${state?.cookie}"
+    Map resp = state?.cookie ?: [:]
+    def json = new groovy.json.JsonOutput().toJson(resp)
+    render contentType: "application/json", data: json
+}
+
+def storeCookie() {
+    log.trace "storeCookie: ${request.JSON}"
+    if(request?.JSON && request?.JSON?.cookie && request.JSON.csrf) {
+        Map obj = [:]
+        obj?.cookie = request?.JSON?.cookie as String ?: null
+        obj?.csrf = request?.JSON?.csrf as String ?: null
+        state?.cookie = obj
+    }
+}
+
+def clearCookie() {
+    log.trace "clearCookie()"
+    state?.remove('cookie')
+}
+
+def receiveEventData(Map evtData, String src) {
     try {
         if(checkIfCodeUpdated()) { 
-			log.warn "Possible Code Version Update Detected... Device Updates will occur on next cycle."
-			return 0 
-		}
+            log.warn "Possible Code Version Update Detected... Device Updates will occur on next cycle."
+            return 0 
+        }
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
+            Boolean onHeroku = (evtData?.useHeroku == true)
+            state?.serviceConfigured = true
+            // log.debug "onHeroku: ${evtData?.useHeroku} | cloudUrl: ${evtData?.cloudUrl}"
+            state?.onHeroku = onHeroku
+            state?.cloudUrl = (onHeroku && evtData.cloudUrl) ? evtData.cloudUrl : null
             
             //Check for minimum versions before processing
             Boolean updRequired = false
             List updRequiredItems = []
             ["server":"Echo Speaks Server", "echoDevice":"Echo Virtual Device"]?.each { k,v->
                 Map codeVers = state?.codeVersions
-                if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) { updRequired = true; updRequiredItems?.push("$v"); }
+                if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) { 
+                    updRequired = true
+                    updRequiredItems?.push("$v")
+                }
             }
             
             if (evtData?.echoDevices?.size()) {
-                logger("debug", "echoDevices: ${evtData?.echoDevices?.size()}")
+                logger("debug", "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${src ? " [$src]" : ""}")
                 Map echoDeviceMap = [:]
                 Integer cnt = 0
                 evtData?.echoDevices?.each { echoKey, echoValue->
@@ -393,7 +581,7 @@ def receiveEventData(Map evtData) {
                         }
                         // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
-                        childDevice?.updateServiceInfo(getServiceHostInfo())
+                        childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
                     }
                     modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
                     state?.lastDevDataUpd = getDtNow()
@@ -406,7 +594,7 @@ def receiveEventData(Map evtData) {
                 Map srvcInfo = evtData?.serviceInfo
                 state?.nodeServiceInfo = srvcInfo
                 Boolean sendSetUpd = false
-                if(srvcInfo?.config && srvcInfo?.config?.size()) {
+                if(srvcInfo?.config && srvcInfo?.config?.size() && !onHeroku) {
                     srvcInfo?.config?.each { k,v->
                         if(settings?.containsKey(k as String)) {
                             if(settings[k as String] != v) { 
@@ -417,7 +605,7 @@ def receiveEventData(Map evtData) {
                     }
                 }
                 modCodeVerMap("server", srvcInfo?.version)
-                if(sendSetUpd) { echoServiceUpdate() }
+                if(sendSetUpd && !onHeroku) { echoServiceUpdate() }
             }
             if(updRequired) {
                 log.error "CODE UPDATES REQUIRED: Echo Speaks Integration will not function until the following items are ALL Updated ${updRequiredItems}..."
@@ -429,16 +617,10 @@ def receiveEventData(Map evtData) {
     }
 }
 
-public sendTtsCommand(deviceId, ttsMsg) {
-    if(deviceId && ttsMsg) {
-        echoServiceCmd("tts", [deviceSerialNumber: deviceId, tts: URLEncoder.encode(ttsMsg)])
-    }
-}
-
 public getServiceHostInfo() {
     String ip = state?.nodeServiceInfo?.ip
     String port = state?.nodeServiceInfo?.port
-    return ip && port ? "${ip}:${port}" : null
+    return (state?.onHeroku && state?.cloudUrl) ? state?.cloudUrl : (ip && port ? "${ip}:${port}" : null)
 }
 
 private echoServiceUpdate() {
@@ -499,44 +681,6 @@ private clearRateLimit(devUpd = true) {
         }
     }
     state?.isRateLimiting = false
-}
-
-private echoServiceCmd(type, headers={}, body = null) {
-    logger("trace", "echoServiceCmd(type: $type, headers: $headers, body: $body)")
-    String host = getServiceHostInfo()
-    String smartThingsHubIp = settings?.stHub?.getLocalIP()
-    if(!host) { return }
-    logger("trace", "echoServiceCmd($type) | headers: ${headers} | body: $body | host: ${host}")
-    try {
-        String path = ""
-        Map headerMap = [
-            "HOST": host, 
-            "smartThingsHubIp": "${smartThingsHubIp}"
-        ]
-        switch(type) {
-            case "tts":
-                path = "/alexa-tts"
-                break
-            case "deviceState":
-                path = "/alexa-getState"
-                break
-            case "cmd":
-                path = "/alexa-command"
-                break
-        }
-        headers?.each { k,v-> headerMap[k] = v }
-        def hubAction = new physicalgraph.device.HubAction(
-            method: "POST",
-            headers: headerMap,
-            path: path,
-            body: body ?: ""
-        )
-        sendHubCommand(hubAction)
-    }
-    catch (Exception ex) {
-        log.error "echoServiceCmd HubAction Exception, $hubAction", ex
-    }
-    return true
 }
 
 /******************************************
@@ -690,6 +834,8 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     return sent
 }
 
+String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
+String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
 private getPushoverDevices(){List opts=[];Map pmd=state?.pushoverManager?:[:];pmd?.apps?.each{k,v->if(v&&v?.devices&&v?.appId){Map dm=[:];v?.devices?.sort{}?.each{i->dm["${i}_${v?.appId}"]=i};addInputGrp(opts,v?.appName,dm);}};return opts;}
@@ -859,6 +1005,12 @@ String getNotifSchedDesc() {
 
 String getServiceConfDesc() {
     String str = ""
+    if(state?.onHeroku) {
+        str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""}Heroku Info:" : ""
+        str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""} • App Name: ${state?.generatedHerokuName}" : ""
+        str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Amazon Domain : (${settings?.amazonDomain})" : ""
+        str += (settings?.refreshSeconds) ? "${str != "" ? "\n" : ""} • Refresh Seconds : (${settings?.refreshSeconds}sec)" : ""
+    }
     str += (settings?.stHub) ? "${str != "" ? "\n" : ""}Hub Info:" : ""
     str += (settings?.stHub) ? "${str != "" ? "\n" : ""} • IP: ${settings?.stHub?.getLocalIP()}" : ""
     str += (settings?.refreshSeconds) ? "\n\nServer Push Settings:" : ""
@@ -905,6 +1057,14 @@ String getInputToStringDesc(inpt, addSpace = null) {
     }
     //log.debug "str: $str"
     return (str != "") ? "${str}" : null
+}
+
+String randomString(Integer len) {
+    def pool = ['a'..'z','A'..'Z',0..9,'_'].flatten()
+    Random rand = new Random(new Date().getTime())
+    def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
+    log.debug "randomString: ${randChars?.join()}"
+    return randChars.join()
 }
 
 def debugStatus() { return !settings?.appDebug ? "Off" : "On" }
