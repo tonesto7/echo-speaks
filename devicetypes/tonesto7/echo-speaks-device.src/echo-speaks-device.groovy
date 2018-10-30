@@ -16,8 +16,8 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "0.9.0"}
-String devModified() { return "2018-10-29"}
+String devVersion() { return "1.0.0"}
+String devModified() { return "2018-10-30"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -305,9 +305,9 @@ public updateDeviceStatus(Map devData) {
     }
 }
 
-public updateServiceInfo(String svcHost, onHeroku=false) {
+public updateServiceInfo(String svcHost, useHeroku=false) {
     if(svcHost) { state?.serviceHost = svcHost }
-    state?.onHeroku = onHeroku
+    state?.useHeroku = useHeroku
 }
 
 public setOnlineStatus(Boolean isOnline) {
@@ -727,7 +727,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 state?.lastTtsCmdDt = getDtNow()
             }
             if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
-            if(state?.onHeroku == true) {
+            if(state?.useHeroku == true) {
                 try {
                     headerMap.remove("HOST")
                     Map params = [
