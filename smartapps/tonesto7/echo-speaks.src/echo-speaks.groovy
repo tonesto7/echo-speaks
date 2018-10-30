@@ -85,6 +85,9 @@ def mainPage() {
                 paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!"
             }
         }
+        section("Service Options:") {
+            
+        }
         if(!newInstall) {
             section("Echo Service:") {
                 def t0 = getServiceConfDesc()
@@ -131,10 +134,15 @@ def servPrefPage() {
                 paragraph "Please configure the options below before completing the App install", state: "complete"
             }
         }
-        section("Hub Selection:") {
-            input(name: "stHub", type: "hub", title: "Select Local Hub", description: "IP adress changes will be sent to service.", required: true, submitOnChange: true, image: getAppImg("hub.png"))
+        input "useHeroku", "bool", title: "Configure Service for Heroku?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("heroku.png")
+        if(settings?.useHeroku) {
+            
+        } else {
+            section("Hub Selection:") {
+                input(name: "stHub", type: "hub", title: "Select Local Hub", description: "IP adress changes will be sent to service.", required: true, submitOnChange: true, image: getAppImg("hub.png"))
+            }
         }
-        if(settings?.stHub) {
+        if(settings?.stHub || settings?.useHeroku) {
             section("Service Push Settings") {
                 input (name: "refreshSeconds", type: "number", title: "Refresh Device Data Every?", description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time.png"))
                 paragraph title: "Notice", "These changes will be applied on the next server data refresh."
