@@ -57,9 +57,7 @@ def appInfoSect(sect=true)	{
 }
 
 def mainPage() {
-    if (!state?.accessToken) {
-        createAccessToken()
-    }
+    def tokenOk = getAccessToken()
     checkVersionData(true)
     Boolean newInstall = !state?.isInstalled
     if(state?.resumeConfig) {
@@ -67,6 +65,10 @@ def mainPage() {
     } else {
         return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: false, install: !newInstall) {
             appInfoSect()
+            if(!tokenOk) {
+                paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH"
+                return
+            }
             section("Device Preferences:") {
                 if(!newInstall) {
                     List devs = getDeviceList()?.collect { "${it?.value?.name} (Online: ${it?.value?.online ?: false})" }?.sort()
@@ -317,9 +319,7 @@ mappings {
 
 def initialize() {
     // listen to LAN incoming messages
-    if(!state?.accessToken) {
-        createAccessToken()
-    }
+    def tokenOk = getAccessToken()
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     runEvery5Minutes("notificationCheck") // This task checks for missed polls and app updates
     subscribe(app, onAppTouch)
@@ -1065,6 +1065,18 @@ String randomString(Integer len) {
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
     log.debug "randomString: ${randChars?.join()}"
     return randChars.join()
+}
+
+def getAccessToken() {
+	try {
+		if(!state?.accessToken) { state?.accessToken = createAccessToken() }
+		else { return true }
+	}
+	catch (ex) {
+		// sendPush("Error: OAuth is not Enabled for ${appName()}!. Please click remove and Enable Oauth under the SmartApp App Settings in the IDE")
+		log.error "getAccessToken Exception", ex
+		return false
+	}
 }
 
 def debugStatus() { return !settings?.appDebug ? "Off" : "On" }
