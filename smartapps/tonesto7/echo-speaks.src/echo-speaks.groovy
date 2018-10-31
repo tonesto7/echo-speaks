@@ -646,7 +646,7 @@ def receiveEventData(Map evtData, String src) {
                 }
                 state?.echoDeviceMap = echoDeviceMap
             } else {
-                log.warn "No Echo Device Data Sent!!!"
+                log.warn "No Echo Device Data Sent... This may be the first transmission from the service after it started up!"
             }
             if(evtData?.serviceInfo) {
                 Map srvcInfo = evtData?.serviceInfo
