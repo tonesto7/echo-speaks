@@ -197,15 +197,15 @@ def servPrefPage() {
                 }
             }
             
-            if(settings?.useHeroku) {
+            // if(settings?.useHeroku) {
                 section("") {
-                    input "resetHeroku", "bool", title: "Reset Heroku Cloud Data?", description: "This will clear all traces of the current service info and allow you to redeploy a new instance.\nThis will not remove the cloud app for you!", 
+                    input "resetService", "bool", title: "Reset Service Data?", description: "This will clear all traces of the current service info and allow you to redeploy or reconfigure a new instance.\nLeave the page and come back after toggling.", 
                         required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
-                    if(settings?.resetHeroku == true) {
+                    if(settings?.resetService == true) {
                         clearCloudConfig()
                     }
                 }
-            }
+            // }
         }
     }
 }
@@ -354,7 +354,7 @@ def initialize() {
 }
 
 def clearCloudConfig() {
-    settingUpdate("resetHeroku", "false", "bool")
+    settingUpdate("resetService", "false", "bool")
     unschedule("cloudServiceHeartbeat")
     List remItems = ["generatedHerokuName", "useHeroku", "onHeroku", "nodeServiceInfo", "serviceConfigured"]
     remItems?.each { rem-> 
