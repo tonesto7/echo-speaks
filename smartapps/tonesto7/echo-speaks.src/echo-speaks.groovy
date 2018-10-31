@@ -24,7 +24,7 @@ Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 100, server: 100]
+    return [echoDevice: 101, server: 101]
 }
 
 definition(
@@ -490,7 +490,7 @@ private modCodeVerMap(key, val) {
 
 String getRandAppName() {
     if(!state?.generatedHerokuName) {
-        state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(8)}"?.toLowerCase()
+        state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(7)}"?.toLowerCase()
     }
     return state?.generatedHerokuName as String
 }
@@ -646,7 +646,7 @@ def receiveEventData(Map evtData, String src) {
                 }
                 state?.echoDeviceMap = echoDeviceMap
             } else {
-                log.warn "No Echo Device Data Sent!!!"
+                log.warn "No Echo Device Data Sent... This may be the first transmission from the service after it started up!"
             }
             if(evtData?.serviceInfo) {
                 Map srvcInfo = evtData?.serviceInfo
