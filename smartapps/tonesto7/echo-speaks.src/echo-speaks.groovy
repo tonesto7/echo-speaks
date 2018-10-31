@@ -199,9 +199,7 @@ def servPrefPage() {
                         settingUpdate("resetHeroku", "false", "bool")
                         List remItems = ["generatedHerokuName", "useHeroku", "onHeroku"]
                         remItems?.each { rem-> 
-                            if(state?.hasKey(rem as String)){
-                                state?.remove(rem as String)
-                            }
+                            state?.remove(rem as String)
                         }
                     }
                 }
