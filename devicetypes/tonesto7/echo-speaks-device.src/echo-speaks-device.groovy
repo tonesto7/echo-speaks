@@ -16,8 +16,8 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.0.0"}
-String devModified() { return "2018-10-30"}
+String devVersion() { return "1.0.1"}
+String devModified() { return "2018-10-31"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -306,8 +306,16 @@ public updateDeviceStatus(Map devData) {
 }
 
 public updateServiceInfo(String svcHost, useHeroku=false) {
-    if(svcHost) { state?.serviceHost = svcHost }
+    state?.serviceHost = svcHost
     state?.useHeroku = useHeroku
+}
+
+public resetServiceInfo() {
+    logger("trace", "resetServiceInfo() received...")
+    resetQueue()
+    ["serviceHost", "useHeroku", ""]?.each { item->
+        state?.remove(item)
+    }
 }
 
 public setOnlineStatus(Boolean isOnline) {
@@ -769,7 +777,6 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
             log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
             state?.recheckScheduled = true
             runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (resp?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
-            
             return
         } else {
             log.error "calledBackHandler Error | status: ${resp?.statusCode} | message: ${resp?.message}"
@@ -780,8 +787,6 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
 }
 
 def asyncCommandHandler(response, data) {
-    // log.debug "got response data: ${response.getData()}"
-    // log.debug "data map passed to handler method is: $data"
     Map resp = response?.json
     Integer statusCode = response?.status
     log.debug "resp: $resp"
@@ -798,7 +803,6 @@ def asyncCommandHandler(response, data) {
             log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
             state?.recheckScheduled = true
             runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (resp?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
-            
             return
         } else {
             log.error "asyncCommandHandler Error | status: ${statusCode} | message: ${resp?.message}"
