@@ -194,12 +194,12 @@ def servPrefPage() {
             }
             if(settings?.useHeroku && state?.onHeroku) {
                 input "resetHeroku", "bool", title: "Reset Heroku App Data?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset.png")
-                if(settings?.resetHeroku) {
+                if(settings?.resetHeroku == true) {
                     settingUpdate("resetHeroku", "false", "bool")
                     List remItems = ["generatedHerokuName", "useHeroku", "onHeroku"]
-                    remItems?.each { 
-                        if(state?.hasKey(it)){
-                            state?.remove(it)
+                    remItems?.each { rem-> 
+                        if(state?.hasKey(rem as String)){
+                            state?.remove(rem as String)
                         }
                     }
                 }
