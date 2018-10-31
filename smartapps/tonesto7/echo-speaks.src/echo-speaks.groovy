@@ -192,6 +192,18 @@ def servPrefPage() {
                     paragraph title: "Service Info:", getServInfoDesc(), state: "complete"
                 }
             }
+            if(settings?.useHeroku && state?.onHeroku) {
+                input "resetHeroku", "bool", title: "Reset Heroku App Data?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset.png")
+                if(settings?.resetHeroku) {
+                    settingUpdate("resetHeroku", "false", "bool")
+                    List remItems = ["generatedHerokuName", "useHeroku", "onHeroku"]
+                    remItems?.each { 
+                        if(state?.hasKey(it)){
+                            state?.remove(it)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -309,6 +321,13 @@ def updated() {
 
 def uninstalled() {
     log.warn "uninstalling app and devices"
+}
+
+void settingUpdate(name, value, type=null) {
+	if(name && type) {
+		app?.updateSetting("$name", [type: "$type", value: value])
+	}
+	else if (name && type == null){ app?.updateSetting(name.toString(), value) }
 }
 
 mappings {
