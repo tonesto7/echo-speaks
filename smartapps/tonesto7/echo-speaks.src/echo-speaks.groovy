@@ -490,7 +490,7 @@ private modCodeVerMap(key, val) {
 
 String getRandAppName() {
     if(!state?.generatedHerokuName) {
-        state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(8)}"?.toLowerCase()
+        state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(7)}"?.toLowerCase()
     }
     return state?.generatedHerokuName as String
 }
