@@ -16,8 +16,8 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.0.1"}
-String devModified() { return "2018-10-31"}
+String devVersion() { return "1.0.2"}
+String devModified() { return "2018-11-01"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
