@@ -641,7 +641,7 @@ def receiveEventData(Map evtData, String src) {
                         return 
                     }
                     if(!settings?.createTablets && echoValue?.deviceType == "TABLET") {
-                        logger("warn", "skipping ${echoValue?.accountName} because Tablets are not enabled...")
+                        // logger("warn", "skipping ${echoValue?.accountName} because Tablets are not enabled...")
                         return 
                     }
                     String dni = [app?.id, "echoSpeaks", echoKey].join('|')
