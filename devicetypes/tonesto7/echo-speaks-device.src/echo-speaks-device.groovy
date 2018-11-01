@@ -185,6 +185,8 @@ Map getDeviceStyle(String family, String type) {
             switch (type) {
                 case "A1NL4BVLQ4L3N3":
                     return [name: "Echo Show", image: "echo_show_gen1"]
+                case "AWZZ5CVHX2CD":
+                    return [name: "Echo Show", image: "echo_show_gen2"]
                 default:
                     return [name: "Echo Show", image: "echo_show_gen1"]
             }
@@ -206,6 +208,11 @@ Map getDeviceStyle(String family, String type) {
                 default:
                     return [name: "Echo Spot", image: "echo_spot_gen1"]
             }
+        case "TABLET":
+            switch(type) {
+                default:
+                return [name: "Kindle Tablet", image: "amazon_tablet"]
+            }
         default:
             return [name: "Echo", image: "echo_dot_gen2"]
     }
@@ -225,6 +232,7 @@ public updateDeviceStatus(Map devData) {
             //         logger("debug", "$k: $v")
             //     }
             // }
+            log.debug "deviceFamily: ${devData?.deviceFamily} | deviceType: ${devData?.deviceType}"
             Map deviceStyle = getDeviceStyle(devData?.deviceFamily as String, devData?.deviceType as String)
             state?.deviceImage = deviceStyle?.image as String
             if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {

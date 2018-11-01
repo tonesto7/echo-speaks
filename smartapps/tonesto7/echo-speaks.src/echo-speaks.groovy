@@ -84,6 +84,7 @@ def mainPage() {
                     paragraph title: "Discovered Devices:", "${devs?.size() ? devs?.join("\n") : "No Devices Available"}", state: "complete"
                 }
                 input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
+                input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
                 input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
 
                 if(newInstall) {
@@ -637,6 +638,10 @@ def receiveEventData(Map evtData, String src) {
                     echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online]
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
+                        return 
+                    }
+                    if(!settings?.createTablets && echoValue?.deviceType == "TABLET") {
+                        logger("warn", "skipping ${echoValue?.accountName} because Tablets are not enabled...")
                         return 
                     }
                     String dni = [app?.id, "echoSpeaks", echoKey].join('|')
