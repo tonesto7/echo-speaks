@@ -640,7 +640,7 @@ def receiveEventData(Map evtData, String src) {
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
                         return 
                     }
-                    if(!settings?.createTablets && echoValue?.deviceType == "TABLET") {
+                    if(!settings?.createTablets && echoValue?.deviceFamily == "TABLET") {
                         // logger("warn", "skipping ${echoValue?.accountName} because Tablets are not enabled...")
                         return 
                     }
