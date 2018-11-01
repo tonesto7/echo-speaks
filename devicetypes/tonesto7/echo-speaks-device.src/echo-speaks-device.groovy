@@ -16,8 +16,8 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.0.0"}
-String devModified() { return "2018-10-30"}
+String devVersion() { return "1.0.2"}
+String devModified() { return "2018-11-01"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -185,6 +185,8 @@ Map getDeviceStyle(String family, String type) {
             switch (type) {
                 case "A1NL4BVLQ4L3N3":
                     return [name: "Echo Show", image: "echo_show_gen1"]
+                case "AWZZ5CVHX2CD":
+                    return [name: "Echo Show", image: "echo_show_gen2"]
                 default:
                     return [name: "Echo Show", image: "echo_show_gen1"]
             }
@@ -206,6 +208,11 @@ Map getDeviceStyle(String family, String type) {
                 default:
                     return [name: "Echo Spot", image: "echo_spot_gen1"]
             }
+        case "TABLET":
+            switch(type) {
+                default:
+                return [name: "Kindle Tablet", image: "amazon_tablet"]
+            }
         default:
             return [name: "Echo", image: "echo_dot_gen2"]
     }
@@ -225,6 +232,7 @@ public updateDeviceStatus(Map devData) {
             //         logger("debug", "$k: $v")
             //     }
             // }
+            log.debug "deviceFamily: ${devData?.deviceFamily} | deviceType: ${devData?.deviceType}"
             Map deviceStyle = getDeviceStyle(devData?.deviceFamily as String, devData?.deviceType as String)
             state?.deviceImage = deviceStyle?.image as String
             if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
@@ -306,8 +314,16 @@ public updateDeviceStatus(Map devData) {
 }
 
 public updateServiceInfo(String svcHost, useHeroku=false) {
-    if(svcHost) { state?.serviceHost = svcHost }
+    state?.serviceHost = svcHost
     state?.useHeroku = useHeroku
+}
+
+public resetServiceInfo() {
+    logger("trace", "resetServiceInfo() received...")
+    resetQueue()
+    ["serviceHost", "useHeroku", ""]?.each { item->
+        state?.remove(item)
+    }
 }
 
 public setOnlineStatus(Boolean isOnline) {
@@ -769,7 +785,6 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
             log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
             state?.recheckScheduled = true
             runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (resp?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
-            
             return
         } else {
             log.error "calledBackHandler Error | status: ${resp?.statusCode} | message: ${resp?.message}"
@@ -780,8 +795,6 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
 }
 
 def asyncCommandHandler(response, data) {
-    // log.debug "got response data: ${response.getData()}"
-    // log.debug "data map passed to handler method is: $data"
     Map resp = response?.json
     Integer statusCode = response?.status
     log.debug "resp: $resp"
@@ -798,7 +811,6 @@ def asyncCommandHandler(response, data) {
             log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
             state?.recheckScheduled = true
             runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (resp?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
-            
             return
         } else {
             log.error "asyncCommandHandler Error | status: ${statusCode} | message: ${resp?.message}"
