@@ -16,8 +16,8 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.0.1"}
-String devModified() { return "2018-10-31"}
+String devVersion() { return "1.0.2"}
+String devModified() { return "2018-11-01"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -113,6 +113,10 @@ metadata {
             state("paused_echo_show_gen2", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_show_gen2.png", backgroundColor: "#cccccc")
             state("playing_echo_show_gen2", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_show_gen2.png", backgroundColor: "#00a0dc")
             state("stopped_echo_show_gen2", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_show_gen2.png")
+
+            state("paused_amazon_tablet", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/amazon_tablet.png", backgroundColor: "#cccccc")
+            state("playing_amazon_tablet", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/amazon_tablet.png", backgroundColor: "#00a0dc")
+            state("stopped_amazon_tablet", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/amazon_tablet.png")
         }
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state("blank1x1", label:'')
@@ -185,6 +189,8 @@ Map getDeviceStyle(String family, String type) {
             switch (type) {
                 case "A1NL4BVLQ4L3N3":
                     return [name: "Echo Show", image: "echo_show_gen1"]
+                case "AWZZ5CVHX2CD":
+                    return [name: "Echo Show", image: "echo_show_gen2"]
                 default:
                     return [name: "Echo Show", image: "echo_show_gen1"]
             }
@@ -206,6 +212,11 @@ Map getDeviceStyle(String family, String type) {
                 default:
                     return [name: "Echo Spot", image: "echo_spot_gen1"]
             }
+        case "TABLET":
+            switch(type) {
+                default:
+                return [name: "Kindle Tablet", image: "amazon_tablet"]
+            }
         default:
             return [name: "Echo", image: "echo_dot_gen2"]
     }
@@ -215,6 +226,7 @@ public updateDeviceStatus(Map devData) {
     try {
         String devName = getShortDevName()
         if(devData?.size()) {
+            // log.debug "deviceFamily: ${devData?.deviceFamily} | deviceType: ${devData?.deviceType}"  // UNCOMMENT to identify unidentified devices
             // devData?.each { k,v ->
             //     if(!(k in ["playerState", "capabilities", "deviceAccountId"])) {
             //         log.debug("$k: $v")

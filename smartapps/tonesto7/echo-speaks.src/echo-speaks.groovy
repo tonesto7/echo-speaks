@@ -17,14 +17,14 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.0.1" }
-String appModified() { return "2018-10-31"}
+String appVersion()	 { return "1.0.3" }
+String appModified() { return "2018-11-03"}
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 101, server: 100]
+    return [echoDevice: 102, server: 101]
 }
 
 definition(
@@ -37,8 +37,7 @@ definition(
     iconX2Url: getAppImg("echo_speaks.2x.png"),
     iconX3Url: getAppImg("echo_speaks.3x.png"),
     pausable: true,
-    oauth: true
-    )
+    oauth: true)
 
 preferences {
     page(name: "mainPage")
@@ -84,6 +83,7 @@ def mainPage() {
                     paragraph title: "Discovered Devices:", "${devs?.size() ? devs?.join("\n") : "No Devices Available"}", state: "complete"
                 }
                 input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
+                input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
                 input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
 
                 if(newInstall) {
@@ -106,7 +106,11 @@ def mainPage() {
                 }
             }
             if(!newInstall) {
-                section("") {
+                section("Donations:") {
+                    href url: textDonateLink(), style:"external", required: false, title:"Donations",
+                        description:"Tap to open in browser", state: "complete", image: getAppImg("donate.png")
+                }
+                section("Remove Everything:") {
                     href "uninstallPage", title: "Uninstall this App", description: "Tap to Remove...", image: getAppImg("uninstall.png")
                 }
             }
@@ -326,10 +330,10 @@ def uninstalled() {
 }
 
 void settingUpdate(name, value, type=null) {
-	if(name && type) {
-		app?.updateSetting("$name", [type: "$type", value: value])
-	}
-	else if (name && type == null){ app?.updateSetting(name.toString(), value) }
+    if(name && type) {
+        app?.updateSetting("$name", [type: "$type", value: value])
+    }
+    else if (name && type == null){ app?.updateSetting(name.toString(), value) }
 }
 
 mappings {
@@ -388,28 +392,48 @@ def renderConfig() {
             .btn-rounded {
                 border-radius: 50px!important;
             }
+            span img {
+                width: 48px;
+                height: auto;
+            }
+            span p {
+                display: block;
+            }
+            .all-copy p {  
+                -webkit-user-select: all;
+                -moz-user-select: all;
+                -ms-user-select: all;
+                user-select: all;
+            }
+            .nameContainer {
+                border-radius: 18px;
+                color: rgba(255,255,255,1);
+                font-size: 1.5rem;
+                background: #666;
+                -webkit-box-shadow: 1px 1px 1px 0 rgba(0,0,0,0.3) ;
+                box-shadow: 1px 1px 1px 0 rgba(0,0,0,0.3) ;
+                text-shadow: 1px 1px 1px rgba(0,0,0,0.2) ;
+            }
         </style>
     <head>
     <body>
         <div style="margin: 0 auto; max-width: 500px;">
             <form class="p-1">
-                <p class="h4 mb-3 text-center">Echo Speaks</p>
+                <div class="my-3 text-center">
+                    <span>
+                        <img src="${getAppImg("echo_speaks.1x.png")}"/>
+                        <p class="h4 text-center">Echo Speaks</p>
+                    </span>
+                </div>
+                <hr>
                 <div class="w-100 mb-3">
-                    
-                    <!--<pre class="prettyprint">${getAppEndpointUrl("receiveData")}</pre>-->
-                    <div class="mt-1 text-center">
-                    <!--
-                        <button class="btn btn-rounded blue" title="Copy URL to Clipboard" data-clipboard-text="${getAppEndpointUrl("receiveData")}">
-                            <i class="fa fa-clipboard" aria-hidden="true"></i> Copy URL
-                        </button>
-                        <span>
-                          <a id="generateEmail" class="btn btn-rounded green" >
-                            <i class="fa fa-envelope" aria-hidden="true"></i> Send as Email</i>
-                          </a>
-                        </span>
-                    --> 
-                        <h5>1. Use the following AppName when asked by Heroku
-                        <pre class="prettyprint">${getRandAppName()}</pre>
+                    <div class="my-2 text-center">
+                        <h5>1. Copy the following Name and use it when asked by Heroku</h5>
+                        <div class="all-copy nameContainer mx-5 mb-2 p-1">
+                          <p id="copyName" class="m-0 p-0">${getRandAppName()?.toString().trim()}</p>
+                        </div>
+                    </div>
+                    <div class="my-2 text-center">
                         <h5>2. Tap Button to deploy to Heroku</h5>
                         <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server${getEnvParamsStr()}">
                             <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
@@ -419,8 +443,11 @@ def renderConfig() {
             </form>
         </div>
     </body>
-    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js?lang=java&amp;skin=sunburst"></script>
     <script>
+        \$("#copyName").on("click", function () {
+            console.log('click')
+            \$(this).select();
+        });
         \$('#generateEmail').click(function() {
             \$("#generateEmail").attr("href", "mailto:example@email.com?subject=Echo Speaks URL Info&body=${getAppEndpointUrl("receiveData")}").attr("target", "_blank");
         });
@@ -490,7 +517,7 @@ private modCodeVerMap(key, val) {
 
 String getRandAppName() {
     if(!state?.generatedHerokuName) {
-        state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(7)}"?.toLowerCase()
+        state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(6)}"?.toLowerCase()
     }
     return state?.generatedHerokuName as String
 }
@@ -614,6 +641,10 @@ def receiveEventData(Map evtData, String src) {
                     echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online]
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
+                        return 
+                    }
+                    if(!settings?.createTablets && echoValue?.deviceFamily == "TABLET") {
+                        // logger("warn", "skipping ${echoValue?.accountName} because Tablets are not enabled...")
                         return 
                     }
                     String dni = [app?.id, "echoSpeaks", echoKey].join('|')
@@ -895,7 +926,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     }
     return sent
 }
-
+String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 //PushOver-Manager Input Generation Functions
@@ -1134,15 +1165,15 @@ String randomString(Integer len) {
 }
 
 def getAccessToken() {
-	try {
-		if(!state?.accessToken) { state?.accessToken = createAccessToken() }
-		else { return true }
-	}
-	catch (ex) {
-		// sendPush("Error: OAuth is not Enabled for ${appName()}!. Please click remove and Enable Oauth under the SmartApp App Settings in the IDE")
-		log.error "getAccessToken Exception", ex
-		return false
-	}
+    try {
+        if(!state?.accessToken) { state?.accessToken = createAccessToken() }
+        else { return true }
+    }
+    catch (ex) {
+        // sendPush("Error: OAuth is not Enabled for ${appName()}!. Please click remove and Enable Oauth under the SmartApp App Settings in the IDE")
+        log.error "getAccessToken Exception", ex
+        return false
+    }
 }
 
 def debugStatus() { return !settings?.appDebug ? "Off" : "On" }
