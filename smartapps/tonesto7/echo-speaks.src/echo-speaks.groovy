@@ -17,8 +17,8 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.0.2" }
-String appModified() { return "2018-11-01"}
+String appVersion()	 { return "1.0.3" }
+String appModified() { return "2018-11-03"}
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -37,8 +37,7 @@ definition(
     iconX2Url: getAppImg("echo_speaks.2x.png"),
     iconX3Url: getAppImg("echo_speaks.3x.png"),
     pausable: true,
-    oauth: true
-    )
+    oauth: true)
 
 preferences {
     page(name: "mainPage")
@@ -107,7 +106,11 @@ def mainPage() {
                 }
             }
             if(!newInstall) {
-                section("") {
+                section("Donations:") {
+                    href url: textDonateLink(), style:"external", required: false, title:"Donations",
+                        description:"Tap to open in browser", state: "complete", image: getAppImg("donate.png")
+                }
+                section("Remove Everything:") {
                     href "uninstallPage", title: "Uninstall this App", description: "Tap to Remove...", image: getAppImg("uninstall.png")
                 }
             }
@@ -923,7 +926,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     }
     return sent
 }
-
+String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=2CJEVN439EAWS" }
 String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 //PushOver-Manager Input Generation Functions
