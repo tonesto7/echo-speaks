@@ -17,8 +17,8 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.0.3" }
-String appModified() { return "2018-11-03"}
+String appVersion()	 { return "1.0.4" }
+String appModified() { return "2018-11-05"} 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -135,6 +135,12 @@ def servPrefPage() {
     Boolean newInstall = !state?.isInstalled
     Boolean resumeConf = !state?.resumeConfig
     return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf)) {
+        Map amazonDomainOpts = [
+            "amazon.com":"Amazon.com",
+            "amazon.ca":"Amazon.ca",
+            "amazon.co.uk":"amazon.co.uk",
+            "amazon.de":"Amazon.de",            
+        ]
         Boolean herokuOn = (settings?.useHeroku == true)
         Boolean hubOn = (settings?.stHub != null)
         Boolean hasChild = (app.getChildDevices(true)?.size())
@@ -164,7 +170,7 @@ def servPrefPage() {
             }
             if(settings?.useHeroku) {
                 section("Service Preferences", hideable: true, hidden: state?.onHeroku) {
-                    input (name: "amazonDomain", type: "enum", title: "Select your Amazon Domain?", description: "", required: true, defaultValue: "amazon.com", options: ["amazon.com":"Amazon.com", "amazon.de":"Amazon.de"], submitOnChange: true, image: getPublicImg("amazon_orange.png"))
+                    input (name: "amazonDomain", type: "enum", title: "Select your Amazon Domain?", description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getPublicImg("amazon_orange.png"))
                     input (name: "refreshSeconds", type: "number", title: "Poll Amazon for Device Status (in Seconds)", description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time.png"))
                 }
                 if(!state?.onHeroku) {
@@ -184,7 +190,7 @@ def servPrefPage() {
             }
             if(settings?.stHub && !settings?.useHeroku) {
                 section("Service Preferences", hideable: true, hidden: !newInstall) {
-                    input (name: "amazonDomain", type: "enum", title: "Select your Amazon Domain?", description: "", required: true, defaultValue: "amazon.com", options: ["amazon.com":"Amazon.com", "amazon.de":"Amazon.de"], submitOnChange: true, image: getPublicImg("amazon_orange.png"))
+                    input (name: "amazonDomain", type: "enum", title: "Select your Amazon Domain?", description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getPublicImg("amazon_orange.png"))
                     input (name: "refreshSeconds", type: "number", title: "Poll Amazon for Device Status (in Seconds)", description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time.png"))
                     if(!newInstall && settings?.stHub && !settings?.useHeroku) {
                         paragraph title: "Notice", "These changes will be applied on the next server data refresh."
