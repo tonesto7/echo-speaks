@@ -91,7 +91,7 @@ def mainPage() {
                 } else {
                     Map devs = getDeviceList(true, false)
                     input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
-                    paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!"
+                    paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
                 }
             }
             
@@ -107,8 +107,7 @@ def mainPage() {
             }
             if(!newInstall) {
                 section("Donations:") {
-                    href url: textDonateLink(), style:"external", required: false, title:"Donations",
-                        description:"Tap to open in browser", state: "complete", image: getAppImg("donate.png")
+                    href url: textDonateLink(), style:"external", required: false, title:"Donations", description:"Tap to open browser", image: getAppImg("donate.png")
                 }
                 section("Remove Everything:") {
                     href "uninstallPage", title: "Uninstall this App", description: "Tap to Remove...", image: getAppImg("uninstall.png")
@@ -235,7 +234,7 @@ def notifPrefPage() {
             input "smsNumbers", "text", title: "Send SMS to Text to...\n(Optional)", required: false, submitOnChange: true, image: getAppImg("sms_phone.png")
         }
         section("Pushover Support:") {
-            input ("pushoverEnabled", "bool", title: "Use Pushover Integration", required: false, submitOnChange: true, image: getAppImg("pushover.png"))
+            input ("pushoverEnabled", "bool", title: "Use Pushover Integration", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover.png"))
             if(settings?.pushoverEnabled == true) {
                 if(state?.isInstalled) {
                     if(!state?.pushoverManager) {
@@ -291,7 +290,7 @@ def notifPrefPage() {
 
 def setNotificationTimePage() {
     dynamicPage(name: "setNotificationTimePage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
-        def timeReq = (settings["qStartTime"] || settings["qStopTime"]) ? true : false
+        Boolean timeReq = (settings["qStartTime"] || settings["qStopTime"]) ? true : false
         section() {
             input "qStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time.png")
             if(settings["qStartInput"] == "A specific time") {
@@ -672,7 +671,8 @@ def receiveEventData(Map evtData, String src) {
                 List curDevFamily = []
                 Integer cnt = 0
                 evtData?.echoDevices?.each { echoKey, echoValue->
-                    // log.debug "echoDevice($echoKey): ${echoValue}"
+                    logger("debug", "echoDevice | $echoKey | ${echoValue}", true)
+                    logger("debug", "echoDevice | ${echoValue?.accountName}", false)
                     echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online]
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
@@ -916,8 +916,7 @@ Integer getLastDevicePollSec() { return !state?.lastDevDataUpd ? 840 : GetTimeDi
 Boolean getOk2Notify() { return ((settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) && (quietDaysOk(settings?.quietDays) && quietTimeOk() && quietModesOk(settings?.quietModes))) }
 
 Boolean quietModesOk(List modes) {
-    if(modes) { return (location?.mode?.toString() in modes) ? false : true }
-    return true
+    return (modes && location?.mode?.toString() in modes) ? false : true
 }
 
 Boolean quietTimeOk() {
@@ -1119,6 +1118,12 @@ def getDtNow() {
     return formatDt(now)
 }
 
+def epochToTime(tm) {
+	def tf = new SimpleDateFormat("h:mm a")
+		tf?.setTimeZone(getTimeZone())
+	return tf.format(tm)
+}
+
 def GetTimeDiffSeconds(lastDate, sender=null) {
     try {
         if(lastDate?.contains("dtNow")) { return 10000 }
@@ -1163,8 +1168,8 @@ String getNotifSchedDesc() {
     def dayInput = settings?.quietDays
     def modeInput = settings?.quietModes
     def notifDesc = ""
-    def getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset.time) : epochToTime(sun?.sunrise.time) ) : (startTime ? time2Str(startTime) : "") )
-    def getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset.time) : epochToTime(sun?.sunrise.time) ) : (stopTime ? time2Str(stopTime) : "") )
+    def getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
+    def getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
     notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Silent Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl}" : ""
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
@@ -1278,7 +1283,6 @@ String getAppStats() {
     def ch = app?.getChildDevices(true)?.size() ?: 0
     if (ch >= 1) {
         str += "\n  ──────── Device Info ────────"
-        log.debug "deviceStyleCnts: ${state?.deviceStyleCnts}"
         if(state?.deviceStyleCnts?.size()) {
             state?.deviceStyleCnts?.each { k,v-> str += "\n • ${k}: (${(v ?: 0)})" }
         } else { str += "\n • Echo Devices: (${(ch ?: 0)})" }
