@@ -1,0 +1,17 @@
+{
+    "versions": {
+        "mainApp": {
+            "ver": "1.0.5"
+        },
+        "echoDevice": {
+            "ver": "1.0.3"
+        },
+        "server": {
+            "ver": "1.0.4"
+        }
+    },
+    "settings": {
+        "installNotif": true,
+        "updateNotif": true
+    }
+}
