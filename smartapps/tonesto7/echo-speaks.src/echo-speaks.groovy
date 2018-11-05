@@ -613,7 +613,7 @@ def scheduleHeartbeat() {
 def sendOneHeartbeat() { cloudServiceHeartbeat() }
 
 def cloudServiceHeartbeat() {
-    log.trace "cloud keep alive heartbeat"
+    // log.trace "cloud keep alive heartbeat"
     def params = [
         uri:  "https://${getRandAppName()}.herokuapp.com/heartbeat",
         contentType: 'application/json'
