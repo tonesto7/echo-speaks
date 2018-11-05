@@ -344,6 +344,7 @@ void settingUpdate(name, value, type=null) {
 
 mappings {
     path("/receiveData") { action: [POST: "processData"] }
+    path("/webhooks") { action: [POST: "webhookResp"] }
     path("/config") { action: [GET: "renderConfig"]  }
     path("/cookie") { action: [GET: "getCookie", POST: "storeCookie", DELETE: "clearCookie"] }
 }
@@ -576,6 +577,14 @@ def storeCookie() {
         obj?.cookie = request?.JSON?.cookie as String ?: null
         obj?.csrf = request?.JSON?.csrf as String ?: null
         state?.cookie = obj
+    }
+}
+
+def webhookResp() {
+    log.trace "webhook Event Received..."
+    log.trace "webhook: ${request?.JSON}"
+    if(request?.JSON) {
+        Map obj = [:]
     }
 }
 

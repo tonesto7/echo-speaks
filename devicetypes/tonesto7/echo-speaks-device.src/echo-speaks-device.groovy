@@ -36,6 +36,7 @@ metadata {
         attribute "onlineStatus", "string"
         attribute "currentStation", "string"
         attribute "currentAlbum", "string"
+        attribute "lastSpeakCmd", "string"
         command "sendTestTts"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
@@ -136,6 +137,9 @@ metadata {
         valueTile("currentAlbum", "device.currentAlbum", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
             state("default", label:'Album:\n${currentValue}')
         }
+        valueTile("lastSpeech", "device.lastSpeakCmd", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
+            state("default", label:'Album:\n${currentValue}')
+        }
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
         }
@@ -147,7 +151,7 @@ metadata {
             state "false", label: 'DnD: OFF', action: "doNotDisturbOn", nextState: "true"
         }
         main(["deviceStatus"])
-        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "doNotDisturb", "deviceStyle", "deviceImage", "sendTest", "resetQueue"])
+        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "doNotDisturb", "deviceStyle", "deviceImage", "sendTest", "resetQueue", "lastSpeech"])
     }
 }
 
@@ -158,6 +162,7 @@ def installed() {
     sendEvent(name: "status", value: "stopped")
     sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
     sendEvent(name: "trackDescription", value: "")
+    sendEvent(name: "lastSpeakCmd", value: "")
     initialize()
 }
 
@@ -781,6 +786,7 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
         if(resp?.statusCode == 200) {
             if(resp?.queueKey) {
                 log.info "commands sent successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay}"
+                sendEvent(name: "lastSpeakCmd", value: "${state?."${resp?.queueKey}"}", descriptionText: "Last Speech text: ${state?."${resp?.queueKey}"}", display: true, displayed: true)
                 state?.remove(resp?.queueKey as String)
                 schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "cmdCallBackHandler(adjDelay)")
             }
@@ -807,6 +813,7 @@ def asyncCommandHandler(response, data) {
         if(statusCode == 200) {
             if(resp?.queueKey) {
                 log.info "commands sent successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay}"
+                sendEvent(name: "lastSpeakCmd", value: "${state?."${resp?.queueKey}"}", descriptionText: "Last Speech text: ${state?."${resp?.queueKey}"}", display: true, displayed: true)
                 state?.remove(resp?.queueKey as String)
                 schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "cmdCallBackHandler(adjDelay)")
             }
