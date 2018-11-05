@@ -1,7 +1,7 @@
 {
     "versions": {
         "mainApp": {
-            "ver": "1.0.5"
+            "ver": "1.0.6"
         },
         "echoDevice": {
             "ver": "1.0.3"

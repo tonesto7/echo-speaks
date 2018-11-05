@@ -17,7 +17,7 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.0.5" }
+String appVersion()	 { return "1.0.6" }
 String appModified() { return "2018-11-05"} 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
@@ -898,9 +898,9 @@ private appUpdateNotify() {
     if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
         if(appUpd || echoDevUpd || servUpd) {
             def str = ""
-            str += !appUpd ? "" : "${str == "" ? "" : "\n"}Echo Speaks App: v${state?.versionData?.versions?.mainApp?.ver?.toString()}"
-            str += !echoDevUpd ? "" : "${str == "" ? "" : "\n"}Echo Virtual Device: v${state?.versionData?.versions?.echoDevice?.ver?.toString()}"
-            str += !servUpd ? "" : "${str == "" ? "" : "\n"}Echo Node Server: v${state?.versionData?.versions?.server?.ver?.toString()}"
+            str += !appUpd ? "" : "${str == "" ? "" : "\n"}Echo Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
+            str += !echoDevUpd ? "" : "${str == "" ? "" : "\n"}Echo Virtual Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
+            str += !servUpd ? "" : "${str == "" ? "" : "\n"}Echo Node Server: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             state?.lastUpdMsgDt = getDtNow()
         }
@@ -1052,44 +1052,44 @@ Boolean isCodeUpdateAvailable(String newVer, String curVer, String type) {
 }
 
 Boolean isAppUpdateAvail() {
-    if(state?.versionData?.versions && state?.codeVersions?.mainApp && isCodeUpdateAvailable(state?.versionData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "app")) { return true }
+    if(state?.appData?.versions && state?.codeVersions?.mainApp && isCodeUpdateAvailable(state?.appData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "app")) { return true }
     return false
 }
 
 Boolean isEchoDevUpdateAvail() {
-    if(state?.versionData?.versions && state?.codeVersions?.echoDevice && isCodeUpdateAvailable(state?.versionData?.versions?.echoDevice?.ver, state?.codeVersions?.echoDevice, "dev")) { return true }
+    if(state?.appData?.versions && state?.codeVersions?.echoDevice && isCodeUpdateAvailable(state?.appData?.versions?.echoDevice?.ver, state?.codeVersions?.echoDevice, "dev")) { return true }
     return false
 }
 
 Boolean isServerUpdateAvail() {
-    if(state?.versionData?.versions && state?.codeVersions?.server && isCodeUpdateAvailable(state?.versionData?.versions?.server?.ver, state?.codeVersions?.server, "server")) { return true }
+    if(state?.appData?.versions && state?.codeVersions?.server && isCodeUpdateAvailable(state?.appData?.versions?.server?.ver, state?.codeVersions?.server, "server")) { return true }
     return false
 }
 
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 
 private checkVersionData(now = false) { //This reads a JSON file from GitHub with version numbers
-    if (now || !state?.versionData || (getLastVerUpdSec() > (3600*6))) {
+    if (now || !state?.appData || (getLastVerUpdSec() > (3600*6))) {
         if(now && (getLastVerUpdSec() < 300)) { return }
-        getVersionData()
+        getConfigData()
     }
 }
 
-private getVersionData() {
+private getConfigData() {
     def params = [
-        uri:  "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/versions.json",
+        uri:  "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/appData.json",
         contentType: 'application/json'
     ]
     try {
         httpGet(params) { resp->
             if(resp?.data) {
-                log.info "Getting Latest Version Data from versions.json File"
-                state?.versionData = resp?.data
+                log.info "Getting Latest Version Data from appData.json File"
+                state?.appData = resp?.data
                 state?.lastVerUpdDt = getDtNow()
             }
         }
     } catch(ex) {
-        log.error "getVersionData Exception: ", ex
+        log.error "getConfigData Exception: ", ex
     }
 }
 
@@ -1239,6 +1239,8 @@ String getInputToStringDesc(inpt, addSpace = null) {
 }
 
 private sendInstallNotif(inst=false) {
+    if(inst && state?.appData && state?.appData?.settings?.installNotif == false) { return }
+    if(!inst && state?.appData && state?.appData?.settings?.updateNotif == false) { return }
     Map res = [:]
     res["username"] = "Echo Speaks Instance ${inst ? "Installed" : "Updated"}"
     res["channel"] = "#es-deployments"

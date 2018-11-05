@@ -16,7 +16,7 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.0.3"}
+String devVersion() { return "1.0.4"}
 String devModified() { return "2018-11-05"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
@@ -37,6 +37,7 @@ metadata {
         attribute "currentStation", "string"
         attribute "currentAlbum", "string"
         attribute "lastSpeakCmd", "string"
+        attribute "lastCmdSentDt", "string"
         command "sendTestTts"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
@@ -140,8 +141,11 @@ metadata {
         valueTile("currentAlbum", "device.currentAlbum", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
             state("default", label:'Album:\n${currentValue}')
         }
-        valueTile("lastSpeech", "device.lastSpeakCmd", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
-            state("default", label:'Last Speech:\n${currentValue}')
+        valueTile("lastSpeakCmd", "device.lastSpeakCmd", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
+            state("lastSpeakCmd", label:'Last Text Sent:\n${currentValue}')
+        }
+        valueTile("lastCmdSentDt", "device.lastCmdSentDt", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
+            state("lastCmdSentDt", label:'Last Action Sent:\n${currentValue}')
         }
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
@@ -149,12 +153,12 @@ metadata {
         standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Reset Queue', action: 'resetQueue')
         }
-        valueTile("doNotDisturb", "device.doNotDisturb", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state "true", label: 'Do Not Disturb:\nON', action: "doNotDisturbOff", nextState: "false"
-            state "false", label: 'Do Not Disturb:\nOFF', action: "doNotDisturbOn", nextState: "true"
+        standardTile("doNotDisturb", "device.doNotDisturb", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state "true", label: 'DnD: ON', action: "doNotDisturbOff", nextState: "false"
+            state "false", label: 'DnD: OFF', action: "doNotDisturbOn", nextState: "true"
         }
         main(["deviceStatus"])
-        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "onlineStatus", "deviceStyle", "sendTest", "doNotDisturb", "resetQueue", "lastSpeech"])
+        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "onlineStatus", "deviceStyle", "sendTest", "doNotDisturb", "resetQueue", "lastSpeakCmd", "lastCmdSentDt"])
     }
 }
 
@@ -491,7 +495,7 @@ def sendTestTts(ttsMsg) {
         "The hip, hip a hop, and you don't stop, a rock it out," +
         "Bubba to the bang bang boogie, boobie to the boogie" +
         "To the rhythm of the boogie the beat," +
-        "Now, what you hear is not a test, I'm rappin' to the beat", "This is how we do it!. It's Friday night, and I feel alright. The party is here on the West side. So I reach for my 40 and I turn it up. Designated driver take the keys to my truck, Hit the shore 'cause I'm faded, Honeys in the street say, Monty, yo we made it!. It feels so good in my hood tonight,  The summertime skirts and the guys in Kani.",
+        "Now, what you hear is not a test, I'm rappin' to the beat", "This is how we do it!. It's Friday night, and I feel alright. The party is here on the West side. So I reach for my 40 and I turn it up. Designated driver take the keys to my truck, Hit the shore 'cause I'm faded, Honeys in the street say, Monty, yo we made it!. It feels so good in my hood tonight,  The summertime skirts and the guys in Khannye.",
         "Teenage Mutant Ninja Turtles, Teenage Mutant Ninja Turtles, Teenage Mutant Ninja Turtles, Heroes in a half-shell Turtle power!...   They're the world's most fearsome fighting team (We're really hip!), They're heroes in a half-shell and they're green (Hey - get a grip!), When the evil Shredder attacks!!!, These Turtle boys don't cut him no slack!."
     ]
     if(!ttsMsg) { ttsMsg = getRandomItem(items) }
@@ -751,7 +755,9 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
         if(resp?.statusCode == 200) {
             if(resp?.queueKey) {
                 log.info "Command Sent Successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay} | (LAN)"
-                sendEvent(name: "lastSpeakCmd", value: "${state?."${resp?.queueKey?.headers?.message}"}", descriptionText: "Last Speech text: ${state?."${resp?.queueKey?.headers?.message}"}", display: true, displayed: true)
+                String lastMsg = state[resp?.queueKey as String]?.headers?.message as String ?: "Nothing to Show Here..."
+                sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
+                sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
                 state?.remove(resp?.queueKey as String)
                 schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "cmdCallBackHandler(adjDelay)")
             }
@@ -778,7 +784,9 @@ def asyncCommandHandler(response, data) {
         if(statusCode == 200) {
             if(resp?.queueKey) {
                 log.info "Command Sent Successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay} | (Cloud)"
-                sendEvent(name: "lastSpeakCmd", value: "${state?."${resp?.queueKey}"}", descriptionText: "Last Speech text: ${state?."${resp?.queueKey}"}", display: true, displayed: true)
+                String lastMsg = state[resp?.queueKey as String]?.headers?.message as String ?: "Nothing to Show Here..."
+                sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
+                sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
                 state?.remove(resp?.queueKey as String)
                 schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "cmdCallBackHandler(adjDelay)")
             }
