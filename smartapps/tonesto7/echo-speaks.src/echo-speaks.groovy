@@ -24,7 +24,7 @@ Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 102, server: 103]
+    return [echoDevice: 103, server: 104]
 }
 
 definition(
@@ -139,7 +139,7 @@ def servPrefPage() {
             "amazon.com":"Amazon.com",
             "amazon.ca":"Amazon.ca",
             "amazon.co.uk":"amazon.co.uk",
-            "amazon.de":"Amazon.de",            
+            "amazon.de":"Amazon.de",
         ]
         Boolean herokuOn = (settings?.useHeroku == true)
         Boolean hubOn = (settings?.stHub != null)
@@ -320,12 +320,14 @@ def uninstallPage() {
 def installed() {
     log.debug "Installed with settings: ${settings}"
     state?.isInstalled = true
+    sendInstallNotif(true)
     initialize()
 }
 
 def updated() {
     log.debug "Updated with settings: ${settings}"
     if(!state?.isInstalled) { state?.isInstalled = true }
+    sendInstallNotif()
     unsubscribe()
     initialize()
 }
@@ -465,6 +467,7 @@ String getEnvParamsStr() {
     Map envParams = [:]
     envParams['smartThingsUrl'] = "${getAppEndpointUrl("receiveData")}"
     envParams['useHeroku'] = settings?.useHeroku == true ? "true" : "false"
+    envParams['serviceDebug'] = settings?.serviceDebug == true ? "true" : "false"
     envParams['amazonDomain'] = settings?.amazonDomain as String
     envParams['refreshSeconds'] = settings?.refreshSeconds as String
     envParams['hostUrl'] = "${getRandAppName()}.herokuapp.com"
@@ -487,11 +490,11 @@ private checkIfCodeUpdated() {
 }
 
 private stateCleanup() {
-    List items = ["availableDevices", "lastMsgDt"]
+    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.isRateLimiting = false 
-    state?.consecutiveCmdCnt = null
     state?.pollBlocked = false
+    state?.resumeConfig = false
 }
 
 def onAppTouch(evt) {
@@ -574,6 +577,8 @@ def processData() {
                         app?.getChildDevices(true)?.each { cDev?.updateServiceInfo(state?.cloudUrl, state?.onHeroku) }
                      }
                 }
+            } else {
+                log.debug "data: $data"
             }
         }
     }
@@ -589,7 +594,7 @@ def getCookie() {
 
 def storeCookie() {
     log.trace "storeCookie Request Received..."
-    if(request?.JSON && request?.JSON?.cookie && request.JSON.csrf) {
+    if(request?.JSON && request?.JSON?.cookie && request?.JSON?.csrf) {
         Map obj = [:]
         obj?.cookie = request?.JSON?.cookie as String ?: null
         obj?.csrf = request?.JSON?.csrf as String ?: null
@@ -601,6 +606,7 @@ def clearCookie() {
     log.trace "clearCookie()"
     settingUpdate("resetCookies", "false", "bool")
     state?.remove('cookie')
+    unschedule("cloudServiceHeartbeat")
 }
 
 def scheduleHeartbeat() {
@@ -663,6 +669,7 @@ def receiveEventData(Map evtData, String src) {
             if (evtData?.echoDevices?.size()) {
                 logger("debug", "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${src ? " [$src]" : ""}")
                 Map echoDeviceMap = [:]
+                List curDevFamily = []
                 Integer cnt = 0
                 evtData?.echoDevices?.each { echoKey, echoValue->
                     // log.debug "echoDevice($echoKey): ${echoValue}"
@@ -680,6 +687,7 @@ def receiveEventData(Map evtData, String src) {
                     String devLabel = "Echo - " + echoValue?.accountName
                     String childHandlerName = "Echo Speaks Device"
                     String hubId = settings?.stHub?.getId()
+                    echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     if(!updRequired) {
                         if (!childDevice) {
                             try{
@@ -701,9 +709,11 @@ def receiveEventData(Map evtData, String src) {
                         childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
                     }
                     modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
+                    curDevFamily.push(echoValue?.deviceStyle?.name)
                     state?.lastDevDataUpd = getDtNow()
                 }
                 state?.echoDeviceMap = echoDeviceMap
+                state?.deviceStyleCnts = curDevFamily?.countBy { it }
             } else {
                 log.warn "No Echo Device Data Sent... This may be the first transmission from the service after it started up!"
             }
@@ -802,6 +812,45 @@ private clearRateLimit(devUpd = true) {
         }
     }
     state?.isRateLimiting = false
+}
+
+public getDeviceStyle(String family, String type) {
+    switch(family) {
+        case "KNIGHT":
+            switch (type) {
+                case "A1NL4BVLQ4L3N3":
+                    return [name: "Echo Show (Gen1)", image: "echo_show_gen1"]
+                case "AWZZ5CVHX2CD":
+                    return [name: "Echo Show (Gen2)", image: "echo_show_gen2"]
+                default:
+                    return [name: "Echo Show (Gen1)", image: "echo_show_gen1"]
+            }
+        case "ECHO":
+            switch (type) {
+                case "AB72C64C86AW2":
+                    return [name: "Echo (Gen1)", image: "echo_gen1"]
+                case "AKNO1N0KSFN8L":
+                    return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1"]
+                case "A3S5BH2HU6VAYF":
+                    return [name: "Echo Dot (Gen2)", image: "echo_dot_gen2"]
+                default:
+                    return [name: "Echo (Gen1)", image: "echo_gen2"]
+            }
+        case "ROOK":
+            switch (type) {
+                case "A10A33FOX2NUBK":
+                    return [name: "Echo Spot (Gen1)", image: "echo_spot_gen1"]
+                default:
+                    return [name: "Echo Spot (Gen1)", image: "echo_spot_gen1"]
+            }
+        case "TABLET":
+            switch(type) {
+                default:
+                return [name: "Kindle Tablet", image: "amazon_tablet"]
+            }
+        default:
+            return [name: "Echo", image: "echo_dot_gen2"]
+    }
 }
 
 /******************************************
@@ -1182,6 +1231,60 @@ String getInputToStringDesc(inpt, addSpace = null) {
     }
     //log.debug "str: $str"
     return (str != "") ? "${str}" : null
+}
+
+private sendInstallNotif(inst=false) {
+    Map res = [:]
+    res["username"] = "Echo Speaks Instance ${inst ? "Installed" : "Updated"}"
+    res["channel"] = "#es-deployments"
+    res["text"] = getAppStats()
+    def json = new groovy.json.JsonOutput().toJson(res)
+    sendInstallData("https://hooks.slack.com/services/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", json, "", "post", "${inst ? "App Install" : "App Update"} Slack Notif")
+}
+
+private sendInstallData(url, data, pathVal, cmdType=null, type=null) {
+    // logger("trace", "sendInstallData(${data}, ${pathVal}, $cmdType, $type")
+    def result = false
+    def json = new groovy.json.JsonOutput().prettyPrint(data)
+    def params = [ uri: url, body: json.toString() ]
+    def typeDesc = type ? "${type}" : "Slack Data"
+    def respData
+    try {
+        if(!cmdType || cmdType == "post") {
+            httpPostJson(params)
+            result = true
+        }
+    }
+    catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException) {
+            log.error("sendInstallData: 'HttpResponseException': ${ex?.message}")
+        }
+        else { log.error "sendInstallData: ([$data, $pathVal, $cmdType, $type]) Exception:", ex }
+    }
+    return result
+}
+
+String getAppStats() {
+    def str = ""
+    def swVer = state?.codeVersions
+    str += "\n   ──────── Geographics ─────────"
+    str += "\n • DateTime: (${getDtNow()})"
+    str += "\n • TimeZone: [${location?.timeZone?.ID?.toString()}]"
+    str += "\n • Amazon Domain: (${settings?.amazonDomain})"
+    str += "\n  ────────── Version Info ──────────"
+    str += swVer?.server != null ? "\n • Server: (${swVer?.server}) [${state?.onHeroku ? "Cloud" : "Local"}]" : ""
+    str += "\n • SmartApp: (${appVersion()})"
+    str += swVer?.echoDevice != null ? "\n • Device: (${swVer?.echoDevice})" : ""
+    def ch = app?.getChildDevices(true)?.size() ?: 0
+    if (ch >= 1) {
+        str += "\n  ──────── Device Info ────────"
+        log.debug "deviceStyleCnts: ${state?.deviceStyleCnts}"
+        if(state?.deviceStyleCnts?.size()) {
+            state?.deviceStyleCnts?.each { k,v-> str += "\n • ${k}: (${(v ?: 0)})" }
+        } else { str += "\n • Echo Devices: (${(ch ?: 0)})" }
+        str += "\n  ────────────────────────"
+    }
+    return str
 }
 
 String randomString(Integer len) {

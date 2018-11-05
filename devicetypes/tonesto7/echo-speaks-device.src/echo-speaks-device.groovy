@@ -16,8 +16,8 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.0.2"}
-String devModified() { return "2018-11-01"}
+String devVersion() { return "1.0.3"}
+String devModified() { return "2018-11-05"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -188,45 +188,6 @@ def getShortDevName(){
     return device?.displayName?.replace("Echo - ", "")
 }
 
-Map getDeviceStyle(String family, String type) {
-    switch(family) {
-        case "KNIGHT":
-            switch (type) {
-                case "A1NL4BVLQ4L3N3":
-                    return [name: "Echo Show", image: "echo_show_gen1"]
-                case "AWZZ5CVHX2CD":
-                    return [name: "Echo Show", image: "echo_show_gen2"]
-                default:
-                    return [name: "Echo Show", image: "echo_show_gen1"]
-            }
-        case "ECHO":
-            switch (type) {
-                case "AB72C64C86AW2":
-                    return [name: "Echo", image: "echo_gen1"]
-                case "AKNO1N0KSFN8L":
-                    return [name: "Echo Dot", image: "echo_dot_gen1"]
-                case "A3S5BH2HU6VAYF":
-                    return [name: "Echo Dot (Gen2)", image: "echo_dot_gen2"]
-                default:
-                    return [name: "Echo", image: "echo_gen2"]
-            }
-        case "ROOK":
-            switch (type) {
-                case "A10A33FOX2NUBK":
-                    return [name: "Echo Spot", image: "echo_spot_gen1"]
-                default:
-                    return [name: "Echo Spot", image: "echo_spot_gen1"]
-            }
-        case "TABLET":
-            switch(type) {
-                default:
-                return [name: "Kindle Tablet", image: "amazon_tablet"]
-            }
-        default:
-            return [name: "Echo", image: "echo_dot_gen2"]
-    }
-}
-
 public updateDeviceStatus(Map devData) {
     try {
         String devName = getShortDevName()
@@ -242,7 +203,7 @@ public updateDeviceStatus(Map devData) {
             //         logger("debug", "$k: $v")
             //     }
             // }
-            Map deviceStyle = getDeviceStyle(devData?.deviceFamily as String, devData?.deviceType as String)
+            Map deviceStyle = devData?.deviceStyle
             state?.deviceImage = deviceStyle?.image as String
             if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
                 sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
