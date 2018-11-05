@@ -17,14 +17,14 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.0.4" }
+String appVersion()	 { return "1.0.5" }
 String appModified() { return "2018-11-05"} 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 102, server: 101]
+    return [echoDevice: 102, server: 103]
 }
 
 definition(
@@ -202,20 +202,19 @@ def servPrefPage() {
             if(settings?.useHeroku && state?.onHeroku) {
                 section("Cloud App Management:") {
                     href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: "Service Config Page", description: "Tap to proceed", image: getPublicImg("web.png")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: "Heroku App Settings", description: "Tap to proceed", image: getPublicImg("web.png")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: "Heroku App Logs", description: "Tap to proceed", image: getPublicImg("view.png")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: "Heroku App Settings", description: "Tap to proceed", image: getAppImg("heroku.png")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/webhooks", style: "external", required: false, title: "Heroku App Webhooks", description: "Tap to proceed", image: getAppImg("heroku.png")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: "Heroku App Logs", description: "Tap to proceed", image: getAppImg("heroku.png")
                 }
             }
             
-            // if(settings?.useHeroku) {
-                section("") {
-                    input "resetService", "bool", title: "Reset Service Data?", description: "This will clear all traces of the current service info and allow you to redeploy or reconfigure a new instance.\nLeave the page and come back after toggling.", 
-                        required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
-                    if(settings?.resetService == true) {
-                        clearCloudConfig()
-                    }
-                }
-            // }
+            section("Reset Options:", hideable:true, hidden: true) {
+                input "resetService", "bool", title: "Reset Service Data?", description: "This will clear all traces of the current service info and allow you to redeploy or reconfigure a new instance.\nLeave the page and come back after toggling.", 
+                    required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
+                input "resetCookies", "bool", title: "Clear Stored Cookie Data?", description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
+                if(settings?.resetService == true) { clearCloudConfig() }
+                if(settings?.resetCookies == true) { clearCookie() }
+            }
         }
     }
 }
@@ -344,7 +343,6 @@ void settingUpdate(name, value, type=null) {
 
 mappings {
     path("/receiveData") { action: [POST: "processData"] }
-    path("/webhooks") { action: [POST: "webhookResp"] }
     path("/config") { action: [GET: "renderConfig"]  }
     path("/cookie") { action: [GET: "getCookie", POST: "storeCookie", DELETE: "clearCookie"] }
 }
@@ -523,9 +521,7 @@ private modCodeVerMap(key, val) {
 }
 
 String getRandAppName() {
-    if(!state?.generatedHerokuName) {
-        state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(6)}"?.toLowerCase()
-    }
+    if(!state?.generatedHerokuName) { state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(6)}"?.toLowerCase() }
     return state?.generatedHerokuName as String
 }
 
@@ -559,7 +555,28 @@ def lanEventHandler(evt) {
 
 def processData() {
     // log.trace "processData() | Data: ${request.JSON}"
-    if(request?.JSON) { receiveEventData(request?.JSON, "Cloud") }
+    Map data = request?.JSON as Map
+    if(data) {
+        if(data && (data?.echoDevices || data?.serviceInfo)) {
+            receiveEventData(data, "Cloud")
+        } else {
+            if(data?.resource == "dyno" && data?.version == "application/vnd.heroku+json; version=3" && data?.action) {
+                log.debug "Heroku Event (${data?.action}): App ${data?.data?.state}"
+                if(data?.data && data?.data?.state == "down") {
+                    runIn(60, "sendOneHeartbeat", [overwrite: true])
+                    scheduleHeartbeat()
+                }
+                if(data?.data?.app?.name) {
+                    if(state?.generatedHerokuName != data?.data?.app?.name) { state?.generatedHerokuName = data?.data?.app?.name }
+                     if(state?.cloudUrl != "https://${data?.data?.app?.name}.herokuapp.com") {
+                        log.info "Heroku CloudURL change required | Old: ${state?.cloudUrl} | new: https://${data?.data?.app?.name}.herokuapp.com"
+                        state?.cloudUrl = "https://${data?.data?.app?.name}.herokuapp.com"
+                        app?.getChildDevices(true)?.each { cDev?.updateServiceInfo(state?.cloudUrl, state?.onHeroku) }
+                     }
+                }
+            }
+        }
+    }
     render contentType: 'text/html', data: "status received...ok", status: 200
 }
 
@@ -580,24 +597,20 @@ def storeCookie() {
     }
 }
 
-def webhookResp() {
-    log.trace "webhook Event Received..."
-    log.trace "webhook: ${request?.JSON}"
-    if(request?.JSON) {
-        Map obj = [:]
-    }
-}
-
 def clearCookie() {
     log.trace "clearCookie()"
+    settingUpdate("resetCookies", "false", "bool")
     state?.remove('cookie')
 }
 
 def scheduleHeartbeat() {
     log.trace "scheduling heartbeat check"
+    unschedule("cloudServiceHeartbeat")
     state?.heartbeatScheduled = true
     runEvery5Minutes('cloudServiceHeartbeat')
 }
+
+def sendOneHeartbeat() { cloudServiceHeartbeat() }
 
 def cloudServiceHeartbeat() {
     log.trace "cloud keep alive heartbeat"
