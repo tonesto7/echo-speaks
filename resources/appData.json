@@ -12,6 +12,6 @@
     },
     "settings": {
         "installNotif": true,
-        "updateNotif": true
+        "updateNotif": false
     }
 }
