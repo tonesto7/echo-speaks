@@ -39,6 +39,7 @@ metadata {
         attribute "lastSpeakCmd", "string"
         attribute "lastCmdSentDt", "string"
         command "sendTestTts"
+        command "replayText"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
         // command "setVolumeAndSpeak", ["number", "string"]
@@ -461,7 +462,6 @@ public setDoNotDisturb(Boolean val) {
     ])
 }
 
-
 public deviceNotification(String msg) {
     if(!msg) { log.warn "No Message sent with deviceNotification($msg) command" }
     log.trace "deviceNotification(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
@@ -486,6 +486,12 @@ def getRandomItem(items) {
     def list = new ArrayList<String>();
     items?.each { list?.add(it) }
     return list?.get(new Random().nextInt(list?.size()));
+}
+
+public replayText() {
+    logger("trace", "replayText() command received...")
+    String lastText = device?.currentState("lastSpeakCmd")?.stringValue
+    if(lastText) { speak(lastText) } else { log.warn "Last Text was not found" }
 }
 
 def sendTestTts(ttsMsg) {
@@ -548,6 +554,7 @@ private resetQueue(showLog=true) {
     }
     unschedule("checkQueue")
     state?.qCmdCycleCnt = null
+    state?.speechInProgress = false
     state?.cmdQueueWorking = false
     state?.firstCmdFlag = false
     state?.recheckScheduled = false
@@ -576,6 +583,7 @@ private schedQueueCheck(Integer delay, overwrite=true, data=null, src) {
 }
 
 public queueEchoCmd(type, headers, body=null, firstRun=false) {
+    log.trace "queueEchoCmd"
     List logItems = []
     Map cmdItems = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
     logItems?.push("│ Queue Active: (${state?.cmdQueueWorking}) | Recheck: (${state?.recheckScheduled}) ")
@@ -587,7 +595,7 @@ public queueEchoCmd(type, headers, body=null, firstRun=false) {
         logItems?.push("│ Ignoring (${headers?.cmdType}) Command... It Already Exists in QUEUE!!!")
         logItems?.push("┌────────── Echo Queue Warning ──────────")
         processLogItems("warn", logItems, true, true)
-        return
+        return true
     }
     state?.cmdQIndexNum = getQueueIndex()
     state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
@@ -599,6 +607,7 @@ public queueEchoCmd(type, headers, body=null, firstRun=false) {
     if(!firstRun) {
         processLogItems("trace", logItems, false, true) 
     }
+    return true
 }
 
 private checkQueue(data) {
@@ -647,7 +656,7 @@ private processCmdQueue() {
 Integer getAdjCmdDelay(elap, reqDelay) {
     if(elap && reqDelay) {
         Integer res = (elap - reqDelay)?.abs()
-        log.debug "getAdjCmdDelay | reqDelay: $reqDelay | elap: $elap | res: ${res+3}"
+        // log.debug "getAdjCmdDelay | reqDelay: $reqDelay | elap: $elap | res: ${res+3}"
         return res < 3 ? 3 : res+3
     } 
     return 5
@@ -677,17 +686,25 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         if(sendToQueue) {
             if(!isQueueCmd) {
                 headers['msgDelay'] = getRecheckDelay(ml)
-                if(isFirstRunCmd) { 
+                if(isFirstRunCmd) {
                     logItems?.push("│ First Command: (${isFirstRunCmd})")
                     state?.firstCmdFlag = true
+                    if(queueEchoCmd(type, headers, body, isFirstRunCmd)) {
+                        processCmdQueue()
+                        return
+                    }
+                } else {
+                    if(queueEchoCmd(type, headers, body, isFirstRunCmd)) {
+                        return
+                    }
                 }
-                queueEchoCmd(type, headers, body, isFirstRunCmd)
             }
-            if(isFirstRunCmd) { processCmdQueue() }
-            sendTheCmd = false 
+            // if(isFirstRunCmd) { processCmdQueue() }
+            // sendTheCmd = false
+            return
         }
     }
-    if(sendTheCmd) {
+    // if(sendTheCmd != false) {
         try {
             String path = ""
             Map headerMap = [HOST: host, deviceId: device?.getDeviceNetworkId()]
@@ -745,7 +762,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         catch (Exception ex) {
             log.error "echoServiceCmd HubAction Exception:", ex
         }
-    }
+    // }
 }
 
 void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
