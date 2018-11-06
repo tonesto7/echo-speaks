@@ -554,7 +554,6 @@ private resetQueue(showLog=true) {
     }
     unschedule("checkQueue")
     state?.qCmdCycleCnt = null
-    state?.speechInProgress = false
     state?.cmdQueueWorking = false
     state?.firstCmdFlag = false
     state?.recheckScheduled = false
@@ -595,7 +594,7 @@ public queueEchoCmd(type, headers, body=null, firstRun=false) {
         logItems?.push("│ Ignoring (${headers?.cmdType}) Command... It Already Exists in QUEUE!!!")
         logItems?.push("┌────────── Echo Queue Warning ──────────")
         processLogItems("warn", logItems, true, true)
-        return true
+        return
     }
     state?.cmdQIndexNum = getQueueIndex()
     state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
@@ -607,7 +606,7 @@ public queueEchoCmd(type, headers, body=null, firstRun=false) {
     if(!firstRun) {
         processLogItems("trace", logItems, false, true) 
     }
-    return true
+    // return true
 }
 
 private checkQueue(data) {
@@ -681,7 +680,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
         Integer ml = headers?.message?.toString()?.length()
         Boolean isFirstRunCmd = (state?.firstCmdFlag != true)
-        Boolean sendToQueue = (isFirstRunCmd || (!isQueueCmd && getQueueSize() >= 1))
+        Boolean sendToQueue = (isFirstRunCmd || (!isQueueCmd && getQueueSize() >= 1) || state?.cmdQueueWorking)
         // log.debug "sendToQueue: $sendToQueue | lastTtsCmdSec: $lastTtsCmdSec | getRecheckDelay: ${getRecheckDelay(state?.curMsgLen)}"
         if(sendToQueue) {
             if(!isQueueCmd) {
@@ -689,17 +688,13 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 if(isFirstRunCmd) {
                     logItems?.push("│ First Command: (${isFirstRunCmd})")
                     state?.firstCmdFlag = true
-                    if(queueEchoCmd(type, headers, body, isFirstRunCmd)) {
-                        processCmdQueue()
-                        return
-                    }
-                } else {
-                    if(queueEchoCmd(type, headers, body, isFirstRunCmd)) {
-                        return
-                    }
+                    // queueEchoCmd(type, headers, body, isFirstRunCmd)
+                    // processCmdQueue()
+                    // return
                 }
             }
-            // if(isFirstRunCmd) { processCmdQueue() }
+            queueEchoCmd(type, headers, body, isFirstRunCmd)
+            if(isFirstRunCmd) { processCmdQueue() }
             // sendTheCmd = false
             return
         }
