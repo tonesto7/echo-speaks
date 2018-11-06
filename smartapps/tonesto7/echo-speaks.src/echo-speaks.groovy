@@ -1129,7 +1129,6 @@ def time2Str(time) {
 		def t = timeToday(time, location?.timeZone)
 		def f = new java.text.SimpleDateFormat("h:mm a")
 		f?.setTimeZone(location?.timeZone ?: timeZone(time))
-        log.debug "time2Str: ${f?.format(t)}"
 		return f?.format(t)
 	}
 }
