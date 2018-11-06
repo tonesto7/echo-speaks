@@ -1,7 +1,7 @@
 {
     "versions": {
         "mainApp": {
-            "ver": "1.0.6"
+            "ver": "1.0.7"
         },
         "echoDevice": {
             "ver": "1.0.3"
@@ -12,6 +12,6 @@
     },
     "settings": {
         "installNotif": true,
-        "updateNotif": false
+        "updateNotif": true
     }
 }

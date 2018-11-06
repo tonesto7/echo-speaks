@@ -495,12 +495,12 @@ private stateCleanup() {
     state?.isRateLimiting = false 
     state?.pollBlocked = false
     state?.resumeConfig = false
+    state?.heartbeatScheduled = false
 }
 
 def onAppTouch(evt) {
     // log.trace "appTouch..."
-    chec()
-    app.getChildDevices(true)?.each { cDev->
+    app?.getChildDevices(true)?.each { cDev->
         cDev?.resetQueue()
     }
 }
@@ -578,9 +578,7 @@ def processData() {
                         app?.getChildDevices(true)?.each { cDev?.updateServiceInfo(state?.cloudUrl, state?.onHeroku) }
                      }
                 }
-            } else {
-                log.debug "data: $data"
-            }
+            } else { log.debug "data: $data" }
         }
     }
     render contentType: 'text/html', data: "status received...ok", status: 200
@@ -604,14 +602,14 @@ def storeCookie() {
 }
 
 def clearCookie() {
-    log.trace "clearCookie()"
+    logger("trace", "clearCookie()")
     settingUpdate("resetCookies", "false", "bool")
     state?.remove('cookie')
     unschedule("cloudServiceHeartbeat")
 }
 
 def scheduleHeartbeat() {
-    log.trace "scheduling heartbeat check"
+    log.info "Scheduling CloudHeartbeat Check for Every 5 minutes..."
     unschedule("cloudServiceHeartbeat")
     state?.heartbeatScheduled = true
     runEvery5Minutes('cloudServiceHeartbeat')
@@ -621,17 +619,11 @@ def sendOneHeartbeat() { cloudServiceHeartbeat() }
 
 def cloudServiceHeartbeat() {
     // log.trace "cloud keep alive heartbeat"
-    def params = [
-        uri:  "https://${getRandAppName()}.herokuapp.com/heartbeat",
-        contentType: 'application/json'
-    ]
     try {
-        httpGet(params) { resp->
+        httpGet([uri: "https://${getRandAppName()}.herokuapp.com/heartbeat", contentType: 'application/json']) { resp->
             if(resp && resp?.data && resp?.data?.result) {
                 log.info "CloudHeartBeat Successful"
-            } else {
-                log.warn "CloudHeartbeat Resp not received... Is app no longer available?"
-            }
+            } else { log.warn "No CloudHeartbeat Response Received... Is the App still available?" }
         }
     } catch(ex) {
         log.error "cloudServiceHeartbeat Exception: ", ex
@@ -651,7 +643,7 @@ def receiveEventData(Map evtData, String src) {
             state?.serviceConfigured = true
             // log.debug "onHeroku: ${evtData?.useHeroku} | cloudUrl: ${evtData?.cloudUrl}"
             state?.onHeroku = onHeroku
-            state?.cloudUrl = (onHeroku && evtData.cloudUrl) ? evtData.cloudUrl : null
+            state?.cloudUrl = (onHeroku && evtData?.cloudUrl) ? evtData?.cloudUrl : null
             if(onHeroku && !state?.heartbeatScheduled) {
                 scheduleHeartbeat()
             }
@@ -1257,14 +1249,33 @@ String getInputToStringDesc(inpt, addSpace = null) {
 }
 
 private sendInstallNotif(inst=false) {
+    String url = inst ? "https://hooks.slack.com/services/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" : "https://hooks.slack.com/services/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"
     if(inst && state?.appData && state?.appData?.settings?.installNotif == false) { return }
     if(!inst && state?.appData && state?.appData?.settings?.updateNotif == false) { return }
     Map res = [:]
+    def str = ""
+    def swVer = state?.codeVersions
+    str += "\n ────── ${location?.id} ──────"
+    str += "\n • DateTime: (${getDtNow()})"
+    str += "\n • TimeZone: [${location?.timeZone?.ID?.toString()}]"
+    str += "\n • Amazon Domain: (${settings?.amazonDomain})"
+    str += "\n ────────── Version Info ──────────"
+    str += swVer?.server != null ? "\n • Server: (${swVer?.server}) [${state?.onHeroku ? "Cloud" : "Local"}]" : ""
+    str += "\n • SmartApp: (${appVersion()})"
+    str += swVer?.echoDevice != null ? "\n • Device: (${swVer?.echoDevice})" : ""
+    def ch = app?.getChildDevices(true)?.size() ?: 0
+    if (ch >= 1) {
+        str += "\n ──────── Device Info ────────"
+        if(state?.deviceStyleCnts?.size()) {
+            state?.deviceStyleCnts?.each { k,v-> str += "\n • ${k}: (${(v ?: 0)})" }
+        } else { str += "\n • Echo Devices: (${(ch ?: 0)})" }
+        str += "\n ────────────────────────"
+    }
     res["username"] = "Echo Speaks Instance ${inst ? "Installed" : "Updated"}"
-    res["channel"] = "#es-deployments"
-    res["text"] = getAppStats()
+    res["channel"] = inst ? "#new_installs" : "#updated_installs"
+    res["text"] = str
     def json = new groovy.json.JsonOutput().toJson(res)
-    sendInstallData("https://hooks.slack.com/services/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", json, "", "post", "${inst ? "App Install" : "App Update"} Slack Notif")
+    sendInstallData(url, json, "", "post", "${inst ? "App Install" : "App Update"} Notif")
 }
 
 private sendInstallData(url, data, pathVal, cmdType=null, type=null) {
@@ -1272,7 +1283,7 @@ private sendInstallData(url, data, pathVal, cmdType=null, type=null) {
     def result = false
     def json = new groovy.json.JsonOutput().prettyPrint(data)
     def params = [ uri: url, body: json.toString() ]
-    def typeDesc = type ? "${type}" : "Slack Data"
+    def typeDesc = type ? "${type}" : "Install Data"
     def respData
     try {
         if(!cmdType || cmdType == "post") {
@@ -1287,28 +1298,6 @@ private sendInstallData(url, data, pathVal, cmdType=null, type=null) {
         else { log.error "sendInstallData: ([$data, $pathVal, $cmdType, $type]) Exception:", ex }
     }
     return result
-}
-
-String getAppStats() {
-    def str = ""
-    def swVer = state?.codeVersions
-    str += "\n   ──────── Geographics ─────────"
-    str += "\n • DateTime: (${getDtNow()})"
-    str += "\n • TimeZone: [${location?.timeZone?.ID?.toString()}]"
-    str += "\n • Amazon Domain: (${settings?.amazonDomain})"
-    str += "\n  ────────── Version Info ──────────"
-    str += swVer?.server != null ? "\n • Server: (${swVer?.server}) [${state?.onHeroku ? "Cloud" : "Local"}]" : ""
-    str += "\n • SmartApp: (${appVersion()})"
-    str += swVer?.echoDevice != null ? "\n • Device: (${swVer?.echoDevice})" : ""
-    def ch = app?.getChildDevices(true)?.size() ?: 0
-    if (ch >= 1) {
-        str += "\n  ──────── Device Info ────────"
-        if(state?.deviceStyleCnts?.size()) {
-            state?.deviceStyleCnts?.each { k,v-> str += "\n • ${k}: (${(v ?: 0)})" }
-        } else { str += "\n • Echo Devices: (${(ch ?: 0)})" }
-        str += "\n  ────────────────────────"
-    }
-    return str
 }
 
 String randomString(Integer len) {
