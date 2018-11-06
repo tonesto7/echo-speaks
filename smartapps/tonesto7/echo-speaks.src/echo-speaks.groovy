@@ -941,8 +941,8 @@ Boolean quietTimeOk() {
 Boolean quietDaysOk(days) {
     if(days) {
         def dayFmt = new SimpleDateFormat("EEEE")
-        if(location.timeZone) { dayFmt.setTimeZone(location.timeZone) }
-        return days?.contains(dayFmt.format(new Date())) ? false : true
+        if(location?.timeZone) { dayFmt?.setTimeZone(location?.timeZone) }
+        return days?.contains(dayFmt?.format(new Date())) ? false : true
     }
     return true
 }
@@ -1120,7 +1120,7 @@ def getDtNow() {
 
 def epochToTime(tm) {
 	def tf = new SimpleDateFormat("h:mm a")
-		tf?.setTimeZone(getTimeZone())
+    if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
 	return tf.format(tm)
 }
 
