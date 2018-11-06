@@ -666,7 +666,7 @@ def receiveEventData(Map evtData, String src) {
             }
             
             if (evtData?.echoDevices?.size()) {
-                logger("debug", "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${src ? " [$src]" : ""}")
+                log.debug "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${src ? " [$src]" : ""}"
                 Map echoDeviceMap = [:]
                 List curDevFamily = []
                 Integer cnt = 0
@@ -1122,6 +1122,16 @@ def epochToTime(tm) {
 	def tf = new SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
 	return tf.format(tm)
+}
+
+def time2Str(time) {
+	if(time) {
+		def t = timeToday(time, location?.timeZone)
+		def f = new java.text.SimpleDateFormat("h:mm a")
+		f?.setTimeZone(location?.timeZone ?: timeZone(time))
+        log.debug "time2Str: ${f?.format(t)}"
+		return f?.format(t)
+	}
 }
 
 def GetTimeDiffSeconds(lastDate, sender=null) {
