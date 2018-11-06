@@ -353,7 +353,7 @@ def initialize() {
     def tokenOk = getAccessToken()
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     
-    runEvery1Minute("notificationCheck") // This task checks for missed polls and app updates
+    runEvery5Minutes("notificationCheck") // This task checks for missed polls and app updates
     subscribe(app, onAppTouch)
     if(!settings?.useHeroku && settings?.stHub) { subscribe(location, null, lanEventHandler, [filterEvents:false]) }
     resetQueue()
