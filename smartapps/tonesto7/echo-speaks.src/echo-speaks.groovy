@@ -18,7 +18,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "1.0.6" }
-String appModified() { return "2018-11-05"} 
+String appModified() { return "2018-11-06"} 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -352,7 +352,8 @@ def initialize() {
     // listen to LAN incoming messages
     def tokenOk = getAccessToken()
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
-    runEvery5Minutes("notificationCheck") // This task checks for missed polls and app updates
+    
+    runEvery1Minute("notificationCheck") // This task checks for missed polls and app updates
     subscribe(app, onAppTouch)
     if(!settings?.useHeroku && settings?.stHub) { subscribe(location, null, lanEventHandler, [filterEvents:false]) }
     resetQueue()
@@ -498,6 +499,7 @@ private stateCleanup() {
 
 def onAppTouch(evt) {
     // log.trace "appTouch..."
+    chec()
     app.getChildDevices(true)?.each { cDev->
         cDev?.resetQueue()
     }
@@ -628,7 +630,7 @@ def cloudServiceHeartbeat() {
             if(resp && resp?.data && resp?.data?.result) {
                 log.info "CloudHeartBeat Successful"
             } else {
-                log.warn "Cloud Heartbeat Resp not received... Is app no longer available?"
+                log.warn "CloudHeartbeat Resp not received... Is app no longer available?"
             }
         }
     } catch(ex) {
@@ -875,7 +877,7 @@ private notificationCheck() {
 }
 
 private missPollNotify(Boolean on, Integer wait) {
-    logger("trace", "missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastDevicePollSec()}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastMisPollMsgSec()})")
+    logger("debug", "missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastDevicePollSec()}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastMisPollMsgSec()})")
     if(!on || !wait || !(getLastDevicePollSec() > (state?.misPollNotifyWaitVal ?: 900))) { return }
     if(!(getLastMisPollMsgSec() > wait.toInteger())) {
         return
@@ -894,13 +896,13 @@ private appUpdateNotify() {
     Boolean appUpd = isAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
-    // logger("trace", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
+    logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
         if(appUpd || echoDevUpd || servUpd) {
             def str = ""
-            str += !appUpd ? "" : "${str == "" ? "" : "\n"}Echo Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
-            str += !echoDevUpd ? "" : "${str == "" ? "" : "\n"}Echo Virtual Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
-            str += !servUpd ? "" : "${str == "" ? "" : "\n"}Echo Node Server: v${state?.appData?.versions?.server?.ver?.toString()}"
+            str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
+            str += !echoDevUpd ? "" : "\nEcho Virtual Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
+            str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             state?.lastUpdMsgDt = getDtNow()
         }
@@ -913,12 +915,19 @@ Integer getLastUpdMsgSec() { return !state?.lastUpdMsgDt ? 100000 : GetTimeDiffS
 Integer getLastMisPollMsgSec() { return !state?.lastMisPollMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMisPollMsgDt, "getLastMisPollMsgSec").toInteger() }
 Integer getLastVerUpdSec() { return !state?.lastVerUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastVerUpdDt, "getLastVerUpdSec").toInteger() }
 Integer getLastDevicePollSec() { return !state?.lastDevDataUpd ? 840 : GetTimeDiffSeconds(state?.lastDevDataUpd, "getLastDevicePollSec").toInteger() }
-Boolean getOk2Notify() { return ((settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) && (quietDaysOk(settings?.quietDays) && quietTimeOk() && quietModesOk(settings?.quietModes))) }
-
-Boolean quietModesOk(List modes) {
-    return (modes && location?.mode?.toString() in modes) ? false : true
+Boolean getOk2Notify() { 
+    Boolean smsOk = (settings?.smsNumbers?.toString()?.length()>=10)
+    Boolean pushOk = settings?.usePush
+    Boolean pushOver = (settings?.pushoverEnabled && settings?.pushoverDevices)
+    Boolean daysOk = quietDaysOk(settings?.quietDays)
+    Boolean timeOk = quietTimeOk()
+    Boolean modesOk = quietModesOk(settings?.quietModes)
+    logger("debug", "getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    if(!(smsOk || pushOk || pushOver)) { return false }
+    if(!(daysOk && modesOk && timeOk)) { return false }
+    return true
 }
-
+Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) ? false : true }
 Boolean quietTimeOk() {
     def strtTime = null
     def stopTime = null
@@ -1129,7 +1138,6 @@ def time2Str(time) {
 		def t = timeToday(time, location?.timeZone)
 		def f = new java.text.SimpleDateFormat("h:mm a")
 		f?.setTimeZone(location?.timeZone ?: timeZone(time))
-        log.debug "time2Str: ${f?.format(t)}"
 		return f?.format(t)
 	}
 }
