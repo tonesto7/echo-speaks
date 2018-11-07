@@ -16,8 +16,8 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.0.4"}
-String devModified() { return "2018-11-05"}
+String devVersion() { return "1.1.0"}
+String devModified() { return "2018-11-07"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -39,12 +39,17 @@ metadata {
         attribute "lastSpeakCmd", "string"
         attribute "lastCmdSentDt", "string"
         attribute "trackImage", "string"
+        attribute "alexaWakeWord", "string"
+        attribute "alexaPlaylists", "enum"
+        attribute "alexaNotifications", "enum"
         command "sendTestTts"
         command "replayText"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
-        // command "setVolumeAndSpeak", ["number", "string"]
+        command "setVolumeAndSpeak", ["number", "string"]
         command "resetQueue"
+        command "playWeather"
+        command "singSong"
     }
 
     preferences {
@@ -152,6 +157,12 @@ metadata {
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
         }
+        standardTile("playWeather", "playWeather", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Weather Report', action: 'playWeather')
+        }
+        standardTile("singSong", "singSong", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Sing-A-Song', action: 'singSong')
+        }
         standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Reset Queue', action: 'resetQueue')
         }
@@ -160,7 +171,7 @@ metadata {
             state "false", label: 'DnD: OFF', action: "doNotDisturbOn", nextState: "true"
         }
         main(["deviceStatus"])
-        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "onlineStatus", "deviceStyle", "sendTest", "doNotDisturb", "resetQueue", "lastSpeakCmd", "lastCmdSentDt"])
+        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "onlineStatus", "deviceStyle", "sendTest", "doNotDisturb", "resetQueue", "lastSpeakCmd", "lastCmdSentDt", "playWeather", "singSong"])
     }
 }
 
@@ -283,6 +294,19 @@ void updateDeviceStatus(Map devData) {
                         sendEvent(name: "mute", value: muteState, descriptionText: "Mute State is ${muteState}", display: true, displayed: true)
                     }
                 }
+            }
+            Map playlists = devData?.playlists ?: [:]
+            if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
+                sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
+            }
+            // def alarms = devData?.notifications
+            def alarms = ""
+            if(isStateChange(device, "alexaNotifications", alarms?.toString())) {
+                sendEvent(name: "alexaNotifications", value: alarms, display: false, displayed: false)
+            }
+            String wakeWord = devData?.wakeWord ?: ""
+            if(isStateChange(device, "alexaWakeWord", wakeWord?.toString())) {
+                sendEvent(name: "alexaWakeWord", value: wakeWord, display: false, displayed: false)
             }
         }
         setOnlineStatus((devData?.online != false))
@@ -487,18 +511,44 @@ def deviceNotification(String msg) {
     speak(msg as String)
 }
 
+def setVolumeAndSpeak(Integer volume, String msg) {
+    if(volume) { setLevel(volume) }
+    speak(msg)
+}
+
 def speak(String msg) {
     if(!msg) { log.warn "No Message sent with speak($msg) command" }
     // log.trace "speak(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
     if(msg != null && state?.serialNumber) {
         echoServiceCmd("cmd", [
+            cmdType: "SendTTS",
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            message: msg,
-            cmdType: "SendTTS"
+            message: msg
         ])
     } else { log.warn "speak Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
+}
+
+def playWeather() {
+    doSequenceCmd("Alexa.Weather.Play")
+}
+
+def singSong() {
+    doSequenceCmd("Alexa.SingASong.Play")
+}
+
+private doSequenceCmd(seqCmd) {
+    if(state?.serialNumber) {
+        echoServiceCmd("cmd", [
+            cmdType: "ExecuteSequence",
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+            seqCmdKey: seqCmd,
+            seqCmdVal: ""
+        ])
+    } else { log.warn "doSequenceCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
 def getRandomItem(items) {
