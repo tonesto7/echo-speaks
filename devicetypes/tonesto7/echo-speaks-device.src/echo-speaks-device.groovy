@@ -688,18 +688,15 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 if(isFirstRunCmd) {
                     logItems?.push("│ First Command: (${isFirstRunCmd})")
                     state?.firstCmdFlag = true
-                    // queueEchoCmd(type, headers, body, isFirstRunCmd)
-                    // processCmdQueue()
-                    // return
                 }
+                queueEchoCmd(type, headers, body, isFirstRunCmd)
             }
-            queueEchoCmd(type, headers, body, isFirstRunCmd)
             if(isFirstRunCmd) { processCmdQueue() }
-            // sendTheCmd = false
-            return
+            sendTheCmd = false 
+            // return
         }
     }
-    // if(sendTheCmd != false) {
+    if(sendTheCmd != false) {
         try {
             String path = ""
             Map headerMap = [HOST: host, deviceId: device?.getDeviceNetworkId()]
@@ -757,45 +754,73 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         catch (Exception ex) {
             log.error "echoServiceCmd HubAction Exception:", ex
         }
-    // }
+    }
 }
 
 void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
     def resp = hubResponse?.json
-    if(resp && resp?.deviceId && (resp?.deviceId == device?.getDeviceNetworkId())) {
-        // log.debug "command resp was: ${resp}"
-        if(resp?.statusCode == 200) {
-            if(resp?.queueKey) {
-                log.info "Command Sent Successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay} | (LAN)"
-                String lastMsg = state[resp?.queueKey as String]?.headers?.message as String ?: "Nothing to Show Here..."
-                sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
-                sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
-                state?.remove(resp?.queueKey as String)
-                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "cmdCallBackHandler(adjDelay)")
-            }
-            return
-        } else if(resp?.statusCode == 400 && resp?.message && resp?.message == "Rate exceeded") {
-            log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
-            state?.recheckScheduled = true
-            runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (resp?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
-            return
-        } else {
-            log.error "calledBackHandler Error | status: ${resp?.statusCode} | message: ${resp?.message}"
-            resetQueue()
-            return
-        }
-    }
+    postCmdProcess(resp, resp?.statusCode, false)
+    // if(resp && resp?.deviceId && (resp?.deviceId == device?.getDeviceNetworkId())) {
+    //     // log.debug "command resp was: ${resp}"
+    //     if(resp?.statusCode == 200) {
+    //         if(resp?.queueKey) {
+    //             log.info "Command Sent Successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay} | (LAN)"
+    //             String lastMsg = state[resp?.queueKey as String]?.headers?.message as String ?: "Nothing to Show Here..."
+    //             sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
+    //             sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
+    //             state?.remove(resp?.queueKey as String)
+    //             schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "cmdCallBackHandler(adjDelay)")
+    //         }
+    //         return
+    //     } else if(resp?.statusCode == 400 && resp?.message && resp?.message == "Rate exceeded") {
+    //         log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
+    //         state?.recheckScheduled = true
+    //         runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (resp?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
+    //         return
+    //     } else {
+    //         log.error "calledBackHandler Error | status: ${resp?.statusCode} | message: ${resp?.message}"
+    //         resetQueue()
+    //         return
+    //     }
+    // }
 }
 
 def asyncCommandHandler(response, data) {
     Map resp = response?.json
     Integer statusCode = response?.status
-    // log.debug "resp: $resp"
+    postCmdProcess(resp, statusCode, true)
+    // // log.debug "resp: $resp"
+    // if(resp && resp?.deviceId && (resp?.deviceId == device?.getDeviceNetworkId())) {
+    //     // log.debug "command resp was: ${resp}"
+    //     if(statusCode == 200) {
+    //         if(resp?.queueKey) {
+    //             log.info "Command Sent Successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay} | (Cloud)"
+    //             String lastMsg = state[resp?.queueKey as String]?.headers?.message as String ?: "Nothing to Show Here..."
+    //             sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
+    //             sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
+    //             state?.remove(resp?.queueKey as String)
+    //             schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "cmdCallBackHandler(adjDelay)")
+    //         }
+    //         return
+    //     } else if(statusCode == 400 && resp?.message && resp?.message == "Rate exceeded") {
+    //         log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
+    //         state?.recheckScheduled = true
+    //         runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (resp?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
+    //         return
+    //     } else {
+    //         log.error "asyncCommandHandler Error | status: ${statusCode} | message: ${resp?.message}"
+    //         resetQueue()
+    //         return
+    //     }
+    // }
+}
+
+private postCmdProcess(resp, statusCode, isAsync=false) {
     if(resp && resp?.deviceId && (resp?.deviceId == device?.getDeviceNetworkId())) {
         // log.debug "command resp was: ${resp}"
         if(statusCode == 200) {
             if(resp?.queueKey) {
-                log.info "Command Sent Successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay} | (Cloud)"
+                log.info "Command Sent Successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay} | ${isAsync ? "(Cloud)" : "(LAN)"}"
                 String lastMsg = state[resp?.queueKey as String]?.headers?.message as String ?: "Nothing to Show Here..."
                 sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
                 sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
@@ -809,7 +834,7 @@ def asyncCommandHandler(response, data) {
             runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (resp?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
             return
         } else {
-            log.error "asyncCommandHandler Error | status: ${statusCode} | message: ${resp?.message}"
+            log.error "postCmdProcess Error | status: ${statusCode} | message: ${resp?.message}"
             resetQueue()
             return
         }
