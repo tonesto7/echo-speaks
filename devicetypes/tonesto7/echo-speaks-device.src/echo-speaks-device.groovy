@@ -16,7 +16,7 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.1.0"}
+String devVersion() { return "1.1.1"}
 String devModified() { return "2018-11-08"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
@@ -42,6 +42,7 @@ metadata {
         attribute "alexaWakeWord", "string"
         attribute "alexaPlaylists", "enum"
         attribute "alexaNotifications", "enum"
+        attribute "alexaMusicProviders", "JSON_OBJECT"
         command "sendTestTts"
         command "replayText"
         command "doNotDisturbOn"
@@ -54,6 +55,7 @@ metadata {
         command "playGoodMorning"
         command "playTraffic"
         command "playTellStory"
+        command "searchMusic", ["string", "string"]
     }
 
     preferences {
@@ -179,6 +181,9 @@ metadata {
         standardTile("playTellStory", "playTellStory", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Tell-a-Story', action: 'playTellStory')
         }
+        standardTile("searchMusic", "searchMusic", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Search Test', action: 'searchMusic')
+        }
         standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Reset Queue', action: 'resetQueue')
         }
@@ -189,7 +194,7 @@ metadata {
         main(["deviceStatus"])
         details([
             "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "onlineStatus", "deviceStyle", 
-            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue", 
+            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "searchMusic", "sendTest", "doNotDisturb", "resetQueue", 
             "lastSpeakCmd", "lastCmdSentDt"])
     }
 }
@@ -326,6 +331,10 @@ void updateDeviceStatus(Map devData) {
             String wakeWord = devData?.wakeWord ?: ""
             if(isStateChange(device, "alexaWakeWord", wakeWord?.toString())) {
                 sendEvent(name: "alexaWakeWord", value: wakeWord, display: false, displayed: false)
+            }
+            Map musicProviders = devData?.musicProviders ? (devData?.musicProviders instanceof List ? devData?.musicProviders[0] : devData?.musicProviders) : [:]
+            if(isStateChange(device, "alexaMusicProviders", musicProviders?.toString())) {
+                sendEvent(name: "alexaMusicProviders", value: musicProviders, display: false, displayed: false)
             }
         }
         setOnlineStatus((devData?.online != false))
@@ -533,13 +542,7 @@ def speak(String msg) {
     if(!msg) { log.warn "No Message sent with speak($msg) command" }
     // log.trace "speak(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
     if(msg != null && state?.serialNumber) {
-        echoServiceCmd("cmd", [
-            cmdType: "SendTTS",
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            message: msg
-        ])
+        doSequenceCmd("speak", msg as String)
     } else { log.warn "speak Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
 }
 
@@ -567,6 +570,10 @@ def playTellStory() {
     doSequenceCmd("tellstory")
 }
 
+def searchMusic() {
+    doSearchMusicCmd("Thriller", "AMAZON_MUSIC")
+}
+
 private doSequenceCmd(seqCmd, seqVal="") {
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
@@ -578,6 +585,19 @@ private doSequenceCmd(seqCmd, seqVal="") {
             seqCmdVal: seqVal
         ])
     } else { log.warn "doSequenceCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
+}
+
+private doSearchMusicCmd(searchPhrase, musicProvId) {
+    if(state?.serialNumber) {
+        echoServiceCmd("musicSearch", [
+            cmdType: "MusicSearch",
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+            searchPhrase: searchPhrase,
+            providerId: musicProvId
+        ])
+    } else { log.warn "doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
 def getRandomItem(items) {
@@ -769,7 +789,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         if(!(healthStatus in ["ACTIVE", "ONLINE"])) { log.warn "Command Ignored... Device is current in OFFLINE State" }
         return
     }
-    Boolean isTTS = (type == "cmd" && headers?.cmdType == "SendTTS")
+    Boolean isTTS = (type == "cmd" && headers?.seqCmdKey == "speak")
     Integer lastTtsCmdSec = getLastTtsCmdSec()
     if(!settings?.disableQueue && isTTS) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
@@ -798,6 +818,11 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
             case "cmd":
                 path = "/alexa-command"
                 break
+            case "musicSearch":
+                if(headers?.searchPhrase) { logItems?.push("│ Search Phrase: (${headers?.searchPhrase})") }
+                if(headers?.providerId) { logItems?.push("│ Music Provider: (${headers?.providerId})") }
+                path = "/musicSearch"
+                break
         }
         headers?.each { k,v-> headerMap[k] = v }
         def result = new physicalgraph.device.HubAction([
@@ -824,6 +849,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
             state?.lastTtsMsg = headers.message
             state?.lastTtsCmdDt = getDtNow()
         }
+        if(headers?.seqCmdKey) { logItems?.push("│ Action: (${headers?.seqCmdKey})") }
         if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
         if(state?.useHeroku == true) {
             try {
@@ -863,7 +889,7 @@ def asyncCommandHandler(response, data) {
 
 private postCmdProcess(resp, statusCode, isAsync=false) {
     if(resp && resp?.deviceId && (resp?.deviceId == device?.getDeviceNetworkId())) {
-        log.debug "command resp was: ${resp}"
+        // log.debug "command resp was: ${resp}"
         if(statusCode == 200) {
             log.info "Command Sent Successfully${resp?.queueKey ? " | queueKey: ${resp?.queueKey}" : ""}${resp?.msgDelay ? " | msgDelay: ${resp?.msgDelay}" : ""} | ${isAsync ? "(Cloud)" : "(LAN)"}"
             String lastMsg = state?.lastTtsMsg as String ?: "Nothing to Show Here..."
