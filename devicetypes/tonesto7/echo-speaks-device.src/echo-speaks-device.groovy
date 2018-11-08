@@ -55,6 +55,7 @@ metadata {
         command "playGoodMorning"
         command "playTraffic"
         command "playTellStory"
+        command "searchTest"
         command "searchMusic", ["string", "string"]
     }
 
@@ -181,8 +182,8 @@ metadata {
         standardTile("playTellStory", "playTellStory", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Tell-a-Story', action: 'playTellStory')
         }
-        standardTile("searchMusic", "searchMusic", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Search Test', action: 'searchMusic')
+        standardTile("searchTest", "searchTest", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Search Test', action: 'searchTest')
         }
         standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Reset Queue', action: 'resetQueue')
@@ -194,7 +195,7 @@ metadata {
         main(["deviceStatus"])
         details([
             "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "onlineStatus", "deviceStyle", 
-            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "searchMusic", "sendTest", "doNotDisturb", "resetQueue", 
+            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "searchTest", "sendTest", "doNotDisturb", "resetQueue", 
             "lastSpeakCmd", "lastCmdSentDt"])
     }
 }
@@ -570,7 +571,11 @@ def playTellStory() {
     doSequenceCmd("tellstory")
 }
 
-def searchMusic() {
+def searchMusic(String searchPhrase, String providerId) {
+    doSearchMusicCmd(searchPhrase, providerId)
+}
+
+def searchTest() {
     doSearchMusicCmd("Thriller", "AMAZON_MUSIC")
 }
 
