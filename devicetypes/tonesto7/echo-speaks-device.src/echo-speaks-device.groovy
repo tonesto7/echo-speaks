@@ -17,7 +17,7 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 String devVersion() { return "1.1.0"}
-String devModified() { return "2018-11-07"}
+String devModified() { return "2018-11-08"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -49,7 +49,11 @@ metadata {
         command "setVolumeAndSpeak", ["number", "string"]
         command "resetQueue"
         command "playWeather"
-        command "singSong"
+        command "playSingASong"
+        command "playFlashBrief"
+        command "playGoodMorning"
+        command "playTraffic"
+        command "playTellStory"
     }
 
     preferences {
@@ -152,7 +156,7 @@ metadata {
             state("lastSpeakCmd", label:'Last Text Sent:\n${currentValue}')
         }
         valueTile("lastCmdSentDt", "device.lastCmdSentDt", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
-            state("lastCmdSentDt", label:'Last Action Sent:\n${currentValue}')
+            state("lastCmdSentDt", label:'Last Text Date:\n${currentValue}')
         }
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
@@ -160,8 +164,20 @@ metadata {
         standardTile("playWeather", "playWeather", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Weather Report', action: 'playWeather')
         }
-        standardTile("singSong", "singSong", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Sing-A-Song', action: 'singSong')
+        standardTile("playSingASong", "playSingASong", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Sing-A-Song', action: 'playSingASong')
+        }
+        standardTile("playFlashBrief", "playFlashBrief", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Flash Briefing', action: 'playFlashBrief')
+        }
+        standardTile("playGoodMorning", "playGoodMorning", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Good Morning', action: 'playGoodMorning')
+        }
+        standardTile("playTraffic", "playTraffic", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Traffic', action: 'playTraffic')
+        }
+        standardTile("playTellStory", "playTellStory", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Tell-a-Story', action: 'playTellStory')
         }
         standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Reset Queue', action: 'resetQueue')
@@ -171,7 +187,10 @@ metadata {
             state "false", label: 'DnD: OFF', action: "doNotDisturbOn", nextState: "true"
         }
         main(["deviceStatus"])
-        details(["mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "onlineStatus", "deviceStyle", "sendTest", "doNotDisturb", "resetQueue", "lastSpeakCmd", "lastCmdSentDt", "playWeather", "singSong"])
+        details([
+            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "onlineStatus", "deviceStyle", 
+            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue", 
+            "lastSpeakCmd", "lastCmdSentDt"])
     }
 }
 
@@ -449,13 +468,7 @@ def unmute() {
 def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
     if(state?.serialNumber && level>=0 && level<=100) {
-        echoServiceCmd("cmd", [
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            cmdType: "VolumeLevelCommand",
-            cmdValObj: [volumeLevel: level?.toInteger()].encodeAsJson()
-        ])
+        doSequenceCmd("volume", level)
         if(isStateChange(device, "level", level?.toString())) {
             sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
         }
@@ -497,10 +510,10 @@ def doNotDisturbOn() {
 def setDoNotDisturb(Boolean val) {
     logger("trace", "setDoNotDisturb() command received...")
     echoServiceCmd("cmd", [
+        cmdType: "SetDnd",
         deviceSerialNumber: state?.serialNumber,
         deviceType: state?.deviceType,
         deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-        cmdType: "SetDnd",
         cmdValObj: [enabled: (val==true)].encodeAsJson()
     ])
 }
@@ -531,14 +544,30 @@ def speak(String msg) {
 }
 
 def playWeather() {
-    doSequenceCmd("Alexa.Weather.Play")
+    doSequenceCmd("weather")
 }
 
-def singSong() {
-    doSequenceCmd("Alexa.SingASong.Play")
+def playTraffic() {
+    doSequenceCmd("traffic")
 }
 
-private doSequenceCmd(seqCmd) {
+def playSingASong() {
+    doSequenceCmd("singasong")
+}
+
+def playFlashBrief() {
+    doSequenceCmd("flashbriefing")
+}
+
+def playGoodMorning() {
+    doSequenceCmd("goodmorning")
+}
+
+def playTellStory() {
+    doSequenceCmd("tellstory")
+}
+
+private doSequenceCmd(seqCmd, seqVal="") {
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
             cmdType: "ExecuteSequence",
@@ -546,7 +575,7 @@ private doSequenceCmd(seqCmd) {
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
             seqCmdKey: seqCmd,
-            seqCmdVal: ""
+            seqCmdVal: seqVal
         ])
     } else { log.warn "doSequenceCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
@@ -834,16 +863,16 @@ def asyncCommandHandler(response, data) {
 
 private postCmdProcess(resp, statusCode, isAsync=false) {
     if(resp && resp?.deviceId && (resp?.deviceId == device?.getDeviceNetworkId())) {
-        // log.debug "command resp was: ${resp}"
+        log.debug "command resp was: ${resp}"
         if(statusCode == 200) {
+            log.info "Command Sent Successfully${resp?.queueKey ? " | queueKey: ${resp?.queueKey}" : ""}${resp?.msgDelay ? " | msgDelay: ${resp?.msgDelay}" : ""} | ${isAsync ? "(Cloud)" : "(LAN)"}"
+            String lastMsg = state?.lastTtsMsg as String ?: "Nothing to Show Here..."
+            sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
+            sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
             if(resp?.queueKey) {
-                log.info "Command Sent Successfully | queueKey: ${resp?.queueKey} | msgDelay: ${resp?.msgDelay} | ${isAsync ? "(Cloud)" : "(LAN)"}"
-                String lastMsg = state[resp?.queueKey as String]?.headers?.message as String ?: "Nothing to Show Here..."
-                sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
-                sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
                 state?.remove(resp?.queueKey as String)
-                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "postCmdProcess(adjDelay) | ${isAsync ? "(Cloud)" : "(LAN)"}")
             }
+            schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "postCmdProcess(adjDelay) | ${isAsync ? "(Cloud)" : "(LAN)"}")
             return
         } else if(statusCode == 400 && resp?.message && resp?.message == "Rate exceeded") {
             log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"

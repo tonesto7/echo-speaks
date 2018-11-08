@@ -18,7 +18,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "1.1.0" }
-String appModified() { return "2018-11-07"} 
+String appModified() { return "2018-11-08"} 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
