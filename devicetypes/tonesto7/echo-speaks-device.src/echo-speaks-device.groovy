@@ -16,8 +16,8 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.1.1"}
-String devModified() { return "2018-11-08"}
+String devVersion() { return "1.1.2"}
+String devModified() { return "2018-11-09"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -375,6 +375,7 @@ def play() {
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
             cmdType: "PlayCommand"
         ])
+        incrementCntByKey("use_cnt_playCmd")
         if(isStateChange(device, "status", "playing")) {
             sendEvent(name: "status", value: "playing", descriptionText: "Player Status is playing", display: true, displayed: true)
         }
@@ -382,18 +383,18 @@ def play() {
 }
 
 def playTrack(track) {
-    logger("trace", "playTrack($track) command received...")
-    if(state?.serialNumber) {
-        echoServiceCmd("cmd", [
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            cmdType: "PlayCommand"
-        ])
-        if(isStateChange(device, "status", "playing")) {
-            sendEvent(name: "status", value: "playing", descriptionText: "Player Status is playing", display: true, displayed: true)
-        }
-    } else { log.warn "play() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
+    logger("warn", "playTrack() | Not Supported Yet!!!")
+    // if(state?.serialNumber && track) {
+    //     echoServiceCmd("cmd", [
+    //         deviceSerialNumber: state?.serialNumber,
+    //         deviceType: state?.deviceType,
+    //         deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
+    //         cmdType: "PlayCommand"
+    //     ])
+    //     if(isStateChange(device, "status", "playing")) {
+    //         sendEvent(name: "status", value: "playing", descriptionText: "Playing track: ${track}", display: true, displayed: true)
+    //     }
+    // } else { log.warn "play() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} | track: ${track}" }
 }
 
 def pause() {
@@ -436,6 +437,7 @@ def previousTrack() {
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
             cmdType: "PreviousCommand"
         ])
+        incrementCntByKey("use_cnt_prevTrackCmd")
     } else { log.warn "previousTrack() Command Error | You are missing a SerialNumber: ${state?.serialNumber}" }
 }
 
@@ -448,6 +450,7 @@ def nextTrack() {
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
             cmdType: "NextCommand"
         ])
+        incrementCntByKey("use_cnt_nextTrackCmd")
     } else { log.warn "nextTrack() Command Error | You are missing a SerialNumber: ${state?.serialNumber}" }
 }
 
@@ -455,6 +458,7 @@ def mute() {
     logger("trace", "mute() command received...")
     if(state?.serialNumber) {
         state.muteLevel = device?.currentState("level")?.integerValue
+        incrementCntByKey("use_cnt_muteCmd")
         if(isStateChange(device, "mute", "muted")) {
             sendEvent(name: "mute", value: "muted", descriptionText: "Mute is set to muted", display: true, displayed: true)
         }
@@ -468,6 +472,7 @@ def unmute() {
         if(state?.muteLevel) {
             setLevel(state?.muteLevel)
             state?.muteLevel = null
+            incrementCntByKey("use_cnt_unmuteCmd")
             if(isStateChange(device, "mute", "unmuted")) {
                 sendEvent(name: "mute", value: "unmuted", descriptionText: "Mute is set to unmuted", display: true, displayed: true)
             }
@@ -479,14 +484,11 @@ def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
     if(state?.serialNumber && level>=0 && level<=100) {
         doSequenceCmd("volume", level)
+        incrementCntByKey("use_cnt_volumeCmd")
         if(isStateChange(device, "level", level?.toString())) {
             sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
         }
     } else { log.warn "setLevel() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Level: ${level}" }
-}
-
-def runDummyPlaylist() {
-    def url = "https://music.amazon.com/artists/B000QJY4YI/LIBRARY?ref=dm_wcp_artist_link_up"
 }
 
 def setTrack(String uri, metaData="") {
@@ -503,22 +505,18 @@ def restoreTrack() {
 
 def playURL(theURL) {
     logger("warn", "playURL() | Not Supported Yet!!!")
-    // log.debug "Executing 'playURL'"
-    // sendCommand("url=$theURL")
 }
 
 def doNotDisturbOff() {
-    logger("trace", "doNotDisturbOff() command received...")
     setDoNotDisturb(false)
 }
 
 def doNotDisturbOn() {
-    logger("trace", "doNotDisturbOn() command received...")
     setDoNotDisturb(true)
 }
 
 def setDoNotDisturb(Boolean val) {
-    logger("trace", "setDoNotDisturb() command received...")
+    logger("trace", "setDoNotDisturb($val) command received...")
     echoServiceCmd("cmd", [
         cmdType: "SetDnd",
         deviceSerialNumber: state?.serialNumber,
@@ -526,16 +524,21 @@ def setDoNotDisturb(Boolean val) {
         deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
         cmdValObj: [enabled: (val==true)].encodeAsJson()
     ])
+    if(val) {
+        incrementCntByKey("use_cnt_dndCmdOn")
+    } else { incrementCntByKey("use_cnt_dndCmdOff") }
 }
 
 def deviceNotification(String msg) {
     if(!msg) { log.warn "No Message sent with deviceNotification($msg) command" }
     log.trace "deviceNotification(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
+    incrementCntByKey("use_cnt_devNotif")
     speak(msg as String)
 }
 
 def setVolumeAndSpeak(Integer volume, String msg) {
     if(volume) { setLevel(volume) }
+    incrementCntByKey("use_cnt_setVolSpeak")
     speak(msg)
 }
 
@@ -544,31 +547,38 @@ def speak(String msg) {
     // log.trace "speak(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
     if(msg != null && state?.serialNumber) {
         doSequenceCmd("speak", msg as String)
+        incrementCntByKey("use_cnt_speak")
     } else { log.warn "speak Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
 }
 
 def playWeather() {
     doSequenceCmd("weather")
+    incrementCntByKey("use_cnt_playWeather")
 }
 
 def playTraffic() {
     doSequenceCmd("traffic")
+    incrementCntByKey("use_cnt_playTraffic")
 }
 
 def playSingASong() {
     doSequenceCmd("singasong")
+    incrementCntByKey("use_cnt_playSong")
 }
 
 def playFlashBrief() {
     doSequenceCmd("flashbriefing")
+    incrementCntByKey("use_cnt_playBrief")
 }
 
 def playGoodMorning() {
     doSequenceCmd("goodmorning")
+    incrementCntByKey("use_cnt_playGoodMorning")
 }
 
 def playTellStory() {
     doSequenceCmd("tellstory")
+    incrementCntByKey("use_cnt_playStory")
 }
 
 def searchMusic(String searchPhrase, String providerId) {
@@ -593,7 +603,7 @@ private doSequenceCmd(seqCmd, seqVal="") {
 }
 
 private doSearchMusicCmd(searchPhrase, musicProvId) {
-    if(state?.serialNumber) {
+    if(state?.serialNumber && searchPhrase && musicProvId) {
         echoServiceCmd("musicSearch", [
             cmdType: "MusicSearch",
             deviceSerialNumber: state?.serialNumber,
@@ -602,7 +612,8 @@ private doSearchMusicCmd(searchPhrase, musicProvId) {
             searchPhrase: searchPhrase,
             providerId: musicProvId
         ])
-    } else { log.warn "doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
+        incrementCntByKey("use_cnt_searchMusic")
+    } else { log.warn "doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} | searchPhrase: ${searchPhrase} | musicProvider: ${musicProvId}" }
 }
 
 def getRandomItem(items) {
@@ -878,6 +889,9 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
     }
     catch (Exception ex) {
         log.error "echoServiceCmd HubAction Exception:", ex
+        if(state?.useHeroku) {
+            incrementCntByKey("err_cloud_command")
+        } else { incrementCntByKey("err_hub_command") }
     }
 }
 
@@ -912,11 +926,38 @@ private postCmdProcess(resp, statusCode, isAsync=false) {
             return
         } else {
             log.error "postCmdProcess Error | status: ${statusCode} | message: ${resp?.message} | ${isAsync ? "(Cloud)" : "(LAN)"}"
+            if(state?.useHeroku) {
+                incrementCntByKey("err_cloud_commandPost")
+            } else { incrementCntByKey("err_hub_commandPost") }
             resetQueue()
             return
         }
     }
 }
+
+private incrementCntByKey(String key) {
+	long evtCnt = state?."${key}" ?: 0
+	// evtCnt = evtCnt?.toLong()+1
+	evtCnt++
+	logger("trace", "${key?.toString()?.capitalize()}: $evtCnt", true)
+	state?."${key}" = evtCnt?.toLong()
+}
+
+public Map getDeviceMetrics() {
+    Map out = [:]
+    def cntItems = state?.findAll { it?.key?.startsWith("use_") }
+    def errItems = state?.findAll { it?.key?.startsWith("err_") }
+    if(cntItems?.size()) {
+        out['usage'] = [:]
+        cntItems?.each { k,v -> out?.usage[k?.toString()?.replace("use_", "") as String] = v as Integer ?: 0 }
+    }
+    if(errItems?.size()) {
+        out['errors'] = [:]
+        errItems?.each { k,v -> out?.errors[k?.toString()?.replace("err_", "") as String] = v as Integer ?: 0 }
+    }
+    return out
+}
+
 
 /*****************************************************
                 HELPER FUNCTIONS

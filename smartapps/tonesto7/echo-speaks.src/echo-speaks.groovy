@@ -8,23 +8,23 @@
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.1.1" }
-String appModified() { return "2018-11-08"} 
+String appVersion()	 { return "1.1.2" }
+String appModified() { return "2018-11-09"} 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 111, server: 111]
+    return [echoDevice: 112, server: 111]
 }
 
 definition(
@@ -41,6 +41,7 @@ definition(
 
 preferences {
     page(name: "mainPage")
+    page(name: "settingsPage")
     page(name: "newSetupPage")
     page(name: "devicePage")
     page(name: "notifPrefPage")
@@ -77,6 +78,7 @@ def mainPage() {
                     href "servPrefPage", title: "Echo Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
                 }
             }
+            
             section("Device Preferences:") {
                 if(!newInstall) {
                     List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}" }?.sort()
@@ -99,13 +101,15 @@ def mainPage() {
                 def t0 = getAppNotifConfDesc()
                 href "notifPrefPage", title: "App and Device\nNotifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2.png")
             }
-            section ("Application Logs") {
-                input (name: "appDebug", type: "bool", title: "Show Debug Logs in the IDE?", description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
-                if(appDebug) {
-                    input (name: "appTrace", type: "bool", title: "Show Detailed Trace Logs in the IDE?", description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
-                }
+            
+            section ("Application Preferences") {
+                href "settingsPage", title: "Manage Logging, and Metrics", description: "Tap to modify...", image: getAppImg("settings.png")
             }
+            
             if(!newInstall) {
+                if(!state?.shownDevSharePage) {
+                    showDevSharePrefs()
+                }
                 section("Donations:") {
                     href url: textDonateLink(), style:"external", required: false, title:"Donations", description:"Tap to open browser", image: getAppImg("donate.png")
                 }
@@ -115,6 +119,29 @@ def mainPage() {
             }
         }
     }
+}
+
+def settingsPage() {
+    return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
+        section("Logging:") {
+            input (name: "appDebug", type: "bool", title: "Show Debug Logs in the IDE?", description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
+            if(settings?.appDebug) {
+                input (name: "appTrace", type: "bool", title: "Show Detailed Trace Logs in the IDE?", description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
+            }
+        }
+        showDevSharePrefs()
+    }
+}
+
+def showDevSharePrefs() {
+    section("Share Data with Developer:") {
+        paragraph title: "What is this used for?", "These options send non-user identifiable information and error data to diagnose catch trending issues."
+        input ("optOutMetrics", "bool", title: "Do Not Share Data?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics.png"))
+        if(settings?.optOutMetrics != true) {
+            href url: getAppEndpointUrl("renderMetricData"), style:"embedded", title:"View the Data shared with Developer", description: "Tap to view Data", required:false, image: getAppImg("view.png")
+        }
+    }
+    state?.shownDevSharePage = true
 }
 
 Map getDeviceList(isInputEnum=false, hideDefaults=true) {
@@ -154,6 +181,7 @@ def servPrefPage() {
                     state?.resumeConfig = false
                 }
             }
+            showDevSharePrefs()
         }
         if(!newInstall) {
             state?.resumeConfig = false
@@ -318,21 +346,25 @@ def uninstallPage() {
 
 def installed() {
     log.debug "Installed with settings: ${settings}"
+    state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: "Not Set", sentMetrics: false]
     state?.isInstalled = true
-    sendInstallNotif(true)
+    sendInstallData()
     initialize()
 }
 
 def updated() {
     log.debug "Updated with settings: ${settings}"
     if(!state?.isInstalled) { state?.isInstalled = true }
-    sendInstallNotif()
+    if(!state?.installData) { state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: getDtNow().toString(), sentMetrics: false] }
     unsubscribe()
     initialize()
 }
 
 def uninstalled() {
     log.warn "uninstalling app and devices"
+    if(settings?.optOutMetrics != true) {
+        if(removeInstallData()) { state?.appGuid = null }
+    }
 }
 
 void settingUpdate(name, value, type=null) {
@@ -343,6 +375,7 @@ void settingUpdate(name, value, type=null) {
 }
 
 mappings {
+    path("/renderMetricData") { action: [GET: "renderMetricData"] }
     path("/receiveData") { action: [POST: "processData"] }
     path("/config") { action: [GET: "renderConfig"]  }
     path("/cookie") { action: [GET: "getCookie", POST: "storeCookie", DELETE: "clearCookie"] }
@@ -482,6 +515,9 @@ private checkIfCodeUpdated() {
     if(state?.codeVersions && state?.codeVersions?.mainApp != appVersion()) {
         log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
         state?.pollBlocked = true
+        Map iData = atomicState?.installData
+        iData["updatedDt"] = getDtNow().toString()
+        atomicState?.installData = iData
         runIn(5, "updated", [overwrite: false])
         return true
     }
@@ -490,9 +526,8 @@ private checkIfCodeUpdated() {
 }
 
 private stateCleanup() {
-    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt"]
+    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
-    state?.isRateLimiting = false 
     state?.pollBlocked = false
     state?.resumeConfig = false
     state?.heartbeatScheduled = false
@@ -554,6 +589,7 @@ def lanEventHandler(evt) {
         }
     } catch (ex) {
         log.error "lanEventHandler Exception:", ex
+        incrementCntByKey("appErrorCnt")
     }
 }
 
@@ -588,6 +624,7 @@ def getCookie() {
     log.trace "getCookie() Request Received..."
     Map resp = state?.cookie ?: [:]
     def json = new groovy.json.JsonOutput().toJson(resp)
+    incrementCntByKey("getCookieCnt")
     render contentType: "application/json", data: json
 }
 
@@ -610,7 +647,7 @@ def clearCookie() {
 
 def scheduleHeartbeat() {
     log.info "Scheduling CloudHeartbeat Check for Every 5 minutes..."
-    unschedule("cloudServiceHeartbeat")
+    // unschedule("cloudServiceHeartbeat")
     state?.heartbeatScheduled = true
     runEvery5Minutes('cloudServiceHeartbeat')
 }
@@ -618,14 +655,16 @@ def scheduleHeartbeat() {
 def sendOneHeartbeat() { cloudServiceHeartbeat() }
 
 def cloudServiceHeartbeat() {
-    // log.trace "cloud keep alive heartbeat"
     try {
-        httpGet([uri: "https://${getRandAppName()}.herokuapp.com/heartbeat", contentType: 'application/json']) { resp->
+        httpGet([uri: "https://${getRandAppName()}.herokuapp.com/heartbeat", contentType: 'application/json', headers: [appVersion: appVersion()]]) { resp->
             if(resp && resp?.data && resp?.data?.result) {
                 log.info "CloudHeartBeat Successful"
+                incrementCntByKey("appHeartbeatCnt")
             } else { log.warn "No CloudHeartbeat Response Received... Is the App still available?" }
         }
+        if(state?.installData?.sentMetrics != true) { sendInstallData() }
     } catch(ex) {
+        incrementCntByKey("appErrorCnt")
         log.error "cloudServiceHeartbeat Exception: ", ex
     }
 }
@@ -735,6 +774,7 @@ def receiveEventData(Map evtData, String src) {
         }
     } catch(ex) {
         log.error "receiveEventData Error:", ex
+        incrementCntByKey("appErrorCnt")
     }
 }
 
@@ -769,43 +809,9 @@ private echoServiceUpdate() {
         sendHubCommand(hubAction)
     }
     catch (Exception e) {
+        incrementCntByKey("appErrorCnt")
         log.error "echoServiceUpdate HubAction Exception, $hubAction", ex
     }
-}
-
-public checkIsRateLimiting() {
-    return (state?.isRateLimiting == true)
-}
-
-private incCmdCnt() {
-    state?.consecutiveCmdCnt = state?.consecutiveCmdCnt ? (state?.consecutiveCmdCnt?.toInteger() + 1) : 1
-}
-
-public rateLimitTracking(device) {
-    // log.trace "rateLimitTracking(${device?.getDisplayName()})"
-    Integer conCmdCnt = state?.consecutiveCmdCnt ? state?.consecutiveCmdCnt+1 : 1
-    state?.consecutiveCmdCnt = conCmdCnt
-    log.debug "consecutiveCmdCnt: ${conCmdCnt}"
-    if(conCmdCnt > 5) {
-        log.warn "Rate Limiting Active! Clearing Limit in 4 seconds..."
-        state?.isRateLimiting = true
-        runIn(4, "clearRateLimit", [overwrite: true])
-        return true
-    } else {
-        runIn(4, "clearRateLimit", [overwrite: true])
-        return false
-    }
-}
-
-private clearRateLimit(devUpd = true) {
-    log.trace "clearRateLimit(devUpd: $devUpd)"
-    if(devUpd && state?.isRateLimiting) {
-        state?.isRateLimiting = false
-        app?.getChildDevices(true)?.each { cDev->
-            cDev?.checkQueue()
-        }
-    }
-    state?.isRateLimiting = false
 }
 
 public getDeviceStyle(String family, String type) {
@@ -999,6 +1005,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
             }
         }
     } catch (ex) {
+        incrementCntByKey("appErrorCnt")
         log.error "sendMsg $sentstr Exception:", ex
     }
     return sent
@@ -1023,6 +1030,136 @@ public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.val
 //Builds Map Message object to send to Pushover Manager
 private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
 
+/******************************************
+|    METRIC Logic
+******************************************/
+String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com/" }
+Integer getLastMetricUpdSec() { return !state?.lastMetricUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastMetricUpdDt, "getLastMetricUpdSec").toInteger() }
+Boolean metricsOk() { return (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
+private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID().toString() } }
+private sendInstallData() { if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), createMetricsDataJson(), "clients/${state?.appGuid}.json", null, "heartbeat") } }
+private removeInstallData() { return removeFirebaseData("clients/${state?.appGuid}.json") }
+private sendFirebaseData(url, data, pathVal, cmdType=null, type=null) {
+    logger("trace", "sendFirebaseData(${data}, ${pathVal}, $cmdType, $type", true)
+    return queueFirebaseData(url, data, pathVal, cmdType, type)
+}
+def queueFirebaseData(url, data, pathVal, cmdType=null, type=null) {
+    logger("trace", "queueFirebaseData(${data}, ${pathVal}, $cmdType, $type", true)
+    Boolean result = false
+    def json = new groovy.json.JsonOutput().prettyPrint(data)
+    Map params = [uri: "${url}/${pathVal}", body: json.toString()]
+    String typeDesc = type ? type as String : "Data"
+    try {
+        if(!cmdType || cmdType == "put") {
+            asynchttp_v1.put(processFirebaseResponse, params, [type: typeDesc])
+            result = true
+        } else if (cmdType == "post") {
+            asynchttp_v1.post(processFirebaseResponse, params, [type: typeDesc])
+            result = true
+        } else { log.debug "queueFirebaseData UNKNOWN cmdType: ${cmdType}" }
+
+    } catch(ex) { log.error "queueFirebaseData (type: $typeDesc) Exception:", ex }
+    return result
+}
+
+def removeFirebaseData(pathVal) {
+    logger("trace", "removeFirebaseData(${pathVal})", true)
+    Boolean result = true
+    try {
+        httpDelete(uri: "${getFbMetricsUrl()}/${pathVal}") { resp ->
+            logger("debug", "Remove Firebase | resp: ${resp?.status}")
+        }
+    }
+    catch (ex) {
+        if(ex instanceof groovyx.net.http.ResponseParseException) {
+            logger("error", "removeFirebaseData: Response: ${ex?.message}")
+        } else {
+            logger("error", "removeFirebaseData: Response: ${ex?.message}")
+            result = false
+        }
+    }
+    return result
+}
+
+def processFirebaseResponse(resp, data) {
+    logger("trace", "processFirebaseResponse(${data?.type})", true)
+    Boolean result = false
+    String typeDesc = data?.type as String
+    try {
+        if(resp?.status == 200) {
+            logger("info", "processFirebaseResponse: ${typeDesc} Data Sent SUCCESSFULLY")
+            if(typeDesc?.toString() == "heartbeat") { state?.lastMetricUpdDt = getDtNow() }
+            def iData = atomicState?.installData ?: [:]
+            iData["sentMetrics"] = true
+            atomicState?.installData = iData
+            result = true
+        }
+        else if(resp?.status == 400) { log.error "processFirebaseResponse: 'Bad Request': ${resp?.status}" }
+        else { log.warn "processFirebaseResponse: 'Unexpected' Response: ${resp?.status}" }
+        if(resp?.hasError()) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
+    } catch(ex) {
+        log.error "processFirebaseResponse (type: $typeDesc) Exception:", ex
+    }
+}
+
+def renderMetricData() {
+    try {
+        def json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
+        render contentType: "application/json", data: json
+    } catch (ex) { log.error "renderMetricData Exception:", ex }
+}
+
+private createMetricsDataJson(rendAsMap=false) {
+    try {
+        generateGuid()
+        Map swVer = state?.codeVersions
+        Map deviceUsageMap = [:]
+        Map deviceErrorMap = [:]
+        app?.getChildDevices(true)?.each { d-> 
+            Map obj = d?.getDeviceMetrics()
+            if(obj?.usage?.size()) {
+                obj?.usage?.each { k,v->
+                    deviceUsageMap[k as String] = (deviceUsageMap[k as String] ? deviceUsageMap[k as String] + v : v)
+                }
+            }
+            if(obj?.errors?.size()) {
+                obj?.errors?.each { k,v->
+                    deviceErrorMap[k as String] = (deviceErrorMap[k as String] ? deviceErrorMap[k as String] + v : v)
+                }
+            }
+        }
+        def dataObj = [
+            guid: state?.appGuid,
+            datetime: getDtNow()?.toString(),
+            installDt: state?.installData?.dt, 
+            updatedDt: state?.installData?.updatedDt,
+            timeZone: location?.timeZone?.ID?.toString(),
+            amazonDomain: settings?.amazonDomain,
+            serverPlatform: state?.onHeroku ? "Cloud" : "Local",
+            versions: [app: appVersion(), server: swVer?.server ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
+            counts: [
+                deviceStyleCnts: state?.deviceStyleCnts ?: [:],
+                appHeartbeatCnt: state?.appHeartbeatCnt ?: 0,
+                getCookieCnt: state?.getCookieCnt ?: 0,
+                appErrorCnt: state?.appErrorCnt ?: 0,
+                deviceErrors: deviceErrorMap ?: [:],
+                deviceUsage: deviceUsageMap ?: [:]
+            ]
+        ]
+        def json = new groovy.json.JsonOutput().toJson(dataObj)
+        return json
+    } catch (ex) {
+        log.error "createMetricsDataJson: Exception:", ex
+    }
+}
+
+private incrementCntByKey(String key) {
+    long evtCnt = state?."${key}" ?: 0
+    // evtCnt = evtCnt?.toLong()+1
+    evtCnt++
+    logger("trace", "${key?.toString()?.capitalize()}: $evtCnt", true)
+    state?."${key}" = evtCnt?.toLong()
+}
 
 /******************************************
 |    APP/DEVICE Version Functions
@@ -1090,7 +1227,11 @@ private getConfigData() {
             }
         }
     } catch(ex) {
+        incrementCntByKey("appErrorCnt")
         log.error "getConfigData Exception: ", ex
+    }
+    if(state?.isInstalled) {
+        if(getLastMetricUpdSec() > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     }
 }
 
@@ -1120,18 +1261,18 @@ def getDtNow() {
 }
 
 def epochToTime(tm) {
-	def tf = new SimpleDateFormat("h:mm a")
+    def tf = new SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-	return tf.format(tm)
+    return tf.format(tm)
 }
 
 def time2Str(time) {
-	if(time) {
-		def t = timeToday(time, location?.timeZone)
-		def f = new java.text.SimpleDateFormat("h:mm a")
-		f?.setTimeZone(location?.timeZone ?: timeZone(time))
-		return f?.format(t)
-	}
+    if(time) {
+        def t = timeToday(time, location?.timeZone)
+        def f = new java.text.SimpleDateFormat("h:mm a")
+        f?.setTimeZone(location?.timeZone ?: timeZone(time))
+        return f?.format(t)
+    }
 }
 
 def GetTimeDiffSeconds(lastDate, sender=null) {
@@ -1246,58 +1387,6 @@ String getInputToStringDesc(inpt, addSpace = null) {
     }
     //log.debug "str: $str"
     return (str != "") ? "${str}" : null
-}
-
-private sendInstallNotif(inst=false) {
-    String url = inst ? "https://hooks.slack.com/services/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" : "https://hooks.slack.com/services/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"
-    if(inst && state?.appData && state?.appData?.settings?.installNotif == false) { return }
-    if(!inst && state?.appData && state?.appData?.settings?.updateNotif == false) { return }
-    Map res = [:]
-    def str = ""
-    def swVer = state?.codeVersions
-    str += "\n ────── ${location?.id} ──────"
-    str += "\n • DateTime: (${getDtNow()})"
-    str += "\n • TimeZone: [${location?.timeZone?.ID?.toString()}]"
-    str += "\n • Amazon Domain: (${settings?.amazonDomain})"
-    str += "\n ────────── Version Info ──────────"
-    str += swVer?.server != null ? "\n • Server: (${swVer?.server}) [${state?.onHeroku ? "Cloud" : "Local"}]" : ""
-    str += "\n • SmartApp: (${appVersion()})"
-    str += swVer?.echoDevice != null ? "\n • Device: (${swVer?.echoDevice})" : ""
-    def ch = app?.getChildDevices(true)?.size() ?: 0
-    if (ch >= 1) {
-        str += "\n ──────── Device Info ────────"
-        if(state?.deviceStyleCnts?.size()) {
-            state?.deviceStyleCnts?.each { k,v-> str += "\n • ${k}: (${(v ?: 0)})" }
-        } else { str += "\n • Echo Devices: (${(ch ?: 0)})" }
-        str += "\n ────────────────────────"
-    }
-    res["username"] = "Echo Speaks Instance ${inst ? "Installed" : "Updated"}"
-    res["channel"] = inst ? "#new_installs" : "#updated_installs"
-    res["text"] = str
-    def json = new groovy.json.JsonOutput().toJson(res)
-    sendInstallData(url, json, "", "post", "${inst ? "App Install" : "App Update"} Notif")
-}
-
-private sendInstallData(url, data, pathVal, cmdType=null, type=null) {
-    // logger("trace", "sendInstallData(${data}, ${pathVal}, $cmdType, $type")
-    def result = false
-    def json = new groovy.json.JsonOutput().prettyPrint(data)
-    def params = [ uri: url, body: json.toString() ]
-    def typeDesc = type ? "${type}" : "Install Data"
-    def respData
-    try {
-        if(!cmdType || cmdType == "post") {
-            httpPostJson(params)
-            result = true
-        }
-    }
-    catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException) {
-            log.error("sendInstallData: 'HttpResponseException': ${ex?.message}")
-        }
-        else { log.error "sendInstallData: ([$data, $pathVal, $cmdType, $type]) Exception:", ex }
-    }
-    return result
 }
 
 String randomString(Integer len) {
