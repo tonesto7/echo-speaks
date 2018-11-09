@@ -515,9 +515,9 @@ private checkIfCodeUpdated() {
     if(state?.codeVersions && state?.codeVersions?.mainApp != appVersion()) {
         log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
         state?.pollBlocked = true
-        Map iData = state?.installData
+        Map iData = atomicState?.installData
         iData["updatedDt"] = getDtNow().toString()
-        state?.installData = iData
+        atomicState?.installData = iData
         runIn(5, "updated", [overwrite: false])
         return true
     }
@@ -662,7 +662,7 @@ def cloudServiceHeartbeat() {
                 incrementCntByKey("appHeartbeatCnt")
             } else { log.warn "No CloudHeartbeat Response Received... Is the App still available?" }
         }
-        if(metricsOk() && state?.installData?.sentMetrics != true) { sendInstallData() }
+        if(state?.installData?.sentMetrics != true) { sendInstallData() }
     } catch(ex) {
         incrementCntByKey("appErrorCnt")
         log.error "cloudServiceHeartbeat Exception: ", ex
@@ -1043,7 +1043,7 @@ private sendFirebaseData(url, data, pathVal, cmdType=null, type=null) {
     logger("trace", "sendFirebaseData(${data}, ${pathVal}, $cmdType, $type", true)
     return queueFirebaseData(url, data, pathVal, cmdType, type)
 }
-private queueFirebaseData(url, data, pathVal, cmdType=null, type=null) {
+def queueFirebaseData(url, data, pathVal, cmdType=null, type=null) {
     logger("trace", "queueFirebaseData(${data}, ${pathVal}, $cmdType, $type", true)
     Boolean result = false
     def json = new groovy.json.JsonOutput().prettyPrint(data)
@@ -1061,7 +1061,8 @@ private queueFirebaseData(url, data, pathVal, cmdType=null, type=null) {
     } catch(ex) { log.error "queueFirebaseData (type: $typeDesc) Exception:", ex }
     return result
 }
-private removeFirebaseData(pathVal) {
+
+def removeFirebaseData(pathVal) {
     logger("trace", "removeFirebaseData(${pathVal})", true)
     Boolean result = true
     try {
@@ -1080,7 +1081,7 @@ private removeFirebaseData(pathVal) {
     return result
 }
 
-private processFirebaseResponse(resp, data) {
+def processFirebaseResponse(resp, data) {
     logger("trace", "processFirebaseResponse(${data?.type})", true)
     Boolean result = false
     String typeDesc = data?.type as String
@@ -1088,9 +1089,9 @@ private processFirebaseResponse(resp, data) {
         if(resp?.status == 200) {
             logger("info", "processFirebaseResponse: ${typeDesc} Data Sent SUCCESSFULLY")
             if(typeDesc?.toString() == "heartbeat") { state?.lastMetricUpdDt = getDtNow() }
-            Map iData = state?.installData
+            def iData = atomicState?.installData ?: [:]
             iData["sentMetrics"] = true
-            state?.installData = iData
+            atomicState?.installData = iData
             result = true
         }
         else if(resp?.status == 400) { log.error "processFirebaseResponse: 'Bad Request': ${resp?.status}" }
@@ -1386,58 +1387,6 @@ String getInputToStringDesc(inpt, addSpace = null) {
     }
     //log.debug "str: $str"
     return (str != "") ? "${str}" : null
-}
-
-private sendInstallNotif(inst=false) {
-    String url = inst ? "https://hooks.slack.com/services/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" : "https://hooks.slack.com/services/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"
-    if(inst && state?.appData && state?.appData?.settings?.installNotif == false) { return }
-    if(!inst && state?.appData && state?.appData?.settings?.updateNotif == false) { return }
-    Map res = [:]
-    def str = ""
-    def swVer = state?.codeVersions
-    str += "\n ────── ${location?.id} ──────"
-    str += "\n • DateTime: (${getDtNow()})"
-    str += "\n • TimeZone: [${location?.timeZone?.ID?.toString()}]"
-    str += "\n • Amazon Domain: (${settings?.amazonDomain})"
-    str += "\n ────────── Version Info ──────────"
-    str += swVer?.server != null ? "\n • Server: (${swVer?.server}) [${state?.onHeroku ? "Cloud" : "Local"}]" : ""
-    str += "\n • SmartApp: (${appVersion()})"
-    str += swVer?.echoDevice != null ? "\n • Device: (${swVer?.echoDevice})" : ""
-    def ch = app?.getChildDevices(true)?.size() ?: 0
-    if (ch >= 1) {
-        str += "\n ──────── Device Info ────────"
-        if(state?.deviceStyleCnts?.size()) {
-            state?.deviceStyleCnts?.each { k,v-> str += "\n • ${k}: (${(v ?: 0)})" }
-        } else { str += "\n • Echo Devices: (${(ch ?: 0)})" }
-        str += "\n ────────────────────────"
-    }
-    res["username"] = "Echo Speaks Instance ${inst ? "Installed" : "Updated"}"
-    res["channel"] = inst ? "#new_installs" : "#updated_installs"
-    res["text"] = str
-    def json = new groovy.json.JsonOutput().toJson(res)
-    sendToSlack(url, json, "", "post", "${inst ? "App Install" : "App Update"} Notif")
-}
-
-private sendToSlack(url, data, pathVal, cmdType=null, type=null) {
-    // logger("trace", "sendToSlack(${data}, ${pathVal}, $cmdType, $type")
-    def result = false
-    def json = new groovy.json.JsonOutput().prettyPrint(data)
-    def params = [ uri: url, body: json.toString() ]
-    def typeDesc = type ? "${type}" : "Install Data"
-    def respData
-    try {
-        if(!cmdType || cmdType == "post") {
-            httpPostJson(params)
-            result = true
-        }
-    }
-    catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException) {
-            log.error("sendToSlack: 'HttpResponseException': ${ex?.message}")
-        }
-        else { log.error "sendToSlack: ([$data, $pathVal, $cmdType, $type]) Exception:", ex }
-    }
-    return result
 }
 
 String randomString(Integer len) {
