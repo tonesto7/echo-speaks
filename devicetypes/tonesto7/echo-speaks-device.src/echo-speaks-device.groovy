@@ -338,6 +338,7 @@ void updateDeviceStatus(Map devData) {
                 sendEvent(name: "alexaMusicProviders", value: musicProviders, display: false, displayed: false)
             }
         }
+        state?.canPlayMedia = (devData?.canPlayMedia != false)
         setOnlineStatus((devData?.online != false))
         sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
     } catch(ex) {
@@ -603,6 +604,7 @@ private doSequenceCmd(seqCmd, seqVal="") {
 }
 
 private doSearchMusicCmd(searchPhrase, musicProvId) {
+    if(state?.canPlayMedia == false) { log.warn "This device does not support music playback" }
     if(state?.serialNumber && searchPhrase && musicProvId) {
         echoServiceCmd("musicSearch", [
             cmdType: "MusicSearch",
