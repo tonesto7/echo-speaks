@@ -941,7 +941,7 @@ private incrementCntByKey(String key) {
 	long evtCnt = state?."${key}" ?: 0
 	// evtCnt = evtCnt?.toLong()+1
 	evtCnt++
-	logger("trace", "${key?.toString()?.capitalize()}: $evtCnt", true)
+	// logger("trace", "${key?.toString()?.capitalize()}: $evtCnt")
 	state?."${key}" = evtCnt?.toLong()
 }
 
