@@ -17,7 +17,7 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 String devVersion() { return "1.1.3"}
-String devModified() { return "2018-11-11"}
+String devModified() { return "2018-11-12"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -31,6 +31,7 @@ metadata {
 
         attribute "lastUpdated", "string"
         attribute "deviceStatus", "string"
+        attribute "deviceType", "string"
         attribute "deviceStyle", "string"
         attribute "doNotDisturb", "boolean"
         attribute "firmwareVer", "string"
@@ -62,11 +63,17 @@ metadata {
         command "searchPandora"
         command "searchIheart"
         command "searchTuneIn"
+        command "createAlarm"
+        command "createReminder"
+        command "removeNotification"
     }
 
     preferences {
         input "showLogs", "bool", required: false, title: "Show Debug Logs?", defaultValue: false
         input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
+        section("") {
+            paragraph "DeviceType: ${state?.deviceType}"
+        }
     }
 
     tiles (scale: 2) {
@@ -279,6 +286,11 @@ void updateDeviceStatus(Map devData) {
                 sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
             }
             
+            String devType = devData?.deviceType ?: ""
+            if(isStateChange(device, "deviceType", devType?.toString())) {
+                sendEvent(name: "deviceType", value: devType?.toString(), display: false, displayed: false)
+            }
+
             Map sData = devData?.playerState
             String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
             String deviceStatus = "${playState}_${deviceStyle?.image}"
@@ -329,8 +341,8 @@ void updateDeviceStatus(Map devData) {
             if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
                 sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
             }
-            // def alarms = devData?.notifications
-            def alarms = ""
+            def alarms = devData?.notifications
+            // if(alarms?.size()) { delete alarms["deviceSerialNumber"] }
             if(isStateChange(device, "alexaNotifications", alarms?.toString())) {
                 sendEvent(name: "alexaNotifications", value: alarms, display: false, displayed: false)
             }
@@ -490,7 +502,7 @@ def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
     if(state?.serialNumber && level>=0 && level<=100) {
         if(volume != device?.currentState('level')?.integerValue) {
-            doSequenceCmd("volume", level)
+            doSequenceCmd("VolumeCommand", "volume", level)
             incrementCntByKey("use_cnt_volumeCmd")
             if(isStateChange(device, "level", level?.toString())) {
                 sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
@@ -501,6 +513,16 @@ def setLevel(level) {
 
 def setVolume(volume) {
     setLevel(volume)
+}
+
+def volumeUp() {
+    Integer curVol = device?.currentValue('level')
+    if(curVol < 100) { setVolume(curVol+1) }
+}
+
+def volumeDown() {
+    Integer curVol = device?.currentValue('level')
+    if(curVol >0) { setVolume(curVol-1) }
 }
 
 def setTrack(String uri, metaData="") {
@@ -560,38 +582,38 @@ def speak(String msg) {
     if(!msg) { log.warn "No Message sent with speak($msg) command" }
     // log.trace "speak(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
     if(msg != null && state?.serialNumber) {
-        doSequenceCmd("speak", msg as String)
+        doSequenceCmd("SpeakCommand", "speak", msg as String)
         incrementCntByKey("use_cnt_speak")
     } else { log.warn "speak Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Message: ${msg}" }
 }
 
 def playWeather() {
-    doSequenceCmd("weather")
+    doSequenceCmd("WeatherCommand", "weather")
     incrementCntByKey("use_cnt_playWeather")
 }
 
 def playTraffic() {
-    doSequenceCmd("traffic")
+    doSequenceCmd("TrafficCommand", "traffic")
     incrementCntByKey("use_cnt_playTraffic")
 }
 
 def playSingASong() {
-    doSequenceCmd("singasong")
+    doSequenceCmd("SingCommand", "singasong")
     incrementCntByKey("use_cnt_playSong")
 }
 
 def playFlashBrief() {
-    doSequenceCmd("flashbriefing")
+    doSequenceCmd("FlashCommand", "flashbriefing")
     incrementCntByKey("use_cnt_playBrief")
 }
 
 def playGoodMorning() {
-    doSequenceCmd("goodmorning")
+    doSequenceCmd("GoodMorningCommand", "goodmorning")
     incrementCntByKey("use_cnt_playGoodMorning")
 }
 
 def playTellStory() {
-    doSequenceCmd("tellstory")
+    doSequenceCmd("StoryCommand", "tellstory")
     incrementCntByKey("use_cnt_playStory")
 }
 
@@ -602,37 +624,44 @@ def searchMusic(String searchPhrase, String providerId) {
 def searchAmazonMusic(String searchPhrase) {
     if(state?.allowAmazonMusic == false) { log.warn "device does not support AMAZON MUSIC"; return }
     doSearchMusicCmd(searchPhrase, "AMAZON_MUSIC")
+    incrementCntByKey("use_cnt_searchAmazon")
 }
 
 def searchTuneIn(String searchPhrase) {
     if(state?.allowTuneIn == false) { log.warn "device does not support TUNE_IN"; return }
     doSearchMusicCmd(searchPhrase, "TUNE_IN")
+    incrementCntByKey("use_cnt_searchTuneIn")
 }
 
 def searchPandora(String searchPhrase) {
     if(state?.allowPandora == false) { log.warn "device does not support PANDORA"; return }
     doSearchMusicCmd(searchPhrase, "PANDORA")
+    incrementCntByKey("use_cnt_searchPandora")
 }
 
 def searchIheart(String searchPhrase) {
     if(state?.allowIheart == false) { log.warn "device does not support I_HEART_RADIO"; return }
     doSearchMusicCmd(searchPhrase, "I_HEART_RADIO")
+    incrementCntByKey("use_cnt_searchIheart")
 }
 
 def searchTest() {
     searchAmazonMusic("Thriller")
 }
 
-private doSequenceCmd(seqCmd, seqVal="") {
+private doSequenceCmd(cmdType, seqCmd, seqVal="") {
     if(state?.serialNumber) {
-        echoServiceCmd("cmd", [
+        def headers = [
             cmdType: "ExecuteSequence",
+            cmdDesc: cmdType,
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
             seqCmdKey: seqCmd,
             seqCmdVal: seqVal
-        ])
+        ]
+        if(seqCmd == "speak") { headers.message = seqVal }
+        echoServiceCmd("cmd", headers)
     } else { log.warn "doSequenceCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
@@ -641,6 +670,7 @@ private doSearchMusicCmd(searchPhrase, musicProvId) {
     if(state?.serialNumber && searchPhrase && musicProvId) {
         echoServiceCmd("musicSearch", [
             cmdType: "MusicSearch",
+            cmdDesc: "MusicSearch(${musicProvId})",
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
@@ -649,6 +679,47 @@ private doSearchMusicCmd(searchPhrase, musicProvId) {
         ])
         incrementCntByKey("use_cnt_searchMusic")
     } else { log.warn "doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} | searchPhrase: ${searchPhrase} | musicProvider: ${musicProvId}" }
+}
+
+def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
+    logger("trace", "createAlarm($alarmLbl, $alarmDate, $alarmTime) command received...")
+    if(alarmLbl && alarmDate && alarmTime) {
+        echoServiceCmd("cmd", [
+            cmdType: "notification",
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            label: alarmLbl,
+            date: alarmDate,
+            time: alarmTime,
+            type: "Alarm"
+        ])
+        incrementCntByKey("use_cnt_createAlarm")
+    } else { log.warn "createAlarm is Missing a Required Parameter!!!" }
+}
+
+def createReminder(String remLbl, String remDate, String remTime) {
+    logger("trace", "createReminder($remLbl, $remDate, $remTime) command received...")
+    if(remLbl && remDate && remTime) {
+        echoServiceCmd("notification", [
+            cmdType: "notification",
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            label: remLbl,
+            date: remDate,
+            time: remTime,
+            type: "Reminder"
+        ])
+    } else { log.warn "createReminder is Missing a Required Parameter!!!" }
+}
+
+def removeNotification(String id) {
+    logger("trace", "removeNotification($id) command received...")
+    if(id) {
+        echoServiceCmd("notification", [
+            cmdType: "rem_notification",
+            id: id
+        ])
+    } else { log.warn "removeNotification is Missing a Required Parameter!!!" }
 }
 
 def getRandomItem(items) {
@@ -775,7 +846,6 @@ public queueEchoCmd(type, headers, body=null, firstRun=false) {
     if(!firstRun) {
         processLogItems("trace", logItems, false, true) 
     }
-    // return true
 }
 
 private checkQueue(data) {
@@ -864,6 +934,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
     try {
         state?.speakingNow = (isTTS == true)
         String path = ""
+        String uriCmd = "POST"
         Map headerMap = [HOST: host, deviceId: device?.getDeviceNetworkId()]
         switch(type) {
             case "cmd":
@@ -873,6 +944,19 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 if(headers?.searchPhrase) { logItems?.push("│ Search Phrase: (${headers?.searchPhrase})") }
                 if(headers?.providerId) { logItems?.push("│ Music Provider: (${headers?.providerId})") }
                 path = "/musicSearch"
+                break
+            case "notification":
+                if(headers?.date) { logItems?.push("│ Date: (${headers?.date})") }
+                if(headers?.time) { logItems?.push("│ Time: (${headers?.time})") }
+                if(headers?.label) { logItems?.push("│ Label: (${headers?.label})") }
+                if(headers?.type) { logItems?.push("│ Type: (${headers?.type})") }
+                uriCmd = "GET"
+                path = "/createNotification?serialNumber=${headers?.deviceSerialNumber}&deviceType=${headers?.deviceType}&label=${headers?.label}&type=${headers?.type}&time=${headers?.time}&date=${headers?.date}"
+                break
+            case "rem_notification":
+                if(headers?.id) { logItems?.push("│ Notification ID: (${headers?.id})") }
+                uriCmd = "GET"
+                path = "/removeNotification?id=${headers?.id}"
                 break
         }
         headers?.each { k,v-> headerMap[k] = v }
@@ -888,7 +972,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         Integer qSize = getQueueSize()
         if(isTTS) { logItems?.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${state?.cmdQueueWorking})") }
         if(body) { logItems?.push("│ Body: ${body}") }
-        if(headers?.message) {
+        if(isTTS && headers?.message) {
             Integer ml = headers?.message?.toString()?.length()
             Integer rcv = getRecheckDelay(ml)
             state?.curMsgLen = ml
@@ -912,7 +996,11 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                     body: body ?: [:]
                 ]
                 // log.debug "params: $params"
-                asynchttp_v1.post('asyncCommandHandler', params, [queueKey: headerMap?.queueKey ?: null])
+                if(uriCmd == "GET") {
+                    asynchttp_v1.get('asyncCommandHandler', params, [queueKey: headerMap?.queueKey ?: null])
+                } else {
+                    asynchttp_v1.post('asyncCommandHandler', params, [queueKey: headerMap?.queueKey ?: null])
+                }
             } catch (e) {
                 log.debug "something went wrong: $e"
             }
@@ -943,16 +1031,20 @@ def asyncCommandHandler(response, data) {
 
 private postCmdProcess(resp, statusCode, isAsync=false) {
     if(resp && resp?.deviceId && (resp?.deviceId == device?.getDeviceNetworkId())) {
-        // log.debug "command resp was: ${resp}"
+        // log.debug "command resp was: ${resp} | statusCode: ${statusCode}"
         if(statusCode == 200) {
-            log.info "Command Sent Successfully${resp?.queueKey ? " | queueKey: ${resp?.queueKey}" : ""}${resp?.msgDelay ? " | msgDelay: ${resp?.msgDelay}" : ""} | ${isAsync ? "(Cloud)" : "(LAN)"}"
-            String lastMsg = state?.lastTtsMsg as String ?: "Nothing to Show Here..."
-            sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
-            sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
+            log.info "${resp?.cmdDesc ? "${resp?.cmdDesc}" : "Command"} Sent Successfully${resp?.queueKey ? " | queueKey: ${resp?.queueKey}" : ""}${resp?.msgDelay ? " | msgDelay: ${resp?.msgDelay}" : ""} | ${isAsync ? "(Cloud)" : "(LAN)"}"
+            if(resp?.cmdDesc && resp?.cmdDesc == "SpeakCommand") {
+                String lastMsg = state?.lastTtsMsg as String ?: "Nothing to Show Here..."
+                sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
+                sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
+            }
             if(resp?.queueKey) {
                 state?.remove(resp?.queueKey as String)
             }
-            schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "postCmdProcess(adjDelay) | ${isAsync ? "(Cloud)" : "(LAN)"}")
+            if(resp?.cmdDesc && resp?.cmdDesc == "SpeakCommand") {
+                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "postCmdProcess(adjDelay) | ${isAsync ? "(Cloud)" : "(LAN)"}")
+            }
             return
         } else if(statusCode == 400 && resp?.message && resp?.message == "Rate exceeded") {
             log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
