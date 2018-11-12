@@ -16,14 +16,15 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.1.2"}
-String devModified() { return "2018-11-09"}
+String devVersion() { return "1.1.3"}
+String devModified() { return "2018-11-11"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", ocfResourceType: "x.com.st.mediaplayer") {
         capability "Sensor"
         capability "Refresh"
+        capability "Audio Volume"
         capability "Music Player"
         capability "Notification"
         capability "Speech Synthesis"
@@ -47,7 +48,7 @@ metadata {
         command "replayText"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
-        command "setVolumeAndSpeak", ["number", "string"]
+        command "setVolumeAndSpeak"
         command "resetQueue"
         command "playWeather"
         command "playSingASong"
@@ -56,7 +57,11 @@ metadata {
         command "playTraffic"
         command "playTellStory"
         command "searchTest"
-        command "searchMusic", ["string", "string"]
+        command "searchMusic"
+        command "searchAmazonMusic"
+        command "searchPandora"
+        command "searchIheart"
+        command "searchTuneIn"
     }
 
     preferences {
@@ -484,12 +489,18 @@ def unmute() {
 def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
     if(state?.serialNumber && level>=0 && level<=100) {
-        doSequenceCmd("volume", level)
-        incrementCntByKey("use_cnt_volumeCmd")
-        if(isStateChange(device, "level", level?.toString())) {
-            sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
+        if(volume != device?.currentState('level')?.integerValue) {
+            doSequenceCmd("volume", level)
+            incrementCntByKey("use_cnt_volumeCmd")
+            if(isStateChange(device, "level", level?.toString())) {
+                sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
+            }
         }
     } else { log.warn "setLevel() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Level: ${level}" }
+}
+
+def setVolume(volume) {
+    setLevel(volume)
 }
 
 def setTrack(String uri, metaData="") {
@@ -538,7 +549,9 @@ def deviceNotification(String msg) {
 }
 
 def setVolumeAndSpeak(Integer volume, String msg) {
-    if(volume) { setLevel(volume) }
+    if(volume) { 
+        setLevel(volume) 
+    }
     incrementCntByKey("use_cnt_setVolSpeak")
     speak(msg)
 }
@@ -586,8 +599,28 @@ def searchMusic(String searchPhrase, String providerId) {
     doSearchMusicCmd(searchPhrase, providerId)
 }
 
+def searchAmazonMusic(String searchPhrase) {
+    if(state?.allowAmazonMusic == false) { log.warn "device does not support AMAZON MUSIC"; return }
+    doSearchMusicCmd(searchPhrase, "AMAZON_MUSIC")
+}
+
+def searchTuneIn(String searchPhrase) {
+    if(state?.allowTuneIn == false) { log.warn "device does not support TUNE_IN"; return }
+    doSearchMusicCmd(searchPhrase, "TUNE_IN")
+}
+
+def searchPandora(String searchPhrase) {
+    if(state?.allowPandora == false) { log.warn "device does not support PANDORA"; return }
+    doSearchMusicCmd(searchPhrase, "PANDORA")
+}
+
+def searchIheart(String searchPhrase) {
+    if(state?.allowIheart == false) { log.warn "device does not support I_HEART_RADIO"; return }
+    doSearchMusicCmd(searchPhrase, "I_HEART_RADIO")
+}
+
 def searchTest() {
-    doSearchMusicCmd("Thriller", "AMAZON_MUSIC")
+    searchAmazonMusic("Thriller")
 }
 
 private doSequenceCmd(seqCmd, seqVal="") {
