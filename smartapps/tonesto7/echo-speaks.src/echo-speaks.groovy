@@ -18,13 +18,13 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "1.1.3" }
-String appModified() { return "2018-11-12"} 
+String appModified() { return "2018-11-13"} 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 112, server: 111]
+    return [echoDevice: 113, server: 113]
 }
 
 definition(
@@ -44,6 +44,7 @@ preferences {
     page(name: "settingsPage")
     page(name: "newSetupPage")
     page(name: "devicePage")
+    page(name: "deviceListPage")
     page(name: "notifPrefPage")
     page(name: "servPrefPage")
     page(name: "setNotificationTimePage")
@@ -82,7 +83,9 @@ def mainPage() {
             section("Device Preferences:") {
                 if(!newInstall) {
                     List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}" }?.sort()
-                    paragraph title: "Discovered Devices:", "${devs?.size() ? devs?.join("\n") : "No Devices Available"}", state: "complete"
+                    if(devs?.size()) {
+                        href "deviceListPage", title: "Discovered Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
+                    } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
                 }
                 input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
                 input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
@@ -130,6 +133,18 @@ def settingsPage() {
             }
         }
         showDevSharePrefs()
+    }
+}
+
+def deviceListPage() {
+    return dynamicPage(name: "deviceListPage", install: false) {
+        Map devMap = state?.echoDeviceMap
+        // log.debug "devMap: $devMap"
+        section() {
+            state?.echoDeviceMap?.sort { it?.value?.name }?.each { k,v->
+                paragraph "Name: ${v?.name}\nStyle: ${v?.style?.name}\nFamily: ${v?.family}\nType: ${v?.type}\nStatus: ${v?.online ? "Online" : "Offline"}", state: "complete", image: getAppImg("${v?.style?.image}.png")
+            }
+        }
     }
 }
 
@@ -232,6 +247,8 @@ def servPrefPage() {
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: "Heroku App Settings", description: "Tap to proceed", image: getAppImg("heroku.png")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/webhooks", style: "external", required: false, title: "Heroku App Webhooks", description: "Tap to proceed", image: getAppImg("heroku.png")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: "Heroku App Logs", description: "Tap to proceed", image: getAppImg("heroku.png")
+                    href url: "https://${getRandAppName()}.herokuapp.com/skippedDevices", style: "external", required: false, title: "View Ignored Devices", description: "Tap to proceed", image: getPublicImg("web.png")
+                    
                 }
             }
             
@@ -293,19 +310,19 @@ def notifPrefPage() {
                 input (name: "sendMissedPollMsg", type: "bool", title: "Send Missed Checkin Alerts?", defaultValue: true, submitOnChange: true, image: getAppImg("late.png"))
                 if(settings?.sendMissedPollMsg) {
                     def misPollNotifyWaitValDesc = settings?.misPollNotifyWaitVal ?: "Default: 15 Minutes"
-                    input (name: "misPollNotifyWaitVal", type: "enum", title: "Time Past the Missed Checkin?", required: false, defaultValue: 900, metadata: [values:notifValEnum()], submitOnChange: true, image: getAppImg("delay_time.png"))
+                    input (name: "misPollNotifyWaitVal", type: "enum", title: "Time Past the Missed Checkin?", required: false, defaultValue: 900, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time.png"))
                     if(settings?.misPollNotifyWaitVal) { pollWait = settings?.misPollNotifyWaitVal as Integer }
                     
                     def misPollNotifyMsgWaitValDesc = settings?.misPollNotifyMsgWaitVal ?: "Default: 1 Hour"
-                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: "Send Reminder After?", required: false, defaultValue: 3600, metadata: [values:notifValEnum()], submitOnChange: true, image: getAppImg("reminder.png"))
+                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: "Send Reminder After?", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder.png"))
                     if(settings?.misPollNotifyMsgWaitVal) { pollMsgWait = settings?.misPollNotifyMsgWaitVal as Integer }
                 }
             }
             section("Code Update Alerts:") {
                 input (name: "sendAppUpdateMsg", type: "bool", title: "Send for Updates...", defaultValue: true, submitOnChange: true, image: getAppImg("update.png"))
                 if(settings?.sendAppUpdateMsg) {
-                    def updNotifyWaitValDesc = settings?.updNotifyWaitVal ?: "Default: 2 Hours"
-                    input (name: "updNotifyWaitVal", type: "enum", title: "Send Reminders After?", required: false, defaultValue: 7200, metadata: [values:notifValEnum()], submitOnChange: true, image: getAppImg("reminder.png"))
+                    def updNotifyWaitValDesc = settings?.updNotifyWaitVal ?: "Default: 12 Hours"
+                    input (name: "updNotifyWaitVal", type: "enum", title: "Send Reminders After?", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder.png"))
                     if(settings?.updNotifyWaitVal) { updNotifyWait = settings?.updNotifyWaitVal as Integer }
                 }
             }
@@ -618,7 +635,8 @@ def receiveEventData(Map evtData, String src) {
                 evtData?.echoDevices?.each { echoKey, echoValue->
                     logger("debug", "echoDevice | $echoKey | ${echoValue}", true)
                     logger("debug", "echoDevice | ${echoValue?.accountName}", false)
-                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online]
+                    echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
+                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType]
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
                         return 
@@ -635,7 +653,6 @@ def receiveEventData(Map evtData, String src) {
                     String devLabel = "Echo - " + echoValue?.accountName
                     String childHandlerName = "Echo Speaks Device"
                     String hubId = settings?.stHub?.getId()
-                    echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     if(!updRequired) {
                         if (!childDevice) {
                             try{

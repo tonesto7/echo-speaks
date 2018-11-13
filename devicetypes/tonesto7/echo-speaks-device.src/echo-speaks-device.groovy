@@ -17,7 +17,7 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 String devVersion() { return "1.1.3"}
-String devModified() { return "2018-11-12"}
+String devModified() { return "2018-11-13"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -65,16 +65,7 @@ metadata {
         command "searchTuneIn"
         command "createAlarm"
         command "createReminder"
-        command "createTimer"
         command "removeNotification"
-    }
-
-    preferences {
-        input "showLogs", "bool", required: false, title: "Show Debug Logs?", defaultValue: false
-        input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
-        section("") {
-            paragraph "DeviceType: ${state?.deviceType}"
-        }
     }
 
     tiles (scale: 2) {
@@ -208,8 +199,15 @@ metadata {
         main(["deviceStatus"])
         details([
             "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "onlineStatus", "deviceStyle", 
-            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "searchTest", "sendTest", "doNotDisturb", "resetQueue", 
+            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue", 
             "lastSpeakCmd", "lastCmdSentDt"])
+    }
+    
+    preferences {
+        section("Preferences") {
+            input "showLogs", "bool", required: false, title: "Show Debug Logs?", defaultValue: false
+            input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
+        }
     }
 }
 
@@ -711,21 +709,6 @@ def createReminder(String remLbl, String remDate, String remTime) {
             type: "Reminder"
         ])
     } else { log.warn "createReminder is Missing a Required Parameter!!!" }
-}
-
-def createTimer(String timerLbl, Integer timerSeconds) {
-    logger("trace", "createTimer($timerLbl, $timerSeconds) command received...")
-    if(timerLbl && timerSeconds) {
-        echoServiceCmd("notification", [
-            cmdType: "CreateTimer",
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            label: alarmLbl?.toString()?.replaceAll(" ", ""),
-            duration: timerSeconds,
-            type: "Timer"
-        ])
-        incrementCntByKey("use_cnt_createTimer")
-    } else { log.warn "createTimer is Missing a Required Parameter!!!" }
 }
 
 def removeNotification(String id) {
