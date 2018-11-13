@@ -57,7 +57,6 @@ metadata {
         command "playGoodMorning"
         command "playTraffic"
         command "playTellStory"
-        command "searchTest"
         command "searchMusic"
         command "searchAmazonMusic"
         command "searchPandora"

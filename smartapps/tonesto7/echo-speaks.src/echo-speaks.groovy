@@ -248,7 +248,6 @@ def servPrefPage() {
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/webhooks", style: "external", required: false, title: "Heroku App Webhooks", description: "Tap to proceed", image: getAppImg("heroku.png")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: "Heroku App Logs", description: "Tap to proceed", image: getAppImg("heroku.png")
                     href url: "https://${getRandAppName()}.herokuapp.com/skippedDevices", style: "external", required: false, title: "View Ignored Devices", description: "Tap to proceed", image: getPublicImg("web.png")
-                    
                 }
             }
             
