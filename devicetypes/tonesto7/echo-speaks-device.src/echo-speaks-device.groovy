@@ -65,6 +65,7 @@ metadata {
         command "searchTuneIn"
         command "createAlarm"
         command "createReminder"
+        command "createTimer"
         command "removeNotification"
     }
 
@@ -684,11 +685,11 @@ private doSearchMusicCmd(searchPhrase, musicProvId) {
 def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
     logger("trace", "createAlarm($alarmLbl, $alarmDate, $alarmTime) command received...")
     if(alarmLbl && alarmDate && alarmTime) {
-        echoServiceCmd("cmd", [
-            cmdType: "notification",
+        echoServiceCmd("notification", [
+            cmdType: "CreateAlarm",
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
-            label: alarmLbl,
+            label: alarmLbl?.toString()?.replaceAll(" ", ""),
             date: alarmDate,
             time: alarmTime,
             type: "Alarm"
@@ -701,15 +702,30 @@ def createReminder(String remLbl, String remDate, String remTime) {
     logger("trace", "createReminder($remLbl, $remDate, $remTime) command received...")
     if(remLbl && remDate && remTime) {
         echoServiceCmd("notification", [
-            cmdType: "notification",
+            cmdType: "CreateReminder",
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
-            label: remLbl,
+            label: remLbl?.toString()?.replaceAll(" ", ""),
             date: remDate,
             time: remTime,
             type: "Reminder"
         ])
     } else { log.warn "createReminder is Missing a Required Parameter!!!" }
+}
+
+def createTimer(String timerLbl, Integer timerSeconds) {
+    logger("trace", "createTimer($timerLbl, $timerSeconds) command received...")
+    if(timerLbl && timerSeconds) {
+        echoServiceCmd("notification", [
+            cmdType: "CreateTimer",
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            label: alarmLbl?.toString()?.replaceAll(" ", ""),
+            duration: timerSeconds,
+            type: "Timer"
+        ])
+        incrementCntByKey("use_cnt_createTimer")
+    } else { log.warn "createTimer is Missing a Required Parameter!!!" }
 }
 
 def removeNotification(String id) {
@@ -903,6 +919,7 @@ Integer getAdjCmdDelay(elap, reqDelay) {
 private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
     if(!isQueueCmd) { log.trace "echoServiceCmd($type, ${headers?.cmdType}, $isQueueCmd)" }
     String host = state?.serviceHost
+    Map queryMap = [:]
     List logItems = []
     String healthStatus = getHealthStatus()
     if(!host || !type || !headers || !(healthStatus in ["ACTIVE", "ONLINE"])) {
@@ -934,7 +951,6 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
     try {
         state?.speakingNow = (isTTS == true)
         String path = ""
-        String uriCmd = "POST"
         Map headerMap = [HOST: host, deviceId: device?.getDeviceNetworkId()]
         switch(type) {
             case "cmd":
@@ -950,13 +966,19 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 if(headers?.time) { logItems?.push("│ Time: (${headers?.time})") }
                 if(headers?.label) { logItems?.push("│ Label: (${headers?.label})") }
                 if(headers?.type) { logItems?.push("│ Type: (${headers?.type})") }
-                uriCmd = "GET"
-                path = "/createNotification?serialNumber=${headers?.deviceSerialNumber}&deviceType=${headers?.deviceType}&label=${headers?.label}&type=${headers?.type}&time=${headers?.time}&date=${headers?.date}"
+                queryMap?.serialNumber = headers?.deviceSerialNumber
+                queryMap?.deviceType = headers?.deviceType
+                queryMap?.label = headers?.label
+                queryMap?.type = headers?.type
+                queryMap?.time = headers?.time
+                queryMap?.date = headers?.date
+                path = "/createNotification"
                 break
             case "rem_notification":
                 if(headers?.id) { logItems?.push("│ Notification ID: (${headers?.id})") }
                 uriCmd = "GET"
-                path = "/removeNotification?id=${headers?.id}"
+                queryMap?.id = headers?.id
+                path = "/removeNotification"
                 break
         }
         headers?.each { k,v-> headerMap[k] = v }
@@ -964,6 +986,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 method: "POST",
                 headers: headerMap,
                 path: path,
+                query: queryMap,
                 body: body ?: ""
             ],
             null,
@@ -993,14 +1016,10 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                     uri: host,
                     headers: headerMap,
                     path: path,
+                    query: queryMap,
                     body: body ?: [:]
                 ]
-                // log.debug "params: $params"
-                if(uriCmd == "GET") {
-                    asynchttp_v1.get('asyncCommandHandler', params, [queueKey: headerMap?.queueKey ?: null])
-                } else {
-                    asynchttp_v1.post('asyncCommandHandler', params, [queueKey: headerMap?.queueKey ?: null])
-                }
+                asynchttp_v1.post('asyncCommandHandler', params, [queueKey: headerMap?.queueKey ?: null])
             } catch (e) {
                 log.debug "something went wrong: $e"
             }
