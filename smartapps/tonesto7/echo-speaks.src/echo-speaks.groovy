@@ -644,7 +644,7 @@ def receiveEventData(Map evtData, String src) {
             //Check for minimum versions before processing
             Boolean updRequired = false
             List updRequiredItems = []
-            ["server":"Echo Speaks Server", "echoDevice":"Echo Virtual Device"]?.each { k,v->
+            ["server":"Echo Speaks Server", "echoDevice":"Echo Speaks Device"]?.each { k,v->
                 Map codeVers = state?.codeVersions
                 if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) { 
                     updRequired = true
@@ -868,7 +868,7 @@ private appUpdateNotify() {
         if(appUpd || echoDevUpd || servUpd) {
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
-            str += !echoDevUpd ? "" : "\nEcho Virtual Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
+            str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
             str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             state?.lastUpdMsgDt = getDtNow()
