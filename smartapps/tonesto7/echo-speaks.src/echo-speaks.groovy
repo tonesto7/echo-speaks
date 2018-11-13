@@ -17,14 +17,14 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.1.2" }
-String appModified() { return "2018-11-09"} 
+String appVersion()	 { return "1.1.3" }
+String appModified() { return "2018-11-13"} 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 112, server: 111]
+    return [echoDevice: 113, server: 113]
 }
 
 definition(
@@ -44,6 +44,7 @@ preferences {
     page(name: "settingsPage")
     page(name: "newSetupPage")
     page(name: "devicePage")
+    page(name: "deviceListPage")
     page(name: "notifPrefPage")
     page(name: "servPrefPage")
     page(name: "setNotificationTimePage")
@@ -82,7 +83,9 @@ def mainPage() {
             section("Device Preferences:") {
                 if(!newInstall) {
                     List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}" }?.sort()
-                    paragraph title: "Discovered Devices:", "${devs?.size() ? devs?.join("\n") : "No Devices Available"}", state: "complete"
+                    if(devs?.size()) {
+                        href "deviceListPage", title: "Discovered Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
+                    } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
                 }
                 input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
                 input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
@@ -130,6 +133,18 @@ def settingsPage() {
             }
         }
         showDevSharePrefs()
+    }
+}
+
+def deviceListPage() {
+    return dynamicPage(name: "deviceListPage", install: false) {
+        Map devMap = state?.echoDeviceMap
+        // log.debug "devMap: $devMap"
+        section() {
+            state?.echoDeviceMap?.sort { it?.value?.name }?.each { k,v->
+                paragraph "Name: ${v?.name}\nStyle: ${v?.style?.name}\nFamily: ${v?.family}\nType: ${v?.type}\nStatus: ${v?.online ? "Online" : "Offline"}", state: "complete", image: getAppImg("${v?.style?.image}.png")
+            }
+        }
     }
 }
 
@@ -232,6 +247,7 @@ def servPrefPage() {
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: "Heroku App Settings", description: "Tap to proceed", image: getAppImg("heroku.png")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/webhooks", style: "external", required: false, title: "Heroku App Webhooks", description: "Tap to proceed", image: getAppImg("heroku.png")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: "Heroku App Logs", description: "Tap to proceed", image: getAppImg("heroku.png")
+                    href url: "https://${getRandAppName()}.herokuapp.com/skippedDevices", style: "external", required: false, title: "View Ignored Devices", description: "Tap to proceed", image: getPublicImg("web.png")
                 }
             }
             
@@ -293,19 +309,19 @@ def notifPrefPage() {
                 input (name: "sendMissedPollMsg", type: "bool", title: "Send Missed Checkin Alerts?", defaultValue: true, submitOnChange: true, image: getAppImg("late.png"))
                 if(settings?.sendMissedPollMsg) {
                     def misPollNotifyWaitValDesc = settings?.misPollNotifyWaitVal ?: "Default: 15 Minutes"
-                    input (name: "misPollNotifyWaitVal", type: "enum", title: "Time Past the Missed Checkin?", required: false, defaultValue: 900, metadata: [values:notifValEnum()], submitOnChange: true, image: getAppImg("delay_time.png"))
+                    input (name: "misPollNotifyWaitVal", type: "enum", title: "Time Past the Missed Checkin?", required: false, defaultValue: 900, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time.png"))
                     if(settings?.misPollNotifyWaitVal) { pollWait = settings?.misPollNotifyWaitVal as Integer }
                     
                     def misPollNotifyMsgWaitValDesc = settings?.misPollNotifyMsgWaitVal ?: "Default: 1 Hour"
-                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: "Send Reminder After?", required: false, defaultValue: 3600, metadata: [values:notifValEnum()], submitOnChange: true, image: getAppImg("reminder.png"))
+                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: "Send Reminder After?", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder.png"))
                     if(settings?.misPollNotifyMsgWaitVal) { pollMsgWait = settings?.misPollNotifyMsgWaitVal as Integer }
                 }
             }
             section("Code Update Alerts:") {
                 input (name: "sendAppUpdateMsg", type: "bool", title: "Send for Updates...", defaultValue: true, submitOnChange: true, image: getAppImg("update.png"))
                 if(settings?.sendAppUpdateMsg) {
-                    def updNotifyWaitValDesc = settings?.updNotifyWaitVal ?: "Default: 2 Hours"
-                    input (name: "updNotifyWaitVal", type: "enum", title: "Send Reminders After?", required: false, defaultValue: 7200, metadata: [values:notifValEnum()], submitOnChange: true, image: getAppImg("reminder.png"))
+                    def updNotifyWaitValDesc = settings?.updNotifyWaitVal ?: "Default: 12 Hours"
+                    input (name: "updNotifyWaitVal", type: "enum", title: "Send Reminders After?", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder.png"))
                     if(settings?.updNotifyWaitVal) { updNotifyWait = settings?.updNotifyWaitVal as Integer }
                 }
             }
@@ -356,8 +372,23 @@ def updated() {
     log.debug "Updated with settings: ${settings}"
     if(!state?.isInstalled) { state?.isInstalled = true }
     if(!state?.installData) { state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: getDtNow().toString(), sentMetrics: false] }
-    unsubscribe()
+    unschedule()
     initialize()
+}
+
+def initialize() {
+    // getAccessToken()
+    if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
+    
+    runEvery5Minutes("healthCheck") // This task checks for missed polls and app updates
+    subscribe(app, onAppTouch)
+    if(!settings?.useHeroku && settings?.stHub) { subscribe(location, null, lanEventHandler, [filterEvents:false]) }
+    resetQueue()
+    stateCleanup()
+    updCodeVerMap()
+    if(!settings?.useHeroku) {
+        runIn(5, "echoServiceUpdate", [overwrite: true])
+    }
 }
 
 def uninstalled() {
@@ -381,22 +412,6 @@ mappings {
     path("/cookie") { action: [GET: "getCookie", POST: "storeCookie", DELETE: "clearCookie"] }
 }
 
-def initialize() {
-    // listen to LAN incoming messages
-    def tokenOk = getAccessToken()
-    if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
-    
-    runEvery5Minutes("notificationCheck") // This task checks for missed polls and app updates
-    subscribe(app, onAppTouch)
-    if(!settings?.useHeroku && settings?.stHub) { subscribe(location, null, lanEventHandler, [filterEvents:false]) }
-    resetQueue()
-    stateCleanup()
-    updCodeVerMap()
-    if(!settings?.useHeroku) {
-        runIn(5, "echoServiceUpdate", [overwrite: true])
-    }
-}
-
 def clearCloudConfig() {
     settingUpdate("resetService", "false", "bool")
     unschedule("cloudServiceHeartbeat")
@@ -406,94 +421,6 @@ def clearCloudConfig() {
     }
     app.getChildDevices(true)?.each { dev-> dev?.resetServiceInfo() }
     state?.resumeConfig = true
-}
-
-def renderConfig() {
-    String title = "Echo Speaks"
-    String html = """<head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <meta name="description" content="${title}">
-        <meta name="author" content="Anthony S.">
-        <meta http-equiv="cleartype" content="on">
-        <meta name="MobileOptimized" content="320">
-        <meta name="HandheldFriendly" content="True">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <title>${title}</title>
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet">
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.5.13/css/mdb.min.css" rel="stylesheet">
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" rel="stylesheet">
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/js/bootstrap.min.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
-        <style>
-            .btn-rounded {
-                border-radius: 50px!important;
-            }
-            span img {
-                width: 48px;
-                height: auto;
-            }
-            span p {
-                display: block;
-            }
-            .all-copy p {  
-                -webkit-user-select: all;
-                -moz-user-select: all;
-                -ms-user-select: all;
-                user-select: all;
-            }
-            .nameContainer {
-                border-radius: 18px;
-                color: rgba(255,255,255,1);
-                font-size: 1.5rem;
-                background: #666;
-                -webkit-box-shadow: 1px 1px 1px 0 rgba(0,0,0,0.3) ;
-                box-shadow: 1px 1px 1px 0 rgba(0,0,0,0.3) ;
-                text-shadow: 1px 1px 1px rgba(0,0,0,0.2) ;
-            }
-        </style>
-    <head>
-    <body>
-        <div style="margin: 0 auto; max-width: 500px;">
-            <form class="p-1">
-                <div class="my-3 text-center">
-                    <span>
-                        <img src="${getAppImg("echo_speaks.1x.png")}"/>
-                        <p class="h4 text-center">Echo Speaks</p>
-                    </span>
-                </div>
-                <hr>
-                <div class="w-100 mb-3">
-                    <div class="my-2 text-center">
-                        <h5>1. Copy the following Name and use it when asked by Heroku</h5>
-                        <div class="all-copy nameContainer mx-5 mb-2 p-1">
-                          <p id="copyName" class="m-0 p-0">${getRandAppName()?.toString().trim()}</p>
-                        </div>
-                    </div>
-                    <div class="my-2 text-center">
-                        <h5>2. Tap Button to deploy to Heroku</h5>
-                        <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server${getEnvParamsStr()}">
-                            <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </body>
-    <script>
-        \$("#copyName").on("click", function () {
-            console.log('click')
-            \$(this).select();
-        });
-        \$('#generateEmail').click(function() {
-            \$("#generateEmail").attr("href", "mailto:example@email.com?subject=Echo Speaks URL Info&body=${getAppEndpointUrl("receiveData")}").attr("target", "_blank");
-        });
-    </script>
-    """
-    render contentType: "text/html", data: html
 }
 
 String getEnvParamsStr() {
@@ -526,7 +453,7 @@ private checkIfCodeUpdated() {
 }
 
 private stateCleanup() {
-    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting"]
+    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
@@ -647,7 +574,7 @@ def clearCookie() {
 
 def scheduleHeartbeat() {
     log.info "Scheduling CloudHeartbeat Check for Every 5 minutes..."
-    // unschedule("cloudServiceHeartbeat")
+    unschedule("cloudServiceHeartbeat")
     state?.heartbeatScheduled = true
     runEvery5Minutes('cloudServiceHeartbeat')
 }
@@ -660,6 +587,7 @@ def cloudServiceHeartbeat() {
             if(resp && resp?.data && resp?.data?.result) {
                 log.info "CloudHeartBeat Successful"
                 incrementCntByKey("appHeartbeatCnt")
+                state?.lastCloudHeartbeatDt = getDtNow()
             } else { log.warn "No CloudHeartbeat Response Received... Is the App still available?" }
         }
         if(state?.installData?.sentMetrics != true) { sendInstallData() }
@@ -706,7 +634,8 @@ def receiveEventData(Map evtData, String src) {
                 evtData?.echoDevices?.each { echoKey, echoValue->
                     logger("debug", "echoDevice | $echoKey | ${echoValue}", true)
                     logger("debug", "echoDevice | ${echoValue?.accountName}", false)
-                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online]
+                    echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
+                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType]
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
                         return 
@@ -715,12 +644,14 @@ def receiveEventData(Map evtData, String src) {
                         // logger("warn", "skipping ${echoValue?.accountName} because Tablets are not enabled...")
                         return 
                     }
+                    if(settings?.allowWHA && echoValue?.deviceFamily == "WHA") {
+                        return
+                    }
                     String dni = [app?.id, "echoSpeaks", echoKey].join('|')
                     def childDevice = getChildDevice(dni)
                     String devLabel = "Echo - " + echoValue?.accountName
                     String childHandlerName = "Echo Speaks Device"
                     String hubId = settings?.stHub?.getId()
-                    echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     if(!updRequired) {
                         if (!childDevice) {
                             try{
@@ -865,13 +796,24 @@ Map notifValEnum(allowCust = true) {
     return items
 }
 
-private notificationCheck() {
-    // logger("trace", "notificationCheck")
+private healthCheck() {
+    // logger("trace", "healthCheck")
     updCodeVerMap()
     checkVersionData()
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
+    cloudHeartbeatCheck()
+}
+
+Integer getLastHeartBeatSeconds() { return !state?.lastCloudHeartbeatDt ? 601 : GetTimeDiffSeconds(state?.lastCloudHeartbeatDt, "getLastHeartBeatSeconds").toInteger() }
+private cloudHeartbeatCheck() {
+    if(state?.onHeroku && getLastHeartBeatSeconds() > 600) {
+        log.warn "For some reason a CloudHeartbeat has not occurred in over 10 minutes... Rescheduling the heartbeat!!!"
+        unschedule("cloudServiceHeartbeat")
+        state?.heartbeatScheduled = true
+        runEvery5Minutes('cloudServiceHeartbeat')
+    }
 }
 
 private missPollNotify(Boolean on, Integer wait) {
@@ -1407,6 +1349,94 @@ def getAccessToken() {
         log.error "getAccessToken Exception", ex
         return false
     }
+}
+
+def renderConfig() {
+    String title = "Echo Speaks"
+    String html = """<head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="description" content="${title}">
+        <meta name="author" content="Anthony S.">
+        <meta http-equiv="cleartype" content="on">
+        <meta name="MobileOptimized" content="320">
+        <meta name="HandheldFriendly" content="True">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <title>${title}</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.5.13/css/mdb.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" rel="stylesheet">
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/js/bootstrap.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+        <style>
+            .btn-rounded {
+                border-radius: 50px!important;
+            }
+            span img {
+                width: 48px;
+                height: auto;
+            }
+            span p {
+                display: block;
+            }
+            .all-copy p {  
+                -webkit-user-select: all;
+                -moz-user-select: all;
+                -ms-user-select: all;
+                user-select: all;
+            }
+            .nameContainer {
+                border-radius: 18px;
+                color: rgba(255,255,255,1);
+                font-size: 1.5rem;
+                background: #666;
+                -webkit-box-shadow: 1px 1px 1px 0 rgba(0,0,0,0.3) ;
+                box-shadow: 1px 1px 1px 0 rgba(0,0,0,0.3) ;
+                text-shadow: 1px 1px 1px rgba(0,0,0,0.2) ;
+            }
+        </style>
+    <head>
+    <body>
+        <div style="margin: 0 auto; max-width: 500px;">
+            <form class="p-1">
+                <div class="my-3 text-center">
+                    <span>
+                        <img src="${getAppImg("echo_speaks.1x.png")}"/>
+                        <p class="h4 text-center">Echo Speaks</p>
+                    </span>
+                </div>
+                <hr>
+                <div class="w-100 mb-3">
+                    <div class="my-2 text-center">
+                        <h5>1. Copy the following Name and use it when asked by Heroku</h5>
+                        <div class="all-copy nameContainer mx-5 mb-2 p-1">
+                          <p id="copyName" class="m-0 p-0">${getRandAppName()?.toString().trim()}</p>
+                        </div>
+                    </div>
+                    <div class="my-2 text-center">
+                        <h5>2. Tap Button to deploy to Heroku</h5>
+                        <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server${getEnvParamsStr()}">
+                            <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </body>
+    <script>
+        \$("#copyName").on("click", function () {
+            console.log('click')
+            \$(this).select();
+        });
+        \$('#generateEmail').click(function() {
+            \$("#generateEmail").attr("href", "mailto:example@email.com?subject=Echo Speaks URL Info&body=${getAppEndpointUrl("receiveData")}").attr("target", "_blank");
+        });
+    </script>
+    """
+    render contentType: "text/html", data: html
 }
 
 def debugStatus() { return !settings?.appDebug ? "Off" : "On" }
