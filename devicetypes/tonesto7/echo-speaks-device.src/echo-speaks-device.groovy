@@ -2,7 +2,7 @@
  *	Echo Speaks Device
  *
  *  Copyright 2018 Anthony Santilli
- *
+ *  M
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
  *
@@ -16,7 +16,7 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.1.3"}
+String devVersion() { return "1.2.0"}
 String devModified() { return "2018-11-13"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
@@ -24,6 +24,7 @@ metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", ocfResourceType: "x.com.st.mediaplayer") {
         capability "Sensor"
         capability "Refresh"
+        capability "Audio Mute"
         capability "Audio Volume"
         capability "Music Player"
         capability "Notification"
@@ -41,6 +42,7 @@ metadata {
         attribute "lastSpeakCmd", "string"
         attribute "lastCmdSentDt", "string"
         attribute "trackImage", "string"
+        attribute "alarmVolume", "number"
         attribute "alexaWakeWord", "string"
         attribute "alexaPlaylists", "JSON_OBJECT"
         attribute "alexaNotifications", "JSON_OBJECT"
@@ -50,6 +52,7 @@ metadata {
         command "doNotDisturbOn"
         command "doNotDisturbOff"
         command "setVolumeAndSpeak"
+        command "setAlarmVolume"
         command "resetQueue"
         command "playWeather"
         command "playSingASong"
@@ -61,6 +64,7 @@ metadata {
         command "searchAmazonMusic"
         command "searchPandora"
         command "searchIheart"
+        command "searchSpotify"
         command "searchTuneIn"
         command "createAlarm"
         command "createReminder"
@@ -143,8 +147,8 @@ metadata {
         valueTile("blank2x1", "device.blank", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("blank1x1", label:'')
         }
-        valueTile("firmwareVer", "device.firmwareVer", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("default", label:'Firmware:\n${currentValue}')
+        valueTile("alarmVolume", "device.alarmVolume", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("alarmVolume", label:'Alarm Volume:\n${currentValue}%')
         }
         valueTile("deviceStyle", "device.deviceStyle", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("deviceStyle", label:'Device Style:\n${currentValue}')
@@ -197,7 +201,7 @@ metadata {
         }
         main(["deviceStatus"])
         details([
-            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "firmwareVer", "onlineStatus", "deviceStyle", 
+            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", 
             "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue", 
             "lastSpeakCmd", "lastCmdSentDt"])
     }
@@ -213,6 +217,8 @@ metadata {
 def installed() {
     log.trace "${device?.displayName} Executing Installed..."
     sendEvent(name: "level", value: 0)
+    sendEvent(name: "volume", value: 0)
+    sendEvent(name: "alarmVolume", value: 0)
     sendEvent(name: "mute", value: "unmuted")
     sendEvent(name: "status", value: "stopped")
     sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
@@ -261,6 +267,7 @@ void updateDeviceStatus(Map devData) {
             //         logger("debug", "$k: $v")
             //     }
             // }
+            state?.serviceAuthenticated = (devData?.serviceAuthenticated == true)
             Map deviceStyle = devData?.deviceStyle
             state?.deviceImage = deviceStyle?.image as String
             if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
@@ -324,8 +331,9 @@ void updateDeviceStatus(Map devData) {
                     Integer level = sData?.volume?.volume
                     if(level < 0) { level = 0 }
                     if(level > 100) { level = 100 }
-                    if(isStateChange(device, "level", level?.toString())) {
-                        sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
+                    if(isStateChange(device, "level", level?.toString()) || isStateChange(device, "volume", level?.toString())) {
+                        sendEvent(name: "level", value: level, display: false, displayed: false)
+                        sendEvent(name: "volume", value: level, display: false, displayed: false)
                     }
                 }
                 if(sData?.volume?.muted) {
@@ -335,6 +343,15 @@ void updateDeviceStatus(Map devData) {
                     }
                 }
             }
+            if(devData?.alarmVolume) {
+                Integer almVol = devData?.alarmVolume
+                if(almVol < 0) { almVol = 0 }
+                if(almVol > 100) { almVol = 100 }
+                if(isStateChange(device, "alarmVolume", almVol?.toString())) {
+                    sendEvent(name: "alarmVolume", value: almVol, display: false, displayed: false)
+                }
+            }
+
             Map playlists = devData?.playlists ?: [:]
             if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
                 sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
@@ -400,17 +417,6 @@ def play() {
 
 def playTrack(track) {
     logger("warn", "playTrack() | Not Supported Yet!!!")
-    // if(state?.serialNumber && track) {
-    //     echoServiceCmd("cmd", [
-    //         deviceSerialNumber: state?.serialNumber,
-    //         deviceType: state?.deviceType,
-    //         deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-    //         cmdType: "PlayCommand"
-    //     ])
-    //     if(isStateChange(device, "status", "playing")) {
-    //         sendEvent(name: "status", value: "playing", descriptionText: "Playing track: ${track}", display: true, displayed: true)
-    //     }
-    // } else { log.warn "play() Command Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} | track: ${track}" }
 }
 
 def pause() {
@@ -496,17 +502,41 @@ def unmute() {
     } else { log.warn "unmute() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
+def setMute(muteState) {
+    if(muteState) {
+        if(muteState == "muted") { 
+            mute() 
+        } else {
+            unmute()
+        }
+    }
+}
+
 def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
     if(state?.serialNumber && level>=0 && level<=100) {
         if(volume != device?.currentState('level')?.integerValue) {
             doSequenceCmd("VolumeCommand", "volume", level)
             incrementCntByKey("use_cnt_volumeCmd")
-            if(isStateChange(device, "level", level?.toString())) {
-                sendEvent(name: "level", value: level, descriptionText: "Volume Level set to ${level}", display: true, displayed: true)
-            }
+            sendEvent(name: "level", value: level, display: false, displayed: false)
+            sendEvent(name: "volume", value: level, display: false, displayed: false)
         }
     } else { log.warn "setLevel() Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} or Level: ${level}" }
+}
+
+def setAlarmVolume(volume) {
+    logger("trace", "setAlarmVolume($level) command received...")
+    if(volume) {
+        echoServiceCmd("cmd", [
+            cmdType: "AlarmVolume",
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            softwareVersion: device?.currentValue('firmwareVer'),
+            volumeLevel: volume
+        ])
+        incrementCntByKey("use_cnt_alarmVolumeCmd")
+        sendEvent(name: "alarmVolume", value: volume, display: false, displayed: false)
+    }
 }
 
 def setVolume(volume) {
@@ -520,7 +550,7 @@ def volumeUp() {
 
 def volumeDown() {
     Integer curVol = device?.currentValue('level')
-    if(curVol >0) { setVolume(curVol-1) }
+    if(curVol > 0) { setVolume(curVol-1) }
 }
 
 def setTrack(String uri, metaData="") {
@@ -569,9 +599,7 @@ def deviceNotification(String msg) {
 }
 
 def setVolumeAndSpeak(Integer volume, String msg) {
-    if(volume) { 
-        setLevel(volume) 
-    }
+    if(volume) { setVolume(volume) }
     incrementCntByKey("use_cnt_setVolSpeak")
     speak(msg)
 }
@@ -637,14 +665,16 @@ def searchPandora(String searchPhrase) {
     incrementCntByKey("use_cnt_searchPandora")
 }
 
+def searchSpotify(String searchPhrase) {
+    if(state?.allowSpotify == false) { log.warn "device does not support SPOTIFY"; return }
+    doSearchMusicCmd(searchPhrase, "SPOTIFY")
+    incrementCntByKey("use_cnt_searchSpotify")
+}
+
 def searchIheart(String searchPhrase) {
     if(state?.allowIheart == false) { log.warn "device does not support I_HEART_RADIO"; return }
     doSearchMusicCmd(searchPhrase, "I_HEART_RADIO")
     incrementCntByKey("use_cnt_searchIheart")
-}
-
-def searchTest() {
-    searchAmazonMusic("Thriller")
 }
 
 private doSequenceCmd(cmdType, seqCmd, seqVal="") {
@@ -900,6 +930,10 @@ Integer getAdjCmdDelay(elap, reqDelay) {
 
 private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
     if(!isQueueCmd) { log.trace "echoServiceCmd($type, ${headers?.cmdType}, $isQueueCmd)" }
+    if(state?.serviceAuthenticated != true) { 
+        log.warn "Echo Speaks service is no longer authenticated... Please login again and commands will resume as they should!!!" 
+        return
+    }
     String host = state?.serviceHost
     Map queryMap = [:]
     List logItems = []
@@ -937,6 +971,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         switch(type) {
             case "cmd":
                 path = "/alexa-command"
+                if(headers?.volumeLevel) { logItems?.push("│ Alarm Volume: (${headers?.volumeLevel})") }
                 break
             case "musicSearch":
                 if(headers?.searchPhrase) { logItems?.push("│ Search Phrase: (${headers?.searchPhrase})") }
@@ -989,6 +1024,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
             state?.lastTtsMsg = headers.message
             state?.lastTtsCmdDt = getDtNow()
         }
+        if(headers?.seqCmdVal) { logItems?.push("│ Value: (${headers?.seqCmdVal})") }
         if(headers?.seqCmdKey) { logItems?.push("│ Action: (${headers?.seqCmdKey})") }
         if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
         if(state?.useHeroku == true) {

@@ -17,14 +17,14 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.1.3" }
+String appVersion()	 { return "1.2.0" }
 String appModified() { return "2018-11-13"} 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 113, server: 113]
+    return [echoDevice: 120, server: 120]
 }
 
 definition(
@@ -597,6 +597,27 @@ def cloudServiceHeartbeat() {
     }
 }
 
+private authEvtHandler(isAuth) {
+    state?.serviceAuthenticated = (isAuth == true)
+    if(isAuth == false && !state?.noAuthActive) {
+        noAuthReminder()
+        sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
+        runEvery1Minute("noAuthReminder")
+        unschedule("cloudServiceHeartbeat")
+        state?.heartbeatScheduled = false
+        state?.noAuthActive = true
+    } else {
+        if(state?.noAuthActive) { 
+            unschedule("noAuthReminder")
+            state?.noAuthActive = false
+        }
+    }
+}
+
+private noAuthReminder() {
+    log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..."
+}
+
 def receiveEventData(Map evtData, String src) {
     try {
         if(checkIfCodeUpdated()) { 
@@ -608,6 +629,11 @@ def receiveEventData(Map evtData, String src) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
             Boolean onHeroku = (evtData?.useHeroku == true)
             state?.serviceConfigured = true
+
+            authEvtHandler(evtData?.authenticated)
+            if(evtData?.authenticated == false) { 
+                return
+            }
             // log.debug "onHeroku: ${evtData?.useHeroku} | cloudUrl: ${evtData?.cloudUrl}"
             state?.onHeroku = onHeroku
             state?.cloudUrl = (onHeroku && evtData?.cloudUrl) ? evtData?.cloudUrl : null
@@ -634,6 +660,7 @@ def receiveEventData(Map evtData, String src) {
                 evtData?.echoDevices?.each { echoKey, echoValue->
                     logger("debug", "echoDevice | $echoKey | ${echoValue}", true)
                     logger("debug", "echoDevice | ${echoValue?.accountName}", false)
+                    echoValue["serviceAuthenticated"] = (evtData?.authenticated == true)
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType]
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
