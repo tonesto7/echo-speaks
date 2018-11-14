@@ -1104,6 +1104,7 @@ private createMetricsDataJson(rendAsMap=false) {
             installDt: state?.installData?.dt, 
             updatedDt: state?.installData?.updatedDt,
             timeZone: location?.timeZone?.ID?.toString(),
+            stateUsage: getStateSizePerc(),
             amazonDomain: settings?.amazonDomain,
             serverPlatform: state?.onHeroku ? "Cloud" : "Local",
             versions: [app: appVersion(), server: swVer?.server ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
@@ -1466,11 +1467,11 @@ def renderConfig() {
     """
     render contentType: "text/html", data: html
 }
-
-def debugStatus() { return !settings?.appDebug ? "Off" : "On" }
-def deviceDebugStatus() { return !settings?.childDebug ? "Off" : "On" }
-def isAppDebug() { return !settings?.appDebug ? false : true }
-def isChildDebug() { return !settings?.childDebug ? false : true }
+Integer stateSizePerc() { return (int) ((stateSize / 100000)*100).toDouble().round(0) }
+String debugStatus() { return !settings?.appDebug ? "Off" : "On" }
+String deviceDebugStatus() { return !settings?.childDebug ? "Off" : "On" }
+Boolean isAppDebug() { return (settings?.appDebug == true) }
+Boolean isChildDebug() { return (settings?.childDebug == true) }
 
 String getAppDebugDesc() {
     def str = ""

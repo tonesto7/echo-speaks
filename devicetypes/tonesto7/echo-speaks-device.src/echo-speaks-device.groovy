@@ -16,12 +16,12 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.2.0"}
-String devModified() { return "2018-11-13"}
+String devVersion() { return "1.2.1"}
+String devModified() { return "2018-11-14"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", ocfResourceType: "x.com.st.mediaplayer") {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn:"SmartThings", vid:"generic-music-player") {
         capability "Sensor"
         capability "Refresh"
         capability "Audio Mute"
