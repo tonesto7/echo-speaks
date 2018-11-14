@@ -17,8 +17,8 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.2.0" }
-String appModified() { return "2018-11-13"} 
+String appVersion()	 { return "1.2.1" }
+String appModified() { return "2018-11-14"} 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -667,13 +667,7 @@ def receiveEventData(Map evtData, String src) {
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
                         return 
                     }
-                    if(!settings?.createTablets && echoValue?.deviceFamily == "TABLET") {
-                        // logger("warn", "skipping ${echoValue?.accountName} because Tablets are not enabled...")
-                        return 
-                    }
-                    if(settings?.allowWHA && echoValue?.deviceFamily == "WHA") {
-                        return
-                    }
+                    if(!deviceFamilyAllowed(echoValue?.deviceFamily as String)) { return }
                     String dni = [app?.id, "echoSpeaks", echoKey].join('|')
                     def childDevice = getChildDevice(dni)
                     String devLabel = "Echo - " + echoValue?.accountName
@@ -734,6 +728,13 @@ def receiveEventData(Map evtData, String src) {
         log.error "receiveEventData Error:", ex
         incrementCntByKey("appErrorCnt")
     }
+}
+
+Boolean deviceFamilyAllowed(String family) {
+    if(family in ["ECHO", "ROOK", "KNIGHT"]) { return true }
+    if(settings?.createTablets == true && family == "TABLET") { return true }
+    if(settings?.allowWHA == true && family == "WHA") { return true }
+    return false
 }
 
 public getServiceHostInfo() {
