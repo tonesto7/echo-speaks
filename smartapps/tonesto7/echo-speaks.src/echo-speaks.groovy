@@ -17,14 +17,14 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.2.1" }
-String appModified() { return "2018-11-14"} 
+String appVersion()	 { return "1.2.2" }
+String appModified() { return "2018-11-15" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 120, server: 120]
+    return [echoDevice: 120, server: 122]
 }
 
 definition(
@@ -45,6 +45,7 @@ preferences {
     page(name: "newSetupPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
+    page(name: "changeLogPage")
     page(name: "notifPrefPage")
     page(name: "servPrefPage")
     page(name: "setNotificationTimePage")
@@ -56,7 +57,7 @@ def appInfoSect(sect=true)	{
     str += "${app?.name}"
     str += "\nAuthor: ${appAuthor()}"
     str += "\nVersion: ${appVersion()}"
-    section() { paragraph str, image: getAppImg("echo_speaks.2x.png") }
+    section() { href "changeLogPage", title: "", description: str, image: getAppImg("echo_speaks.2x.png") }
 }
 
 def mainPage() {
@@ -66,6 +67,8 @@ def mainPage() {
     
     if(state?.resumeConfig) {
         return servPrefPage()
+    } else if(showChgLogOk()) { 
+        return changeLogPage() 
     } else {
         return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: false, install: !newInstall) {
             appInfoSect()
@@ -133,6 +136,9 @@ def settingsPage() {
             }
         }
         showDevSharePrefs()
+        section("App Change Details:") {
+			href "changeLogPage", title: "View App Revision History", description: "Tap to view", image: getAppImg("change_log.png")
+		}
     }
 }
 
@@ -362,7 +368,7 @@ def uninstallPage() {
 
 def installed() {
     log.debug "Installed with settings: ${settings}"
-    state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: "Not Set", sentMetrics: false]
+    state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: "Not Set", sentMetrics: false, shownChgLog: true]
     state?.isInstalled = true
     sendInstallData()
     initialize()
@@ -380,7 +386,7 @@ def initialize() {
     // getAccessToken()
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     
-    runEvery5Minutes("healthCheck") // This task checks for missed polls and app updates
+    runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
     subscribe(app, onAppTouch)
     if(!settings?.useHeroku && settings?.stHub) { subscribe(location, null, lanEventHandler, [filterEvents:false]) }
     resetQueue()
@@ -444,6 +450,7 @@ private checkIfCodeUpdated() {
         state?.pollBlocked = true
         Map iData = atomicState?.installData
         iData["updatedDt"] = getDtNow().toString()
+        iData["shownChgLog"] = false
         atomicState?.installData = iData
         runIn(5, "updated", [overwrite: false])
         return true
@@ -462,6 +469,7 @@ private stateCleanup() {
 
 def onAppTouch(evt) {
     // log.trace "appTouch..."
+    sendOneHeartbeat()
     app?.getChildDevices(true)?.each { cDev->
         cDev?.resetQueue()
     }
@@ -487,7 +495,7 @@ private modCodeVerMap(key, val) {
 }
 
 String getRandAppName() {
-    if(!state?.generatedHerokuName) { state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(6)}"?.toLowerCase() }
+    if(!state?.generatedHerokuName) { state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(8)}"?.toLowerCase() }
     return state?.generatedHerokuName as String
 }
 
@@ -574,20 +582,33 @@ def clearCookie() {
 
 def scheduleHeartbeat() {
     log.info "Scheduling CloudHeartbeat Check for Every 5 minutes..."
-    unschedule("cloudServiceHeartbeat")
     state?.heartbeatScheduled = true
     runEvery5Minutes('cloudServiceHeartbeat')
 }
 
-def sendOneHeartbeat() { cloudServiceHeartbeat() }
+Integer getLastHeartBeatSeconds() { return !state?.lastCloudHeartbeatDt ? 601 : GetTimeDiffSeconds(state?.lastCloudHeartbeatDt, "getLastHeartBeatSeconds").toInteger() }
+private cloudHeartbeatCheck() {
+    if(state?.onHeroku) {
+        if(!state?.heartbeatScheduled) { scheduleHeartbeat() }
+        if(getLastHeartBeatSeconds() > 600) {
+            log.warn "For some reason a CloudHeartbeat has not occurred in over ${(getLastHeartBeatSeconds()/60).toFloat()?.round(1)} minutes  | (${getLastHeartBeatSeconds()} secs.)... Rescheduling the heartbeat!!!"
+            unschedule("cloudServiceHeartbeat")
+            state?.heartbeatScheduled = true
+            runEvery5Minutes('cloudServiceHeartbeat')
+        }
+    }
+}
 
-def cloudServiceHeartbeat() {
+private sendOneHeartbeat() { cloudServiceHeartbeat() }
+
+private cloudServiceHeartbeat() {
     try {
         httpGet([uri: "https://${getRandAppName()}.herokuapp.com/heartbeat", contentType: 'application/json', headers: [appVersion: appVersion()]]) { resp->
             if(resp && resp?.data && resp?.data?.result) {
-                log.info "CloudHeartBeat Successful"
+                log.info "CloudHeartBeat Successful${resp?.data?.authenticated == true ? " | (Authenticated)" : ""}"
                 incrementCntByKey("appHeartbeatCnt")
                 state?.lastCloudHeartbeatDt = getDtNow()
+                authEvtHandler(resp?.data?.authenticated)
             } else { log.warn "No CloudHeartbeat Response Received... Is the App still available?" }
         }
         if(state?.installData?.sentMetrics != true) { sendInstallData() }
@@ -640,7 +661,7 @@ def receiveEventData(Map evtData, String src) {
             if(onHeroku && !state?.heartbeatScheduled) {
                 scheduleHeartbeat()
             }
-            
+            cloudHeartbeatCheck()
             //Check for minimum versions before processing
             Boolean updRequired = false
             List updRequiredItems = []
@@ -653,7 +674,7 @@ def receiveEventData(Map evtData, String src) {
             }
             
             if (evtData?.echoDevices?.size()) {
-                log.debug "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${src ? " [$src]" : ""}"
+                log.debug "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${!onHeroku && src ? " [$src]" : ""}${onHeroku ? " | Last Cloud Heartbeat was: (${(getLastHeartBeatSeconds()/60).toFloat()?.round(1)} minutes ago)" : ""}"
                 Map echoDeviceMap = [:]
                 List curDevFamily = []
                 Integer cnt = 0
@@ -723,6 +744,7 @@ def receiveEventData(Map evtData, String src) {
                 log.error "CODE UPDATES REQUIRED: Echo Speaks Integration will not function until the following items are ALL Updated ${updRequiredItems}..."
                 appUpdateNotify()
             }
+            if(state?.installData?.sentMetrics != true) { runIn(900, "sendInstallData", [overwrite: false]) }
         }
     } catch(ex) {
         log.error "receiveEventData Error:", ex
@@ -832,16 +854,6 @@ private healthCheck() {
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
     cloudHeartbeatCheck()
-}
-
-Integer getLastHeartBeatSeconds() { return !state?.lastCloudHeartbeatDt ? 601 : GetTimeDiffSeconds(state?.lastCloudHeartbeatDt, "getLastHeartBeatSeconds").toInteger() }
-private cloudHeartbeatCheck() {
-    if(state?.onHeroku && getLastHeartBeatSeconds() > 600) {
-        log.warn "For some reason a CloudHeartbeat has not occurred in over 10 minutes... Rescheduling the heartbeat!!!"
-        unschedule("cloudServiceHeartbeat")
-        state?.heartbeatScheduled = true
-        runEvery5Minutes('cloudServiceHeartbeat')
-    }
 }
 
 private missPollNotify(Boolean on, Integer wait) {
@@ -999,6 +1011,24 @@ public pushover_msg(List devs,Map data){if(devs&&data){sendLocationEvent(name:"p
 public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.value){case"refresh":def ed = evt?.jsonData;String id = ed?.appId;Map pA = pmd?.apps?.size() ? pmd?.apps : [:];if(id){pA[id]=pA?."${id}"instanceof Map?pA[id]:[:];pA[id]?.devices=ed?.devices?:[];pA[id]?.appName=ed?.appName;pA[id]?.appId=id;pmd?.apps = pA;};pmd?.sounds=ed?.sounds;break;case "reset":pmd=[:];break;};state?.pushoverManager=pmd;}
 //Builds Map Message object to send to Pushover Manager
 private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
+
+/******************************************
+|       Changelog Logic
+******************************************/
+String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
+Boolean showChgLogOk() { return (state?.isInstalled && state?.installData?.shownChgLog != true) }
+def changeLogPage() {
+    def execTime = now()
+    return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
+        section() {
+            paragraph title: "What's New in this Release...", "", state: "complete", image: getAppImg("whats_new_icon.png")
+            paragraph changeLogData()
+        }
+        Map iData = atomicState?.installData
+        iData["shownChgLog"] = true
+        atomicState?.installData = iData
+    }
+}
 
 /******************************************
 |    METRIC Logic
@@ -1189,20 +1219,33 @@ private getConfigData() {
         uri:  "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/appData.json",
         contentType: 'application/json'
     ]
-    try {
-        httpGet(params) { resp->
-            if(resp?.data) {
-                log.info "Getting Latest Version Data from appData.json File"
-                state?.appData = resp?.data
-                state?.lastVerUpdDt = getDtNow()
-            }
-        }
-    } catch(ex) {
-        incrementCntByKey("appErrorCnt")
-        log.error "getConfigData Exception: ", ex
+    def data = getWebData(params, "appData", false)
+    if(data) {
+        log.info "Getting Latest Version Data from appData.json File"
+        state?.appData = data
+        state?.lastVerUpdDt = getDtNow()
     }
     if(state?.isInstalled) {
         if(getLastMetricUpdSec() > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
+    }
+}
+
+private getWebData(params, desc, text=true) {
+    try {
+        // log.trace("getWebData: ${desc} data")
+        httpGet(params) { resp ->
+            if(resp?.data) {
+                if(text) { return resp?.data?.text.toString() } 
+                return resp?.data
+            }
+        }
+    }
+    catch (ex) {
+        incrementCntByKey("appErrorCnt")
+        if(ex instanceof groovyx.net.http.HttpResponseException) {
+            log.warn("${desc} file not found")
+        } else { log.error "getWebData(params: $params, desc: $desc, text: $text) Exception:", ex }
+        return "${label} info not found"
     }
 }
 
