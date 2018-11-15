@@ -1,3 +1,16 @@
+V1.2.3 (November 15th, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Bug Fixes
+
+Device:
+ • ADDED: New command available to change the wake word :)
+ • FIXED: Bug Fixes
+
+Server:
+ • ADDED: Support for Setting of Wake Word
+ • FIXED: Optimized core logic
+
 V1.2.2 (November 15th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
