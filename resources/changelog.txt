@@ -1,0 +1,9 @@
+V1.2.2 (November 15th, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+Smart App:
+ • FIXED: Cloud Service Heartbeats
+ • FIXED: Amazon auth being reset because of missing heartbeat
+ • ADDED: Added Change logs are visible in the SmartApp and when a new update is deployed
+
+Server:
+ • FIXED: Amazon auth being reset and updates to the auth check
