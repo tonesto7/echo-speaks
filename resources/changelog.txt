@@ -1,9 +1,12 @@
 V1.2.2 (November 15th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
-Smart App:
+App:
  • FIXED: Cloud Service Heartbeats
  • FIXED: Amazon auth being reset because of missing heartbeat
- • ADDED: Added Change logs are visible in the SmartApp and when a new update is deployed
+ • ADDED: Change logs are visible in the SmartApp and when a new update is deployed
+
+Device:
+ • ADDED: Proper metadata to allow the devices to show up in new SmartThings app as generic media player
 
 Server:
  • FIXED: Amazon auth being reset and updates to the auth check
