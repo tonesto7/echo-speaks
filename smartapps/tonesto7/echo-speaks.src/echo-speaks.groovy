@@ -18,7 +18,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "1.2.3" }
-String appModified() { return "2018-11-15" } 
+String appModified() { return "2018-11-16" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -552,7 +552,8 @@ def processData() {
             } else { log.debug "data: $data" }
         }
     }
-    render contentType: 'text/html', data: "status received...ok", status: 200
+    def json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersion()])
+    render contentType: 'application/json', data: json, status: 200
 }
 
 def getCookie() {
@@ -595,6 +596,7 @@ private cloudHeartbeatCheck() {
             unschedule("cloudServiceHeartbeat")
             state?.heartbeatScheduled = true
             runEvery5Minutes('cloudServiceHeartbeat')
+            sendOneHeartbeat()
         }
     }
 }
