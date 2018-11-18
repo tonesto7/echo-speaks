@@ -16,12 +16,12 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.2.0"}
-String devModified() { return "2018-11-13"}
+String devVersion() { return "1.2.4"}
+String devModified() { return "2018-11-18"}
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", ocfResourceType: "x.com.st.mediaplayer") {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn:"SmartThings", vid:"generic-music-player") {
         capability "Sensor"
         capability "Refresh"
         capability "Audio Mute"
@@ -44,6 +44,7 @@ metadata {
         attribute "trackImage", "string"
         attribute "alarmVolume", "number"
         attribute "alexaWakeWord", "string"
+        attribute "wakeWords", "enum"
         attribute "alexaPlaylists", "JSON_OBJECT"
         attribute "alexaNotifications", "JSON_OBJECT"
         attribute "alexaMusicProviders", "JSON_OBJECT"
@@ -69,6 +70,7 @@ metadata {
         command "createAlarm"
         command "createReminder"
         command "removeNotification"
+        command "setWakeWord"
     }
 
     tiles (scale: 2) {
@@ -142,10 +144,10 @@ metadata {
             state("stopped_amazon_tablet", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/amazon_tablet.png")
         }
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
-            state("blank1x1", label:'')
+            state("default", label:'')
         }
         valueTile("blank2x1", "device.blank", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("blank1x1", label:'')
+            state("default", label:'')
         }
         valueTile("alarmVolume", "device.alarmVolume", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("alarmVolume", label:'Alarm Volume:\n${currentValue}%')
@@ -167,6 +169,9 @@ metadata {
         }
         valueTile("lastCmdSentDt", "device.lastCmdSentDt", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
             state("lastCmdSentDt", label:'Last Text Date:\n${currentValue}')
+        }
+        valueTile("alexaWakeWord", "device.alexaWakeWord", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("alexaWakeWord", label:'Wake Word:\n${currentValue}')
         }
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
@@ -201,7 +206,7 @@ metadata {
         }
         main(["deviceStatus"])
         details([
-            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", 
+            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "blank2x1", "alexaWakeWord", "blank2x1",
             "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue", 
             "lastSpeakCmd", "lastCmdSentDt"])
     }
@@ -364,6 +369,10 @@ void updateDeviceStatus(Map devData) {
             String wakeWord = devData?.wakeWord ?: ""
             if(isStateChange(device, "alexaWakeWord", wakeWord?.toString())) {
                 sendEvent(name: "alexaWakeWord", value: wakeWord, display: false, displayed: false)
+            }
+            List wakeWords = devData?.wakeWords ?: []
+            if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
+                sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
             }
             Map musicProviders = devData?.musicProviders ? (devData?.musicProviders instanceof List ? devData?.musicProviders[0] : devData?.musicProviders) : [:]
             if(isStateChange(device, "alexaMusicProviders", musicProviders?.toString())) {
@@ -580,7 +589,7 @@ def doNotDisturbOn() {
 def setDoNotDisturb(Boolean val) {
     logger("trace", "setDoNotDisturb($val) command received...")
     echoServiceCmd("cmd", [
-        cmdType: "SetDnd",
+        cmdType: "SetDoNotDisturb${val ? "On" : "Off"}",
         deviceSerialNumber: state?.serialNumber,
         deviceType: state?.deviceType,
         deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
@@ -709,6 +718,22 @@ private doSearchMusicCmd(searchPhrase, musicProvId) {
     } else { log.warn "doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} | searchPhrase: ${searchPhrase} | musicProvider: ${musicProvId}" }
 }
 
+def setWakeWord(String newWord) {
+    logger("trace", "setWakeWord($newWord) command received...")
+    String oldWord = device?.currentValue('alexaWakeWord')
+    def wwList = device?.currentValue('wakeWords') ?: []
+    log.debug "newWord: $newWord | oldWord: $oldWord | wwList: $wwList (${wwList?.contains(newWord.toString()?.toUpperCase())})"
+    if(oldWord && newWord && wwList && wwList?.contains(newWord.toString()?.toUpperCase())) {
+        echoServiceCmd("wakeword", [
+            cmdType: "SetWakeWord",
+            oldWord: oldWord,
+            newWord: newWord
+        ])
+        incrementCntByKey("use_cnt_setWakeWord")
+        sendEvent(name: "alexaWakeWord", value: newWord?.toString()?.toUpperCase(), display: true, displayed: true)
+    } else { log.warn "setWakeWord is Missing a Required Parameter!!!" }
+}
+
 def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
     logger("trace", "createAlarm($alarmLbl, $alarmDate, $alarmTime) command received...")
     if(alarmLbl && alarmDate && alarmTime) {
@@ -743,8 +768,8 @@ def createReminder(String remLbl, String remDate, String remTime) {
 def removeNotification(String id) {
     logger("trace", "removeNotification($id) command received...")
     if(id) {
-        echoServiceCmd("notification", [
-            cmdType: "rem_notification",
+        echoServiceCmd("rem_notification", [
+            cmdType: "RemoveNotification",
             id: id
         ])
     } else { log.warn "removeNotification is Missing a Required Parameter!!!" }
@@ -967,6 +992,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
     try {
         state?.speakingNow = (isTTS == true)
         String path = ""
+        String uriCmd = "POST"
         Map headerMap = [HOST: host, deviceId: device?.getDeviceNetworkId()]
         switch(type) {
             case "cmd":
@@ -991,6 +1017,15 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                 queryMap?.date = headers?.date
                 path = "/createNotification"
                 break
+            case "wakeword":
+                if(headers?.oldWord) { logItems?.push("│ Old Wake Word: (${headers?.oldWord})") }
+                if(headers?.newWord) { logItems?.push("│ New Wake Word: (${headers?.newWord})") }
+                queryMap?.serialNumber = state?.serialNumber
+                queryMap?.oldWord = headers?.oldWord
+                queryMap?.newWord = headers?.newWord
+                uriCmd = "PUT"
+                path = "/setWakeWord"
+                break
             case "rem_notification":
                 if(headers?.id) { logItems?.push("│ Notification ID: (${headers?.id})") }
                 uriCmd = "GET"
@@ -1000,7 +1035,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
         }
         headers?.each { k,v-> headerMap[k] = v }
         def result = new physicalgraph.device.HubAction([
-                method: "POST",
+                method: uriCmd,
                 headers: headerMap,
                 path: path,
                 query: queryMap,
@@ -1024,7 +1059,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
             state?.lastTtsMsg = headers.message
             state?.lastTtsCmdDt = getDtNow()
         }
-        if(headers?.seqCmdVal) { logItems?.push("│ Value: (${headers?.seqCmdVal})") }
+        if(headers?.seqCmdVal && !isTTS) { logItems?.push("│ Value: (${headers?.seqCmdVal})") }
         if(headers?.seqCmdKey) { logItems?.push("│ Action: (${headers?.seqCmdKey})") }
         if(headers?.cmdType) { logItems?.push("│ Command: (${headers?.cmdType})") }
         if(state?.useHeroku == true) {
@@ -1037,7 +1072,7 @@ private echoServiceCmd(type, headers={}, body = null, isQueueCmd=false) {
                     query: queryMap,
                     body: body ?: [:]
                 ]
-                asynchttp_v1.post('asyncCommandHandler', params, [queueKey: headerMap?.queueKey ?: null])
+                asynchttp_v1."${uriCmd?.toLowerCase()}"('asyncCommandHandler', params, [queueKey: headerMap?.queueKey ?: null])
             } catch (e) {
                 log.debug "something went wrong: $e"
             }
@@ -1061,7 +1096,7 @@ void cmdCallBackHandler(physicalgraph.device.HubResponse hubResponse) {
 }
 
 def asyncCommandHandler(response, data) {
-    Map resp = response?.json
+    Map resp = response?.json ?: null
     Integer statusCode = response?.status
     postCmdProcess(resp, statusCode, true)
 }
