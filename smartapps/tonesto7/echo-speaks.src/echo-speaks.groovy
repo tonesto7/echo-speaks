@@ -17,14 +17,14 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.2.2" }
-String appModified() { return "2018-11-15" } 
+String appVersion()	 { return "1.2.4" }
+String appModified() { return "2018-11-18" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 120, server: 122]
+    return [echoDevice: 124, server: 124]
 }
 
 definition(
@@ -434,6 +434,7 @@ String getEnvParamsStr() {
     envParams['smartThingsUrl'] = "${getAppEndpointUrl("receiveData")}"
     envParams['useHeroku'] = settings?.useHeroku == true ? "true" : "false"
     envParams['serviceDebug'] = settings?.serviceDebug == true ? "true" : "false"
+    envParams['serviceTrace'] = settings?.serviceTrace == true ? "true" : "false"
     envParams['amazonDomain'] = settings?.amazonDomain as String
     envParams['refreshSeconds'] = settings?.refreshSeconds as String
     envParams['hostUrl'] = "${getRandAppName()}.herokuapp.com"
@@ -552,7 +553,8 @@ def processData() {
             } else { log.debug "data: $data" }
         }
     }
-    render contentType: 'text/html', data: "status received...ok", status: 200
+    def json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersion()])
+    render contentType: 'application/json', data: json, status: 200
 }
 
 def getCookie() {
@@ -595,6 +597,7 @@ private cloudHeartbeatCheck() {
             unschedule("cloudServiceHeartbeat")
             state?.heartbeatScheduled = true
             runEvery5Minutes('cloudServiceHeartbeat')
+            sendOneHeartbeat()
         }
     }
 }
@@ -756,6 +759,7 @@ Boolean deviceFamilyAllowed(String family) {
     if(family in ["ECHO", "ROOK", "KNIGHT"]) { return true }
     if(settings?.createTablets == true && family == "TABLET") { return true }
     if(settings?.allowWHA == true && family == "WHA") { return true }
+    // if(family == "WHA") { return true }
     return false
 }
 
