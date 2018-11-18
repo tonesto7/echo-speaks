@@ -1,3 +1,16 @@
+V1.2.4 (November 18th, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Minor Bug Fixes
+
+Device:
+ • ADDED: New command available to change the wake word :)
+ • FIXED: Bug Fixes
+
+Server:
+ • FIXED: Login issues due to Amazon changes (Thanks Apollon77 for your help)
+ • FIXED: More Optimizations
+
 V1.2.3 (November 15th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
