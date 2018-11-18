@@ -18,7 +18,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "1.2.3" }
-String appModified() { return "2018-11-16" } 
+String appModified() { return "2018-11-17" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -757,7 +757,8 @@ def receiveEventData(Map evtData, String src) {
 Boolean deviceFamilyAllowed(String family) {
     if(family in ["ECHO", "ROOK", "KNIGHT"]) { return true }
     if(settings?.createTablets == true && family == "TABLET") { return true }
-    if(settings?.allowWHA == true && family == "WHA") { return true }
+    // if(settings?.allowWHA == true && family == "WHA") { return true }
+    if(family == "WHA") { return true }
     return false
 }
 
