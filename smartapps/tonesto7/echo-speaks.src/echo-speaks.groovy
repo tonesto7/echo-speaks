@@ -1138,7 +1138,7 @@ private createMetricsDataJson(rendAsMap=false) {
             installDt: state?.installData?.dt, 
             updatedDt: state?.installData?.updatedDt,
             timeZone: location?.timeZone?.ID?.toString(),
-            stateUsage: getStateSizePerc(),
+            stateUsage: stateSizePerc(),
             amazonDomain: settings?.amazonDomain,
             serverPlatform: state?.onHeroku ? "Cloud" : "Local",
             versions: [app: appVersion(), server: swVer?.server ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
