@@ -693,7 +693,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["serviceAuthenticated"] = (evtData?.authenticated == true)
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     Boolean supportsCmds = (echoValue?.deviceStyle?.commandSupport == true)
-                    log.debug "[${echoValue?.accountName}] | supportsCmds: $supportsCmds | deviceStyle: ${echoValue?.deviceStyle?.name} | deviceType: ${echoValue?.deviceType}"
+                    // log.debug "[${echoValue?.accountName}] | supportsCmds: $supportsCmds | deviceStyle: ${echoValue?.deviceStyle?.name} | deviceType: ${echoValue?.deviceType}"
                     if(!supportsCmds) {
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support commands used by this integration") 
                         return
