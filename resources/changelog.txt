@@ -1,3 +1,15 @@
+V1.3.0 (November 19th, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • ADDED: Added support for new amazon devices (Please report any that are not working.)
+
+Device:
+ • ADDED: Support for new DeviceTypes
+ • ADDED: New Device Command | setVolumeSpeakRestore(volume, message)
+
+Server:
+ • ADDED: Support for new DeviceTypes
+
 V1.2.5 (November 18th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
