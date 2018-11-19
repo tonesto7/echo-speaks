@@ -17,7 +17,7 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.2.4" }
+String appVersion()	 { return "1.2.5" }
 String appModified() { return "2018-11-18" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
@@ -471,6 +471,7 @@ private stateCleanup() {
 def onAppTouch(evt) {
     // log.trace "appTouch..."
     sendOneHeartbeat()
+    sendInstallData()
     app?.getChildDevices(true)?.each { cDev->
         cDev?.resetQueue()
     }
@@ -1039,7 +1040,7 @@ def changeLogPage() {
 ******************************************/
 String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com/" }
 Integer getLastMetricUpdSec() { return !state?.lastMetricUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastMetricUpdDt, "getLastMetricUpdSec").toInteger() }
-Boolean metricsOk() { return (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
+Boolean metricsOk() { return true; }// (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
 private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID().toString() } }
 private sendInstallData() { if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), createMetricsDataJson(), "clients/${state?.appGuid}.json", null, "heartbeat") } }
 private removeInstallData() { return removeFirebaseData("clients/${state?.appGuid}.json") }
@@ -1138,7 +1139,7 @@ private createMetricsDataJson(rendAsMap=false) {
             installDt: state?.installData?.dt, 
             updatedDt: state?.installData?.updatedDt,
             timeZone: location?.timeZone?.ID?.toString(),
-            stateUsage: stateSizePerc(),
+            stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
             serverPlatform: state?.onHeroku ? "Cloud" : "Local",
             versions: [app: appVersion(), server: swVer?.server ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
@@ -1514,7 +1515,11 @@ def renderConfig() {
     """
     render contentType: "text/html", data: html
 }
-Integer stateSizePerc() { return (int) ((stateSize / 100000)*100).toDouble().round(0) }
+Integer stateSize() {
+	def j = new groovy.json.JsonOutput().toJson(state)
+	return j?.toString().length()
+}
+Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 String debugStatus() { return !settings?.appDebug ? "Off" : "On" }
 String deviceDebugStatus() { return !settings?.childDebug ? "Off" : "On" }
 Boolean isAppDebug() { return (settings?.appDebug == true) }
