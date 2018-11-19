@@ -12,19 +12,51 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+public getDeviceStyle(String family, String type) {
+    switch(type) {
+        case 'A1N9SW0I0LUX5Y': return [name: 'Dash Wand', image: 'dash_wand', commandSupport: false]
+        case 'AB72C64C86AW2' : return [name: 'Echo (Gen1)', image: 'echo_gen1', commandSupport: true]
+        case 'A7WXQPH584YP'  : return [name: 'Echo (Gen2)', image: 'echo_gen2', commandSupport: true]
+        case 'A2M35JJZWCQOMZ': return [name: 'Echo Plus (Gen1)', image: 'echo_plus_gen1', commandSupport: true]
+        case 'A18O6U1UQFJ0XK': return [name: 'Echo Plus (Gen2)', image: 'echo_plus_gen2', commandSupport: true]
+        case 'A1NL4BVLQ4L3N3': return [name: 'Echo Show (Gen1)', image: 'echo_show_gen1', commandSupport: true]
+        case 'AWZZ5CVHX2CD'  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", commandSupport: true]
+        case 'A38EHHIB10L47V': return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', commandSupport: true]
+        case "AKNO1N0KSFN8L" : return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', commandSupport: true]
+        case 'A3S5BH2HU6VAYF': return [name: 'Echo Dot (Gen2)', image: 'echo_dot_gen2', commandSupport: true]
+        case 'A32DOYMUN6DTXA': return [name: 'Echo Dot (Gen3)', image: 'echo_dot_gen3', commandSupport: true]
+        case 'A10A33FOX2NUBK': return [name: 'Echo Spot', image: 'echo_spot_gen1', commandSupport: true]
+        case 'A3SSG6GR8UU7SN': return [name: 'Echo Sub', image: 'echo_sub_gen1', commandSupport: true]
+        case 'A12GXV8XMS007S': return [name: 'Fire TV (Gen1)', image: 'firetv_gen1', commandSupport: false]
+        case 'A2E0SNTXJVT7WK': return [name: 'Fire TV (Gen2)', image: 'firetv_gen2', commandSupport: true]  // was false
+        case 'A2GFL5ZMWNE0PX': return [name: 'Fire TV (Gen3)', image: 'firetv_gen3', commandSupport: true]
+        case 'ADVBD696BHNV5' : return [name: 'Fire TV Stick (Gen1)', image: 'firetv_stick_gen1', commandSupport: true] // was false
+        case 'A2LWARUGJLBYEW': return [name: 'Fire TV Stick (Gen2)', image: 'firetv_stick_gen2', commandSupport: true] // was false
+        case 'A3HF4YRA2L7XGC': return [name: 'Fire TV Cube', image: 'firetv_cube', commandSupport: true]
+        case 'A2M4YX06LWP8WI': return [name: 'Fire Tablet', image: 'amazon_tablet', commandSupport: true] // was false
+        case 'A1J16TEDOYCZTN': return [name: 'Fire Tablet', image: 'amazon_tablet', commandSupport: true]
+        case 'A3R9S4ZZECZ6YL': return [name: 'Fire Tablet HD 10"', image: 'tablet_hd10', commandSupport: true]
+        case 'A3C9PE6TNYLTCH': return [name: 'Multiroom', image: 'echo_wha', commandSupport: true]
+        case 'A15ERDAKK5HQQG': return [name: 'Sonos', image: 'sonos_generic', commandSupport: false]
+        case 'A2OSP3UA4VC85F': return [name: 'Sonos', image: 'sonos_generic', commandSupport: true]
+        case 'A3NPD82ABCPIDP': return [name: 'Sonos Beam', image: 'sonos_beam', commandSupport: true]
+        default: return [name: 'Echo Unknown', image: 'unknown', commandSupport: false]
+    }
+}
+
 import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.2.5" }
-String appModified() { return "2018-11-18" } 
+String appVersion()	 { return "1.3.0" }
+String appModified() { return "2018-11-19" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 124, server: 124]
+    return [echoDevice: 130, server: 130]
 }
 
 definition(
@@ -609,7 +641,7 @@ private cloudServiceHeartbeat() {
     try {
         httpGet([uri: "https://${getRandAppName()}.herokuapp.com/heartbeat", contentType: 'application/json', headers: [appVersion: appVersion()]]) { resp->
             if(resp && resp?.data && resp?.data?.result) {
-                log.info "CloudHeartBeat Successful${resp?.data?.authenticated == true ? " | (Authenticated)" : ""}"
+                log.info "CloudHeartBeat Successful${resp?.data?.version ? " | Server Version: (v${resp?.data?.version})": ""}${resp?.data?.authenticated == true ? " | (Authenticated)" : ""}"
                 incrementCntByKey("appHeartbeatCnt")
                 state?.lastCloudHeartbeatDt = getDtNow()
                 authEvtHandler(resp?.data?.authenticated)
@@ -617,8 +649,13 @@ private cloudServiceHeartbeat() {
         }
         if(state?.installData?.sentMetrics != true) { sendInstallData() }
     } catch(ex) {
-        incrementCntByKey("appErrorCnt")
-        log.error "cloudServiceHeartbeat Exception: ", ex
+        if(ex instanceof groovyx.net.http.ResponseParseException) {
+            incrementCntByKey("heartbeatNotAvailCnt")
+            log.warn "cloudServiceHeartbeat | Server Endpoint Not Reachable (Is Server Restarting? or Asleep?): "
+        } else {
+            log.error "cloudServiceHeartbeat Exception: ", ex
+            incrementCntByKey("heartbeatErrCnt")
+        }
     }
 }
 
@@ -687,24 +724,33 @@ def receiveEventData(Map evtData, String src) {
                     logger("debug", "echoDevice | ${echoValue?.accountName}", false)
                     echoValue["serviceAuthenticated"] = (evtData?.authenticated == true)
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
-                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType]
+                    Boolean supportsCmds = (echoValue?.deviceStyle?.commandSupport == true)
+                    // log.debug "[${echoValue?.accountName}] | supportsCmds: $supportsCmds | deviceStyle: ${echoValue?.deviceStyle?.name} | deviceType: ${echoValue?.deviceType}"
+                    if(!supportsCmds) {
+                        logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support commands used by this integration") 
+                        return
+                    }
+                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, supportsCommands: supportsCmds]
+                    echoValue["supportsCommands"] = supportsCmds
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
                         return 
                     }
-                    if(!deviceFamilyAllowed(echoValue?.deviceFamily as String)) { return }
+                    
                     String dni = [app?.id, "echoSpeaks", echoKey].join('|')
                     def childDevice = getChildDevice(dni)
-                    String devLabel = "Echo - " + echoValue?.accountName
+                    String devLabel = "Echo - ${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
                     String childHandlerName = "Echo Speaks Device"
                     String hubId = settings?.stHub?.getId()
                     if(!updRequired) {
                         if (!childDevice) {
-                            try{
-                                log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)"
-                                childDevice = addChildDevice("tonesto7", childHandlerName, dni, hubId, [name: childHandlerName, label: devLabel, completedSetup: true])
-                            } catch(physicalgraph.app.exception.UnknownDeviceTypeException ex) {
-                                log.error "AddDevice Error! ", ex
+                            if(settings?.autoCreateDevices != false) {
+                                try{
+                                    log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)"
+                                    childDevice = addChildDevice("tonesto7", childHandlerName, dni, hubId, [name: childHandlerName, label: devLabel, completedSetup: true])
+                                } catch(physicalgraph.app.exception.UnknownDeviceTypeException ex) {
+                                    log.error "AddDevice Error! ", ex
+                                }
                             }
                         } else {
                             //Check and see if name needs a refresh
@@ -713,12 +759,12 @@ def receiveEventData(Map evtData, String src) {
                                 childDevice?.name = childHandlerName
                                 childDevice?.label = devLabel
                             }
+                            // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
+                            childDevice?.updateDeviceStatus(echoValue)
+                            childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
+                            modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
                         }
-                        // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
-                        childDevice?.updateDeviceStatus(echoValue)
-                        childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
                     }
-                    modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
                     curDevFamily.push(echoValue?.deviceStyle?.name)
                     state?.lastDevDataUpd = getDtNow()
                 }
@@ -797,45 +843,6 @@ private echoServiceUpdate() {
     catch (Exception e) {
         incrementCntByKey("appErrorCnt")
         log.error "echoServiceUpdate HubAction Exception, $hubAction", ex
-    }
-}
-
-public getDeviceStyle(String family, String type) {
-    switch(family) {
-        case "KNIGHT":
-            switch (type) {
-                case "A1NL4BVLQ4L3N3":
-                    return [name: "Echo Show (Gen1)", image: "echo_show_gen1"]
-                case "AWZZ5CVHX2CD":
-                    return [name: "Echo Show (Gen2)", image: "echo_show_gen2"]
-                default:
-                    return [name: "Echo Show (Gen1)", image: "echo_show_gen1"]
-            }
-        case "ECHO":
-            switch (type) {
-                case "AB72C64C86AW2":
-                    return [name: "Echo (Gen1)", image: "echo_gen1"]
-                case "AKNO1N0KSFN8L":
-                    return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1"]
-                case "A3S5BH2HU6VAYF":
-                    return [name: "Echo Dot (Gen2)", image: "echo_dot_gen2"]
-                default:
-                    return [name: "Echo (Gen1)", image: "echo_gen2"]
-            }
-        case "ROOK":
-            switch (type) {
-                case "A10A33FOX2NUBK":
-                    return [name: "Echo Spot (Gen1)", image: "echo_spot_gen1"]
-                default:
-                    return [name: "Echo Spot (Gen1)", image: "echo_spot_gen1"]
-            }
-        case "TABLET":
-            switch(type) {
-                default:
-                return [name: "Kindle Tablet", image: "amazon_tablet"]
-            }
-        default:
-            return [name: "Echo", image: "echo_dot_gen2"]
     }
 }
 
