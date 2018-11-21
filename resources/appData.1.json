@@ -1,0 +1,185 @@
+{
+    "versions": {
+        "mainApp": {
+            "ver": "1.3.0"
+        },
+        "echoDevice": {
+            "ver": "1.3.0"
+        },
+        "server": {
+            "ver": "1.3.0"
+        }
+    },
+    "settings": {
+        "installNotif": true,
+        "updateNotif": true,
+        "sendMetrics": true,
+        "database": {
+            "metricsUrl": "https://echo-speaks-metrics.firebaseio.com/"
+        }
+    },
+    "deviceSupport": {
+        "A1N9SW0I0LUX5Y": {
+            "name": "Dash Wand",
+            "image": "dash_wand",
+            "playerSupport": false,
+            "ttsSupport": false
+        },
+        "AB72C64C86AW2": {
+            "name": "Echo (Gen1)",
+            "image": "echo_gen1",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A7WXQPH584YP": {
+            "name": "Echo (Gen2)",
+            "image": "echo_gen2",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A2M35JJZWCQOMZ": {
+            "name": "Echo Plus (Gen1)",
+            "image": "echo_plus_gen1",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A18O6U1UQFJ0XK": {
+            "name": "Echo Plus (Gen2)",
+            "image": "echo_plus_gen2",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A1NL4BVLQ4L3N3": {
+            "name": "Echo Show (Gen1)",
+            "image": "echo_show_gen1",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "AWZZ5CVHX2CD": {
+            "name": "Echo Show (Gen2)",
+            "image": "echo_show_gen2",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A38EHHIB10L47V": {
+            "name": "Echo Dot (Gen1)",
+            "image": "echo_dot_gen1",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "AKNO1N0KSFN8L": {
+            "name": "Echo Dot (Gen1)",
+            "image": "echo_dot_gen1",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A3S5BH2HU6VAYF": {
+            "name": "Echo Dot (Gen2)",
+            "image": "echo_dot_gen2",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A32DOYMUN6DTXA": {
+            "name": "Echo Dot (Gen3)",
+            "image": "echo_dot_gen3",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A10A33FOX2NUBK": {
+            "name": "Echo Spot",
+            "image": "echo_spot_gen1",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A3SSG6GR8UU7SN": {
+            "name": "Echo Sub",
+            "image": "echo_sub_gen1",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A12GXV8XMS007S": {
+            "name": "Fire TV (Gen1)",
+            "image": "firetv_gen1",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A2E0SNTXJVT7WK": {
+            "name": "Fire TV (Gen2)",
+            "image": "firetv_gen2",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A2GFL5ZMWNE0PX": {
+            "name": "Fire TV (Gen3)",
+            "image": "firetv_gen3",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "ADVBD696BHNV5": {
+            "name": "Fire TV Stick (Gen1)",
+            "image": "firetv_stick_gen1",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A2LWARUGJLBYEW": {
+            "name": "Fire TV Stick (Gen2)",
+            "image": "firetv_stick_gen2",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "AKPGW064GI9HE": {
+            "name": "Fire TV Stick 4K (Gen3)",
+            "image": "firetv_stick_gen3",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A3HF4YRA2L7XGC": {
+            "name": "Fire TV Cube",
+            "image": "firetv_cube",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A2M4YX06LWP8WI": {
+            "name": "Fire Tablet",
+            "image": "amazon_tablet",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A1J16TEDOYCZTN": {
+            "name": "Fire Tablet",
+            "image": "amazon_tablet",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A3R9S4ZZECZ6YL": {
+            "name": "Fire Tablet HD 10",
+            "image": "tablet_hd10",
+            "playerSupport": true,
+            "ttsSupport": true
+        },
+        "A3C9PE6TNYLTCH": {
+            "name": "Multiroom",
+            "image": "echo_wha",
+            "playerSupport": true,
+            "ttsSupport": false
+        },
+        "A15ERDAKK5HQQG": {
+            "name": "Sonos",
+            "image": "sonos_generic",
+            "playerSupport": false,
+            "ttsSupport": false
+        },
+        "A2OSP3UA4VC85F": {
+            "name": "Sonos",
+            "image": "sonos_generic",
+            "playerSupport": true,
+            "ttsSupport": false
+        },
+        "A3NPD82ABCPIDP": {
+            "name": "Sonos Beam",
+            "image": "sonos_beam",
+            "playerSupport": true,
+            "ttsSupport": true
+        }
+    }
+}
