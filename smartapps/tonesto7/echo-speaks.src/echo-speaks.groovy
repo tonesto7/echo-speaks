@@ -27,11 +27,12 @@ public getDeviceStyle(String family, String type) {
         case 'A32DOYMUN6DTXA': return [name: 'Echo Dot (Gen3)', image: 'echo_dot_gen3', commandSupport: true]
         case 'A10A33FOX2NUBK': return [name: 'Echo Spot', image: 'echo_spot_gen1', commandSupport: true]
         case 'A3SSG6GR8UU7SN': return [name: 'Echo Sub', image: 'echo_sub_gen1', commandSupport: true]
-        case 'A12GXV8XMS007S': return [name: 'Fire TV (Gen1)', image: 'firetv_gen1', commandSupport: false]
-        case 'A2E0SNTXJVT7WK': return [name: 'Fire TV (Gen2)', image: 'firetv_gen2', commandSupport: true]  // was false
+        case 'A2E0SNTXJVT7WK': return [name: 'Fire TV (Gen1)', image: 'firetv_gen1', commandSupport: true]
+        case 'A12GXV8XMS007S': return [name: 'Fire TV (Gen2)', image: 'firetv_gen2', commandSupport: true]
         case 'A2GFL5ZMWNE0PX': return [name: 'Fire TV (Gen3)', image: 'firetv_gen3', commandSupport: true]
         case 'ADVBD696BHNV5' : return [name: 'Fire TV Stick (Gen1)', image: 'firetv_stick_gen1', commandSupport: true] // was false
         case 'A2LWARUGJLBYEW': return [name: 'Fire TV Stick (Gen2)', image: 'firetv_stick_gen2', commandSupport: true] // was false
+        case 'AKPGW064GI9HE' : return [name: 'Fire TV Stick 4K (Gen3)', image: 'firetv_stick_gen3', commandSupport: true] 
         case 'A3HF4YRA2L7XGC': return [name: 'Fire TV Cube', image: 'firetv_cube', commandSupport: true]
         case 'A2M4YX06LWP8WI': return [name: 'Fire Tablet', image: 'amazon_tablet', commandSupport: true] // was false
         case 'A1J16TEDOYCZTN': return [name: 'Fire Tablet', image: 'amazon_tablet', commandSupport: true]
@@ -40,7 +41,7 @@ public getDeviceStyle(String family, String type) {
         case 'A15ERDAKK5HQQG': return [name: 'Sonos', image: 'sonos_generic', commandSupport: false]
         case 'A2OSP3UA4VC85F': return [name: 'Sonos', image: 'sonos_generic', commandSupport: true]
         case 'A3NPD82ABCPIDP': return [name: 'Sonos Beam', image: 'sonos_beam', commandSupport: true]
-        default: return [name: 'Echo Unknown', image: 'unknown', commandSupport: false]
+        default: return [name: "Echo Unknown ${type}", image: 'unknown', commandSupport: false] //added type to output so we can find out other devices easier
     }
 }
 
