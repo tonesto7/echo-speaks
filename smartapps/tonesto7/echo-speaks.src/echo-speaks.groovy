@@ -14,33 +14,33 @@
  */
 public getDeviceStyle(String family, String type) {
     switch(type) {
-        case 'A1N9SW0I0LUX5Y': return [name: 'Dash Wand', image: 'dash_wand', commandSupport: false]
-        case 'AB72C64C86AW2' : return [name: 'Echo (Gen1)', image: 'echo_gen1', commandSupport: true]
-        case 'A7WXQPH584YP'  : return [name: 'Echo (Gen2)', image: 'echo_gen2', commandSupport: true]
-        case 'A2M35JJZWCQOMZ': return [name: 'Echo Plus (Gen1)', image: 'echo_plus_gen1', commandSupport: true]
-        case 'A18O6U1UQFJ0XK': return [name: 'Echo Plus (Gen2)', image: 'echo_plus_gen2', commandSupport: true]
-        case 'A1NL4BVLQ4L3N3': return [name: 'Echo Show (Gen1)', image: 'echo_show_gen1', commandSupport: true]
-        case 'AWZZ5CVHX2CD'  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", commandSupport: true]
-        case 'A38EHHIB10L47V': return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', commandSupport: true]
-        case "AKNO1N0KSFN8L" : return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', commandSupport: true]
-        case 'A3S5BH2HU6VAYF': return [name: 'Echo Dot (Gen2)', image: 'echo_dot_gen2', commandSupport: true]
-        case 'A32DOYMUN6DTXA': return [name: 'Echo Dot (Gen3)', image: 'echo_dot_gen3', commandSupport: true]
-        case 'A10A33FOX2NUBK': return [name: 'Echo Spot', image: 'echo_spot_gen1', commandSupport: true]
-        case 'A3SSG6GR8UU7SN': return [name: 'Echo Sub', image: 'echo_sub_gen1', commandSupport: true]
-        case 'A12GXV8XMS007S': return [name: 'Fire TV (Gen1)', image: 'firetv_gen1', commandSupport: false]
-        case 'A2E0SNTXJVT7WK': return [name: 'Fire TV (Gen2)', image: 'firetv_gen2', commandSupport: true]  // was false
-        case 'A2GFL5ZMWNE0PX': return [name: 'Fire TV (Gen3)', image: 'firetv_gen3', commandSupport: true]
-        case 'ADVBD696BHNV5' : return [name: 'Fire TV Stick (Gen1)', image: 'firetv_stick_gen1', commandSupport: true] // was false
-        case 'A2LWARUGJLBYEW': return [name: 'Fire TV Stick (Gen2)', image: 'firetv_stick_gen2', commandSupport: true] // was false
-        case 'A3HF4YRA2L7XGC': return [name: 'Fire TV Cube', image: 'firetv_cube', commandSupport: true]
-        case 'A2M4YX06LWP8WI': return [name: 'Fire Tablet', image: 'amazon_tablet', commandSupport: true] // was false
-        case 'A1J16TEDOYCZTN': return [name: 'Fire Tablet', image: 'amazon_tablet', commandSupport: true]
-        case 'A3R9S4ZZECZ6YL': return [name: 'Fire Tablet HD 10"', image: 'tablet_hd10', commandSupport: true]
-        case 'A3C9PE6TNYLTCH': return [name: 'Multiroom', image: 'echo_wha', commandSupport: true]
-        case 'A15ERDAKK5HQQG': return [name: 'Sonos', image: 'sonos_generic', commandSupport: false]
-        case 'A2OSP3UA4VC85F': return [name: 'Sonos', image: 'sonos_generic', commandSupport: true]
-        case 'A3NPD82ABCPIDP': return [name: 'Sonos Beam', image: 'sonos_beam', commandSupport: true]
-        default: return [name: 'Echo Unknown', image: 'unknown', commandSupport: false]
+        case 'A1N9SW0I0LUX5Y': return [name: 'Dash Wand', image: 'dash_wand', commandSupport: false, tts: false]
+        case 'AB72C64C86AW2' : return [name: 'Echo (Gen1)', image: 'echo_gen1', commandSupport: true, tts: true]
+        case 'A7WXQPH584YP'  : return [name: 'Echo (Gen2)', image: 'echo_gen2', commandSupport: true, tts: true]
+        case 'A2M35JJZWCQOMZ': return [name: 'Echo Plus (Gen1)', image: 'echo_plus_gen1', commandSupport: true, tts: true]
+        case 'A18O6U1UQFJ0XK': return [name: 'Echo Plus (Gen2)', image: 'echo_plus_gen2', commandSupport: true, tts: true]
+        case 'A1NL4BVLQ4L3N3': return [name: 'Echo Show (Gen1)', image: 'echo_show_gen1', commandSupport: true, tts: true]
+        case 'AWZZ5CVHX2CD'  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", commandSupport: true, tts: true]
+        case 'A38EHHIB10L47V': return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', commandSupport: true, tts: true]
+        case "AKNO1N0KSFN8L" : return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', commandSupport: true, tts: true]
+        case 'A3S5BH2HU6VAYF': return [name: 'Echo Dot (Gen2)', image: 'echo_dot_gen2', commandSupport: true, tts: true]
+        case 'A32DOYMUN6DTXA': return [name: 'Echo Dot (Gen3)', image: 'echo_dot_gen3', commandSupport: true, tts: true]
+        case 'A10A33FOX2NUBK': return [name: 'Echo Spot', image: 'echo_spot_gen1', commandSupport: true, tts: true]
+        case 'A3SSG6GR8UU7SN': return [name: 'Echo Sub', image: 'echo_sub_gen1', commandSupport: true, tts: true]
+        case 'A12GXV8XMS007S': return [name: 'Fire TV (Gen1)', image: 'firetv_gen1', commandSupport: false, tts: true]
+        case 'A2E0SNTXJVT7WK': return [name: 'Fire TV (Gen2)', image: 'firetv_gen2', commandSupport: true, tts: true]  // was false
+        case 'A2GFL5ZMWNE0PX': return [name: 'Fire TV (Gen3)', image: 'firetv_gen3', commandSupport: true, tts: true]
+        case 'ADVBD696BHNV5' : return [name: 'Fire TV Stick (Gen1)', image: 'firetv_stick_gen1', commandSupport: true, tts: true] // was false
+        case 'A2LWARUGJLBYEW': return [name: 'Fire TV Stick (Gen2)', image: 'firetv_stick_gen2', commandSupport: true, tts: true] // was false
+        case 'A3HF4YRA2L7XGC': return [name: 'Fire TV Cube', image: 'firetv_cube', commandSupport: true, tts: true]
+        case 'A2M4YX06LWP8WI': return [name: 'Fire Tablet', image: 'amazon_tablet', commandSupport: true, tts: true] // was false
+        case 'A1J16TEDOYCZTN': return [name: 'Fire Tablet', image: 'amazon_tablet', commandSupport: true, tts: true]
+        case 'A3R9S4ZZECZ6YL': return [name: 'Fire Tablet HD 10"', image: 'tablet_hd10', commandSupport: true, tts: true]
+        case 'A3C9PE6TNYLTCH': return [name: 'Multiroom', image: 'echo_wha', commandSupport: true, tts: true]
+        case 'A15ERDAKK5HQQG': return [name: 'Sonos', image: 'sonos_generic', commandSupport: false, tts: true]
+        case 'A2OSP3UA4VC85F': return [name: 'Sonos', image: 'sonos_generic', commandSupport: true, tts: true]
+        case 'A3NPD82ABCPIDP': return [name: 'Sonos Beam', image: 'sonos_beam', commandSupport: true, tts: true]
+        default: return [name: 'Echo Unknown', image: 'unknown', commandSupport: false, tts: false]
     }
 }
 
@@ -618,14 +618,14 @@ def clearCookie() {
 def scheduleHeartbeat() {
     log.info "Scheduling CloudHeartbeat Check for Every 5 minutes..."
     state?.heartbeatScheduled = true
-    runEvery5Minutes('cloudServiceHeartbeat')
+    runEvery15Minutes('cloudServiceHeartbeat')
 }
 
 Integer getLastHeartBeatSeconds() { return !state?.lastCloudHeartbeatDt ? 601 : GetTimeDiffSeconds(state?.lastCloudHeartbeatDt, "getLastHeartBeatSeconds").toInteger() }
 private cloudHeartbeatCheck() {
     if(state?.onHeroku) {
         if(!state?.heartbeatScheduled) { scheduleHeartbeat() }
-        if(getLastHeartBeatSeconds() > 600) {
+        if(getLastHeartBeatSeconds() > 900) {
             log.warn "For some reason a CloudHeartbeat has not occurred in over ${(getLastHeartBeatSeconds()/60).toFloat()?.round(1)} minutes  | (${getLastHeartBeatSeconds()} secs.)... Rescheduling the heartbeat!!!"
             unschedule("cloudServiceHeartbeat")
             state?.heartbeatScheduled = true
@@ -744,6 +744,7 @@ def receiveEventData(Map evtData, String src) {
                     String hubId = settings?.stHub?.getId()
                     if(!updRequired) {
                         if (!childDevice) {
+                            log.debug "childDevice not found | autoCreateDevices: ${settings?.autoCreateDevices}"
                             if(settings?.autoCreateDevices != false) {
                                 try{
                                     log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)"
