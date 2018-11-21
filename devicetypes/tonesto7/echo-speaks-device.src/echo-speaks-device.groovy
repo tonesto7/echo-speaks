@@ -203,8 +203,17 @@ metadata {
         valueTile("blank2x1", "device.blank", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("default", label:'')
         }
+        valueTile("blank2x2", "device.blank", height: 2, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("default", label:'')
+        }
         valueTile("alarmVolume", "device.alarmVolume", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("alarmVolume", label:'Alarm Volume:\n${currentValue}%')
+        }
+        valueTile("volumeSupported", "device.volumeSupported", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("volumeSupported", label:'Volume Supported:\n${currentValue}')
+        }
+        valueTile("ttsSupported", "device.ttsSupported", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("ttsSupported", label:'TTS Supported:\n${currentValue}')
         }
         valueTile("deviceStyle", "device.deviceStyle", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("deviceStyle", label:'Device Style:\n${currentValue}')
@@ -221,8 +230,8 @@ metadata {
         valueTile("lastSpeakCmd", "device.lastSpeakCmd", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
             state("lastSpeakCmd", label:'Last Text Sent:\n${currentValue}')
         }
-        valueTile("lastCmdSentDt", "device.lastCmdSentDt", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
-            state("lastCmdSentDt", label:'Last Text Date:\n${currentValue}')
+        valueTile("lastCmdSentDt", "device.lastCmdSentDt", height: 2, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("lastCmdSentDt", label:'Last Text Sent:\n${currentValue}')
         }
         valueTile("alexaWakeWord", "device.alexaWakeWord", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("alexaWakeWord", label:'Wake Word:\n${currentValue}')
@@ -260,9 +269,9 @@ metadata {
         }
         main(["deviceStatus"])
         details([
-            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "blank2x1", "alexaWakeWord", "blank2x1",
+            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported",
             "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue", 
-            "lastSpeakCmd", "lastCmdSentDt"])
+            "lastSpeakCmd", "blank2x2", "lastCmdSentDt", "blank2x2"])
     }
     
     preferences {
