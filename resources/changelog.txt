@@ -3,6 +3,7 @@ V1.3.0 (November 21st, 2018):
 App:
  • ADDED: Now populates device capabilities data to show if device supports volume, player, tts.
  • ADDED: Auto Create Settings for Tablets, WholeHomeAudio, and Other Alexa Enabled Devices.
+ • FIXED: Removed blocking because of code versions.
 
 Device:
  • ADDED: Support for new DeviceTypes
