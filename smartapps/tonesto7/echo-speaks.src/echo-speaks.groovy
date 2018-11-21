@@ -641,7 +641,7 @@ private cloudHeartbeatCheck() {
             log.warn "For some reason a CloudHeartbeat has not occurred in over ${(getLastHeartBeatSeconds()/60).toFloat()?.round(1)} minutes  | (${getLastHeartBeatSeconds()} secs.)... Rescheduling the heartbeat!!!"
             unschedule("cloudServiceHeartbeat")
             state?.heartbeatScheduled = true
-            runEvery5Minutes('cloudServiceHeartbeat')
+            runEvery15Minutes('cloudServiceHeartbeat')
             sendOneHeartbeat()
         }
     }
