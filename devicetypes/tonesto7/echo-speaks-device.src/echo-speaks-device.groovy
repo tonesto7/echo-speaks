@@ -17,7 +17,7 @@
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 String devVersion() { return "1.3.0"}
-String devModified() { return "2018-11-19" }
+String devModified() { return "2018-11-21" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -34,7 +34,7 @@ metadata {
         attribute "deviceStatus", "string"
         attribute "deviceType", "string"
         attribute "deviceStyle", "string"
-        attribute "doNotDisturb", "boolean"
+        attribute "doNotDisturb", "string"
         attribute "firmwareVer", "string"
         attribute "onlineStatus", "string"
         attribute "currentStation", "string"
@@ -44,11 +44,13 @@ metadata {
         attribute "trackImage", "string"
         attribute "alarmVolume", "number"
         attribute "alexaWakeWord", "string"
-        attribute "supportsCommands", "boolean"
         attribute "wakeWords", "enum"
         attribute "alexaPlaylists", "JSON_OBJECT"
         attribute "alexaNotifications", "JSON_OBJECT"
         attribute "alexaMusicProviders", "JSON_OBJECT"
+        attribute "volumeSupported", "string"
+        attribute "ttsSupported", "string"
+        attribute "playerSupported", "string"
         command "sendTestTts"
         command "replayText"
         command "doNotDisturbOn"
@@ -72,6 +74,8 @@ metadata {
         command "createReminder"
         command "removeNotification"
         command "setWakeWord"
+        command "storeCurrentVolume"
+        command "restoreLastVolume"
         command "setVolumeSpeakAndRestore"
     }
 
@@ -199,8 +203,17 @@ metadata {
         valueTile("blank2x1", "device.blank", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("default", label:'')
         }
+        valueTile("blank2x2", "device.blank", height: 2, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("default", label:'')
+        }
         valueTile("alarmVolume", "device.alarmVolume", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("alarmVolume", label:'Alarm Volume:\n${currentValue}%')
+        }
+        valueTile("volumeSupported", "device.volumeSupported", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("volumeSupported", label:'Volume Supported:\n${currentValue}')
+        }
+        valueTile("ttsSupported", "device.ttsSupported", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("ttsSupported", label:'TTS Supported:\n${currentValue}')
         }
         valueTile("deviceStyle", "device.deviceStyle", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("deviceStyle", label:'Device Style:\n${currentValue}')
@@ -217,8 +230,8 @@ metadata {
         valueTile("lastSpeakCmd", "device.lastSpeakCmd", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
             state("lastSpeakCmd", label:'Last Text Sent:\n${currentValue}')
         }
-        valueTile("lastCmdSentDt", "device.lastCmdSentDt", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
-            state("lastCmdSentDt", label:'Last Text Date:\n${currentValue}')
+        valueTile("lastCmdSentDt", "device.lastCmdSentDt", height: 2, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("lastCmdSentDt", label:'Last Text Sent:\n${currentValue}')
         }
         valueTile("alexaWakeWord", "device.alexaWakeWord", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("alexaWakeWord", label:'Wake Word:\n${currentValue}')
@@ -256,9 +269,9 @@ metadata {
         }
         main(["deviceStatus"])
         details([
-            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "blank2x1", "alexaWakeWord", "blank2x1",
+            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported",
             "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue", 
-            "lastSpeakCmd", "lastCmdSentDt"])
+            "lastSpeakCmd", "blank2x2", "lastCmdSentDt", "blank2x2"])
     }
     
     preferences {
@@ -323,6 +336,21 @@ void updateDeviceStatus(Map devData) {
             //         logger("debug", "$k: $v")
             //     }
             // }
+            Boolean playerSupported = (devData?.playerSupport == true)
+            Boolean ttsSupported = (devData?.ttsSupport == true)
+            Boolean volumeSupported = (devData?.volumeControl == true)
+            state?.playerSupported = playerSupported
+            state?.ttsSupported = ttsSupported
+            state?.volumeSupported = volumeSupported
+            if(isStateChange(device, "volumeSupported", volumeSupported?.toString())) {
+                sendEvent(name: "volumeSupported", value: volumeSupported, display: false, displayed: false)
+            }
+            if(isStateChange(device, "playerSupported", playerSupported?.toString())) {
+                sendEvent(name: "playerSupported", value: playerSupported, display: false, displayed: false)
+            }
+            if(isStateChange(device, "ttsSupported", ttsSupported?.toString())) {
+                sendEvent(name: "ttsSupported", value: ttsSupported, display: false, displayed: false)
+            }
             state?.serviceAuthenticated = (devData?.serviceAuthenticated == true)
             Map deviceStyle = devData?.deviceStyle
             state?.deviceImage = deviceStyle?.image as String
@@ -461,6 +489,7 @@ public setOnlineStatus(Boolean isOnline) {
 
 def play() {
     logger("trace", "play() command received...")
+    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -476,10 +505,12 @@ def play() {
 }
 
 def playTrack(track) {
+    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     logger("warn", "playTrack() | Not Supported Yet!!!")
 }
 
 def pause() {
+    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     logger("trace", "pause() command received...")
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
@@ -497,6 +528,7 @@ def pause() {
 
 def stop() {
     logger("trace", "stop() command received...")
+    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -512,6 +544,7 @@ def stop() {
 
 def previousTrack() {
     logger("trace", "previousTrack() command received...")
+    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -525,6 +558,7 @@ def previousTrack() {
 
 def nextTrack() {
     logger("trace", "nextTrack() command received...")
+    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -538,6 +572,7 @@ def nextTrack() {
 
 def mute() {
     logger("trace", "mute() command received...")
+    if(!state?.volumeSupported) { log.warn "This Device Does NOT Support Volume Control!!!"; return; }
     if(state?.serialNumber) {
         state.muteLevel = device?.currentState("level")?.integerValue
         incrementCntByKey("use_cnt_muteCmd")
@@ -550,6 +585,7 @@ def mute() {
 
 def unmute() {
     logger("trace", "unmute() command received...")
+    if(!state?.volumeSupported) { log.warn "This Device Does NOT Support Volume Control!!!"; return; }
     if(state?.serialNumber) {
         if(state?.muteLevel) {
             setLevel(state?.muteLevel)
@@ -574,6 +610,7 @@ def setMute(muteState) {
 
 def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
+    if(!state?.volumeSupported) { log.warn "This Device Does NOT Support Volume Control!!!"; return; }
     if(state?.serialNumber && level>=0 && level<=100) {
         if(volume != device?.currentState('level')?.integerValue) {
             doSequenceCmd("VolumeCommand", "volume", level)
@@ -659,12 +696,14 @@ def deviceNotification(String msg) {
 }
 
 def setVolumeAndSpeak(Integer volume, String msg) {
+    if(!state?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
     if(volume) { setVolume(volume) }
     incrementCntByKey("use_cnt_setVolSpeak")
     speak(msg)
 }
 
 def setVolumeSpeakAndRestore(Integer volume, String msg) {
+    if(!state?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
     if(msg) {
         Integer restoreDelay = getRecheckDelay(msg?.toString()?.length())
         if(volume) { 
@@ -690,6 +729,7 @@ private restoreLastVolume() {
 }
 
 def speak(String msg) {
+    if(!state?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
     if(!msg) { log.warn "No Message sent with speak($msg) command" }
     // log.trace "speak(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
     if(msg != null && state?.serialNumber) {
@@ -864,6 +904,7 @@ def replayText() {
 }
 
 def sendTestTts(ttsMsg) {
+    if(!state?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
     log.trace "sendTestTts"
     List items = [
         "Testing Testing 1, 2, 3", 
