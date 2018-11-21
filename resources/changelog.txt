@@ -1,14 +1,16 @@
-V1.3.0 (November 19th, 2018):
+V1.3.0 (November 21st, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
- • ADDED: Added support for new amazon devices (Please report any that are not working.)
+ • ADDED: Now populates device capabilities data to show if device supports volume, player, tts.
+ • ADDED: Auto Create Settings for Tablets, WholeHomeAudio, and Other Alexa Enabled Devices.
 
 Device:
  • ADDED: Support for new DeviceTypes
- • ADDED: New Device Command | setVolumeSpeakRestore(volume, message)
+ • ADDED: New Attribute | ttsSupported, volumeSupported, playerSupported
+ • ADDED: New Device Commands | setVolumeSpeakRestore(volume, message), storeLastVolume(), restoreLastVolume()
 
 Server:
- • ADDED: Support for new DeviceTypes
+ • ADDED: Support for New Alexa DeviceTypes
 
 V1.2.5 (November 18th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
