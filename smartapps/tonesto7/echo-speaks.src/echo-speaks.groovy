@@ -125,7 +125,7 @@ def mainPage() {
                 }
                 input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
                 input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
-                input "createWHA", "bool", title: "Create Devices for Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_multiroom.png")
+                input "createWHA", "bool", title: "Create Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_multiroom.png")
                 input "createOtherDevices", "bool", title: "Create Other Alexa Enabled Devices?", description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices.png")
                 input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
 
@@ -820,9 +820,10 @@ def receiveEventData(Map evtData, String src) {
 }
 
 Boolean deviceFamilyAllowed(String family) {
+    if(family in ["ROOK", "KNIGHT", "ECHO"]) { return true }
     if(settings?.createTablets == true && family == "TABLET") { return true }
     if(settings?.createWHA == true && family == "WHA") { return true }
-    if(settings?.createOtherDevices == true && !(family in ["TABLET", "WHA", "DASH_WAND"])) { return true }
+    if(settings?.createOtherDevices == true && !(family in ["DASH_WAND"])) { return true }
     return false
 }
 
