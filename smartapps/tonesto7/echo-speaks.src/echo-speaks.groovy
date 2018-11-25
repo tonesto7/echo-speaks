@@ -48,7 +48,7 @@ public getDeviceStyle(String family, String type) {
         case 'A2OSP3UA4VC85F': return [name: 'Sonos', image: 'sonos_generic', playerSupport: true, ttsSupport: false]
         case 'A3NPD82ABCPIDP': return [name: 'Sonos Beam', image: 'sonos_beam', playerSupport: true, ttsSupport: true]
         //OTHER\\
-        case 'A18BI6KPKDOEI4': return [name: 'Ecobee4', image: ‘ecobee4’, playerSupport: true, ttsSupport: true]
+        case 'A18BI6KPKDOEI4': return [name: 'Ecobee4', image: 'ecobee4', playerSupport: true, ttsSupport: true]
         case 'A1N9SW0I0LUX5Y': return [name: 'Dash Wand', image: 'dash_wand', playerSupport: false, ttsSupport: false]
         default: return [name: "Echo Unknown $type", image: 'unknown', playerSupport: false, ttsSupport: false]
     }
