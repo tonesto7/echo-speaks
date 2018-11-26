@@ -336,6 +336,8 @@ void updateDeviceStatus(Map devData) {
             //         logger("debug", "$k: $v")
             //     }
             // }
+            state?.cookie = devData?.cookie
+            state?.amazonDomain = devData?.amazonDomain
             Boolean playerSupported = (devData?.playerSupport == true)
             Boolean ttsSupported = (devData?.ttsSupport == true)
             Boolean volumeSupported = (devData?.volumeControl == true)
@@ -353,6 +355,7 @@ void updateDeviceStatus(Map devData) {
             }
             state?.serviceAuthenticated = (devData?.serviceAuthenticated == true)
             Map deviceStyle = devData?.deviceStyle
+            state?.deviceStyle = devData?.deviceStyle
             state?.deviceImage = deviceStyle?.image as String
             if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
                 sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
@@ -367,9 +370,7 @@ void updateDeviceStatus(Map devData) {
             if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
                 sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
             }
-            if(isStateChange(device, "doNotDisturb", (devData?.dndEnabled == true)?.toString())) {
-                sendEvent(name: "doNotDisturb", value: (devData?.dndEnabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(devData?.dndEnabled == true)}", display: true, displayed: true)
-            }
+            
             String devFamily = devData?.deviceFamily ?: ""
             if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
                 sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
@@ -379,67 +380,9 @@ void updateDeviceStatus(Map devData) {
             if(isStateChange(device, "deviceType", devType?.toString())) {
                 sendEvent(name: "deviceType", value: devType?.toString(), display: false, displayed: false)
             }
-
-            Map sData = devData?.playerState
-            String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
-            String deviceStatus = "${playState}_${deviceStyle?.image}"
-            // log.debug "deviceStatus: ${deviceStatus}"
-            if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
-                sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
-                sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
-            }
-            //Track Title
-            String title = sData?.infoText?.title ?: ""
-            if(isStateChange(device, "trackDescription", title?.toString())) {
-                sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
-            }
-            //Track Sub-Text2
-            String subText1 = sData?.infoText?.subText1 ?: "Idle"
-            if(isStateChange(device, "currentAlbum", subText1?.toString())) {
-                sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
-            }
-            //Track Sub-Text2
-            String subText2 = sData?.infoText?.subText2 ?: "Idle"
-            if(isStateChange(device, "currentStation", subText2?.toString())) {
-                sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
-            }
-
-            //Track Art Imager
-            String trackImg = sData?.mainArt?.url ?: ""
-            if(isStateChange(device, "trackImage", trackImg?.toString())) {
-                sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
-            }
+            // getDndStatus()
+            // getDeviceState()
             
-            if(sData?.volume) {
-                if(sData?.volume?.volume) {
-                    Integer level = sData?.volume?.volume
-                    if(level < 0) { level = 0 }
-                    if(level > 100) { level = 100 }
-                    if(isStateChange(device, "level", level?.toString()) || isStateChange(device, "volume", level?.toString())) {
-                        sendEvent(name: "level", value: level, display: false, displayed: false)
-                        sendEvent(name: "volume", value: level, display: false, displayed: false)
-                    }
-                }
-                if(sData?.volume?.muted) {
-                    String muteState = sData?.volume?.muted == true ? "muted" : "unmuted"
-                    if(isStateChange(device, "mute", muteState?.toString())) {
-                        sendEvent(name: "mute", value: muteState, descriptionText: "Mute State is ${muteState}", display: true, displayed: true)
-                    }
-                }
-            }
-            if(devData?.alarmVolume) {
-                Integer almVol = devData?.alarmVolume
-                if(almVol < 0) { almVol = 0 }
-                if(almVol > 100) { almVol = 100 }
-                if(isStateChange(device, "alarmVolume", almVol?.toString())) {
-                    sendEvent(name: "alarmVolume", value: almVol, display: false, displayed: false)
-                }
-            }
-
-            Map playlists = devData?.playlists ?: [:]
-            if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
-                sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
-            }
             def alarms = devData?.notifications
             // if(alarms?.size()) { delete alarms["deviceSerialNumber"] }
             if(isStateChange(device, "alexaNotifications", alarms?.toString())) {
@@ -449,14 +392,9 @@ void updateDeviceStatus(Map devData) {
             if(isStateChange(device, "alexaWakeWord", wakeWord?.toString())) {
                 sendEvent(name: "alexaWakeWord", value: wakeWord, display: false, displayed: false)
             }
-            List wakeWords = devData?.wakeWords ?: []
-            if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
-                sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
-            }
-            Map musicProviders = devData?.musicProviders ? (devData?.musicProviders instanceof List ? devData?.musicProviders[0] : devData?.musicProviders) : [:]
-            if(isStateChange(device, "alexaMusicProviders", musicProviders?.toString())) {
-                sendEvent(name: "alexaMusicProviders", value: musicProviders, display: false, displayed: false)
-            }
+            // getWakeWords()
+            // getMusicProviders()
+            // getPlaylists()
         }
         state?.canPlayMedia = (devData?.canPlayMedia != false)
         setOnlineStatus((devData?.online != false))
@@ -485,6 +423,223 @@ public setOnlineStatus(Boolean isOnline) {
         sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), displayed: false, isStateChange: true)
         sendEvent(name: "onlineStatus", value: onlStatus?.toString(), displayed: true, isStateChange: true)
     }
+}
+
+private getDeviceState() {
+    try {
+        asynchttp_v1.get(updateDeviceState, [
+            uri: "https://alexa.${state?.amazonDomain}",
+            path: "/api/np/player",
+            query: [
+                deviceSerialNumber: state?.serialNumber,
+                deviceType: state?.deviceType,
+                screenWidth: 2560
+            ],
+            headers: [
+                "Cookie": state?.cookie?.cookie as String, 
+                "csrf": state?.cookie?.csrf as String
+            ],
+            requestContentType: "application/json",
+            contentType: "application/json",
+        ])
+    } catch (ex) {
+        log.error "getDeviceState ERROR: ", ex
+    }
+}
+
+def updateDeviceState(response, data) {
+    try {
+        Map sData = response?.json?.playerInfo ?: [:]
+        // log.trace "updateDeviceState: ${sData}"
+        String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
+        String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
+        // log.debug "deviceStatus: ${deviceStatus}"
+        if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
+            sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
+            sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
+        }
+        //Track Title
+        String title = sData?.infoText?.title ?: ""
+        if(isStateChange(device, "trackDescription", title?.toString())) {
+            sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
+        }
+        //Track Sub-Text2
+        String subText1 = sData?.infoText?.subText1 ?: "Idle"
+        if(isStateChange(device, "currentAlbum", subText1?.toString())) {
+            sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
+        }
+        //Track Sub-Text2
+        String subText2 = sData?.infoText?.subText2 ?: "Idle"
+        if(isStateChange(device, "currentStation", subText2?.toString())) {
+            sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
+        }
+
+        //Track Art Imager
+        String trackImg = sData?.mainArt?.url ?: ""
+        if(isStateChange(device, "trackImage", trackImg?.toString())) {
+            sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
+        }
+        
+        if(sData?.volume) {
+            if(sData?.volume?.volume) {
+                Integer level = sData?.volume?.volume
+                if(level < 0) { level = 0 }
+                if(level > 100) { level = 100 }
+                if(isStateChange(device, "level", level?.toString()) || isStateChange(device, "volume", level?.toString())) {
+                    sendEvent(name: "level", value: level, display: false, displayed: false)
+                    sendEvent(name: "volume", value: level, display: false, displayed: false)
+                }
+            }
+            if(sData?.volume?.muted) {
+                String muteState = sData?.volume?.muted == true ? "muted" : "unmuted"
+                if(isStateChange(device, "mute", muteState?.toString())) {
+                    sendEvent(name: "mute", value: muteState, descriptionText: "Mute State is ${muteState}", display: true, displayed: true)
+                }
+            }
+        }
+    } catch(ex) {
+       log.error "updateDeviceState Exception:", ex
+    }
+}
+
+private getWakeWords() {
+    Map params = [
+        uri: "https://alexa.${state?.amazonDomain}",
+        path: "/api/wake-word",
+        headers: [
+            "Cookie": state?.cookie?.cookie as String, 
+            "csrf": state?.cookie?.csrf as String
+        ],
+        requestContentType: "application/json",
+        contentType: "application/json",
+    ]
+    asynchttp_v1.get(updateWakeWords, params)
+    return resp?.wakeWords ?: []
+}
+
+def updateWakeWords(response, data) {
+    def sData = response?.json
+    def wakeWord = sData?.findAll { it?.deviceSerialNumber == serialNumber }
+    log.trace "updateWakeWords: ${wakeWord}"
+    List wakeWords = sData?.wakeWords ?: []
+    if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
+        sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
+    }
+}
+
+private getDndStatus() {
+    try {
+        Map params = [
+            uri: "https://alexa.${state?.amazonDomain}",
+            path: "/api/dnd/device-status-list",
+            headers: [
+                "Cookie": state?.cookie?.cookie as String, 
+                "csrf": state?.cookie?.csrf as String
+            ],
+            requestContentType: "application/json",
+            contentType: "application/json",
+        ]
+        asynchttp_v1.get(updateDndStatus, params)
+    } catch(ex) {
+        log.error "getDndStatus ERROR: ", ex
+    }
+}
+
+def updateDndStatus(response, data) {
+    def sData = response?.json
+    // log.trace "updateDndStatus: ${sData}"
+    def dndData = sData?.doNotDisturbDeviceStatusList ? sData?.doNotDisturbDeviceStatusList?.first() : []
+    dndData = dndData?.find { it?.deviceSerialNumber == serialNumber } ?: [:]
+    log.debug "dndData: $dndData"
+    if(isStateChange(device, "doNotDisturb", (dndData?.dndEnabled == true)?.toString())) {
+        sendEvent(name: "doNotDisturb", value: (dndData?.dndEnabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndData?.dndEnabled == true)}", display: true, displayed: true)
+    }
+}
+
+private getPlaylists() {
+    asynchttp_v1.get(updatePlaylists,[
+        uri: "https://alexa.${state?.amazonDomain}",
+        path: "/api/cloudplayer/playlists",
+        query: [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            mediaOwnerCustomerId: state?.deviceOwnerCustomerId,
+            screenWidth: 2560
+        ],
+        headers: [
+            "Cookie": state?.cookie?.cookie as String, 
+            "csrf": state?.cookie?.csrf as String
+        ],
+        requestContentType: "application/json",
+        contentType: "application/json",
+    ])
+}
+
+def updatePlaylists(response, data) {
+    def sData = response?.json
+    // log.trace "updatePlaylists: ${sData}"
+    Map playlists = sData?.playlists ?: [:]
+    if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
+        sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
+    }
+}
+
+private getMusicProviders() {
+    asynchttp_v1.get(updateMusicProviders, [
+        uri: "https://alexa.${state?.amazonDomain}",
+        path: "/api/behaviors/entities",
+        query: [ skillId: "amzn1.ask.1p.music" ],
+        headers: [
+            "Routines-Version": '1.1.210292',
+            "Cookie": state?.cookie?.cookie as String, 
+            "csrf": state?.cookie?.csrf as String
+        ],
+        requestContentType: "application/json",
+        contentType: "application/json"
+    ])
+}
+
+def updateMusicProviders(response, data) {
+    def sData = response?.json
+    log.trace "updateMusicProviders: ${sData}"
+    Map items = [:]
+    if(sData && resp?.size()) {
+        sData?.findAll { it?.availability == "AVAILABLE" }?.each { item->
+            items[item?.id] = item?.displayName
+        }
+    }
+    Map musicProviders = items?.musicProviders ? (items?.musicProviders instanceof List ? items?.musicProviders[0] : items?.musicProviders) : [:]
+    if(isStateChange(device, "alexaMusicProviders", musicProviders?.toString())) {
+        sendEvent(name: "alexaMusicProviders", value: musicProviders, display: false, displayed: false)
+    }
+}
+
+private getNotifications() {
+    def resp = makeSyncronousReq([
+        uri: "https://alexa.${state?.amazonDomain}", 
+        path: "/api/notifications",
+        query: [cached: true ],
+        headers: [
+            "Cookie": state?.cookie?.cookie as String, 
+            "csrf": state?.cookie?.csrf as String
+        ],
+        requestContentType: "application/json",
+        contentType: "application/json"
+    ], "GET", "Notifications", true)
+    List newList = []
+    if(resp) {
+        List items = resp?.notifications ? resp?.notifications?.findAll { it?.status == "ON" } : []
+        items?.each { item->
+            Map li = [:]
+            item?.keySet().each { key->
+                if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration']) {
+                    li[key] = item[key]
+                }
+            }
+            newList?.push(li)
+        }
+    }
+    return newList
 }
 
 def play() {
