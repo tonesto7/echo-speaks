@@ -16,8 +16,8 @@
 
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.3.0"}
-String devModified() { return "2018-11-21" }
+String devVersion() { return "1.4.0"}
+String devModified() { return "2018-11-26" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -50,7 +50,7 @@ metadata {
         attribute "alexaMusicProviders", "JSON_OBJECT"
         attribute "volumeSupported", "string"
         attribute "ttsSupported", "string"
-        attribute "playerSupported", "string"
+        attribute "musicSupported", "string"
         command "sendTestTts"
         command "replayText"
         command "doNotDisturbOn"
@@ -336,19 +336,26 @@ void updateDeviceStatus(Map devData) {
             //         logger("debug", "$k: $v")
             //     }
             // }
+            state?.serialNumber = devData?.serialNumber
+            state?.deviceType = devData?.deviceType
+            state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
             state?.cookie = devData?.cookie
             state?.amazonDomain = devData?.amazonDomain
-            Boolean playerSupported = (devData?.playerSupport == true)
-            Boolean ttsSupported = (devData?.ttsSupport == true)
-            Boolean volumeSupported = (devData?.volumeControl == true)
-            state?.playerSupported = playerSupported
-            state?.ttsSupported = ttsSupported
-            state?.volumeSupported = volumeSupported
+            state?.permissions = devData?.permissionMap
+            log.debug "permissions: ${state?.permissions}"
+            Boolean canPlayMusic = (state?.permissions?.canPlayMusic == true)
+            Boolean ttsSupported = (state?.permissions?.ttsSupport == true)
+            Boolean volumeSupported = (state?.permissions?.volumeControl == true)
+            Boolean alarmsSupported = (state?.permissions?.allowAlarms == true)
+            Boolean remindersSupported = (state?.permissions?.allowReminders == true)
+            state?.allowAlarms = (devData?.allowAlarms == true)
+            state?.allowReminders = (devData?.allowReminders == true)
+
             if(isStateChange(device, "volumeSupported", volumeSupported?.toString())) {
                 sendEvent(name: "volumeSupported", value: volumeSupported, display: false, displayed: false)
             }
-            if(isStateChange(device, "playerSupported", playerSupported?.toString())) {
-                sendEvent(name: "playerSupported", value: playerSupported, display: false, displayed: false)
+            if(isStateChange(device, "musicSupported", canPlayMusic?.toString())) {
+                sendEvent(name: "musicSupported", value: canPlayMusic, display: false, displayed: false)
             }
             if(isStateChange(device, "ttsSupported", ttsSupported?.toString())) {
                 sendEvent(name: "ttsSupported", value: ttsSupported, display: false, displayed: false)
@@ -356,16 +363,12 @@ void updateDeviceStatus(Map devData) {
             state?.serviceAuthenticated = (devData?.serviceAuthenticated == true)
             Map deviceStyle = devData?.deviceStyle
             state?.deviceStyle = devData?.deviceStyle
+            // logger("info", "deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
             state?.deviceImage = deviceStyle?.image as String
             if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
                 sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
             }
-            // logger("info", "deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
-            state?.serialNumber = devData?.serialNumber
-            state?.deviceType = devData?.deviceType
-            state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
             
-            // log.debug "dndEnabled: ${devData?.dndEnabled}"
             String firmwareVer = devData?.softwareVersion ?: "Not Set"
             if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
                 sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
@@ -380,23 +383,31 @@ void updateDeviceStatus(Map devData) {
             if(isStateChange(device, "deviceType", devType?.toString())) {
                 sendEvent(name: "deviceType", value: devType?.toString(), display: false, displayed: false)
             }
-            // getDndStatus()
-            // getDeviceState()
+
+            if(devFamily != "WHA") { 
+                getDndStatus()
+                getDeviceState()
+                getWakeWord() 
+                getAvailableWakeWords()
+                
+                // getMusicProviders()
+                // getPlaylists()
+
+                //getNotifications()
+            }
+            if(alarmsSupported || remindersSupported) { 
+                getAlarmVolume() 
+                
+            }
+
             
-            def alarms = devData?.notifications
-            // if(alarms?.size()) { delete alarms["deviceSerialNumber"] }
-            if(isStateChange(device, "alexaNotifications", alarms?.toString())) {
-                sendEvent(name: "alexaNotifications", value: alarms, display: false, displayed: false)
-            }
-            String wakeWord = devData?.wakeWord ?: ""
-            if(isStateChange(device, "alexaWakeWord", wakeWord?.toString())) {
-                sendEvent(name: "alexaWakeWord", value: wakeWord, display: false, displayed: false)
-            }
-            // getWakeWords()
-            // getMusicProviders()
-            // getPlaylists()
+
+            // def alarms = devData?.notifications
+            // // if(alarms?.size()) { delete alarms["deviceSerialNumber"] }
+            // if(isStateChange(device, "alexaNotifications", alarms?.toString())) {
+            //     sendEvent(name: "alexaNotifications", value: alarms, display: false, displayed: false)
+            // }
         }
-        state?.canPlayMedia = (devData?.canPlayMedia != false)
         setOnlineStatus((devData?.online != false))
         sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
     } catch(ex) {
@@ -448,61 +459,88 @@ private getDeviceState() {
 }
 
 def updateDeviceState(response, data) {
-    try {
-        Map sData = response?.json?.playerInfo ?: [:]
-        // log.trace "updateDeviceState: ${sData}"
-        String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
-        String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
-        // log.debug "deviceStatus: ${deviceStatus}"
-        if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
-            sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
-            sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
-        }
-        //Track Title
-        String title = sData?.infoText?.title ?: ""
-        if(isStateChange(device, "trackDescription", title?.toString())) {
-            sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
-        }
-        //Track Sub-Text2
-        String subText1 = sData?.infoText?.subText1 ?: "Idle"
-        if(isStateChange(device, "currentAlbum", subText1?.toString())) {
-            sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
-        }
-        //Track Sub-Text2
-        String subText2 = sData?.infoText?.subText2 ?: "Idle"
-        if(isStateChange(device, "currentStation", subText2?.toString())) {
-            sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
-        }
+    def sData = [:]
+    if (response.hasError()) {
+        log.debug "updateDeviceState error parsing json - raw error data is $response.errorData"
+    } else { 
+        sData = response?.json
+        sData = sData?.playerInfo ?: [:]
+    }
+    // log.trace "updateDeviceState: ${sData}"
+    String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
+    String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
+    // log.debug "deviceStatus: ${deviceStatus}"
+    if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
+        sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
+        sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
+    }
+    //Track Title
+    String title = sData?.infoText?.title ?: ""
+    if(isStateChange(device, "trackDescription", title?.toString())) {
+        sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
+    }
+    //Track Sub-Text2
+    String subText1 = sData?.infoText?.subText1 ?: "Idle"
+    if(isStateChange(device, "currentAlbum", subText1?.toString())) {
+        sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
+    }
+    //Track Sub-Text2
+    String subText2 = sData?.infoText?.subText2 ?: "Idle"
+    if(isStateChange(device, "currentStation", subText2?.toString())) {
+        sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
+    }
 
-        //Track Art Imager
-        String trackImg = sData?.mainArt?.url ?: ""
-        if(isStateChange(device, "trackImage", trackImg?.toString())) {
-            sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
-        }
-        
-        if(sData?.volume) {
-            if(sData?.volume?.volume) {
-                Integer level = sData?.volume?.volume
-                if(level < 0) { level = 0 }
-                if(level > 100) { level = 100 }
-                if(isStateChange(device, "level", level?.toString()) || isStateChange(device, "volume", level?.toString())) {
-                    sendEvent(name: "level", value: level, display: false, displayed: false)
-                    sendEvent(name: "volume", value: level, display: false, displayed: false)
-                }
-            }
-            if(sData?.volume?.muted) {
-                String muteState = sData?.volume?.muted == true ? "muted" : "unmuted"
-                if(isStateChange(device, "mute", muteState?.toString())) {
-                    sendEvent(name: "mute", value: muteState, descriptionText: "Mute State is ${muteState}", display: true, displayed: true)
-                }
+    //Track Art Imager
+    String trackImg = sData?.mainArt?.url ?: ""
+    if(isStateChange(device, "trackImage", trackImg?.toString())) {
+        sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
+    }
+    
+    if(sData?.volume) {
+        if(sData?.volume?.volume) {
+            Integer level = sData?.volume?.volume
+            if(level < 0) { level = 0 }
+            if(level > 100) { level = 100 }
+            if(isStateChange(device, "level", level?.toString()) || isStateChange(device, "volume", level?.toString())) {
+                sendEvent(name: "level", value: level, display: false, displayed: false)
+                sendEvent(name: "volume", value: level, display: false, displayed: false)
             }
         }
-    } catch(ex) {
-       log.error "updateDeviceState Exception:", ex
+        if(sData?.volume?.muted) {
+            String muteState = sData?.volume?.muted == true ? "muted" : "unmuted"
+            if(isStateChange(device, "mute", muteState?.toString())) {
+                sendEvent(name: "mute", value: muteState, descriptionText: "Mute State is ${muteState}", display: true, displayed: true)
+            }
+        }
     }
 }
 
-private getWakeWords() {
+private getAlarmVolume() {
+    Map params = [
+        uri: "https://alexa.${state?.amazonDomain}",
+        path: "/api/device-notification-state/${state?.deviceType}/${device.currentState("firmwareVer")?.stringValue}/${state.serialNumber}",
+        headers: [
+            "Cookie": state?.cookie?.cookie as String, 
+            "csrf": state?.cookie?.csrf as String
+        ],
+        requestContentType: "application/json",
+        contentType: "application/json",
+    ]
+    asynchttp_v1.get(updateAlarmVolume, params)
+}
+
+def updateAlarmVolume(response, data) {
+    def sData = response?.json
+    if (response.hasError()) {
+        log.debug "updateAlarmVolume error parsing json - raw error data is $response.errorData"
+    }
+    // log.debug "sData: $sData"
+    if(isStateChange(device, "alarmVolume", (sData?.alarmVolume ?: 0)?.toString())) {
+        sendEvent(name: "alarmVolume", value: sData?.alarmVolume, display: false, displayed: false)
+    }
+}
+
+private getWakeWord() {
     Map params = [
         uri: "https://alexa.${state?.amazonDomain}",
         path: "/api/wake-word",
@@ -513,15 +551,48 @@ private getWakeWords() {
         requestContentType: "application/json",
         contentType: "application/json",
     ]
-    asynchttp_v1.get(updateWakeWords, params)
-    return resp?.wakeWords ?: []
+    asynchttp_v1.get(updateWakeWord, params)
 }
 
-def updateWakeWords(response, data) {
+def updateWakeWord(response, data) {
     def sData = response?.json
-    def wakeWord = sData?.findAll { it?.deviceSerialNumber == serialNumber }
-    log.trace "updateWakeWords: ${wakeWord}"
-    List wakeWords = sData?.wakeWords ?: []
+    if (response.hasError()) {
+        log.debug "updateWakeWord error parsing json - raw error data is $response.errorData"
+    }
+    // log.debug "sData: $sData"
+    def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
+    // log.trace "updateWakeWord: ${wakeWord?.wakeWord}"
+    if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
+        sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
+    }
+}
+
+private getAvailableWakeWords() {
+    Map params = [
+        uri: "https://alexa.${state?.amazonDomain}",
+        path: "/api/wake-words-locale",
+        query: [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            softwareVersion: device.currentValue('firmwareVer')
+        ],
+        headers: [
+            "Cookie": state?.cookie?.cookie as String, 
+            "csrf": state?.cookie?.csrf as String
+        ],
+        requestContentType: "application/json",
+        contentType: "application/json",
+    ]
+    asynchttp_v1.get(updateAvailableWakeWords, params)
+}
+
+def updateAvailableWakeWords(response, data) {
+    def sData = response?.json
+    if (response.hasError()) {
+        log.debug "updateAvailableWakeWords error parsing json - raw error data is $response.errorData"
+    } 
+    def wakeWords = sData?.wakeWords ?: []
+    // log.trace "updateAvailableWakeWords: ${wakeWords}"
     if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
         sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
     }
@@ -547,12 +618,14 @@ private getDndStatus() {
 
 def updateDndStatus(response, data) {
     def sData = response?.json
-    // log.trace "updateDndStatus: ${sData}"
-    def dndData = sData?.doNotDisturbDeviceStatusList ? sData?.doNotDisturbDeviceStatusList?.first() : []
-    dndData = dndData?.find { it?.deviceSerialNumber == serialNumber } ?: [:]
-    log.debug "dndData: $dndData"
-    if(isStateChange(device, "doNotDisturb", (dndData?.dndEnabled == true)?.toString())) {
-        sendEvent(name: "doNotDisturb", value: (dndData?.dndEnabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndData?.dndEnabled == true)}", display: true, displayed: true)
+    if (response.hasError()) {
+        log.debug "updateDndStatus error parsing json - raw error data is $response.errorData"
+    } 
+    def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
+    // log.debug "dndData: $dndData"
+    if(isStateChange(device, "doNotDisturb", (dndData?.enabled == true)?.toString())) {
+        log.debug "Do Not Disturb: ${(dndData?.enabled == true)}"
+        sendEvent(name: "doNotDisturb", value: (dndData?.enabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndData?.enabled == true)}", display: true, displayed: true)
     }
 }
 
@@ -577,6 +650,9 @@ private getPlaylists() {
 
 def updatePlaylists(response, data) {
     def sData = response?.json
+    if (response.hasError()) {
+        log.debug "updatePlaylists error parsing json - raw error data is $response.errorData"
+    } 
     // log.trace "updatePlaylists: ${sData}"
     Map playlists = sData?.playlists ?: [:]
     if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
@@ -601,6 +677,9 @@ private getMusicProviders() {
 
 def updateMusicProviders(response, data) {
     def sData = response?.json
+    if (response.hasError()) {
+        log.debug "updateMusicProviders error parsing json - raw error data is $response.errorData"
+    } 
     log.trace "updateMusicProviders: ${sData}"
     Map items = [:]
     if(sData && resp?.size()) {
@@ -642,9 +721,124 @@ private getNotifications() {
     return newList
 }
 
+// let sendSequenceCommand = function(device, command, value, config, callback) {
+//     if (typeof value === 'function') {
+//         callback = value;
+//         value = null;
+//     }
+//     let seqCommandObj;
+//     if (typeof command === 'object') {
+//         seqCommandObj = command.sequence || command;
+//     } else {
+//         seqCommandObj = {
+//             '@type': 'com.amazon.alexa.behaviors.model.Sequence',
+//             'startNode': createSequenceNode(device, command, value)
+//         };
+//     }
+
+//     const reqObj = {
+//         'behaviorId': seqCommandObj.sequenceId ? command.automationId : 'PREVIEW',
+//         'sequenceJson': JSON.stringify(seqCommandObj),
+//         'status': 'ENABLED'
+//     };
+//     request({
+//         method: 'POST',
+//         url: alexaUrl + '/api/behaviors/preview',
+//         headers: {
+//             'Cookie': config.cookies,
+//             'csrf': config.csrf
+//         },
+//         json: reqObj
+//     }, function(error, response) {
+//         if (!error && response.statusCode === 200) {
+//             callback(null, {
+//                 "message": response
+//             });
+//         } else {
+//             callback(error, response);
+//         }
+//     });
+// };
+
+// let sequenceJsonBuilder = function(serial, devType, custId, cmdKey, cmdVal) {
+//     let device = {
+//         deviceSerialNumber: serial,
+//         deviceType: devType,
+//         deviceOwnerCustomerId: custId,
+//         locale: 'en-US'
+//     };
+//     const reqObj = {
+//         'behaviorId': 'PREVIEW',
+//         'sequenceJson': JSON.stringify({
+//             '@type': 'com.amazon.alexa.behaviors.model.Sequence',
+//             'startNode': createSequenceNode(device, cmdKey, cmdVal)
+//         }),
+//         'status': 'ENABLED'
+//     };
+//     return reqObj;
+// };
+
+
+// private createSequenceNode(device, command, value, callback) {
+//     Map seqNode = [
+//         '@type': 'com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode',
+//         'operationPayload': [
+//             'deviceType': device.deviceType,
+//             'deviceSerialNumber': device.deviceSerialNumber,
+//             'locale': device.locale,
+//             'customerId': device.deviceOwnerCustomerId
+//         ]
+//     ];
+//     switch (command) {
+//         case 'weather':
+//             seqNode?.type = 'Alexa.Weather.Play';
+//             break;
+//         case 'traffic':
+//             seqNode?.type = 'Alexa.Traffic.Play';
+//             break;
+//         case 'flashbriefing':
+//             seqNode?.type = 'Alexa.FlashBriefing.Play';
+//             break;
+//         case 'goodmorning':
+//             seqNode?.type = 'Alexa.GoodMorning.Play';
+//             break;
+//         case 'singasong':
+//             seqNode?.type = 'Alexa.SingASong.Play';
+//             break;
+//         case 'tellstory':
+//             seqNode?.type = 'Alexa.TellStory.Play';
+//             break;
+//         case 'playsearch':
+//             seqNode?.type = 'Alexa.Music.PlaySearchPhrase';
+//             break;
+//         case 'volume':
+//             seqNode?.type = 'Alexa.DeviceControls.Volume';
+//             value = ~~value;
+//             // if (value < 0 || value > 100) {
+//             //     return callback(new Error('Volume needs to be between 0 and 100'));
+//             // }
+//             seqNode.operationPayload.value = value;
+//             break;
+//         case 'speak':
+//             seqNode?.type = 'Alexa.Speak';
+//             if (!(value instanceof String)) value = value as String;
+//             if (value.length === 0) {
+//                 return callback && callback(new Error('Can not speak empty string', null));
+//             }
+//             // if (value.length > 250) {
+//             //     return callback && callback(new Error('text too long, limit are 250 characters', null));
+//             // }
+//             seqNode.operationPayload.textToSpeak = value;
+//             break;
+//         default:
+//             return;
+//     }
+//     return seqNode;
+// };
+
 def play() {
     logger("trace", "play() command received...")
-    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
+    if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -660,12 +854,12 @@ def play() {
 }
 
 def playTrack(track) {
-    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
+    if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     logger("warn", "playTrack() | Not Supported Yet!!!")
 }
 
 def pause() {
-    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
+    if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     logger("trace", "pause() command received...")
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
@@ -683,7 +877,7 @@ def pause() {
 
 def stop() {
     logger("trace", "stop() command received...")
-    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
+    if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -699,7 +893,7 @@ def stop() {
 
 def previousTrack() {
     logger("trace", "previousTrack() command received...")
-    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
+    if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -713,7 +907,7 @@ def previousTrack() {
 
 def nextTrack() {
     logger("trace", "nextTrack() command received...")
-    if(!state?.playerSupported) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
+    if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
         echoServiceCmd("cmd", [
             deviceSerialNumber: state?.serialNumber,
@@ -727,7 +921,7 @@ def nextTrack() {
 
 def mute() {
     logger("trace", "mute() command received...")
-    if(!state?.volumeSupported) { log.warn "This Device Does NOT Support Volume Control!!!"; return; }
+    if(!state?.permissions?.volumeControl) { log.warn "This Device Does NOT Support Volume Control!!!"; return; }
     if(state?.serialNumber) {
         state.muteLevel = device?.currentState("level")?.integerValue
         incrementCntByKey("use_cnt_muteCmd")
@@ -740,7 +934,7 @@ def mute() {
 
 def unmute() {
     logger("trace", "unmute() command received...")
-    if(!state?.volumeSupported) { log.warn "This Device Does NOT Support Volume Control!!!"; return; }
+    if(!state?.permissions?.volumeControl) { log.warn "This Device Does NOT Support Volume Control!!!"; return; }
     if(state?.serialNumber) {
         if(state?.muteLevel) {
             setLevel(state?.muteLevel)
@@ -765,7 +959,7 @@ def setMute(muteState) {
 
 def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
-    if(!state?.volumeSupported) { log.warn "This Device Does NOT Support Volume Control!!!"; return; }
+    if(!state?.permissions?.volumeControl) { log.warn "This Device Does NOT Support Volume Control!!!"; return; }
     if(state?.serialNumber && level>=0 && level<=100) {
         if(volume != device?.currentState('level')?.integerValue) {
             doSequenceCmd("VolumeCommand", "volume", level)
@@ -851,14 +1045,14 @@ def deviceNotification(String msg) {
 }
 
 def setVolumeAndSpeak(Integer volume, String msg) {
-    if(!state?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
+    if(!state?.permissions?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
     if(volume) { setVolume(volume) }
     incrementCntByKey("use_cnt_setVolSpeak")
     speak(msg)
 }
 
 def setVolumeSpeakAndRestore(Integer volume, String msg) {
-    if(!state?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
+    if(!state?.permissions?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
     if(msg) {
         Integer restoreDelay = getRecheckDelay(msg?.toString()?.length())
         if(volume) { 
@@ -884,7 +1078,7 @@ private restoreLastVolume() {
 }
 
 def speak(String msg) {
-    if(!state?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
+    if(!state?.permissions?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
     if(!msg) { log.warn "No Message sent with speak($msg) command" }
     // log.trace "speak(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
     if(msg != null && state?.serialNumber) {
@@ -928,31 +1122,31 @@ def searchMusic(String searchPhrase, String providerId) {
 }
 
 def searchAmazonMusic(String searchPhrase) {
-    if(state?.allowAmazonMusic == false) { log.warn "device does not support AMAZON MUSIC"; return }
+    if(state?.permissions?.allowAmazonMusic == false) { log.warn "device does not support AMAZON MUSIC"; return }
     doSearchMusicCmd(searchPhrase, "AMAZON_MUSIC")
     incrementCntByKey("use_cnt_searchAmazon")
 }
 
 def searchTuneIn(String searchPhrase) {
-    if(state?.allowTuneIn == false) { log.warn "device does not support TUNE_IN"; return }
+    if(state?.permissions?.allowTuneIn == false) { log.warn "device does not support TUNE_IN"; return }
     doSearchMusicCmd(searchPhrase, "TUNE_IN")
     incrementCntByKey("use_cnt_searchTuneIn")
 }
 
 def searchPandora(String searchPhrase) {
-    if(state?.allowPandora == false) { log.warn "device does not support PANDORA"; return }
+    if(state?.permissions?.allowPandora == false) { log.warn "device does not support PANDORA"; return }
     doSearchMusicCmd(searchPhrase, "PANDORA")
     incrementCntByKey("use_cnt_searchPandora")
 }
 
 def searchSpotify(String searchPhrase) {
-    if(state?.allowSpotify == false) { log.warn "device does not support SPOTIFY"; return }
+    if(state?.permissions?.allowSpotify == false) { log.warn "device does not support SPOTIFY"; return }
     doSearchMusicCmd(searchPhrase, "SPOTIFY")
     incrementCntByKey("use_cnt_searchSpotify")
 }
 
 def searchIheart(String searchPhrase) {
-    if(state?.allowIheart == false) { log.warn "device does not support I_HEART_RADIO"; return }
+    if(state?.permissions?.allowIheart == false) { log.warn "device does not support I_HEART_RADIO"; return }
     doSearchMusicCmd(searchPhrase, "I_HEART_RADIO")
     incrementCntByKey("use_cnt_searchIheart")
 }
@@ -974,7 +1168,7 @@ private doSequenceCmd(cmdType, seqCmd, seqVal="") {
 }
 
 private doSearchMusicCmd(searchPhrase, musicProvId) {
-    if(state?.canPlayMedia == false) { log.warn "This device does not support music playback" }
+    if(state?.permissions?.canPlayMusic == false) { log.warn "This device does not support music playback" }
     if(state?.serialNumber && searchPhrase && musicProvId) {
         echoServiceCmd("musicSearch", [
             cmdType: "MusicSearch",
@@ -1059,7 +1253,7 @@ def replayText() {
 }
 
 def sendTestTts(ttsMsg) {
-    if(!state?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
+    if(!state?.permissions?.ttsSupported) { log.warn "This Device Does NOT Support Text to Speech!!!"; return; }
     log.trace "sendTestTts"
     List items = [
         "Testing Testing 1, 2, 3", 

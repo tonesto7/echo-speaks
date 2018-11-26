@@ -14,35 +14,43 @@
  */
 public getDeviceStyle(String family, String type) {
     switch(type) {
-        case 'A1N9SW0I0LUX5Y': return [name: 'Dash Wand', image: 'dash_wand', playerSupport: false, ttsSupport: false]
-        case 'AB72C64C86AW2' : return [name: 'Echo (Gen1)', image: 'echo_gen1', playerSupport: true, ttsSupport: true]
-        case 'A7WXQPH584YP'  : return [name: 'Echo (Gen2)', image: 'echo_gen2', playerSupport: true, ttsSupport: true]
-        case 'A2M35JJZWCQOMZ': return [name: 'Echo Plus (Gen1)', image: 'echo_plus_gen1', playerSupport: true, ttsSupport: true]
-        case 'A18O6U1UQFJ0XK': return [name: 'Echo Plus (Gen2)', image: 'echo_plus_gen2', playerSupport: true, ttsSupport: true]
-        case 'A1NL4BVLQ4L3N3': return [name: 'Echo Show (Gen1)', image: 'echo_show_gen1', playerSupport: true, ttsSupport: true]
-        case 'AWZZ5CVHX2CD'  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", playerSupport: true, ttsSupport: true]
-        case 'A38EHHIB10L47V': return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', playerSupport: true, ttsSupport: true]
-        case "AKNO1N0KSFN8L" : return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', playerSupport: true, ttsSupport: true]
-        case 'A3S5BH2HU6VAYF': return [name: 'Echo Dot (Gen2)', image: 'echo_dot_gen2', playerSupport: true, ttsSupport: true]
-        case 'A32DOYMUN6DTXA': return [name: 'Echo Dot (Gen3)', image: 'echo_dot_gen3', playerSupport: true, ttsSupport: true]
-        case 'A10A33FOX2NUBK': return [name: 'Echo Spot', image: 'echo_spot_gen1', playerSupport: true, ttsSupport: true]
-        case 'A3SSG6GR8UU7SN': return [name: 'Echo Sub', image: 'echo_sub_gen1', playerSupport: true, ttsSupport: true]
-        case 'A38949IHXHRQ5P': return [name: 'Echo Tap', image: 'echo_tap', playerSupport: true, ttsSupport: true]
-        case 'A12GXV8XMS007S': return [name: 'Fire TV (Gen1)', image: 'firetv_gen1', playerSupport: true, ttsSupport: true]
-        case 'A2E0SNTXJVT7WK': return [name: 'Fire TV (Gen2)', image: 'firetv_gen2', playerSupport: true, ttsSupport: true]
-        case 'A2GFL5ZMWNE0PX': return [name: 'Fire TV (Gen3)', image: 'firetv_gen3', playerSupport: true, ttsSupport: true]
-        case 'ADVBD696BHNV5' : return [name: 'Fire TV Stick (Gen1)', image: 'firetv_stick_gen1', playerSupport: true, ttsSupport: true]
-        case 'A2LWARUGJLBYEW': return [name: 'Fire TV Stick (Gen2)', image: 'firetv_stick_gen2', playerSupport: true, ttsSupport: true]
-        case 'AKPGW064GI9HE' : return [name: 'Fire TV Stick 4K (Gen3)', image: 'firetv_stick_gen3', playerSupport: true, ttsSupport: true] 
-        case 'A3HF4YRA2L7XGC': return [name: 'Fire TV Cube', image: 'firetv_cube', playerSupport: true, ttsSupport: true]
-        case 'A2M4YX06LWP8WI': return [name: 'Fire Tablet', image: 'amazon_tablet', playerSupport: true, ttsSupport: true]
-        case 'A1J16TEDOYCZTN': return [name: 'Fire Tablet', image: 'amazon_tablet', playerSupport: true, ttsSupport: true]
-        case 'A3R9S4ZZECZ6YL': return [name: 'Fire Tablet HD 10"', image: 'tablet_hd10', playerSupport: true, ttsSupport: true]
-        case 'A3C9PE6TNYLTCH': return [name: 'Multiroom', image: 'echo_wha', playerSupport: true, ttsSupport: false]
-        case 'A15ERDAKK5HQQG': return [name: 'Sonos', image: 'sonos_generic', playerSupport: false, ttsSupport: false]
-        case 'A2OSP3UA4VC85F': return [name: 'Sonos', image: 'sonos_generic', playerSupport: true, ttsSupport: false]
-        case 'A3NPD82ABCPIDP': return [name: 'Sonos Beam', image: 'sonos_beam', playerSupport: true, ttsSupport: true]
-        default: return [name: 'Echo Unknown ${type}', image: 'unknown', playerSupport: false, ttsSupport: false]
+        //ECHOS - SPEAKERS\\
+	    case 'A38949IHXHRQ5P': return [name: 'Echo Tap', image: 'echo_gen', ttsSupport: true]
+        case 'AB72C64C86AW2' : return [name: 'Echo (Gen1)', image: 'echo_gen1', ttsSupport: true]
+        case 'A7WXQPH584YP'  : return [name: 'Echo (Gen2)', image: 'echo_gen2', ttsSupport: true]
+        case 'A2M35JJZWCQOMZ': return [name: 'Echo Plus (Gen1)', image: 'echo_plus_gen1', ttsSupport: true]
+        case 'A18O6U1UQFJ0XK': return [name: 'Echo Plus (Gen2)', image: 'echo_plus_gen2', ttsSupport: true]
+        case 'A3SSG6GR8UU7SN': return [name: 'Echo Sub', image: 'echo_sub_gen1', ttsSupport: true]
+        case 'A38EHHIB10L47V': return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', ttsSupport: true]
+        case "AKNO1N0KSFN8L" : return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', ttsSupport: true]
+        case 'A3S5BH2HU6VAYF': return [name: 'Echo Dot (Gen2)', image: 'echo_dot_gen2', ttsSupport: true]
+        case 'A32DOYMUN6DTXA': return [name: 'Echo Dot (Gen3)', image: 'echo_dot_gen3', ttsSupport: true]
+        //ECHOS - SCREENS\\
+        case 'A10A33FOX2NUBK': return [name: 'Echo Spot', image: 'echo_spot_gen1', ttsSupport: true]
+        case 'A1NL4BVLQ4L3N3': return [name: 'Echo Show (Gen1)', image: 'echo_show_gen1', ttsSupport: true]
+        case 'AWZZ5CVHX2CD'  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", ttsSupport: true]
+        //FIRE TVs\\
+	    case 'A12GXV8XMS007S': return [name: 'Fire TV (Gen1)', image: 'firetv_gen1', ttsSupport: true]
+        case 'A2E0SNTXJVT7WK': return [name: 'Fire TV (Gen2)', image: 'firetv_gen2', ttsSupport: true]
+        case 'A2GFL5ZMWNE0PX': return [name: 'Fire TV (Gen3)', image: 'firetv_gen3', ttsSupport: true]
+        case 'ADVBD696BHNV5' : return [name: 'Fire TV Stick (Gen1)', image: 'firetv_stick_gen1', ttsSupport: true]
+        case 'A2LWARUGJLBYEW': return [name: 'Fire TV Stick (Gen2)', image: 'firetv_stick_gen2', ttsSupport: true]
+        case 'AKPGW064GI9HE' : return [name: 'Fire TV Stick 4K (Gen3)', image: 'firetv_stick_gen3', ttsSupport: true] 
+        case 'A3HF4YRA2L7XGC': return [name: 'Fire TV Cube', image: 'firetv_cube', ttsSupport: true]
+        //TABLETS\\
+        case 'A2M4YX06LWP8WI': return [name: 'Fire Tablet', image: 'amazon_tablet', ttsSupport: true]
+        case 'A1J16TEDOYCZTN': return [name: 'Fire Tablet', image: 'amazon_tablet', ttsSupport: true]
+        case 'A3R9S4ZZECZ6YL': return [name: 'Fire Tablet HD 10"', image: 'tablet_hd10', ttsSupport: true]
+        //MULTIROOM\\
+        case 'A3C9PE6TNYLTCH': return [name: 'Multiroom', image: 'echo_wha', ttsSupport: false]
+        //SONOS\\
+        case 'A15ERDAKK5HQQG': return [name: 'Sonos', image: 'sonos_generic', ttsSupport: false]
+        case 'A2OSP3UA4VC85F': return [name: 'Sonos', image: 'sonos_generic', ttsSupport: false]
+        case 'A3NPD82ABCPIDP': return [name: 'Sonos Beam', image: 'sonos_beam', ttsSupport: true]
+        //OTHER\\
+        case 'A18BI6KPKDOEI4': return [name: 'Ecobee4', image: 'ecobee4', ttsSupport: true]
+        case 'A1N9SW0I0LUX5Y': return [name: 'Dash Wand', image: 'dash_wand', ttsSupport: false]
+        default: return [name: "Echo Unknown $type", image: 'unknown', ttsSupport: false]
     }
 }
 
@@ -51,8 +59,8 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.3.0" }
-String appModified() { return "2018-11-21" } 
+String appVersion()	 { return "1.4.0" }
+String appModified() { return "2018-11-26" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -188,7 +196,7 @@ def deviceListPage() {
                 str += "\nStyle: ${v?.style?.name}" 
                 str += "\nFamily: ${v?.family}" 
                 str += "\nType: ${v?.type}"
-                str += "\nMedia Player: ${v?.playerSupport?.toString()?.capitalize()}"
+                str += "\nMusic Player: ${v?.musicPlayer?.toString()?.capitalize()}"
                 str += "\nVolume Control: ${v?.volumeSupport?.toString()?.capitalize()}"
                 str += "\nText-to-Speech: ${v?.ttsSupport?.toString()?.capitalize()}"
                 str += "\nStatus: ${v?.online ? "Online" : "Offline"}"
@@ -749,45 +757,13 @@ def echoDevicesResponse(response, data) {
                         state?.deviceOwnerCustomerId = eDevice?.deviceOwnerCustomerId
                     }
                     echoDevices[serialNumber] = eDevice;
-                    // def devState = getDeviceState(eDevice);
-                    // echoDevices[serialNumber].playerState = devState;
-                    
-                    // def playlist = getDevicePlaylists(eDevice);
-                    // echoDevices[serialNumber].playlists = playlist
-                    // echoDevices[serialNumber].musicProviders = musicProvs
-                    
-                    // def wakeWord = wakeWordData?.findAll { it?.deviceSerialNumber == serialNumber }
-                    // echoDevices[serialNumber].wakeWord = wakeWord ? wakeWord.wakeWord : "";
-                    
-                    // def alarmVolume = getAlarmVolume(eDevice);
-                    // echoDevices[serialNumber].alarmVolume = alarmVolume ?: null;
-                    
-                    // def availWakeWords = getDeviceWakeWords(eDevice);
-                    // echoDevices[serialNumber].wakeWords = availWakeWords ?: [];
-
-                    // def dnd = dndStates?.findAll { it?.deviceSerialNumber == serialNumber }?.first()
-                    // echoDevices[serialNumber].dndEnabled = dnd ? dnd?.enabled : false;
-                    // echoDevices[serialNumber].canPlayMusic = (eDevice.capabilities.contains('AUDIO_PLAYER') || eDevice.capabilities.contains('AMAZON_MUSIC') || eDevice.capabilities.contains('TUNE_IN') || eDevice.capabilities.contains('PANDORA') || eDevice.capabilities.contains('I_HEART_RADIO') || eDevice.capabilities.contains('SPOTIFY')) || false;
-                    // echoDevices[serialNumber].allowAmazonMusic = (eDevice.capabilities.contains('AMAZON_MUSIC')) ?: false;
-                    // echoDevices[serialNumber].volumeControl = (eDevice.capabilities.contains('VOLUME_SETTING')) ?: false;
-                    // echoDevices[serialNumber].allowTuneIn = (eDevice.capabilities.contains('TUNE_IN')) ?: false;
-                    // echoDevices[serialNumber].allowIheart = (eDevice.capabilities.contains('I_HEART_RADIO')) ?: false;
-                    // echoDevices[serialNumber].allowPandora = (eDevice.capabilities.contains('PANDORA')) ?: false;
-                    // echoDevices[serialNumber].allowSpotify = (eDevice.capabilities.contains('SPOTIFY')) ?: false;
-                    // echoDevices[serialNumber].isMultiroomDevice = (eDevice.clusterMembers && eDevice?.clusterMembers?.size() > 0) ?: false;
-                    // echoDevices[serialNumber].isMultiroomMember = (eDevice.parentClusters && eDevice?.parentClusters?.size() > 0) ?: false;
-
-                    // echoDevices[serialNumber]?.notifications = notifs.findAll { it?.deviceSerialNumber == serialNumber } ?: []
-                    // echoDevices[serialNumber]?.remove("capabilities")
                 }
             }
         }
-
         // log.debug "echoDevices: ${echoDevices}"
         receiveEventData([echoDevices: echoDevices], "Groovy")
-        
-    } catch (e) {
-        log.error("exception during response processing", e)
+    } catch (ex) {
+        log.error "echoDevicesResponse Exception", ex
     }
 }
     
@@ -838,15 +814,26 @@ def receiveEventData(Map evtData, String src) {
                     if(!familyAllowed) { return }
                     echoValue["serviceAuthenticated"] = (evtData?.authenticated == true)
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
-                    Boolean playerSupport = (echoValue?.deviceStyle?.playerSupport == true)
+                    Map permissions = [:]
+                    permissions["volumeControl"] = (echoValue?.capabilities.contains('VOLUME_SETTING')) ?: false
+                    permissions["canPlayMusic"] = (echoValue?.capabilities?.contains('AUDIO_PLAYER') || echoValue?.capabilities?.contains('AMAZON_MUSIC') || echoValue?.capabilities?.contains('TUNE_IN') || echoValue?.capabilities?.contains('PANDORA') || echoValue?.capabilities?.contains('I_HEART_RADIO') || echoValue?.capabilities?.contains('SPOTIFY')) || false;
+                    permissions["allowAmazonMusic"] = (echoValue?.capabilities.contains('AMAZON_MUSIC')) ?: false
+                    permissions["allowTuneIn"] = (echoValue?.capabilities.contains('TUNE_IN')) ?: false;
+                    permissions["allowIheart"] = (echoValue?.capabilities.contains('I_HEART_RADIO')) ?: false;
+                    permissions["allowPandora"] = (echoValue?.capabilities.contains('PANDORA')) ?: false;
+                    permissions["allowSpotify"] = (echoValue?.capabilities.contains('SPOTIFY')) ?: false;
+                    permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false;
+                    permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false;
+                    permissions["allowAlarms"] = (echoValue?.capabilities.contains('TIMERS_AND_ALARMS')) ?: false
+                    permissions["allowReminders"] = (echoValue?.capabilities.contains('REMINDERS')) ?: false
+                    echoValue["permissionMap"] = permissions
                     Boolean ttsSupport = (echoValue?.deviceStyle?.ttsSupport == true)
                     Boolean volumeSupport = (echoValue?.volumeControl == true)
-                    if(!playerSupport && !ttsSupport ) {
+                    if(!(echoValue?.canPlayMusic == true) && !ttsSupport) {
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!") 
                         return
                     }
-                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, playerSupport: playerSupport, ttsSupport: ttsSupport, volumeSupport: volumeSupport]
-                    echoValue["playerSupport"] = playerSupport
+                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, musicPlayer: (echoValue?.canPlayMusic == true), ttsSupport: ttsSupport, volumeSupport: volumeSupport]
                     echoValue["ttsSupport"] = ttsSupport
                     echoValue["amazonDomain"] = settings?.amazonDomain
                     echoValue["cookie"] = state?.cookie
@@ -929,122 +916,6 @@ Boolean deviceFamilyAllowed(String family) {
     if(settings?.createOtherDevices == true && !(family in ["DASH_WAND"])) { return true }
     return false
 }
-
-// let sendSequenceCommand = function(device, command, value, config, callback) {
-//     if (typeof value === 'function') {
-//         callback = value;
-//         value = null;
-//     }
-//     let seqCommandObj;
-//     if (typeof command === 'object') {
-//         seqCommandObj = command.sequence || command;
-//     } else {
-//         seqCommandObj = {
-//             '@type': 'com.amazon.alexa.behaviors.model.Sequence',
-//             'startNode': createSequenceNode(device, command, value)
-//         };
-//     }
-
-//     const reqObj = {
-//         'behaviorId': seqCommandObj.sequenceId ? command.automationId : 'PREVIEW',
-//         'sequenceJson': JSON.stringify(seqCommandObj),
-//         'status': 'ENABLED'
-//     };
-//     request({
-//         method: 'POST',
-//         url: alexaUrl + '/api/behaviors/preview',
-//         headers: {
-//             'Cookie': config.cookies,
-//             'csrf': config.csrf
-//         },
-//         json: reqObj
-//     }, function(error, response) {
-//         if (!error && response.statusCode === 200) {
-//             callback(null, {
-//                 "message": response
-//             });
-//         } else {
-//             callback(error, response);
-//         }
-//     });
-// };
-
-// let sequenceJsonBuilder = function(serial, devType, custId, cmdKey, cmdVal) {
-//     let device = {
-//         deviceSerialNumber: serial,
-//         deviceType: devType,
-//         deviceOwnerCustomerId: custId,
-//         locale: 'en-US'
-//     };
-//     const reqObj = {
-//         'behaviorId': 'PREVIEW',
-//         'sequenceJson': JSON.stringify({
-//             '@type': 'com.amazon.alexa.behaviors.model.Sequence',
-//             'startNode': createSequenceNode(device, cmdKey, cmdVal)
-//         }),
-//         'status': 'ENABLED'
-//     };
-//     return reqObj;
-// };
-
-
-// private createSequenceNode(device, command, value, callback) {
-//     Map seqNode = [
-//         '@type': 'com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode',
-//         'operationPayload': [
-//             'deviceType': device.deviceType,
-//             'deviceSerialNumber': device.deviceSerialNumber,
-//             'locale': device.locale,
-//             'customerId': device.deviceOwnerCustomerId
-//         ]
-//     ];
-//     switch (command) {
-//         case 'weather':
-//             seqNode?.type = 'Alexa.Weather.Play';
-//             break;
-//         case 'traffic':
-//             seqNode?.type = 'Alexa.Traffic.Play';
-//             break;
-//         case 'flashbriefing':
-//             seqNode?.type = 'Alexa.FlashBriefing.Play';
-//             break;
-//         case 'goodmorning':
-//             seqNode?.type = 'Alexa.GoodMorning.Play';
-//             break;
-//         case 'singasong':
-//             seqNode?.type = 'Alexa.SingASong.Play';
-//             break;
-//         case 'tellstory':
-//             seqNode?.type = 'Alexa.TellStory.Play';
-//             break;
-//         case 'playsearch':
-//             seqNode?.type = 'Alexa.Music.PlaySearchPhrase';
-//             break;
-//         case 'volume':
-//             seqNode?.type = 'Alexa.DeviceControls.Volume';
-//             value = ~~value;
-//             // if (value < 0 || value > 100) {
-//             //     return callback(new Error('Volume needs to be between 0 and 100'));
-//             // }
-//             seqNode.operationPayload.value = value;
-//             break;
-//         case 'speak':
-//             seqNode?.type = 'Alexa.Speak';
-//             if (!(value instanceof String)) value = value as String;
-//             if (value.length === 0) {
-//                 return callback && callback(new Error('Can not speak empty string', null));
-//             }
-//             // if (value.length > 250) {
-//             //     return callback && callback(new Error('text too long, limit are 250 characters', null));
-//             // }
-//             seqNode.operationPayload.textToSpeak = value;
-//             break;
-//         default:
-//             return;
-//     }
-//     return seqNode;
-// };
-
 
 public getServiceHostInfo() {
     if(settings?.useHeroku) {
