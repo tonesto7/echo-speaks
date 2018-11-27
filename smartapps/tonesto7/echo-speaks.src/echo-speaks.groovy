@@ -441,7 +441,7 @@ def initialize() {
     
     runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
     subscribe(app, onAppTouch)
-    if(!settings?.useHeroku && settings?.stHub) { subscribe(location, null, lanEventHandler, [filterEvents:false]) }
+    // if(!settings?.useHeroku && settings?.stHub) { subscribe(location, null, lanEventHandler, [filterEvents:false]) }
     resetQueue()
     stateCleanup()
     updCodeVerMap()
@@ -552,34 +552,34 @@ String getRandAppName() {
     return state?.generatedHerokuName as String
 }
 
-def lanEventHandler(evt) {
-    // log.trace "lanStreamEvtHandler..."
-    def msg = parseLanMessage(evt?.description)
-    Map headerMap = msg?.headers
-    logger("trace", "lanEventHandler... | headers: ${headerMap}", true)
-    try {
-        Map msgData = [:]
-        if (headerMap?.size()) {
-            if (headerMap?.evtSource && headerMap?.evtSource == "Echo_Speaks") {
-                if (msg?.body != null) {
-                    def slurper = new groovy.json.JsonSlurper()
-                    msgData = slurper?.parseText(msg?.body as String)
-                    logger("debug", "msgData: $msgData", true)
-                    if(headerMap?.evtType) { 
-                        switch(headerMap?.evtType) {
-                            case "sendStatusData":
-                                receiveEventData(msgData, "Local")
-                                break
-                        }
-                    }
-                }
-            }
-        }
-    } catch (ex) {
-        log.error "lanEventHandler Exception:", ex
-        incrementCntByKey("appErrorCnt")
-    }
-}
+// def lanEventHandler(evt) {
+//     // log.trace "lanStreamEvtHandler..."
+//     def msg = parseLanMessage(evt?.description)
+//     Map headerMap = msg?.headers
+//     logger("trace", "lanEventHandler... | headers: ${headerMap}", true)
+//     try {
+//         Map msgData = [:]
+//         if (headerMap?.size()) {
+//             if (headerMap?.evtSource && headerMap?.evtSource == "Echo_Speaks") {
+//                 if (msg?.body != null) {
+//                     def slurper = new groovy.json.JsonSlurper()
+//                     msgData = slurper?.parseText(msg?.body as String)
+//                     logger("debug", "msgData: $msgData", true)
+//                     if(headerMap?.evtType) { 
+//                         switch(headerMap?.evtType) {
+//                             case "sendStatusData":
+//                                 receiveEventData(msgData, "Local")
+//                                 break
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     } catch (ex) {
+//         log.error "lanEventHandler Exception:", ex
+//         incrementCntByKey("appErrorCnt")
+//     }
+// }
 
 def processData() {
     // log.trace "processData() | Data: ${request.JSON}"
@@ -809,7 +809,7 @@ def receiveEventData(Map evtData, String src) {
                     logger("debug", "echoDevice | ${echoValue?.accountName}", false)
                     Boolean familyAllowed = deviceFamilyAllowed(echoValue?.deviceFamily as String)
                     if(!familyAllowed) { return }
-                    echoValue["serviceAuthenticated"] = (evtData?.authenticated == true)
+                    echoValue["serviceAuthenticated"] = true
                     echoValue["amazonDomain"] = settings?.amazonDomain
                     echoValue["cookie"] = state?.cookie
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
@@ -833,7 +833,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["hasWakeWord"] = (echoValue?.capabilities?.contains('FAR_FIELD_WAKE_WORD'))
                     echoValue["permissionMap"] = permissions
                     if(permissions?.canPlayMusic != true && ttsSupport != true) {
-                        log.debug "name: ${echoValue?.accountName} | permissions: $permissions"
+                        log.warn "IGNORED Device | Name: ${echoValue?.accountName} | Permissions: $permissions"
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!") 
                         return
                     }
