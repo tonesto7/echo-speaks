@@ -59,8 +59,8 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.4.0" }
-String appModified() { return "2018-11-26" } 
+String appVersion()	 { return "1.5.0" }
+String appModified() { return "2018-11-27" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -134,7 +134,7 @@ def mainPage() {
                 }
                 input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
                 input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
-                input "createWHA", "bool", title: "Create Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_multiroom.png")
+                input "createWHA", "bool", title: "Create Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha.png")
                 input "createOtherDevices", "bool", title: "Create Other Alexa Enabled Devices?", description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices.png")
                 input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
 
@@ -526,11 +526,6 @@ private stateCleanup() {
 def onAppTouch(evt) {
     // log.trace "appTouch..."
     getEchoDevices()
-    // sendOneHeartbeat()
-    // sendInstallData()
-    // app?.getChildDevices(true)?.each { cDev->
-    //     cDev?.resetQueue()
-    // }
 }
 
 private resetQueue() {
@@ -630,6 +625,10 @@ def storeCookie() {
         obj?.csrf = request?.JSON?.csrf as String ?: null
         state?.cookie = obj
     }
+    if(state?.cookie?.cookie && state?.cookie?.csrf) {
+        log.info "Cookie Has been Updated... Re-Initializing SmartApp and to restart polling..."
+        runIn(5, "initialize", [overwrite: true])
+    }
 }
 
 def clearCookie() {
@@ -637,51 +636,53 @@ def clearCookie() {
     settingUpdate("resetCookies", "false", "bool")
     state?.remove('cookie')
     unschedule("cloudServiceHeartbeat")
+    unschedule("getEchoDevices")
+    log.warn "Cookie has been cleared... Device Refresh has been suspended..."
 }
 
-def scheduleHeartbeat() {
-    log.info "Scheduling CloudHeartbeat Check for Every 15 minutes..."
-    state?.heartbeatScheduled = true
-    runEvery15Minutes('cloudServiceHeartbeat')
-}
+// def scheduleHeartbeat() {
+//     log.info "Scheduling CloudHeartbeat Check for Every 15 minutes..."
+//     state?.heartbeatScheduled = true
+//     runEvery15Minutes('cloudServiceHeartbeat')
+// }
 
-Integer getLastHeartBeatSeconds() { return !state?.lastCloudHeartbeatDt ? 601 : GetTimeDiffSeconds(state?.lastCloudHeartbeatDt, "getLastHeartBeatSeconds").toInteger() }
-private cloudHeartbeatCheck() {
-    if(state?.onHeroku) {
-        if(!state?.heartbeatScheduled) { scheduleHeartbeat() }
-        if(getLastHeartBeatSeconds() > 900) {
-            log.warn "For some reason a CloudHeartbeat has not occurred in over ${(getLastHeartBeatSeconds()/60).toFloat()?.round(1)} minutes  | (${getLastHeartBeatSeconds()} secs.)... Rescheduling the heartbeat!!!"
-            unschedule("cloudServiceHeartbeat")
-            state?.heartbeatScheduled = true
-            runEvery15Minutes('cloudServiceHeartbeat')
-            sendOneHeartbeat()
-        }
-    }
-}
+// Integer getLastHeartBeatSeconds() { return !state?.lastCloudHeartbeatDt ? 601 : GetTimeDiffSeconds(state?.lastCloudHeartbeatDt, "getLastHeartBeatSeconds").toInteger() }
+// private cloudHeartbeatCheck() {
+//     if(state?.onHeroku) {
+//         if(!state?.heartbeatScheduled) { scheduleHeartbeat() }
+//         if(getLastHeartBeatSeconds() > 900) {
+//             log.warn "For some reason a CloudHeartbeat has not occurred in over ${(getLastHeartBeatSeconds()/60).toFloat()?.round(1)} minutes  | (${getLastHeartBeatSeconds()} secs.)... Rescheduling the heartbeat!!!"
+//             unschedule("cloudServiceHeartbeat")
+//             state?.heartbeatScheduled = true
+//             runEvery15Minutes('cloudServiceHeartbeat')
+//             sendOneHeartbeat()
+//         }
+//     }
+// }
 
-private sendOneHeartbeat() { cloudServiceHeartbeat() }
+// private sendOneHeartbeat() { cloudServiceHeartbeat() }
 
-private cloudServiceHeartbeat() {
-    try {
-        httpGet([uri: "https://${getRandAppName()}.herokuapp.com/heartbeat", contentType: 'application/json', headers: [appVersion: appVersion()]]) { resp->
-            if(resp && resp?.data && resp?.data?.result) {
-                log.info "CloudHeartBeat Successful${resp?.data?.version ? " | Server Version: (v${resp?.data?.version})": ""}${resp?.data?.authenticated == true ? " | (Authenticated)" : ""}"
-                incrementCntByKey("appHeartbeatCnt")
-                state?.lastCloudHeartbeatDt = getDtNow()
-                authEvtHandler(resp?.data?.authenticated)
-            } else { log.warn "No CloudHeartbeat Response Received... Is the App still available?" }
-        }
-        if(state?.installData?.sentMetrics != true) { sendInstallData() }
-    } catch(ex) {
-        if(ex instanceof groovyx.net.http.ResponseParseException) {
-            incrementCntByKey("heartbeatNotAvailCnt")
-            log.warn "cloudServiceHeartbeat | Server Endpoint Not Reachable (Is Server Restarting? or Asleep?): "
-        } else {
-            log.error "cloudServiceHeartbeat Exception: ", ex
-            incrementCntByKey("heartbeatErrCnt")
-        }
-    }
-}
+// private cloudServiceHeartbeat() {
+//     try {
+//         httpGet([uri: "https://${getRandAppName()}.herokuapp.com/heartbeat", contentType: 'application/json', headers: [appVersion: appVersion()]]) { resp->
+//             if(resp && resp?.data && resp?.data?.result) {
+//                 log.info "CloudHeartBeat Successful${resp?.data?.version ? " | Server Version: (v${resp?.data?.version})": ""}${resp?.data?.authenticated == true ? " | (Authenticated)" : ""}"
+//                 incrementCntByKey("appHeartbeatCnt")
+//                 state?.lastCloudHeartbeatDt = getDtNow()
+//                 authEvtHandler(resp?.data?.authenticated)
+//             } else { log.warn "No CloudHeartbeat Response Received... Is the App still available?" }
+//         }
+//         if(state?.installData?.sentMetrics != true) { sendInstallData() }
+//     } catch(ex) {
+//         if(ex instanceof groovyx.net.http.ResponseParseException) {
+//             incrementCntByKey("heartbeatNotAvailCnt")
+//             log.warn "cloudServiceHeartbeat | Server Endpoint Not Reachable (Is Server Restarting? or Asleep?): "
+//         } else {
+//             log.error "cloudServiceHeartbeat Exception: ", ex
+//             incrementCntByKey("heartbeatErrCnt")
+//         }
+//     }
+// }
 
 private authEvtHandler(isAuth) {
     state?.serviceAuthenticated = (isAuth == true)
@@ -766,7 +767,6 @@ def echoDevicesResponse(response, data) {
         log.error "echoDevicesResponse Exception", ex
     }
 }
-    
 
 def receiveEventData(Map evtData, String src) {
     try {
@@ -774,6 +774,7 @@ def receiveEventData(Map evtData, String src) {
             log.warn "Possible Code Version Update Detected... Device Updates will occur on next cycle."
             return 0 
         }
+        
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
@@ -787,10 +788,6 @@ def receiveEventData(Map evtData, String src) {
             // log.debug "onHeroku: ${evtData?.useHeroku} | cloudUrl: ${evtData?.cloudUrl}"
             state?.onHeroku = onHeroku
             state?.cloudUrl = (onHeroku && evtData?.cloudUrl) ? evtData?.cloudUrl : null
-            // if(onHeroku && !state?.heartbeatScheduled) {
-            //     scheduleHeartbeat()
-            // }
-            // cloudHeartbeatCheck()
             //Check for minimum versions before processing
             Boolean updRequired = false
             List updRequiredItems = []
@@ -803,7 +800,7 @@ def receiveEventData(Map evtData, String src) {
             }
             
             if (evtData?.echoDevices?.size()) {
-                log.debug "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${!onHeroku && src ? " [$src]" : ""}${onHeroku ? " | Last Cloud Heartbeat was: (${(getLastHeartBeatSeconds()/60).toFloat()?.round(1)} minutes ago)" : ""}"
+                log.debug "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${!onHeroku && src ? " [$src]" : ""} | LastUpdate: ${getLastDevicePollSec()}"
                 Map echoDeviceMap = [:]
                 List curDevFamily = []
                 Integer cnt = 0
@@ -813,31 +810,35 @@ def receiveEventData(Map evtData, String src) {
                     Boolean familyAllowed = deviceFamilyAllowed(echoValue?.deviceFamily as String)
                     if(!familyAllowed) { return }
                     echoValue["serviceAuthenticated"] = (evtData?.authenticated == true)
+                    echoValue["amazonDomain"] = settings?.amazonDomain
+                    echoValue["cookie"] = state?.cookie
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
+        
+                    Boolean ttsSupport = (echoValue?.deviceStyle?.ttsSupport == true)
+                    Boolean volumeSupport = (echoValue?.capabilities.contains('VOLUME_SETTING'))
                     Map permissions = [:]
-                    permissions["volumeControl"] = (echoValue?.capabilities.contains('VOLUME_SETTING')) ?: false
-                    permissions["canPlayMusic"] = (echoValue?.capabilities?.contains('AUDIO_PLAYER') || echoValue?.capabilities?.contains('AMAZON_MUSIC') || echoValue?.capabilities?.contains('TUNE_IN') || echoValue?.capabilities?.contains('PANDORA') || echoValue?.capabilities?.contains('I_HEART_RADIO') || echoValue?.capabilities?.contains('SPOTIFY')) || false;
-                    permissions["allowAmazonMusic"] = (echoValue?.capabilities.contains('AMAZON_MUSIC')) ?: false
-                    permissions["allowTuneIn"] = (echoValue?.capabilities.contains('TUNE_IN')) ?: false;
-                    permissions["allowIheart"] = (echoValue?.capabilities.contains('I_HEART_RADIO')) ?: false;
-                    permissions["allowPandora"] = (echoValue?.capabilities.contains('PANDORA')) ?: false;
-                    permissions["allowSpotify"] = (echoValue?.capabilities.contains('SPOTIFY')) ?: false;
+                    permissions["ttsSupport"] = ttsSupport
+                    permissions["volumeControl"] = (echoValue?.capabilities.contains('VOLUME_SETTING'))
+                    permissions["canPlayMusic"] = (echoValue?.capabilities?.contains('AUDIO_PLAYER') || echoValue?.capabilities?.contains('AMAZON_MUSIC') || echoValue?.capabilities?.contains('TUNE_IN') || echoValue?.capabilities?.contains('PANDORA') || echoValue?.capabilities?.contains('I_HEART_RADIO') || echoValue?.capabilities?.contains('SPOTIFY'))
+                    permissions["allowAmazonMusic"] = (echoValue?.capabilities.contains('AMAZON_MUSIC'))
+                    permissions["allowTuneIn"] = (echoValue?.capabilities.contains('TUNE_IN'))
+                    permissions["allowIheart"] = (echoValue?.capabilities.contains('I_HEART_RADIO'))
+                    permissions["allowPandora"] = (echoValue?.capabilities.contains('PANDORA'))
+                    permissions["allowSpotify"] = (echoValue?.capabilities.contains('SPOTIFY'))
                     permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false;
                     permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false;
-                    permissions["allowAlarms"] = (echoValue?.capabilities.contains('TIMERS_AND_ALARMS')) ?: false
-                    permissions["allowReminders"] = (echoValue?.capabilities.contains('REMINDERS')) ?: false
+                    permissions["allowAlarms"] = (echoValue?.capabilities.contains('TIMERS_AND_ALARMS'))
+                    permissions["allowReminders"] = (echoValue?.capabilities.contains('REMINDERS'))
+                    permissions["allowDoNotDisturb"] = (echoValue?.capabilities?.contains('SLEEP'))
+                    permissions["hasWakeWord"] = (echoValue?.capabilities?.contains('FAR_FIELD_WAKE_WORD'))
                     echoValue["permissionMap"] = permissions
-                    Boolean ttsSupport = (echoValue?.deviceStyle?.ttsSupport == true)
-                    Boolean volumeSupport = (echoValue?.volumeControl == true)
-                    if(!(echoValue?.canPlayMusic == true) && !ttsSupport) {
+                    if(permissions?.canPlayMusic != true && ttsSupport != true) {
+                        log.debug "name: ${echoValue?.accountName} | permissions: $permissions"
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!") 
                         return
                     }
                     echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, musicPlayer: (echoValue?.canPlayMusic == true), ttsSupport: ttsSupport, volumeSupport: volumeSupport]
-                    echoValue["ttsSupport"] = ttsSupport
-                    echoValue["amazonDomain"] = settings?.amazonDomain
-                    echoValue["cookie"] = state?.cookie
-
+                
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
                         return 
@@ -848,30 +849,30 @@ def receiveEventData(Map evtData, String src) {
                     String devLabel = "Echo - ${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
                     String childHandlerName = "Echo Speaks Device"
                     String hubId = settings?.stHub?.getId()
-                    // if(!updRequired) {
-                        if (!childDevice) {
-                            log.debug "childDevice not found | autoCreateDevices: ${settings?.autoCreateDevices}"
-                            if(settings?.autoCreateDevices != false) {
-                                try{
-                                    log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)"
-                                    childDevice = addChildDevice("tonesto7", childHandlerName, dni, hubId, [name: childHandlerName, label: devLabel, completedSetup: true])
-                                } catch(physicalgraph.app.exception.UnknownDeviceTypeException ex) {
-                                    log.error "AddDevice Error! ", ex
-                                }
+                    
+                    if (!childDevice) {
+                        log.debug "childDevice not found | autoCreateDevices: ${settings?.autoCreateDevices}"
+                        if(settings?.autoCreateDevices != false) {
+                            try{
+                                log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)"
+                                childDevice = addChildDevice("tonesto7", childHandlerName, dni, hubId, [name: childHandlerName, label: devLabel, completedSetup: true])
+                            } catch(physicalgraph.app.exception.UnknownDeviceTypeException ex) {
+                                log.error "AddDevice Error! ", ex
                             }
-                        } else {
-                            //Check and see if name needs a refresh
-                            if (settings?.autoRenameDevices != false && childDevice?.name != childHandlerName || childDevice?.label != devLabel) {
-                                log.debug ("Updating device name (old label was " + childDevice?.label + " | old name was " + childDevice?.name + " new hotness: " + devLabel)
-                                childDevice?.name = childHandlerName
-                                childDevice?.label = devLabel
-                            }
-                            // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
-                            childDevice?.updateDeviceStatus(echoValue)
-                            childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
-                            modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
                         }
-                    // }
+                    } else {
+                        //Check and see if name needs a refresh
+                        if (settings?.autoRenameDevices != false && childDevice?.name != childHandlerName || childDevice?.label != devLabel) {
+                            log.debug ("Updating device name (old label was " + childDevice?.label + " | old name was " + childDevice?.name + " new hotness: " + devLabel)
+                            childDevice?.name = childHandlerName
+                            childDevice?.label = devLabel
+                        }
+                        // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
+                        childDevice?.updateDeviceStatus(echoValue)
+                        childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
+                        modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
+                    }
+                    
                     curDevFamily.push(echoValue?.deviceStyle?.name)
                     state?.lastDevDataUpd = getDtNow()
                 }
@@ -972,7 +973,7 @@ private healthCheck() {
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
-    cloudHeartbeatCheck()
+    // cloudHeartbeatCheck()
 }
 
 private missPollNotify(Boolean on, Integer wait) {
