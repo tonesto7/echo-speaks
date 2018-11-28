@@ -15,42 +15,43 @@
 public getDeviceStyle(String family, String type) {
     switch(type) {
         //ECHOS - SPEAKERS\\
-	    case 'A38949IHXHRQ5P': return [name: 'Echo Tap', image: 'echo_gen', ttsSupport: true]
-        case 'AB72C64C86AW2' : return [name: 'Echo (Gen1)', image: 'echo_gen1', ttsSupport: true]
-        case 'A7WXQPH584YP'  : return [name: 'Echo (Gen2)', image: 'echo_gen2', ttsSupport: true]
-        case 'A2M35JJZWCQOMZ': return [name: 'Echo Plus (Gen1)', image: 'echo_plus_gen1', ttsSupport: true]
-        case 'A18O6U1UQFJ0XK': return [name: 'Echo Plus (Gen2)', image: 'echo_plus_gen2', ttsSupport: true]
-        case 'A3SSG6GR8UU7SN': return [name: 'Echo Sub', image: 'echo_sub_gen1', ttsSupport: true]
-        case 'A38EHHIB10L47V': return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', ttsSupport: true]
-        case "AKNO1N0KSFN8L" : return [name: 'Echo Dot (Gen1)', image: 'echo_dot_gen1', ttsSupport: true]
-        case 'A3S5BH2HU6VAYF': return [name: 'Echo Dot (Gen2)', image: 'echo_dot_gen2', ttsSupport: true]
-        case 'A32DOYMUN6DTXA': return [name: 'Echo Dot (Gen3)', image: 'echo_dot_gen3', ttsSupport: true]
+	    case "A38949IHXHRQ5P": return [name: "Echo Tap", image: "echo_gen", ttsSupport: true]
+        case "AB72C64C86AW2" : return [name: "Echo (Gen1)", image: "echo_gen1", ttsSupport: true]
+        case "A7WXQPH584YP"  : return [name: "Echo (Gen2)", image: "echo_gen2", ttsSupport: true]
+        case "A2M35JJZWCQOMZ": return [name: "Echo Plus (Gen1)", image: "echo_plus_gen1", ttsSupport: true]
+        case "A18O6U1UQFJ0XK": return [name: "Echo Plus (Gen2)", image: "echo_plus_gen2", ttsSupport: true]
+        case "A3SSG6GR8UU7SN": return [name: "Echo Sub", image: "echo_sub_gen1", ttsSupport: true]
+        case "A38EHHIB10L47V": return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1", ttsSupport: true]
+        case "AKNO1N0KSFN8L" : return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1", ttsSupport: true]
+        case "A3S5BH2HU6VAYF": return [name: "Echo Dot (Gen2)", image: "echo_dot_gen2", ttsSupport: true]
+        case "A32DOYMUN6DTXA": return [name: "Echo Dot (Gen3)", image: "echo_dot_gen3", ttsSupport: true]
         //ECHOS - SCREENS\\
-        case 'A10A33FOX2NUBK': return [name: 'Echo Spot', image: 'echo_spot_gen1', ttsSupport: true]
-        case 'A1NL4BVLQ4L3N3': return [name: 'Echo Show (Gen1)', image: 'echo_show_gen1', ttsSupport: true]
-        case 'AWZZ5CVHX2CD'  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", ttsSupport: true]
+        case "A10A33FOX2NUBK": return [name: "Echo Spot", image: "echo_spot_gen1", ttsSupport: true]
+        case "A1NL4BVLQ4L3N3": return [name: "Echo Show (Gen1)", image: "echo_show_gen1", ttsSupport: true]
+        case "AWZZ5CVHX2CD"  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", ttsSupport: true]
         //FIRE TVs\\
-	    case 'A12GXV8XMS007S': return [name: 'Fire TV (Gen1)', image: 'firetv_gen1', ttsSupport: true]
-        case 'A2E0SNTXJVT7WK': return [name: 'Fire TV (Gen2)', image: 'firetv_gen2', ttsSupport: true]
-        case 'A2GFL5ZMWNE0PX': return [name: 'Fire TV (Gen3)', image: 'firetv_gen3', ttsSupport: true]
-        case 'ADVBD696BHNV5' : return [name: 'Fire TV Stick (Gen1)', image: 'firetv_stick_gen1', ttsSupport: true]
-        case 'A2LWARUGJLBYEW': return [name: 'Fire TV Stick (Gen2)', image: 'firetv_stick_gen2', ttsSupport: true]
-        case 'AKPGW064GI9HE' : return [name: 'Fire TV Stick 4K (Gen3)', image: 'firetv_stick_gen3', ttsSupport: true] 
-        case 'A3HF4YRA2L7XGC': return [name: 'Fire TV Cube', image: 'firetv_cube', ttsSupport: true]
+	    case "A12GXV8XMS007S": return [name: "Fire TV (Gen1)", image: "firetv_gen1", ttsSupport: true]
+        case "A2E0SNTXJVT7WK": return [name: "Fire TV (Gen2)", image: "firetv_gen2", ttsSupport: true]
+        case "A2GFL5ZMWNE0PX": return [name: "Fire TV (Gen3)", image: "firetv_gen3", ttsSupport: true]
+        case "ADVBD696BHNV5" : return [name: "Fire TV Stick (Gen1)", image: "firetv_stick_gen1", ttsSupport: true]
+        case "A2LWARUGJLBYEW": return [name: "Fire TV Stick (Gen2)", image: "firetv_stick_gen2", ttsSupport: true]
+        case "AKPGW064GI9HE" : return [name: "Fire TV Stick 4K (Gen3)", image: "firetv_stick_gen3", ttsSupport: true] 
+        case "A3HF4YRA2L7XGC": return [name: "Fire TV Cube", image: "firetv_cube", ttsSupport: true]
         //TABLETS\\
-        case 'A2M4YX06LWP8WI': return [name: 'Fire Tablet', image: 'amazon_tablet', ttsSupport: true]
-        case 'A1J16TEDOYCZTN': return [name: 'Fire Tablet', image: 'amazon_tablet', ttsSupport: true]
-        case 'A3R9S4ZZECZ6YL': return [name: 'Fire Tablet HD 10"', image: 'tablet_hd10', ttsSupport: true]
+        case "A2M4YX06LWP8WI": return [name: "Fire Tablet", image: "amazon_tablet", ttsSupport: true]
+        case "A1J16TEDOYCZTN": return [name: "Fire Tablet", image: "amazon_tablet", ttsSupport: true]
+        case "A2M4YX06LWP8WI": return [name: "Fire Tablet 7 (5th Generation)", ttsSupport: true]
+        case "A3R9S4ZZECZ6YL": return [name: "Fire Tablet HD 10", image: "tablet_hd10", ttsSupport: true]
         //MULTIROOM\\
-        case 'A3C9PE6TNYLTCH': return [name: 'Multiroom', image: 'echo_wha', ttsSupport: false]
+        case "A3C9PE6TNYLTCH": return [name: "Multiroom", image: "echo_wha", ttsSupport: false]
         //SONOS\\
-        case 'A15ERDAKK5HQQG': return [name: 'Sonos', image: 'sonos_generic', ttsSupport: false]
-        case 'A2OSP3UA4VC85F': return [name: 'Sonos', image: 'sonos_generic', ttsSupport: false]
-        case 'A3NPD82ABCPIDP': return [name: 'Sonos Beam', image: 'sonos_beam', ttsSupport: true]
+        case "A15ERDAKK5HQQG": return [name: "Sonos", image: "sonos_generic", ttsSupport: false]
+        case "A2OSP3UA4VC85F": return [name: "Sonos", image: "sonos_generic", ttsSupport: false]
+        case "A3NPD82ABCPIDP": return [name: "Sonos Beam", image: "sonos_beam", ttsSupport: true]
         //OTHER\\
-        case 'A18BI6KPKDOEI4': return [name: 'Ecobee4', image: 'ecobee4', ttsSupport: true]
-        case 'A1N9SW0I0LUX5Y': return [name: 'Dash Wand', image: 'dash_wand', ttsSupport: false]
-        default: return [name: "Echo Unknown $type", image: 'unknown', ttsSupport: false]
+        case "A18BI6KPKDOEI4": return [name: "Ecobee4", image: "ecobee4", ttsSupport: true]
+        case "A1N9SW0I0LUX5Y": return [name: "Dash Wand", image: "dash_wand", ttsSupport: false]
+        default: return [name: "Echo Unknown $type", image: "unknown", ttsSupport: false]
     }
 }
 
@@ -486,14 +487,14 @@ def clearCloudConfig() {
 
 String getEnvParamsStr() {
     Map envParams = [:]
-    envParams['smartThingsUrl'] = "${getAppEndpointUrl("receiveData")}"
-    envParams['useHeroku'] = settings?.useHeroku == true ? "true" : "false"
-    envParams['serviceDebug'] = settings?.serviceDebug == true ? "true" : "false"
-    envParams['serviceTrace'] = settings?.serviceTrace == true ? "true" : "false"
-    envParams['amazonDomain'] = settings?.amazonDomain as String
-    envParams['refreshSeconds'] = settings?.refreshSeconds as String
-    envParams['hostUrl'] = "${getRandAppName()}.herokuapp.com"
-    envParams['HEROKU_APP_NAME'] = "${getRandAppName()}"
+    envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
+    envParams["useHeroku"] = settings?.useHeroku == true ? "true" : "false"
+    envParams["serviceDebug"] = settings?.serviceDebug == true ? "true" : "false"
+    envParams["serviceTrace"] = settings?.serviceTrace == true ? "true" : "false"
+    envParams["amazonDomain"] = settings?.amazonDomain as String
+    envParams["refreshSeconds"] = settings?.refreshSeconds as String
+    envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com"
+    envParams["HEROKU_APP_NAME"] = "${getRandAppName()}"
 
     String envs = ""
     envParams?.each { k, v-> envs += "&env[${k}]=${v}" }
@@ -573,7 +574,7 @@ def processData() {
         } else { log.debug "data: $data" }
     }
     def json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersion()])
-    render contentType: 'application/json', data: json, status: 200
+    render contentType: "application/json", data: json, status: 200
 }
 
 def getCookie() {
@@ -601,7 +602,7 @@ def storeCookie() {
 def clearCookie() {
     logger("trace", "clearCookie()")
     settingUpdate("resetCookies", "false", "bool")
-    state?.remove('cookie')
+    state?.remove("cookie")
     // unschedule("cloudServiceHeartbeat")
     unschedule("getEchoDevices")
     log.warn "Cookie has been cleared... Device Refresh has been suspended..."
@@ -610,7 +611,7 @@ def clearCookie() {
 // def scheduleHeartbeat() {
 //     log.info "Scheduling CloudHeartbeat Check for Every 15 minutes..."
 //     state?.heartbeatScheduled = true
-//     runEvery15Minutes('cloudServiceHeartbeat')
+//     runEvery15Minutes("cloudServiceHeartbeat")
 // }
 
 // Integer getLastHeartBeatSeconds() { return !state?.lastCloudHeartbeatDt ? 601 : GetTimeDiffSeconds(state?.lastCloudHeartbeatDt, "getLastHeartBeatSeconds").toInteger() }
@@ -621,7 +622,7 @@ def clearCookie() {
 //             log.warn "For some reason a CloudHeartbeat has not occurred in over ${(getLastHeartBeatSeconds()/60).toFloat()?.round(1)} minutes  | (${getLastHeartBeatSeconds()} secs.)... Rescheduling the heartbeat!!!"
 //             unschedule("cloudServiceHeartbeat")
 //             state?.heartbeatScheduled = true
-//             runEvery15Minutes('cloudServiceHeartbeat')
+//             runEvery15Minutes("cloudServiceHeartbeat")
 //             sendOneHeartbeat()
 //         }
 //     }
@@ -631,7 +632,7 @@ def clearCookie() {
 
 // private cloudServiceHeartbeat() {
 //     try {
-//         httpGet([uri: "https://${getRandAppName()}.herokuapp.com/heartbeat", contentType: 'application/json', headers: [appVersion: appVersion()]]) { resp->
+//         httpGet([uri: "https://${getRandAppName()}.herokuapp.com/heartbeat", contentType: "application/json", headers: [appVersion: appVersion()]]) { resp->
 //             if(resp && resp?.data && resp?.data?.result) {
 //                 log.info "CloudHeartBeat Successful${resp?.data?.version ? " | Server Version: (v${resp?.data?.version})": ""}${resp?.data?.authenticated == true ? " | (Authenticated)" : ""}"
 //                 incrementCntByKey("appHeartbeatCnt")
@@ -707,8 +708,8 @@ private getEchoDevices() {
 }
 
 def echoDevicesResponse(response, data) { 
-    List ignoreTypes = ['A1DL2DVDQVK3Q', 'A21Z3CGI8UIP0F', 'A2825NDLA7WDZV', 'A2IVLV5VM2W81', 'A2TF17PFR55MTB', 'A1X7HJX9QL16M5', 'A2T0P32DY3F7VB', 'A3H674413M2EKB', 'AILBSA2LNTOYL', 'A38BPK7OW001EX']
-    List removeKeys = ['appDeviceList', 'charging', 'macAddress', 'deviceTypeFriendlyName', 'registrationId', 'remainingBatteryLevel', 'postalCode', 'language']
+    List ignoreTypes = ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
+    List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     try {
         // log.debug "json response is: ${response.json}"
         List eDevData = response?.json?.devices ?: []
@@ -717,7 +718,7 @@ def echoDevicesResponse(response, data) {
         if(eDevData?.size()) {
             eDevData?.each { eDevice->
                 String serialNumber = eDevice?.serialNumber;
-                if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.contains('Alexa App')) {
+                if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.contains("Alexa App")) {
                     removeKeys?.each { rk->
                         eDevice?.remove(rk as String)
                     }
@@ -781,22 +782,22 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
         
                     Boolean ttsSupport = (echoValue?.deviceStyle?.ttsSupport == true)
-                    Boolean volumeSupport = (echoValue?.capabilities.contains('VOLUME_SETTING'))
+                    Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     Map permissions = [:]
                     permissions["ttsSupport"] = ttsSupport
-                    permissions["volumeControl"] = (echoValue?.capabilities.contains('VOLUME_SETTING'))
-                    permissions["canPlayMusic"] = (echoValue?.capabilities?.contains('AUDIO_PLAYER') || echoValue?.capabilities?.contains('AMAZON_MUSIC') || echoValue?.capabilities?.contains('TUNE_IN') || echoValue?.capabilities?.contains('PANDORA') || echoValue?.capabilities?.contains('I_HEART_RADIO') || echoValue?.capabilities?.contains('SPOTIFY'))
-                    permissions["allowAmazonMusic"] = (echoValue?.capabilities.contains('AMAZON_MUSIC'))
-                    permissions["allowTuneIn"] = (echoValue?.capabilities.contains('TUNE_IN'))
-                    permissions["allowIheart"] = (echoValue?.capabilities.contains('I_HEART_RADIO'))
-                    permissions["allowPandora"] = (echoValue?.capabilities.contains('PANDORA'))
-                    permissions["allowSpotify"] = (echoValue?.capabilities.contains('SPOTIFY'))
+                    permissions["volumeControl"] = (echoValue?.capabilities.contains("VOLUME_SETTING"))
+                    permissions["canPlayMusic"] = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
+                    permissions["allowAmazonMusic"] = (echoValue?.capabilities.contains("AMAZON_MUSIC"))
+                    permissions["allowTuneIn"] = (echoValue?.capabilities.contains("TUNE_IN"))
+                    permissions["allowIheart"] = (echoValue?.capabilities.contains("I_HEART_RADIO"))
+                    permissions["allowPandora"] = (echoValue?.capabilities.contains("PANDORA"))
+                    permissions["allowSpotify"] = (echoValue?.capabilities.contains("SPOTIFY"))
                     permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false;
                     permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false;
-                    permissions["allowAlarms"] = (echoValue?.capabilities.contains('TIMERS_AND_ALARMS'))
-                    permissions["allowReminders"] = (echoValue?.capabilities.contains('REMINDERS'))
-                    permissions["allowDoNotDisturb"] = (echoValue?.capabilities?.contains('SLEEP'))
-                    permissions["hasWakeWord"] = (echoValue?.capabilities?.contains('FAR_FIELD_WAKE_WORD'))
+                    permissions["allowAlarms"] = (echoValue?.capabilities.contains("TIMERS_AND_ALARMS"))
+                    permissions["allowReminders"] = (echoValue?.capabilities.contains("REMINDERS"))
+                    permissions["allowDoNotDisturb"] = (echoValue?.capabilities?.contains("SLEEP"))
+                    permissions["hasWakeWord"] = (echoValue?.capabilities?.contains("FAR_FIELD_WAKE_WORD"))
                     echoValue["permissionMap"] = permissions
                     if(permissions?.canPlayMusic != true && ttsSupport != true && (!(echoValue?.deviceFamily in ["ROOK", "ECHO", "KNIGHT"]))) {
                         log.warn "IGNORED Device | Name: ${echoValue?.accountName} | Permissions: $permissions"
@@ -810,7 +811,7 @@ def receiveEventData(Map evtData, String src) {
                         return 
                     }
                     
-                    String dni = [app?.id, "echoSpeaks", echoKey].join('|')
+                    String dni = [app?.id, "echoSpeaks", echoKey].join("|")
                     def childDevice = getChildDevice(dni)
                     String devLabel = "Echo - ${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
                     String childHandlerName = "Echo Speaks Device"
@@ -1303,7 +1304,7 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
 private getConfigData() {
     def params = [
         uri:  "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/appData.json",
-        contentType: 'application/json'
+        contentType: "application/json"
     ]
     def data = getWebData(params, "appData", false)
     if(data) {
@@ -1487,7 +1488,7 @@ String getInputToStringDesc(inpt, addSpace = null) {
 }
 
 String randomString(Integer len) {
-    def pool = ['a'..'z',0..9].flatten()
+    def pool = ["a".."z",0..9].flatten()
     Random rand = new Random(new Date().getTime())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
     log.debug "randomString: ${randChars?.join()}"
@@ -1583,7 +1584,7 @@ def renderConfig() {
     </body>
     <script>
         \$("#copyName").on("click", function () {
-            console.log('click')
+            console.log("click")
             \$(this).select();
         });
         \$('#generateEmail').click(function() {
