@@ -297,8 +297,7 @@ metadata {
 
 def installed() {
     log.trace "${device?.displayName} Executing Installed..."
-    sendEvent(name: "level", value: 0)
-    sendEvent(name: "volume", value: 0)
+    setLevel(20)
     sendEvent(name: "alarmVolume", value: 0)
     sendEvent(name: "mute", value: "unmuted")
     sendEvent(name: "status", value: "stopped")
@@ -1548,7 +1547,7 @@ private speakCmd(headers=[:], isQueueCmd=false) {
                 contentType: "application/json",
                 body: sequenceJsonBuilder("speak", headerMap?.message)
             ]
-            asynchttp_v1.post(asyncCommandHandler, params, [queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null), message: (headerMap?.message ?: null)])
+            asynchttp_v1.post(asyncSpeechHandler, params, [queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null), message: (headerMap?.message ?: null)])
         } catch (e) {
             log.error "something went wrong: ", e
             incrementCntByKey("err_cloud_command")
@@ -1562,14 +1561,16 @@ private speakCmd(headers=[:], isQueueCmd=false) {
     }
 }
 
-def asyncCommandHandler(response, data) {
+def asyncSpeechHandler(response, data) {
+    def resp = null
     if(response?.hasError()) {
-        log.error "asyncCommandHandler error: ${response?.getErrorMessage()}"
+        resp = response?.errorJson ?: null
+        // log.error "asyncSpeechHandler Error Message: (${response?.errorJson?.message}"
     } else {
-        def resp = response?.getData() ?: null
-        // log.trace "asyncCommandHandler | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}"
-        postCmdProcess(resp, response?.getStatus(), data)
+        resp = response?.getData() ?: null
+        // log.trace "asyncSpeechHandler | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}"
     }
+    postCmdProcess(resp, response?.getStatus(), data)
 }
 
 private postCmdProcess(resp, statusCode, data) {
@@ -1581,14 +1582,10 @@ private postCmdProcess(resp, statusCode, data) {
                 sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
                 sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
             }
-            if(data?.queueKey) {
-                state?.remove(data?.queueKey as String)
-            }
-            if(data?.cmdDesc == "SpeakCommand") {
-                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "postCmdProcess(adjDelay)")
-            }
+            if(data?.queueKey) { state?.remove(data?.queueKey as String) }
+            if(data?.cmdDesc == "SpeakCommand") { schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "postCmdProcess(adjDelay)") }
             return
-        } else if(statusCode == 400 && resp?.message && resp?.message == "Rate exceeded") {
+        } else if(statusCode.toInteger() == 400 && resp?.message && resp?.message?.toString() == "Rate Exceeded") {
             log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
             state?.recheckScheduled = true
             runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (data?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
@@ -1601,12 +1598,6 @@ private postCmdProcess(resp, statusCode, data) {
         }
     }
 }
-
-
-
-
-
-
 
 /*****************************************************
                 HELPER FUNCTIONS
