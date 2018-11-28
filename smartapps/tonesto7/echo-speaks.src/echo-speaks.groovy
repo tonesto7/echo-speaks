@@ -40,7 +40,7 @@ public getDeviceStyle(String family, String type) {
         //TABLETS\\
         case "A2M4YX06LWP8WI": return [name: "Fire Tablet", image: "amazon_tablet", ttsSupport: true]
         case "A1J16TEDOYCZTN": return [name: "Fire Tablet", image: "amazon_tablet", ttsSupport: true]
-        case "A2M4YX06LWP8WI": return [name: "Fire Tablet 7 (5th Generation)", ttsSupport: true]
+        case "A2M4YX06LWP8WI": return [name: "Fire Tablet 7 (Gen5)", image: "amazon_tablet", ttsSupport: true]
         case "A3R9S4ZZECZ6YL": return [name: "Fire Tablet HD 10", image: "tablet_hd10", ttsSupport: true]
         //MULTIROOM\\
         case "A3C9PE6TNYLTCH": return [name: "Multiroom", image: "echo_wha", ttsSupport: false]
