@@ -57,6 +57,7 @@ metadata {
         attribute "alarmSupported", "string"
         attribute "reminderSupported", "string"
         command "playTextAndResume"
+        command "playTrackAndResume"
         command "playTrackAndRestore"
         command "playTextAndRestore"
         command "sendTestTts"
@@ -1282,34 +1283,34 @@ def replayText() {
 }
 
 def playText(String msg) {
-	logger("trace", "playText() command received...")
+	logger("trace", "playText(msg: $msg) command received...")
 	speak(msg as String)
 }
 
 def playTrackAndResume(uri, duration, volume=null) {
-    log.warn "This Device Does NOT Support the PlayTrackAndResume Command!!!"
+    log.warn "This Device Does NOT Support the playTrackAndResume(uri: $uri, duration: $duration, volume: $volume) Command!!!"
 }
 
 def playTextAndResume(text, volume=null) {
-    logger("trace", "playTextAndResume() command received...")
+    logger("trace", "playTextAndResume(text: $text, volume: $volume) command received...")
     speak(msg as String)
 }
 
 def playTrackAndRestore(uri, duration, volume=null) {
-    log.warn "This Device Does NOT Support the PlayTrackAndRestore Command!!!"
+    log.warn "This Device Does NOT Support the playTrackAndRestore(uri: $uri, duration: $duration, volume: $volume) Command!!!"
 }
 
 def playTextAndRestore(text, volume=null) {
-    logger("trace", "playTextAndRestore() command received...")
+    logger("trace", "playTextAndRestore(text: $text, volume: $volume) command received...")
     speak(msg as String)
 }
 
 def playURL(theURL) {
-	log.warn "This Device Does NOT Support the PlayUrl Command!!!"
+	log.warn "This Device Does NOT Support the playUrl(url: $theURL) Command!!!"
 }
 
 def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
-	log.warn "This Device Does NOT Support the PlaySoundAndTrack Command!!!"
+	log.warn "This Device Does NOT Support the playSoundAndTrack(soundUri: $soundUri, duration: $duration, trackData: $trackData, volume: $volume) Command!!!"
 }
 
 def sendTestTts(ttsMsg) {
@@ -1318,6 +1319,7 @@ def sendTestTts(ttsMsg) {
     List items = [
         "Testing Testing 1, 2, 3", 
         "Yay!, I'm Alive... Hopefully you can hear me speaking?", 
+        "Everybody have fun tonight, Everybody have fun tonight, Everybody Wang Chung tonight, Everybody have fun tonight, Everybody Wang Chung tonight, Everybody have fun.",
         "Being able to make me say whatever you want is the coolest thing since sliced bread!",
         "I said a hip hop, Hippie to the hippie, The hip, hip a hop, and you don't stop, a rock it out, Bubba to the bang bang boogie, boobie to the boogie To the rhythm of the boogie the beat, Now, what you hear is not a test, I'm rappin' to the beat", 
         "This is how we do it!. It's Friday night, and I feel alright. The party is here on the West side. So I reach for my 40 and I turn it up. Designated driver take the keys to my truck, Hit the shore 'cause I'm faded, Honeys in the street say, Monty, yo we made it!. It feels so good in my hood tonight, The summertime skirts and the guys in Khannye.",
