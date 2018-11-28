@@ -55,6 +55,9 @@ metadata {
         attribute "musicSupported", "string"
         attribute "alarmSupported", "string"
         attribute "reminderSupported", "string"
+        command "playTextAndResume", ["string","number"]
+        command "playTrackAndRestore", ["string","number","number"]
+        command "playTextAndRestore", ["string","number"]
         command "sendTestTts"
         command "replayText"
         command "doNotDisturbOn"
@@ -81,6 +84,7 @@ metadata {
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "setVolumeSpeakAndRestore"
+        command "searchTest"
     }
 
     tiles (scale: 2) {
@@ -278,7 +282,7 @@ metadata {
         details([
             "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported",
             "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue", 
-            "lastSpeakCmd", "blank2x2", "lastCmdSentDt", "blank2x2", "refresh"])
+            "lastSpeakCmd", "blank2x2", "lastCmdSentDt", "blank2x2", "refresh", "searchTest"])
     }
     
     preferences {
@@ -517,7 +521,6 @@ def getPlaybackStateHandler(response, data) {
     }
     
     if(sData?.volume) {
-        log.debug "volumeObj: ${sData?.volume?.muted} | ${(sData?.volume?.muted?.toString() == "true")}"
         if(sData?.volume?.volume) {
             Integer level = sData?.volume?.volume
             if(level < 0) { level = 0 }
@@ -737,6 +740,21 @@ def getNotificationsHandler(response, data) {
             Amazon Command Logic
 *******************************************************************/
 
+private sendAmazonBasicCommand(String cmdType) {
+    asynchttp_v1.post(amazonCommandResp, [
+        uri: "https://alexa.${state?.amazonDomain}",
+        path: "/api/np/command",
+        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        query: [
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType
+        ],
+        requestContentType: "application/json",
+        contentType: "application/json",
+        body: [type: cmdType]
+    ], [cmdDesc: cmdType])
+}
+
 private sendAmazonCommand(String method, Map params, Map otherData) {
     asynchttp_v1."${method?.toString()?.toLowerCase()}"(amazonCommandResp, params, otherData)
 }
@@ -745,70 +763,81 @@ def amazonCommandResp(response, data) {
     if(response?.hasError()) {
         log.error "amazonCommandResp error: ${response?.getErrorMessage()}"
     } else {
-        def resp = response?.getData() ?: null
+        def resp = response?.data ? response?.getJson() : null
         // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
         if(response?.getStatus() == 200) {
-            if(data?.cmdDesc == "PlayMusicProvider") {
-                if (resp?.result != 'VALID') {
-                    log.error "PlayMusicProvider Request Invalid..."
-                    return
-                }
-                data?.validateObj?.operationPayload = resp?.operationPayload
-                Map seqCommandObj = [
-                    '@type': 'com.amazon.alexa.behaviors.model.Sequence',
-                    'startNode': validateObj
-                ]
-                seqCommandObj?.startNode['@type'] = 'com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode';
-                sendSequenceCommand(data?.options, seqCommandObj, null)
-            } else {
-                log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | (${data?.cmdDesc}) was Successfully Sent!!!"
-            }
+            log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | (${data?.cmdDesc}) was Successfully Sent!!!"
         }
     }
 }
 
 private playMusicProvider(options) {
-    log.trace "playMusicProvider($options)"
+    // log.trace "playMusicProvider($options)"
     if (options?.searchPhrase == '') { log.error 'PlayMusicProvider Searchphrase empty'; return; }
     Map validateObj = [
         type: 'Alexa.Music.PlaySearchPhrase',
         operationPayload: [
             deviceType: state?.deviceType,
-            deviceSerialNumber: state?.deviceSerialNumber,
+            deviceSerialNumber: state?.serialNumber,
             customerId: state?.deviceOwnerCustomerId,
             locale: options?.locale ?: "en-US",
             musicProviderId: options?.providerId,
             searchPhrase: options?.searchPhrase
-        ]
+        ]?.encodeAsJson() as String
     ]
-    sendAmazonCommand("POST", [
-        uri: "https://alexa.${state?.amazonDomain}",
-        path: "/api/behaviors/operation/validate",
-        headers: [
-            'Cookie': state?.cookie?.cookie,
-            'csrf': state?.cookie?.csrf
-        ],
-        requestContentType: "application/json",
-        contentType: "application/json",
-        body: validateObj?.encodeAsJson() as String
-    ], [cmdDesc: "PlayMusic(${options?.cmdDesc})", validateObj: validateObj, options: options])
+    try {
+        httpPost([
+            uri: "https://alexa.${state?.amazonDomain}",
+            path: "/api/behaviors/operation/validate",
+            headers: [
+                'Cookie': state?.cookie?.cookie,
+                'csrf': state?.cookie?.csrf
+            ],
+            requestContentType: "application/json",
+            contentType: "application/json",
+            body: validateObj
+        ]) { resp ->
+            if(resp?.status == 200) {
+                log.info "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp?.data} | PassThru-Data: ${data}"
+                if (resp?.result != 'VALID') {
+                    log.error "PlayMusicProvider Request Invalid..."
+                    return
+                }
+                validateObj?.operationPayload = resp?.operationPayload
+                Map seqCommandObj = [
+                    '@type': 'com.amazon.alexa.behaviors.model.Sequence',
+                    'startNode': validateObj
+                ]
+                seqCommandObj?.startNode['@type'] = 'com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode'
+                seqCommandObj?.startNode = seqCommandObj?.startNode?.encodeAsJson() as String
+                sendAmazonCommand("POST", [
+                    uri: "https://alexa.${state?.amazonDomain}",
+                    path: "/api/behaviors/preview",
+                    headers: [
+                        'Cookie': state?.cookie?.cookie,
+                        'csrf': state?.cookie?.csrf
+                    ],
+                    requestContentType: "application/json",
+                    contentType: "application/json",
+                    body: seqCommandObj
+                ], [cmdDesc: "PlayMusic | Provider: (${options?.providerId})"])
+            }
+        }
+    } catch (e) {
+        log.debug "something went wrong: $e"
+    }
+    
 }
 
 private sendSequenceCommand(type, command, value, multi=false) {
     log.trace "sendSequenceCommand($type) | command: $command | value: $value"
-    Map device = [
-        deviceSerialNumber: state?.serialNumber,
-        deviceType: state?.deviceType,
-        deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-        locale: 'en-US'
-    ]
     def seqCommandObj = null
     if (multi) {
         seqCommandObj = command?.sequence || command;
     } else {
         seqCommandObj = [
             '@type': 'com.amazon.alexa.behaviors.model.Sequence',
-            'startNode': createSequenceNode(device, command, value)
+            'startNode': createSequenceNode(command, value)
         ]
     }
     Map reqObj = [
@@ -829,7 +858,9 @@ private sendSequenceCommand(type, command, value, multi=false) {
     ], [cmdDesc: "SequenceCommand(${type})"])
 }
 
-
+def searchTest() {
+    searchAmazonMusic("thriller")
+}
 /*******************************************************************
             Device Command FUNCTIONS
 *******************************************************************/
@@ -838,12 +869,7 @@ def play() {
     logger("trace", "play() command received...")
     if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
-        echoServiceCmd("cmd", [
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            cmdType: "PlayCommand"
-        ])
+        sendAmazonBasicCommand("PlayCommand")
         incrementCntByKey("use_cnt_playCmd")
         if(isStateChange(device, "status", "playing")) {
             sendEvent(name: "status", value: "playing", descriptionText: "Player Status is playing", display: true, displayed: true)
@@ -860,12 +886,8 @@ def pause() {
     if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     logger("trace", "pause() command received...")
     if(state?.serialNumber) {
-        echoServiceCmd("cmd", [
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            cmdType: "PauseCommand"
-        ])
+        sendAmazonBasicCommand("PauseCommand")
+        incrementCntByKey("use_cnt_pauseCmd")
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
         }
@@ -877,12 +899,8 @@ def stop() {
     logger("trace", "stop() command received...")
     if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
-        echoServiceCmd("cmd", [
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            cmdType: "StopCommand"
-        ])
+        sendAmazonBasicCommand("StopCommand")
+        incrementCntByKey("use_cnt_stopCmd")
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
         }
@@ -893,12 +911,7 @@ def previousTrack() {
     logger("trace", "previousTrack() command received...")
     if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
-        echoServiceCmd("cmd", [
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            cmdType: "PreviousCommand"
-        ])
+        sendAmazonBasicCommand("PreviousCommand")
         incrementCntByKey("use_cnt_prevTrackCmd")
     } else { log.warn "previousTrack() Command Error | You are missing a SerialNumber: ${state?.serialNumber}" }
 }
@@ -907,12 +920,7 @@ def nextTrack() {
     logger("trace", "nextTrack() command received...")
     if(!state?.permissions?.canPlayMusic) { log.warn "This Device Does NOT Support Media Playback Control!!!"; return; }
     if(state?.serialNumber) {
-        echoServiceCmd("cmd", [
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-            cmdType: "NextCommand"
-        ])
+        sendAmazonBasicCommand("NextCommand")
         incrementCntByKey("use_cnt_nextTrackCmd")
     } else { log.warn "nextTrack() Command Error | You are missing a SerialNumber: ${state?.serialNumber}" }
 }
@@ -1013,10 +1021,6 @@ def resumeTrack() {
 
 def restoreTrack() {
     logger("warn", "restoreTrack() | Not Supported Yet!!!")
-}
-
-def playURL(theURL) {
-    logger("warn", "playURL() | Not Supported Yet!!!")
 }
 
 def doNotDisturbOff() {
@@ -1130,7 +1134,7 @@ def searchMusic(String searchPhrase, String providerId) {
 }
 
 def searchAmazonMusic(String searchPhrase) {
-    log.trace "searchAmazonMusic(${searchPhrase}) | Allowed: (${(state?.permissions?.allowAmazonMusic == false)})"
+    log.trace "searchAmazonMusic(${searchPhrase}) | Allowed: (${(state?.permissions?.allowAmazonMusic != false)})"
     if(state?.permissions?.allowAmazonMusic == false) { log.warn "device does not support AMAZON MUSIC"; return }
     doSearchMusicCmd(searchPhrase, "AMAZON_MUSIC")
     incrementCntByKey("use_cnt_searchAmazon")
@@ -1299,6 +1303,37 @@ def replayText() {
     logger("trace", "replayText() command received...")
     String lastText = device?.currentState("lastSpeakCmd")?.stringValue
     if(lastText) { speak(lastText) } else { log.warn "Last Text was not found" }
+}
+
+def playText(String msg) {
+	logger("trace", "playText() command received...")
+	speak(msg as String)
+}
+
+def playTrackAndResume(uri, duration, volume=null) {
+    log.warn "This Device Does NOT Support the PlayTrackAndResume Command!!!"
+}
+
+def playTextAndResume(text, volume=null) {
+    logger("trace", "playTextAndResume() command received...")
+    speak(msg as String)
+}
+
+def playTrackAndRestore(uri, duration, volume=null) {
+    log.warn "This Device Does NOT Support the PlayTrackAndRestore Command!!!"
+}
+
+def playTextAndRestore(text, volume=null) {
+    logger("trace", "playTextAndRestore() command received...")
+    speak(msg as String)
+}
+
+def playURL(theURL) {
+	log.warn "This Device Does NOT Support the PlayUrl Command!!!"
+}
+
+def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
+	log.warn "This Device Does NOT Support the PlaySoundAndTrack Command!!!"
 }
 
 def sendTestTts(ttsMsg) {
@@ -1534,9 +1569,9 @@ private speakCmd(headers=[:], isQueueCmd=false) {
                 headers: headerMap,
                 requestContentType: "application/json",
                 contentType: "application/json",
-                body: sequenceJsonBuilder("speak", headerMap?.message) ?: ""
+                body: sequenceJsonBuilder("speak", headerMap?.message)
             ]
-            asynchttp_v1.post(asyncCommandHandler, params, [queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null)])
+            asynchttp_v1.post(asyncCommandHandler, params, [queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null), message: (headerMap?.message ?: null)])
         } catch (e) {
             log.error "something went wrong: ", e
             incrementCntByKey("err_cloud_command")
@@ -1554,19 +1589,14 @@ def asyncCommandHandler(response, data) {
     if(response?.hasError()) {
         log.error "asyncCommandHandler error: ${response?.getErrorMessage()}"
     } else {
-        // def headers = response.headers
-        // headers.each {header, value ->
-        //     log.debug "$header: $value"
-        // }
         def resp = response?.getData() ?: null
-        log.trace "asyncCommandHandler | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}"
+        // log.trace "asyncCommandHandler | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}"
         postCmdProcess(resp, response?.getStatus(), data)
     }
 }
 
 private postCmdProcess(resp, statusCode, data) {
     if(data?.deviceId && (data?.deviceId == device?.getDeviceNetworkId())) {
-        // log.debug "command resp was: ${resp} | statusCode: ${statusCode} | data: ${data}"
         if(statusCode == 200) {
             log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully${data?.queueKey ? " | queueKey: ${data?.queueKey}" : ""}${data?.msgDelay ? " | msgDelay: ${data?.msgDelay}" : ""}"
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
@@ -1665,32 +1695,26 @@ public Map getDeviceMetrics() {
 }
 
 private sequenceJsonBuilder(cmdKey, cmdVal) {
-    Map device = [
-        deviceSerialNumber: state?.serialNumber,
-        deviceType: state?.deviceType,
-        deviceOwnerCustomerId: state?.deviceOwnerCustomerId,
-        locale: 'en-US'
-    ]
     Map reqObj = [
         'behaviorId': 'PREVIEW',
         'sequenceJson': [
             '@type': 'com.amazon.alexa.behaviors.model.Sequence',
-            'startNode': createSequenceNode(device, cmdKey, cmdVal)
+            'startNode': createSequenceNode(cmdKey, cmdVal)
         ]?.encodeAsJson() as String,
         'status': 'ENABLED'
     ]
     return reqObj
 };
 
-Map createSequenceNode(device, command, value) {
+Map createSequenceNode(command, value) {
     try {
         Map seqNode = [
             '@type': 'com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode',
             'operationPayload': [
-                'deviceType': device.deviceType,
-                'deviceSerialNumber': device.deviceSerialNumber,
-                'locale': device.locale,
-                'customerId': device.deviceOwnerCustomerId
+                'deviceType': state?.deviceType,
+                'deviceSerialNumber': state?.serialNumber,
+                'locale': "en-US",
+                'customerId': state?.deviceOwnerCustomerId
             ]
         ];
         switch (command) {
