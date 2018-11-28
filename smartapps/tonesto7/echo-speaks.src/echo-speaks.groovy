@@ -60,14 +60,14 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "1.9.99" }
+String appVersion()	 { return "2.0.0" }
 String appModified() { return "2018-11-28" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 130, server: 130]
+    return [echoDevice: 200, server: 200]
 }
 
 definition(

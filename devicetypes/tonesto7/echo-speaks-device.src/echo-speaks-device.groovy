@@ -18,7 +18,7 @@ import groovy.json.*
 import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "1.9.99"}
+String devVersion() { return "2.0.0"}
 String devModified() { return "2018-11-28" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
@@ -1464,7 +1464,7 @@ private processCmdQueue() {
         def cmdKey = cmdQueue?.keySet()?.sort()?.first()
         Map cmdData = state[cmdKey as String]
         // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }?.size()})")
-        cmdData?.headers['queueKey'] = cmdKey
+        cmdData?.headers["queueKey"] = cmdKey
         if(state?.lastTtsMsg && (cmdData?.headers?.message == state?.lastTtsMsg) && (getLastTtsCmdSec() < 10)) {
             state?.remove(cmdKey as String)
             log.trace "processCmdQueue | Possible loop detected... Last message the same as current sent less than 10 seconds ago. This message will be removed from the queue"
@@ -1513,7 +1513,7 @@ private speakCmd(headers=[:], isQueueCmd=false) {
         Boolean sendToQueue = (lastTtsCmdSec < 3 || (state?.speakingNow && !isFirstCmd && !isQueueCmd))
         log.warn "sendToQueue: $sendToQueue | isQueueCmd: $isQueueCmd | lastTtsCmdSec: $lastTtsCmdSec | isFirstCmd: ${(state?.firstCmdFlag != true)} | speakingNow: ${state?.speakingNow} | getRecheckDelay: ${getRecheckDelay(ml)}"
         if(sendToQueue) {
-            headers['msgDelay'] = getRecheckDelay(ml)
+            headers["msgDelay"] = getRecheckDelay(ml)
             if(!isQueueCmd) {
                 queueEchoCmd(type, headers, body, isFirstCmd)
             }
@@ -1670,11 +1670,11 @@ public Map getDeviceMetrics() {
     def cntItems = state?.findAll { it?.key?.startsWith("use_") }
     def errItems = state?.findAll { it?.key?.startsWith("err_") }
     if(cntItems?.size()) {
-        out['usage'] = [:]
+        out["usage"] = [:]
         cntItems?.each { k,v -> out?.usage[k?.toString()?.replace("use_", "") as String] = v as Integer ?: 0 }
     }
     if(errItems?.size()) {
-        out['errors'] = [:]
+        out["errors"] = [:]
         errItems?.each { k,v -> out?.errors[k?.toString()?.replace("err_", "") as String] = v as Integer ?: 0 }
     }
     return out
@@ -1682,12 +1682,12 @@ public Map getDeviceMetrics() {
 
 private sequenceJsonBuilder(cmdKey, cmdVal) {
     Map reqObj = [
-        'behaviorId': 'PREVIEW',
-        'sequenceJson': [
-            '@type': 'com.amazon.alexa.behaviors.model.Sequence',
-            'startNode': createSequenceNode(cmdKey, cmdVal)
+        "behaviorId": "PREVIEW",
+        "sequenceJson": [
+            "@type": "com.amazon.alexa.behaviors.model.Sequence",
+            "startNode": createSequenceNode(cmdKey, cmdVal)
         ]?.encodeAsJson() as String,
-        'status': 'ENABLED'
+        "status": "ENABLED"
     ]
     return reqObj
 };
@@ -1695,42 +1695,42 @@ private sequenceJsonBuilder(cmdKey, cmdVal) {
 Map createSequenceNode(command, value) {
     try {
         Map seqNode = [
-            '@type': 'com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode',
-            'operationPayload': [
-                'deviceType': state?.deviceType,
-                'deviceSerialNumber': state?.serialNumber,
-                'locale': "en-US",
-                'customerId': state?.deviceOwnerCustomerId
+            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+            "operationPayload": [
+                "deviceType": state?.deviceType,
+                "deviceSerialNumber": state?.serialNumber,
+                "locale": "en-US",
+                "customerId": state?.deviceOwnerCustomerId
             ]
         ];
         switch (command) {
-            case 'weather':
-                seqNode?.type = 'Alexa.Weather.Play';
+            case "weather":
+                seqNode?.type = "Alexa.Weather.Play";
                 break;
-            case 'traffic':
-                seqNode?.type = 'Alexa.Traffic.Play';
+            case "traffic":
+                seqNode?.type = "Alexa.Traffic.Play";
                 break;
-            case 'flashbriefing':
-                seqNode?.type = 'Alexa.FlashBriefing.Play';
+            case "flashbriefing":
+                seqNode?.type = "Alexa.FlashBriefing.Play";
                 break;
-            case 'goodmorning':
-                seqNode?.type = 'Alexa.GoodMorning.Play';
+            case "goodmorning":
+                seqNode?.type = "Alexa.GoodMorning.Play";
                 break;
-            case 'singasong':
-                seqNode?.type = 'Alexa.SingASong.Play';
+            case "singasong":
+                seqNode?.type = "Alexa.SingASong.Play";
                 break;
-            case 'tellstory':
-                seqNode?.type = 'Alexa.TellStory.Play';
+            case "tellstory":
+                seqNode?.type = "Alexa.TellStory.Play";
                 break;
-            case 'playsearch':
-                seqNode?.type = 'Alexa.Music.PlaySearchPhrase';
+            case "playsearch":
+                seqNode?.type = "Alexa.Music.PlaySearchPhrase";
                 break;
-            case 'volume':
-                seqNode?.type = 'Alexa.DeviceControls.Volume';
+            case "volume":
+                seqNode?.type = "Alexa.DeviceControls.Volume";
                 seqNode?.operationPayload?.value = value;
                 break
-            case 'speak':
-                seqNode?.type = 'Alexa.Speak';
+            case "speak":
+                seqNode?.type = "Alexa.Speak";
                 seqNode?.operationPayload?.textToSpeak = value as String
                 break
             default:
