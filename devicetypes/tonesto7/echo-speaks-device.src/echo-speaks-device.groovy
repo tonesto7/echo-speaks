@@ -1583,14 +1583,13 @@ private speakCmd(headers=[:], isQueueCmd=false) {
             headers["queueKey"] = "cmdQueueItem_1"
             state?.firstCmdFlag = true
         }
-        Boolean sendToQueue = (!isQueueCmd || (state?.speakingNow == true) || (lastTtsCmdSec < 3))
+        Boolean sendToQueue = (!isQueueCmd && (state?.speakingNow == true || lastTtsCmdSec < 3))
         // Boolean sendToQueue = (lastTtsCmdSec < 3 || (state?.speakingNow && !isFirstCmd && !isQueueCmd))
 
-        log.warn "sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | speakingNow: (${state?.speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
+        log.warn "speakCmd | Queue Debug: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | speakingNow: (${state?.speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
-            if(isFirstCmd) { 
-                queueEchoCmd(type, headers, body, isFirstCmd)
-            } else { return }
+            queueEchoCmd(type, headers, body, isFirstCmd)
+            if(!isFirstCmd) { return }
         }
     }
     try {
