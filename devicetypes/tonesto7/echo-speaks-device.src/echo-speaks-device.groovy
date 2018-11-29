@@ -1455,6 +1455,7 @@ def resetQueue(showLog=true) {
     state?.curMsgLen = null
     state?.lastTtsCmdDelay = null
     state?.lastTtsMsg = null
+    state?.lastQueueMsg = null
 }
 
 Integer getQueueIndex() {
@@ -1532,13 +1533,15 @@ private processCmdQueue() {
         state?.recheckScheduled = false
         def cmdKey = cmdQueue?.keySet()?.sort()?.first()
         Map cmdData = state[cmdKey as String]
+        
         // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }?.size()})")
         cmdData?.headers["queueKey"] = cmdKey
-        if(state?.lastTtsMsg && (cmdData?.headers?.message == state?.lastTtsMsg) && (getLastTtsCmdSec() < 10)) {
+        if(state?.lastTtsMsg && (cmdData?.headers?.message == state?.lastTtsMsg) && (cmdData?.headers?.message == state?.lastQueueMsg) && (getLastTtsCmdSec() < 10)) {
             state?.remove(cmdKey as String)
             log.trace "processCmdQueue | Possible loop detected... Last message the same as current sent less than 10 seconds ago. This message will be removed from the queue"
             schedQueueCheck(2, true, null, "processCmdQueue(removed duplicate)")
         } else {
+            state?.lastQueueMsg = cmdData?.headers?.message
             speakCmd(cmdData?.headers, true)
         }
     }
