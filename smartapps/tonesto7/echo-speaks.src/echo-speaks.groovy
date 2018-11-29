@@ -15,43 +15,43 @@
 public getDeviceStyle(String family, String type) {
     switch(type) {
         //ECHOS - SPEAKERS\\
-	    case "A38949IHXHRQ5P": return [name: "Echo Tap", image: "echo_gen", ttsSupport: true]
-        case "AB72C64C86AW2" : return [name: "Echo (Gen1)", image: "echo_gen1", ttsSupport: true]
-        case "A7WXQPH584YP"  : return [name: "Echo (Gen2)", image: "echo_gen2", ttsSupport: true]
-        case "A2M35JJZWCQOMZ": return [name: "Echo Plus (Gen1)", image: "echo_plus_gen1", ttsSupport: true]
-        case "A18O6U1UQFJ0XK": return [name: "Echo Plus (Gen2)", image: "echo_plus_gen2", ttsSupport: true]
-        case "A3SSG6GR8UU7SN": return [name: "Echo Sub", image: "echo_sub_gen1", ttsSupport: true]
-        case "A38EHHIB10L47V": return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1", ttsSupport: true]
-        case "AKNO1N0KSFN8L" : return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1", ttsSupport: true]
-        case "A3S5BH2HU6VAYF": return [name: "Echo Dot (Gen2)", image: "echo_dot_gen2", ttsSupport: true]
-        case "A32DOYMUN6DTXA": return [name: "Echo Dot (Gen3)", image: "echo_dot_gen3", ttsSupport: true]
+	    case "A38949IHXHRQ5P": return [name: "Echo Tap", image: "echo_gen", allowTTS: true]
+        case "AB72C64C86AW2" : return [name: "Echo (Gen1)", image: "echo_gen1", allowTTS: true]
+        case "A7WXQPH584YP"  : return [name: "Echo (Gen2)", image: "echo_gen2", allowTTS: true]
+        case "A2M35JJZWCQOMZ": return [name: "Echo Plus (Gen1)", image: "echo_plus_gen1", allowTTS: true]
+        case "A18O6U1UQFJ0XK": return [name: "Echo Plus (Gen2)", image: "echo_plus_gen2", allowTTS: true]
+        case "A3SSG6GR8UU7SN": return [name: "Echo Sub", image: "echo_sub_gen1", allowTTS: true]
+        case "A38EHHIB10L47V": return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1", allowTTS: true]
+        case "AKNO1N0KSFN8L" : return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1", allowTTS: true]
+        case "A3S5BH2HU6VAYF": return [name: "Echo Dot (Gen2)", image: "echo_dot_gen2", allowTTS: true]
+        case "A32DOYMUN6DTXA": return [name: "Echo Dot (Gen3)", image: "echo_dot_gen3", allowTTS: true]
         //ECHOS - SCREENS\\
-        case "A10A33FOX2NUBK": return [name: "Echo Spot", image: "echo_spot_gen1", ttsSupport: true]
-        case "A1NL4BVLQ4L3N3": return [name: "Echo Show (Gen1)", image: "echo_show_gen1", ttsSupport: true]
-        case "AWZZ5CVHX2CD"  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", ttsSupport: true]
+        case "A10A33FOX2NUBK": return [name: "Echo Spot", image: "echo_spot_gen1", allowTTS: true]
+        case "A1NL4BVLQ4L3N3": return [name: "Echo Show (Gen1)", image: "echo_show_gen1", allowTTS: true]
+        case "AWZZ5CVHX2CD"  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", allowTTS: true]
         //FIRE TVs\\
-	    case "A12GXV8XMS007S": return [name: "Fire TV (Gen1)", image: "firetv_gen1", ttsSupport: true]
-        case "A2E0SNTXJVT7WK": return [name: "Fire TV (Gen2)", image: "firetv_gen2", ttsSupport: true]
-        case "A2GFL5ZMWNE0PX": return [name: "Fire TV (Gen3)", image: "firetv_gen3", ttsSupport: true]
-        case "ADVBD696BHNV5" : return [name: "Fire TV Stick (Gen1)", image: "firetv_stick_gen1", ttsSupport: true]
-        case "A2LWARUGJLBYEW": return [name: "Fire TV Stick (Gen2)", image: "firetv_stick_gen2", ttsSupport: true]
-        case "AKPGW064GI9HE" : return [name: "Fire TV Stick 4K (Gen3)", image: "firetv_stick_gen3", ttsSupport: true] 
-        case "A3HF4YRA2L7XGC": return [name: "Fire TV Cube", image: "firetv_cube", ttsSupport: true]
+	    case "A12GXV8XMS007S": return [name: "Fire TV (Gen1)", image: "firetv_gen1", allowTTS: true]
+        case "A2E0SNTXJVT7WK": return [name: "Fire TV (Gen2)", image: "firetv_gen2", allowTTS: true]
+        case "A2GFL5ZMWNE0PX": return [name: "Fire TV (Gen3)", image: "firetv_gen3", allowTTS: true]
+        case "ADVBD696BHNV5" : return [name: "Fire TV Stick (Gen1)", image: "firetv_stick_gen1", allowTTS: true]
+        case "A2LWARUGJLBYEW": return [name: "Fire TV Stick (Gen2)", image: "firetv_stick_gen2", allowTTS: true]
+        case "AKPGW064GI9HE" : return [name: "Fire TV Stick 4K (Gen3)", image: "firetv_stick_gen3", allowTTS: true] 
+        case "A3HF4YRA2L7XGC": return [name: "Fire TV Cube", image: "firetv_cube", allowTTS: true]
         //TABLETS\\
-        case "A2M4YX06LWP8WI": return [name: "Fire Tablet", image: "amazon_tablet", ttsSupport: true]
-        case "A1J16TEDOYCZTN": return [name: "Fire Tablet", image: "amazon_tablet", ttsSupport: true]
-        case "A2M4YX06LWP8WI": return [name: "Fire Tablet 7 (Gen5)", image: "amazon_tablet", ttsSupport: true]
-        case "A3R9S4ZZECZ6YL": return [name: "Fire Tablet HD 10", image: "tablet_hd10", ttsSupport: true]
+        case "A2M4YX06LWP8WI": return [name: "Fire Tablet", image: "amazon_tablet", allowTTS: true]
+        case "A1J16TEDOYCZTN": return [name: "Fire Tablet", image: "amazon_tablet", allowTTS: true]
+        case "A2M4YX06LWP8WI": return [name: "Fire Tablet 7 (Gen5)", image: "amazon_tablet", allowTTS: true]
+        case "A3R9S4ZZECZ6YL": return [name: "Fire Tablet HD 10", image: "tablet_hd10", allowTTS: true]
         //MULTIROOM\\
-        case "A3C9PE6TNYLTCH": return [name: "Multiroom", image: "echo_wha", ttsSupport: false]
+        case "A3C9PE6TNYLTCH": return [name: "Multiroom", image: "echo_wha", allowTTS: false]
         //SONOS\\
-        case "A15ERDAKK5HQQG": return [name: "Sonos", image: "sonos_generic", ttsSupport: false]
-        case "A2OSP3UA4VC85F": return [name: "Sonos", image: "sonos_generic", ttsSupport: false]
-        case "A3NPD82ABCPIDP": return [name: "Sonos Beam", image: "sonos_beam", ttsSupport: true]
+        case "A15ERDAKK5HQQG": return [name: "Sonos", image: "sonos_generic", allowTTS: false]
+        case "A2OSP3UA4VC85F": return [name: "Sonos", image: "sonos_generic", allowTTS: false]
+        case "A3NPD82ABCPIDP": return [name: "Sonos Beam", image: "sonos_beam", allowTTS: true]
         //OTHER\\
-        case "A18BI6KPKDOEI4": return [name: "Ecobee4", image: "ecobee4", ttsSupport: true]
-        case "A1N9SW0I0LUX5Y": return [name: "Dash Wand", image: "dash_wand", ttsSupport: false]
-        default: return [name: "Echo Unknown $type", image: "unknown", ttsSupport: false]
+        case "A18BI6KPKDOEI4": return [name: "Ecobee4", image: "ecobee4", allowTTS: true]
+        case "A1N9SW0I0LUX5Y": return [name: "Dash Wand", image: "dash_wand", allowTTS: false]
+        default: return [name: "Echo Unknown $type", image: "unknown", allowTTS: false]
     }
 }
 
@@ -61,7 +61,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "2.0.0" }
-String appModified() { return "2018-11-28" } 
+String appModified() { return "2018-11-29" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -199,7 +199,7 @@ def deviceListPage() {
                 str += "\nType: ${v?.type}"
                 str += "\nMusic Player: ${v?.musicPlayer?.toString()?.capitalize()}"
                 str += "\nVolume Control: ${v?.volumeSupport?.toString()?.capitalize()}"
-                str += "\nText-to-Speech: ${v?.ttsSupport?.toString()?.capitalize()}"
+                str += "\nText-to-Speech: ${v?.allowTTS?.toString()?.capitalize()}"
                 str += "\nStatus: ${v?.online ? "Online" : "Offline"}"
                 
                 paragraph str, state: "complete", image: getAppImg("${v?.style?.image}.png")
@@ -447,7 +447,7 @@ def initialize() {
         updCodeVerMap()
         resetQueue()
         stateCleanup()
-        runEvery1Minute("getEchoDevices")
+        runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         getEchoDevices()
     }
 }
@@ -781,30 +781,33 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["cookie"] = state?.cookie
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
         
-                    Boolean ttsSupport = (echoValue?.deviceStyle?.ttsSupport == true)
+                    Boolean allowTTS = (echoValue?.deviceStyle?.allowTTS == true)
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     Map permissions = [:]
-                    permissions["ttsSupport"] = ttsSupport
+                    permissions["TTS"] = allowTTS
                     permissions["volumeControl"] = (echoValue?.capabilities.contains("VOLUME_SETTING"))
-                    permissions["canPlayMusic"] = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
-                    permissions["allowAmazonMusic"] = (echoValue?.capabilities.contains("AMAZON_MUSIC"))
-                    permissions["allowTuneIn"] = (echoValue?.capabilities.contains("TUNE_IN"))
-                    permissions["allowIheart"] = (echoValue?.capabilities.contains("I_HEART_RADIO"))
-                    permissions["allowPandora"] = (echoValue?.capabilities.contains("PANDORA"))
-                    permissions["allowSpotify"] = (echoValue?.capabilities.contains("SPOTIFY"))
+                    permissions["mediaPlayer"] = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
+                    permissions["amazonMusic"] = (echoValue?.capabilities.contains("AMAZON_MUSIC"))
+                    permissions["tuneInRadio"] = (echoValue?.capabilities.contains("TUNE_IN"))
+                    permissions["iHeartRadio"] = (echoValue?.capabilities.contains("I_HEART_RADIO"))
+                    permissions["pandoraRadio"] = (echoValue?.capabilities.contains("PANDORA"))
+                    permissions["spotify"] = (echoValue?.capabilities.contains("SPOTIFY"))
                     permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false;
                     permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false;
-                    permissions["allowAlarms"] = (echoValue?.capabilities.contains("TIMERS_AND_ALARMS"))
-                    permissions["allowReminders"] = (echoValue?.capabilities.contains("REMINDERS"))
-                    permissions["allowDoNotDisturb"] = (echoValue?.capabilities?.contains("SLEEP"))
-                    permissions["hasWakeWord"] = (echoValue?.capabilities?.contains("FAR_FIELD_WAKE_WORD"))
+                    permissions["alarms"] = (echoValue?.capabilities.contains("TIMERS_AND_ALARMS"))
+                    permissions["reminders"] = (echoValue?.capabilities.contains("REMINDERS"))
+                    permissions["doNotDisturb"] = (echoValue?.capabilities?.contains("SLEEP"))
+                    permissions["wakeWord"] = (echoValue?.capabilities?.contains("FAR_FIELD_WAKE_WORD"))
+                    permissions["flashBriefing"] = (echoValue?.capabilities?.contains("FLASH_BRIEFING"))
+                    permissions["microphone"] = (echoValue?.capabilities?.contains("MICROPHONE"))
+                    permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     echoValue["permissionMap"] = permissions
-                    if(permissions?.canPlayMusic != true && ttsSupport != true && (!(echoValue?.deviceFamily in ["ROOK", "ECHO", "KNIGHT"]))) {
+                    if(permissions?.mediaPlayer != true && allowTTS != true && (!(echoValue?.deviceFamily in ["ROOK", "ECHO", "KNIGHT"]))) {
                         log.warn "IGNORED Device | Name: ${echoValue?.accountName} | Permissions: $permissions"
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!") 
                         return
                     }
-                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, musicPlayer: (echoValue?.canPlayMusic == true), ttsSupport: ttsSupport, volumeSupport: volumeSupport]
+                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, musicPlayer: (permissions?.mediaPlayer == true), ttsSupport: allowTTS, volumeSupport: volumeSupport]
                 
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
