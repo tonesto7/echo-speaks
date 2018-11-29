@@ -1401,13 +1401,13 @@ def sendTestTts(ttsMsg) {
             Speech Queue Logic
 *******************************************************************/
 
-Integer getRecheckDelay(Integer msgLen=null) {
+Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     def random = new Random()
 	Integer randomInt = random?.nextInt(5) //Was using 7
     if(!msgLen) { return 30 }
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
     // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
-    return v + randomInt
+    return addRandom ? (v + randomInt) : v
 }
 
 Integer getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 1000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
