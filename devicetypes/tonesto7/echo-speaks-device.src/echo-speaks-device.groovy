@@ -1579,7 +1579,8 @@ private speakCmd(headers=[:], isQueueCmd=false) {
         }
 
         Boolean sendToQueue = (lastTtsCmdSec < 3 || (state?.speakingNow && !isFirstCmd && !isQueueCmd))
-        log.warn "sendToQueue: $sendToQueue | isQueueCmd: $isQueueCmd | lastTtsCmdSec: $lastTtsCmdSec | isFirstCmd: ${(state?.firstCmdFlag != true)} | speakingNow: ${state?.speakingNow} | getRecheckDelay: ${getRecheckDelay(ml)}"
+
+        // log.warn "sendToQueue: $sendToQueue | isQueueCmd: $isQueueCmd | lastTtsCmdSec: $lastTtsCmdSec | isFirstCmd: ${(state?.firstCmdFlag != true)} | speakingNow: ${state?.speakingNow} | getRecheckDelay: ${getRecheckDelay(ml)}"
         if(sendToQueue) {
             headers["msgDelay"] = getRecheckDelay(ml)
             if(!isQueueCmd) {
