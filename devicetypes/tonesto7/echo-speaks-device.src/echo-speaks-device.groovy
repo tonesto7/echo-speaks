@@ -335,7 +335,7 @@ def getShortDevName(){
 
 Boolean isCommandTypeAllowed(String type, noLogs=false) {
     Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
-    if(!isOnline) { if(!noLogs) { log.warn "Command NOT Allowed! Device is currently (OFFLINE)" }; return false; }
+    // if(!isOnline) { if(!noLogs) { log.warn "Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})" }; return false; }
     if(!state?.amazonDomain) { if(!noLogs) { log.warn "amazonDomain State Value Missing: ${state?.amazonDomain}" }; return false }
     if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { if(!noLogs) { log.warn "Amazon Cookie State Values Missing: ${state?.cookie}" }; return false }
     if(!state?.serialNumber) { if(!noLogs) { log.warn "SerialNumber State Value Missing: ${state?.serialNumber}" }; return false }
@@ -1454,6 +1454,7 @@ def resetQueue(showLog=true) {
     state?.cmdQIndexNum = null
     state?.curMsgLen = null
     state?.lastTtsCmdDelay = null
+    state?.lastTtsMsg = null
 }
 
 Integer getQueueIndex() {
@@ -1481,8 +1482,8 @@ public queueEchoCmd(type="Speak", headers, body=null, firstRun=false) {
     logItems?.push("│ Queue Active: (${state?.cmdQueueWorking}) | Recheck: (${state?.recheckScheduled}) ")
     if(cmdItems?.size()) {
         if(headers?.message) {
-            Integer ml = headers?.message?.toString()?.length()
-            logItems?.push("│ Message(${ml} char): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
+            Integer msgLen = headers?.message?.toString()?.length()
+            logItems?.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : ""}")
         }
         logItems?.push("│ Ignoring (${headers?.cmdType}) Command... It Already Exists in QUEUE!!!")
         logItems?.push("┌────────── Echo Queue Warning ──────────")
@@ -1554,7 +1555,7 @@ Integer getAdjCmdDelay(elap, reqDelay) {
 }
 
 private speakCmd(headers=[:], isQueueCmd=false) {
-    if(!isQueueCmd) { log.trace "speakCmd(${headers?.cmdDesc}, $isQueueCmd)" }
+    // if(!isQueueCmd) { log.trace "speakCmd(${headers?.cmdDesc}, $isQueueCmd)" }
     if(state?.serviceAuthenticated != true) {
         log.warn "Echo Speaks service is no longer authenticated... Please login again and commands will be allowed again!!!"
         return
@@ -1569,24 +1570,27 @@ private speakCmd(headers=[:], isQueueCmd=false) {
     }
     Boolean isTTS = true
     Integer lastTtsCmdSec = getLastTtsCmdSec()
+    Integer msgLen = headers?.message?.toString()?.length()
+    Integer recheckDelay = getRecheckDelay(msgLen)
+    headers["msgDelay"] = recheckDelay
     if(!settings?.disableQueue) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
-        Integer ml = headers?.message?.toString()?.length()
+        
         Boolean isFirstCmd = (state?.firstCmdFlag != true)
+        log.debug "isFirstCmd: $isFirstCmd"
         if(isFirstCmd) {
             logItems?.push("│ First Command: (${isFirstCmd})")
+            headers["queueKey"] = "cmdQueueItem_1"
             state?.firstCmdFlag = true
         }
+        Boolean sendToQueue = (!isQueueCmd || (state?.speakingNow == true) || (lastTtsCmdSec < 3))
+        // Boolean sendToQueue = (lastTtsCmdSec < 3 || (state?.speakingNow && !isFirstCmd && !isQueueCmd))
 
-        Boolean sendToQueue = (lastTtsCmdSec < 3 || (state?.speakingNow && !isFirstCmd && !isQueueCmd))
-
-        // log.warn "sendToQueue: $sendToQueue | isQueueCmd: $isQueueCmd | lastTtsCmdSec: $lastTtsCmdSec | isFirstCmd: ${(state?.firstCmdFlag != true)} | speakingNow: ${state?.speakingNow} | getRecheckDelay: ${getRecheckDelay(ml)}"
+        log.warn "sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | speakingNow: (${state?.speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
-            headers["msgDelay"] = getRecheckDelay(ml)
-            if(!isQueueCmd) {
+            if(isFirstCmd) { 
                 queueEchoCmd(type, headers, body, isFirstCmd)
-            }
-            return
+            } else { return }
         }
     }
     try {
@@ -1597,15 +1601,12 @@ private speakCmd(headers=[:], isQueueCmd=false) {
         logItems?.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${state?.cmdQueueWorking})")
 
         if(headers?.message) {
-            Integer ml = headers?.message?.toString()?.length()
-            Integer rcv = getRecheckDelay(ml)
-            state?.curMsgLen = ml
-            state?.lastTtsCmdDelay = rcv
-
-            schedQueueCheck(rcv, true, null, "speakCmd(sendCloudCommand)")
+            state?.curMsgLen = msgLen
+            state?.lastTtsCmdDelay = recheckDelay
+            schedQueueCheck(recheckDelay, true, null, "speakCmd(sendCloudCommand)")
             logItems?.push("│ Rechecking: (${state?.lastTtsCmdDelay} seconds)")
-            logItems?.push("│ Message(${ml} char): ${headers?.message?.take(190)?.trim()}${ml > 190 ? "..." : ""}")
-            state?.lastTtsMsg = headers.message
+            logItems?.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : ""}")
+            state?.lastTtsMsg = headers?.message
             state?.lastTtsCmdDt = getDtNow()
         }
         logItems?.push("│ Command: (SpeakCommand)")
@@ -1656,8 +1657,8 @@ private postCmdProcess(resp, statusCode, data) {
             if(data?.queueKey) { state?.remove(data?.queueKey as String) }
             if(data?.cmdDesc == "SpeakCommand") { schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "postCmdProcess(adjDelay)") }
             return
-        } else if(statusCode.toInteger() == 400 && resp?.message && resp?.message?.toString() == "Rate Exceeded") {
-            log.warn "You are being Rate-Limited by Amazon... | A retry will occue in 2 seconds"
+        } else if(statusCode.toInteger() == 400 && resp?.message && resp?.message?.toString()?.toLowerCase() == "rate exceeded") {
+            log.warn "You've been Rate-Limited by Amazon for Consectutive Commands... | Device will retry again in 3 seconds"
             state?.recheckScheduled = true
             runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (data?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
             return
@@ -1771,35 +1772,35 @@ Map createSequenceNode(command, value) {
                 "locale": "en-US",
                 "customerId": state?.deviceOwnerCustomerId
             ]
-        ];
+        ]
         switch (command) {
             case "weather":
-                seqNode?.type = "Alexa.Weather.Play";
-                break;
+                seqNode?.type = "Alexa.Weather.Play"
+                break
             case "traffic":
-                seqNode?.type = "Alexa.Traffic.Play";
-                break;
+                seqNode?.type = "Alexa.Traffic.Play"
+                break
             case "flashbriefing":
-                seqNode?.type = "Alexa.FlashBriefing.Play";
-                break;
+                seqNode?.type = "Alexa.FlashBriefing.Play"
+                break
             case "goodmorning":
-                seqNode?.type = "Alexa.GoodMorning.Play";
-                break;
+                seqNode?.type = "Alexa.GoodMorning.Play"
+                break
             case "singasong":
-                seqNode?.type = "Alexa.SingASong.Play";
-                break;
+                seqNode?.type = "Alexa.SingASong.Play"
+                break
             case "tellstory":
-                seqNode?.type = "Alexa.TellStory.Play";
-                break;
+                seqNode?.type = "Alexa.TellStory.Play"
+                break
             case "playsearch":
-                seqNode?.type = "Alexa.Music.PlaySearchPhrase";
-                break;
+                seqNode?.type = "Alexa.Music.PlaySearchPhrase"
+                break
             case "volume":
-                seqNode?.type = "Alexa.DeviceControls.Volume";
+                seqNode?.type = "Alexa.DeviceControls.Volume"
                 seqNode?.operationPayload?.value = value;
                 break
             case "speak":
-                seqNode?.type = "Alexa.Speak";
+                seqNode?.type = "Alexa.Speak"
                 seqNode?.operationPayload?.textToSpeak = value as String
                 break
             default:

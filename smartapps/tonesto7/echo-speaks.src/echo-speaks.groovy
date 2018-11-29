@@ -445,7 +445,6 @@ def initialize() {
     if(!state?.resumeConfig) {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
         updCodeVerMap()
-        resetQueue()
         stateCleanup()
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         getEchoDevices()
@@ -526,14 +525,12 @@ private stateCleanup() {
 
 def onAppTouch(evt) {
     // log.trace "appTouch..."
-    getEchoDevices()
+    resetQueues()
+    // getEchoDevices()
 }
 
-private resetQueue() {
-    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
-    cmdQueue?.each { cmdKey, cmdData ->
-        state?.remove(cmdKey)
-    }
+private resetQueues() {
+    app.getChildDevices(true)?.each { it?.resetQueue() }
 }
 
 private updCodeVerMap() {
