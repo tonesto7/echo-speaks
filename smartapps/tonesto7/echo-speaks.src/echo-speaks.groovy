@@ -12,6 +12,47 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+
+import groovy.json.*
+import java.text.SimpleDateFormat
+include 'asynchttp_v1'
+
+String platform() { return "SmartThings" }
+String appVersion()	 { return "2.0.0" }
+String appModified() { return "2018-11-3" } 
+String appAuthor()	 { return "Anthony Santilli" }
+Boolean isST() { return (platform() == "SmartThings") }
+String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
+String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
+Map minVersions() { //These define the minimum versions of code this app will work with.
+    return [echoDevice: 200, server: 200]
+}
+
+definition(
+    name: "Echo Speaks",
+    namespace: "tonesto7",
+    author: "Anthony Santilli",
+    description: "Allow you to create virtual echo devices and send tts to them in SmartThings",
+    category: "My Apps",
+    iconUrl: getAppImg("echo_speaks.1x.png"),
+    iconX2Url: getAppImg("echo_speaks.2x.png"),
+    iconX3Url: getAppImg("echo_speaks.3x.png"),
+    pausable: true,
+    oauth: true)
+
+preferences {
+    page(name: "mainPage")
+    page(name: "settingsPage")
+    page(name: "newSetupPage")
+    page(name: "devicePage")
+    page(name: "deviceListPage")
+    page(name: "changeLogPage")
+    page(name: "notifPrefPage")
+    page(name: "servPrefPage")
+    page(name: "setNotificationTimePage")
+    page(name: "uninstallPage")
+}
+
 public getDeviceStyle(String family, String type) {
     switch(type) {
         //ECHOS - SPEAKERS\\
@@ -53,46 +94,6 @@ public getDeviceStyle(String family, String type) {
         case "A1N9SW0I0LUX5Y": return [name: "Dash Wand", image: "dash_wand", allowTTS: false]
         default: return [name: "Echo Unknown $type", image: "unknown", allowTTS: false]
     }
-}
-
-import groovy.json.*
-import java.text.SimpleDateFormat
-include 'asynchttp_v1'
-
-String platform() { return "SmartThings" }
-String appVersion()	 { return "2.0.0" }
-String appModified() { return "2018-11-29" } 
-String appAuthor()	 { return "Anthony Santilli" }
-Boolean isST() { return (platform() == "SmartThings") }
-String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
-String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
-Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 200, server: 200]
-}
-
-definition(
-    name: "Echo Speaks",
-    namespace: "tonesto7",
-    author: "Anthony Santilli",
-    description: "Allow you to create virtual echo devices and send tts to them in SmartThings",
-    category: "My Apps",
-    iconUrl: getAppImg("echo_speaks.1x.png"),
-    iconX2Url: getAppImg("echo_speaks.2x.png"),
-    iconX3Url: getAppImg("echo_speaks.3x.png"),
-    pausable: true,
-    oauth: true)
-
-preferences {
-    page(name: "mainPage")
-    page(name: "settingsPage")
-    page(name: "newSetupPage")
-    page(name: "devicePage")
-    page(name: "deviceListPage")
-    page(name: "changeLogPage")
-    page(name: "notifPrefPage")
-    page(name: "servPrefPage")
-    page(name: "setNotificationTimePage")
-    page(name: "uninstallPage")
 }
 
 def appInfoSect(sect=true)	{
@@ -1574,7 +1575,7 @@ def renderConfig() {
                     </div>
                     <div class="my-2 text-center">
                         <h5>2. Tap Button to deploy to Heroku</h5>
-                        <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server${getEnvParamsStr()}">
+                        <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/dev${getEnvParamsStr()}">
                             <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
                         </a>
                     </div>

@@ -1108,7 +1108,7 @@ def speak(String msg) {
         if(!msg) { log.warn "No Message sent with speak($msg) command" }
         // log.trace "speak(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
         if(msg?.toString()?.length() > 450) { log.warn "TTS Message Length is Too Long!!! | Current Length (${msg?.toString()?.length()})"; return; }
-        speakCmd([cmdDesc: "SpeakCommand", message: msg as String])
+        speakCmd([cmdDesc: "SpeakCommand", message: msg as String, cmdDt: now()])
         incrementCntByKey("use_cnt_speak")
     }
 }
@@ -1411,9 +1411,10 @@ Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
 }
 
 Integer getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 1000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
+Integer getCmdExecutionSec(timeVal) { return !timeVal ? null : GetTimeDiffSeconds(timeVal).toInteger() }
 
 private getQueueSize() {
-    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
+    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("qItem_") }
     return (cmdQueue?.size() ?: 0)
 }
 
@@ -1441,12 +1442,13 @@ private queueWatchDog() {
 
 def resetQueue(showLog=true) {
     if(showLog) { log.trace "resetQueue()" }
-    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
+    Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("qItem_") }
     cmdQueue?.each { cmdKey, cmdData ->
         state?.remove(cmdKey)
     }
     unschedule("checkQueue")
     state?.qCmdCycleCnt = null
+    state?.loopChkCnt = null
     state?.speakingNow = false
     state?.cmdQueueWorking = false
     state?.firstCmdFlag = false
@@ -1463,7 +1465,7 @@ Integer getQueueIndex() {
 }
 
 private getQueueItems() {
-    return state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }
+    return state?.findAll { it?.key?.toString()?.startsWith("qItem_") }
 }
 
 private schedQueueCheck(Integer delay, overwrite=true, data=null, src) {
@@ -1473,13 +1475,13 @@ private schedQueueCheck(Integer delay, overwrite=true, data=null, src) {
         if(data) { opts["data"] = data }
         runIn(delay, "checkQueue", opts)
         state?.recheckScheduled = true
-        log.debug "checkQueue Scheduled | Delay: ($delay) | Overwrite: $overwrite | recheckScheduled: ${state?.recheckScheduled} | Src: $src"
+        // log.debug "Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | recheckScheduled: (${state?.recheckScheduled}) | Source: (${src})"
     }
 }
 
-public queueEchoCmd(type="Speak", headers, body=null, firstRun=false) {
+public queueEchoCmd(type, headers, body=null, firstRun=false) {
     List logItems = []
-    Map cmdItems = state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
+    Map cmdItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
     logItems?.push("│ Queue Active: (${state?.cmdQueueWorking}) | Recheck: (${state?.recheckScheduled}) ")
     if(cmdItems?.size()) {
         if(headers?.message) {
@@ -1492,7 +1494,7 @@ public queueEchoCmd(type="Speak", headers, body=null, firstRun=false) {
         return
     }
     state?.cmdQIndexNum = getQueueIndex()
-    state?."cmdQueueItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
+    state?."qItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body]
     if(headers?.message) {
         logItems?.push("│ Message(Len: ${headers?.message?.toString()?.length()}): ${headers?.message?.take(200)?.trim()}${headers?.message?.toString()?.length() > 200 ? "..." : ""}")
     }
@@ -1512,20 +1514,20 @@ private checkQueue(data) {
     }
     Boolean qEmpty = (getQueueSize() == 0)
     if(qEmpty) {
-        log.trace "checkQueue | Nothing in the Queue... Resetting Queue"
+        log.trace "checkQueue | Nothing in the Queue... Performing Queue Reset"
         resetQueue(false)
         return
     }
     if(data && data?.rateLimited == true) {
         Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.curMsgLen)
-        schedQueueCheck(delay, true, null, "checkQueue(rate-limit)")
-        log.debug "checkQueue | Scheduling Re-Check for ${delay} seconds...${(data && data?.rateLimited == true) ? " | Recheck for RateLimiting: true" : ""}"
+        // schedQueueCheck(delay, true, null, "checkQueue(rate-limit)")
+        log.debug "checkQueue | Scheduling Queue Check for (${delay} sec) ${(data && data?.rateLimited == true) ? " | Recheck for RateLimiting: true" : ""}"
     }
     processCmdQueue()
     return
 }
 
-private processCmdQueue() {
+void processCmdQueue() {
     state?.cmdQueueWorking = true
     state?.qCmdCycleCnt = state?.qCmdCycleCnt ? state?.qCmdCycleCnt+1 : 1
     Map cmdQueue = getQueueItems()
@@ -1533,10 +1535,12 @@ private processCmdQueue() {
         state?.recheckScheduled = false
         def cmdKey = cmdQueue?.keySet()?.sort()?.first()
         Map cmdData = state[cmdKey as String]
-        
-        // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${state?.findAll { it?.key?.toString()?.startsWith("cmdQueueItem_") }?.size()})")
+        // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${getQueueItems()})")
         cmdData?.headers["queueKey"] = cmdKey
-        if(state?.lastTtsMsg && (cmdData?.headers?.message == state?.lastTtsMsg) && (cmdData?.headers?.message == state?.lastQueueMsg) && (getLastTtsCmdSec() < 10)) {
+        Integer loopChkCnt = state?.loopChkCnt ?: 0
+        if(state?.lastTtsMsg == cmdData?.headers?.message && (getLastTtsCmdSec() <= 10)) { state?.loopChkCnt = loopChkCnt == 0 ? 1 : loopChkCnt++ }
+        log.debug "loopChkCnt: ${state?.loopChkCnt}"
+        if(state?.loopChkCnt && (state?.loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
             state?.remove(cmdKey as String)
             log.trace "processCmdQueue | Possible loop detected... Last message the same as current sent less than 10 seconds ago. This message will be removed from the queue"
             schedQueueCheck(2, true, null, "processCmdQueue(removed duplicate)")
@@ -1580,18 +1584,16 @@ private speakCmd(headers=[:], isQueueCmd=false) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
         
         Boolean isFirstCmd = (state?.firstCmdFlag != true)
-        log.debug "isFirstCmd: $isFirstCmd"
         if(isFirstCmd) {
             logItems?.push("│ First Command: (${isFirstCmd})")
-            headers["queueKey"] = "cmdQueueItem_1"
+            headers["queueKey"] = "qItem_1"
             state?.firstCmdFlag = true
         }
-        Boolean sendToQueue = (!isQueueCmd && (state?.speakingNow == true || lastTtsCmdSec < 3))
-        // Boolean sendToQueue = (lastTtsCmdSec < 3 || (state?.speakingNow && !isFirstCmd && !isQueueCmd))
-
-        log.warn "speakCmd | Queue Debug: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | speakingNow: (${state?.speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
+        Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state?.speakingNow == true))
+        if(!isQueueCmd) { logItems?.push("│ SentToQueue: (${sendToQueue})") }
+        // log.warn "speakCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | speakingNow: (${state?.speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
-            queueEchoCmd(type, headers, body, isFirstCmd)
+            queueEchoCmd("Speak", headers, body, isFirstCmd)
             if(!isFirstCmd) { return }
         }
     }
@@ -1606,11 +1608,12 @@ private speakCmd(headers=[:], isQueueCmd=false) {
             state?.curMsgLen = msgLen
             state?.lastTtsCmdDelay = recheckDelay
             schedQueueCheck(recheckDelay, true, null, "speakCmd(sendCloudCommand)")
-            logItems?.push("│ Rechecking: (${state?.lastTtsCmdDelay} seconds)")
+            logItems?.push("│ Rechecking: (${recheckDelay} seconds)")
             logItems?.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : ""}")
             state?.lastTtsMsg = headers?.message
             state?.lastTtsCmdDt = getDtNow()
         }
+        logItems?.push("│ Device Volume: (${device?.currentValue("volume")}%)")
         logItems?.push("│ Command: (SpeakCommand)")
         try {
             Map params = [
@@ -1621,7 +1624,14 @@ private speakCmd(headers=[:], isQueueCmd=false) {
                 contentType: "application/json",
                 body: sequenceJsonBuilder("speak", headerMap?.message)
             ]
-            asynchttp_v1.post(asyncSpeechHandler, params, [queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null), message: (headerMap?.message ?: null)])
+            asynchttp_v1.post(asyncSpeechHandler, params, [
+                cmdDt:(headerMap?.cmdDt ?: null),  
+                queueKey: (headerMap?.queueKey ?: null), 
+                cmdDesc: (headerMap?.cmdDesc ?: null), 
+                deviceId: device?.getDeviceNetworkId(), 
+                msgDelay: (headerMap?.msgDelay ?: null), 
+                message: (headerMap?.message ?: null)
+            ])
         } catch (e) {
             log.error "something went wrong: ", e
             incrementCntByKey("err_cloud_command")
@@ -1648,21 +1658,25 @@ def asyncSpeechHandler(response, data) {
 }
 
 private postCmdProcess(resp, statusCode, data) {
-    if(data?.deviceId && (data?.deviceId == device?.getDeviceNetworkId())) {
+    if(data && data?.deviceId && (data?.deviceId == device?.getDeviceNetworkId())) {
         if(statusCode == 200) {
-            log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully${data?.queueKey ? " | queueKey: ${data?.queueKey}" : ""}${data?.msgDelay ? " | msgDelay: ${data?.msgDelay}" : ""}"
+            def execTime = data?.cmdDt ? (now()-data?.cmdDt) : 0
+            // log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully${data?.queueKey ? " | QueueKey: (${data?.queueKey})" : ""}${data?.msgDelay ? " | RecheckDelay: (${data?.msgDelay} sec)" : ""} | Execution Time (${execTime}ms)"
+            log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully | Execution Time (${execTime}ms)${data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""}"
+            if(data?.queueKey) { state?.remove(data?.queueKey as String) }
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
                 String lastMsg = data?.message as String ?: "Nothing to Show Here..."
                 sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
                 sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
+                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), data?.msgDelay), true, null, "postCmdProcess(adjDelay)")
             }
-            if(data?.queueKey) { state?.remove(data?.queueKey as String) }
-            if(data?.cmdDesc == "SpeakCommand") { schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), state?.lastTtsCmdDelay), true, null, "postCmdProcess(adjDelay)") }
             return
         } else if(statusCode.toInteger() == 400 && resp?.message && resp?.message?.toString()?.toLowerCase() == "rate exceeded") {
-            log.warn "You've been Rate-Limited by Amazon for Consectutive Commands... | Device will retry again in 3 seconds"
-            state?.recheckScheduled = true
-            runIn(3, "checkQueue", [overwrite: true, data:[rateLimited: true, delay: (data?.msgDelay ?: getRecheckDelay(state?.curMsgLen))]])
+            def random = new Random()
+            Integer rDelay = 5//random?.nextInt(5)
+            log.warn "You've been Rate-Limited by Amazon for sending Consectutive Speak Commands to 5+ Device... | Device will retry again in ${rDelay} seconds"
+            schedQueueCheck(rDelay, true, [rateLimited: true, delay: data?.msgDelay], "postCmdProcess(Rate-Limited)")
+            // runIn(3, "processCmdQueue", [data:[rateLimited: true, delay: data?.msgDelay]])
             return
         } else {
             log.error "postCmdProcess Error | status: ${statusCode} | message: ${resp?.message}"

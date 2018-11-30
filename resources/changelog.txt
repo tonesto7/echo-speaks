@@ -1,14 +1,17 @@
-V2.0.0 Beta (November 28th, 2018):
+V2.0.0 Beta (November 30th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
- • NEW: Completely rewritten to perform all functions via the SmartApp and Devices
- • NEW: Better device capability support. If you try to use a command not supported the device logs will tell you.
+ • NEW: Completely rewritten to perform all server functions (except login proxy) via the SmartApp and Devices.
+ • UPDATED: Much Better device capability verfication and identification support. If you try to use a command not supported the device logs will tell you.
+ • ADDED: SmartApp supports being sent manual cookies via the Heroku Web Config 
  • ADDED: Change logs are visible in the SmartApp and when a new update is deployed
 
 Device:
- • NEW: rewritten to perform all commands the Server used to do.  Each device sends it's own commands and handles the responses appropriately. 
+ • NEW: Rewritten to perform command functions of the Server. This means each device sends it's own commands directly to Amazon and securely handles the responses appropriately. 
+ • UPDATE: Device detection is much more reliable and easier to maintain.
+ • FIXED: So much I can't remember
 
 Server:
- • UPDATED: No longer does polling or processes commands. It's sole purpose is to handle the login process
- • UPDATED: You can now paste your cookie and csrf strings into the webconfig
+ • UPDATED: No longer handles communication with Amazon (Polling or Commands). It's required only to handle the login process (This means it will be asleep unless you need to refresh your cookie)
+ • ADDED: You can now paste your cookie and csrf strings into the web config page, which will send them up to ST.
 
