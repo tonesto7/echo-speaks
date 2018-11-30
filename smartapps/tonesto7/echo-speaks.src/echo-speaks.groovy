@@ -19,7 +19,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "2.0.0" }
-String appModified() { return "2018-11-3" } 
+String appModified() { return "2018-11-30" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -101,7 +101,12 @@ def appInfoSect(sect=true)	{
     str += "${app?.name}"
     str += "\nAuthor: ${appAuthor()}"
     str += "\nVersion: ${appVersion()}"
-    section() { href "changeLogPage", title: "", description: str, image: getAppImg("echo_speaks.2x.png") }
+    section() { 
+        href "changeLogPage", title: "", description: str, image: getAppImg("echo_speaks.2x.png")
+        if(state?.customerName) {
+            paragraph "Hello, ${state?.customerName}"
+        }
+    }
 }
 
 def mainPage() {
@@ -119,6 +124,9 @@ def mainPage() {
             if(!tokenOk) {
                 paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH"
                 return
+            }
+            if(state?.customerName) {
+
             }
             if(!newInstall) {
                 section("Alexa Login Service:") {
@@ -198,9 +206,9 @@ def deviceListPage() {
                 str += "\nStyle: ${v?.style?.name}" 
                 str += "\nFamily: ${v?.family}" 
                 str += "\nType: ${v?.type}"
-                str += "\nMusic Player: ${v?.musicPlayer?.toString()?.capitalize()}"
+                str += "\nMusic Player: ${v?.mediaPlayer?.toString()?.capitalize()}"
                 str += "\nVolume Control: ${v?.volumeSupport?.toString()?.capitalize()}"
-                str += "\nText-to-Speech: ${v?.allowTTS?.toString()?.capitalize()}"
+                str += "\nText-to-Speech: ${v?.ttsSupport?.toString()?.capitalize()}"
                 str += "\nStatus: ${v?.online ? "Online" : "Offline"}"
                 
                 paragraph str, state: "complete", image: getAppImg("${v?.style?.image}.png")
@@ -447,8 +455,9 @@ def initialize() {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
         updCodeVerMap()
         stateCleanup()
-        runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
-        getEchoDevices()
+        runEvery15Minutes("dataRefresh") //This will reload the device list from Amazon
+        validateCookie(true)
+        runIn(4, "dataRefresh")
     }
 }
 
@@ -517,17 +526,20 @@ private checkIfCodeUpdated() {
 }
 
 private stateCleanup() {
-    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData"]
+    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", ]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
-    state?.heartbeatScheduled = false
+    
 }
 
 def onAppTouch(evt) {
     // log.trace "appTouch..."
-    resetQueues()
-    // getEchoDevices()
+    updated()
+    // validateCookie()
+    // apiHealthCheck()
+    //resetQueues()
+    //dataRefresh()
 }
 
 private resetQueues() {
@@ -601,64 +613,18 @@ def clearCookie() {
     logger("trace", "clearCookie()")
     settingUpdate("resetCookies", "false", "bool")
     state?.remove("cookie")
-    // unschedule("cloudServiceHeartbeat")
     unschedule("getEchoDevices")
     log.warn "Cookie has been cleared... Device Refresh has been suspended..."
 }
 
-// def scheduleHeartbeat() {
-//     log.info "Scheduling CloudHeartbeat Check for Every 15 minutes..."
-//     state?.heartbeatScheduled = true
-//     runEvery15Minutes("cloudServiceHeartbeat")
-// }
-
-// Integer getLastHeartBeatSeconds() { return !state?.lastCloudHeartbeatDt ? 601 : GetTimeDiffSeconds(state?.lastCloudHeartbeatDt, "getLastHeartBeatSeconds").toInteger() }
-// private cloudHeartbeatCheck() {
-//     if(state?.onHeroku) {
-//         if(!state?.heartbeatScheduled) { scheduleHeartbeat() }
-//         if(getLastHeartBeatSeconds() > 900) {
-//             log.warn "For some reason a CloudHeartbeat has not occurred in over ${(getLastHeartBeatSeconds()/60).toFloat()?.round(1)} minutes  | (${getLastHeartBeatSeconds()} secs.)... Rescheduling the heartbeat!!!"
-//             unschedule("cloudServiceHeartbeat")
-//             state?.heartbeatScheduled = true
-//             runEvery15Minutes("cloudServiceHeartbeat")
-//             sendOneHeartbeat()
-//         }
-//     }
-// }
-
-// private sendOneHeartbeat() { cloudServiceHeartbeat() }
-
-// private cloudServiceHeartbeat() {
-//     try {
-//         httpGet([uri: "https://${getRandAppName()}.herokuapp.com/heartbeat", contentType: "application/json", headers: [appVersion: appVersion()]]) { resp->
-//             if(resp && resp?.data && resp?.data?.result) {
-//                 log.info "CloudHeartBeat Successful${resp?.data?.version ? " | Server Version: (v${resp?.data?.version})": ""}${resp?.data?.authenticated == true ? " | (Authenticated)" : ""}"
-//                 incrementCntByKey("appHeartbeatCnt")
-//                 state?.lastCloudHeartbeatDt = getDtNow()
-//                 authEvtHandler(resp?.data?.authenticated)
-//             } else { log.warn "No CloudHeartbeat Response Received... Is the App still available?" }
-//         }
-//         if(state?.installData?.sentMetrics != true) { sendInstallData() }
-//     } catch(ex) {
-//         if(ex instanceof groovyx.net.http.ResponseParseException) {
-//             incrementCntByKey("heartbeatNotAvailCnt")
-//             log.warn "cloudServiceHeartbeat | Server Endpoint Not Reachable (Is Server Restarting? or Asleep?): "
-//         } else {
-//             log.error "cloudServiceHeartbeat Exception: ", ex
-//             incrementCntByKey("heartbeatErrCnt")
-//         }
-//     }
-// }
-
 private authEvtHandler(isAuth) {
-    state?.serviceAuthenticated = (isAuth == true)
+    state?.authValid = (isAuth == true)
     if(isAuth == false && !state?.noAuthActive) {
         noAuthReminder()
         sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
-        runEvery15Minutes("noAuthReminder")
-        unschedule("cloudServiceHeartbeat")
-        state?.heartbeatScheduled = false
+        runEvery1Hour("noAuthReminder")
         state?.noAuthActive = true
+        app?.getChildDevices(true)?.each { it?.setAuthState(valid) }
     } else {
         if(state?.noAuthActive) { 
             unschedule("noAuthReminder")
@@ -667,8 +633,65 @@ private authEvtHandler(isAuth) {
     }
 }
 
+Boolean isAuthValid() {
+    if(state?.authValid != true) {
+        log.warn "Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!!"
+        // state?.remove("cookie")
+        return false
+    } 
+    return true
+}
+
+private validateCookie(frc=false) {
+    if(!frc || (getLastCookieChkSec() <= 1800)) { return }
+    try {
+        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: ["Cookie": state?.cookie?.cookie as String, "csrf": state?.cookie?.csrf as String], contentType: "application/json"]
+        asynchttp_v1.get(cookieValidResp, params, [execDt: now()])
+    } catch(ex) {
+        incrementCntByKey("err_app_cookieValidCnt")
+        log.error "validateCookie() Exception:", ex
+    }
+}
+
+private apiHealthCheck(frc=false) {
+    // if(!frc || (getLastApiChkSec() <= 1800)) { return }
+    try {
+        def params = [uri: getAmazonUrl(), path: "/api/ping", query: ["_": ""], headers: ["Cookie": state?.cookie?.cookie as String, "csrf": state?.cookie?.csrf as String], contentType: "plain/text"]
+        httpGet(params) { resp->
+            log.debug "API Health Check Resp: (${resp?.getData()})"
+            return (resp?.getData().toString() == "healthy")
+        }
+    } catch(ex) {
+        incrementCntByKey("err_app_apiHealthCnt")
+        log.error "apiHealthCheck() Exception:", ex
+    }
+}
+
+def cookieValidResp(response, data) { 
+    try {
+        Map aData = response?.json?.authentication ?: [:]
+        Boolean valid = false
+        if (aData) {
+            if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
+            if(aData?.customerName) { state?.customerName = aData?.customerName }
+            valid = (resp?.data?.authentication?.authenticated != false)
+        }
+        state?.lastCookieChkDt = getDtNow()
+        def execTime = data?.execDt ? (now()-data?.execDt) : 0
+        log.debug "Cookie Validation: (${valid}) | Process Time: (${execTime}ms)"
+        authEvtHandler(valid)
+    } catch (ex) {
+        log.error "cookieValidResp Exception", ex
+    }
+}
+
 private noAuthReminder() {
     log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..."
+}
+
+private dataRefresh() {
+    // validateCookie()
+    getEchoDevices()
 }
 
 private makeSyncronousReq(params, method="get", src, showLogs=false) {
@@ -676,7 +699,7 @@ private makeSyncronousReq(params, method="get", src, showLogs=false) {
         "http${method?.toString()?.toLowerCase()?.capitalize()}"(params) { resp ->
             if(resp?.data) {
                 // log.debug "status: ${resp?.status}"
-                // if(showLogs) { log.debug "makeSyncronousReq(Src: $src) | Status: ${resp?.status}: ${resp?.data}" }
+                if(showLogs) { log.debug "makeSyncronousReq(Src: $src) | Status: ${resp?.status}: ${resp?.data}" }
                 return resp?.data ?: null
             } else {
                 return null
@@ -691,8 +714,9 @@ private makeSyncronousReq(params, method="get", src, showLogs=false) {
 }
 
 private getEchoDevices() {
+    if(!isAuthValid()) { return }
     def params = [
-        uri: "https://alexa.${settings?.amazonDomain}",
+        uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
         query: [ cached: true ],
         headers: [
@@ -702,7 +726,7 @@ private getEchoDevices() {
         requestContentType: "application/json",
         contentType: "application/json",
     ]
-    asynchttp_v1.get(echoDevicesResponse, params)
+    asynchttp_v1.get(echoDevicesResponse, params, [execDt: now()])
 }
 
 def echoDevicesResponse(response, data) { 
@@ -728,7 +752,7 @@ def echoDevicesResponse(response, data) {
             }
         }
         // log.debug "echoDevices: ${echoDevices}"
-        receiveEventData([echoDevices: echoDevices], "Groovy")
+        receiveEventData([echoDevices: echoDevices, execDt: data?.execDt], "Groovy")
     } catch (ex) {
         log.error "echoDevicesResponse Exception", ex
     }
@@ -746,11 +770,6 @@ def receiveEventData(Map evtData, String src) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
             Boolean onHeroku = true
             state?.serviceConfigured = true
-
-            authEvtHandler(evtData?.authenticated)
-            if(evtData?.authenticated == false) { 
-                return
-            }
             state?.onHeroku = onHeroku
             state?.cloudUrl = (onHeroku && evtData?.cloudUrl) ? evtData?.cloudUrl : null
             //Check for minimum versions before processing
@@ -765,7 +784,8 @@ def receiveEventData(Map evtData, String src) {
             }
             
             if (evtData?.echoDevices?.size()) {
-                log.debug "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${!onHeroku && src ? " [$src]" : ""} | Last Refreshed: ${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes  | (${getLastDevicePollSec()} secs.)"
+                def execTime = evtData?.execDt ? (now()-evtData?.execDt) : 0
+                log.debug "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${!onHeroku && src ? " [$src]" : ""} | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)"
                 Map echoDeviceMap = [:]
                 List curDevFamily = []
                 Integer cnt = 0
@@ -774,7 +794,7 @@ def receiveEventData(Map evtData, String src) {
                     logger("debug", "echoDevice | ${echoValue?.accountName}", false)
                     Boolean familyAllowed = deviceFamilyAllowed(echoValue?.deviceFamily as String)
                     if(!familyAllowed) { return }
-                    echoValue["serviceAuthenticated"] = true
+                    echoValue["authValid"] = (state?.authValid == true)
                     echoValue["amazonDomain"] = settings?.amazonDomain
                     echoValue["cookie"] = state?.cookie
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
@@ -805,7 +825,7 @@ def receiveEventData(Map evtData, String src) {
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!") 
                         return
                     }
-                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, musicPlayer: (permissions?.mediaPlayer == true), ttsSupport: allowTTS, volumeSupport: volumeSupport]
+                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: (permissions?.mediaPlayer == true), ttsSupport: allowTTS, volumeSupport: volumeSupport]
                 
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
@@ -842,8 +862,8 @@ def receiveEventData(Map evtData, String src) {
                     }
                     
                     curDevFamily.push(echoValue?.deviceStyle?.name)
-                    state?.lastDevDataUpd = getDtNow()
                 }
+                state?.lastDevDataUpd = getDtNow()
                 state?.echoDeviceMap = echoDeviceMap
                 state?.deviceStyleCnts = curDevFamily?.countBy { it }
             } else {
@@ -925,6 +945,9 @@ public getServiceHostInfo() {
 /******************************************
 |    Notification Functions
 *******************************************/
+String getAmazonDomain() { return settings?.amazonDomain as String }
+String getAmazonUrl() {return "https://alexa.${settings?.amazonDomain as String}"}
+
 Map notifValEnum(allowCust = true) {
     Map items = [
         300:"5 Minutes", 600:"10 Minutes", 900:"15 Minutes", 1200:"20 Minutes", 1500:"25 Minutes",
@@ -938,6 +961,7 @@ private healthCheck() {
     // logger("trace", "healthCheck")
     updCodeVerMap()
     checkVersionData()
+    validateCookie()
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
@@ -983,6 +1007,7 @@ Integer getLastUpdMsgSec() { return !state?.lastUpdMsgDt ? 100000 : GetTimeDiffS
 Integer getLastMisPollMsgSec() { return !state?.lastMisPollMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMisPollMsgDt, "getLastMisPollMsgSec").toInteger() }
 Integer getLastVerUpdSec() { return !state?.lastVerUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastVerUpdDt, "getLastVerUpdSec").toInteger() }
 Integer getLastDevicePollSec() { return !state?.lastDevDataUpd ? 840 : GetTimeDiffSeconds(state?.lastDevDataUpd, "getLastDevicePollSec").toInteger() }
+Integer getLastCookieChkSec() { return !state?.lastCookieChkDt ? 3600 : GetTimeDiffSeconds(state?.lastCookieChkDt, "getLastCookieChkSec").toInteger() }
 Boolean getOk2Notify() { 
     Boolean smsOk = (settings?.smsNumbers?.toString()?.length()>=10)
     Boolean pushOk = settings?.usePush
@@ -1304,7 +1329,7 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
 
 private getConfigData() {
     def params = [
-        uri:  "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/appData.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/appData.json",
         contentType: "application/json"
     ]
     def data = getWebData(params, "appData", false)
