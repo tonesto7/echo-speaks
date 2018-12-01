@@ -1,64 +1,17 @@
-V1.3.0 (November 21st, 2018):
+V2.0.0 Beta (November 30th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
- • ADDED: Now populates device capabilities data to show if device supports volume, player, tts.
- • ADDED: Auto Create Settings for Tablets, WholeHomeAudio, and Other Alexa Enabled Devices.
- • FIXED: Removed blocking because of code versions.
-
-Device:
- • ADDED: Support for new DeviceTypes
- • ADDED: New Attribute | ttsSupported, volumeSupported, playerSupported
- • ADDED: New Device Commands | setVolumeSpeakRestore(volume, message), storeLastVolume(), restoreLastVolume()
-
-Server:
- • ADDED: Support for New Alexa DeviceTypes
-
-V1.2.5 (November 18th, 2018):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Missing method exception in stateSizePerc
-
-Device:
- • FIXED: Nothing
-
-Server:
- • FIXED: Login fixes for /ap/cvf/request error
-
-V1.2.4 (November 18th, 2018):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Minor Bug Fixes
-
-Device:
- • ADDED: New command available to change the wake word :)
- • FIXED: Bug Fixes
-
-Server:
- • FIXED: Login issues due to Amazon changes (Thanks Apollon77 for your help)
- • FIXED: More Optimizations
-
-V1.2.3 (November 15th, 2018):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Bug Fixes
-
-Device:
- • ADDED: New command available to change the wake word :)
- • FIXED: Bug Fixes
-
-Server:
- • ADDED: Support for Setting of Wake Word
- • FIXED: Optimized core logic
-
-V1.2.2 (November 15th, 2018):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Cloud Service Heartbeats
- • FIXED: Amazon auth being reset because of missing heartbeat
+ • NEW: Completely rewritten to perform all server functions (except login proxy) via the SmartApp and Devices.
+ • UPDATED: Much Better device capability verfication and identification support. If you try to use a command not supported the device logs will tell you.
+ • ADDED: SmartApp supports being sent manual cookies via the Heroku Web Config 
  • ADDED: Change logs are visible in the SmartApp and when a new update is deployed
 
 Device:
- • ADDED: Proper metadata to allow the devices to show up in new SmartThings app as generic media player
+ • NEW: Rewritten to perform command functions of the Server. This means each device sends it's own commands directly to Amazon and securely handles the responses appropriately. 
+ • UPDATE: Device detection is much more reliable and easier to maintain.
+ • FIXED: So much I can't remember
 
 Server:
- • FIXED: Amazon auth being reset and updates to the auth check
+ • UPDATED: No longer handles communication with Amazon (Polling or Commands). It's required only to handle the login process (This means it will be asleep unless you need to refresh your cookie)
+ • ADDED: You can now paste your cookie and csrf strings into the web config page, which will send them up to ST.
+
