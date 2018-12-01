@@ -19,7 +19,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "2.0.0" }
-String appModified() { return "2018-11-30" } 
+String appModified() { return "2018-12-01" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -251,6 +251,7 @@ def servPrefPage() {
             "amazon.co.uk":"amazon.co.uk",
             "amazon.de":"Amazon.de",
         ]
+        List localeOpts = ["en-US", "en-CA", "de-DE", "en-GB"]
         Boolean herokuOn = (settings?.useHeroku == true)
         Boolean hubOn = (settings?.stHub != null)
         Boolean hasChild = (app.getChildDevices(true)?.size())
@@ -282,6 +283,7 @@ def servPrefPage() {
             if(settings?.useHeroku) {
                 section("Service Preferences", hideable: true, hidden: state?.onHeroku) {
                     input (name: "amazonDomain", type: "enum", title: "Select your Amazon Domain?", description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getPublicImg("amazon_orange.png"))
+                    input (name: "regionLocale", type: "enum", title: "Select your Locale?", description: "", required: true, defaultValue: "en-US", options: localeOpts, submitOnChange: true, image: getPublicImg("web.png"))
                     input (name: "refreshSeconds", type: "number", title: "Poll Amazon for Device Status (in Seconds)", description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time.png"))
                 }
                 if(!state?.onHeroku) {
@@ -497,14 +499,13 @@ def clearCloudConfig() {
 String getEnvParamsStr() {
     Map envParams = [:]
     envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
-    envParams["useHeroku"] = settings?.useHeroku == true ? "true" : "false"
-    envParams["serviceDebug"] = settings?.serviceDebug == true ? "true" : "false"
-    envParams["serviceTrace"] = settings?.serviceTrace == true ? "true" : "false"
+    envParams["useHeroku"] = (settings?.useHeroku == true) ? "true" : "false"
+    envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
+    envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
     envParams["amazonDomain"] = settings?.amazonDomain as String
     envParams["refreshSeconds"] = settings?.refreshSeconds as String
     envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com"
-    envParams["HEROKU_APP_NAME"] = "${getRandAppName()}"
-
+    // envParams["HEROKU_APP_NAME"] = "${getRandAppName()}"
     String envs = ""
     envParams?.each { k, v-> envs += "&env[${k}]=${v}" }
     return envs
@@ -795,7 +796,8 @@ def receiveEventData(Map evtData, String src) {
                     Boolean familyAllowed = deviceFamilyAllowed(echoValue?.deviceFamily as String)
                     if(!familyAllowed) { return }
                     echoValue["authValid"] = (state?.authValid == true)
-                    echoValue["amazonDomain"] = settings?.amazonDomain
+                    echoValue["amazonDomain"] = (settings?.amazonDomain ?: "amazon.com")
+                    echoValue["regionLocale"] = (settings?.regionLocale ?: "en-US")
                     echoValue["cookie"] = state?.cookie
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
         

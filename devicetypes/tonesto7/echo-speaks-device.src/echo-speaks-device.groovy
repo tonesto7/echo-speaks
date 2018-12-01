@@ -19,7 +19,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 String devVersion() { return "2.0.0"}
-String devModified() { return "2018-11-30" }
+String devModified() { return "2018-12-01" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -439,6 +439,7 @@ void updateDeviceStatus(Map devData) {
             state?.softwareVersion = devData?.softwareVersion
             state?.cookie = devData?.cookie
             state?.amazonDomain = devData?.amazonDomain
+            state?.regionLocale = devData?.regionLocale
             state?.permissions = devData?.permissionMap
             // log.trace "permissions: ${state?.permissions}"
 
@@ -861,6 +862,27 @@ def amazonCommandResp(response, data) {
     }
 }
 
+private sendSequenceCommand(type, command, value) {
+    // logger("trace", "sendSequenceCommand($type) | command: $command | value: $value")
+    Map seqObj = sequenceBuilder(command, value)
+    sendAmazonCommand("POST", [
+        uri: getAmazonUrl(),
+        path: "/api/behaviors/preview",
+        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        requestContentType: "application/json",
+        contentType: "application/json",
+        body: seqObj
+    ], [cmdDesc: "SequenceCommand (${type})"])
+}
+
+private sendMultiSequenceCommand(commands, parallel=false) {
+    String seqType = parallel ? "ParallelNode" : "SerialNode"
+    List nodeList = []
+    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value)) }
+    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+    sendSequenceCommand("MultiSequence", seqJson, null)
+}
+
 def searchTest() {
     searchAmazonMusic("thriller")
 }
@@ -1052,7 +1074,11 @@ def deviceNotification(String msg) {
 
 def setVolumeAndSpeak(Integer volume, String msg) {
     logger("trace", "setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
-    if(volume && permissionOk("volumeControl")) { state?.useThisVolume = volume }
+    if(volume && permissionOk("volumeControl")) { 
+        state?.useThisVolume = volume
+        sendEvent(name: "level", value: volume, display: false, displayed: false)
+        sendEvent(name: "volume", value: volume, display: false, displayed: false)
+    }
     incrementCntByKey("use_cnt_setVolSpeak")
     speak(msg)
 }
@@ -1060,15 +1086,17 @@ def setVolumeAndSpeak(Integer volume, String msg) {
 def setVolumeSpeakAndRestore(Integer volume, String msg) {
     logger("trace", "setVolumeSpeakAndRestore(volume: $volume, msg: $msg) command received...")
     if(msg) {
-        Integer restoreDelay = getRecheckDelay(msg?.toString()?.length())
+        // Integer restoreDelay = getRecheckDelay(msg?.toString()?.length())
         if(volume && permissionOk("volumeControl")) {
+            state?.useThisVolume = volume
             storeLastVolume()
-            setVolume(volume)
+            sendEvent(name: "level", value: volume, display: false, displayed: false)
+            sendEvent(name: "volume", value: volume, display: false, displayed: false)
             incrementCntByKey("use_cnt_setVolumeSpeakRestore")
         }
         speak(msg)
         if(volume && restoreDelay && permissionOk("volumeControl")) {
-            log.debug "Scheduling Volume (${state?.lastVolume}) Restore in ${(restoreDelay + (settings?.restoreLastVolume ?: 10)?.toInteger())} seconds"
+            // log.debug "Scheduling Volume (${state?.lastVolume}) Restore in ${(restoreDelay + (settings?.restoreLastVolume ?: 10)?.toInteger())} seconds"
             runIn((settings?.restoreLastVolume ?: 10), "restoreLastVolume")
         }
     }
@@ -1083,7 +1111,9 @@ private storeLastVolume() {
 private restoreLastVolume() {
     logger("trace", "restoreLastVolume() command received...")
     if(state?.lastVolume && permissionOk("volumeControl")) {
-        setVolume(state?.lastVolume)
+        // setVolume(state?.lastVolume)
+        sendEvent(name: "level", value: state?.lastVolume, display: false, displayed: false)
+        sendEvent(name: "volume", value: state?.lastVolume, display: false, displayed: false)
     } else { log.warn "Unable to restore Last Volume!!! lastVolume State Value not found..." }
 }
 
@@ -1093,7 +1123,7 @@ def speak(String msg) {
         if(!msg) { log.warn "No Message sent with speak($msg) command" }
         // log.trace "speak(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
         if(msg?.toString()?.length() > 450) { log.warn "TTS Message Length is Too Long!!! | Current Length (${msg?.toString()?.length()})"; return; }
-        speakVolumeCmd([cmdDesc: "SpeakCommand", message: msg as String, volume: (state?.useThisVolume ?: null), cmdDt: now()])
+        speakVolumeCmd([cmdDesc: "SpeakCommand", message: msg as String, newVolume: (state?.useThisVolume ?: null), oldVolume: (state?.lastVolume ?: null), cmdDt: now()])
         incrementCntByKey("use_cnt_speak")
     }
 }
@@ -1347,7 +1377,7 @@ def playTrackAndResume(uri, duration, volume=null) {
 
 def playTextAndResume(text, volume=null) {
     log.warn "Uh-Oh... The playTextAndResume(text: $text, volume: $volume) Command is NOT Supported by this Device!!!"
-    speak(msg as String)
+    speak(text as String)
 }
 
 def playTrackAndRestore(uri, duration, volume=null) {
@@ -1356,7 +1386,7 @@ def playTrackAndRestore(uri, duration, volume=null) {
 
 def playTextAndRestore(text, volume=null) {
     logger("trace", "playTextAndRestore(text: $text, volume: $volume) command received...")
-    speak(msg as String)
+    speak(text as String)
 }
 
 def playURL(theURL) {
@@ -1473,8 +1503,9 @@ public queueEchoCmd(type, headers, body=null, firstRun=false) {
         return
     }
     state?.cmdQIndexNum = getQueueIndex()
-    state?."qItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body, volume: headers?.volume ?: null]
+    state?."qItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body, newVolume: (headers?.newVolume ?: null), oldVolume: (headers?.oldVolume ?: null)]
     state?.useThisVolume = null
+    state?.lastVolume = null
     if(headers?.volume) { logItems?.push("│ Volume (${headers?.volume})") }
     if(headers?.message) {
         logItems?.push("│ Message(Len: ${headers?.message?.toString()?.length()}): ${headers?.message?.take(200)?.trim()}${headers?.message?.toString()?.length() > 200 ? "..." : ""}")
@@ -1519,7 +1550,7 @@ void processCmdQueue() {
         // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${getQueueItems()})")
         cmdData?.headers["queueKey"] = cmdKey
         Integer loopChkCnt = state?.loopChkCnt ?: 0
-        if(state?.lastTtsMsg == cmdData?.headers?.message && (getLastTtsCmdSec() <= 10)) { state?.loopChkCnt = loopChkCnt == 0 ? 1 : loopChkCnt++ }
+        if(state?.lastTtsMsg == cmdData?.headers?.message && (getLastTtsCmdSec() <= 10)) { state?.loopChkCnt = (loopChkCnt >= 1) ? loopChkCnt++ : 1 }
         log.debug "loopChkCnt: ${state?.loopChkCnt}"
         if(state?.loopChkCnt && (state?.loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
             state?.remove(cmdKey as String)
@@ -1543,11 +1574,13 @@ Integer getAdjCmdDelay(elap, reqDelay) {
 }
 
 def testMultiCmd() {
-    sendMultiSequenceCommand([[command: "volume", value: 30], [command: "speak", value: "super duper test message 1, 2, 3"]])
+    sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]])
 }
 
 private speakVolumeCmd(headers=[:], isQueueCmd=false) {
     // if(!isQueueCmd) { log.trace "speakVolumeCmd(${headers?.cmdDesc}, $isQueueCmd)" }
+    def random = new Random()
+    def randCmdId = random?.nextInt(300)
     if(!isAuthOk()) {return}
     Map queryMap = [:]
     List logItems = []
@@ -1562,6 +1595,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
     Integer msgLen = headers?.message?.toString()?.length()
     Integer recheckDelay = getRecheckDelay(msgLen)
     headers["msgDelay"] = recheckDelay
+    headers["cmdId"] = randCmdId
     if(!settings?.disableQueue) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
 
@@ -1595,14 +1629,18 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
             state?.lastTtsMsg = headers?.message
             state?.lastTtsCmdDt = getDtNow()
         }
-        logItems?.push("│ Device Volume: (${device?.currentValue("volume")}%)")
+        if(headerMap?.oldVolume) {logItems?.push("│ Restore Volume: (${headerMap?.oldVolume}%)") }
+        if(headerMap?.newVolume) {logItems?.push("│ New Volume: (${headerMap?.newVolume}%)") }
+        logItems?.push("│ Current Volume: (${device?.currentValue("volume")}%)")
         logItems?.push("│ Command: (SpeakCommand)")
         try {
-            def bodyObj = null
-            if(headerMap?.message && headerMap?.volume) {
-                bodyObj = multiSequenceJsonBuilder([[command: "volume", value: headerMap?.volume], [command: "speak", value: headerMap?.message]])
+            def bodyData = null
+            if(headerMap?.message && headerMap?.newVolume) {
+                List sqData = [[command: "volume", value: headerMap?.newVolume], [command: "speak", value: headerMap?.message]]
+                if(headerMap?.oldVolume) { sqData?.push([command: "volume", value: headerMap?.oldVolume]) }
+                bodyData = multiSequenceBuilder(sqData)
             } else {
-                bodyObj = sequenceJsonBuilder("speak", headerMap?.message)
+                bodyData = sequenceBuilder("speak", headerMap?.message)
             }
             Map params = [
                 uri: getAmazonUrl(),
@@ -1610,16 +1648,11 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
                 headers: headerMap,
                 requestContentType: "application/json",
                 contentType: "application/json",
-                body: bodyObj
+                body: bodyData
             ]
             asynchttp_v1.post(asyncSpeechHandler, params, [
-                cmdDt:(headerMap?.cmdDt ?: null),
-                queueKey: (headerMap?.queueKey ?: null),
-                cmdDesc: (headerMap?.cmdDesc ?: null),
-                deviceId: device?.getDeviceNetworkId(),
-                msgDelay: (headerMap?.msgDelay ?: null),
-                message: (headerMap?.message ?: null),
-                volume: (headerMap?.volume ?: null)
+                cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
+                message: (headerMap?.message ?: null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null)
             ])
         } catch (e) {
             log.error "something went wrong: ", e
@@ -1632,89 +1665,6 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
         log.error "speakVolumeCmd Exception:", ex
         incrementCntByKey("err_cloud_command")
     }
-}
-
-private sequenceJsonBuilder(cmdKey, cmdVal) {
-    Map seqObj = [
-        "behaviorId": "PREVIEW",
-        "sequenceJson": [
-            "@type": "com.amazon.alexa.behaviors.model.Sequence",
-            "startNode": createSequenceNode(cmdKey, cmdVal)
-        ]?.encodeAsJson() as String,
-        "status": "ENABLED"
-    ]
-    return seqObj
-}
-
-private sendSequenceCommand(type, command, value) {
-    logger("trace", "sendSequenceCommand($type) | command: $command | value: $value")
-    def seqObj = null
-    if (command instanceof Map) {
-        seqObj = command?.sequence ?: command
-    } else {
-        seqObj = [
-            "@type": "com.amazon.alexa.behaviors.model.Sequence",
-            "startNode": createSequenceNode(command, value)
-        ]
-    }
-    Map seqJson = [
-        "behaviorId": seqObj?.sequenceId ? command?.automationId : "PREVIEW",
-        "sequenceJson": seqObj?.encodeAsJson() as String,
-        "status": "ENABLED"
-    ]
-    // log.debug "seqJson: $seqJson"
-    sendAmazonCommand("POST", [
-        uri: getAmazonUrl(),
-        path: "/api/behaviors/preview",
-        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
-        requestContentType: "application/json",
-        contentType: "application/json",
-        body: seqJson
-    ], [cmdDesc: "SequenceCommand (${type})"])
-}
-
-private sendMultiSequenceCommand(commands, parallel=false) {
-    String seqType = parallel ? "ParallelNode" : "SerialNode"
-    List nodeList = []
-    commands?.each { cmdItem->
-        nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value))
-    }
-    // log.debug "nodes: ${nodeList}"
-    Map seqObj = [
-        "sequence": [
-            "@type": "com.amazon.alexa.behaviors.model.Sequence",
-            "startNode": [
-                "@type": "com.amazon.alexa.behaviors.model.${seqType}",
-                "name": null,
-                "nodesToExecute": nodeList
-            ]
-        ]
-    ]
-    sendSequenceCommand("VolumeSpeak", seqObj, null)
-}
-
-private multiSequenceJsonBuilder(commands, parallel=false) {
-    String seqType = parallel ? "ParallelNode" : "SerialNode"
-    List nodeList = []
-    commands?.each { cmdItem->
-        nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value))
-    }
-    Map seqObj = [
-        "sequence": [
-            "@type": "com.amazon.alexa.behaviors.model.Sequence",
-            "startNode": [
-                "@type": "com.amazon.alexa.behaviors.model.${seqType}",
-                "name": null,
-                "nodesToExecute": nodeList
-            ]
-        ]
-    ]
-    Map seqJson = [
-        "behaviorId": seqObj?.sequenceId ? command?.automationId : "PREVIEW",
-        "sequenceJson": seqObj?.encodeAsJson() as String,
-        "status": "ENABLED"
-    ]
-    return seqJson
 }
 
 def asyncSpeechHandler(response, data) {
@@ -1735,7 +1685,7 @@ private postCmdProcess(resp, statusCode, data) {
         if(statusCode == 200) {
             def execTime = data?.cmdDt ? (now()-data?.cmdDt) : 0
             // log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully${data?.queueKey ? " | QueueKey: (${data?.queueKey})" : ""}${data?.msgDelay ? " | RecheckDelay: (${data?.msgDelay} sec)" : ""} | Execution Time (${execTime}ms)"
-            log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully | Execution Time (${execTime}ms)${data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""}${showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""}"
+            log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully | Execution Time (${execTime}ms)${data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""}${showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""}${data?.cmdId ? " | CmdID: (${data?.cmdId})" : ""}"
             if(data?.queueKey) { state?.remove(data?.queueKey as String) }
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
                 String lastMsg = data?.message as String ?: "Nothing to Show Here..."
@@ -1839,7 +1789,23 @@ public Map getDeviceMetrics() {
     return out
 }
 
+Map sequenceBuilder(cmd, val) {
+    def seqJson = null
+    if (cmd instanceof Map) {
+        seqJson = cmd?.sequence ?: cmd
+    } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
+    Map seqObj = ["behaviorId": seqJson?.sequenceId ? cmd?.automationId : "PREVIEW", "sequenceJson": seqJson?.encodeAsJson() as String, "status": "ENABLED"]
+    return seqObj
+}
 
+Map multiSequenceBuilder(commands, parallel=false) {
+    String seqType = parallel ? "ParallelNode" : "SerialNode"
+    List nodeList = []
+    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value)) }
+    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+    Map seqObj = sequenceBuilder(seqJson, null)
+    return seqObj
+}
 
 Map createSequenceNode(command, value) {
     try {
@@ -1848,7 +1814,7 @@ Map createSequenceNode(command, value) {
             "operationPayload": [
                 "deviceType": state?.deviceType,
                 "deviceSerialNumber": state?.serialNumber,
-                "locale": "en-US",
+                "locale": (state?.regionLocale ?: "en-US"),
                 "customerId": state?.deviceOwnerCustomerId
             ]
         ]
