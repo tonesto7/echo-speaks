@@ -18,8 +18,8 @@ import groovy.json.*
 import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "2.0.0"}
-String devModified() { return "2018-12-01" }
+String devVersion() { return "2.0.1"}
+String devModified() { return "2018-12-02" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -321,6 +321,7 @@ def initialize() {
     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
     sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
     resetQueue()
+    schedDataRefresh()
 }
 
 String getHealthStatus(lower=false) {
@@ -493,6 +494,7 @@ void updateDeviceStatus(Map devData) {
         }
         setOnlineStatus(isOnline)
         sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
+        schedDataRefresh()
     // } catch(ex) {
     //     log.error "updateDeviceStatus Error: ", ex
     // }
@@ -501,6 +503,13 @@ void updateDeviceStatus(Map devData) {
 void refresh() {
     log.trace "refresh()"
     refreshData()
+}
+
+private schedDataRefresh() {
+    if(state?.refreshScheduled != true) {
+        runEvery1Minute("refreshData")
+        state?.refreshScheduled = true
+    }
 }
 
 private refreshData() {
