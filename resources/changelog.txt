@@ -1,17 +1,18 @@
-V2.0.0 Beta (November 30th, 2018):
+V2.0.0 (December 2nd, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
  • NEW: Completely rewritten to perform all server functions (except login proxy) via the SmartApp and Devices.
  • UPDATED: Much Better device capability verfication and identification support. If you try to use a command not supported the device logs will tell you.
  • ADDED: SmartApp supports being sent manual cookies via the Heroku Web Config 
  • ADDED: Change logs are visible in the SmartApp and when a new update is deployed
+ • ADDED: Included Experimental broadcast test page to the SmartApp
 
 Device:
- • NEW: Rewritten to perform command functions of the Server. This means each device sends it's own commands directly to Amazon and securely handles the responses appropriately. 
- • UPDATE: Device detection is much more reliable and easier to maintain.
- • FIXED: So much I can't remember
+ • UPDATED: Better device capability verification and identification support. If you try to use a command not supported the device logs will tell you.
+ • UPDATED: The commands setVolumeSpeak() and setVolumeSpeakAndRestore() now work amazing and are sent as a single command to Amazon. So the second the message is finished play amazon restores the volume.
+ • FIXED: So much stuff I can't remember. 
+ • FYI: With the way polling works to reduce the stress on the ST platform i’ve now changed full device list refreshes to every 10 minutes. This means new devices are only added every 10 minutes. (The devices themselves will update their info directly every 60 seconds)
 
 Server:
  • UPDATED: No longer handles communication with Amazon (Polling or Commands). It's required only to handle the login process (This means it will be asleep unless you need to refresh your cookie)
  • ADDED: You can now paste your cookie and csrf strings into the web config page, which will send them up to ST.
-
