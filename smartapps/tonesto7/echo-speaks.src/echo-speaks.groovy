@@ -19,7 +19,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "2.0.0" }
-String appModified() { return "2018-12-01" } 
+String appModified() { return "2018-12-02" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -184,7 +184,7 @@ def mainPage() {
 
 def broadcastTestPage() {
     return dynamicPage(name: "broadcastTestPage", uninstall: false, install: false) {
-        section("Logging:") {
+        section("") {
             Map devs = getDeviceList(true, false)
             input "broadcastDevices", "enum", title: "Select Devices to Test the Broadcast", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             input "broadcastVolume", "number", title: "Broadcast at this volume", description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
