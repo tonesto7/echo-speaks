@@ -751,6 +751,7 @@ def storeCookie() {
         obj?.cookie = request?.JSON?.cookie as String ?: null
         obj?.csrf = request?.JSON?.csrf as String ?: null
         state?.cookie = obj
+        modCodeVerMap("server", request?.JSON?.serverVersion)
     }
     if(state?.cookie?.cookie && state?.cookie?.csrf) {
         log.info "Cookie Has been Updated... Re-Initializing SmartApp and to restart polling..."
