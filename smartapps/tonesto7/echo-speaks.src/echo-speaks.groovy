@@ -18,14 +18,14 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "2.0.0" }
+String appVersion()	 { return "2.0.1" }
 String appModified() { return "2018-12-02" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 200, server: 200]
+    return [echoDevice: 201, server: 201]
 }
 
 definition(
@@ -716,20 +716,9 @@ def processData() {
     // log.trace "processData() | Data: ${request.JSON}"
     Map data = request?.JSON as Map
     if(data) {
-        if(data?.resource == "dyno" && data?.version == "application/vnd.heroku+json; version=3" && data?.action) {
-            log.debug "Heroku Event (${data?.action}): App ${data?.data?.state}"
-            if(data?.data && data?.data?.state == "down") {
-                runIn(60, "sendOneHeartbeat", [overwrite: true])
-                scheduleHeartbeat()
-            }
-            if(data?.data?.app?.name) {
-                if(state?.generatedHerokuName != data?.data?.app?.name) { state?.generatedHerokuName = data?.data?.app?.name }
-                    if(state?.cloudUrl != "https://${data?.data?.app?.name}.herokuapp.com") {
-                    log.info "Heroku CloudURL change required | Old: ${state?.cloudUrl} | new: https://${data?.data?.app?.name}.herokuapp.com"
-                    state?.cloudUrl = "https://${data?.data?.app?.name}.herokuapp.com"
-                    app?.getChildDevices(true)?.each { cDev?.updateServiceInfo(state?.cloudUrl, state?.onHeroku) }
-                    }
-            }
+        if(data?.version) {
+            log.trace "serverVersion Received: ${data?.version}"
+            modCodeVerMap("server", data?.version)
         } else { log.debug "data: $data" }
     }
     def json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersion()])
