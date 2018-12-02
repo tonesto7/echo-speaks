@@ -504,8 +504,8 @@ void refresh() {
     refreshData()
 }
 
-private schedDataRefresh() {
-    if(state?.refreshScheduled != true) {
+public schedDataRefresh(frc) {
+    if(frc || state?.refreshScheduled != true) {
         runEvery1Minute("refreshData")
         state?.refreshScheduled = true
     }

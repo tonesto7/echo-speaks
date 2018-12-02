@@ -608,6 +608,7 @@ def initialize() {
         runEvery15Minutes("dataRefresh") //This will reload the device list from Amazon
         validateCookie(true)
         runIn(4, "dataRefresh")
+        runIn(15, "refreshDevices")
     }
 }
 
@@ -685,6 +686,7 @@ private stateCleanup() {
 def onAppTouch(evt) {
     // log.trace "appTouch..."
     updated()
+    // refreshDevices()
     // validateCookie()
     // apiHealthCheck()
     //resetQueues()
@@ -693,6 +695,14 @@ def onAppTouch(evt) {
 
 private resetQueues() {
     app.getChildDevices(true)?.each { it?.resetQueue() }
+}
+
+private refreshDevices() {
+    app.getChildDevices(true)?.each { 
+        it?.resetQueue() 
+        it?.refreshData()
+        it?.schedDataRefresh(true)
+    }
 }
 
 private updCodeVerMap() {
@@ -806,7 +816,8 @@ private apiHealthCheck(frc=false) {
     }
 }
 
-def cookieValidResp(response, data) { 
+def cookieValidResp(response, data) {
+    log.trace "cookieValidResp..."
     try {
         Map aData = response?.json?.authentication ?: [:]
         Boolean valid = false
