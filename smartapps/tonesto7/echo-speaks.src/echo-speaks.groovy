@@ -19,7 +19,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "2.0.0" }
-String appModified() { return "2018-12-01" } 
+String appModified() { return "2018-12-02" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -49,6 +49,7 @@ preferences {
     page(name: "changeLogPage")
     page(name: "notifPrefPage")
     page(name: "servPrefPage")
+    page(name: "broadcastTestPage")
     page(name: "setNotificationTimePage")
     page(name: "uninstallPage")
 }
@@ -125,9 +126,6 @@ def mainPage() {
                 paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH"
                 return
             }
-            if(state?.customerName) {
-
-            }
             if(!newInstall) {
                 section("Alexa Login Service:") {
                     def t0 = getServiceConfDesc()
@@ -166,6 +164,9 @@ def mainPage() {
                 href "settingsPage", title: "Manage Logging, and Metrics", description: "Tap to modify...", image: getAppImg("settings.png")
             }
             
+            section ("Broadcasts (Experimental)") {
+                href "broadcastTestPage", title: "Broadcast Test Page", description: "Tap to modify...", image: getAppImg("settings.png")
+            }
             if(!newInstall) {
                 if(!state?.shownDevSharePage) {
                     showDevSharePrefs()
@@ -179,6 +180,153 @@ def mainPage() {
             }
         }
     }
+}
+
+def broadcastTestPage() {
+    return dynamicPage(name: "broadcastTestPage", uninstall: false, install: false) {
+        section("") {
+            Map devs = getDeviceList(true, false)
+            input "broadcastDevices", "enum", title: "Select Devices to Test the Broadcast", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            input "broadcastVolume", "number", title: "Broadcast at this volume", description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
+            input "broadcastMessage", "text", title: "Message to broadcast", defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
+            input "broadcastParallel", "bool", title: "Execute commands in Parallel?", description: "", required: false, defaultValue: true, submitOnChange: true
+        }
+        if(settings?.broadcastDevices) {
+            section() {
+                input "performBroadcast", "bool", title: "Perform the Broadcast?", description: "", required: false, defaultValue: false, submitOnChange: true
+                if(performBroadcast) {
+                    executeBroadcast()
+                    
+                }
+            }
+        }
+    }
+}
+
+private executeBroadcast() {
+    String testMsg = settings?.broadcastMessage
+    Map eDevs = state?.echoDeviceMap
+    List seqItems = []
+    Integer bcVol = settings?.broadcastVolume
+    def selectedDevs = settings?.broadcastDevices
+    selectedDevs?.each { dev->
+        seqItems?.push([command: "volume", value: bcVol, serial: dev, type: eDevs[dev]?.type])
+    }
+    selectedDevs?.each { dev->
+        seqItems?.push([command: "speak", value: testMsg, serial: dev, type: eDevs[dev]?.type])
+    }
+    selectedDevs?.each { dev->
+        seqItems?.push([command: "volume", value: 20, serial: dev, type: eDevs[dev]?.type])
+    }
+    sendMultiSequenceCommand(seqItems, settings?.broadcastParallel)
+    settingUpdate("performBroadcast", "false", "bool")
+}
+
+Map sequenceBuilder(cmd, val) {
+    def seqJson = null
+    if (cmd instanceof Map) {
+        seqJson = cmd?.sequence ?: cmd
+    } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
+    Map seqObj = ["behaviorId": seqJson?.sequenceId ? cmd?.automationId : "PREVIEW", "sequenceJson": seqJson?.encodeAsJson() as String, "status": "ENABLED"]
+    return seqObj
+}
+
+Map multiSequenceBuilder(commands, parallel=false) {
+    String seqType = parallel ? "ParallelNode" : "SerialNode"
+    List nodeList = []
+    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.serial, cmdItem?.type, cmdItem?.command, cmdItem?.value)) }
+    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+    Map seqObj = sequenceBuilder(seqJson, null)
+    return seqObj
+}
+
+Map createSequenceNode(serialNumber, deviceType, command, value) {
+    try {
+        Map seqNode = [
+            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+            "operationPayload": [
+                "deviceType": deviceType,
+                "deviceSerialNumber": serialNumber,
+                "locale": (settings?.regionLocale ?: "en-US"),
+                "customerId": state?.deviceOwnerCustomerId
+            ]
+        ]
+        switch (command) {
+            case "weather":
+                seqNode?.type = "Alexa.Weather.Play"
+                break
+            case "traffic":
+                seqNode?.type = "Alexa.Traffic.Play"
+                break
+            case "flashbriefing":
+                seqNode?.type = "Alexa.FlashBriefing.Play"
+                break
+            case "goodmorning":
+                seqNode?.type = "Alexa.GoodMorning.Play"
+                break
+            case "singasong":
+                seqNode?.type = "Alexa.SingASong.Play"
+                break
+            case "tellstory":
+                seqNode?.type = "Alexa.TellStory.Play"
+                break
+            case "playsearch":
+                seqNode?.type = "Alexa.Music.PlaySearchPhrase"
+                break
+            case "volume":
+                seqNode?.type = "Alexa.DeviceControls.Volume"
+                seqNode?.operationPayload?.value = value;
+                break
+            case "speak":
+                seqNode?.type = "Alexa.Speak"
+                seqNode?.operationPayload?.textToSpeak = value as String
+                break
+            default:
+                return
+        }
+        // log.debug "seqNode: $seqNode"
+        return seqNode
+    } catch (ex) {
+        log.error "createSequenceNode Exception: $ex"
+        return [:]
+    }
+}
+
+private sendAmazonCommand(String method, Map params, Map otherData) {
+    asynchttp_v1."${method?.toString()?.toLowerCase()}"(amazonCommandResp, params, otherData)
+}
+
+def amazonCommandResp(response, data) {
+    if(response?.hasError()) {
+        log.error "amazonCommandResp error: ${response?.getErrorMessage()}"
+    } else {
+        def resp = response?.data ? response?.getJson() : null
+        // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
+        if(response?.getStatus() == 200) {
+            log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | (${data?.cmdDesc}) was Successfully Sent!!!"
+        }
+    }
+}
+
+private sendSequenceCommand(type, command, value) {
+    // logger("trace", "sendSequenceCommand($type) | command: $command | value: $value")
+    Map seqObj = sequenceBuilder(command, value)
+    sendAmazonCommand("POST", [
+        uri: getAmazonUrl(),
+        path: "/api/behaviors/preview",
+        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        requestContentType: "application/json",
+        contentType: "application/json",
+        body: seqObj
+    ], [cmdDesc: "SequenceCommand (${type})"])
+}
+
+private sendMultiSequenceCommand(commands, parallel=false) {
+    String seqType = parallel ? "ParallelNode" : "SerialNode"
+    List nodeList = []
+    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.serial, cmdItem?.type, cmdItem?.command, cmdItem?.value)) }
+    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+    sendSequenceCommand("MultiSequence", seqJson, null)
 }
 
 def settingsPage() {
