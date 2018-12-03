@@ -971,13 +971,14 @@ def receiveEventData(Map evtData, String src) {
                     permissions["microphone"] = (echoValue?.capabilities?.contains("MICROPHONE"))
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     echoValue["permissionMap"] = permissions
+                    echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
                     if(permissions?.mediaPlayer != true && allowTTS != true && (!(echoValue?.deviceFamily in ["ROOK", "ECHO", "KNIGHT"]))) {
                         log.warn "IGNORED Device | Name: ${echoValue?.accountName} | Permissions: $permissions"
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!") 
                         return
                     }
-                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: (permissions?.mediaPlayer == true), ttsSupport: allowTTS, volumeSupport: volumeSupport]
-                
+                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: (permissions?.mediaPlayer == true), ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers]
+
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
                         return 
@@ -1046,6 +1047,39 @@ def receiveEventData(Map evtData, String src) {
     } catch(ex) {
         log.error "receiveEventData Error:", ex
         incrementCntByKey("appErrorCnt")
+    }
+}
+
+private getDevicesFromSerialList(serialNumberList) {
+    //log.trace "getDevicesFromSerialList called with: ${ serialNumberList}"
+	if (serialNumberList == null) {
+	   log.debug "SerialNumberList is null"
+	   return;
+	}
+    def devicesList = serialNumberList.findResults { echoKey ->
+        String dni = [app?.id, "echoSpeaks", echoKey].join("|")
+        getChildDevice(dni)
+    }
+    //log.debug "Device list: ${ devicesList}"
+    return devicesList
+}
+
+// This is called by the device handler to send playback data to cluster members
+public sendPlaybackStateToClusterMembers(whaKey, response, data) {
+    //log.trace "sendPlaybackStateToClusterMembers: key: ${ whaKey}"
+
+    def echoDeviceMap = state?.echoDeviceMap
+    def whaMap = echoDeviceMap[whaKey]
+    def clusterMembers = whaMap?.clusterMembers
+
+    if (clusterMembers) {
+        def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
+        clusterMemberDevices.each {
+            it.getPlaybackStateHandler(response, data, true)
+        }
+    } else {
+        // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
+        //log.debug "sendPlaybackStateToClusterMembers: no data found for ${ whaKey} (first refresh?)"
     }
 }
 
