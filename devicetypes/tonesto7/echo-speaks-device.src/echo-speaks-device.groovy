@@ -311,16 +311,21 @@ def installed() {
 }
 
 def updated() {
-    log.trace "${device?.displayName} Executing Updated..."
+    log.trace "${device?.displayName} Executing Updated()"
     initialize()
 }
 
 def initialize() {
-    log.trace "${device?.displayName} Executing initialize"
+    log.trace "${device?.displayName} Executing initialize()"
     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
     sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
     resetQueue()
-    schedDataRefresh()
+    schedDataRefresh(true)
+    refreshData()
+}
+
+public triggerInitialize() {
+    runIn(3, "initialize")
 }
 
 String getHealthStatus(lower=false) {

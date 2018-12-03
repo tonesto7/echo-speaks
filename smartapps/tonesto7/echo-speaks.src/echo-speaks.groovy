@@ -698,11 +698,7 @@ private resetQueues() {
 }
 
 private refreshDevices() {
-    app.getChildDevices(true)?.each { 
-        it?.resetQueue() 
-        it?.refreshData()
-        it?.schedDataRefresh(true)
-    }
+    app.getChildDevices(true)?.each { it?.triggerInitialize() }
 }
 
 private updCodeVerMap() {
@@ -835,14 +831,9 @@ def cookieValidResp(response, data) {
     }
 }
 
-private noAuthReminder() {
-    log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..."
-}
+private noAuthReminder() { log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..." }
 
-private dataRefresh() {
-    // validateCookie()
-    getEchoDevices()
-}
+private dataRefresh() { getEchoDevices() }
 
 private makeSyncronousReq(params, method="get", src, showLogs=false) {
     try {
