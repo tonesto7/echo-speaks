@@ -313,8 +313,10 @@ def initialize() {
     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
     sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
     resetQueue()
+    stateCleanup()
     schedDataRefresh(true)
     refreshData()
+
 }
 
 public triggerInitialize() {
@@ -504,6 +506,13 @@ void refresh() {
     refreshData()
 }
 
+private stateCleanup() {
+    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "serviceHost", "allowDnD", "allowReminders"]
+    items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
+    state?.pollBlocked = false
+    state?.resumeConfig = false
+}
+
 public schedDataRefresh(frc) {
     if(frc || state?.refreshScheduled != true) {
         runEvery1Minute("refreshData")
@@ -512,6 +521,7 @@ public schedDataRefresh(frc) {
 }
 
 private refreshData() {
+    // log.trace "permissions: ${state?.permissions}"
     if(device?.currentValue("onlineStatus") != "online") { return }
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
@@ -570,6 +580,11 @@ private getPlaybackState() {
 }
 
 def getPlaybackStateHandler(response, data, isGroupResponse=false) {
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     def sData = [:]
     def isPlayStateChange = false;
     // log.debug "response: ${response?.json}"
@@ -660,7 +675,11 @@ private getAlarmVolume() {
 }
 
 def getAlarmVolumeHandler(response, data) {
-    try { } catch (e) { }
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     if (response.hasError()) { 
         log.error "getAlarmVolumeHandler Error: ${response.getErrorJson()}" 
     }
@@ -769,6 +788,11 @@ private getPlaylists() {
 }
 
 def getPlaylistsHandler(response, data) {
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     if (response.hasError()) {
         log.error "getPlaylistsHandler Error: ${response.getErrorMessage()}"
         return
@@ -798,6 +822,11 @@ private getMusicProviders() {
 }
 
 def getMusicProvidersHandler(response, data) {
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     if (response.hasError()) {
         log.error "getMusicProvidersHandler Error: ${response.getErrorMessage()}"
         return
@@ -831,6 +860,11 @@ private getNotifications() {
 }
 
 def getNotificationsHandler(response, data) {
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     if (response.hasError()) { log.error "getNotificationsHandler Error: ${response.getErrorMessage()}" }
     List newList = []
     if(response?.getStatus() == 200) {
@@ -952,9 +986,10 @@ def pause() {
 }
 
 def stop() {
+    log.debug "stop..."
     logger("trace", "stop() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
-        sendAmazonBasicCommand("StopCommand")
+        sendAmazonBasicCommand("PauseCommand")
         incrementCntByKey("use_cnt_stopCmd")
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)

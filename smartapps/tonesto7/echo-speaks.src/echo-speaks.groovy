@@ -527,8 +527,8 @@ def notifPrefPage() {
             section("Missed Poll Alerts:") {
                 input (name: "sendMissedPollMsg", type: "bool", title: "Send Missed Checkin Alerts?", defaultValue: true, submitOnChange: true, image: getAppImg("late.png"))
                 if(settings?.sendMissedPollMsg) {
-                    def misPollNotifyWaitValDesc = settings?.misPollNotifyWaitVal ?: "Default: 15 Minutes"
-                    input (name: "misPollNotifyWaitVal", type: "enum", title: "Time Past the Missed Checkin?", required: false, defaultValue: 900, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time.png"))
+                    def misPollNotifyWaitValDesc = settings?.misPollNotifyWaitVal ?: "Default: 45 Minutes"
+                    input (name: "misPollNotifyWaitVal", type: "enum", title: "Time Past the Missed Checkin?", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time.png"))
                     if(settings?.misPollNotifyWaitVal) { pollWait = settings?.misPollNotifyWaitVal as Integer }
                     
                     def misPollNotifyMsgWaitValDesc = settings?.misPollNotifyMsgWaitVal ?: "Default: 1 Hour"
@@ -596,18 +596,15 @@ def updated() {
 }
 
 def initialize() {
-    // getAccessToken()
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     subscribe(app, onAppTouch)
-    // if(!settings?.useHeroku && settings?.stHub) { subscribe(location, null, lanEventHandler, [filterEvents:false]) }
     if(!state?.resumeConfig) {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
-        updCodeVerMap()
         stateCleanup()
-        runEvery15Minutes("dataRefresh") //This will reload the device list from Amazon
+        runEvery15Minutes("getEchoDevices") //This will reload the device list from Amazon
         validateCookie(true)
-        runIn(4, "dataRefresh")
-        runIn(15, "refreshDevices")
+        runIn(15, "reInitDevices")
+        getEchoDevices()
     }
 }
 
@@ -663,6 +660,7 @@ private checkIfCodeUpdated() {
     if(state?.codeVersions && state?.codeVersions?.mainApp != appVersion()) {
         log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
         state?.pollBlocked = true
+        updCodeVerMap()
         Map iData = atomicState?.installData
         iData["updatedDt"] = getDtNow().toString()
         iData["shownChgLog"] = false
@@ -679,24 +677,23 @@ private stateCleanup() {
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
-    
 }
 
 def onAppTouch(evt) {
     // log.trace "appTouch..."
     updated()
-    // refreshDevices()
+    // reInitDevices()
     // validateCookie()
     // apiHealthCheck()
     //resetQueues()
-    //dataRefresh()
+    //getEchoDevices()
 }
 
 private resetQueues() {
     app.getChildDevices(true)?.each { it?.resetQueue() }
 }
 
-private refreshDevices() {
+private reInitDevices() {
     app.getChildDevices(true)?.each { it?.triggerInitialize() }
 }
 
@@ -757,6 +754,7 @@ def clearCookie() {
     logger("trace", "clearCookie()")
     settingUpdate("resetCookies", "false", "bool")
     state?.remove("cookie")
+    unschedule("getEchoDevices")
     unschedule("dataRefresh")
     log.warn "Cookie has been cleared... Device Refresh has been suspended..."
 }
@@ -812,7 +810,7 @@ private apiHealthCheck(frc=false) {
 }
 
 def cookieValidResp(response, data) {
-    log.trace "cookieValidResp..."
+    // log.trace "cookieValidResp..."
     try {
         Map aData = response?.json?.authentication ?: [:]
         Boolean valid = false
@@ -831,8 +829,6 @@ def cookieValidResp(response, data) {
 }
 
 private noAuthReminder() { log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..." }
-
-private dataRefresh() { getEchoDevices() }
 
 private makeSyncronousReq(params, method="get", src, showLogs=false) {
     try {
@@ -901,8 +897,8 @@ def echoDevicesResponse(response, data) {
 def receiveEventData(Map evtData, String src) {
     try {
         if(checkIfCodeUpdated()) { 
-            log.warn "Possible Code Version Update Detected... Device Updates will occur on next cycle."
-            return 0 
+            log.warn "Possible Code Version Change Detected... Device Updates will occur on next cycle."
+            return
         }
         
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
@@ -950,7 +946,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["tuneInRadio"] = (echoValue?.capabilities.contains("TUNE_IN"))
                     permissions["iHeartRadio"] = (echoValue?.capabilities.contains("I_HEART_RADIO"))
                     permissions["pandoraRadio"] = (echoValue?.capabilities.contains("PANDORA"))
-                    permissions["spotify"] = (echoValue?.capabilities.contains("SPOTIFY"))
+                    permissions["spotify"] = true //(echoValue?.capabilities.contains("SPOTIFY")) // Temporarily removed restriction check
                     permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false;
                     permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false;
                     permissions["alarms"] = (echoValue?.capabilities.contains("TIMERS_AND_ALARMS"))
@@ -962,6 +958,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
+                    // log.warn "Device Permisions | Name: ${echoValue?.accountName} | $permissions"
                     if(permissions?.mediaPlayer != true && allowTTS != true && (!(echoValue?.deviceFamily in ["ROOK", "ECHO", "KNIGHT"]))) {
                         log.warn "IGNORED Device | Name: ${echoValue?.accountName} | Permissions: $permissions"
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!") 
@@ -1126,7 +1123,7 @@ String getAmazonUrl() {return "https://alexa.${settings?.amazonDomain as String}
 Map notifValEnum(allowCust = true) {
     Map items = [
         300:"5 Minutes", 600:"10 Minutes", 900:"15 Minutes", 1200:"20 Minutes", 1500:"25 Minutes",
-        1800:"30 Minutes", 3600:"1 Hour", 7200:"2 Hours", 14400:"4 Hours", 21600:"6 Hours", 43200:"12 Hours", 86400:"24 Hours"
+        1800:"30 Minutes", 2700:"45 Minutes", 3600:"1 Hour", 7200:"2 Hours", 14400:"4 Hours", 21600:"6 Hours", 43200:"12 Hours", 86400:"24 Hours"
     ]
     if(allowCust) { items[100000] = "Custom" }
     return items
@@ -1134,10 +1131,9 @@ Map notifValEnum(allowCust = true) {
 
 private healthCheck() {
     // logger("trace", "healthCheck")
-    updCodeVerMap()
     checkVersionData()
     if(checkIfCodeUpdated()) { 
-        log.warn "Possible Code Version Update Detected... Device Updates will occur on next cycle."
+        log.warn "Code Version Change Detected... Health Check will occur on next cycle."
         return
     }
     validateCookie()
@@ -1148,7 +1144,7 @@ private healthCheck() {
 
 private missPollNotify(Boolean on, Integer wait) {
     logger("debug", "missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastDevicePollSec()}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastMisPollMsgSec()})")
-    if(!on || !wait || !(getLastDevicePollSec() > (state?.misPollNotifyWaitVal ?: 900))) { return }
+    if(!on || !wait || !(getLastDevicePollSec() > (state?.misPollNotifyWaitVal ?: 2700))) { return }
     if(!(getLastMisPollMsgSec() > wait.toInteger())) {
         return
     } else {
