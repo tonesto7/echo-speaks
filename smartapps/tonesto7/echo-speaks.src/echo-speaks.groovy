@@ -18,14 +18,14 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "2.0.1" }
-String appModified() { return "2018-12-02" } 
+String appVersion()	 { return "2.0.3" }
+String appModified() { return "2018-12-03" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 201, server: 201]
+    return [echoDevice: 202, server: 201]
 }
 
 definition(
@@ -57,13 +57,12 @@ preferences {
 public getDeviceStyle(String family, String type) {
     switch(type) {
         //ECHOS - SPEAKERS\\
-	    case "A38949IHXHRQ5P": return [name: "Echo Tap", image: "echo_gen", allowTTS: true]
+	    case "A38949IHXHRQ5P": return [name: "Echo Tap", image: "echo_tap", allowTTS: true]
         case "AB72C64C86AW2" : return [name: "Echo (Gen1)", image: "echo_gen1", allowTTS: true]
         case "A7WXQPH584YP"  : return [name: "Echo (Gen2)", image: "echo_gen2", allowTTS: true]
         case "A2M35JJZWCQOMZ": return [name: "Echo Plus (Gen1)", image: "echo_plus_gen1", allowTTS: true]
         case "A18O6U1UQFJ0XK": return [name: "Echo Plus (Gen2)", image: "echo_plus_gen2", allowTTS: true]
         case "A3SSG6GR8UU7SN": return [name: "Echo Sub", image: "echo_sub_gen1", allowTTS: true]
-        case "A38EHHIB10L47V": return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1", allowTTS: true]
         case "AKNO1N0KSFN8L" : return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1", allowTTS: true]
         case "A3S5BH2HU6VAYF": return [name: "Echo Dot (Gen2)", image: "echo_dot_gen2", allowTTS: true]
         case "A32DOYMUN6DTXA": return [name: "Echo Dot (Gen3)", image: "echo_dot_gen3", allowTTS: true]
@@ -73,16 +72,17 @@ public getDeviceStyle(String family, String type) {
         case "AWZZ5CVHX2CD"  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", allowTTS: true]
         //FIRE TVs\\
 	    case "A12GXV8XMS007S": return [name: "Fire TV (Gen1)", image: "firetv_gen1", allowTTS: true]
-        case "A2E0SNTXJVT7WK": return [name: "Fire TV (Gen2)", image: "firetv_gen2", allowTTS: true]
-        case "A2GFL5ZMWNE0PX": return [name: "Fire TV (Gen3)", image: "firetv_gen3", allowTTS: true]
+        case "A2E0SNTXJVT7WK": return [name: "Fire TV (Gen2)", image: "firetv_gen1", allowTTS: true]
+        case "A2GFL5ZMWNE0PX": return [name: "Fire TV (Gen3)", image: "firetv_gen1", allowTTS: true]
         case "ADVBD696BHNV5" : return [name: "Fire TV Stick (Gen1)", image: "firetv_stick_gen1", allowTTS: true]
-        case "A2LWARUGJLBYEW": return [name: "Fire TV Stick (Gen2)", image: "firetv_stick_gen2", allowTTS: true]
-        case "AKPGW064GI9HE" : return [name: "Fire TV Stick 4K (Gen3)", image: "firetv_stick_gen3", allowTTS: true] 
+        case "A2LWARUGJLBYEW": return [name: "Fire TV Stick (Gen2)", image: "firetv_stick_gen1", allowTTS: true]
+        case "AKPGW064GI9HE" : return [name: "Fire TV Stick 4K (Gen3)", image: "firetv_stick_gen1", allowTTS: true] 
         case "A3HF4YRA2L7XGC": return [name: "Fire TV Cube", image: "firetv_cube", allowTTS: true]
         //TABLETS\\
         case "A2M4YX06LWP8WI": return [name: "Fire Tablet", image: "amazon_tablet", allowTTS: true]
         case "A1J16TEDOYCZTN": return [name: "Fire Tablet", image: "amazon_tablet", allowTTS: true]
         case "A2M4YX06LWP8WI": return [name: "Fire Tablet 7 (Gen5)", image: "amazon_tablet", allowTTS: true]
+        case "A38EHHIB10L47V": return [name: "Fire Tablet HD 8", image: "tablet_hd10", allowTTS: true]
         case "A3R9S4ZZECZ6YL": return [name: "Fire Tablet HD 10", image: "tablet_hd10", allowTTS: true]
         //MULTIROOM\\
         case "A3C9PE6TNYLTCH": return [name: "Multiroom", image: "echo_wha", allowTTS: false]
@@ -358,8 +358,7 @@ def deviceListPage() {
                 str += "\nVolume Control: ${v?.volumeSupport?.toString()?.capitalize()}"
                 str += "\nText-to-Speech: ${v?.ttsSupport?.toString()?.capitalize()}"
                 str += "\nStatus: ${v?.online ? "Online" : "Offline"}"
-                
-                paragraph str, state: "complete", image: getAppImg("${v?.style?.image}.png")
+                paragraph str, state: (v?.online ? "complete" : null), image: getAppImg("${v?.style?.image}.png"), required: true
             }
         }
     }
@@ -788,7 +787,7 @@ Boolean isAuthValid() {
 }
 
 private validateCookie(frc=false) {
-    if(!frc || (getLastCookieChkSec() <= 1800)) { return }
+    if(!frc || (getLastCookieChkSec() <= 1800) || !state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { return }
     try {
         def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: ["Cookie": state?.cookie?.cookie as String, "csrf": state?.cookie?.csrf as String], contentType: "application/json"]
         asynchttp_v1.get(cookieValidResp, params, [execDt: now()])
@@ -1137,11 +1136,14 @@ private healthCheck() {
     // logger("trace", "healthCheck")
     updCodeVerMap()
     checkVersionData()
+    if(checkIfCodeUpdated()) { 
+        log.warn "Possible Code Version Update Detected... Device Updates will occur on next cycle."
+        return
+    }
     validateCookie()
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
-    // cloudHeartbeatCheck()
 }
 
 private missPollNotify(Boolean on, Integer wait) {
