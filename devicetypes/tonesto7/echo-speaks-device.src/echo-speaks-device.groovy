@@ -18,8 +18,8 @@ import groovy.json.*
 import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "2.0.2"}
-String devModified() { return "2018-12-02" }
+String devVersion() { return "2.0.3"}
+String devModified() { return "2018-12-03" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -519,6 +519,7 @@ public schedDataRefresh(frc) {
 }
 
 private refreshData() {
+    if(device?.currentValue("onlineStatus") != "online") { return }
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
         getPlaylists()
@@ -581,6 +582,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     // log.debug "response: ${response?.json}"
     if (response.hasError()) {
         // log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorMessage()}"
+        // log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorJson()}"
         return
     } else {
         sData = response?.json
@@ -649,7 +651,6 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     if (state?.hasClusterMembers && (sData?.state == 'PLAYING' || isPlayStateChange)) {
         parent.sendPlaybackStateToClusterMembers(state?.serialNumber, response, data)
     }
-
 }
 
 private getAlarmVolume() {
@@ -666,7 +667,10 @@ private getAlarmVolume() {
 }
 
 def getAlarmVolumeHandler(response, data) {
-    if (response.hasError()) { log.error "getAlarmVolumeHandler Error: ${response.getErrorMessage()}" }
+    try { } catch (e) { }
+    if (response.hasError()) { 
+        log.error "getAlarmVolumeHandler Error: ${response.getErrorJson()}" 
+    }
     def sData = response?.json
     // log.debug "sData: $sData"
     if(isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
