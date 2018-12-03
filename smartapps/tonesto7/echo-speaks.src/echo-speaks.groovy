@@ -757,7 +757,7 @@ def clearCookie() {
     logger("trace", "clearCookie()")
     settingUpdate("resetCookies", "false", "bool")
     state?.remove("cookie")
-    unschedule("getEchoDevices")
+    unschedule("dataRefresh")
     log.warn "Cookie has been cleared... Device Refresh has been suspended..."
 }
 
