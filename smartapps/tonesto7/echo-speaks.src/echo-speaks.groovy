@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "2.0.3" }
+String appVersion()	 { return "2.0.4" }
 String appModified() { return "2018-12-03" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
