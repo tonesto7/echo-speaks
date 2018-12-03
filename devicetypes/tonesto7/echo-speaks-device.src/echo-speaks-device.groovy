@@ -441,6 +441,8 @@ void updateDeviceStatus(Map devData) {
             state?.amazonDomain = devData?.amazonDomain
             state?.regionLocale = devData?.regionLocale
             state?.permissions = devData?.permissionMap
+            state?.hasClusterMembers = devData?.hasClusterMembers
+            //log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
             // log.trace "permissions: ${state?.permissions}"
 
             if(isStateChange(device, "volumeSupported", (devData?.permissionMap?.volumeControl == true)?.toString())) {
@@ -568,14 +570,20 @@ private getPlaybackState() {
     ])
 }
 
-def getPlaybackStateHandler(response, data) {
+def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     def sData = [:]
+    def isPlayStateChange = false;
     // log.debug "response: ${response?.json}"
     if (response.hasError()) {
         // log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorMessage()}"
+        return
     } else {
         sData = response?.json
         sData = sData?.playerInfo ?: [:]
+    }
+    if (state?.isGroupPlaying && !isGroupResponse) {
+        log.debug "ignoring getPlaybackState because group is playing here"
+        return
     }
     // log.trace "getPlaybackStateHandler: ${sData}"
     String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
@@ -583,6 +591,10 @@ def getPlaybackStateHandler(response, data) {
     // log.debug "deviceStatus: ${deviceStatus}"
     if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
         log.trace "Status Changed to ${playState}"
+        isPlayStateChange = true
+        if (isGroupResponse) { 
+            state?.isGroupPlaying = (sData?.state == 'PLAYING')
+        }
         sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
         sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
     }
@@ -608,7 +620,8 @@ def getPlaybackStateHandler(response, data) {
         sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
     }
 
-    if(sData?.volume) {
+    // Group response data never has valida data for volume
+    if(!isGroupResponse && sData?.volume) {
         if(sData?.volume?.volume != null) {
             Integer level = sData?.volume?.volume
             if(level < 0) { level = 0 }
@@ -627,6 +640,11 @@ def getPlaybackStateHandler(response, data) {
             }
         }
     }
+    // Update cluster (unless we remain paused)
+    if (state?.hasClusterMembers && (sData?.state == 'PLAYING' || isPlayStateChange)) {
+        parent.sendPlaybackStateToClusterMembers(state?.serialNumber, response, data)
+    }
+
 }
 
 private getAlarmVolume() {
@@ -749,7 +767,10 @@ private getPlaylists() {
 }
 
 def getPlaylistsHandler(response, data) {
-    if (response.hasError()) { log.error "getPlaylistsHandler Error: ${response.getErrorMessage()}" }
+    if (response.hasError()) {
+        log.error "getPlaylistsHandler Error: ${response.getErrorMessage()}"
+        return
+    }
     def sData = response?.json
     // log.trace "updatePlaylists: ${sData}"
     Map playlists = sData?.playlists ?: [:]
@@ -775,7 +796,10 @@ private getMusicProviders() {
 }
 
 def getMusicProvidersHandler(response, data) {
-    if (response.hasError()) { log.error "getMusicProvidersHandler Error: ${response.getErrorMessage()}" }
+    if (response.hasError()) {
+        log.error "getMusicProvidersHandler Error: ${response.getErrorMessage()}"
+        return
+    }
     def sData = response?.json
     // log.trace "updateMusicProviders: ${sData}"
     Map items = [:]
