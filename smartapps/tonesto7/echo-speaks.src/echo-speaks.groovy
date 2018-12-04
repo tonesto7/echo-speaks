@@ -19,7 +19,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "2.0.4" }
-String appModified() { return "2018-12-03" } 
+String appModified() { return "2018-12-04" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -84,6 +84,8 @@ public getDeviceStyle(String family, String type) {
         case "A2M4YX06LWP8WI": return [name: "Fire Tablet 7 (Gen5)", image: "amazon_tablet", allowTTS: true]
         case "A38EHHIB10L47V": return [name: "Fire Tablet HD 8", image: "tablet_hd10", allowTTS: true]
         case "A3R9S4ZZECZ6YL": return [name: "Fire Tablet HD 10", image: "tablet_hd10", allowTTS: true]
+        //OneLink Safe and Sound\\
+        case "A1M0A9L9HDBID3": return [name: "One-Link Safe and Sound", image: "one-link", allowTTS: true]
         //MULTIROOM\\
         case "A3C9PE6TNYLTCH": return [name: "Multiroom", image: "echo_wha", allowTTS: false]
         //SONOS\\
