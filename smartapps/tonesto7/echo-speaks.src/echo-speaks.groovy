@@ -25,7 +25,7 @@ Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 202, server: 201]
+    return [echoDevice: 204, server: 201]
 }
 
 definition(
@@ -55,48 +55,11 @@ preferences {
 }
 
 public getDeviceStyle(String family, String type) {
-    switch(type) {
-        //ECHOS - SPEAKERS\\
-	    case "A38949IHXHRQ5P": return [name: "Echo Tap", image: "echo_tap", allowTTS: true]
-        case "AB72C64C86AW2" : return [name: "Echo (Gen1)", image: "echo_gen1", allowTTS: true]
-        case "A7WXQPH584YP"  : return [name: "Echo (Gen2)", image: "echo_gen2", allowTTS: true]
-        case "A2M35JJZWCQOMZ": return [name: "Echo Plus (Gen1)", image: "echo_plus_gen1", allowTTS: true]
-        case "A18O6U1UQFJ0XK": return [name: "Echo Plus (Gen2)", image: "echo_plus_gen2", allowTTS: true]
-        case "A3SSG6GR8UU7SN": return [name: "Echo Sub", image: "echo_sub_gen1", allowTTS: true]
-        case "AKNO1N0KSFN8L" : return [name: "Echo Dot (Gen1)", image: "echo_dot_gen1", allowTTS: true]
-        case "A3S5BH2HU6VAYF": return [name: "Echo Dot (Gen2)", image: "echo_dot_gen2", allowTTS: true]
-        case "A32DOYMUN6DTXA": return [name: "Echo Dot (Gen3)", image: "echo_dot_gen3", allowTTS: true]
-        //ECHOS - SCREENS\\
-        case "A10A33FOX2NUBK": return [name: "Echo Spot", image: "echo_spot_gen1", allowTTS: true]
-        case "A1NL4BVLQ4L3N3": return [name: "Echo Show (Gen1)", image: "echo_show_gen1", allowTTS: true]
-        case "AWZZ5CVHX2CD"  : return [name: "Echo Show (Gen2)", image: "echo_show_gen2", allowTTS: true]
-        //FIRE TVs\\
-	    case "A12GXV8XMS007S": return [name: "Fire TV (Gen1)", image: "firetv_gen1", allowTTS: true]
-        case "A2E0SNTXJVT7WK": return [name: "Fire TV (Gen2)", image: "firetv_gen1", allowTTS: true]
-        case "A2GFL5ZMWNE0PX": return [name: "Fire TV (Gen3)", image: "firetv_gen1", allowTTS: true]
-        case "ADVBD696BHNV5" : return [name: "Fire TV Stick (Gen1)", image: "firetv_stick_gen1", allowTTS: true]
-        case "A2LWARUGJLBYEW": return [name: "Fire TV Stick (Gen2)", image: "firetv_stick_gen1", allowTTS: true]
-        case "AKPGW064GI9HE" : return [name: "Fire TV Stick 4K (Gen3)", image: "firetv_stick_gen1", allowTTS: true] 
-        case "A3HF4YRA2L7XGC": return [name: "Fire TV Cube", image: "firetv_cube", allowTTS: true]
-        //TABLETS\\
-        case "A2M4YX06LWP8WI": return [name: "Fire Tablet", image: "amazon_tablet", allowTTS: true]
-        case "A1J16TEDOYCZTN": return [name: "Fire Tablet", image: "amazon_tablet", allowTTS: true]
-        case "A2M4YX06LWP8WI": return [name: "Fire Tablet 7 (Gen5)", image: "amazon_tablet", allowTTS: true]
-        case "A38EHHIB10L47V": return [name: "Fire Tablet HD 8", image: "tablet_hd10", allowTTS: true]
-        case "A3R9S4ZZECZ6YL": return [name: "Fire Tablet HD 10", image: "tablet_hd10", allowTTS: true]
-        //OneLink Safe and Sound\\
-        case "A1M0A9L9HDBID3": return [name: "One-Link Safe and Sound", image: "one-link", allowTTS: true]
-        //MULTIROOM\\
-        case "A3C9PE6TNYLTCH": return [name: "Multiroom", image: "echo_wha", allowTTS: false]
-        //SONOS\\
-        case "A15ERDAKK5HQQG": return [name: "Sonos", image: "sonos_generic", allowTTS: false]
-        case "A2OSP3UA4VC85F": return [name: "Sonos", image: "sonos_generic", allowTTS: false]
-        case "A3NPD82ABCPIDP": return [name: "Sonos Beam", image: "sonos_beam", allowTTS: true]
-        //OTHER\\
-        case "A18BI6KPKDOEI4": return [name: "Ecobee4", image: "ecobee4", allowTTS: true]
-        case "A1N9SW0I0LUX5Y": return [name: "Dash Wand", image: "dash_wand", allowTTS: false]
-        default: return [name: "Echo Unknown $type", image: "unknown", allowTTS: false]
-    }
+    if(!state?.appData) { checkVersionData(true) }
+    Map typeData = state?.appData?.deviceSupport ?: [:]
+    if(typeData[type]) {
+        return typeData[type]
+    } else { return [name: "Echo Unknown $type", image: "unknown", allowTTS: false] }
 }
 
 def appInfoSect(sect=true)	{
@@ -106,9 +69,7 @@ def appInfoSect(sect=true)	{
     str += "\nVersion: ${appVersion()}"
     section() { 
         href "changeLogPage", title: "", description: str, image: getAppImg("echo_speaks.2x.png")
-        if(state?.customerName) {
-            paragraph "Hello, ${state?.customerName}"
-        }
+        if(state?.customerName) { paragraph "Hello, ${state?.customerName}" }
     }
 }
 
@@ -660,6 +621,7 @@ String getEnvParamsStr() {
 
 private checkIfCodeUpdated() {
     if(state?.codeVersions && state?.codeVersions?.mainApp != appVersion()) {
+        checkVersionData(true)
         log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
         state?.pollBlocked = true
         updCodeVerMap()
@@ -937,6 +899,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["regionLocale"] = (settings?.regionLocale ?: "en-US")
                     echoValue["cookie"] = state?.cookie
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
+                    log.debug "deviceStyle: ${echoValue?.deviceStyle}"
         
                     Boolean allowTTS = (echoValue?.deviceStyle?.allowTTS == true)
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
