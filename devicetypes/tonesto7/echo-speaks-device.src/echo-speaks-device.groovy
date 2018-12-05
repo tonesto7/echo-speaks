@@ -351,8 +351,7 @@ Boolean isAuthOk() {
 
 Boolean isCommandTypeAllowed(String type, noLogs=false) {
     Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
-    // if(!isOnline) { if(!noLogs) { log.warn "Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})" }; return false; }
-    log.debug "DoNotDisturb: ${state?.doNotDisturb}"
+    if(!isOnline) { if(!noLogs) { log.warn "Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})" }; return false; }
     if(!getAmazonDomain()) { if(!noLogs) { log.warn "amazonDomain State Value Missing: ${getAmazonDomain()}" }; return false }
     if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { if(!noLogs) { log.warn "Amazon Cookie State Values Missing: ${state?.cookie}" }; return false }
     if(!state?.serialNumber) { if(!noLogs) { log.warn "SerialNumber State Value Missing: ${state?.serialNumber}" }; return false }
@@ -509,7 +508,8 @@ void updateDeviceStatus(Map devData) {
 
 void refresh() {
     log.trace "refresh()"
-    refreshData()
+    parent?.childInitiatedRefresh()
+    // refreshData()
 }
 
 private stateCleanup() {
@@ -528,8 +528,11 @@ public schedDataRefresh(frc) {
 
 private refreshData() {
     logger("trace", "refreshData()...")
+    if(device?.currentValue("onlineStatus") != "online") { 
+        log.warn "Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)"
+        return 
+    }
     logger("trace", "permissions: ${state?.permissions}")
-    if(device?.currentValue("onlineStatus") != "online") { return }
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
         getPlaylists()
@@ -597,7 +600,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     // log.debug "response: ${response?.json}"
     if (response.hasError()) {
         // log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorMessage()}"
-        // log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorJson()}"
+        //if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorJson()}" }
         return
     } else {
         sData = response?.json
@@ -688,7 +691,7 @@ def getAlarmVolumeHandler(response, data) {
         //notihing to see here
     }
     if (response.hasError()) { 
-        log.error "getAlarmVolumeHandler Error: ${response.getErrorJson()}" 
+        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getAlarmVolumeHandler Error: ${response.getErrorJson()}" }
     }
     def sData = response?.json
     logger("trace", "getAlarmVolume: $sData")
@@ -712,7 +715,9 @@ private getWakeWord() {
 }
 
 def getWakeWordHandler(response, data) {
-    if (response.hasError()) { log.error "getWakeWordHandler Error: ${response.getErrorMessage()}" }
+    if (response.hasError()) { 
+        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getWakeWordHandler Error: ${response.getErrorMessage()}" } 
+    }
     def sData = response?.json
     // log.debug "sData: $sData"
     def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
@@ -747,7 +752,9 @@ def getAvailableWakeWordsHandler(response, data) {
     } catch (e) { 
         //notihing to see here
     }
-    if (response.hasError()) { log.error "getAvailableWakeWordsHandler Error: ${response.getErrorMessage()}" }
+    if (response.hasError()) { 
+        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getAvailableWakeWordsHandler Error: ${response.getErrorMessage()}" } 
+    }
     def sData = response?.json
     def wakeWords = sData?.wakeWords ?: []
     logger("trace", "getAvailableWakeWords: ${wakeWords}")
@@ -775,7 +782,9 @@ def getDoNotDisturbHandler(response, data) {
     } catch (e) { 
         //notihing to see here
     }
-    if (response.hasError()) { log.error "getDoNotDisturbHandler Error: ${response.getErrorMessage()}" }
+    if (response.hasError()) { 
+        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getDoNotDisturbHandler Error: ${response.getErrorMessage()}" } 
+    }
     def sData = response?.json
     def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
     logger("trace", "getDoNotDisturb: $dndData")
@@ -812,8 +821,8 @@ def getPlaylistsHandler(response, data) {
         //notihing to see here
     }
     if (response.hasError()) {
-        log.error "getPlaylistsHandler Error: ${response.getErrorMessage()}"
-        return
+        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getPlaylistsHandler Error: ${response.getErrorMessage()}" }
+        // return
     }
     def sData = response?.json
     logger("trace", "getPlaylists: ${sData}")
@@ -846,8 +855,8 @@ def getMusicProvidersHandler(response, data) {
         //notihing to see here
     }
     if (response.hasError()) {
-        log.error "getMusicProvidersHandler Error: ${response.getErrorMessage()}"
-        return
+        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getMusicProvidersHandler Error: ${response.getErrorMessage()}" }
+        // return
     }
     def sData = response?.json
     logger("trace", "getMusicProviders: ${sData}")
@@ -883,7 +892,9 @@ def getNotificationsHandler(response, data) {
     } catch (e) { 
         //notihing to see here
     }
-    if (response.hasError()) { log.error "getNotificationsHandler Error: ${response.getErrorMessage()}" }
+    if (response.hasError()) { 
+        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getNotificationsHandler Error: ${response.getErrorMessage()}" }
+    }
     List newList = []
     if(response?.getStatus() == 200) {
         def sData = response?.json
