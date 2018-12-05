@@ -19,7 +19,7 @@ include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
 String appVersion()	 { return "2.0.4" }
-String appModified() { return "2018-12-04" } 
+String appModified() { return "2018-12-05" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -535,9 +535,7 @@ def setNotificationTimePage() {
 
 def uninstallPage() {
     dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
-        section("") {
-            paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove."
-        }
+        section("") { paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
         remove("Remove ${app?.label} and Devices!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis App and Devices will be removed")
     }
 }
@@ -899,7 +897,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["regionLocale"] = (settings?.regionLocale ?: "en-US")
                     echoValue["cookie"] = state?.cookie
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
-                    log.debug "deviceStyle: ${echoValue?.deviceStyle}"
+                    // log.debug "deviceStyle: ${echoValue?.deviceStyle}"
         
                     Boolean allowTTS = (echoValue?.deviceStyle?.allowTTS == true)
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))

@@ -18,8 +18,8 @@ import groovy.json.*
 import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "2.0.4"}
-String devModified() { return "2018-12-04" }
+String devVersion() { return "2.0.5"}
+String devModified() { return "2018-12-05" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -286,7 +286,6 @@ metadata {
         section("Preferences") {
             input "showLogs", "bool", required: false, title: "Show Debug Logs?", defaultValue: false
             input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
-            input "restoreVolDelay", "number", required: false, title: "Restore Volume Delay (Seconds)", defaultValue: 10
         }
     }
 }
@@ -304,6 +303,7 @@ def installed() {
     sendEvent(name: "onlineStatus", value: "online")
     sendEvent(name: "alarmVolume", value: 0)
     sendEvent(name: "alexaWakeWord", value: "")
+    state?.doNotDisturb = false
     initialize()
 }
 
@@ -352,12 +352,14 @@ Boolean isAuthOk() {
 Boolean isCommandTypeAllowed(String type, noLogs=false) {
     Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
     // if(!isOnline) { if(!noLogs) { log.warn "Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})" }; return false; }
+    log.debug "DoNotDisturb: ${state?.doNotDisturb}"
     if(!getAmazonDomain()) { if(!noLogs) { log.warn "amazonDomain State Value Missing: ${getAmazonDomain()}" }; return false }
     if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { if(!noLogs) { log.warn "Amazon Cookie State Values Missing: ${state?.cookie}" }; return false }
     if(!state?.serialNumber) { if(!noLogs) { log.warn "SerialNumber State Value Missing: ${state?.serialNumber}" }; return false }
     if(!state?.deviceType) { if(!noLogs) { log.warn "DeviceType State Value Missing: ${state?.deviceType}" }; return false }
     if(!state?.deviceOwnerCustomerId) { if(!noLogs) { log.warn "OwnerCustomerId State Value Missing: ${state?.deviceOwnerCustomerId}" }; return false }
     if(!type || state?.permissions == null) { if(!noLogs) { log.warn "Permissions State Object Missing: ${state?.permissions}" }; return false }
+    if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord"]))) { if(!noLogs) { log.warn "No Voice Output Blocked While Do Not Disturb is ON" }; return false }
     if(state?.permissions?.containsKey(type) && state?.permissions[type] == true) { return true }
     else {
         String warnMsg = null
@@ -525,7 +527,8 @@ public schedDataRefresh(frc) {
 }
 
 private refreshData() {
-    // log.trace "permissions: ${state?.permissions}"
+    logger("trace", "refreshData()...")
+    logger("trace", "permissions: ${state?.permissions}")
     if(device?.currentValue("onlineStatus") != "online") { return }
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
@@ -604,7 +607,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
         log.debug "ignoring getPlaybackState because group is playing here"
         return
     }
-    // log.trace "getPlaybackStateHandler: ${sData}"
+    logger("trace", "getPlaybackState: ${sData}")
     String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
     String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
     // log.debug "deviceStatus: ${deviceStatus}"
@@ -688,7 +691,7 @@ def getAlarmVolumeHandler(response, data) {
         log.error "getAlarmVolumeHandler Error: ${response.getErrorJson()}" 
     }
     def sData = response?.json
-    // log.debug "sData: $sData"
+    logger("trace", "getAlarmVolume: $sData")
     if(isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
         log.trace "Alarm Volume Changed to ${(sData?.volumeLevel ?: 0)}"
         sendEvent(name: "alarmVolume", value: (sData?.volumeLevel ?: 0), display: false, displayed: false)
@@ -713,7 +716,7 @@ def getWakeWordHandler(response, data) {
     def sData = response?.json
     // log.debug "sData: $sData"
     def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
-    // log.trace "updateWakeWord: ${wakeWord?.wakeWord}"
+    logger("trace", "getWakeWord: ${wakeWord?.wakeWord}")
     if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
         log.trace "Wake Word Changed to ${(wakeWord?.wakeWord)}"
         sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
@@ -739,17 +742,22 @@ private getAvailableWakeWords() {
 }
 
 def getAvailableWakeWordsHandler(response, data) {
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     if (response.hasError()) { log.error "getAvailableWakeWordsHandler Error: ${response.getErrorMessage()}" }
     def sData = response?.json
     def wakeWords = sData?.wakeWords ?: []
-    // log.trace "updateAvailableWakeWords: ${wakeWords}"
+    logger("trace", "getAvailableWakeWords: ${wakeWords}")
     if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
         sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
     }
 }
 
 private getDoNotDisturb() {
-    asynchttp_v1.get(getDndStatusHandler, [
+    asynchttp_v1.get(getDoNotDisturbHandler, [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
         headers: [
@@ -762,12 +770,18 @@ private getDoNotDisturb() {
 }
 
 def getDoNotDisturbHandler(response, data) {
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     if (response.hasError()) { log.error "getDoNotDisturbHandler Error: ${response.getErrorMessage()}" }
     def sData = response?.json
     def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
-    // log.debug "dndData: $dndData"
+    logger("trace", "getDoNotDisturb: $dndData")
+    state?.doNotDisturb = (dndData?.enabled == true)
     if(isStateChange(device, "doNotDisturb", (dndData?.enabled == true)?.toString())) {
-        log.debug "Do Not Disturb: ${(dndData?.enabled == true)}"
+        log.info "Do Not Disturb: (${(dndData?.enabled == true)})"
         sendEvent(name: "doNotDisturb", value: (dndData?.enabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndData?.enabled == true)}", display: true, displayed: true)
     }
 }
@@ -802,7 +816,7 @@ def getPlaylistsHandler(response, data) {
         return
     }
     def sData = response?.json
-    // log.trace "updatePlaylists: ${sData}"
+    logger("trace", "getPlaylists: ${sData}")
     Map playlists = sData?.playlists ?: [:]
     if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
         log.trace "Alexa Playlists Changed to ${playlists}"
@@ -836,7 +850,7 @@ def getMusicProvidersHandler(response, data) {
         return
     }
     def sData = response?.json
-    // log.trace "updateMusicProviders: ${sData}"
+    logger("trace", "getMusicProviders: ${sData}")
     Map items = [:]
     if(sData?.size()) {
         sData?.findAll { it?.availability == "AVAILABLE" }?.each { item->
@@ -1145,9 +1159,9 @@ def deviceNotification(String msg) {
     }
 }
 
-def setVolumeAndSpeak(Integer volume, String msg) {
+def setVolumeAndSpeak(volume, String msg) {
     logger("trace", "setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
-    if(volume && permissionOk("volumeControl")) { 
+    if(volume && volume?.isNumber() && permissionOk("volumeControl")) { 
         state?.useThisVolume = volume
         sendEvent(name: "level", value: volume, display: false, displayed: false)
         sendEvent(name: "volume", value: volume, display: false, displayed: false)
@@ -1156,22 +1170,19 @@ def setVolumeAndSpeak(Integer volume, String msg) {
     speak(msg)
 }
 
-def setVolumeSpeakAndRestore(Integer volume, String msg) {
-    logger("trace", "setVolumeSpeakAndRestore(volume: $volume, msg: $msg) command received...")
+def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
+    logger("trace", "setVolumeSpeakAndRestore(volume: $volume, msg: $msg, restVolume) command received...")
     if(msg) {
-        // Integer restoreDelay = getRecheckDelay(msg?.toString()?.length())
-        if(volume && permissionOk("volumeControl")) {
+        if(volume && volume?.isNumber() && permissionOk("volumeControl")) {
             state?.useThisVolume = volume
-            storeLastVolume()
+            if(restVolume && restVolume?.isNumber()) { 
+                state?.lastVolume = restVolume as Integer
+            } else { storeLastVolume() }
             sendEvent(name: "level", value: volume, display: false, displayed: false)
             sendEvent(name: "volume", value: volume, display: false, displayed: false)
             incrementCntByKey("use_cnt_setVolumeSpeakRestore")
         }
         speak(msg)
-        if(volume && restoreDelay && permissionOk("volumeControl")) {
-            // log.debug "Scheduling Volume (${state?.lastVolume}) Restore in ${(restoreDelay + (settings?.restoreLastVolume ?: 10)?.toInteger())} seconds"
-            runIn((settings?.restoreLastVolume ?: 10), "restoreLastVolume")
-        }
     }
 }
 
@@ -1624,7 +1635,7 @@ void processCmdQueue() {
         cmdData?.headers["queueKey"] = cmdKey
         Integer loopChkCnt = state?.loopChkCnt ?: 0
         if(state?.lastTtsMsg == cmdData?.headers?.message && (getLastTtsCmdSec() <= 10)) { state?.loopChkCnt = (loopChkCnt >= 1) ? loopChkCnt++ : 1 }
-        log.debug "loopChkCnt: ${state?.loopChkCnt}"
+        // log.debug "loopChkCnt: ${state?.loopChkCnt}"
         if(state?.loopChkCnt && (state?.loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
             state?.remove(cmdKey as String)
             log.trace "processCmdQueue | Possible loop detected... Last message the same as current sent less than 10 seconds ago. This message will be removed from the queue"
@@ -1700,7 +1711,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
             logItems?.push("│ Rechecking: (${recheckDelay} seconds)")
             logItems?.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : ""}")
             state?.lastTtsMsg = headers?.message
-            state?.lastTtsCmdDt = getDtNow()
+            // state?.lastTtsCmdDt = getDtNow()
         }
         if(headerMap?.oldVolume) {logItems?.push("│ Restore Volume: (${headerMap?.oldVolume}%)") }
         if(headerMap?.newVolume) {logItems?.push("│ New Volume: (${headerMap?.newVolume}%)") }
@@ -1761,6 +1772,7 @@ private postCmdProcess(resp, statusCode, data) {
             log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully | Execution Time (${execTime}ms)${data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""}${showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""}${data?.cmdId ? " | CmdID: (${data?.cmdId})" : ""}"
             if(data?.queueKey) { state?.remove(data?.queueKey as String) }
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
+                state?.lastTtsCmdDt = getDtNow()
                 String lastMsg = data?.message as String ?: "Nothing to Show Here..."
                 sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
                 sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
