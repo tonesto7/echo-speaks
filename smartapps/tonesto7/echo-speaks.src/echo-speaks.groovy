@@ -18,8 +18,8 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String platform() { return "SmartThings" }
-String appVersion()	 { return "2.0.4" }
-String appModified() { return "2018-12-04" } 
+String appVersion()	 { return "2.0.5" }
+String appModified() { return "2018-12-05" } 
 String appAuthor()	 { return "Anthony Santilli" }
 Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -535,9 +535,7 @@ def setNotificationTimePage() {
 
 def uninstallPage() {
     dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
-        section("") {
-            paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove."
-        }
+        section("") { paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
         remove("Remove ${app?.label} and Devices!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis App and Devices will be removed")
     }
 }
@@ -564,7 +562,7 @@ def initialize() {
     if(!state?.resumeConfig) {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
         stateCleanup()
-        runEvery15Minutes("getEchoDevices") //This will reload the device list from Amazon
+        runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         validateCookie(true)
         runIn(15, "reInitDevices")
         getEchoDevices()
@@ -641,6 +639,7 @@ private stateCleanup() {
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
+    state?.deviceRefreshInProgress = false
 }
 
 def onAppTouch(evt) {
@@ -813,6 +812,17 @@ private makeSyncronousReq(params, method="get", src, showLogs=false) {
     }
 }
 
+public childInitiatedRefresh() {
+    Integer lastRfsh = getLastChildInitRefreshSec()
+    if(state?.deviceRefreshInProgress != true && lastRfsh > 120) {
+        log.debug "A Child Device is requesting a Device List Refresh..."
+        state?.lastChildInitRefreshDt = getDtNow()
+        runIn(3, "getEchoDevices")
+    } else {
+        log.warn "childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)"
+    }
+}
+
 private getEchoDevices() {
     if(!isAuthValid()) { return }
     def params = [
@@ -826,6 +836,7 @@ private getEchoDevices() {
         requestContentType: "application/json",
         contentType: "application/json",
     ]
+    state?.deviceRefreshInProgress = true
     asynchttp_v1.get(echoDevicesResponse, params, [execDt: now()])
 }
 
@@ -834,6 +845,7 @@ def echoDevicesResponse(response, data) {
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     try {
         // log.debug "json response is: ${response.json}"
+        state?.deviceRefreshInProgress=false
         List eDevData = response?.json?.devices ?: []
         Map echoDevices = [:]
         
@@ -899,7 +911,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["regionLocale"] = (settings?.regionLocale ?: "en-US")
                     echoValue["cookie"] = state?.cookie
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
-                    log.debug "deviceStyle: ${echoValue?.deviceStyle}"
+                    // log.debug "deviceStyle: ${echoValue?.deviceStyle}"
         
                     Boolean allowTTS = (echoValue?.deviceStyle?.allowTTS == true)
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
@@ -1147,6 +1159,7 @@ Integer getLastMisPollMsgSec() { return !state?.lastMisPollMsgDt ? 100000 : GetT
 Integer getLastVerUpdSec() { return !state?.lastVerUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastVerUpdDt, "getLastVerUpdSec").toInteger() }
 Integer getLastDevicePollSec() { return !state?.lastDevDataUpd ? 840 : GetTimeDiffSeconds(state?.lastDevDataUpd, "getLastDevicePollSec").toInteger() }
 Integer getLastCookieChkSec() { return !state?.lastCookieChkDt ? 3600 : GetTimeDiffSeconds(state?.lastCookieChkDt, "getLastCookieChkSec").toInteger() }
+Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state?.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 Boolean getOk2Notify() { 
     Boolean smsOk = (settings?.smsNumbers?.toString()?.length()>=10)
     Boolean pushOk = settings?.usePush

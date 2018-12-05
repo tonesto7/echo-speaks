@@ -1,3 +1,20 @@
+V2.0.5 (December 5th, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • UPDATED: Increased Full Device Polling from every 15 to every 10 minutes
+ • UPDATED: Device Style table is now remotely updatable via the appData.json file used for version info (v2.0.4).
+
+Device:
+ • ADDED: Refresh now sends triggers the smartapp to refresh the device list.
+ • ADDED: Devices prevent any speech while DoNotDisturb is enabled.
+ • ADDED: Devices now prevent commands while device is marked as offline. (Offline Status updates every 10 minutes)
+ • UPDATED: setVolumeSpeakAndRestore() now supports an optional 3rd parameter for the restore volume.  If it's not sent it will just use the old volume.
+ • UPDATED: Debug Logging data is more detailed for troubleshooting.
+ • FIXED: DoNotDisturb Status has been broken since v2 release. It's now fixed.
+
+Server (v2.0.2):
+ • FIXED: Web Interactions are now all via https:// (SSL)
+
 V2.0.2 (December 3rd, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
