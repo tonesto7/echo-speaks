@@ -18,8 +18,8 @@ import groovy.json.*
 import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "2.0.3"}
-String devModified() { return "2018-12-03" }
+String devVersion() { return "2.0.4"}
+String devModified() { return "2018-12-04" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -190,6 +190,10 @@ metadata {
             state("playing_echo_wha", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_wha.png", backgroundColor: "#00a0dc")
             state("stopped_echo_wha", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_wha.png")
 
+            state("paused_one_link", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/one_link.png", backgroundColor: "#cccccc")
+            state("playing_one_link", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/one_link.png", backgroundColor: "#00a0dc")
+            state("stopped_one_link", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/one_link.png")
+            
             state("paused_sonos_generic", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/sonos_generic.png", backgroundColor: "#cccccc")
             state("playing_sonos_generic", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/sonos_generic.png", backgroundColor: "#00a0dc")
             state("stopped_sonos_generic", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/sonos_generic.png")
@@ -313,8 +317,10 @@ def initialize() {
     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
     sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
     resetQueue()
+    stateCleanup()
     schedDataRefresh(true)
     refreshData()
+
 }
 
 public triggerInitialize() {
@@ -504,6 +510,13 @@ void refresh() {
     refreshData()
 }
 
+private stateCleanup() {
+    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "serviceHost", "allowDnD", "allowReminders"]
+    items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
+    state?.pollBlocked = false
+    state?.resumeConfig = false
+}
+
 public schedDataRefresh(frc) {
     if(frc || state?.refreshScheduled != true) {
         runEvery1Minute("refreshData")
@@ -512,6 +525,7 @@ public schedDataRefresh(frc) {
 }
 
 private refreshData() {
+    // log.trace "permissions: ${state?.permissions}"
     if(device?.currentValue("onlineStatus") != "online") { return }
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
@@ -570,6 +584,11 @@ private getPlaybackState() {
 }
 
 def getPlaybackStateHandler(response, data, isGroupResponse=false) {
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     def sData = [:]
     def isPlayStateChange = false;
     // log.debug "response: ${response?.json}"
@@ -660,7 +679,11 @@ private getAlarmVolume() {
 }
 
 def getAlarmVolumeHandler(response, data) {
-    try { } catch (e) { }
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     if (response.hasError()) { 
         log.error "getAlarmVolumeHandler Error: ${response.getErrorJson()}" 
     }
@@ -769,6 +792,11 @@ private getPlaylists() {
 }
 
 def getPlaylistsHandler(response, data) {
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     if (response.hasError()) {
         log.error "getPlaylistsHandler Error: ${response.getErrorMessage()}"
         return
@@ -798,6 +826,11 @@ private getMusicProviders() {
 }
 
 def getMusicProvidersHandler(response, data) {
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     if (response.hasError()) {
         log.error "getMusicProvidersHandler Error: ${response.getErrorMessage()}"
         return
@@ -831,6 +864,11 @@ private getNotifications() {
 }
 
 def getNotificationsHandler(response, data) {
+    try { 
+        //notihing to see here
+    } catch (e) { 
+        //notihing to see here
+    }
     if (response.hasError()) { log.error "getNotificationsHandler Error: ${response.getErrorMessage()}" }
     List newList = []
     if(response?.getStatus() == 200) {
@@ -952,9 +990,10 @@ def pause() {
 }
 
 def stop() {
+    log.debug "stop..."
     logger("trace", "stop() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
-        sendAmazonBasicCommand("StopCommand")
+        sendAmazonBasicCommand("PauseCommand")
         incrementCntByKey("use_cnt_stopCmd")
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)

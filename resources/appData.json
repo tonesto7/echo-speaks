@@ -24,7 +24,6 @@
             "image": "echo_tap",
             "allowTTS": true
         },
-
         "AB72C64C86AW2": {
             "name": "Echo (Gen1)",
             "image": "echo_gen1",
