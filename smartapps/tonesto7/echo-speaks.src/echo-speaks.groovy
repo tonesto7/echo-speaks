@@ -1286,7 +1286,7 @@ def changeLogPage() {
     def execTime = now()
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
-            paragraph title: "What's New in this Release...", "", state: "complete", image: getAppImg("whats_new_icon.png")
+            paragraph title: "What's New in this Release...", "", state: "complete", image: getAppImg("whats_new.png")
             paragraph changeLogData()
         }
         Map iData = atomicState?.installData
