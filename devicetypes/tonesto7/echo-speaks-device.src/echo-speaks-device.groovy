@@ -600,7 +600,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     // log.debug "response: ${response?.json}"
     if (response.hasError()) {
         // log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorMessage()}"
-        //if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorJson()}" }
+        //if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorJson()}" }
         return
     } else {
         sData = response?.json
@@ -691,7 +691,7 @@ def getAlarmVolumeHandler(response, data) {
         //notihing to see here
     }
     if (response.hasError()) { 
-        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getAlarmVolumeHandler Error: ${response.getErrorJson()}" }
+        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getAlarmVolumeHandler Error: ${response.getErrorJson()}" }
     }
     def sData = response?.json
     logger("trace", "getAlarmVolume: $sData")
@@ -716,7 +716,7 @@ private getWakeWord() {
 
 def getWakeWordHandler(response, data) {
     if (response.hasError()) { 
-        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getWakeWordHandler Error: ${response.getErrorMessage()}" } 
+        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getWakeWordHandler Error: ${response.getErrorMessage()}" } 
     }
     def sData = response?.json
     // log.debug "sData: $sData"
@@ -753,7 +753,7 @@ def getAvailableWakeWordsHandler(response, data) {
         //notihing to see here
     }
     if (response.hasError()) { 
-        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getAvailableWakeWordsHandler Error: ${response.getErrorMessage()}" } 
+        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getAvailableWakeWordsHandler Error: ${response.getErrorMessage()}" } 
     }
     def sData = response?.json
     def wakeWords = sData?.wakeWords ?: []
@@ -783,7 +783,7 @@ def getDoNotDisturbHandler(response, data) {
         //notihing to see here
     }
     if (response.hasError()) { 
-        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getDoNotDisturbHandler Error: ${response.getErrorMessage()}" } 
+        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getDoNotDisturbHandler Error: ${response.getErrorMessage()}" } 
     }
     def sData = response?.json
     def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
@@ -821,7 +821,7 @@ def getPlaylistsHandler(response, data) {
         //notihing to see here
     }
     if (response.hasError()) {
-        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getPlaylistsHandler Error: ${response.getErrorMessage()}" }
+        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getPlaylistsHandler Error: ${response.getErrorMessage()}" }
         // return
     }
     def sData = response?.json
@@ -855,7 +855,7 @@ def getMusicProvidersHandler(response, data) {
         //notihing to see here
     }
     if (response.hasError()) {
-        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getMusicProvidersHandler Error: ${response.getErrorMessage()}" }
+        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getMusicProvidersHandler Error: ${response.getErrorMessage()}" }
         // return
     }
     def sData = response?.json
@@ -893,7 +893,7 @@ def getNotificationsHandler(response, data) {
         //notihing to see here
     }
     if (response.hasError()) { 
-        if(response?.statusCode >= 400 && response?.statusCode < 500) { log.error "getNotificationsHandler Error: ${response.getErrorMessage()}" }
+        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getNotificationsHandler Error: ${response.getErrorMessage()}" }
     }
     List newList = []
     if(response?.getStatus() == 200) {
