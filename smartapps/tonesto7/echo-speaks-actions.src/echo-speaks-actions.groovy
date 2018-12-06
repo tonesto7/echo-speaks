@@ -18,11 +18,9 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String platform() { return "SmartThings" }
 String appVersion()	 { return "2.0.5" }
 String appModified() { return "2018-12-06" } 
 String appAuthor()	 { return "Anthony Santilli" }
-Boolean isST() { return (platform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 
@@ -30,7 +28,7 @@ definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
     author: "Anthony Santilli",
-    description: "Allow you to create virtual echo devices and send tts to them in SmartThings",
+    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllow you to create echo device actions based on Events in your SmartThings home",
     category: "My Apps",
     parent: "tonesto7:Echo Speaks",
     iconUrl: getAppImg("echo_speaks.1x.png"),
@@ -75,31 +73,28 @@ def appInfoSect(sect=true)	{
     str += "\nAuthor: ${appAuthor()}"
     str += "\nVersion: ${appVersion()}"
     section() { 
-        paragraphon str, image: getAppImg("echo_speaks.2x.png")
+        paragraph str, image: getAppImg("echo_speaks.2x.png")
     }
 }
 
 def mainPage() {
     Boolean newInstall = !state?.isInstalled
-    
-    if(state?.resumeConfig) {
-        return servPrefPage()
-    } else if(showChgLogOk()) { 
-        return changeLogPage() 
-    } else {
+    // if(showChgLogOk()) { 
+    //     return changeLogPage() 
+    // } else {
         return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: newInstall, install: !newInstall) {
             appInfoSect()
             
             section("Device Preferences:") {
-                Map devs = getDeviceList(true, false)
-                input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
-                paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
+                // Map devs = getDeviceList(true, false)
+                // input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
+                // paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
             }
             section("Remove Broadcast Group:") {
                 href "uninstallPage", title: "Remove this Group", description: "Tap to Remove...", image: getAppImg("uninstall.png")
             }
         }
-    }
+    // }
 }
 
 def uninstallPage() {

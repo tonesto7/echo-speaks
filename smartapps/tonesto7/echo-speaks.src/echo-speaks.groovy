@@ -17,11 +17,11 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String platform() { return "SmartThings" }
 String appVersion()	 { return "2.0.5" }
-String appModified() { return "2018-12-05" } 
+String appModified() { return "2018-12-06" } 
 String appAuthor()	 { return "Anthony Santilli" }
-Boolean isST() { return (platform() == "SmartThings") }
+String actChildName(){ return "Echo Speaks - Actions" }
+String grpChildName(){ return "Echo Speaks - Groups" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
@@ -43,7 +43,10 @@ definition(
 preferences {
     page(name: "mainPage")
     page(name: "settingsPage")
+    page(name: "devicePrefsPage")
     page(name: "newSetupPage")
+    page(name: "groupsPage")
+    page(name: "actionsPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
     page(name: "changeLogPage")
@@ -74,10 +77,11 @@ def appInfoSect(sect=true)	{
 }
 
 def mainPage() {
+    state?.isParent = true
     def tokenOk = getAccessToken()
     checkVersionData(true)
     Boolean newInstall = !state?.isInstalled
-    
+    state?.childInstallOkFlag = false
     if(state?.resumeConfig) {
         return servPrefPage()
     } else if(showChgLogOk()) { 
@@ -89,35 +93,44 @@ def mainPage() {
                 paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH"
                 return
             }
-            if(!newInstall) {
-                section("Alexa Login Service:") {
-                    def t0 = getServiceConfDesc()
-                    href "servPrefPage", title: "Login Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
-                }
-            }
-            
-            section("Device Preferences:") {
+            section("Alexa Devices:") {
                 if(!newInstall) {
                     List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}" }?.sort()
                     if(devs?.size()) {
-                        href "deviceListPage", title: "Discovered Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
+                        href "deviceListPage", title: "Installed Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                     } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
                 }
-                input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
-                input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
-                input "createWHA", "bool", title: "Create Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha.png")
-                input "createOtherDevices", "bool", title: "Create Other Alexa Enabled Devices?", description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices.png")
-                input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
+                href "devicePrefsPage", title: "Detection Preferences", description: "Tap to configure...", state: "complete", image: getAppImg("devices.png")
+                // input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
+                // input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
+                // input "createWHA", "bool", title: "Create Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha.png")
+                // input "createOtherDevices", "bool", title: "Create Other Alexa Enabled Devices?", description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices.png")
+                // input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
 
-                if(newInstall) {
-                    paragraph title:"Notice:", "Device filtering options will be available once app install is complete.", required: true, state: null
-                } else {
-                    Map devs = getDeviceList(true, false)
-                    input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
-                    paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
-                }
+                // if(newInstall) {
+                //     paragraph title:"Notice:", "Device filtering options will be available once app install is complete.", required: true, state: null
+                // } else {
+                //     Map devs = getDeviceList(true, false)
+                //     input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
+                //     paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
+                // }
             }
             
+            if(!newInstall) {
+                def t1 = null//getInstAutoTypesDesc()
+                def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
+                section("Manage Groups:") {
+                    href "groupsPage", title: "Broadcast Groups", description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups.png")
+                }
+
+                def t2 = null//getInstAutoTypesDesc()
+                def actDesc = t2 ? "${t2}\n\nTap to modify" : null
+                section("Manage Actions:") {
+                    href "actionsPage", title: "Actions", description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions.png")
+                }
+                state?.childInstallOkFlag = true
+            }
+
             section("Notifications:") {
                 def t0 = getAppNotifConfDesc()
                 href "notifPrefPage", title: "App and Device\nNotifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2.png")
@@ -125,6 +138,13 @@ def mainPage() {
             
             section ("Application Preferences") {
                 href "settingsPage", title: "Manage Logging, and Metrics", description: "Tap to modify...", image: getAppImg("settings.png")
+            }
+
+            if(!newInstall) {
+                section("Alexa Login Service:") {
+                    def t0 = getServiceConfDesc()
+                    href "servPrefPage", title: "Login Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
+                }
             }
             
             section ("Broadcasts (Experimental)") {
@@ -142,6 +162,55 @@ def mainPage() {
                 }
             }
         }
+    }
+}
+
+def devicePrefsPage() {
+    return dynamicPage(name: "devicePrefsPage", uninstall: false, install: false) {
+        section("Device Preferences") {
+            input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
+            input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
+            input "createWHA", "bool", title: "Create Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha.png")
+            input "createOtherDevices", "bool", title: "Create Other Alexa Enabled Devices?", description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices.png")
+            input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
+            if(newInstall) {
+                paragraph title:"Notice:", "Device filtering options will be available once app install is complete.", required: true, state: null
+            } else {
+                Map devs = getDeviceList(true, false)
+                input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
+                paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
+            }
+        }
+    }
+}
+
+def groupsPage() {
+    return dynamicPage(name: "groupsPage", uninstall: false, install: false) {
+        def groupApp = findChildAppByName( grpChildName() )
+		if(groupApp) { /*Nothing to add here yet*/ }
+		else {
+			section("") {
+				paragraph "You haven't created any Broadcast Groups yet!\nTap Create New Group to get Started"
+			}
+		}
+		section("") {
+			app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: "Create New Broadcast Group", image: getAppImg("es_groups.png"))
+		}
+    }
+}
+
+def actionsPage() {
+    return dynamicPage(name: "actionsPage", uninstall: false, install: false) {
+        def actionApp = findChildAppByName( actChildName() )
+		if(actionApp) { /*Nothing to add here yet*/ }
+		else {
+			section("") {
+				paragraph "You haven't created any Actions yet!\nTap Create New Action to get Started"
+			}
+		}
+		section("") {
+			app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: "Create New Action", image: getAppImg("es_actions.png"))
+		}
     }
 }
 
@@ -566,6 +635,7 @@ def initialize() {
         validateCookie(true)
         runIn(15, "reInitDevices")
         getEchoDevices()
+        log.debug "Broadcast Groups: ${getBroadcastGrps()}"
     }
 }
 
@@ -575,6 +645,15 @@ def uninstalled() {
     if(settings?.optOutMetrics != true) {
         if(removeInstallData()) { state?.appGuid = null }
     }
+}
+
+public getBroadcastGrps() {
+    Map grps = [:]
+    def groupApps = getChildApps()?.findAll { it?.name == grpChildName() }
+    groupApps?.each { grp->
+        grps[grp?.getId() as String] = grp?.getBroadcastGroupData(true)
+    }
+    return grps
 }
 
 void settingUpdate(name, value, type=null) {
@@ -941,7 +1020,7 @@ def receiveEventData(Map evtData, String src) {
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!") 
                         return
                     }
-                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: (permissions?.mediaPlayer == true), ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers]
+                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey, style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: (permissions?.mediaPlayer == true), ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers]
 
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
@@ -1031,7 +1110,6 @@ private getDevicesFromSerialList(serialNumberList) {
 // This is called by the device handler to send playback data to cluster members
 public sendPlaybackStateToClusterMembers(whaKey, response, data) {
     //log.trace "sendPlaybackStateToClusterMembers: key: ${ whaKey}"
-
     def echoDeviceMap = state?.echoDeviceMap
     def whaMap = echoDeviceMap[whaKey]
     def clusterMembers = whaMap?.clusterMembers
