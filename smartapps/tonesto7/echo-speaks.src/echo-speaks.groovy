@@ -19,7 +19,7 @@ include 'asynchttp_v1'
 
 String appVersion()	 { return "2.0.5" }
 String appModified() { return "2018-12-06" } 
-String appAuthor()	 { return "Anthony Santilli" }
+String appAuthor()	 { return "Anthony S." }
 String actChildName(){ return "Echo Speaks - Actions" }
 String grpChildName(){ return "Echo Speaks - Groups" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
@@ -1215,13 +1215,17 @@ private missPollNotify(Boolean on, Integer wait) {
 private appUpdateNotify() {
     Boolean on = (settings?.sendAppUpdateMsg != false)
     Boolean appUpd = isAppUpdateAvail()
+    Boolean actUpd = isActionAppUpdateAvail()
+    Boolean grpUpd = isGroupAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
-    logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
+    logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | grpUpd: (${grpUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
-        if(appUpd || echoDevUpd || servUpd) {
+        if(appUpd || actUpd || grpUpd || echoDevUpd || servUpd) {
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
+            str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
+            str += !grpUpd ? "" : "\nEcho Speaks - Groups: v${state?.appData?.versions?.groupApp?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
             str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
@@ -1534,7 +1538,17 @@ Boolean isCodeUpdateAvailable(String newVer, String curVer, String type) {
 }
 
 Boolean isAppUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.mainApp && isCodeUpdateAvailable(state?.appData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "app")) { return true }
+    if(state?.appData?.versions && state?.codeVersions?.mainApp && isCodeUpdateAvailable(state?.appData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "main_app")) { return true }
+    return false
+}
+
+Boolean isActionAppUpdateAvail() {
+    if(state?.appData?.versions && state?.codeVersions?.actionApp && isCodeUpdateAvailable(state?.appData?.versions?.actionApp?.ver, state?.codeVersions?.actionApp, "action_app")) { return true }
+    return false
+}
+
+Boolean isGroupAppUpdateAvail() {
+    if(state?.appData?.versions && state?.codeVersions?.groupApp && isCodeUpdateAvailable(state?.appData?.versions?.groupApp?.ver, state?.codeVersions?.groupApp, "group_app")) { return true }
     return false
 }
 
