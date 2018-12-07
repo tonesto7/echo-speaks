@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String appVersion()	 { return "2.0.5" }
-String appModified() { return "2018-12-06" } 
+String appModified() { return "2018-12-07" } 
 String appAuthor()	 { return "Anthony S." }
 String actChildName(){ return "Echo Speaks - Actions" }
 String grpChildName(){ return "Echo Speaks - Groups" }
@@ -101,29 +101,16 @@ def mainPage() {
                     } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
                 }
                 href "devicePrefsPage", title: "Detection Preferences", description: "Tap to configure...", state: "complete", image: getAppImg("devices.png")
-                // input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
-                // input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
-                // input "createWHA", "bool", title: "Create Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha.png")
-                // input "createOtherDevices", "bool", title: "Create Other Alexa Enabled Devices?", description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices.png")
-                // input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
-
-                // if(newInstall) {
-                //     paragraph title:"Notice:", "Device filtering options will be available once app install is complete.", required: true, state: null
-                // } else {
-                //     Map devs = getDeviceList(true, false)
-                //     input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
-                //     paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
-                // }
             }
             
             if(!newInstall) {
-                def t1 = null//getInstAutoTypesDesc()
+                def t1 = getGroupsDesc()
                 def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
                 section("Manage Groups:") {
                     href "groupsPage", title: "Broadcast Groups", description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups.png")
                 }
 
-                def t2 = null//getInstAutoTypesDesc()
+                def t2 = getActionsDesc()
                 def actDesc = t2 ? "${t2}\n\nTap to modify" : null
                 section("Manage Actions:") {
                     href "actionsPage", title: "Actions", description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions.png")
@@ -194,7 +181,7 @@ def groupsPage() {
 			}
 		}
 		section("") {
-			app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: "Create New Broadcast Group", image: getAppImg("es_groups.png"))
+			app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: "Create New Group", image: getAppImg("es_groups.png"))
 		}
     }
 }
@@ -645,6 +632,14 @@ def uninstalled() {
     if(settings?.optOutMetrics != true) {
         if(removeInstallData()) { state?.appGuid = null }
     }
+}
+
+def getGroupApps() {
+    return getChildApps()?.findAll { it?.name == grpChildName() }
+}
+
+def getActionApps() {
+    return getChildApps()?.findAll { it?.name == actChildName() }
 }
 
 public getBroadcastGrps() {
@@ -1703,13 +1698,8 @@ String getNotifSchedDesc() {
 String getServiceConfDesc() {
     String str = ""
     str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""}Heroku Info:" : ""
-    str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""} • App Name: ${state?.generatedHerokuName}" : ""
-    str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Amazon Domain : (${settings?.amazonDomain})" : ""
-    str += (settings?.refreshSeconds) ? "${str != "" ? "\n" : ""} • Refresh Seconds : (${settings?.refreshSeconds}sec)" : ""
-    // str += (settings?.stHub) ? "${str != "" ? "\n\n" : ""}Hub Info:" : ""
-    // str += (settings?.stHub) ? "${str != "" ? "\n" : ""} • IP: ${settings?.stHub?.getLocalIP()}" : ""
-    // str += (settings?.refreshSeconds) ? "\n\nServer Push Settings:" : ""
-    // str += (settings?.refreshSeconds) ? "${str != "" ? "\n" : ""} • Refresh Seconds : (${settings?.refreshSeconds}sec)" : ""
+    str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""} • Name: ${state?.generatedHerokuName}" : ""
+    str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Domain : (${settings?.amazonDomain})" : ""
     return str != "" ? str : null
 }
 
@@ -1718,6 +1708,16 @@ String getAppNotifDesc() {
     str += settings?.sendMissedPollMsg != false ? "${str != "" ? "\n" : ""} • Missed Poll Alerts" : ""
     str += settings?.sendAppUpdateMsg != false ? "${str != "" ? "\n" : ""} • Code Updates" : ""
     return str != "" ? str : null
+}
+
+String getGroupsDesc() {
+    def grps = getGroupApps()
+    return grps?.size() ? " • (${grps?.size()}) Groups Configured" : null
+}
+
+String getActionsDesc() {
+    def acts = getActionApps()
+    return acts?.size() ? " • (${acts?.size()}) Actions Configured" : null
 }
 
 String getServInfoDesc() {

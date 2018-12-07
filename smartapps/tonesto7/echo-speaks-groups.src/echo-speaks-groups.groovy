@@ -15,7 +15,7 @@
  */
  
 String appVersion()	 { return "2.0.5" }
-String appModified() { return "2018-12-06" } 
+String appModified() { return "2018-12-07" } 
 String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
@@ -27,9 +27,9 @@ definition(
     description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllow creation of virtual broadcast groups based on your echo devices",
     category: "My Apps",
     parent: "tonesto7:Echo Speaks",
-    iconUrl: getAppImg("groups.png"),
-    iconX2Url: getAppImg("groups.png"),
-    iconX3Url: getAppImg("groups.png"),
+    iconUrl: getAppImg("es_groups.png"),
+    iconX2Url: getAppImg("es_groups.png"),
+    iconX3Url: getAppImg("es_groups.png"),
     pausable: true)
 
 preferences {
@@ -50,6 +50,7 @@ def updated() {
 }
 
 def initialize() {
+    state?.isInstalled = true
     getBroadcastGroupData()
 	log.debug "Group Data: ${state?.groupDataMap}"
 }
@@ -73,7 +74,7 @@ def appInfoSect(sect=true)	{
     str += "\nAuthor: ${appAuthor()}"
     str += "\nVersion: ${appVersion()}"
     section() { 
-        paragraph str, image: getAppImg("groups.png")
+        paragraph str, image: getAppImg("es_groups.png")
     }
 }
 

@@ -19,7 +19,7 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String appVersion()	 { return "2.0.5" }
-String appModified() { return "2018-12-06" } 
+String appModified() { return "2018-12-07" } 
 String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
@@ -31,7 +31,7 @@ definition(
     description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllow you to create echo device actions based on Events in your SmartThings home",
     category: "My Apps",
     parent: "tonesto7:Echo Speaks",
-    iconUrl: getAppImg("actions.png"),
+    iconUrl: getAppImg("es_actions.png"),
     iconX2Url: getAppImg("es_actions.png"),
     iconX3Url: getAppImg("es_actions.png"),
     pausable: true)
@@ -52,7 +52,6 @@ preferences {
 
 def installed() {
 	log.debug "Installed with settings: ${settings}"
-
 	initialize()
 }
 
@@ -65,6 +64,7 @@ def updated() {
 
 def initialize() {
 	// TODO: subscribe to attributes, devices, locations, etc.
+    state?.isInstalled = true
 }
 
 def appInfoSect(sect=true)	{
@@ -72,39 +72,43 @@ def appInfoSect(sect=true)	{
     str += "${app?.name}"
     str += "\nAuthor: ${appAuthor()}"
     str += "\nVersion: ${appVersion()}"
-    section() { 
+    section() {
         paragraph str, image: getAppImg("es_actions.png")
     }
 }
 
 def mainPage() {
     Boolean newInstall = !state?.isInstalled
-    // if(showChgLogOk()) { 
-    //     return changeLogPage() 
-    // } else {
-        return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: newInstall, install: !newInstall) {
-            appInfoSect()
-            
-            section("Device Preferences:") {
-                // Map devs = getDeviceList(true, false)
-                // input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
-                // paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
-            }
+    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: newInstall, install: !newInstall) {
+        appInfoSect()
+        
+        section("Action Type:") {
+            input "actTriggerType", "enum", title: "Don't Use these Devices", description: "Tap to select", options: [""], multiple: false, required: true, submitOnChange: true, image: getAppImg("trigger.png")
+            // Map devs = getDeviceList(true, false)
+            // input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
+            // paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
+        }
+        if(state?.isInstalled) {
             section("Remove Broadcast Group:") {
                 href "uninstallPage", title: "Remove this Group", description: "Tap to Remove...", image: getAppImg("uninstall.png")
             }
         }
-    // }
+    }
 }
 
 def uninstallPage() {
-    dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
+    return dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
         remove("Remove this Group!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis group will be removed")
     }
 }
 
+Boolean wordInString(String findStr, String fullStr) {
+    List parts = fullStr?.split(" ")?.collect { it?.toString()?.toLowerCase() }
+    return (findStr in parts)
+}
+
 def setNotificationTimePage() {
-    dynamicPage(name: "setNotificationTimePage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
+    return dynamicPage(name: "setNotificationTimePage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
         Boolean timeReq = (settings["qStartTime"] || settings["qStopTime"]) ? true : false
         section() {
             input "qStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time.png")
@@ -454,9 +458,9 @@ String getNotifSchedDesc() {
 String getServiceConfDesc() {
     String str = ""
     str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""}Heroku Info:" : ""
-    str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""} • App Name: ${state?.generatedHerokuName}" : ""
-    str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Amazon Domain : (${settings?.amazonDomain})" : ""
-    str += (settings?.refreshSeconds) ? "${str != "" ? "\n" : ""} • Refresh Seconds : (${settings?.refreshSeconds}sec)" : ""
+    str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""} • Name: ${state?.generatedHerokuName}" : ""
+    str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Domain : (${settings?.amazonDomain})" : ""
+    // str += (settings?.refreshSeconds) ? "${str != "" ? "\n" : ""} • Refresh Seconds : (${settings?.refreshSeconds}sec)" : ""
     // str += (settings?.stHub) ? "${str != "" ? "\n\n" : ""}Hub Info:" : ""
     // str += (settings?.stHub) ? "${str != "" ? "\n" : ""} • IP: ${settings?.stHub?.getLocalIP()}" : ""
     // str += (settings?.refreshSeconds) ? "\n\nServer Push Settings:" : ""
