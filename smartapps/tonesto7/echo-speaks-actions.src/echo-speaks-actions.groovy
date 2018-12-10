@@ -18,8 +18,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "2.0.5" }
-String appModified() { return "2018-12-07" } 
+String appVersion()	 { return "2.0.6" }
+String appModified() { return "2018-12-10" } 
 String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
@@ -37,34 +37,34 @@ definition(
     pausable: true)
 
 preferences {
+    page(name: "startPage")
     page(name: "mainPage")
-    page(name: "settingsPage")
-    page(name: "newSetupPage")
-    page(name: "devicePage")
-    page(name: "deviceListPage")
-    page(name: "changeLogPage")
-    page(name: "notifPrefPage")
-    page(name: "servPrefPage")
-    page(name: "broadcastTestPage")
-    page(name: "setNotificationTimePage")
+    page(name: "uhOhPage")
+    page(name: "namePage")
+    page(name: "dateTimePage")
+    page(name: "quietRestrictPage")
     page(name: "uninstallPage")
 }
 
-def installed() {
-	log.debug "Installed with settings: ${settings}"
-	initialize()
+def startPage() {
+	if(parent) {
+		if(!state?.isInstalled && parent?.state?.childInstallOkFlag != true) {
+			uhOhPage()
+		} else {
+			state?.isParent = false
+			mainPage()
+		}
+	} else { uhOhPage() }
 }
 
-def updated() {
-	log.debug "Updated with settings: ${settings}"
-
-	unsubscribe()
-	initialize()
-}
-
-def initialize() {
-	// TODO: subscribe to attributes, devices, locations, etc.
-    state?.isInstalled = true
+def uhOhPage () {
+	return dynamicPage(name: "uhOhPage", title: "This install Method is Not Allowed", install: false, uninstall: true) {
+		section() {
+			paragraph "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Groups can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them.", required: true,
+			state: null, image: getAppImg("exclude.png")
+		}
+		remove("Remove this bad Group", "WARNING!!!", "BAD Group SHOULD be removed")
+	}
 }
 
 def appInfoSect(sect=true)	{
@@ -77,17 +77,175 @@ def appInfoSect(sect=true)	{
     }
 }
 
+List cleanedTriggerList() {
+    List newList = []
+    settings?.triggerTypes?.each {
+        newList?.push(it?.toString()?.split("::")[0] as String)
+    }
+    return newList?.unique()
+}
+
+String selTriggerTypes(type) {
+    return settings?.triggerTypes?.findAll { it?.startsWith(type as String) }?.collect { it?.toString()?.split("::")[1] }?.join(", ")
+}
+
+private List buildTriggerEnum() {
+    /* TODO:
+
+        -TIME TRIGGERS-
+            Time of Day
+            Days of week
+            Months (?)
+
+        -DEVICE TRIGGERS-
+            Presence (Present/NotPresent) (Stays?)
+            Water (Wet/Dry)
+            Contacts (Opened/Closed) (Stays?)
+            Motion (Active/Inactive) (Stays?)
+            Valves (Opened/Closed) (Stays?)
+            Switches (On/Off) (Stays?)
+            Garages (Opened/Closed) (Stays?)
+            Locks (Locked/Unlocked) (Stays?)
+            Buttons
+            Temperature (Above/Below/Equals)
+            Power (Above/Below/Equals)
+            Humidity (Above/Below/Equals)
+            WindowShades (Open/Closed)
+            Thermostats(?)
+            Smoke Detectors (?)
+            Carbon Dioxide (?)
+
+        -LOCATION TRIGGERS-
+            Modes
+            SHM 
+            Routines
+            Sunrise/Sunset
+
+        -WEATHER TRIGGERS- (MAYBE)
+            FORCAST hot words 
+    */
+
+    /* TODO:
+        -ACTIONS-
+            PlsyWeather
+            PlayTraffic
+            FlashBriefing
+    */
+
+	List enumOpts = []
+    Map buildItems = [:]
+    // Time
+    buildItems["Date/Time"] = ["trig_datetime::": "Specific Date/Time"]
+
+    buildItems["Location Modes"] = ["trig_mode::Active": "Mode(s) Active", "trig_mode::Inactive": "Not in Mode(s)"]
+    
+    buildItems["Smart Home Monitor (SHM)"] = ["trig_shm::ArmedHome": "Armed Home", "trig_shm::ArmedAway": "Armed Away", "trig_shm::Disarmed": "Disarmed", "trig_shm::Alerts": "Monitor Alerts"]
+
+    buildItems["Contacts Sensors"] = ["trig_contact::Opened": "Opened", "trig_contact::Closed": "Closed"]
+
+    buildItems["Garage Doors"] = ["trig_garage::Opened": "Opened", "trig_garage::Closed": "Closed"]
+
+    buildItems["Locks"] = ["trig_lock::Locked": "Locked", "trig_lock::Unlocked": "Unlocked"]
+    
+    buildItems["Humidity"] = ["trig_humidity::EQ": "= Humidity (%)", "trig_humidity::LT": "< Humidity (%)", "trig_humidity::LTE": "<= Humidity (%)", "trig_humidity::GT": "> Humidity (%)", "trig_humidity::GTE": ">= Humidity (%)"]
+
+    buildItems["Motion Sensors"] = ["trig_motion::Active": "Active", "trig_motion::Inactive": "Inactive"]
+
+    buildItems["Power"] = ["trig_power::EQ": "= Power (W)", "trig_power::LT": "< Power (W)", "trig_power::LTE": "<= Power (W)", "trig_power::GT": "> Power (W)", "trig_power::GTE": ">= Power (W)"]
+
+    buildItems["Presence Sensors"] = ["trig_presence::Present": "Presence", "trig_presence::Not present": "Not Present"]
+
+    buildItems["Temperature"] = ["trig_temp::EQ": "= Temp (${unitStr("temp")})", "trig_temp::LT": "< Temp (${unitStr("temp")})", "trig_temp::LTE": "<= Temp (${unitStr("temp")})", "trig_temp::GT": "> Temp (${unitStr("temp")})", "trig_temp::GTE": ">= Temp (${unitStr("temp")})"]
+    
+    buildItems["Valves"] = ["trig_valve::Opened": "Opened", "trig_valve::Closed": "Closed"]
+
+    buildItems["Water Sensors"] = ["trig_water::Dry": "Dry", "trig_water::Wet": "Wet"]
+
+    buildItems["Window Shades"] = ["trig_shades::Opened": "Opened", "trig_shades::Closed": "Closed"]
+
+    buildItems["Routines"] = ["trig_routine::Active": "Routine(s) Executed"]
+
+    buildItems["Scenes"] = ["trig_scene::Active": "Scene(s) Executed"]
+
+    buildItems?.each { key, val-> 
+        addInputGrp(enumOpts, key, val) 
+    }
+	// log.debug "enumOpts: $enumOpts"
+	return enumOpts
+}
+
+private String inputDesc(type) {
+    def selItems = selTriggerTypes(type) ?: null
+    return settings[type]?.size() ? "${selItems ? "Events: [${selItems}]\n" : ""}(${settings[type]?.size()}) Selected\n\ntap to modify" : "tap to select"
+}
+
+
 def mainPage() {
     Boolean newInstall = !state?.isInstalled
-    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: newInstall, install: !newInstall) {
+    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
         appInfoSect()
         
-        section("Action Type:") {
-            input "actTriggerType", "enum", title: "Don't Use these Devices", description: "Tap to select", options: [""], multiple: false, required: true, submitOnChange: true, image: getAppImg("trigger.png")
-            // Map devs = getDeviceList(true, false)
-            // input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
-            // paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
+        section("Triggers:", hideable: true, hidden: (settings?.triggerTypes?.size())) {
+            input "triggerTypes", "enum", title: "Select Triggers (Multiple Allowed)", description: "Tap to select", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("trigger.png")
         }
+        if(settings?.triggerTypes) {
+            List trigItems = cleanedTriggerList()
+            String curItemKey = ""
+            if("trig_datetime" in trigItems) {
+                section() {
+                    href "dateTimePage", title: "Configure Date/Time Triggers", description: "tap to configure", image: getAppImg("restriction.png")
+                }
+            }
+            if("trig_modes" in trigItems) {
+                curItemKey = "trig_mode"
+                section() {
+                    String modeDesc = settings?."${curItemKey}"?.size() ? "Selected: (${settings?."${curItemKey}"?.size()})\n\n tap to modify" : "tap to select modes"
+                    input name: "${curItemKey}", type: "enum", title: "Location Modes", description: modeDesc, options: location?.modes?.name?.sort(), multiple: true, required: true, submitOnChange: true, image: getAppImg("mode.png")
+                }
+            }
+            if("trig_shm" in trigItems) {
+                curItemKey = "trig_shm"
+                section() {
+                    def shmItems = selTriggerTypes("${curItemKey}") ?: null
+                    paragraph title: "SHM Triggers", "${shmItems ?: "No Items Returned"}", state: (shmItems ? "complete": null), required: true, image: getAppImg("shm.png")
+                }
+            }
+            if("trig_contact" in trigItems) {
+                curItemKey = "trig_contact"
+                section() {
+                    def selItems = selTriggerTypes(curItemKey) ?: null
+                    String selDesc = settings[curItemKey]?.size() ? "${selItems ? "Events: [${selItems}]\n" : ""}(${settings[curItemKey]?.size()}) Selected\n\ntap to modify" : "tap to select"
+                    input name: "${curItemKey}", type: "capability.contactSensor", title: "Contact Sensors", description: selDesc, state: (settings[curItemKey]?.size() ? "complete" : null), multiple: true, required: true, submitOnChange: true, image: getAppImg("contact.png")
+                }
+            }
+            if("trig_garage" in trigItems) {
+                curItemKey = "trig_garage"
+                section() {
+                    def selItems = selTriggerTypes(curItemKey) ?: null
+                    String selDesc = settings[curItemKey]?.size() ? "${selItems ? "Events: [${selItems}]\n" : ""}(${settings[curItemKey]?.size()}) Selected\n\ntap to modify" : "tap to select"
+                    input name: "${curItemKey}", type: "capability.garageDoorControl", title: "Garage Doors", description: selDesc, state: (settings[curItemKey]?.size() ? "complete" : null), multiple: true, required: true, submitOnChange: true, image: getAppImg("garage.png")
+                }
+            }
+            if("trig_lock" in trigItems) {
+                curItemKey = "trig_lock"
+                section() {
+                    def selItems = selTriggerTypes(curItemKey) ?: null
+                    String selDesc = settings[curItemKey]?.size() ? "${selItems ? "Events: [${selItems}]\n" : ""}(${settings[curItemKey]?.size()}) Selected\n\ntap to modify" : "tap to select"
+                    input name: "${curItemKey}", type: "capability.lock", title: "Locks", description: selDesc, state: (settings[curItemKey]?.size() ? "complete" : null), multiple: true, required: true, submitOnChange: true, image: getAppImg("lock.png")
+                }
+            }
+
+            if("trig_motion" in trigItems) {
+                curItemKey = "trig_motion"
+                section() {
+                    def selItems = selTriggerTypes(curItemKey) ?: null
+                    String selDesc = settings[curItemKey]?.size() ? "${selItems ? "Events: [${selItems}]\n" : ""}(${settings[curItemKey]?.size()}) Selected\n\ntap to modify" : "tap to select"
+                    input name: "${curItemKey}", type: "capability.motionSensors", title: "Motion Sensors", description: selDesc, state: (settings[curItemKey]?.size() ? "complete" : null), multiple: true, required: true, submitOnChange: true, image: getAppImg("motion.png")
+                }
+            }
+            
+        } else { section() { paragraph "No Triggers Selected...", state: null, required: true } }
+
         if(state?.isInstalled) {
             section("Remove Broadcast Group:") {
                 href "uninstallPage", title: "Remove this Group", description: "Tap to Remove...", image: getAppImg("uninstall.png")
@@ -95,6 +253,32 @@ def mainPage() {
         }
     }
 }
+
+// buildItems["Contacts Sensors"] = ["trig_contact::Opened": "Opened", "trig_contact::Closed": "Closed"]
+
+//     buildItems["Garage Doors"] = ["trig_garage::Opened": "Opened", "trig_garage::Closed": "Closed"]
+
+//     buildItems["Locks"] = ["trig_lock::Locked": "Locked", "trig_lock::Unlocked": "Unlocked"]
+    
+//     buildItems["Humidity"] = ["trig_humidity::EQ": "= Humidity (%)", "trig_humidity::LT": "< Humidity (%)", "trig_humidity::LTE": "<= Humidity (%)", "trig_humidity::GT": "> Humidity (%)", "trig_humidity::GTE": ">= Humidity (%)"]
+
+//     buildItems["Motion Sensors"] = ["trig_motion::Active": "Active", "trig_motion::Inactive": "Inactive"]
+
+//     buildItems["Power"] = ["trig_power::EQ": "= Power (W)", "trig_power::LT": "< Power (W)", "trig_power::LTE": "<= Power (W)", "trig_power::GT": "> Power (W)", "trig_power::GTE": ">= Power (W)"]
+
+//     buildItems["Presence Sensors"] = ["trig_presence::Present": "Presence", "trig_presence::Not present": "Not Present"]
+
+//     buildItems["Temperature"] = ["trig_temp::EQ": "= Temp (${unitStr("temp")})", "trig_temp::LT": "< Temp (${unitStr("temp")})", "trig_temp::LTE": "<= Temp (${unitStr("temp")})", "trig_temp::GT": "> Temp (${unitStr("temp")})", "trig_temp::GTE": ">= Temp (${unitStr("temp")})"]
+    
+//     buildItems["Valves"] = ["trig_valve::Opened": "Opened", "trig_valve::Closed": "Closed"]
+
+//     buildItems["Water Sensors"] = ["trig_water::Dry": "Dry", "trig_water::Wet": "Wet"]
+
+//     buildItems["Window Shades"] = ["trig_shades::Opened": "Opened", "trig_shades::Closed": "Closed"]
+
+//     buildItems["Routines"] = ["trig_routine::Active": "Routine(s) Executed"]
+
+//     buildItems["Scenes"] = ["trig_scene::Active": "Scene(s) Executed"]
 
 def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
@@ -107,8 +291,27 @@ Boolean wordInString(String findStr, String fullStr) {
     return (findStr in parts)
 }
 
-def setNotificationTimePage() {
-    return dynamicPage(name: "setNotificationTimePage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
+def dateTimePage() {
+    return dynamicPage(name: "dateTimePage", title: "Configure Date/Time Triggers", uninstall: false) {
+        Boolean timeReq = (settings["qTrigStartTime"] || settings["qTrigStopTime"]) ? true : false
+        section() {
+            input "qTrigStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time.png")
+            if(settings["qTrigStartInput"] == "A specific time") {
+                input "qTrigStartTime", "time", title: "Start time", required: timeReq, image: getAppImg("start_time.png")
+            }
+            input "qTrigStopInput", "enum", title: "Stopping at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time.png")
+            if(settings?."qTrigStopInput" == "A specific time") {
+                input "qTrigStopTime", "time", title: "Stop time", required: timeReq, image: getAppImg("stop_time.png")
+            }
+            input "triggerOnlyDays", "enum", title: "Only on these days of the week", multiple: true, required: false, image: getAppImg("day_calendar.png"),
+                    options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            // input "quietModes", "mode", title: "When these Modes are Active", multiple: true, submitOnChange: true, required: false, image: getAppImg("mode.png")
+        }
+    }
+}
+
+def quietRestrictPage() {
+    return dynamicPage(name: "quietRestrictPage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
         Boolean timeReq = (settings["qStartTime"] || settings["qStopTime"]) ? true : false
         section() {
             input "qStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time.png")
@@ -124,6 +327,24 @@ def setNotificationTimePage() {
             input "quietModes", "mode", title: "When these Modes are Active", multiple: true, submitOnChange: true, required: false, image: getAppImg("mode.png")
         }
     }
+}
+
+
+def installed() {
+	log.debug "Installed with settings: ${settings}"
+	initialize()
+}
+
+def updated() {
+	log.debug "Updated with settings: ${settings}"
+
+	unsubscribe()
+	initialize()
+}
+
+def initialize() {
+    state?.isInstalled = true
+    // TODO: Cleanup unselected trigger types
 }
 
 void settingUpdate(name, value, type=null) {
@@ -301,63 +522,52 @@ private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||
 |   Restriction validators
 *******************************************/
 
-def getClosedContacts(contacts) {
-	return contacts?.findAll { it?.currentContact == "closed" } ?: null
+List getClosedContacts(sensors) {
+	return sensors?.findAll { it?.currentContact == "closed" } ?: null
 }
 
-def getOpenContacts(contacts) {
-	return contacts?.findAll { it?.currentContact == "open" } ?: null
+List getOpenContacts(sensors) {
+	return sensors?.findAll { it?.currentContact == "open" } ?: null
 }
 
-def getDryWaterSensors(sensors) {
+List getDryWaterSensors(sensors) {
 	return sensors?.findAll { it?.currentWater == "dry" } ?: null
 }
 
-def getWetWaterSensors(sensors) {
+List getWetWaterSensors(sensors) {
 	return sensors?.findAll { it?.currentWater == "wet" } ?: null
 }
 
-def isContactOpen(con) {
-	def res = false
-	if(con) {
-		if(con?.currentSwitch == "on") { res = true }
-	}
-	return res
+List getPresentSensors(sensors) {
+    return sensors?.findAll { it?.currentPresence == "present" } ?: null
 }
 
-def isSwitchOn(dev) {
-	def res = false
-	if(dev) {
-		dev?.each { d ->
-			if(d?.currentSwitch == "on") { res = true }
-		}
-	}
-	return res
+List getAwaySensors(sensors) {
+    return sensors?.findAll { it?.currentPresence != "present" } ?: null
 }
 
-def isPresenceHome(presSensor) {
-	def res = false
-	if(presSensor) {
-		presSensor?.each { d ->
-			if(d?.currentPresence == "present") { res = true }
-		}
-	}
-	return res
-}
-
-def isSomebodyHome(sensors) {
-	if(sensors) {
-		def cnts = sensors?.findAll { it?.currentPresence == "present" }
-		return cnts ? true : false
-	}
+Boolean isContactOpen(sensors) {
+	if(sensors) { sensors?.each { if(sensors?.currentSwitch == "open") { return true } } }
 	return false
 }
 
-def isInMode(modeList) {
-	if(modeList) {
-		//log.debug "mode (${location.mode}) in list: ${modeList} | result: (${location?.mode in modeList})"
-		return location.mode.toString() in modeList
-	}
+Boolean isSwitchOn(devs) {
+	if(devs) { devs?.each { if(it?.currentSwitch == "on") { return true } } }
+	return false
+}
+
+Boolean isSensorPresent(sensors) {
+	if(sensors) { sensors?.each { if(it?.currentPresence == "present") { return true } } }
+	return false
+}
+
+Boolean isSomebodyHome(sensors) {
+	if(sensors) { return (sensors?.findAll { it?.currentPresence == "present" }?.size() > 0) }
+	return false
+}
+
+Boolean isInMode(modes) {
+	if(modes) { return (location?.mode?.toString() in mode) }
 	return false
 }
 
@@ -420,6 +630,18 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
 /******************************************
 |   App Input Description Functions
 *******************************************/
+
+String unitStr(type) { 
+    switch(type) {
+        case "temp":
+            return "\u00b0${getTemperatureScale() ?: "F"}" 
+        case "humidity":
+            return "%"
+        default: 
+            return ""
+    }
+}    
+
 String getAppNotifConfDesc() {
     String str = ""
     if(pushStatus()) {
