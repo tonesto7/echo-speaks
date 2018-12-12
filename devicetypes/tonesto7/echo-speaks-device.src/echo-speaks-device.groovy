@@ -18,8 +18,8 @@ import groovy.json.*
 import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "2.0.5"}
-String devModified() { return "2018-12-05" }
+String devVersion() { return "2.0.6"}
+String devModified() { return "2018-12-11" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -85,7 +85,6 @@ metadata {
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "setVolumeSpeakAndRestore"
-        command "testMultiCmd"
     }
 
     tiles (scale: 2) {
@@ -938,7 +937,7 @@ private sendAmazonCommand(String method, Map params, Map otherData) {
 
 def amazonCommandResp(response, data) {
     if(response?.hasError()) {
-        log.error "amazonCommandResp error: ${response?.getErrorMessage()}"
+        log.error "amazonCommandResp error: ${response?.getErrorMessage()} | Json: ${response?.errorJson ?: null}"
     } else {
         def resp = response?.data ? response?.getJson() : null
         // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
@@ -951,7 +950,11 @@ def amazonCommandResp(response, data) {
                 data?.validObj?.operationPayload = resp?.operationPayload
                 Map seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": data?.validObj]
                 seqJson?.startNode["@type"] = "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"
-                sendSequenceCommand("PlayMusic | Provider: (${data?.validObj?.operationPayload?.musicProviderId})", seqJson, null)
+                if(data?.volume) { 
+                    sendMultiSequenceCommand([[command: data?.validObj], [command: "volume", value: data?.volume]], true)
+                } else {
+                    sendSequenceCommand("PlayMusic | Provider: (${data?.validObj?.operationPayload?.musicProviderId})", seqJson, null)
+                }
             } else {
                 log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | (${data?.cmdDesc}) was Successfully Sent!!!"
             }
@@ -975,7 +978,11 @@ private sendSequenceCommand(type, command, value) {
 private sendMultiSequenceCommand(commands, parallel=false) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
     List nodeList = []
-    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value)) }
+    commands?.each { cmdItem-> 
+        if(cmdItem?.command instanceof Map) {
+            nodeList?.push(cmdItem?.command)
+        } else { nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value)) }
+     }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     sendSequenceCommand("MultiSequence", seqJson, null)
 }
@@ -1223,75 +1230,99 @@ def speak(String msg) {
     }
 }
 
-def playWeather() {
-    doSequenceCmd("WeatherCommand", "weather")
+def playWeather(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "weather"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("WeatherCommand", "weather") }
     incrementCntByKey("use_cnt_playWeather")
 }
 
-def playTraffic() {
-    doSequenceCmd("TrafficCommand", "traffic")
+def playTraffic(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "traffic"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("TrafficCommand", "traffic") }
     incrementCntByKey("use_cnt_playTraffic")
 }
 
-def playSingASong() {
-    doSequenceCmd("SingCommand", "singasong")
+def playSingASong(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "singasong"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("SingCommand", "singasong") }
     incrementCntByKey("use_cnt_playSong")
 }
 
-def playFlashBrief() {
+def playFlashBrief(volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("flashBriefing")) {
-        doSequenceCmd("FlashCommand", "flashbriefing")
+        if(volume) {
+            List seqs = [[command: "volume", value: volume], [command: "flashbriefing"]]
+            if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+            sendMultiSequenceCommand(seqs)
+        } else { doSequenceCmd("FlashCommand", "flashbriefing") }
         incrementCntByKey("use_cnt_playBrief")
     }
 }
 
-def playGoodMorning() {
-    doSequenceCmd("GoodMorningCommand", "goodmorning")
+def playGoodMorning(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "goodmorning"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("GoodMorningCommand", "goodmorning") }
     incrementCntByKey("use_cnt_playGoodMorning")
 }
 
-def playTellStory() {
-    doSequenceCmd("StoryCommand", "tellstory")
+def playTellStory(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "tellstory"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("StoryCommand", "tellstory") }
     incrementCntByKey("use_cnt_playStory")
 }
 
-def searchMusic(String searchPhrase, String providerId) {
+def searchMusic(String searchPhrase, String providerId, volume=null) {
     if(musicSearchSupported()) {
-        doSearchMusicCmd(searchPhrase, providerId)
+        doSearchMusicCmd(searchPhrase, providerId, volume)
     }
 }
 
-def searchAmazonMusic(String searchPhrase) {
+def searchAmazonMusic(String searchPhrase, volume=null) {
     if(isCommandTypeAllowed("amazonMusic")) {
-        doSearchMusicCmd(searchPhrase, "AMAZON_MUSIC")
+        doSearchMusicCmd(searchPhrase, "AMAZON_MUSIC", volume)
         incrementCntByKey("use_cnt_searchAmazon")
     }
 }
 
-def searchTuneIn(String searchPhrase) {
+def searchTuneIn(String searchPhrase, volume=null) {
     if(isCommandTypeAllowed("tuneInRadio")) {
-        doSearchMusicCmd(searchPhrase, "TUNE_IN")
+        doSearchMusicCmd(searchPhrase, "TUNE_IN", volume)
         incrementCntByKey("use_cnt_searchTuneIn")
     }
 }
 
-def searchPandora(String searchPhrase) {
+def searchPandora(String searchPhrase, volume=null) {
     if(isCommandTypeAllowed("pandoraRadio")) {
-        doSearchMusicCmd(searchPhrase, "PANDORA")
+        doSearchMusicCmd(searchPhrase, "PANDORA", volume)
         incrementCntByKey("use_cnt_searchPandora")
     }
 }
 
-def searchSpotify(String searchPhrase) {
+def searchSpotify(String searchPhrase, volume=null) {
     if(isCommandTypeAllowed("spotify")) {
-        doSearchMusicCmd(searchPhrase, "SPOTIFY")
+        doSearchMusicCmd(searchPhrase, "SPOTIFY", volume)
         incrementCntByKey("use_cnt_searchSpotify")
     }
 }
 
-def searchIheart(String searchPhrase) {
+def searchIheart(String searchPhrase, volume=null) {
     if(isCommandTypeAllowed("iHeartRadio")) {
-        doSearchMusicCmd(searchPhrase, "I_HEART_RADIO")
+        doSearchMusicCmd(searchPhrase, "I_HEART_RADIO", volume)
         incrementCntByKey("use_cnt_searchIheart")
     }
 }
@@ -1303,14 +1334,14 @@ private doSequenceCmd(cmdType, seqCmd, seqVal="") {
     } else { log.warn "doSequenceCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
-private doSearchMusicCmd(searchPhrase, musicProvId) {
+private doSearchMusicCmd(searchPhrase, musicProvId, volume=null) {
     if(state?.serialNumber && searchPhrase && musicProvId) {
-        playMusicProvider(searchPhrase, musicProvId)
+        playMusicProvider(searchPhrase, musicProvId, volume)
         incrementCntByKey("use_cnt_searchMusic")
     } else { log.warn "doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} | searchPhrase: ${searchPhrase} | musicProvider: ${musicProvId}" }
 }
 
-private playMusicProvider(searchPhrase, providerId) {
+private playMusicProvider(searchPhrase, providerId, volume=null) {
     logger("trace", "playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId")
     if (options?.searchPhrase == "") { log.error 'PlayMusicProvider Searchphrase empty'; return; }
     Map validObj = [
@@ -1334,7 +1365,7 @@ private playMusicProvider(searchPhrase, providerId) {
         requestContentType: "application/json",
         contentType: "application/json",
         body: validObj
-    ], [cmdDesc: "PlayMusicValidate(${type})", validObj: validObj])
+    ], [cmdDesc: "PlayMusicValidate(${type})", validObj: validObj, volume: volume])
 }
 
 def setWakeWord(String newWord) {
