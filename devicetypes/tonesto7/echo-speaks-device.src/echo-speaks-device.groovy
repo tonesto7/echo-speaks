@@ -944,7 +944,7 @@ def amazonCommandResp(response, data) {
         if(response?.getStatus() == 200) {
             if(data?.cmdDesc?.startsWith("PlayMusicValidate")) {
                 if (resp?.result != "VALID") {
-                    log.error "PlayMusicProvider Request Invalid..."
+                    log.error "Amazon the Music Search Request as Invalid | MusicProvider: [${data?.validObj?.operationPayload?.musicProviderId}] | Search Phrase: (${data?.validObj?.operationPayload?.searchPhrase})"
                     return
                 }
                 data?.validObj?.operationPayload = resp?.operationPayload
