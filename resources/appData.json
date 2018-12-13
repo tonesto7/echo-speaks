@@ -168,6 +168,11 @@
             "name": "Dash Wand",
             "image": "dash_wand",
             "allowTTS": false
+        },
+        "A1C66CX2XD756O": {
+            "name": "Fire Tablet HD",
+            "image": "amazon_tablet",
+            "allowTTS": true
         }
     }
 }
