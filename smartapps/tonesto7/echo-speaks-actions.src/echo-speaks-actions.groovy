@@ -218,15 +218,17 @@ def triggersPage() {
     return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
         def stRoutines = location.helloHome?.getPhrases()*.label.sort()
         section ("Select Capabilities") {
-            Map trigEvtOpts = ["Buttons","Location & Schedules","Switches & Dimmers","Doors, Windows, & Contacts", "Motion","Locks & Keypads","Presence","Environmental Events"]
+            List trigEvtOpts = ["Buttons","Location & Schedules","Switches & Dimmers","Doors, Windows, & Contacts", "Motion","Locks & Keypads","Presence","Environmental Events"]
             input "triggerEvents", "enum", title: "Select Event Capabilities", options: trigEvtOpts, multiple: true, required: true, submitOnChange: true
         }
         if (settings?.triggerEvents) {
             if (triggerEvents?.contains("Location & Schedules")) {
-                section ("Location Settings Events", hideable: true) {
+                section ("Location Events", hideable: true) {
                     input "trig_Mode", "mode", title: "Location Mode", multiple: true, required: false//, submitOnChange: true
                     input "trig_SHM", "enum", title: "Smart Home Monitor", options:["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed"], multiple: false, required: false, submitOnChange: true
                     input "trig_Routine", "enum", title: "SmartThings Routines", options: stRoutines, multiple: true, required: false
+                }
+                section("Time Events", hideable: true) {
                     input "trig_SunState", "enum", title: "Sunrise or Sunset...", options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true
                     if(settings?.trigSunState) { 
                         input "offset", "number", range: "*..*", title: "Offset event this number of minutes (+/-)", required: false 
@@ -390,7 +392,7 @@ def triggersPage() {
         
             if (triggerEvents?.contains("Environmental Events")) {
                 section ("Sensor Events", hideable: true) {
-                    input "trig_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true, submitOnChange: true, getAppImg("")
+                    input "trig_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true, submitOnChange: true, image: getAppImg("")
                     input "trig_TempCond", "enum", title: "Temperature is...", options: ["between","below","above"], required: true, multiple: false, submitOnChange: true
                     if (settings?.trig_TempCond) {
                         if (settings?.trig_TempCond in ["between", "below"]) {
@@ -469,7 +471,7 @@ def conditionsPage() {
             if (settings?.cond_Switch) {
                 input "cond_SwitchCmd", "enum", title: "are...", options:["on":"On","off":"Off"], multiple: false, required: true, submitOnChange: true
                 if (settings?.cond_Switch?.size() > 1) {
-                    input "cSwitchAll", "bool", title: "Activate this toggle if you want ALL of the switches to be $tSwitchCmd as a condition.", required: false, defaultValue: false, submitOnChange: true
+                    input "cond_SwitchAll", "bool", title: "Activate this toggle if you want ALL of the switches to be $cond_SwitchCmd as a condition.", required: false, defaultValue: false, submitOnChange: true
                 }
             }
             input "cond_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: false
@@ -488,7 +490,7 @@ def conditionsPage() {
             if (settings?.cond_Motion) {
                 input "cond_MotionCmd", "enum", title: "are...", options: ["active":"active", "inactive":"inactive"], multiple: false, required: true, submitOnChange: true
             	if (settings?.cond_Motion?.size() > 1) {
-                	input "cond_MotionAll", "bool", title: "Activate this toggle if you want ALL of the Motion Sensors to be ${settings?.cMotionCmd ?: ""} as a condition."
+                	input "cond_MotionAll", "bool", title: "Activate this toggle if you want ALL of the Motion Sensors to be ${settings?.cond_MotionCmd ?: ""} as a condition."
                 }
             }
         	input "cond_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true
@@ -559,7 +561,7 @@ def conditionsPage() {
 
 def timePage() {
     return dynamicPage(name:"timePage", title: "", uninstall: false) {
-        section("") {
+        section("Start...") {
             input "startingX", "enum", title: "Starting at...", options: ["A specific time", "Sunrise", "Sunset"], required: false , submitOnChange: true
             if(startingX in [null, "A specific time"]) { 
                 input "starting", "time", title: "Start time", required: false, submitOnChange: true
@@ -571,7 +573,7 @@ def timePage() {
                 }
             }
         }
-        section("") {
+        section("Stop...") {
             input "endingX", "enum", title: "Ending at...", options: ["A specific time", "Sunrise", "Sunset"], required: false, submitOnChange: true
             if(endingX in [null, "A specific time"]) {
                 input "ending", "time", title: "End time", required: false, submitOnChange: true

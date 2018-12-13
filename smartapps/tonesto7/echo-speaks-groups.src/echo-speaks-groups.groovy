@@ -34,6 +34,7 @@ definition(
 
 preferences {
     page(name: "startPage")
+    page(name: "uhOhPage")
     page(name: "mainPage")
     page(name: "namePage")
     page(name: "uninstallPage")
@@ -58,13 +59,13 @@ def initialize() {
 def startPage() {
 	if(parent) {
 		if(!state?.isInstalled && parent?.state?.childInstallOkFlag != true) {
-			notAllowedPage()
+			uhOhPage()
 		} else {
 			state?.isParent = false
 			mainPage()
 		}
 	} else {
-		notAllowedPage()
+		uhOhPage()
 	}
 }
 
@@ -78,8 +79,8 @@ def appInfoSect(sect=true)	{
     }
 }
 
-def notAllowedPage () {
-	return dynamicPage(name: "notAllowedPage", title: "This install Method is Not Allowed", install: false, uninstall: true) {
+def uhOhPage () {
+	return dynamicPage(name: "uhOhPage", title: "This install Method is Not Allowed", install: false, uninstall: true) {
 		section() {
 			paragraph "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Groups can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them.", required: true,
 			state: null, image: getAppImg("exclude.png")
