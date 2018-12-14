@@ -1,5 +1,5 @@
 /**
- *  Echo Speaks Companion
+ *  Echo Speaks Actions
  *
  *  Copyright 2018 Anthony Santilli
  *
@@ -18,8 +18,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "2.0.7" }
-String appModified() { return "2018-12-13" }
+String appVersion()	 { return "2.0.8" }
+String appModified() { return "2018-12-14" }
 String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
@@ -98,11 +98,10 @@ private List buildTriggerEnum() {
     Map buildItems = [:]
     buildItems["Date/Time"] = ["Scheduled": "Scheduled"]?.sort{ it?.key }
     buildItems["Location"] = ["Modes":"Modes", "Routines":"Routines"]?.sort{ it?.key }
-    buildItems["Safety & Security"] = ["Smart Home Monitor": "Smart Home Monitor", "CO2 & Smoke":"CO\u00B2 & Smoke"]?.sort{ it?.key }
-    buildItems["Actionable Devices"] = [ "Locks":"Locks", "Outlets, Switches, Dimmers":"Outlets, Switches, Dimmers", "Garage Door Openers":"Garage Door Openers", "Valves":"Valves", "Window Shades":"Window Shades", "Buttons":"Buttons"]?.sort{ it?.key }
-    buildItems["Sensor Device"] = ["Doors, Windows, Contacts":"Doors, Windows, Contacts", "Motion":"Motion", "Presence":"Presence", "Temperature":"Temperature", "Humidity":"Humidity", "Water":"Water", "Power":"Power"]?.sort{ it?.key }
     buildItems["Weather Events"] = ["Weather":"Weather"]
-
+    buildItems["Safety & Security"] = ["Smart Home Monitor": "Smart Home Monitor", "CO2 & Smoke":"CO\u00B2 & Smoke"]?.sort{ it?.key }
+    buildItems["Actionable Devices"] = ["Locks":"Locks", "Dimmers, Outlets, Switches":"Dimmers, Outlets, Switches", "Garage Door Openers":"Garage Door Openers", "Valves":"Valves", "Window Shades":"Window Shades", "Buttons":"Buttons"]?.sort{ it?.key }
+    buildItems["Sensor Device"] = ["Acceleration":"Acceleration", "Contacts, Doors, Windows":"Contacts, Doors, Windows", "Motion":"Motion", "Presence":"Presence", "Temperature":"Temperature", "Humidity":"Humidity", "Water":"Water", "Power":"Power"]?.sort{ it?.key }
     buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
     return enumOpts
 }
@@ -113,23 +112,27 @@ def mainPage() {
         appInfoSect()
         if(!settings?.actionPause) {
             section ("") {
-                href "triggersPage", title: "What will start this action...", description: ""
+                def trigsDef = settings?.findAll { it?.key?.startsWith("trig_") }
+                href "triggersPage", title: "Configure Events to Start this action...", description: (trigsDef?.size() ? "Triggers have been configured\n\ntap to modify..." : "tap to configure..."), state: (trigsDef?.size() ? "complete": ""), image: getPublicImg("trigger.png")
             }
             section("") {
-                href "conditionsPage", title: "(Optional) but only when these conditions are met.", description: ""
+                def condDef = settings?.findAll { it?.key?.startsWith("cond_") }
+                href "conditionsPage", title: "(Optional)\nConditions", description: (condDef?.size() ? "Conditions have been configured\n\ntap to modify..." : "tap to configure any restrictions..."), state: (condDef?.size() ? "complete": ""), image: getPublicImg("evaluate.png")
             }
             section("") {
-                href "actionsPage", title: "then perform these actions.", description: ""
+                href "actionsPage", title: "Actions to Perform", description: "tap to configure...", image: getPublicImg("adhoc.png")
             }
-            
+            section("Preferences") {
+                input (name: "appDebug", type: "bool", title: "Show Debug Logs in the IDE?", description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
+            }
         } else {
-            paragraph "This Action is currently in a paused state...  To edit the configuration please un-pause", required: true, state: null, image: getAppImg("notice.png")
+            paragraph "This Action is currently in a paused state...  To edit the configuration please un-pause", required: true, state: null, image: getPublicImg("issue.png")
         }
 
 
         if(state?.isInstalled) {
             section ("Place this action on hold:") {
-                   input "actionPause", "bool", title: "Pause this Actions from Running?", defaultValue: false, submitOnChange: true, image: getAppImg("pause.png")
+                   input "actionPause", "bool", title: "Pause this Actions from Running?", defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange.png")
             }
             section("Remove Broadcast Group:") {
                 href "uninstallPage", title: "Remove this Group", description: "Tap to Remove...", image: getAppImg("uninstall.png")
@@ -141,7 +144,7 @@ def mainPage() {
 def namePage() {
     return dynamicPage(name: "namePage", install: true, uninstall: true) {
         section("Name this Automation:") {
-            label title:"Automation Name", required:false, defaultValue: ""
+            input "appLbl", "text", title:"Group Name", description: "", required:true, submitOnChange: true, image: getPublicImg("name_tag.png")
         }
     }
 }
@@ -150,16 +153,16 @@ def triggersPage() {
     return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
         def stRoutines = location.helloHome?.getPhrases()*.label.sort()
         section ("Select Capabilities") {
-            input "triggerEvents", "enum", title: "Select Trigger Types to configure...", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true
+            input "triggerEvents", "enum", title: "Select Trigger Events", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("trigger.png")
         }
         if (settings?.triggerEvents?.size()) {
             if ("Scheduled" in settings?.triggerEvents) {
                 section("Time Based Events", hideable: true) {
-                    input "trig_SunState", "enum", title: "Sunrise or Sunset...", options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true
+                    input "trig_SunState", "enum", title: "Sunrise or Sunset...", options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("sun.png")
                     if(settings?.trigSunState) {
-                        input "offset", "number", range: "*..*", title: "Offset event this number of minutes (+/-)", required: true
+                        input "offset", "number", range: "*..*", title: "Offset event this number of minutes (+/-)", required: true, image: getPublicImg(settings?.trig_SunState?.toString()?.toLowerCase() + ".png")
                     }
-                    input "trig_Schedule", "enum", title: "Date/Time Schedule", submitOnChange: true, required: false, options: ["One Time", "Recurring"]
+                    input "trig_Schedule", "enum", title: "Date/Time Schedule", options: ["One Time", "Recurring"], required: false, submitOnChange: true, image: getPublicImg("day_calendar2.png")
                 }
 
                 if(trig_Schedule == "One Time") {
@@ -219,7 +222,7 @@ def triggersPage() {
 
             if ("Smart Home Monitor" in settings?.triggerEvents) {
                 section ("Smart Home Monitor (SHM) Events", hideable: true) {
-                    input "trig_SHM", "enum", title: "Smart Home Monitor", options:["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed", "alerts": "Alerts"], multiple: true, required: true, submitOnChange: true
+                    input "trig_SHM", "enum", title: "Smart Home Monitor", options:["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed", "alerts": "Alerts"], multiple: true, required: true, submitOnChange: true, image: getPublicImg("alarm_home.png")
                     if("alerts" in trig_SHM) {
                         input "trig_SHMAlertsClear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
                     }
@@ -228,43 +231,81 @@ def triggersPage() {
 
             if ("Modes" in settings?.triggerEvents) {
                 section ("Mode Events", hideable: true) {
-                    input "trig_Mode", "mode", title: "Location Modes", multiple: true, required: true, submitOnChange: true
+                    def actions = location.helloHome?.getPhrases()*.label.sort()
+                    input "trig_Modes", "mode", title: "Location Modes", multiple: true, required: true, submitOnChange: true, image: getPublicImg("mode.png")
                 }
             }
 
             if("Routines" in settings?.triggerEvents) {
                 if ("Routines" in settings?.triggerEvents) {
                     section("Routine Events", hideable: true) {
-                        input "trig_Routine", "enum", title: "Routines", options: stRoutines, multiple: true, required: true
+                        input "trig_Routine", "enum", title: "Routines", options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getPublicImg("routine.png")
                     }
                 }
             }
+            
+            if ("Weather" in settings?.triggerEvents) {
+                section ("Weather Events", hideable: true) {
+                    paragraph "Weather Events are not configured to take actions yet.", state: null, image: getPublicImg("weather.png")
+                    // input "trig_WeatherAlert", "enum", title: "Weather Alerts", required: false, multiple: true, submitOnChange: true, image: getAppImg("weather.png"),
+                    //         options: [
+                    //             "TOR":	"Tornado Warning",
+                    //             "TOW":	"Tornado Watch",
+                    //             "WRN":	"Severe Thunderstorm Warning",
+                    //             "SEW":	"Severe Thunderstorm Watch",
+                    //             "WIN":	"Winter Weather Advisory",
+                    //             "FLO":	"Flood Warning",
+                    //             "WND":	"High Wind Advisoryt",
+                    //             "HEA":	"Heat Advisory",
+                    //             "FOG":	"Dense Fog Advisory",
+                    //             "FIR":	"Fire Weather Advisory",
+                    //             "VOL":	"Volcanic Activity Statement",
+                    //             "HWW":	"Hurricane Wind Warning"
+                    //         ]
+                    // input "trig_WeatherHourly", "enum", title: "Hourly Weather Forecast Updates", required: false, multiple: false, submitOnChange: true, options: ["Weather Condition Changes", "Chance of Precipitation Changes", "Wind Speed Changes", "Humidity Changes", "Any Weather Updates"], image: "blank.png"
+                    // input "trig_WeatherEvents", "enum", title: "Weather Elements", required: false, multiple: false, submitOnChange: true, options: ["Chance of Precipitation (in/mm)", "Wind Gust (MPH/kPH)", "Humidity (%)", "Temperature (F/C)"], image: "blank.png"
+                    // if (settings?.trig_WeatherEvents) {
+                    //     input "trig_WeatherEventsCond", "enum", title: "Notify when Weather Element changes...", options: ["above", "below"], required: false, submitOnChange: true, image: getAppImg("trigger.png")
+                    // }
+                    // if (settings?.trig_WeatherEventsCond) {
+                    //     input "trig_WeatherThreshold", "decimal", title: "Weather Variable Threshold...", required: false, submitOnChange: true, image: getAppImg("trigger.png")
+                    //     if (settings?.trig_WeatherThreshold) {
+                    //         input "trig_WeatherCheckSched", "enum", title: "How Often to Check for Weather Changes...", required: true, multiple: false, submitOnChange: true, image: getPublicImg("day_calendar2.png"),
+                    //             options: [
+                    //                 "runEvery1Minute": "Every Minute",
+                    //                 "runEvery5Minutes": "Every 5 Minutes",
+                    //                 "runEvery10Minutes": "Every 10 Minutes",
+                    //                 "runEvery15Minutes": "Every 15 Minutes",
+                    //                 "runEvery30Minutes": "Every 30 Minutes",
+                    //                 "runEvery1Hour": "Every Hour",
+                    //                 "runEvery3Hours": "Every 3 Hours"
+                    //             ]
+                    //     }
+                    // }
+                }
+            }
 
-            if ("Outlets, Switches, Dimmers" in settings?.triggerEvents) {
-                section ("Switches", hideable: true) {
-                    input "trig_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required: false
+            if ("Dimmers, Outlets, Switches" in settings?.triggerEvents) {
+                section ("Dimmers, Outlets, Switches", hideable: true) {
+                    input "trig_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required: !(settings?.trig_Dimmer?.size() || settings?.trig_Outlet?.size()), image: getPublicImg("switch.png")
                     if (settings?.trig_Switch) {
-                        input "trig_SwitchCmd", "enum", title: "are turned...", options:["on","off"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Switch?.size() > 1) {
-                            input "trig_SwitchAll", "bool", title: "ALL switches to be ${settings?.trig_SwitchCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_SwitchCmd", "enum", title: "are turned...", options:["on", "off", "any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_Switch?.size() > 1 && settings?.trig_SwitchCmd && settings?.trig_SwitchCmd != "any") {
+                            input "trig_SwitchAll", "bool", title: "Require ALL Switches to be (${settings?.trig_SwitchCmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
-                }
-                section ("Dimmers", hideable: true) {
-                    input "trig_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: false
+                    input "trig_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: !(settings?.trig_Switch?.size() || settings?.trig_Outlet?.size()), image: getPublicImg("speed_knob.png")
                     if (settings?.trig_Dimmer) {
-                        input "trig_DimmersCmd", "enum", title: "turn...", options:["on": "on", "off": "off", "greater": "to greater than", "lessThan": "to less than", "equal": "to being equal to"], multiple: false, required: false, submitOnChange: true
+                        input "trig_DimmersCmd", "enum", title: "turn...", options:["on": "on", "off": "off", "gt": "to greater than", "lt": "to less than", "gte": "to greater than or equal to", "lte": "to less than or equal to", "eq": "to being equal to"], multiple: false, required: false, submitOnChange: true
                         if (settings?.trig_DimmerCmd in ["greater", "lessThan", "equal"]) {
                             input "trig_DimmerLvl", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
                         }
                     }
-                }
-                section ("Outlets", hideable: true) {
-                    input "trig_Outlet", "capability.outlet", title: "Outlets", multiple: true, submitOnChange: true, required:false
+                    input "trig_Outlet", "capability.outlet", title: "Outlets", multiple: true, submitOnChange: true, required: !(settings?.trig_Switch?.size() || settings?.trig_Dimmer?.size()), image: getPublicImg("outlet.png")
                     if (settings?.trig_Outlet) {
-                        input "trig_OutletCmd", "enum", title: "are turned...", options:["on", "off"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Outlet?.size() > 1) {
-                            input "trig_OutletAll", "bool", title: "ALL switches to be ${settings?.trig_OutletCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_OutletCmd", "enum", title: "are turned...", options:["on", "off", "any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_Outlet?.size() > 1 && settings?.trig_OutletCmd && settings?.trig_OutletCmd != "any") {
+                            input "trig_OutletAll", "bool", title: "Require ALL Outlets to be (${settings?.trig_OutletCmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
@@ -272,11 +313,11 @@ def triggersPage() {
 
             if ("Motion" in settings?.triggerEvents) {
                 section ("Motion Sensors", hideable: true) {
-                    input "trig_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true
+                    input "trig_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("motion.png")
                     if (settings?.trig_Motion) {
-                        input "trig_MotionCmd", "enum", title: "become...", options: ["active", "inactive"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Motion?.size() > 1) {
-                            input "trig_MotionAll", "bool", title: "ALL motion sensors to be ${settings?.trig_MotionCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_MotionCmd", "enum", title: "become...", options: ["active", "inactive", "any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_Motion?.size() > 1 && settings?.trig_MotionCmd && settings?.trig_MotionCmd != "any") {
+                            input "trig_MotionAll", "bool", title: "Require ALL Motion Sensors to be (${settings?.trig_MotionCmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
@@ -284,39 +325,39 @@ def triggersPage() {
 
             if ("Presence" in settings?.triggerEvents) {
                 section ("Presence Events", hideable: true) {
-                    input "trig_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true
+                    input "trig_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("presence.png")
                     if (settings?.trig_Presence) {
-                        input "trig_PresenceCmd", "enum", title: "have...", options: ["present":"Arrived","not present":"Departed"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Presence?.size() > 1) {
-                            input "trig_PresenceAll", "bool", title: "ALL presence sensors to be ${settings?.trig_PresenceCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_PresenceCmd", "enum", title: "have...", options: ["present":"Arrived","not present":"Departed", "any":"any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_Presence?.size() > 1 && settings?.trig_PresenceCmd && settings?.trig_PresenceCmd != "any") {
+                            input "trig_PresenceAll", "bool", title: "Require ALL Presence Sensors to be (${settings?.trig_PresenceCmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
             }
             
-            if ("Doors, Windows, Contacts" in settings?.triggerEvents) {
-                section ("Doors, Windows, Contacts", hideable: true) {
-                    input "trig_ContactDoor", "capability.contactSensor", title: "Contact Sensors on Doors", multiple: true, required: false, submitOnChange: true
+            if ("Contacts, Doors, Windows" in settings?.triggerEvents) {
+                section ("Contacts, Doors, Windows", hideable: true) {
+                    input "trig_ContactDoor", "capability.contactSensor", title: "Doors", multiple: true, required: !(settings?.trig_ContactWindow?.size() || settings?.trig_Contact?.size()), submitOnChange: true, image: getPublicImg("door_open.png")
                     if (settings?.trig_ContactDoor) {
-                        input "trig_ContactDoorCmd", "enum", title: "are...", options: ["open":"opened", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_ContactDoor?.size() > 1) {
-                            input "trig_ContactDoorAll", "bool", title: "ALLdoors to be ${settings?.trig_ContactDoorCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_ContactDoorCmd", "enum", title: "changes to?", options: ["open":"opened", "closed":"closed", "any":"any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_ContactDoor?.size() > 1 && settings?.trig_ContactDoorCmd && settings?.trig_ContactDoorCmd != "any") {
+                            input "trig_ContactDoorAll", "bool", title: "Require ALL Doors to be (${settings?.trig_ContactDoorCmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 
-                    input "trig_ContactWindow", "capability.contactSensor", title: "Contact Sensors on Windows", multiple: true, required: false, submitOnChange: true
+                    input "trig_ContactWindow", "capability.contactSensor", title: "Windows", multiple: true, required: !(settings?.trig_ContactDoor?.size() || settings?.trig_Contact?.size()), submitOnChange: true, image: getPublicImg("window.png")
                     if (settings?.trig_ContactWindow) {
-                        input "trig_ContactWindowCmd", "enum", title: "are...", options: ["open":"opened", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_ContactWindow?.size() > 1) {
-                            input "trig_ContactWindowAll", "bool", title: "ALL windows to be ${settings?.trig_ContactWindowCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_ContactWindowCmd", "enum", title: "changes to?", options: ["open":"opened", "closed":"closed", "any":"any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_ContactWindow?.size() > 1 && settings?.trig_ContactWindowCmd && settings?.trig_ContactWindowCmd != "any") {
+                            input "trig_ContactWindowAll", "bool", title: "Require ALL Windows to be (${settings?.trig_ContactWindowCmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 
-                    input "trig_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: false, submitOnChange: true
+                    input "trig_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: !(settings?.trig_ContactDoor?.size() || settings?.trig_ContactWindow?.size()), submitOnChange: true, image: getPublicImg("contact.png")
                     if (settings?.trig_Contact) {
-                        input "trig_ContactCmd", "enum", title: "are...", options: ["open":"opened", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Contact?.size() > 1) {
-                            input "trig_ContactAll", "bool", title: "ALL contact sensors to be ${settings?.trig_ContactCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_ContactCmd", "enum", title: "changes to?", options: ["open":"opened", "closed":"closed", "any":"any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_Contact?.size() > 1 && settings?.trig_ContactCmd && settings?.trig_ContactCmd != "any") {
+                            input "trig_ContactAll", "bool", title: "Require ALL Contact to be (${settings?.trig_ContactCmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
@@ -324,20 +365,23 @@ def triggersPage() {
             
             if ("Garage Door Openers" in settings?.triggerEvents) {
                 section ("Garage Door Openers", hideable: true) {
-                    input "trig_Garage", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true
-                    if (settings?.trig_Garage) {
-                        input "trig_GarageCmd", "enum", title: "are...", options:["open":"opened", "close":"closed", "opening":"opening", "closing":"closing"], multiple: false, required: true, submitOnChange: true
+                    input "trig_Garages", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("garage_door_open.png")
+                    if (settings?.trig_Garages) {
+                        input "trig_GaragesCmd", "enum", title: "change to?", options: ["open":"opened", "close":"closed", "opening":"opening", "closing":"closing", "any":"any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_Garages?.size() > 1 && trig_GaragesCmd && (trig_GaragesCmd == "open" || trig_GaragesCmd == "close")) {
+                            input "trig_GaragesAll", "bool", title: "Require ALL Garages to be (${settings?.trig_GaragesCmd})?", required: false, defaultValue: false, submitOnChange: true
+                        }
                     }
                 }
             }
 
             if ("Locks" in settings?.triggerEvents) {
                 section ("Locks", hideable: true) {
-                    input "trig_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true
+                    input "trig_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: true, submitOnChange: true, image: getPublicImg("lock.png")
                     if (settings?.trig_Locks) {
-                        input "trig_LocksCmd", "enum", title: "are...", options:["locked":"locked", "unlocked":"unlocked"], multiple: false, required: true, submitOnChange:true
-                        if (settings?.trig_Locks?.size() > 1) {
-                            input "trig_LocksAll", "bool", title: "ALL locks to be ${settings?.trig_LocksCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_LocksCmd", "enum", title: "changes to?", options: ["locked", "unlocked", "any"], multiple: false, required: true, submitOnChange:true
+                        if (settings?.trig_Locks?.size() > 1 && settings?.trig_LocksCmd && settings?.trig_LocksCmd != "any") {
+                            input "trig_LocksAll", "bool", title: "Require ALL Locks to be (${settings?.trig_LocksCmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
@@ -345,7 +389,7 @@ def triggersPage() {
 
             if ("Keypads" in settings?.triggerEvents) {
                 section ("Keypads", hideable: true) {
-                    input "trig_Keypads", "capability.lockCodes", title: "Select Keypads", multiple: true, required: false, submitOnChange: true
+                    input "trig_Keypads", "capability.lockCodes", title: "Select Keypads", multiple: true, required: true, submitOnChange: true, image: getPublicImg("door_control.png")
                     if (settings?.trig_Keypads) {
                         input "trig_KeyCode", "number", title: "Code (4 digits)", required: true, submitOnChange: true
                         input "trig_KeyButton", "enum", title: "Which button?", options: ["on":"On", "off":"Off", "partial":"Partial", "panic":"Panic"], multiple: false, required: true, submitOnChange: true
@@ -355,8 +399,8 @@ def triggersPage() {
 
             if ("Temperature" in settings?.triggerEvents) {
                 section ("Temperature Sensor Events", hideable: true) {
-                    input "trig_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true, submitOnChange: true, image: getAppImg("")
-                    input "trig_TempCond", "enum", title: "Temperature is...", options: ["between","below","above"], required: true, multiple: false, submitOnChange: true
+                    input "trig_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: true, multiple: true, submitOnChange: true, image: getPublicImg("temperature.png")
+                    input "trig_TempCond", "enum", title: "Temperature is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
                     if (settings?.trig_TempCond) {
                         if (settings?.trig_TempCond in ["between", "below"]) {
                             input "trig_tempLow", "number", title: "a ${trig_TempCond == "between" ? "Low " : ""}Temperature of...", required: true, submitOnChange: true
@@ -364,63 +408,153 @@ def triggersPage() {
                         if (settings?.trig_TempCond in ["between", "above"]) {
                             input "trig_tempHigh", "number", title: "${trig_TempCond == "between" ? "and a high " : "a "}Temperature of...", required: true, submitOnChange: true
                         }
-                        input "tempOnce", "bool", title: "Perform actions only once when true", required: false, defaultValue: false, submitOnChange: true
+                        if (settings?.trig_TempCond == "equals") {
+                            input "trig_tempEquals", "number", title: "a Temperature of...", required: true, submitOnChange: true
+                        }
+                        input "trig_TempOnce", "bool", title: "Perform actions only once when true", required: false, defaultValue: false, submitOnChange: true
                     }
                 }
             }
 
             if ("Humidity" in settings?.triggerEvents) {
                 section ("Humidity Sensor Events", hideable: true) {
-                    input "trig_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: false, submitOnChange: true
-                    if (settings?.trig_tHumidity) {
-                        input "trig_HumidityLevel", "enum", title: "Activate when Relative Humidity is...", options: ["above", "below"], required: false, submitOnChange: true
-                        input "trig_HumidityPercent", "number", title: "Relative Humidity Level...", required: true, description: "percent", submitOnChange: true
-                        input "trig_HumidityOnce", "bool", title: "Perform this check only once", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: true, multiple: true, submitOnChange: true, image: getPublicImg("humidity.png")
+                    if (settings?.trig_Humidity) {
+                        input "trig_HumidityCond", "enum", title: "Relative Humidity (%) is...", options: ["above", "below", "equals"], required: false, submitOnChange: true
+                        if(settings?.trig_HumidityCond) {
+                            input "trig_HumidityLevel", "number", title: "Relative Humidity (%)", required: true, description: "percent", submitOnChange: true
+                            input "trig_HumidityOnce", "bool", title: "Perform this check only once", required: false, defaultValue: false, submitOnChange: true
+                        }
+                    }
+                }
+            }
+
+            if ("Acceleration" in settings?.triggerEvents) {
+                section ("Acceleration Sensor Events", hideable: true) {
+                    input "trig_Acceleration", "capability.accelerationSensor", title: "Acceleration Sensors", required: true, multiple: true, submitOnChange: true, image: getPublicImg("humidity.png")
+                    if (settings?.trig_Acceleration) {
+                        input "trig_AccelerationCond", "enum", title: "Relative Humidity (%) is...", options: ["active", "inactive", "any"], required: false, submitOnChange: true
+                        if (settings?.trig_Acceleration?.size() > 1 && settings?.trig_AccelerationCmd && settings?.trig_AccelerationCmd != "any") {
+                            input "trig_AccelerationAll", "bool", title: "Require ALL Acceleration Sensors to be (${settings?.trig_AccelerationCmd})?", required: false, defaultValue: false, submitOnChange: true
+                        }
                     }
                 }
             }
 
             if ("Water" in settings?.triggerEvents) {
                 section ("Water Sensor Events", hideable: true) {
-                    input "trig_tWater", "capability.waterSensor", title: "Water/Moisture Sensors", required: false, multiple: true, submitOnChange: true
-                    if (settings?.trig_tWater) {
-                        input "trig_WaterState", "enum", title: "Activate when state changes to...", options: ["wet", "dry", "both"], required: false
+                    input "trig_Water", "capability.waterSensor", title: "Water/Moisture Sensors", required: true, multiple: true, submitOnChange: true, image: getPublicImg("water.png")
+                    if (settings?.trig_Water) {
+                        input "trig_WaterCmd", "enum", title: "changes to?", options: ["wet", "dry", "any"], required: false, submitOnChange: true
+                        if (settings?.trig_Water?.size() > 1 && settings?.trig_WaterCmd && settings?.trig_WaterCmd != "any") {
+                            input "trig_WaterAll", "bool", title: "Require ALL Water Sensors to be (${settings?.trig_WaterCmd})?", required: false, defaultValue: false, submitOnChange: true
+                        }
+                    }
+                }
+            }
+            
+            if ("Power" in settings?.triggerEvents) {
+                section ("Power Events", hideable: true) {
+                    input "trig_Power", "capability.powerMeter", title: "Power Meters", required: true, multiple: true, submitOnChange: true, image: getPublicImg("power.png")
+                    input "trig_PowerCond", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
+                    if (settings?.trig_PowerCond) {
+                        if (settings?.trig_PowerCond in ["between", "below"]) {
+                            input "trig_PowerLow", "number", title: "a ${trig_PowerCond == "between" ? "Low " : ""}Power Level (W) of...", required: true, submitOnChange: true
+                        }
+                        if (settings?.trig_PowerCond in ["between", "above"]) {
+                            input "trig_PowerHigh", "number", title: "${trig_PowerCond == "between" ? "and a high " : "a "}Power Level (W) of...", required: true, submitOnChange: true
+                        }
+                        if (settings?.trig_PowerCond == "equals") {
+                            input "trig_PowerEquals", "number", title: "a Power Level (W) of...", required: true, submitOnChange: true
+                        }
+                        input "trig_PowerOnce", "bool", title: "Perform actions only once when true", required: false, defaultValue: false, submitOnChange: true
                     }
                 }
             }
 
             if ("CO2 & Smoke" in settings?.triggerEvents) {
                 section ("CO\u00B2 Events", hideable: true) {
-                    input "trig_CO2", "capability.carbonDioxideMeasurement", title: "Carbon Dioxide (CO\u00B2)", required: false, multiple: true, submitOnChange: true
+                    input "trig_CO2", "capability.carbonDioxideMeasurement", title: "Carbon Dioxide (CO\u00B2)", required: !(settings?.trig_Smoke), multiple: true, submitOnChange: true, image: getPublicImg("co2_warn_status.png")
                     if (settings?.trig_CO2) {
-                        input "trig_CO2State", "enum", title: "Activate when CO\u00B2 is...", options: ["above", "below"], required: false, submitOnChange: true
-                        if (settings?.trig_CO2State) {
+                        input "trig_CO2Cmd", "enum", title: "changes to?", options: ["above", "below", "equals"], required: false, submitOnChange: true
+                        if (settings?.trig_CO2Cmd) {
                             input "trig_CO2Level", "number", title: "CO\u00B2 Level...", required: true, description: "number", submitOnChange: true
                             input "trig_CO2Once", "bool", title: "Perform this check only once", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
                 section ("Smoke Events", hideable: true) {
-                    input "trig_Smoke", "capability.smokeDetector", title: "Smoke Detectors", required: false, multiple: true, submitOnChange: true
+                    input "trig_Smoke", "capability.smokeDetector", title: "Smoke Detectors", required: !(settings?.trig_CO2), multiple: true, submitOnChange: true
                     if (settings?.trig_Smoke) {
-                        input "trig_SmokeState", "enum", title: "Activate when smoke is...", options: ["detected", "clear", "both"], required: false
+                        input "trig_SmokeCmd", "enum", title: "changes to?", options: ["detected", "clear", "any"], required: false, submitOnChange: true
+                        if (settings?.trig_Smoke?.size() > 1 && settings?.trig_SmokeCmd && settings?.trig_SmokeCmd != "any") {
+                            input "trig_SmokeAll", "bool", title: "Require ALL Smoke Detectors to be (${settings?.trig_SmokeCmd})?", required: false, defaultValue: false, submitOnChange: true
+                        }
                     }
                 }
             }
 
             if ("Illuminance" in settings?.triggerEvents) {
                 section ("Illuminance Events", hideable: true) {
-                    input "trig_illuminance", "capability.illuminanceMeasurement", title: "Lux Level", required: false, submitOnChange: true
-                    if (settings?.trig_illuminance) {
-                        input "trig_illuminanceLow", "number", title: "A low lux level of...", required: true, submitOnChange: true
-                        input "trig_illuminanceHigh", "number", title: "and a high lux level of...", required: true, submitOnChange: true
-                        input "trig_illuminanceOnce", "bool", title: "Perform this check only once", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_Illuminance", "capability.illuminanceMeasurement", title: "Lux Level", required: true, submitOnChange: true
+                    if (settings?.trig_Illuminance) {
+                        input "trig_IlluminanceLow", "number", title: "A low lux level of...", required: true, submitOnChange: true
+                        input "trig_IlluminanceHigh", "number", title: "and a high lux level of...", required: true, submitOnChange: true
+                        input "trig_IlluminanceOnce", "bool", title: "Perform this check only once", required: false, defaultValue: false, submitOnChange: true
                     }
                 }
             }
 
+            if ("Window Shades" in settings?.triggerEvents) {
+                section ("Window Shades", hideable: true) {
+                    input "trig_Shades", "capability.windowShades", title: "Window Shades", multiple: true, required: true, submitOnChange: true, image: getPublicImg("window_shade.png")
+                    if (settings?.trig_Shades) {
+                        input "trig_ShadesCmd", "enum", title: "changes to?", options:["open":"opened", "close":"closed", "any":"any"], multiple: false, required: true, submitOnChange:true
+                        if (settings?.trig_Shades?.size() > 1 && settings?.trig_ShadesCmd && settings?.trig_ShadesCmd != "any") {
+                            input "trig_ShadesAll", "bool", title: "Require ALL Window Shades to be (${settings?.trig_ShadesCmd})?", required: false, defaultValue: false, submitOnChange: true
+                        }
+                    }
+                }
+            }
+
+            if ("Valves" in settings?.triggerEvents) {
+                section ("Valves", hideable: true) {
+                    input "trig_Valves", "capability.valve", title: "Valves", multiple: true, required: true, submitOnChange: true, image: getPublicImg("valve.png")
+                    if (settings?.trig_Valves) {
+                        input "trig_ValvesCmd", "enum", title: "changes to?", options:["open":"opened", "close":"closed", "any":"any"], multiple: false, required: true, submitOnChange:true
+                        if (settings?.trig_Valves?.size() > 1 && settings?.trig_ValvesCmd && settings?.trig_ValvesCmd != "any") {
+                            input "trig_ValvesAll", "bool", title: "Require ALL Valves to be (${settings?.trig_ValvesCmd})?", required: false, defaultValue: false, submitOnChange: true
+                        }
+                    }
+                }
+            }
         }
     }
+}
+
+def scheduleTriggers() {
+	return ((settings?.frequency && (settings?.xMinutes || settings?.xHours || settings?.xDays || settings?.xMonths || settings?.xWeeks || settings?.xYears)) || settings?.xFutureTime || settings?.xFutureDay)
+}
+
+def locationTriggers() {
+	return (settings?.myMode || settings?.mySHM || settings?.myRoutine || settings?.mySunState)
+}
+
+def deviceTriggers() {
+	return (settings?.myButton || settings?.myShades || settings?.myGarage || settings?.myValve || settings?.mySwitch || settings?.myLocks || settings?.myTstat)
+}
+
+def sensorTriggers() {
+	return (settings?.myTemperature || settings?.myCO2 || settings?.myCO || settings?.myAcceleration || settings?.myHumidity || settings?.myWindow || settings?.myDoor || settings?.mySound  || settings?.myWater ||
+			settings?.mySmoke || settings?.myPresence || settings?.myMotion || settings?.myContact || settings?.myPower)
+}
+
+def weatherTriggers() {
+	return (settings?.myWeatherTriggers || settings?.myWeather || settings?.myWeatherAlert)
+}
+
+def triggersConfigured() {
+	return (scheduleTriggers() || locationTriggers() || deviceTriggers() || sensorTriggers() || weatherTriggers()) ? "Configured" : "Tap to Configure"
 }
 
 /******************************************************************************
@@ -429,106 +563,168 @@ def triggersPage() {
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: "Only when these are true...", install: false, uninstall: false) {
         section("Time of Day") {
-            href "timePage", title: "Time Schedule", description: "", state: ""
+            href "timePage", title: "Time Schedule", description: "", state: "", image: getPublicImg("clock.png")
         }
 
         section ("Location Based Conditions") {
-            input "cond_Mode", "mode", title: "Location Mode is...", multiple: true, required: false, submitOnChange: true
-            input "cond_SHM", "enum", title: "Smart Home Monitor is...", options: ["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed"], multiple: false, required: false, submitOnChange: true
-            input "cond_Days", "enum", title: "Days of the week", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            input "cond_Mode", "mode", title: "Location Mode is...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("mode.png")
+            input "cond_SHM", "enum", title: "Smart Home Monitor is...", options: ["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("alarm_home.png")
+            input "cond_Days", "enum", title: "Days of the week", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], image: getPublicImg("day_calendar.png")
         }
 
         section ("Switch and Dimmer Conditions") {
-            input "cond_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required:false
+            input "cond_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required:false, image: getPublicImg("switch.png")
             if (settings?.cond_Switch) {
                 input "cond_SwitchCmd", "enum", title: "are...", options:["on":"On","off":"Off"], multiple: false, required: true, submitOnChange: true
                 if (settings?.cond_Switch?.size() > 1) {
-                    input "cond_SwitchAll", "bool", title: "Activate this toggle if you want ALL of the switches to be $cond_SwitchCmd as a condition.", required: false, defaultValue: false, submitOnChange: true
+                    input "cond_SwitchAll", "bool", title: "Require ALL Switches to be (${settings?.cond_SwitchCmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
-            input "cond_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: false
+            input "cond_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: false, image: getPublicImg("speed_knob.png")
             if (settings?.cond_Dimmer) {
                 input "cond_DimmerCmd", "enum", title: "is...", options:["greater":"greater than","lessThan":"less than","equal":"equal to"], multiple: false, required: false, submitOnChange: true
                 if (settings?.cond_DimmerCmd in ["greater", "lessThan", "equal"]) {
                     input "cond_DimmerLvl", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
-                    if (settings?.cond_Dimmer?.size() > 1) {
-                        input "cond_DimmmerAll", "bool", title: "Activate this toggle if you want ALL of the dimmers for this condition.", required: false, defaultValue: false, submitOnChange: true
+                    if (settings?.cond_Dimmer?.size() > 1 && settings?.cond_DimmerCmd && settings?.cond_DimmerLvl) {
+                        input "cond_DimmmerAll", "bool", title: "Require ALL Dimmers to be (${settings?.cond_DimmerCmd} ${settings?.cond_DimmerLvl}%)?", required: false, defaultValue: false, submitOnChange: true
                     }
                 }
             }
         }
         section ("Motion and Presence Conditions") {
-            input "cond_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true
+            input "cond_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("motion.png")
             if (settings?.cond_Motion) {
                 input "cond_MotionCmd", "enum", title: "are...", options: ["active":"active", "inactive":"inactive"], multiple: false, required: true, submitOnChange: true
-                if (settings?.cond_Motion?.size() > 1) {
-                    input "cond_MotionAll", "bool", title: "Activate this toggle if you want ALL of the Motion Sensors to be ${settings?.cond_MotionCmd ?: ""} as a condition."
+                if (settings?.cond_Motion?.size() > 1 && settings?.cond_MotionCmd) {
+                    input "cond_MotionAll", "bool", title: "Require ALL Motion Sensors to be (${settings?.cond_MotionCmd})?"
                 }
             }
-            input "cond_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true
+            input "cond_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("presence.png")
             if (settings?.cond_Presence) {
                 input "cond_PresenceCmd", "enum", title: "are...", options: ["present":"Present","not present":"Not Present"], multiple: false, required: true, submitOnChange: true
-                if (settings?.cond_Presence?.size() > 1) {
-                    input "cond_PresenceAll", "bool", title: "Activate this toggle if you want ALL of the Presence Sensors to be ${settings?.cPresenceCmd ?: ""} as a condition.", required: false, defaultValue: false, submitOnChange: true
+                if (settings?.cond_Presence?.size() > 1 && settings?.cond_PresenceCmd) {
+                    input "cond_PresenceAll", "bool", title: "Require ALL Presence Sensors to be (${settings?.cond_PresenceCmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
         }
         section ("Door, Window, Contact Sensors Conditions") {
-            input "cond_ContactDoor", "capability.contactSensor", title: "Contact Sensors only on Doors", multiple: true, required: false, submitOnChange: true
+            input "cond_ContactDoor", "capability.contactSensor", title: "Contact Sensors only on Doors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("door_open.png")
             if (settings?.cond_ContactDoor) {
                 input "cond_ContactDoorCmd", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-                if (settings?.cond_ContactDoor?.size() > 1) {
-                    input "cond_ContactDoorAll", "bool", title: "Activate this toggle if you want ALL of the Doors to be ${settings?.cContactDoorCmd ?: ""} as a condition.", required: false, defaultValue: false, submitOnChange: true
+                if (settings?.cond_ContactDoor?.size() > 1 && settings?.cond_ContactDoorCmd) {
+                    input "cond_ContactDoorAll", "bool", title: "Require ALL Doors to be (${settings?.cond_ContactDoorCmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
-            input "cond_ContactWindow", "capability.contactSensor", title: "Contact Sensors only on Windows", multiple: true, required: false, submitOnChange: true
+            input "cond_ContactWindow", "capability.contactSensor", title: "Contact Sensors only on Windows", multiple: true, required: false, submitOnChange: true, image: getPublicImg("window.png")
                 if (settings?.cond_ContactWindow) {
                 input "cond_ContactWindowCmd", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-                if (settings?.cond_ContactWindow?.size() > 1) {
-                    input "cond_ContactWindowAll", "bool", title: "Activate this toggle if you want ALL of the Doors to be ${settings?.cContactWindowCmd ?: ""} as a condition.", required: false, defaultValue: false, submitOnChange: true
+                if (settings?.cond_ContactWindow?.size() > 1 && settings?.cond_ContactWindowCmd) {
+                    input "cond_ContactWindowAll", "bool", title: "Require ALL Windows to be (${settings?.cond_ContactWindowCmd})?", required: false, defaultValue: false, submitOnChange: true
                     }
                 }
-            input "cond_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: false, submitOnChange: true
+            input "cond_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("contact.png")
             if (settings?.cond_Contact) {
                 input "cond_ContactCmd", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-                if (settings?.cond_Contact?.size() > 1) {
-                    input "cond_ContactAll", "bool", title: "Activate this toggle if you want ALL of the Doors to be ${settings?.cContactCmd ?: ""} as a condition.", required: false, defaultValue: false, submitOnChange: true
+                if (settings?.cond_Contact?.size() > 1 && settings?.cond_ContactCmd) {
+                    input "cond_ContactAll", "bool", title: "Require ALL Contacts to be (${settings?.cond_ContactCmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
         }
 
         section ("Garage Door and Lock Conditions") {
-            input "cond_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true
+            input "cond_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true, image: getPublicImg("lock.png")
             if (settings?.cond_Locks) {
                 input "cond_LocksCmd", "enum", title: "are...", options:["locked":"locked", "unlocked":"unlocked"], multiple: false, required: true, submitOnChange:true
+                if (settings?.cond_Locks?.size() > 1 && settings?.cond_LocksCmd) {
+                    input "cond_LocksAll", "bool", title: "Require ALL Locks to be (${settings?.cond_LocksCmd})?", required: false, defaultValue: false, submitOnChange: true
+                }
             }
-            input "cond_Garage", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true
-            if (settings?.cond_Garage) {
-                input "cond_GarageCmd", "enum", title: "are...", options:["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
+            input "cond_Garages", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("garage_door_open.png")
+            if (settings?.cond_Garages) {
+                input "cond_GaragesCmd", "enum", title: "are...", options:["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
+                if (settings?.cond_Garages?.size() > 1 && settings?.cond_Garages) {
+                    input "cond_GaragesAll", "bool", title: "Require ALL Garages to be (${settings?.cond_GaragesCmd})?", required: false, defaultValue: false, submitOnChange: true
+                }
             }
         }
         
         section ("Environmental Conditions") {
-            input "cond_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: false, submitOnChange: true
+            input "cond_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: false, submitOnChange: true, image: getPublicImg("humidity.png")
             if (settings?.cond_Humidity) {
-                input "cond_HumidityLevel", "enum", title: "Only when the Humidity is...", options: ["above", "below"], required: false, submitOnChange: true
+                input "cond_HumidityLevel", "enum", title: "Only when the Humidity is...", options: ["above", "below", "equal"], required: false, submitOnChange: true
                 if (settings?.cond_HumidityLevel) {
                     input "cond_HumidityPercent", "number", title: "this level...", required: true, description: "percent", submitOnChange: true
                 }
-                if (settings?.cond_HumidityPercent) {
+                if (settings?.cond_HumidityPercent && settings?.cond_HumidityLevel != "equal") {
                     input "cond_HumidityStop", "number", title: "...but not ${settings?.cond_HumidityLevel} this percentage", required: false, description: "humidity"
                 }
             }
-            input "cond_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true, submitOnChange: true
+            input "cond_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true, submitOnChange: true, image: getPublicImg("temperature.png")
             if (settings?.cTemperature) {
-                input "cond_TemperatureLevel", "enum", title: "When the temperature is...", options: ["above", "below"], required: false, submitOnChange: true
+                input "cond_TemperatureLevel", "enum", title: "When the temperature is...", options: ["above", "below", "equal"], required: false, submitOnChange: true
                 if (settings?.cond_TemperatureLevel) {
                     input "cond_TemperatureDegrees", "number", title: "Temperature...", required: true, description: "degrees", submitOnChange: true
                 }
-                if (settings?.cond_TemperatureDegrees) {
+                if (settings?.cond_TemperatureDegrees && settings?.cond_TemperatureLevel != "equal") {
                     input "cond_TemperatureStop", "number", title: "...but not ${settings?.cond_TemperatureLevel} this temperature", required: false, description: "degrees"
                 }
             }
+        }
+    }
+}
+
+def actionsPage() {
+    return dynamicPage(name: "actionsPage", title: "Actions to perform...", install: false, uninstall: false) {
+        section("Output Devices:") {
+            input "act_SendToBrdGrp", "bool", title: "Send to an Echo Speaks Broadcast Group?", description: "This is ONLY for sending a Speech message to all devices in the group", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("es_groups.png")
+            if(act_SendToBrdGrp) {
+                Map brdCastGrps = parent?.getBroadcastGrps()
+                state?.brdCastGrps = brdCastGrps
+                Map groups = brdCastGrps?.collectEntries { [(it?.key): it?.value?.name] }
+                input "act_BroadcastGrps", "enum", title: "Select the broadcast Group", options: groups, required: true, multiple: false, submitOnChange: true, image: getAppImg("es_groups.png")
+            } else {
+                input "act_EchoDevices", "device.echoSpeaksDevice", title: "Echo Speaks Device to Use", description: "Select the devices", multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1.png")
+            }
+        }
+        if(act_SendToBrdGrp && act_BroadcastGrps) {
+            
+        } else {
+            if (settings?.triggerEvents?.size()) {
+                if ("Scheduled" in settings?.triggerEvents) {
+
+                }
+            }
+        
+            section("Configure Actions to Take:") {
+
+            }
+
+            // section ("Push Messages:") {
+            //     input "usePush", "bool", title: "Send Push Notifications...", required: false, defaultValue: false, submitOnChange: true
+            //     input "pushTimeStamp", "bool", title: "Add timestamp to Push Messages...", required: false, defaultValue: false, submitOnChange: true
+    		// }
+            // section ("Text Messages:", hideWhenEmpty: true) {
+            //     paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
+            //     input "smsNumbers", "text", title: "Send SMS Text to...", required: false, submitOnChange: true, image: getAppImg("sms_phone.png")
+            // }
+            // section("Pushover Support:") {
+            //     input ("pushoverEnabled", "bool", title: "Use Pushover Integration", required: false, submitOnChange: true, image: getAppImg("pushover_icon.png"))
+            //     if(settings?.pushoverEnabled == true) {
+            //         def poDevices = parent?.getPushoverDevices()
+            //         if(!poDevices) {
+            //             parent?.pushover_init()
+            //             paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
+            //         } else {
+            //             input "pushoverDevices", "enum", title: "Select Pushover Devices", description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon.png")
+            //             if(settings?.pushoverDevices) {
+            //                 def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
+            //                 input "pushoverPriority", "enum", title: "Notification Priority (Optional)", description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority.png")
+            //                 input "pushoverSound", "enum", title: "Notification Sound (Optional)", description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound.png")
+            //             }
+            //         }
+            //         // } else { paragraph "New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", state: "complete" }
+            //     }
+            // }
         }
     }
 }
@@ -628,68 +824,116 @@ def updated() {
 def initialize() {
     state?.isInstalled = true
     state?.setupComplete = true
+    if(settings?.appLbl && app?.getLabel() != "${settings?.appLbl} (Action)") { app?.updateLabel("${settings?.appLbl} (Action)") }
     // TODO: Cleanup unselected trigger types
-    // runIn(5, "subscribeToEvts")
+    runIn(5, "subscribeToEvts")
 }
 
 private subscribeToEvts() {
-    //LOCATION & SCHEDULING
-    if(settings?.trig_shm) {
-        subscribe(location, "alarmSystemStatus",shmModeChange)
+    //SCHEDULING
+    
+    // if (settings?.trig_frequency)           { cronHandler(frequency) }
+    // if (settings?.trig_xFutureTime)         { oneTimeHandler() }
+    // if (settings?.trig_SunState == "Sunset") {
+    //     subscribe(location, "sunsetTime", sunsetTimeHandler)
+    //     sunsetTimeHandler(location.currentValue("sunsetTime"))
+    // }
+    // if (settings?.trig_SunState == "Sunrise") {
+    //     subscribe(location, "sunriseTime", sunriseTimeHandler)
+    //     sunriseTimeHandler(location.currentValue("sunriseTime"))
+    // }
+
+    // Location Events
+    if(("Smart Home Monitor" in settings?.triggerEvents) || ("Modes" in settings?.triggerEvents) || ("Routines" in settings?.triggerEvents)) {
+        if(settings?.trig_shm || settings?.trig_Modes || settings?.trig_Routine) { subscribe(location, locationEvtHandler) }
     }
-    if (settings?.trig_Modes)               { subscribe(location, processModeChange) }
-    if (settings?.trig_Routine)             { subscribe(location, "routineExecuted", routineHandler) }
-    if (settings?.trig_frequency)           { cronHandler(frequency) }
-    if (settings?.trig_xFutureTime)         { oneTimeHandler() }
-    if (mySunState == "Sunset") {
-    subscribe(location, "sunsetTime", sunsetTimeHandler)
-    sunsetTimeHandler(location.currentValue("sunsetTime"))
+
+    // ENVIRONMENTAL Sensors
+    if("Presence" in settings?.triggerEvents) {
+        if(settings?.trig_Presence)         { subscribe(trig_Presence, "presence", triggerEvtHandler) }
     }
-    if (mySunState == "Sunrise") {
-    subscribe(location, "sunriseTime", sunriseTimeHandler)
-    sunriseTimeHandler(location.currentValue("sunriseTime"))
+    if("Motion" in settings?.triggerEvents) {
+        if(settings?.trig_Motion)           { subscribe(trig_Motion, "motion", triggerEvtHandler) }
     }
-    // DIMMERS
-    if(tDimCmd == "on")							{ subscribe(tDim, "switch.on", processActions) } 
-    if(tDimCmd == "off")						{ subscribe(tDim, "switch.off", processActions) }
-    if(tDimCmd == "greater")					{ subscribe(tDim, "level", processActions) }
-    if(tDimCmd == "lessThan")					{ subscribe(tDim, "level", processActions) }
-    if(tDimCmd == "equal")						{ subscribe(tDim, "level", processActions) }
+    
+    if("Water" in settings?.triggerEvents) {
+        if(settings?.trig_Water)            { subscribe(settings?.trig_Water, "water", triggerEvtHandler) }
+    }
+    
+    if("Humidity" in settings?.triggerEvents) {
+        if(settings?.trig_Humidity)         { subscribe(settings?.trig_Humidity, "humidity", triggerEvtHandler) }
+    }
+    
+    if("Temperature" in settings?.triggerEvents) {
+        if(settings?.trig_Temperature)      { subscribe(settings?.trig_Temperature, "temperature", triggerEvtHandler) } 
+    }
+    
+    if("Illuminance" in settings?.triggerEvents) {
+        if(settings?.trig_Illuminance)      { subscribe(settings?.trig_Illuminance, "illuminance", triggerEvtHandler) }
+    }
+    //Power
+    if("Power" in settings?.triggerEvents) {
+        if(settings?.trig_Power) { subscribe(trig_Power, "power", triggerEvtHandler) }
+    }
+    // if(tWind) { subscribe(tWind, "WindStrength", windHandler) }
+    // if(tRain) { subscribe(tRain, "rain", rainHandler) }
+    
+    // Locks
+    if("Locks" in settings?.triggerEvents) {
+        if(settings?.trig_Locks) { subscribe(settings?.trig_Locks, "lock", triggerEvtHandler) }
+    }
 
-    // ENVIRONMENTAL
-    if(tHumidity)								{ subscribe(tHumidity, "humidity", humidityHandler) }
-    if(tTemperature)							{ subscribe(tTemperature, "temperature", tempHandler) } 
-    if(tLux)									{ subscribe(tLux, "illuminance", luxHandler) }
-    if(tWind)									{ subscribe(tWind, "WindStrength", windHandler) }
-    if(tRain)									{ subscribe(tRain, "rain", rainHandler) }
-    if(tLocks) 									{ subscribe(tLocks, "lock", locksTrigger) }
-    if(myCO2) 									{ subscribe(myCO2, "carbonDioxide", CO2Handler) }
-    if(tWater) {    
-        if (tWaterStatus == "wet")				subscribe(tWater, "water.wet", processActions)
-        if (tWaterStatus == "dry")				subscribe(tWater, "water.dry", processActions)
-        if (tWaterStatus == "both")				subscribe(tWater, "water", processActions) }
-    if(tSmoke) {    
-        if (tSmokeStatus == "detected")			subscribe(tSmoke, "smoke.detected", processActions)
-        if (tSmokeStatus == "clear")			subscribe(tSmoke, "smoke.clear", processActions)
-        if (tSmokeStatus == "both")				subscribe(tSmoke, "smoke", processActions) }
+    if("Window Shades" in settings?.triggerEvents) {
+        if(settings?.trig_Shades) { subscribe(settings?.trig_Shades, "windowShade", triggerEvtHandler) }
+    }
 
-    // MISC EVENTS
-    if(tGarageCmd=="open") 						{ subscribe(tGarage, "contact.open", processActions) }
-    if(tGarageCmd=="close") 					{ subscribe(tGarage, "contact.closed", processActions) } 
-    if(tGarageCmd=="opening") 					{ subscribe(tGarage, "door.opening", processActions) }
-    if(tGarageCmd=="closing") 					{ subscribe(tGarage, "door.closing", processActions) }
-
-    if(tKeypads) 								{ subscribe(tKeypads, "codeEntered", codeEntryHandler) }    
-
-    subscribe(tPresence, "presence", routingMethod)
-    subscribe(tMotion, "motion", routingMethod)   
-    subscribe(tContact, "contact", routingMethod)
-    subscribe(tSwitch, "switch", routingMethod)
-    subscribe(tLocks, "lock", routingMethod)
-    subscribe(tContactWindow, "contact", routingMethod)
-    subscribe(tContactDoor, "contact", routingMethod) 
+    if("Valves" in settings?.triggerEvents) {
+        if(settings?.trig_Valves) { subscribe(settings?.trig_Valves, "valve", triggerEvtHandler) }
+    }
+    
+    if("CO2 & Smoke" in settings?.triggerEvents) {
+        if(settings?.trig_CO2)          { subscribe(settings?.trig_CO2, "carbonDioxide", triggerEvtHandler) }
+        if(settings?.trig_Smoke)        { subscribe(settings?.trig_Smoke, "smoke", triggerEvtHandler) }
+    }
+    
+    // Garage Door Openers
+    if("Garage Door Openers" in settings?.triggerEvents) {
+        if(settings?.trig_Garages)      { subscribe(settings?.trig_Garages, "garageDoorControl", triggerEvtHandler) }
+    }
+    
+    //Keypads
+    if("Keypads" in settings?.triggerEvents) {
+        if(settings?.trig_Keypads)          { subscribe(settings?.trig_Keypads, "codeEntered", triggerEvtHandler) }    
+    }
+    
+    //Contacts
+    if ("Contacts, Doors, Windows" in settings?.triggerEvents) {
+        if(settings?.trig_ContactDoor) { subscribe(trig_ContactDoor, "contact", triggerEvtHandler) }
+        if(settings?.trig_ContactWindow) { subscribe(trig_ContactWindow, "contact", triggerEvtHandler) }
+        if(settings?.trig_Contact) { subscribe(trig_Contact, "contact", triggerEvtHandler) }
+    }
+    
+    // Dimmers, Outlets, Switches
+    if ("Dimmers, Outlets, Switches" in settings?.triggerEvents) {
+        if(settings?.trig_Switch) { subscribe(trig_Switch, "switch", triggerEvtHandler) }
+        if(settings?.trig_Outlet) { subscribe(trig_Outlet, "outlet", triggerEvtHandler) }
+        if(settings?.trig_Dimmer)		{ 
+            subscribe(settings?.trig_Dimmer, "switch", triggerEvtHandler)
+            subscribe(settings?.trig_Dimmer, "level", triggerEvtHandler)
+        }
+    }
 }  
 
+def locationEvtHandler(evt) {
+	def evtDelay = now() - evt?.date?.getTime()
+	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+
+}
+
+def triggerEvtHandler(evt) {
+	def evtDelay = now() - evt?.date?.getTime()
+	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+}
 
 
 /***********************************************************************************************************
@@ -1107,6 +1351,16 @@ Map weekDaysEnum() {
 
 Map monthEnum() {
     return ["1": "January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"]
+}
+
+def getShmIncidents() {
+    //Thanks Adrian
+    def incidentThreshold = now() - 604800000
+    return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
+}
+
+def getShmStatus() {
+    switch (location.currentState("alarmSystemStatus")?.value) { case 'off': return 'Disarmed' case 'stay': return 'Armed/Stay' case 'away': return 'Armed/Away' }
 }
 
 Boolean pushStatus() { return (settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || settings?.pushoverEnabled) ? ((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }

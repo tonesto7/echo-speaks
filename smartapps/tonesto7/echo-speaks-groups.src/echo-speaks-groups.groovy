@@ -14,8 +14,8 @@
  *
  */
  
-String appVersion()	 { return "2.0.5" }
-String appModified() { return "2018-12-07" } 
+String appVersion()	 { return "2.0.6" }
+String appModified() { return "2018-12-14" } 
 String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
@@ -52,6 +52,7 @@ def updated() {
 
 def initialize() {
     state?.isInstalled = true
+    if(settings?.appLbl && app?.getLabel() != "${settings?.appLbl} (Group)") { app?.updateLabel("${settings?.appLbl} (Group)") }
     getBroadcastGroupData()
 	log.debug "Group Data: ${state?.groupDataMap}"
 }
@@ -104,7 +105,7 @@ def mainPage() {
 def namePage() {
     return dynamicPage(name: "namePage", install: true, uninstall: false) {
         section("Name this Group:") {
-            label title:"Group Name", required:true, submitOnChange: true
+            input "appLbl", "text", title:"Group Name", description: "", required:true, submitOnChange: true, image: getPublicImg("name_tag.png")
         }
     }
 }

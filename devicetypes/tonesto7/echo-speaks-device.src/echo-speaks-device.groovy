@@ -85,6 +85,8 @@ metadata {
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "setVolumeSpeakAndRestore"
+        command "playSports"
+        command "testSports"
     }
 
     tiles (scale: 2) {
@@ -261,8 +263,8 @@ metadata {
         standardTile("playTellStory", "playTellStory", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Tell-a-Story', action: 'playTellStory')
         }
-        standardTile("multiTest", "multiTest", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Multi Test', action: 'testMultiCmd')
+        standardTile("testSports", "testSports", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Sports Test', action: 'testSports')
         }
         standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Reset Queue', action: 'resetQueue')
@@ -278,7 +280,7 @@ metadata {
         details([
             "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported",
             "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue",
-            "lastSpeakCmd", "lastCmdSentDt", "refresh", "multiTest"])
+            "lastSpeakCmd", "lastCmdSentDt", "refresh", "testSports"])
     }
 
     preferences {
@@ -989,6 +991,11 @@ private sendMultiSequenceCommand(commands, parallel=false) {
 
 def searchTest() {
     searchAmazonMusic("thriller")
+}
+
+def testSports() {
+    log.trace "testSports"
+    sendSequenceCommand("Test", "stop", null)
 }
 /*******************************************************************
             Device Command FUNCTIONS
@@ -1966,6 +1973,9 @@ Map createSequenceNode(command, value) {
                 break
             case "playsearch":
                 seqNode?.type = "Alexa.Music.PlaySearchPhrase"
+                break
+            case "stop":
+                seqNode?.type = "Alexa.AudioPlayer.Stop"
                 break
             case "volume":
                 seqNode?.type = "Alexa.DeviceControls.Volume"
