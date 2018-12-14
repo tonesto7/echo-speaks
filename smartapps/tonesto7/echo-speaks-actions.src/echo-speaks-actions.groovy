@@ -94,48 +94,6 @@ String selTriggerTypes(type) {
 }
 
 private List buildTriggerEnum() {
-    /* TODO:
-
-        -TIME TRIGGERS-
-            Time of Day
-            Days of week
-            Months (?)
-
-        -DEVICE TRIGGERS-
-            Presence (Present/NotPresent) (Stays?)
-            Water (Wet/Dry)
-            Contacts (Opened/Closed) (Stays?)
-            Motion (Active/Inactive) (Stays?)
-            Valves (Opened/Closed) (Stays?)
-            Switches (On/Off) (Stays?)
-            Garages (Opened/Closed) (Stays?)
-            Locks (Locked/Unlocked) (Stays?)
-            Buttons
-            Temperature (Above/Below/Equals)
-            Power (Above/Below/Equals)
-            Humidity (Above/Below/Equals)
-            WindowShades (Open/Closed)
-            Thermostats(?)
-            Smoke Detectors (?)
-            Carbon Dioxide (?)
-
-        -LOCATION TRIGGERS-
-            Modes
-            SHM
-            Routines
-            Sunrise/Sunset
-
-        -WEATHER TRIGGERS- (MAYBE)
-            FORCAST hot words
-    */
-
-    /* TODO:
-        -ACTIONS-
-            PlsyWeather
-            PlayTraffic
-            FlashBriefing
-    */
-
     List enumOpts = []
     Map buildItems = [:]
     buildItems["Date/Time"] = ["Scheduled": "Scheduled"]?.sort{ it?.key }
@@ -143,31 +101,27 @@ private List buildTriggerEnum() {
     buildItems["Safety & Security"] = ["Smart Home Monitor": "Smart Home Monitor", "CO2 & Smoke":"CO\u00B2 & Smoke"]?.sort{ it?.key }
     buildItems["Actionable Devices"] = [ "Locks":"Locks", "Outlets, Switches, Dimmers":"Outlets, Switches, Dimmers", "Garage Door Openers":"Garage Door Openers", "Valves":"Valves", "Window Shades":"Window Shades", "Buttons":"Buttons"]?.sort{ it?.key }
     buildItems["Sensor Device"] = ["Doors, Windows, Contacts":"Doors, Windows, Contacts", "Motion":"Motion", "Presence":"Presence", "Temperature":"Temperature", "Humidity":"Humidity", "Water":"Water", "Power":"Power"]?.sort{ it?.key }
+    buildItems["Weather Events"] = ["Weather":"Weather"]
 
     buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
     return enumOpts
 }
-
-private String inputDesc(type) {
-    def selItems = selTriggerTypes(type) ?: null
-    return settings[type]?.size() ? "${selItems ? "Events: [${selItems}]\n" : ""}(${settings[type]?.size()}) Selected\n\ntap to modify" : "tap to select"
-}
-
 
 def mainPage() {
     Boolean newInstall = !state?.isInstalled
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
         appInfoSect()
         if(!settings?.actionPause) {
-            // section("Triggers:", hideable: true, hidden: (settings?.triggerTypes?.size())) {
-                // input "triggerTypes", "enum", title: "Select Triggers (Multiple Allowed)", description: "Tap to select", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("trigger.png")
-            // }
-            section ("Action Configuration") {
-                    href "triggersPage", title: "Configure Triggers", description: ""
-                    href "conditionsPage", title: "Configure Conditions", description: ""
-                    href "actionsPage", title: "Configure Actions", description: ""
-                    // href "pSend", title: "Audio, Push, SMS messages, and Reports", description: ""
-                }
+            section ("") {
+                href "triggersPage", title: "What will start this action...", description: ""
+            }
+            section("") {
+                href "conditionsPage", title: "(Optional) but only when these conditions are met.", description: ""
+            }
+            section("") {
+                href "actionsPage", title: "then perform these actions.", description: ""
+            }
+            
         } else {
             paragraph "This Action is currently in a paused state...  To edit the configuration please un-pause", required: true, state: null, image: getAppImg("notice.png")
         }
@@ -184,6 +138,14 @@ def mainPage() {
     }
 }
 
+def namePage() {
+    return dynamicPage(name: "namePage", install: true, uninstall: true) {
+        section("Name this Automation:") {
+            label title:"Automation Name", required:false, defaultValue: ""
+        }
+    }
+}
+
 def triggersPage() {
     return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
         def stRoutines = location.helloHome?.getPhrases()*.label.sort()
@@ -192,7 +154,7 @@ def triggersPage() {
         }
         if (settings?.triggerEvents?.size()) {
             if ("Scheduled" in settings?.triggerEvents) {
-                section("Time Events", hideable: true) {
+                section("Time Based Events", hideable: true) {
                     input "trig_SunState", "enum", title: "Sunrise or Sunset...", options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true
                     if(settings?.trigSunState) {
                         input "offset", "number", range: "*..*", title: "Offset event this number of minutes (+/-)", required: true
@@ -258,6 +220,9 @@ def triggersPage() {
             if ("Smart Home Monitor" in settings?.triggerEvents) {
                 section ("Smart Home Monitor (SHM) Events", hideable: true) {
                     input "trig_SHM", "enum", title: "Smart Home Monitor", options:["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed", "alerts": "Alerts"], multiple: true, required: true, submitOnChange: true
+                    if("alerts" in trig_SHM) {
+                        input "trig_SHMAlertsClear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
+                    }
                 }
             }
 
@@ -279,7 +244,7 @@ def triggersPage() {
                 section ("Switches", hideable: true) {
                     input "trig_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required: false
                     if (settings?.trig_Switch) {
-                        input "trig_SwitchCmd", "enum", title: "are turned...", options:["on": "on","off": "off"], multiple: false, required: true, submitOnChange: true
+                        input "trig_SwitchCmd", "enum", title: "are turned...", options:["on","off"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_Switch?.size() > 1) {
                             input "trig_SwitchAll", "bool", title: "ALL switches to be ${settings?.trig_SwitchCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
                         }
@@ -288,7 +253,7 @@ def triggersPage() {
                 section ("Dimmers", hideable: true) {
                     input "trig_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: false
                     if (settings?.trig_Dimmer) {
-                        input "trig_DimmersCmd", "enum", title: "turn...", options:["on": "on","off": "off","greater": "to greater than","lessThan": "to less than","equal": "to being equal to"], multiple: false, required: false, submitOnChange: true
+                        input "trig_DimmersCmd", "enum", title: "turn...", options:["on": "on", "off": "off", "greater": "to greater than", "lessThan": "to less than", "equal": "to being equal to"], multiple: false, required: false, submitOnChange: true
                         if (settings?.trig_DimmerCmd in ["greater", "lessThan", "equal"]) {
                             input "trig_DimmerLvl", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
                         }
@@ -297,7 +262,7 @@ def triggersPage() {
                 section ("Outlets", hideable: true) {
                     input "trig_Outlet", "capability.outlet", title: "Outlets", multiple: true, submitOnChange: true, required:false
                     if (settings?.trig_Outlet) {
-                        input "trig_OutletCmd", "enum", title: "are turned...", options:["on": "on","off": "off"], multiple: false, required: true, submitOnChange: true
+                        input "trig_OutletCmd", "enum", title: "are turned...", options:["on", "off"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_Outlet?.size() > 1) {
                             input "trig_OutletAll", "bool", title: "ALL switches to be ${settings?.trig_OutletCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
                         }
@@ -309,7 +274,7 @@ def triggersPage() {
                 section ("Motion Sensors", hideable: true) {
                     input "trig_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true
                     if (settings?.trig_Motion) {
-                        input "trig_MotionCmd", "enum", title: "become...", options: ["active": "active", "inactive": "inactive"], multiple: false, required: true, submitOnChange: true
+                        input "trig_MotionCmd", "enum", title: "become...", options: ["active", "inactive"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_Motion?.size() > 1) {
                             input "trig_MotionAll", "bool", title: "ALL motion sensors to be ${settings?.trig_MotionCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
                         }
@@ -328,34 +293,25 @@ def triggersPage() {
                     }
                 }
             }
-            if ("Garage Door Openers" in settings?.triggerEvents) {
-                section ("Garage Door Openers", hideable: true) {
-                    input "trig_Garage", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true
-                    if (settings?.trig_Garage) {
-                        input "trig_GarageCmd", "enum", title: "are...", options:["open":"opened", "close":"closed", "opening":"opening", "closing":"closing"], multiple: false, required: true, submitOnChange: true
-                    }
-                }
-            }
-            if ("Doors, Windows, & Contacts" in settings?.triggerEvents) {
-                section ("Doors", hideable: true) {
-                    input "trig_ContactDoor", "capability.contactSensor", title: "Contact Sensors only on Doors", multiple: true, required: false, submitOnChange: true
+            
+            if ("Doors, Windows, Contacts" in settings?.triggerEvents) {
+                section ("Doors, Windows, Contacts", hideable: true) {
+                    input "trig_ContactDoor", "capability.contactSensor", title: "Contact Sensors on Doors", multiple: true, required: false, submitOnChange: true
                     if (settings?.trig_ContactDoor) {
                         input "trig_ContactDoorCmd", "enum", title: "are...", options: ["open":"opened", "closed":"closed"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_ContactDoor?.size() > 1) {
                             input "trig_ContactDoorAll", "bool", title: "ALLdoors to be ${settings?.trig_ContactDoorCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
-                }
-                section ("Windows", hideable: true) {
-                    input "trig_ContactWindow", "capability.contactSensor", title: "Contact Sensors only on Windows", multiple: true, required: false, submitOnChange: true
+                
+                    input "trig_ContactWindow", "capability.contactSensor", title: "Contact Sensors on Windows", multiple: true, required: false, submitOnChange: true
                     if (settings?.trig_ContactWindow) {
                         input "trig_ContactWindowCmd", "enum", title: "are...", options: ["open":"opened", "closed":"closed"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_ContactWindow?.size() > 1) {
                             input "trig_ContactWindowAll", "bool", title: "ALL windows to be ${settings?.trig_ContactWindowCmd ?: ""}.", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
-                }
-                section ("Contact Sensors", hideable: true) {
+                
                     input "trig_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: false, submitOnChange: true
                     if (settings?.trig_Contact) {
                         input "trig_ContactCmd", "enum", title: "are...", options: ["open":"opened", "closed":"closed"], multiple: false, required: true, submitOnChange: true
@@ -366,6 +322,15 @@ def triggersPage() {
                 }
             }
             
+            if ("Garage Door Openers" in settings?.triggerEvents) {
+                section ("Garage Door Openers", hideable: true) {
+                    input "trig_Garage", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true
+                    if (settings?.trig_Garage) {
+                        input "trig_GarageCmd", "enum", title: "are...", options:["open":"opened", "close":"closed", "opening":"opening", "closing":"closing"], multiple: false, required: true, submitOnChange: true
+                    }
+                }
+            }
+
             if ("Locks" in settings?.triggerEvents) {
                 section ("Locks", hideable: true) {
                     input "trig_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true
@@ -414,6 +379,7 @@ def triggersPage() {
                     }
                 }
             }
+
             if ("Water" in settings?.triggerEvents) {
                 section ("Water Sensor Events", hideable: true) {
                     input "trig_tWater", "capability.waterSensor", title: "Water/Moisture Sensors", required: false, multiple: true, submitOnChange: true
@@ -422,6 +388,7 @@ def triggersPage() {
                     }
                 }
             }
+
             if ("CO2 & Smoke" in settings?.triggerEvents) {
                 section ("CO\u00B2 Events", hideable: true) {
                     input "trig_CO2", "capability.carbonDioxideMeasurement", title: "Carbon Dioxide (CO\u00B2)", required: false, multiple: true, submitOnChange: true
@@ -440,6 +407,7 @@ def triggersPage() {
                     }
                 }
             }
+
             if ("Illuminance" in settings?.triggerEvents) {
                 section ("Illuminance Events", hideable: true) {
                     input "trig_illuminance", "capability.illuminanceMeasurement", title: "Lux Level", required: false, submitOnChange: true
@@ -450,38 +418,26 @@ def triggersPage() {
                     }
                 }
             }
-            // input "tFeelsLike", "capability.relativeHumidityMeasurement", title: "How hot/cold it 'Feels'", required: false, multiple: true, submitOnChange: true
-            // input "tWind", "capability.sensor", title: "Wind Speed", multiple: true, required: false, submitOnChange: true
-            // if (tWind) {
-            //     input "tWindLevel", "enum", title: "Activate when Wind Speed is...", options: ["above", "below"], required: false, submitOnChange: true
-            //     input "tWindSpeed", "number", title: "Wind Speed Level...", required: true, description: "mph", submitOnChange: true
-            //     input "windOnce", "bool", title: "Perform actions only once when true", required: false, defaultValue: false, submitOnChange: true
-            // }
-            // input "tRain", "capability.sensor", title: "Rain Accumulation", multiple: true, required: false, submitOnChange: true
-            // if (tRain) {
-            //     input "tRainAction", "enum", title: "Activate when the Rain...", options: ["begins", "ends", "begins and ends"], required: false, defaultValue: true, submitOnChange: true
-            //     if (tRainAction == "begins" || tRainAction == "begins and ends") {
-            //         input "rainStartMsg", "text", title: "Send this message when it begins to rain"
-            //     }
-            //     if (tRainAction == "ends" || tRainAction == "begins and ends") {
-            //         input "rainStopMsg", "text", title: "Send this message when it stops raining"
-            //     }
-            // }
+
         }
     }
 }
 
 /******************************************************************************
-	CONDITIONS SELECTION PAGE
+    CONDITIONS SELECTION PAGE
 ******************************************************************************/
 def conditionsPage() {
-    return dynamicPage(name: "conditionsPage", title: "Execute this Action when...", install: false, uninstall: false) {
-        section ("Location Based Conditions") {
-            input "cond_Mode", "mode", title: "Location Mode is...", multiple: true, required: false, submitOnChange: true
-        	input "cond_SHM", "enum", title: "Smart Home Monitor is...", options:["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed"], multiple: false, required: false, submitOnChange: true
-            input "cond_Days", "enum", title: "Days of the week", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    return dynamicPage(name: "conditionsPage", title: "Only when these are true...", install: false, uninstall: false) {
+        section("Time of Day") {
             href "timePage", title: "Time Schedule", description: "", state: ""
         }
+
+        section ("Location Based Conditions") {
+            input "cond_Mode", "mode", title: "Location Mode is...", multiple: true, required: false, submitOnChange: true
+            input "cond_SHM", "enum", title: "Smart Home Monitor is...", options: ["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed"], multiple: false, required: false, submitOnChange: true
+            input "cond_Days", "enum", title: "Days of the week", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        }
+
         section ("Switch and Dimmer Conditions") {
             input "cond_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required:false
             if (settings?.cond_Switch) {
@@ -505,11 +461,11 @@ def conditionsPage() {
             input "cond_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true
             if (settings?.cond_Motion) {
                 input "cond_MotionCmd", "enum", title: "are...", options: ["active":"active", "inactive":"inactive"], multiple: false, required: true, submitOnChange: true
-            	if (settings?.cond_Motion?.size() > 1) {
-                	input "cond_MotionAll", "bool", title: "Activate this toggle if you want ALL of the Motion Sensors to be ${settings?.cond_MotionCmd ?: ""} as a condition."
+                if (settings?.cond_Motion?.size() > 1) {
+                    input "cond_MotionAll", "bool", title: "Activate this toggle if you want ALL of the Motion Sensors to be ${settings?.cond_MotionCmd ?: ""} as a condition."
                 }
             }
-        	input "cond_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true
+            input "cond_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true
             if (settings?.cond_Presence) {
                 input "cond_PresenceCmd", "enum", title: "are...", options: ["present":"Present","not present":"Not Present"], multiple: false, required: true, submitOnChange: true
                 if (settings?.cond_Presence?.size() > 1) {
@@ -517,30 +473,31 @@ def conditionsPage() {
                 }
             }
         }
-        section ("Door, Window, and other Contact Sensor Conditions") {
+        section ("Door, Window, Contact Sensors Conditions") {
             input "cond_ContactDoor", "capability.contactSensor", title: "Contact Sensors only on Doors", multiple: true, required: false, submitOnChange: true
             if (settings?.cond_ContactDoor) {
                 input "cond_ContactDoorCmd", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-            	if (settings?.cond_ContactDoor?.size() > 1) {
-                	input "cond_ContactDoorAll", "bool", title: "Activate this toggle if you want ALL of the Doors to be ${settings?.cContactDoorCmd ?: ""} as a condition.", required: false, defaultValue: false, submitOnChange: true
+                if (settings?.cond_ContactDoor?.size() > 1) {
+                    input "cond_ContactDoorAll", "bool", title: "Activate this toggle if you want ALL of the Doors to be ${settings?.cContactDoorCmd ?: ""} as a condition.", required: false, defaultValue: false, submitOnChange: true
                 }
             }
             input "cond_ContactWindow", "capability.contactSensor", title: "Contact Sensors only on Windows", multiple: true, required: false, submitOnChange: true
-            	if (settings?.cond_ContactWindow) {
+                if (settings?.cond_ContactWindow) {
                 input "cond_ContactWindowCmd", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-            	if (settings?.cond_ContactWindow?.size() > 1) {
-                	input "cond_ContactWindowAll", "bool", title: "Activate this toggle if you want ALL of the Doors to be ${settings?.cContactWindowCmd ?: ""} as a condition.", required: false, defaultValue: false, submitOnChange: true
+                if (settings?.cond_ContactWindow?.size() > 1) {
+                    input "cond_ContactWindowAll", "bool", title: "Activate this toggle if you want ALL of the Doors to be ${settings?.cContactWindowCmd ?: ""} as a condition.", required: false, defaultValue: false, submitOnChange: true
                     }
-            	}
+                }
             input "cond_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: false, submitOnChange: true
             if (settings?.cond_Contact) {
                 input "cond_ContactCmd", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-            	if (settings?.cond_Contact?.size() > 1) {
-                	input "cond_ContactAll", "bool", title: "Activate this toggle if you want ALL of the Doors to be ${settings?.cContactCmd ?: ""} as a condition.", required: false, defaultValue: false, submitOnChange: true
+                if (settings?.cond_Contact?.size() > 1) {
+                    input "cond_ContactAll", "bool", title: "Activate this toggle if you want ALL of the Doors to be ${settings?.cContactCmd ?: ""} as a condition.", required: false, defaultValue: false, submitOnChange: true
                 }
             }
         }
-		section ("Garage Door and Lock Conditions") {
+
+        section ("Garage Door and Lock Conditions") {
             input "cond_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true
             if (settings?.cond_Locks) {
                 input "cond_LocksCmd", "enum", title: "are...", options:["locked":"locked", "unlocked":"unlocked"], multiple: false, required: true, submitOnChange:true
@@ -548,10 +505,11 @@ def conditionsPage() {
             input "cond_Garage", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true
             if (settings?.cond_Garage) {
                 input "cond_GarageCmd", "enum", title: "are...", options:["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-        	}
+            }
         }
+        
         section ("Environmental Conditions") {
-        	input "cond_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: false, submitOnChange: true
+            input "cond_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: false, submitOnChange: true
             if (settings?.cond_Humidity) {
                 input "cond_HumidityLevel", "enum", title: "Only when the Humidity is...", options: ["above", "below"], required: false, submitOnChange: true
                 if (settings?.cond_HumidityLevel) {
@@ -571,7 +529,7 @@ def conditionsPage() {
                     input "cond_TemperatureStop", "number", title: "...but not ${settings?.cond_TemperatureLevel} this temperature", required: false, description: "degrees"
                 }
             }
-		}
+        }
     }
 }
 
@@ -669,6 +627,7 @@ def updated() {
 
 def initialize() {
     state?.isInstalled = true
+    state?.setupComplete = true
     // TODO: Cleanup unselected trigger types
     // runIn(5, "subscribeToEvts")
 }
@@ -684,43 +643,43 @@ private subscribeToEvts() {
     if (settings?.trig_xFutureTime)         { oneTimeHandler() }
     if (mySunState == "Sunset") {
     subscribe(location, "sunsetTime", sunsetTimeHandler)
-	sunsetTimeHandler(location.currentValue("sunsetTime"))
+    sunsetTimeHandler(location.currentValue("sunsetTime"))
     }
     if (mySunState == "Sunrise") {
-	subscribe(location, "sunriseTime", sunriseTimeHandler)
-	sunriseTimeHandler(location.currentValue("sunriseTime"))
+    subscribe(location, "sunriseTime", sunriseTimeHandler)
+    sunriseTimeHandler(location.currentValue("sunriseTime"))
     }
     // DIMMERS
-	if(tDimCmd == "on")							{ subscribe(tDim, "switch.on", processActions) } 
+    if(tDimCmd == "on")							{ subscribe(tDim, "switch.on", processActions) } 
     if(tDimCmd == "off")						{ subscribe(tDim, "switch.off", processActions) }
     if(tDimCmd == "greater")					{ subscribe(tDim, "level", processActions) }
     if(tDimCmd == "lessThan")					{ subscribe(tDim, "level", processActions) }
     if(tDimCmd == "equal")						{ subscribe(tDim, "level", processActions) }
 
-	// ENVIRONMENTAL
+    // ENVIRONMENTAL
     if(tHumidity)								{ subscribe(tHumidity, "humidity", humidityHandler) }
     if(tTemperature)							{ subscribe(tTemperature, "temperature", tempHandler) } 
     if(tLux)									{ subscribe(tLux, "illuminance", luxHandler) }
     if(tWind)									{ subscribe(tWind, "WindStrength", windHandler) }
     if(tRain)									{ subscribe(tRain, "rain", rainHandler) }
     if(tLocks) 									{ subscribe(tLocks, "lock", locksTrigger) }
-	if(myCO2) 									{ subscribe(myCO2, "carbonDioxide", CO2Handler) }
+    if(myCO2) 									{ subscribe(myCO2, "carbonDioxide", CO2Handler) }
     if(tWater) {    
-		if (tWaterStatus == "wet")				subscribe(tWater, "water.wet", processActions)
-    	if (tWaterStatus == "dry")				subscribe(tWater, "water.dry", processActions)
-    	if (tWaterStatus == "both")				subscribe(tWater, "water", processActions) }
-	if(tSmoke) {    
-		if (tSmokeStatus == "detected")			subscribe(tSmoke, "smoke.detected", processActions)
-		if (tSmokeStatus == "clear")			subscribe(tSmoke, "smoke.clear", processActions)
-		if (tSmokeStatus == "both")				subscribe(tSmoke, "smoke", processActions) }
+        if (tWaterStatus == "wet")				subscribe(tWater, "water.wet", processActions)
+        if (tWaterStatus == "dry")				subscribe(tWater, "water.dry", processActions)
+        if (tWaterStatus == "both")				subscribe(tWater, "water", processActions) }
+    if(tSmoke) {    
+        if (tSmokeStatus == "detected")			subscribe(tSmoke, "smoke.detected", processActions)
+        if (tSmokeStatus == "clear")			subscribe(tSmoke, "smoke.clear", processActions)
+        if (tSmokeStatus == "both")				subscribe(tSmoke, "smoke", processActions) }
 
-	// MISC EVENTS
-	if(tGarageCmd=="open") 						{ subscribe(tGarage, "contact.open", processActions) }
+    // MISC EVENTS
+    if(tGarageCmd=="open") 						{ subscribe(tGarage, "contact.open", processActions) }
     if(tGarageCmd=="close") 					{ subscribe(tGarage, "contact.closed", processActions) } 
     if(tGarageCmd=="opening") 					{ subscribe(tGarage, "door.opening", processActions) }
     if(tGarageCmd=="closing") 					{ subscribe(tGarage, "door.closing", processActions) }
 
-	if(tKeypads) 								{ subscribe(tKeypads, "codeEntered", codeEntryHandler) }    
+    if(tKeypads) 								{ subscribe(tKeypads, "codeEntered", codeEntryHandler) }    
 
     subscribe(tPresence, "presence", routingMethod)
     subscribe(tMotion, "motion", routingMethod)   
@@ -887,7 +846,7 @@ def conditionHandler(evt) {
     // DAYS OF THE WEEK
     if (cDays == null) { cDaysOk = true }
     if (cDays) {
-    	if (parent.trace) log.trace "Conditions: Days of the Week events method activated"
+        if (parent.trace) log.trace "Conditions: Days of the Week events method activated"
         def df = new java.text.SimpleDateFormat("EEEE")
         if (location.timeZone) {
             df.setTimeZone(location.timeZone)
@@ -903,7 +862,7 @@ def conditionHandler(evt) {
     // SMART HOME MONITOR
     if (cSHM == null) { cSHMOk = true }
     if (cSHM) {
-    	if (parent.trace) log.trace "Conditions: SHM events method activated"
+        if (parent.trace) log.trace "Conditions: SHM events method activated"
         def currentSHM = location.currentState("alarmSystemStatus")?.value
         if (cSHM == currentSHM) {
             cSHMOk = true
@@ -916,7 +875,7 @@ def conditionHandler(evt) {
     if (cMode) {
     if (parent.trace) log.trace "Conditions: Mode events method activated"
         cModeOk = !cMode || cMode?.contains(location.mode)
-    	if (cModeOk == false) log.warn "Mode Conditions Handler failed"
+        if (cModeOk == false) log.warn "Mode Conditions Handler failed"
     }
 
     // MOTION
@@ -1076,7 +1035,7 @@ def conditionHandler(evt) {
 
 
     if (cLocksOk==true && cGarageOk==true && cTempOk==true && cHumOk==true && cSHMOk==true && cDimOk==true && cSwitchOk==true && cModeOk==true && 
-    	cMotionOk==true && cPresenceOk==true && cDoorOk==true && cWindowOk==true && cContactOk==true && cDaysOk==true){ // && getTimeOk(evt)==true) { 
+        cMotionOk==true && cPresenceOk==true && cDoorOk==true && cWindowOk==true && cContactOk==true && cDaysOk==true){ // && getTimeOk(evt)==true) { 
         result = true
     }
     if (result == true) {
