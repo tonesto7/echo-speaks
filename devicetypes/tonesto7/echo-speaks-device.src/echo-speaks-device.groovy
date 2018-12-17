@@ -357,7 +357,6 @@ Boolean isAuthOk() {
 }
 
 Boolean isCommandTypeAllowed(String type, noLogs=false) {
-    log.debug "permissions: ${state?.permissions}"
     Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
     if(!isOnline) { if(!noLogs) { log.warn "Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})" }; return false; }
     if(!getAmazonDomain()) { if(!noLogs) { log.warn "amazonDomain State Value Missing: ${getAmazonDomain()}" }; return false }
