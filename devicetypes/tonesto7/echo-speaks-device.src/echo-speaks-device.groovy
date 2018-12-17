@@ -19,7 +19,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 String devVersion() { return "2.0.6"}
-String devModified() { return "2018-12-11" }
+String devModified() { return "2018-12-17" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -55,6 +55,7 @@ metadata {
         attribute "musicSupported", "string"
         attribute "alarmSupported", "string"
         attribute "reminderSupported", "string"
+        attribute "supportedMusic", "string"
         command "playTextAndResume"
         command "playTrackAndResume"
         command "playTrackAndRestore"
@@ -74,8 +75,10 @@ metadata {
         command "playTellStory"
         command "searchMusic"
         command "searchAmazonMusic"
+        command "searchAppleMusic"
         command "searchPandora"
         command "searchIheart"
+        command "searchSiriusXm"
         command "searchSpotify"
         command "searchTuneIn"
         command "createAlarm"
@@ -233,14 +236,17 @@ metadata {
         valueTile("currentAlbum", "device.currentAlbum", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
             state("default", label:'Album:\n${currentValue}')
         }
-        valueTile("lastSpeakCmd", "device.lastSpeakCmd", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
+        valueTile("lastSpeakCmd", "device.lastSpeakCmd", height: 2, width: 3, inactiveLabel: false, decoration: "flat") {
             state("lastSpeakCmd", label:'Last Text Sent:\n${currentValue}')
         }
-        valueTile("lastCmdSentDt", "device.lastCmdSentDt", height: 2, width: 4, inactiveLabel: false, decoration: "flat") {
+        valueTile("lastCmdSentDt", "device.lastCmdSentDt", height: 2, width: 3, inactiveLabel: false, decoration: "flat") {
             state("lastCmdSentDt", label:'Last Text Sent:\n${currentValue}')
         }
         valueTile("alexaWakeWord", "device.alexaWakeWord", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("alexaWakeWord", label:'Wake Word:\n${currentValue}')
+        }
+        valueTile("supportedMusic", "device.supportedMusic", height: 2, width: 4, inactiveLabel: false, decoration: "flat") {
+            state("supportedMusic", label:'Supported Music:\n${currentValue}')
         }
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
@@ -279,8 +285,8 @@ metadata {
         main(["deviceStatus"])
         details([
             "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported",
-            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue",
-            "lastSpeakCmd", "lastCmdSentDt", "refresh", "testSports"])
+            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue", "refresh", "supportedMusic",
+            "lastSpeakCmd", "lastCmdSentDt"])
     }
 
     preferences {
@@ -351,6 +357,7 @@ Boolean isAuthOk() {
 }
 
 Boolean isCommandTypeAllowed(String type, noLogs=false) {
+    log.debug "permissions: ${state?.permissions}"
     Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
     if(!isOnline) { if(!noLogs) { log.warn "Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})" }; return false; }
     if(!getAmazonDomain()) { if(!noLogs) { log.warn "amazonDomain State Value Missing: ${getAmazonDomain()}" }; return false }
@@ -388,6 +395,9 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
             case "amazonMusic":
                 warnMsg = "OOPS... Amazon Music is NOT Supported by this Device!!!"
                 break
+            case "appleMusic":
+                warnMsg = "OOPS... Apple Music is NOT Supported by this Device!!!"
+                break
             case "tuneInRadio":
                 warnMsg = "OOPS... Tune-In Radio is NOT Supported by this Device!!!"
                 break
@@ -396,6 +406,9 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
                 break
             case "pandoraRadio":
                 warnMsg = "OOPS... Pandora Radio is NOT Supported by this Device!!!"
+                break
+            case "siriusXm":
+                warnMsg = "OOPS... Sirius XM Radio is NOT Supported by this Device!!!"
                 break
             case "spotify":
                 warnMsg = "OOPS... Spotify is NOT Supported by this Device!!!"
@@ -416,7 +429,7 @@ Boolean permissionOk(type) {
 
 Boolean musicSearchSupported() {
     if(!state?.permissions) { return false }
-    ["amazonMusic", "pandoraRadio", "tuneInRadio", "iHeartRadio", "spotify"]?.each { if(permissionOk(it as String) == true) { return true } }
+    ["amazonMusic", "appleMusic", "pandoraRadio", "tuneInRadio", "iHeartRadio", "siriusXm", "spotify"]?.each { if(permissionOk(it as String) == true) { return true } }
     return false
 }
 
@@ -446,7 +459,9 @@ void updateDeviceStatus(Map devData) {
             state?.cookie = devData?.cookie
             state?.amazonDomain = devData?.amazonDomain
             state?.regionLocale = devData?.regionLocale
-            state?.permissions = devData?.permissionMap
+            Map permissions = state?.permissions ?: [:]
+            devData?.permissionMap?.each {k,v -> permissions[k] = v }
+            state?.permissions = permissions
             state?.hasClusterMembers = devData?.hasClusterMembers
             //log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
             // log.trace "permissions: ${state?.permissions}"
@@ -866,6 +881,12 @@ def getMusicProvidersHandler(response, data) {
         sData?.findAll { it?.availability == "AVAILABLE" }?.each { item->
             items[item?.id] = item?.displayName
         }
+        state?.permissions["appleMusic"] = (items?.containsKey("APPLE_MUSIC"))
+        state?.permissions["siriusXm"] = (items?.containsKey("SIRIUSXM"))
+    }
+    String lItems = items?.collect{ it?.value }?.sort()?.join(", ")
+    if(isStateChange(device, "supportedMusic", lItems?.toString())) {
+        sendEvent(name: "supportedMusic", value: lItems?.toString(), display: false, displayed: false)
     }
     if(isStateChange(device, "alexaMusicProviders", items?.toString())) {
         // log.trace "Alexa Music Providers Changed to ${items}"
@@ -1306,6 +1327,13 @@ def searchAmazonMusic(String searchPhrase, volume=null) {
     }
 }
 
+def searchAppleMusic(String searchPhrase, volume=null) {
+    if(isCommandTypeAllowed("appleMusic")) {
+        doSearchMusicCmd(searchPhrase, "APPLE_MUSIC", volume)
+        incrementCntByKey("use_cnt_searchApple")
+    }
+}
+
 def searchTuneIn(String searchPhrase, volume=null) {
     if(isCommandTypeAllowed("tuneInRadio")) {
         doSearchMusicCmd(searchPhrase, "TUNE_IN", volume)
@@ -1317,6 +1345,13 @@ def searchPandora(String searchPhrase, volume=null) {
     if(isCommandTypeAllowed("pandoraRadio")) {
         doSearchMusicCmd(searchPhrase, "PANDORA", volume)
         incrementCntByKey("use_cnt_searchPandora")
+    }
+}
+
+def searchSiriusXm(String searchPhrase, volume=null) {
+    if(isCommandTypeAllowed("siriusXm")) {
+        doSearchMusicCmd(searchPhrase, "SIRIUSXM", volume)
+        incrementCntByKey("use_cnt_searchSiriusXM")
     }
 }
 

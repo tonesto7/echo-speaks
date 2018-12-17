@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 String appVersion()	 { return "2.0.5" }
-String appModified() { return "2018-12-07" } 
+String appModified() { return "2018-12-17" } 
 String appAuthor()	 { return "Anthony S." }
 String actChildName(){ return "Echo Speaks - Actions" }
 String grpChildName(){ return "Echo Speaks - Groups" }
@@ -994,10 +994,12 @@ def receiveEventData(Map evtData, String src) {
                     permissions["volumeControl"] = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     permissions["mediaPlayer"] = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
                     permissions["amazonMusic"] = (echoValue?.capabilities.contains("AMAZON_MUSIC"))
+                    // permissions["appleMusic"] = (echoValue?.capabilities.contains("APPLE_MUSIC"))
                     permissions["tuneInRadio"] = (echoValue?.capabilities.contains("TUNE_IN"))
                     permissions["iHeartRadio"] = (echoValue?.capabilities.contains("I_HEART_RADIO"))
                     permissions["pandoraRadio"] = (echoValue?.capabilities.contains("PANDORA"))
-                    permissions["spotify"] = true //(echoValue?.capabilities.contains("SPOTIFY")) // Temporarily removed restriction check
+                    // permissions["siriusXm"] = (echoValue?.capabilities.contains("SIRIUSXM"))
+                    // permissions["spotify"] = true //(echoValue?.capabilities.contains("SPOTIFY")) // Temporarily removed restriction check
                     permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false;
                     permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false;
                     permissions["alarms"] = (echoValue?.capabilities.contains("TIMERS_AND_ALARMS"))
