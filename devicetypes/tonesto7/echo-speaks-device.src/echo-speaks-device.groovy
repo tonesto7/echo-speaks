@@ -346,10 +346,12 @@ def getShortDevName(){
 
 public setAuthState(authenticated) {
     state?.authValid = (authenticated == true)
+    if(authenticated != true && state?.refreshScheduled) { unschedule("refreshData"); state?.refreshScheduled = false }
 }
 
 Boolean isAuthOk() {
-    if(state?.authValid != true) {
+    if(state?.authValid != true && state?.refreshScheduled) { unschedule("refreshData"); state?.refreshScheduled = false }
+    if(state?.authValid != true && state?.cookie != null) {
         log.warn "Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!!"
         state?.remove("cookie")
         return false
@@ -547,6 +549,7 @@ private refreshData() {
         log.warn "Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)"
         return 
     }
+    if(!isAuthOk()) {return}
     logger("trace", "permissions: ${state?.permissions}")
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
@@ -586,6 +589,16 @@ public setOnlineStatus(Boolean isOnline) {
     }
 }
 
+private respIsValid(response, methodName) {
+    if (response.hasError()) { 
+        if(response?.getStatus() == 401) {
+            setAuthState(false)
+            return false
+        } else { if(response?.getStatus() != 401 && response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "${methodName} Error: ${response.getErrorMessage()}" } }
+    }
+    return true
+}
+
 private getPlaybackState() {
     asynchttp_v1.get(getPlaybackStateHandler, [
         uri: getAmazonUrl(),
@@ -605,11 +618,12 @@ private getPlaybackState() {
 }
 
 def getPlaybackStateHandler(response, data, isGroupResponse=false) {
-    try { 
-        //notihing to see here
-    } catch (e) { 
-        //notihing to see here
-    }
+    if(!respIsValid(response, "getPlaybackStateHandler")) {return}
+    // try { 
+    //     //notihing to see here
+    // } catch (e) { 
+    //     //notihing to see here
+    // }
     def sData = [:]
     def isPlayStateChange = false;
     // log.debug "response: ${response?.json}"
@@ -700,14 +714,12 @@ private getAlarmVolume() {
 }
 
 def getAlarmVolumeHandler(response, data) {
-    try { 
-        //notihing to see here
-    } catch (e) { 
-        //notihing to see here
-    }
-    if (response.hasError()) { 
-        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getAlarmVolumeHandler Error: ${response.getErrorJson()}" }
-    }
+    if(!respIsValid(response, "getAlarmVolumeHandler")) {return}
+    // try { 
+    //     //notihing to see here
+    // } catch (e) { 
+    //     //notihing to see here
+    // }
     def sData = response?.json
     logger("trace", "getAlarmVolume: $sData")
     if(isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
@@ -730,9 +742,7 @@ private getWakeWord() {
 }
 
 def getWakeWordHandler(response, data) {
-    if (response.hasError()) { 
-        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getWakeWordHandler Error: ${response.getErrorMessage()}" } 
-    }
+    if(!respIsValid(response, "getWakeWordHandler")) {return}
     def sData = response?.json
     // log.debug "sData: $sData"
     def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
@@ -762,14 +772,13 @@ private getAvailableWakeWords() {
 }
 
 def getAvailableWakeWordsHandler(response, data) {
-    try { 
-        //notihing to see here
-    } catch (e) { 
-        //notihing to see here
-    }
-    if (response.hasError()) { 
-        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getAvailableWakeWordsHandler Error: ${response.getErrorMessage()}" } 
-    }
+    if(!respIsValid(response, "getAvailableWakeWordsHandler")) {return}
+    // try { 
+    //     //notihing to see here
+    // } catch (e) { 
+    //     //notihing to see here
+    // }
+    
     def sData = response?.json
     def wakeWords = sData?.wakeWords ?: []
     logger("trace", "getAvailableWakeWords: ${wakeWords}")
@@ -792,14 +801,12 @@ private getDoNotDisturb() {
 }
 
 def getDoNotDisturbHandler(response, data) {
-    try { 
-        //notihing to see here
-    } catch (e) { 
-        //notihing to see here
-    }
-    if (response.hasError()) { 
-        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getDoNotDisturbHandler Error: ${response.getErrorMessage()}" } 
-    }
+    if(!respIsValid(response, "getDoNotDisturbHandler")) {return}
+    // try { 
+    //     //notihing to see here
+    // } catch (e) { 
+    //     //notihing to see here
+    // }
     def sData = response?.json
     def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
     logger("trace", "getDoNotDisturb: $dndData")
@@ -830,15 +837,12 @@ private getPlaylists() {
 }
 
 def getPlaylistsHandler(response, data) {
-    try { 
-        //notihing to see here
-    } catch (e) { 
-        //notihing to see here
-    }
-    if (response.hasError()) {
-        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getPlaylistsHandler Error: ${response.getErrorMessage()}" }
-        // return
-    }
+    if(!respIsValid(response, "getPlaylistsHandler")) {return}
+    // try { 
+    //     //notihing to see here
+    // } catch (e) { 
+    //     //notihing to see here
+    // }
     def sData = response?.json
     logger("trace", "getPlaylists: ${sData}")
     Map playlists = sData?.playlists ?: [:]
@@ -864,15 +868,12 @@ private getMusicProviders() {
 }
 
 def getMusicProvidersHandler(response, data) {
-    try { 
-        //notihing to see here
-    } catch (e) { 
-        //notihing to see here
-    }
-    if (response.hasError()) {
-        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getMusicProvidersHandler Error: ${response.getErrorMessage()}" }
-        // return
-    }
+    if(!respIsValid(response, "getMusicProvidersHandler")) {return}
+    // try { 
+    //     //notihing to see here
+    // } catch (e) { 
+    //     //notihing to see here
+    // }
     def sData = response?.json
     logger("trace", "getMusicProviders: ${sData}")
     Map items = [:]
@@ -908,14 +909,12 @@ private getNotifications() {
 }
 
 def getNotificationsHandler(response, data) {
-    try { 
-        //notihing to see here
-    } catch (e) { 
-        //notihing to see here
-    }
-    if (response.hasError()) { 
-        if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getNotificationsHandler Error: ${response.getErrorMessage()}" }
-    }
+    if(!respIsValid(response, "getNotificationsHandler")) {return}
+    // try { 
+    //     //notihing to see here
+    // } catch (e) { 
+    //     //notihing to see here
+    // }
     List newList = []
     if(response?.getStatus() == 200) {
         def sData = response?.json
@@ -1748,7 +1747,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
     // if(!isQueueCmd) { log.trace "speakVolumeCmd(${headers?.cmdDesc}, $isQueueCmd)" }
     def random = new Random()
     def randCmdId = random?.nextInt(300)
-    if(!isAuthOk()) {return}
+    
     Map queryMap = [:]
     List logItems = []
     String healthStatus = getHealthStatus()

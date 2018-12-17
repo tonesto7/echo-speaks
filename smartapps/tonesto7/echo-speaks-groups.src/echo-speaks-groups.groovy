@@ -15,7 +15,7 @@
  */
  
 String appVersion()	 { return "2.0.6" }
-String appModified() { return "2018-12-14" } 
+String appModified() { return "2018-12-17" } 
 String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }

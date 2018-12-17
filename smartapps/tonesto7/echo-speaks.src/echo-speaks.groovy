@@ -17,7 +17,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "2.0.5" }
+String appVersion()	 { return "2.0.6" }
 String appModified() { return "2018-12-17" } 
 String appAuthor()	 { return "Anthony S." }
 String actChildName(){ return "Echo Speaks - Actions" }
@@ -25,7 +25,7 @@ String grpChildName(){ return "Echo Speaks - Groups" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 204, server: 201]
+    return [echoDevice: 206, server: 201]
 }
 
 definition(
@@ -622,7 +622,7 @@ def initialize() {
         validateCookie(true)
         runIn(15, "reInitDevices")
         getEchoDevices()
-        log.debug "Broadcast Groups: ${getBroadcastGrps()}"
+        // log.debug "Broadcast Groups: ${getBroadcastGrps()}"
     }
 }
 
@@ -696,7 +696,7 @@ private checkIfCodeUpdated() {
         checkVersionData(true)
         log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
         state?.pollBlocked = true
-        updCodeVerMap()
+        updCodeVerMap("mainApp", appVersion())
         Map iData = atomicState?.installData
         iData["updatedDt"] = getDtNow().toString()
         iData["shownChgLog"] = false
@@ -734,16 +734,10 @@ private reInitDevices() {
     app.getChildDevices(true)?.each { it?.triggerInitialize() }
 }
 
-private updCodeVerMap() {
-    Map cv = state?.codeVersions ?: [:]
-    cv["mainApp"] = appVersion()
-    state?.codeVersions = cv
-}
-
-private modCodeVerMap(key, val) {
-    Map cv = state?.codeVersions ?: [:]
-    cv["$key"] = val
-    state?.codeVersions = cv
+private updCodeVerMap(key, val) {
+    Map cv = atomicState?.codeVersions ?: [:]
+    cv[key as String] = val
+    atomicState?.codeVersions = cv
 }
 
 String getRandAppName() {
@@ -757,7 +751,7 @@ def processData() {
     if(data) {
         if(data?.version) {
             log.trace "serverVersion Received: ${data?.version}"
-            modCodeVerMap("server", data?.version)
+            updCodeVerMap("server", data?.version)
         } else { log.debug "data: $data" }
     }
     def json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersion()])
@@ -779,11 +773,12 @@ def storeCookie() {
         obj?.cookie = request?.JSON?.cookie as String ?: null
         obj?.csrf = request?.JSON?.csrf as String ?: null
         state?.cookie = obj
-        modCodeVerMap("server", request?.JSON?.serverVersion)
+        updCodeVerMap("server", request?.JSON?.version)
     }
     if(state?.cookie?.cookie && state?.cookie?.csrf) {
-        log.info "Cookie Has been Updated... Re-Initializing SmartApp and to restart polling..."
-        runIn(5, "initialize", [overwrite: true])
+        log.info "Cookie Has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds..."
+        validateCookie(true)
+        runIn(10, "initialize", [overwrite: true])
     }
 }
 
@@ -792,37 +787,46 @@ def clearCookie() {
     settingUpdate("resetCookies", "false", "bool")
     state?.remove("cookie")
     unschedule("getEchoDevices")
-    unschedule("dataRefresh")
-    log.warn "Cookie has been cleared... Device Refresh has been suspended..."
+    log.warn "Cookie has been cleared and Device Data Refreshes have been suspended..."
+    updateChildAuth(false)
 }
 
-private authEvtHandler(isAuth) {
+private updateChildAuth(Boolean isValid) {
+    app?.getChildDevices(true)?.each { it?.setAuthState(isValid) }
+}
+
+private authEvtHandler(Boolean isAuth) {
     state?.authValid = (isAuth == true)
     if(isAuth == false && !state?.noAuthActive) {
+        clearCookie()
         noAuthReminder()
         sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
         runEvery1Hour("noAuthReminder")
         state?.noAuthActive = true
-        app?.getChildDevices(true)?.each { it?.setAuthState(valid) }
+        updateChildAuth(isAuth)
     } else {
         if(state?.noAuthActive) { 
             unschedule("noAuthReminder")
             state?.noAuthActive = false
+            runIn(10, "initialize", [overwrite: true])
         }
     }
 }
 
-Boolean isAuthValid() {
-    if(state?.authValid != true) {
-        log.warn "Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!!"
-        // state?.remove("cookie")
+Boolean isAuthValid(methodName) {
+    if(state?.authValid == false) {
+        log.warn "Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!! | Method: (${methodName})"
         return false
     } 
     return true
 }
 
 private validateCookie(frc=false) {
-    if(!frc || (getLastCookieChkSec() <= 1800) || !state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { return }
+    if((!frc && getLastCookieChkSec() <= 1800) || !state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { 
+        // if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { log.warn "Cannot Validate Cookie!  Missing required Cookie Data..." }
+        // if(!frc && getLastCookieChkSec() <= 1800) { log.warn "Cannot Validate Cookie!  It's Too Soon to Check again..." }
+        return
+    }
     try {
         def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: ["Cookie": state?.cookie?.cookie as String, "csrf": state?.cookie?.csrf as String], contentType: "application/json"]
         asynchttp_v1.get(cookieValidResp, params, [execDt: now()])
@@ -848,8 +852,16 @@ private apiHealthCheck(frc=false) {
 
 def cookieValidResp(response, data) {
     // log.trace "cookieValidResp..."
-    try {
+    if (response.hasError()) { 
+        if(response?.getStatus() == 401) { 
+            authEvtHandler(false)
+            state?.lastCookieChkDt = getDtNow()
+            return
+        } 
+    }
+    // try {
         Map aData = response?.json?.authentication ?: [:]
+        log.debug "aData: $aData"
         Boolean valid = false
         if (aData) {
             if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
@@ -860,9 +872,9 @@ def cookieValidResp(response, data) {
         def execTime = data?.execDt ? (now()-data?.execDt) : 0
         log.debug "Cookie Validation: (${valid}) | Process Time: (${execTime}ms)"
         authEvtHandler(valid)
-    } catch (ex) {
-        log.error "cookieValidResp Exception", ex
-    }
+    // } catch (ex) {
+    //     log.error "cookieValidResp Exception", ex
+    // }
 }
 
 private noAuthReminder() { log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..." }
@@ -898,7 +910,7 @@ public childInitiatedRefresh() {
 }
 
 private getEchoDevices() {
-    if(!isAuthValid()) { return }
+    if(!isAuthValid("getEchoDevices")) { return }
     def params = [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
@@ -917,6 +929,12 @@ private getEchoDevices() {
 def echoDevicesResponse(response, data) { 
     List ignoreTypes = ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
+    if (response.hasError()) { 
+        if(response?.getStatus() == 401) { 
+            authEvtHandler(false)
+            return
+        } 
+    }
     try {
         // log.debug "json response is: ${response.json}"
         state?.deviceRefreshInProgress=false
@@ -1050,7 +1068,7 @@ def receiveEventData(Map evtData, String src) {
                         // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
                         childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
-                        modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
+                        updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
                     }
                     
                     curDevFamily.push(echoValue?.deviceStyle?.name)
@@ -1075,7 +1093,7 @@ def receiveEventData(Map evtData, String src) {
                         }
                     }
                 }
-                modCodeVerMap("server", srvcInfo?.version)
+                updCodeVerMap("server", srvcInfo?.version)
                 // if(sendSetUpd && !onHeroku) { echoServiceUpdate() }
             }
             if(updRequired) {
@@ -1200,12 +1218,17 @@ private missPollNotify(Boolean on, Integer wait) {
     if(!(getLastMisPollMsgSec() > wait.toInteger())) {
         return
     } else {
-        def msg = "\nThe app has not received any device data from Echo Speaks service in the last (${getLastDevicePollSec()}) seconds.\nSomething must be wrong with the node server."
+        String msg = ""
+        if(state?.authValid) {
+            msg = "\nThe app has not received any device data from Echo Speaks service in the last (${getLastDevicePollSec()}) seconds.\nSomething must be wrong with the node server."
+        } else { msg = "\nThe amazon login cookie has expired!\nPlease open the heroku config page and login again to restore normal operation." }
         log.warn "${msg.toString().replaceAll("\n", " ")}"
-        if(sendMsg("${app.name} Data Refresh Issue", msg)) {
+        if(sendMsg("${app.name} ${state?.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
             state?.lastMisPollMsgDt = getDtNow()
         }
-        app.getChildDevices(true)?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
+        if(state?.authValid) {
+            app.getChildDevices(true)?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
+        }
     }
 }
 
