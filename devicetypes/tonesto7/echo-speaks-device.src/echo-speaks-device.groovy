@@ -592,7 +592,7 @@ private respIsValid(response, methodName) {
         if(response?.getStatus() == 401) {
             setAuthState(false)
             return false
-        } else { if(response?.getStatus() >= 401) { log.error "${methodName} Error: ${response.getErrorMessage()}" } }
+        } else { if(response?.getStatus() > 401) { log.error "${methodName} Error: ${response.getErrorMessage()}" } }
     }
     return true
 }
