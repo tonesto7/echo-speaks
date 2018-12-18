@@ -174,30 +174,30 @@ def devicePrefsPage() {
 def groupsPage() {
     return dynamicPage(name: "groupsPage", uninstall: false, install: false) {
         def groupApp = findChildAppByName( grpChildName() )
-		if(groupApp) { /*Nothing to add here yet*/ }
-		else {
-			section("") {
-				paragraph "You haven't created any Broadcast Groups yet!\nTap Create New Group to get Started"
-			}
-		}
-		section("") {
-			app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: "Create New Group", image: getAppImg("es_groups.png"))
-		}
+        if(groupApp) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph "You haven't created any Broadcast Groups yet!\nTap Create New Group to get Started"
+            }
+        }
+        section("") {
+            app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: "Create New Group", image: getAppImg("es_groups.png"))
+        }
     }
 }
 
 def actionsPage() {
     return dynamicPage(name: "actionsPage", uninstall: false, install: false) {
         def actionApp = findChildAppByName( actChildName() )
-		if(actionApp) { /*Nothing to add here yet*/ }
-		else {
-			section("") {
-				paragraph "You haven't created any Actions yet!\nTap Create New Action to get Started"
-			}
-		}
-		section("") {
-			app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: "Create New Action", image: getAppImg("es_actions.png"))
-		}
+        if(actionApp) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph "You haven't created any Actions yet!\nTap Create New Action to get Started"
+            }
+        }
+        section("") {
+            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: "Create New Action", image: getAppImg("es_actions.png"))
+        }
     }
 }
 
@@ -358,8 +358,8 @@ def settingsPage() {
         }
         showDevSharePrefs()
         section("App Change Details:") {
-			href "changeLogPage", title: "View App Revision History", description: "Tap to view", image: getAppImg("change_log.png")
-		}
+            href "changeLogPage", title: "View App Revision History", description: "Tap to view", image: getAppImg("change_log.png")
+        }
     }
 }
 
@@ -416,6 +416,7 @@ def servPrefPage() {
             "amazon.ca":"Amazon.ca",
             "amazon.co.uk":"amazon.co.uk",
             "amazon.de":"Amazon.de",
+            "amazon.it":"Amazon.it"
         ]
         List localeOpts = ["en-US", "en-CA", "de-DE", "en-GB"]
         Boolean herokuOn = (settings?.useHeroku == true)
@@ -1110,10 +1111,10 @@ def receiveEventData(Map evtData, String src) {
 
 private getDevicesFromSerialList(serialNumberList) {
     //log.trace "getDevicesFromSerialList called with: ${ serialNumberList}"
-	if (serialNumberList == null) {
-	   log.debug "SerialNumberList is null"
-	   return;
-	}
+    if (serialNumberList == null) {
+       log.debug "SerialNumberList is null"
+       return;
+    }
     def devicesList = serialNumberList.findResults { echoKey ->
         String dni = [app?.id, "echoSpeaks", echoKey].join("|")
         getChildDevice(dni)
@@ -1890,8 +1891,8 @@ def renderConfig() {
     render contentType: "text/html", data: html
 }
 Integer stateSize() {
-	def j = new groovy.json.JsonOutput().toJson(state)
-	return j?.toString().length()
+    def j = new groovy.json.JsonOutput().toJson(state)
+    return j?.toString().length()
 }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 String debugStatus() { return !settings?.appDebug ? "Off" : "On" }
