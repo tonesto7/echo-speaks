@@ -17,15 +17,15 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String platform() { return "SmartThings" }
-String appVersion()	 { return "2.0.6" }
-String appModified() { return "2018-12-17" } 
-String appAuthor()	 { return "Anthony Santilli" }
-Boolean isST() { return (platform() == "SmartThings") }
+String appVersion()	 { return "2.0.7" }
+String appModified() { return "2018-12-18" } 
+String appAuthor()	 { return "Anthony S." }
+String actChildName(){ return "Echo Speaks - Actions" }
+String grpChildName(){ return "Echo Speaks - Groups" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 206, server: 201]
+    return [echoDevice: 207, server: 201]
 }
 
 definition(
@@ -43,7 +43,10 @@ definition(
 preferences {
     page(name: "mainPage")
     page(name: "settingsPage")
+    page(name: "devicePrefsPage")
     page(name: "newSetupPage")
+    page(name: "groupsPage")
+    page(name: "actionsPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
     page(name: "changeLogPage")
@@ -74,10 +77,11 @@ def appInfoSect(sect=true)	{
 }
 
 def mainPage() {
+    state?.isParent = true
     def tokenOk = getAccessToken()
     checkVersionData(true)
     Boolean newInstall = !state?.isInstalled
-    
+    state?.childInstallOkFlag = false
     if(state?.resumeConfig) {
         return servPrefPage()
     } else if(showChgLogOk()) { 
@@ -360,6 +364,7 @@ def servPrefPage() {
             "amazon.ca":"Amazon.ca",
             "amazon.co.uk":"amazon.co.uk",
             "amazon.de":"Amazon.de",
+            "amazon.it":"Amazon.it"
         ]
         List localeOpts = ["en-US", "en-CA", "de-DE", "en-GB"]
         Boolean herokuOn = (settings?.useHeroku == true)
@@ -577,6 +582,23 @@ def uninstalled() {
     }
 }
 
+def getGroupApps() {
+    return getChildApps()?.findAll { it?.name == grpChildName() }
+}
+
+def getActionApps() {
+    return getChildApps()?.findAll { it?.name == actChildName() }
+}
+
+public getBroadcastGrps() {
+    Map grps = [:]
+    def groupApps = getChildApps()?.findAll { it?.name == grpChildName() }
+    groupApps?.each { grp->
+        grps[grp?.getId() as String] = grp?.getBroadcastGroupData(true)
+    }
+    return grps
+}
+
 void settingUpdate(name, value, type=null) {
     if(name && type) {
         app?.updateSetting("$name", [type: "$type", value: value])
@@ -622,7 +644,7 @@ private checkIfCodeUpdated() {
         checkVersionData(true)
         log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
         state?.pollBlocked = true
-        updCodeVerMap()
+        updCodeVerMap("mainApp", appVersion())
         Map iData = atomicState?.installData
         iData["updatedDt"] = getDtNow().toString()
         iData["shownChgLog"] = false
@@ -660,16 +682,10 @@ private reInitDevices() {
     app.getChildDevices(true)?.each { it?.triggerInitialize() }
 }
 
-private updCodeVerMap() {
-    Map cv = state?.codeVersions ?: [:]
-    cv["mainApp"] = appVersion()
-    state?.codeVersions = cv
-}
-
-private modCodeVerMap(key, val) {
-    Map cv = state?.codeVersions ?: [:]
-    cv["$key"] = val
-    state?.codeVersions = cv
+private updCodeVerMap(key, val) {
+    Map cv = atomicState?.codeVersions ?: [:]
+    cv[key as String] = val
+    atomicState?.codeVersions = cv
 }
 
 String getRandAppName() {
@@ -683,7 +699,7 @@ def processData() {
     if(data) {
         if(data?.version) {
             log.trace "serverVersion Received: ${data?.version}"
-            modCodeVerMap("server", data?.version)
+            updCodeVerMap("server", data?.version)
         } else { log.debug "data: $data" }
     }
     def json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersion()])
@@ -705,11 +721,12 @@ def storeCookie() {
         obj?.cookie = request?.JSON?.cookie as String ?: null
         obj?.csrf = request?.JSON?.csrf as String ?: null
         state?.cookie = obj
-        modCodeVerMap("server", request?.JSON?.serverVersion)
+        updCodeVerMap("server", request?.JSON?.version)
     }
     if(state?.cookie?.cookie && state?.cookie?.csrf) {
-        log.info "Cookie Has been Updated... Re-Initializing SmartApp and to restart polling..."
-        runIn(5, "initialize", [overwrite: true])
+        log.info "Cookie Has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds..."
+        validateCookie(true)
+        runIn(10, "initialize", [overwrite: true])
     }
 }
 
@@ -718,37 +735,46 @@ def clearCookie() {
     settingUpdate("resetCookies", "false", "bool")
     state?.remove("cookie")
     unschedule("getEchoDevices")
-    unschedule("dataRefresh")
-    log.warn "Cookie has been cleared... Device Refresh has been suspended..."
+    log.warn "Cookie has been cleared and Device Data Refreshes have been suspended..."
+    updateChildAuth(false)
 }
 
-private authEvtHandler(isAuth) {
+private updateChildAuth(Boolean isValid) {
+    app?.getChildDevices(true)?.each { it?.setAuthState(isValid) }
+}
+
+private authEvtHandler(Boolean isAuth) {
     state?.authValid = (isAuth == true)
     if(isAuth == false && !state?.noAuthActive) {
+        clearCookie()
         noAuthReminder()
         sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
         runEvery1Hour("noAuthReminder")
         state?.noAuthActive = true
-        app?.getChildDevices(true)?.each { it?.setAuthState(valid) }
+        updateChildAuth(isAuth)
     } else {
         if(state?.noAuthActive) { 
             unschedule("noAuthReminder")
             state?.noAuthActive = false
+            runIn(10, "initialize", [overwrite: true])
         }
     }
 }
 
-Boolean isAuthValid() {
-    if(state?.authValid != true) {
-        log.warn "Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!!"
-        // state?.remove("cookie")
+Boolean isAuthValid(methodName) {
+    if(state?.authValid == false) {
+        log.warn "Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!! | Method: (${methodName})"
         return false
     } 
     return true
 }
 
 private validateCookie(frc=false) {
-    if(!frc || (getLastCookieChkSec() <= 1800) || !state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { return }
+    if((!frc && getLastCookieChkSec() <= 1800) || !state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { 
+        // if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { log.warn "Cannot Validate Cookie!  Missing required Cookie Data..." }
+        // if(!frc && getLastCookieChkSec() <= 1800) { log.warn "Cannot Validate Cookie!  It's Too Soon to Check again..." }
+        return
+    }
     try {
         def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: ["Cookie": state?.cookie?.cookie as String, "csrf": state?.cookie?.csrf as String], contentType: "application/json"]
         asynchttp_v1.get(cookieValidResp, params, [execDt: now()])
@@ -774,7 +800,14 @@ private apiHealthCheck(frc=false) {
 
 def cookieValidResp(response, data) {
     // log.trace "cookieValidResp..."
-    try {
+    if (response.hasError()) { 
+        if(response?.getStatus() == 401) { 
+            authEvtHandler(false)
+            state?.lastCookieChkDt = getDtNow()
+            return
+        } 
+    }
+    // try {
         Map aData = response?.json?.authentication ?: [:]
         Boolean valid = false
         if (aData) {
@@ -786,9 +819,9 @@ def cookieValidResp(response, data) {
         def execTime = data?.execDt ? (now()-data?.execDt) : 0
         log.debug "Cookie Validation: (${valid}) | Process Time: (${execTime}ms)"
         authEvtHandler(valid)
-    } catch (ex) {
-        log.error "cookieValidResp Exception", ex
-    }
+    // } catch (ex) {
+    //     log.error "cookieValidResp Exception", ex
+    // }
 }
 
 private noAuthReminder() { log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..." }
@@ -824,7 +857,7 @@ public childInitiatedRefresh() {
 }
 
 private getEchoDevices() {
-    if(!isAuthValid()) { return }
+    if(!isAuthValid("getEchoDevices")) { return }
     def params = [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
@@ -843,6 +876,12 @@ private getEchoDevices() {
 def echoDevicesResponse(response, data) { 
     List ignoreTypes = ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
+    if (response.hasError()) { 
+        if(response?.getStatus() == 401) { 
+            authEvtHandler(false)
+            return
+        } 
+    }
     try {
         // log.debug "json response is: ${response.json}"
         state?.deviceRefreshInProgress=false
@@ -920,9 +959,11 @@ def receiveEventData(Map evtData, String src) {
                     permissions["volumeControl"] = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     permissions["mediaPlayer"] = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
                     permissions["amazonMusic"] = (echoValue?.capabilities.contains("AMAZON_MUSIC"))
+                    // permissions["appleMusic"] = (echoValue?.capabilities.contains("APPLE_MUSIC"))
                     permissions["tuneInRadio"] = (echoValue?.capabilities.contains("TUNE_IN"))
                     permissions["iHeartRadio"] = (echoValue?.capabilities.contains("I_HEART_RADIO"))
                     permissions["pandoraRadio"] = (echoValue?.capabilities.contains("PANDORA"))
+                    // permissions["siriusXm"] = (echoValue?.capabilities.contains("SIRIUSXM"))
                     // permissions["spotify"] = true //(echoValue?.capabilities.contains("SPOTIFY")) // Temporarily removed restriction check
                     permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false;
                     permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false;
@@ -941,7 +982,7 @@ def receiveEventData(Map evtData, String src) {
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!") 
                         return
                     }
-                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: (permissions?.mediaPlayer == true), ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers]
+                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey, style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: (permissions?.mediaPlayer == true), ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers]
 
                     if(echoValue?.serialNumber in ignoreTheseDevs) { 
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
@@ -974,7 +1015,7 @@ def receiveEventData(Map evtData, String src) {
                         // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
                         childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
-                        modCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
+                        updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
                     }
                     
                     curDevFamily.push(echoValue?.deviceStyle?.name)
@@ -999,7 +1040,7 @@ def receiveEventData(Map evtData, String src) {
                         }
                     }
                 }
-                modCodeVerMap("server", srvcInfo?.version)
+                updCodeVerMap("server", srvcInfo?.version)
                 // if(sendSetUpd && !onHeroku) { echoServiceUpdate() }
             }
             if(updRequired) {
@@ -1031,7 +1072,6 @@ private getDevicesFromSerialList(serialNumberList) {
 // This is called by the device handler to send playback data to cluster members
 public sendPlaybackStateToClusterMembers(whaKey, response, data) {
     //log.trace "sendPlaybackStateToClusterMembers: key: ${ whaKey}"
-
     def echoDeviceMap = state?.echoDeviceMap
     def whaMap = echoDeviceMap[whaKey]
     def clusterMembers = whaMap?.clusterMembers
@@ -1125,25 +1165,34 @@ private missPollNotify(Boolean on, Integer wait) {
     if(!(getLastMisPollMsgSec() > wait.toInteger())) {
         return
     } else {
-        def msg = "\nThe app has not received any device data from Echo Speaks service in the last (${getLastDevicePollSec()}) seconds.\nSomething must be wrong with the node server."
+        String msg = ""
+        if(state?.authValid) {
+            msg = "\nThe app has not received any device data from Echo Speaks service in the last (${getLastDevicePollSec()}) seconds.\nSomething must be wrong with the node server."
+        } else { msg = "\nThe amazon login cookie has expired!\nPlease open the heroku config page and login again to restore normal operation." }
         log.warn "${msg.toString().replaceAll("\n", " ")}"
-        if(sendMsg("${app.name} Data Refresh Issue", msg)) {
+        if(sendMsg("${app.name} ${state?.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
             state?.lastMisPollMsgDt = getDtNow()
         }
-        app.getChildDevices(true)?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
+        if(state?.authValid) {
+            app.getChildDevices(true)?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
+        }
     }
 }
 
 private appUpdateNotify() {
     Boolean on = (settings?.sendAppUpdateMsg != false)
     Boolean appUpd = isAppUpdateAvail()
+    Boolean actUpd = isActionAppUpdateAvail()
+    Boolean grpUpd = isGroupAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
-    logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
+    logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | grpUpd: (${grpUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
-        if(appUpd || echoDevUpd || servUpd) {
+        if(appUpd || actUpd || grpUpd || echoDevUpd || servUpd) {
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
+            str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
+            str += !grpUpd ? "" : "\nEcho Speaks - Groups: v${state?.appData?.versions?.groupApp?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
             str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
@@ -1286,7 +1335,7 @@ def changeLogPage() {
     def execTime = now()
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
-            paragraph title: "What's New in this Release...", "", state: "complete", image: getAppImg("whats_new_icon.png")
+            paragraph title: "What's New in this Release...", "", state: "complete", image: getAppImg("whats_new.png")
             paragraph changeLogData()
         }
         Map iData = atomicState?.installData
@@ -1456,7 +1505,17 @@ Boolean isCodeUpdateAvailable(String newVer, String curVer, String type) {
 }
 
 Boolean isAppUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.mainApp && isCodeUpdateAvailable(state?.appData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "app")) { return true }
+    if(state?.appData?.versions && state?.codeVersions?.mainApp && isCodeUpdateAvailable(state?.appData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "main_app")) { return true }
+    return false
+}
+
+Boolean isActionAppUpdateAvail() {
+    if(state?.appData?.versions && state?.codeVersions?.actionApp && isCodeUpdateAvailable(state?.appData?.versions?.actionApp?.ver, state?.codeVersions?.actionApp, "action_app")) { return true }
+    return false
+}
+
+Boolean isGroupAppUpdateAvail() {
+    if(state?.appData?.versions && state?.codeVersions?.groupApp && isCodeUpdateAvailable(state?.appData?.versions?.groupApp?.ver, state?.codeVersions?.groupApp, "group_app")) { return true }
     return false
 }
 
@@ -1611,13 +1670,8 @@ String getNotifSchedDesc() {
 String getServiceConfDesc() {
     String str = ""
     str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""}Heroku Info:" : ""
-    str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""} • App Name: ${state?.generatedHerokuName}" : ""
-    str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Amazon Domain : (${settings?.amazonDomain})" : ""
-    str += (settings?.refreshSeconds) ? "${str != "" ? "\n" : ""} • Refresh Seconds : (${settings?.refreshSeconds}sec)" : ""
-    // str += (settings?.stHub) ? "${str != "" ? "\n\n" : ""}Hub Info:" : ""
-    // str += (settings?.stHub) ? "${str != "" ? "\n" : ""} • IP: ${settings?.stHub?.getLocalIP()}" : ""
-    // str += (settings?.refreshSeconds) ? "\n\nServer Push Settings:" : ""
-    // str += (settings?.refreshSeconds) ? "${str != "" ? "\n" : ""} • Refresh Seconds : (${settings?.refreshSeconds}sec)" : ""
+    str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""} • Name: ${state?.generatedHerokuName}" : ""
+    str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Domain : (${settings?.amazonDomain})" : ""
     return str != "" ? str : null
 }
 
@@ -1626,6 +1680,16 @@ String getAppNotifDesc() {
     str += settings?.sendMissedPollMsg != false ? "${str != "" ? "\n" : ""} • Missed Poll Alerts" : ""
     str += settings?.sendAppUpdateMsg != false ? "${str != "" ? "\n" : ""} • Code Updates" : ""
     return str != "" ? str : null
+}
+
+String getGroupsDesc() {
+    def grps = getGroupApps()
+    return grps?.size() ? " • (${grps?.size()}) Groups Configured" : null
+}
+
+String getActionsDesc() {
+    def acts = getActionApps()
+    return acts?.size() ? " • (${acts?.size()}) Actions Configured" : null
 }
 
 String getServInfoDesc() {
