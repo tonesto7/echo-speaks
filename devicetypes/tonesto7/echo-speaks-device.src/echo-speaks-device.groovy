@@ -18,8 +18,8 @@ import groovy.json.*
 import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "2.0.6"}
-String devModified() { return "2018-12-17" }
+String devVersion() { return "2.0.7"}
+String devModified() { return "2018-12-18" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -88,8 +88,6 @@ metadata {
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "setVolumeSpeakAndRestore"
-        command "playSports"
-        command "testSports"
     }
 
     tiles (scale: 2) {
@@ -589,12 +587,13 @@ public setOnlineStatus(Boolean isOnline) {
     }
 }
 
-private respIsValid(response, methodName) {
+private respIsValid(response, methodName, falseOnErr=false) {
     if (response.hasError()) { 
         if(response?.getStatus() == 401) {
             setAuthState(false)
             return false
-        } else { if(response?.getStatus() != 401 && response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "${methodName} Error: ${response.getErrorMessage()}" } }
+        } else { if(response?.getStatus() > 401) { log.error "${methodName} Error: ${response.getErrorMessage()}" } }
+        if(falseOnErr) { return false }
     }
     return true
 }
@@ -618,23 +617,13 @@ private getPlaybackState() {
 }
 
 def getPlaybackStateHandler(response, data, isGroupResponse=false) {
-    if(!respIsValid(response, "getPlaybackStateHandler")) {return}
-    // try { 
-    //     //notihing to see here
-    // } catch (e) { 
-    //     //notihing to see here
-    // }
-    def sData = [:]
-    def isPlayStateChange = false;
+    if(!respIsValid(response, "getPlaybackStateHandler", true)) {return}
+    
     // log.debug "response: ${response?.json}"
-    if (response.hasError()) {
-        // log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorMessage()}"
-        //if(response?.getStatus() >= 400 && response?.getStatus() < 500) { log.error "getPlaybackStateHandler | Status: ${response?.getStatus()} | Error: ${response.getErrorJson()}" }
-        return
-    } else {
-        sData = response?.json
-        sData = sData?.playerInfo ?: [:]
-    }
+    def sData = [:]
+    def isPlayStateChange = false
+    sData = response?.json
+    sData = sData?.playerInfo ?: [:]
     if (state?.isGroupPlaying && !isGroupResponse) {
         log.debug "ignoring getPlaybackState because group is playing here"
         return
@@ -715,11 +704,7 @@ private getAlarmVolume() {
 
 def getAlarmVolumeHandler(response, data) {
     if(!respIsValid(response, "getAlarmVolumeHandler")) {return}
-    // try { 
-    //     //notihing to see here
-    // } catch (e) { 
-    //     //notihing to see here
-    // }
+    
     def sData = response?.json
     logger("trace", "getAlarmVolume: $sData")
     if(isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
@@ -773,11 +758,6 @@ private getAvailableWakeWords() {
 
 def getAvailableWakeWordsHandler(response, data) {
     if(!respIsValid(response, "getAvailableWakeWordsHandler")) {return}
-    // try { 
-    //     //notihing to see here
-    // } catch (e) { 
-    //     //notihing to see here
-    // }
     
     def sData = response?.json
     def wakeWords = sData?.wakeWords ?: []
@@ -802,11 +782,7 @@ private getDoNotDisturb() {
 
 def getDoNotDisturbHandler(response, data) {
     if(!respIsValid(response, "getDoNotDisturbHandler")) {return}
-    // try { 
-    //     //notihing to see here
-    // } catch (e) { 
-    //     //notihing to see here
-    // }
+    
     def sData = response?.json
     def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
     logger("trace", "getDoNotDisturb: $dndData")
@@ -838,11 +814,7 @@ private getPlaylists() {
 
 def getPlaylistsHandler(response, data) {
     if(!respIsValid(response, "getPlaylistsHandler")) {return}
-    // try { 
-    //     //notihing to see here
-    // } catch (e) { 
-    //     //notihing to see here
-    // }
+    
     def sData = response?.json
     logger("trace", "getPlaylists: ${sData}")
     Map playlists = sData?.playlists ?: [:]
@@ -869,11 +841,7 @@ private getMusicProviders() {
 
 def getMusicProvidersHandler(response, data) {
     if(!respIsValid(response, "getMusicProvidersHandler")) {return}
-    // try { 
-    //     //notihing to see here
-    // } catch (e) { 
-    //     //notihing to see here
-    // }
+    
     def sData = response?.json
     logger("trace", "getMusicProviders: ${sData}")
     Map items = [:]
@@ -910,11 +878,7 @@ private getNotifications() {
 
 def getNotificationsHandler(response, data) {
     if(!respIsValid(response, "getNotificationsHandler")) {return}
-    // try { 
-    //     //notihing to see here
-    // } catch (e) { 
-    //     //notihing to see here
-    // }
+    
     List newList = []
     if(response?.getStatus() == 200) {
         def sData = response?.json

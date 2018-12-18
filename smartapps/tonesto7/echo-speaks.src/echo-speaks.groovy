@@ -17,15 +17,15 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "2.0.6" }
-String appModified() { return "2018-12-17" } 
+String appVersion()	 { return "2.0.7" }
+String appModified() { return "2018-12-18" } 
 String appAuthor()	 { return "Anthony S." }
 String actChildName(){ return "Echo Speaks - Actions" }
 String grpChildName(){ return "Echo Speaks - Groups" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 206, server: 201]
+    return [echoDevice: 207, server: 201]
 }
 
 definition(
@@ -623,7 +623,6 @@ def initialize() {
         validateCookie(true)
         runIn(15, "reInitDevices")
         getEchoDevices()
-        // log.debug "Broadcast Groups: ${getBroadcastGrps()}"
     }
 }
 
@@ -860,22 +859,17 @@ def cookieValidResp(response, data) {
             return
         } 
     }
-    // try {
-        Map aData = response?.json?.authentication ?: [:]
-        log.debug "aData: $aData"
-        Boolean valid = false
-        if (aData) {
-            if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
-            if(aData?.customerName) { state?.customerName = aData?.customerName }
-            valid = (resp?.data?.authentication?.authenticated != false)
-        }
-        state?.lastCookieChkDt = getDtNow()
-        def execTime = data?.execDt ? (now()-data?.execDt) : 0
-        log.debug "Cookie Validation: (${valid}) | Process Time: (${execTime}ms)"
-        authEvtHandler(valid)
-    // } catch (ex) {
-    //     log.error "cookieValidResp Exception", ex
-    // }
+    Map aData = response?.json?.authentication ?: [:]
+    Boolean valid = false
+    if (aData) {
+        if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
+        if(aData?.customerName) { state?.customerName = aData?.customerName }
+        valid = (resp?.data?.authentication?.authenticated != false)
+    }
+    state?.lastCookieChkDt = getDtNow()
+    def execTime = data?.execDt ? (now()-data?.execDt) : 0
+    log.debug "Cookie Validation: (${valid}) | Process Time: (${execTime}ms)"
+    authEvtHandler(valid)
 }
 
 private noAuthReminder() { log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..." }
