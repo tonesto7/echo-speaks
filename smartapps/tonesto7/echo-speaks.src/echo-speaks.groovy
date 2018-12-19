@@ -1337,7 +1337,6 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
                     } else {
                         sendSmsMessage(phone?.trim(), t0)	// send SMS
                     }
-                    
                 }
                 sentstr = "Text Message to Phone [${phones}]"
                 sent = true
