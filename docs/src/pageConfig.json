@@ -1,0 +1,154 @@
+{
+    "appName": "Echo Speaks",
+    "headerNavigation": [{
+        "name": "Home",
+        "path": "/documentation"
+    }, {
+        "name": "FAQ",
+        "path": "/faq"
+    }, {
+        "name": "Donate",
+        "path": "/donate"
+    }],
+    "landingPage": "/documentation",
+    "topics": [
+        "news"
+    ],
+    "pages": [{
+        "route": "/documentation",
+        "name": "Documentation",
+        "description": "This is the playbook",
+        "icon": "address-book",
+        "children": [{
+            "route": "/getStarted",
+            "name": "Get Started",
+            "description": "installation and configuration instructions",
+            "icon": "project-diagram",
+            "topics": ["started", "instructions", "setup", "configuration"],
+            "children": [{
+                "route": "/appRequirements",
+                "name": "Requirements",
+                "description": "what's needed to make this all work!",
+                "icon": "star",
+                "topics": ["requirements"],
+                "markdown": "/static/markdown/getstarted/Requirements.md"
+            }, {
+                "route": "/appInstall",
+                "name": "Install Method",
+                "description": "select an install method",
+                "icon": "",
+                "topics": ["process"],
+                "children": [{
+                    "route": "/autoInstall",
+                    "name": "Community Installer",
+                    "description": "Automate the install",
+                    "icon": "magic",
+                    "topics": ["install", "auto"],
+                    "markdown": "/static/markdown/getstarted/code_install/Auto_Install.md"
+                }, {
+                    "route": "/githubInstall",
+                    "name": "IDE (GitHub) Install",
+                    "description": "use IDE integration",
+                    "icon": "",
+                    "topics": ["install", "github"],
+                    "markdown": "/static/markdown/getstarted/code_install/GithubIDE_Install.md"
+                }, {
+                    "route": "/manualInstall",
+                    "name": "Manual Install",
+                    "description": "install the code manually",
+                    "icon": "sort-numeric-down",
+                    "topics": ["install", "manual"],
+                    "markdown": "/static/markdown/getstarted/code_install/Manual_Install.md"
+                }]
+            }, {
+                "route": "/appConfig",
+                "name": "Configure Application",
+                "description": "configure the smartapp installation",
+                "icon": "project-diagram",
+                "topics": ["configuration"],
+                "markdown": "/static/markdown/getstarted/AppConfig.md"
+            }]
+        }, {
+            "route": "/devices",
+            "name": "Device Support",
+            "description": "Devices supported, their attributes, and commands.",
+            "topics": ["attributes", "commands", "devices"],
+            "icon": "thumbs-up",
+            "children": [{
+                    "route": "/devicesSupported",
+                    "name": "Supported Devices",
+                    "description": "Confirm devices supported",
+                    "icon": "thumbs-up",
+                    "topics": ["process"],
+                    "markdown": "/static/markdown/process/Introduction.md"
+                }, {
+                    "route": "/deviceAttributes",
+                    "name": "Available Device Attributes",
+                    "description": "All of the device attributes that are available",
+                    "icon": "project-diagram",
+                    "topics": ["attributes"],
+                    "markdown": "/static/markdown/devicesupport/DeviceAttributes.md"
+                },
+                {
+                    "route": "/deviceCommands",
+                    "name": "Available Device Commands",
+                    "description": "All of the device commands that are available",
+                    "icon": "project-diagram",
+                    "topics": ["commands"],
+                    "markdown": "/static/markdown/devicesupport/DeviceCommands.md"
+                }
+            ]
+        }, {
+            "route": "/troubleshoot",
+            "name": "Troubleshooting",
+            "description": "get help with common issues.",
+            "topics": ["issues", "trouble", "errors"],
+            "icon": "hands-helping",
+            "children": [{
+                    "route": "/commonErrors",
+                    "name": "Common Errors",
+                    "description": "solutions to common issues",
+                    "icon": "exclamation-circle",
+                    "topics": ["errors", "issues"],
+                    "markdown": "/static/markdown/troubleshooting/CommonErrors.md"
+                }, {
+                    "route": "/removeServer",
+                    "name": "Remove Server",
+                    "description": "heroku server removal",
+                    "icon": "times",
+                    "topics": ["server", "remove", "delete"],
+                    "markdown": "/static/markdown/troubleshooting/RemoveServer.md"
+                },
+                {
+                    "route": "/redeployServer",
+                    "name": "Redeploy Server",
+                    "description": "redeploy heroku server",
+                    "icon": "times",
+                    "topics": ["server", "deploy"],
+                    "markdown": "/static/markdown/troubleshooting/RedeployServer.md"
+                }
+            ]
+        }, {
+            "route": "/faq",
+            "name": "FAQs",
+            "description": "frequently asked questions are covered here",
+            "topics": [],
+            "icon": "question-circle",
+            "markdown": "/static/markdown/FAQ.md"
+        }, {
+            "route": "/donate",
+            "name": "Donate",
+            "description": "want to donate for all of the work involved",
+            "topics": [],
+            "icon": "donate",
+            "markdown": "/static/markdown/Donation.md"
+        }, {
+            "route": "/whatsNew",
+            "name": "Whats new ?",
+            "description": "recent announcements, news, latest and greatest",
+            "icon": "bullhorn",
+            "topics": ["news"],
+            "markdown": "/static/markdown/whatsnew/Current.md"
+        }]
+    }]
+}
