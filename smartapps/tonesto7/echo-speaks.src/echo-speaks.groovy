@@ -93,35 +93,31 @@ def mainPage() {
                 paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH"
                 return
             }
-            if(!newInstall) {
-                section("Alexa Login Service:") {
-                    def t0 = getServiceConfDesc()
-                    href "servPrefPage", title: "Login Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
-                }
-            }
-            
-            section("Device Preferences:") {
+            section("Alexa Devices:") {
                 if(!newInstall) {
                     List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}" }?.sort()
                     if(devs?.size()) {
-                        href "deviceListPage", title: "Discovered Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
+                        href "deviceListPage", title: "Installed Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                     } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
                 }
-                input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
-                input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
-                input "createWHA", "bool", title: "Create Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha.png")
-                input "createOtherDevices", "bool", title: "Create Other Alexa Enabled Devices?", description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices.png")
-                input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
-
-                if(newInstall) {
-                    paragraph title:"Notice:", "Device filtering options will be available once app install is complete.", required: true, state: null
-                } else {
-                    Map devs = getDeviceList(true, false)
-                    input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
-                    paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
-                }
+                href "devicePrefsPage", title: "Detection Preferences", description: "Tap to configure...", state: "complete", image: getAppImg("devices.png")
             }
             
+            if(!newInstall) {
+                def t1 = getGroupsDesc()
+                def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
+                section("Manage Groups:") {
+                    href "groupsPage", title: "Broadcast Groups", description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups.png")
+                }
+
+                def t2 = getActionsDesc()
+                def actDesc = t2 ? "${t2}\n\nTap to modify" : null
+                section("Manage Actions:") {
+                    href "actionsPage", title: "Actions", description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions.png")
+                }
+                state?.childInstallOkFlag = true
+            }
+
             section("Notifications:") {
                 def t0 = getAppNotifConfDesc()
                 href "notifPrefPage", title: "App and Device\nNotifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2.png")
@@ -129,6 +125,13 @@ def mainPage() {
             
             section ("Application Preferences") {
                 href "settingsPage", title: "Manage Logging, and Metrics", description: "Tap to modify...", image: getAppImg("settings.png")
+            }
+
+            if(!newInstall) {
+                section("Alexa Login Service:") {
+                    def t0 = getServiceConfDesc()
+                    href "servPrefPage", title: "Login Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
+                }
             }
             
             section ("Broadcasts (Experimental)") {
@@ -145,6 +148,55 @@ def mainPage() {
                     href "uninstallPage", title: "Uninstall this App", description: "Tap to Remove...", image: getAppImg("uninstall.png")
                 }
             }
+        }
+    }
+}
+
+def devicePrefsPage() {
+    return dynamicPage(name: "devicePrefsPage", uninstall: false, install: false) {
+        section("Device Preferences") {
+            input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
+            input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
+            input "createWHA", "bool", title: "Create Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha.png")
+            input "createOtherDevices", "bool", title: "Create Other Alexa Enabled Devices?", description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices.png")
+            input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
+            if(newInstall) {
+                paragraph title:"Notice:", "Device filtering options will be available once app install is complete.", required: true, state: null
+            } else {
+                Map devs = getDeviceList(true, false)
+                input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
+                paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
+            }
+        }
+    }
+}
+
+def groupsPage() {
+    return dynamicPage(name: "groupsPage", uninstall: false, install: false) {
+        def groupApp = findChildAppByName( grpChildName() )
+        if(groupApp) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph "You haven't created any Broadcast Groups yet!\nTap Create New Group to get Started"
+            }
+        }
+        section("") {
+            app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: "Create New Group", image: getAppImg("es_groups.png"))
+        }
+    }
+}
+
+def actionsPage() {
+    return dynamicPage(name: "actionsPage", uninstall: false, install: false) {
+        def actionApp = findChildAppByName( actChildName() )
+        if(actionApp) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph "You haven't created any Actions yet!\nTap Create New Action to get Started"
+            }
+        }
+        section("") {
+            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: "Create New Action", image: getAppImg("es_actions.png"))
         }
     }
 }
@@ -306,8 +358,8 @@ def settingsPage() {
         }
         showDevSharePrefs()
         section("App Change Details:") {
-			href "changeLogPage", title: "View App Revision History", description: "Tap to view", image: getAppImg("change_log.png")
-		}
+            href "changeLogPage", title: "View App Revision History", description: "Tap to view", image: getAppImg("change_log.png")
+        }
     }
 }
 
@@ -807,21 +859,17 @@ def cookieValidResp(response, data) {
             return
         } 
     }
-    // try {
-        Map aData = response?.json?.authentication ?: [:]
-        Boolean valid = false
-        if (aData) {
-            if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
-            if(aData?.customerName) { state?.customerName = aData?.customerName }
-            valid = (resp?.data?.authentication?.authenticated != false)
-        }
-        state?.lastCookieChkDt = getDtNow()
-        def execTime = data?.execDt ? (now()-data?.execDt) : 0
-        log.debug "Cookie Validation: (${valid}) | Process Time: (${execTime}ms)"
-        authEvtHandler(valid)
-    // } catch (ex) {
-    //     log.error "cookieValidResp Exception", ex
-    // }
+    Map aData = response?.json?.authentication ?: [:]
+    Boolean valid = false
+    if (aData) {
+        if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
+        if(aData?.customerName) { state?.customerName = aData?.customerName }
+        valid = (resp?.data?.authentication?.authenticated != false)
+    }
+    state?.lastCookieChkDt = getDtNow()
+    def execTime = data?.execDt ? (now()-data?.execDt) : 0
+    log.debug "Cookie Validation: (${valid}) | Process Time: (${execTime}ms)"
+    authEvtHandler(valid)
 }
 
 private noAuthReminder() { log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..." }
@@ -1057,10 +1105,10 @@ def receiveEventData(Map evtData, String src) {
 
 private getDevicesFromSerialList(serialNumberList) {
     //log.trace "getDevicesFromSerialList called with: ${ serialNumberList}"
-	if (serialNumberList == null) {
-	   log.debug "SerialNumberList is null"
-	   return;
-	}
+    if (serialNumberList == null) {
+       log.debug "SerialNumberList is null"
+       return;
+    }
     def devicesList = serialNumberList.findResults { echoKey ->
         String dni = [app?.id, "echoSpeaks", echoKey].join("|")
         getChildDevice(dni)
@@ -1307,7 +1355,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     return sent
 }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
-String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
+String getAppEndpointUrl(subPath)   { return "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" }
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
@@ -1837,8 +1885,8 @@ def renderConfig() {
     render contentType: "text/html", data: html
 }
 Integer stateSize() {
-	def j = new groovy.json.JsonOutput().toJson(state)
-	return j?.toString().length()
+    def j = new groovy.json.JsonOutput().toJson(state)
+    return j?.toString().length()
 }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 String debugStatus() { return !settings?.appDebug ? "Off" : "On" }
