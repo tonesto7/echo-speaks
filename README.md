@@ -18,5 +18,5 @@ So without further ado, The day that you have all been waiting for has arrived.
 ----
 ## Get Started
 
-[Documentation**](https://tonesto7.gitbook.io/echo-speaks)
+[**Documentation**](https://tonesto7.gitbook.io/echo-speaks)
 
