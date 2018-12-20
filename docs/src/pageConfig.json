@@ -2,22 +2,22 @@
     "appName": "Echo Speaks",
     "headerNavigation": [{
         "name": "Home",
-        "path": "/documentation"
+        "path": "/docs"
     }, {
         "name": "FAQ",
-        "path": "/faq"
+        "path": "/docs/faq"
     }, {
         "name": "Donate",
-        "path": "/donate"
+        "path": "/docs/donate"
     }],
-    "landingPage": "/documentation",
+    "landingPage": "/docs",
     "topics": [
-        "news"
+        "home"
     ],
     "pages": [{
-        "route": "/documentation",
+        "route": "/docs",
         "name": "Documentation",
-        "description": "This is the playbook",
+        "description": "this is the info page",
         "icon": "address-book",
         "children": [{
             "route": "/getStarted",
@@ -36,7 +36,7 @@
                 "route": "/appInstall",
                 "name": "Install Method",
                 "description": "select an install method",
-                "icon": "",
+                "icon": "plus-square",
                 "topics": ["process"],
                 "children": [{
                     "route": "/autoInstall",
@@ -49,7 +49,7 @@
                     "route": "/githubInstall",
                     "name": "IDE (GitHub) Install",
                     "description": "use IDE integration",
-                    "icon": "",
+                    "icon": "github",
                     "topics": ["install", "github"],
                     "markdown": "/static/markdown/getstarted/code_install/GithubIDE_Install.md"
                 }, {
@@ -64,7 +64,7 @@
                 "route": "/appConfig",
                 "name": "Configure Application",
                 "description": "configure the smartapp installation",
-                "icon": "project-diagram",
+                "icon": "wrench",
                 "topics": ["configuration"],
                 "markdown": "/static/markdown/getstarted/AppConfig.md"
             }]
