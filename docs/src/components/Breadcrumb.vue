@@ -43,7 +43,6 @@ export default {
 </script>
 
 <style scoped>
-
   ul.breadcrumb {
     position: sticky;
     top: 0;

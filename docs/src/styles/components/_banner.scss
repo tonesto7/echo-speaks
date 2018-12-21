@@ -110,15 +110,15 @@
   padding-left: 0;
 }
 
-.btn--like,
+.btn--comment,
 .btn--dislike,
-.btn--comment {
+.btn--like {
   color: #888;
 }
 
-.btn--like:hover,
+.btn--comment:hover,
 .btn--dislike:hover,
-.btn--comment:hover {
+.btn--like:hover {
   color: #424242;
 }
 
@@ -162,4 +162,3 @@
   width: 100px;
   padding: 0 1rem 0 50px;
 }
-
