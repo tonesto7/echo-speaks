@@ -23,7 +23,7 @@
             "route": "/getStarted",
             "name": "Get Started",
             "description": "installation and configuration instructions",
-            "icon": "project-diagram",
+            "icon": "play",
             "topics": ["started", "instructions", "setup", "configuration"],
             "children": [{
                 "route": "/appRequirements",
@@ -49,7 +49,7 @@
                     "route": "/githubInstall",
                     "name": "IDE (GitHub) Install",
                     "description": "use IDE integration",
-                    "icon": "github",
+                    "icon": ["fab", "github"],
                     "topics": ["install", "github"],
                     "markdown": "/static/markdown/getstarted/code_install/GithubIDE_Install.md"
                 }, {
@@ -71,7 +71,7 @@
         }, {
             "route": "/devices",
             "name": "Device Support",
-            "description": "Devices supported, their attributes, and commands.",
+            "description": "models supported and their attributes, commands.",
             "topics": ["attributes", "commands", "devices"],
             "icon": "thumbs-up",
             "children": [{
@@ -101,9 +101,9 @@
         }, {
             "route": "/troubleshoot",
             "name": "Troubleshooting",
-            "description": "get help with common issues.",
+            "description": "help with common issues.",
             "topics": ["issues", "trouble", "errors"],
-            "icon": "hands-helping",
+            "icon": "stethoscope",
             "children": [{
                     "route": "/commonErrors",
                     "name": "Common Errors",
@@ -115,7 +115,7 @@
                     "route": "/removeServer",
                     "name": "Remove Server",
                     "description": "heroku server removal",
-                    "icon": "times",
+                    "icon": "trash-alt",
                     "topics": ["server", "remove", "delete"],
                     "markdown": "/static/markdown/troubleshooting/RemoveServer.md"
                 },
@@ -123,7 +123,7 @@
                     "route": "/redeployServer",
                     "name": "Redeploy Server",
                     "description": "redeploy heroku server",
-                    "icon": "times",
+                    "icon": "wind",
                     "topics": ["server", "deploy"],
                     "markdown": "/static/markdown/troubleshooting/RedeployServer.md"
                 }

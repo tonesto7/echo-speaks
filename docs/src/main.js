@@ -2,14 +2,9 @@ import Vue from 'vue'
 import App from './App'
 import router from './router'
 import VueTreeNavigation from 'vue-tree-navigation'
-import {
-  library
-} from '@fortawesome/fontawesome-svg-core'
-import {
-  FontAwesomeIcon
-} from '@fortawesome/vue-fontawesome'
-
-import { faTwitter, faGithub, faPaypal } from '@fortawesome/free-brands-svg-icons'
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import { faGithub, faPaypal } from '@fortawesome/free-brands-svg-icons'
 
 import {
   faBullhorn,
@@ -101,10 +96,11 @@ import {
   faDonate,
   faStar,
   faMobileAlt,
-  faStethoscope
+  faStethoscope,
+  faPlay,
+  faTrashAlt,
+  faWind
 } from '@fortawesome/free-solid-svg-icons'
-
-library.add(faGithub, faPaypal, faTwitter)
 
 Vue.use(VueTreeNavigation)
 library.add(
@@ -197,7 +193,12 @@ library.add(
   faDonate,
   faStar,
   faMobileAlt,
-  faStethoscope
+  faStethoscope,
+  faGithub,
+  faPaypal,
+  faPlay,
+  faTrashAlt,
+  faWind
 )
 
 const filter = (text, length, clamp) => {
