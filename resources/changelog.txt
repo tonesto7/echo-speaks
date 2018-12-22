@@ -1,18 +1,36 @@
-V2.0.0 (December 2nd, 2018):
+V2.0.7 (December 18th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
- • NEW: Completely rewritten to perform all server functions (except login proxy) via the SmartApp and Devices.
- • UPDATED: Much Better device capability verfication and identification support. If you try to use a command not supported the device logs will tell you.
- • ADDED: SmartApp supports being sent manual cookies via the Heroku Web Config 
- • ADDED: Change logs are visible in the SmartApp and when a new update is deployed
- • ADDED: Included Experimental broadcast test page to the SmartApp
+ • UPDATED: Updated the cookie validation and notifification logic
+ • UPDATED: Bug fixes
 
 Device:
- • UPDATED: Better device capability verification and identification support. If you try to use a command not supported the device logs will tell you.
- • UPDATED: The commands setVolumeSpeak() and setVolumeSpeakAndRestore() now work amazing and are sent as a single command to Amazon. So the second the message is finished play amazon restores the volume.
- • FIXED: So much stuff I can't remember. 
- • FYI: With the way polling works to reduce the stress on the ST platform i’ve now changed full device list refreshes to every 10 minutes. This means new devices are only added every 10 minutes. (The devices themselves will update their info directly every 60 seconds)
+ • UPDATED: Updated the cookie validation and notifification logic
+ • UPDATED: Bug fixes
 
-Server:
- • UPDATED: No longer handles communication with Amazon (Polling or Commands). It's required only to handle the login process (This means it will be asleep unless you need to refresh your cookie)
- • ADDED: You can now paste your cookie and csrf strings into the web config page, which will send them up to ST.
+V2.0.5 (December 5th, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • UPDATED: Increased Full Device Polling from every 15 to every 10 minutes
+ • UPDATED: Device Style table is now remotely updatable via the appData.json file used for version info (v2.0.4).
+
+Device:
+ • ADDED: Refresh now sends triggers the smartapp to refresh the device list.
+ • ADDED: Devices prevent any speech while DoNotDisturb is enabled.
+ • ADDED: Devices now prevent commands while device is marked as offline. (Offline Status updates every 10 minutes)
+ • UPDATED: setVolumeSpeakAndRestore() now supports an optional 3rd parameter for the restore volume.  If it's not sent it will just use the old volume.
+ • UPDATED: Debug Logging data is more detailed for troubleshooting.
+ • FIXED: DoNotDisturb Status has been broken since v2 release. It's now fixed.
+
+Server (v2.0.2):
+ • FIXED: Web Interactions are now all via https:// (SSL)
+
+V2.0.2 (December 3rd, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Device Icon issue.
+ • FIXED: Cookie validation will not be attempted if the cookie state is empty.
+
+Device:
+ • UPDATED: Device will no longer attempt to update data when it's marked offline by amazon.
+ • FIXED: GetAlarmVolume Error.
