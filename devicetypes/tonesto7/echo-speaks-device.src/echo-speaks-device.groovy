@@ -426,12 +426,6 @@ Boolean permissionOk(type) {
     return false
 }
 
-Boolean musicSearchSupported() {
-    if(!state?.permissions) { return false }
-    ["amazonMusic", "appleMusic", "pandoraRadio", "tuneInRadio", "iHeartRadio", "siriusXm", "spotify"]?.each { if(permissionOk(it as String) == true) { return true } }
-    return false
-}
-
 void updateDeviceStatus(Map devData) {
     // try {
         Boolean isOnline = false
@@ -1277,9 +1271,39 @@ def playTellStory(volume=null, restoreVolume=null) {
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null) {
-    if(musicSearchSupported()) {
+    if(isCommandTypeAllowed(getCommandTypeForProvider(providerId))) {
         doSearchMusicCmd(searchPhrase, providerId, volume)
+    } else {
+        log.warn "searchMusic not supported for ${providerId}"
     }
+}
+
+String getCommandTypeForProvider(String providerId) { 
+    def commandType = providerId
+    switch (providerId) {
+        case "AMAZON_MUSIC":
+            commandType = "amazonMusic"
+            break
+        case "APPLE_MUSIC":
+            commandType = "appleMusic"
+            break
+        case "TUNE_IN":
+            commandType = "tuneInRadio"
+            break
+        case "PANDORA":
+            commandType = "pandoraRadio"
+            break
+        case "SIRIUSXM":
+            commandType = "siriusXm"
+            break
+        case "SPOTIFY":
+            commandType = "spotify"
+            break
+        case "I_HEART_RADIO":
+            commandType = "iHeartRadio"
+            break
+    }
+    return commandType
 }
 
 def searchAmazonMusic(String searchPhrase, volume=null) {
