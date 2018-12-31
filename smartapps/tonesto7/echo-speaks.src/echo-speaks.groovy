@@ -20,8 +20,6 @@ include 'asynchttp_v1'
 String appVersion()	 { return "2.0.8" }
 String appModified() { return "2018-12-31" }
 String appAuthor()	 { return "Anthony S." }
-String actChildName(){ return "Echo Speaks - Actions" }
-String grpChildName(){ return "Echo Speaks - Groups" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
@@ -45,8 +43,6 @@ preferences {
     page(name: "settingsPage")
     page(name: "devicePrefsPage")
     page(name: "newSetupPage")
-    page(name: "groupsPage")
-    page(name: "actionsPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
     page(name: "changeLogPage")
@@ -100,22 +96,8 @@ def mainPage() {
                         href "deviceListPage", title: "Installed Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                     } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
                 }
-                href "devicePrefsPage", title: "Detection Preferences", description: "Tap to configure...", state: "complete", image: getAppImg("devices.png")
-            }
-
-            if(!newInstall) {
-                def t1 = getGroupsDesc()
-                def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
-                section("Manage Groups:") {
-                    href "groupsPage", title: "Broadcast Groups", description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups.png")
-                }
-
-                def t2 = getActionsDesc()
-                def actDesc = t2 ? "${t2}\n\nTap to modify" : null
-                section("Manage Actions:") {
-                    href "actionsPage", title: "Actions", description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions.png")
-                }
-                state?.childInstallOkFlag = true
+                def devPrefDesc = devicePrefsDesc()
+                href "devicePrefsPage", title: "Detection Preferences", description: "${devPrefDesc ? "Current Preferences:\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices.png")
             }
 
             section("Notifications:") {
@@ -171,34 +153,16 @@ def devicePrefsPage() {
     }
 }
 
-def groupsPage() {
-    return dynamicPage(name: "groupsPage", uninstall: false, install: false) {
-        def groupApp = findChildAppByName( grpChildName() )
-        if(groupApp) { /*Nothing to add here yet*/ }
-        else {
-            section("") {
-                paragraph "You haven't created any Broadcast Groups yet!\nTap Create New Group to get Started"
-            }
-        }
-        section("") {
-            app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: "Create New Group", image: getAppImg("es_groups.png"))
-        }
+def devicePrefsDesc() {
+    String str = ""
+    str += settings?.autoCreateDevices ? "" : " • Auto Create Devices (Disabled)"
+    if(settings?.autoCreateDevices) {
+        str += settings?.createTablets ? "${str == "" ? "" : "\n"} • Auto Create Tablets (Enabled)" : ""
+        str += settings?.createWHA ? "${str == "" ? "" : "\n"} • Auto Create WHA (Enabled)" : ""
+        str += settings?.createOtherDevices ? "${str == "" ? "" : "\n"} • Auto Create Other Alexa Devices (Enabled)" : ""
     }
-}
-
-def actionsPage() {
-    return dynamicPage(name: "actionsPage", uninstall: false, install: false) {
-        def actionApp = findChildAppByName( actChildName() )
-        if(actionApp) { /*Nothing to add here yet*/ }
-        else {
-            section("") {
-                paragraph "You haven't created any Actions yet!\nTap Create New Action to get Started"
-            }
-        }
-        section("") {
-            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: "Create New Action", image: getAppImg("es_actions.png"))
-        }
-    }
+    str += "${str == "" ? "" : "\n"} • Auto Rename Devices (${settings?.autoRenameDevices == false ? "Disabled" : "Enabled"})"
+    return str != "" ? str : null
 }
 
 def broadcastTestPage() {
@@ -271,27 +235,6 @@ Map createSequenceNode(serialNumber, deviceType, command, value) {
             ]
         ]
         switch (command) {
-            case "weather":
-                seqNode?.type = "Alexa.Weather.Play"
-                break
-            case "traffic":
-                seqNode?.type = "Alexa.Traffic.Play"
-                break
-            case "flashbriefing":
-                seqNode?.type = "Alexa.FlashBriefing.Play"
-                break
-            case "goodmorning":
-                seqNode?.type = "Alexa.GoodMorning.Play"
-                break
-            case "singasong":
-                seqNode?.type = "Alexa.SingASong.Play"
-                break
-            case "tellstory":
-                seqNode?.type = "Alexa.TellStory.Play"
-                break
-            case "playsearch":
-                seqNode?.type = "Alexa.Music.PlaySearchPhrase"
-                break
             case "volume":
                 seqNode?.type = "Alexa.DeviceControls.Volume"
                 seqNode?.operationPayload?.value = value;
@@ -369,15 +312,15 @@ def deviceListPage() {
         // log.debug "devMap: $devMap"
         section() {
             state?.echoDeviceMap?.sort { it?.value?.name }?.each { k,v->
-                String str = "Name: ${v?.name}"
+                String str = "Status: (${v?.online ? "Online" : "Offline"})"
                 str += "\nStyle: ${v?.style?.name}"
                 str += "\nFamily: ${v?.family}"
                 str += "\nType: ${v?.type}"
-                str += "\nMusic Player: ${v?.mediaPlayer?.toString()?.capitalize()}"
-                str += "\nVolume Control: ${v?.volumeSupport?.toString()?.capitalize()}"
-                str += "\nText-to-Speech: ${v?.ttsSupport?.toString()?.capitalize()}"
-                str += "\nStatus: ${v?.online ? "Online" : "Offline"}"
-                paragraph str, state: (v?.online ? "complete" : null), image: getAppImg("${v?.style?.image}.png"), required: true
+                str += "\nVolume Control: (${v?.volumeSupport?.toString()?.capitalize()})"
+                str += "\nText-to-Speech: (${v?.ttsSupport?.toString()?.capitalize()})"
+                str += "\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
+                str += (v?.mediaPlayer == true && v?.musicProviders) ? "\nMusic Providers: [${v?.musicProviders}]" : ""
+                paragraph title: v?.name, str, state: (v?.online ? "complete" : null), image: getAppImg("${v?.style?.image}.png"), required: true
             }
         }
     }
@@ -409,7 +352,7 @@ Map getDeviceList(isInputEnum=false, hideDefaults=true) {
 
 def servPrefPage() {
     Boolean newInstall = !state?.isInstalled
-    Boolean resumeConf = !state?.resumeConfig
+    Boolean resumeConf = (state?.resumeConfig == true)
     return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf)) {
         Map amazonDomainOpts = [
             "amazon.com":"Amazon.com",
@@ -484,9 +427,7 @@ def servPrefPage() {
                     href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: "Service Config Page", description: "Tap to proceed", image: getPublicImg("web.png")
                     href url: "https://${getRandAppName()}.herokuapp.com/manualCookie", style: "external", required: false, title: "Manual Cookie Page", description: "Tap to proceed", image: getPublicImg("web.png")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: "Heroku App Settings", description: "Tap to proceed", image: getAppImg("heroku.png")
-                    // href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/webhooks", style: "external", required: false, title: "Heroku App Webhooks", description: "Tap to proceed", image: getAppImg("heroku.png")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: "Heroku App Logs", description: "Tap to proceed", image: getAppImg("heroku.png")
-                    // href url: "https://${getRandAppName()}.herokuapp.com/skippedDevices", style: "external", required: false, title: "View Ignored Devices", description: "Tap to proceed", image: getPublicImg("web.png")
                 }
             }
 
@@ -634,23 +575,6 @@ def uninstalled() {
     }
 }
 
-def getGroupApps() {
-    return getChildApps()?.findAll { it?.name == grpChildName() }
-}
-
-def getActionApps() {
-    return getChildApps()?.findAll { it?.name == actChildName() }
-}
-
-public getBroadcastGrps() {
-    Map grps = [:]
-    def groupApps = getChildApps()?.findAll { it?.name == grpChildName() }
-    groupApps?.each { grp->
-        grps[grp?.getId() as String] = grp?.getBroadcastGroupData(true)
-    }
-    return grps
-}
-
 void settingUpdate(name, value, type=null) {
     if(name && type) {
         app?.updateSetting("$name", [type: "$type", value: value])
@@ -660,9 +584,9 @@ void settingUpdate(name, value, type=null) {
 
 mappings {
     path("/renderMetricData") { action: [GET: "renderMetricData"] }
-    path("/receiveData") { action: [POST: "processData"] }
-    path("/config") { action: [GET: "renderConfig"]  }
-    path("/cookie") { action: [GET: "getCookie", POST: "storeCookie", DELETE: "clearCookie"] }
+    path("/receiveData")      { action: [POST: "processData"] }
+    path("/config")            { action: [GET: "renderConfig"]  }
+    path("/cookie")           { action: [GET: "getCookie", POST: "storeCookie", DELETE: "clearCookie"] }
 }
 
 def clearCloudConfig() {
@@ -719,11 +643,6 @@ private stateCleanup() {
 def onAppTouch(evt) {
     // log.trace "appTouch..."
     updated()
-    // reInitDevices()
-    // validateCookie()
-    // apiHealthCheck()
-    //resetQueues()
-    //getEchoDevices()
 }
 
 private resetQueues() {
@@ -986,7 +905,7 @@ def receiveEventData(Map evtData, String src) {
             log.warn "Possible Code Version Change Detected... Device Updates will occur on next cycle."
             return
         }
-        log.debug "musicProviders: ${evtData?.musicProviders}"
+        // log.debug "musicProviders: ${evtData?.musicProviders}"
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
@@ -1054,7 +973,12 @@ def receiveEventData(Map evtData, String src) {
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!")
                         return
                     }
-                    echoDeviceMap[echoKey] = [name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey, style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: (permissions?.mediaPlayer == true), ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers]
+                    echoDeviceMap[echoKey] = [
+                        name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey,
+                        style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: (permissions?.mediaPlayer == true),
+                        ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers,
+                        musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", ")
+                    ]
 
                     if(echoValue?.serialNumber in ignoreTheseDevs) {
                         logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
@@ -1080,7 +1004,7 @@ def receiveEventData(Map evtData, String src) {
                     } else {
                         //Check and see if name needs a refresh
                         if (settings?.autoRenameDevices != false && (childDevice?.name != childHandlerName || childDevice?.label != devLabel)) {
-                            log.debug ("Updating device name (old label was " + childDevice?.label + " | old name was " + childDevice?.name + " new hotness: " + devLabel)
+                            log.debug ("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${childDevice?.label})")
                             childDevice?.name = childHandlerName
                             childDevice?.label = devLabel
                         }
