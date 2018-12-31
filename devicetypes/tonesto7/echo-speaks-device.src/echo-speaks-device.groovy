@@ -61,6 +61,7 @@ metadata {
         command "playTrackAndRestore"
         command "playTextAndRestore"
         command "sendTestTts"
+        command "sendTestAnnouncement"
         command "replayText"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
@@ -73,6 +74,7 @@ metadata {
         command "playGoodMorning"
         command "playTraffic"
         command "playTellStory"
+        command "playAnnouncement"
         command "searchMusic"
         command "searchAmazonMusic"
         command "searchAppleMusic"
@@ -249,6 +251,9 @@ metadata {
         standardTile("sendTest", "sendTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
         }
+        standardTile("sendTestAnnouncement", "sendTestAnnouncement", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Send Test Announcement', action: 'sendTestAnnouncement')
+        }        
         standardTile("playWeather", "playWeather", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Weather Report', action: 'playWeather')
         }
@@ -283,7 +288,7 @@ metadata {
         main(["deviceStatus"])
         details([
             "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported",
-            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "doNotDisturb", "resetQueue", "refresh", "supportedMusic",
+            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "sendTestAnnouncement", "doNotDisturb", "resetQueue", "refresh", "supportedMusic",
             "lastSpeakCmd", "lastCmdSentDt"])
     }
 
@@ -423,12 +428,6 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
 
 Boolean permissionOk(type) {
     if(type && state?.permissions?.containsKey(type) && state?.permissions[type] == true) { return true }
-    return false
-}
-
-Boolean musicSearchSupported() {
-    if(!state?.permissions) { return false }
-    ["amazonMusic", "appleMusic", "pandoraRadio", "tuneInRadio", "iHeartRadio", "siriusXm", "spotify"]?.each { if(permissionOk(it as String) == true) { return true } }
     return false
 }
 
@@ -1276,10 +1275,44 @@ def playTellStory(volume=null, restoreVolume=null) {
     incrementCntByKey("use_cnt_playStory")
 }
 
+def playAnnouncement(String text) { 
+    doSequenceCmd("Announcement", "announcement", text)
+}
+
 def searchMusic(String searchPhrase, String providerId, volume=null) {
-    if(musicSearchSupported()) {
+    if(isCommandTypeAllowed(getCommandTypeForProvider(providerId))) {
         doSearchMusicCmd(searchPhrase, providerId, volume)
+    } else {
+        log.warn "searchMusic not supported for ${providerId}"
     }
+}
+
+String getCommandTypeForProvider(String providerId) { 
+    def commandType = providerId
+    switch (providerId) {
+        case "AMAZON_MUSIC":
+            commandType = "amazonMusic"
+            break
+        case "APPLE_MUSIC":
+            commandType = "appleMusic"
+            break
+        case "TUNE_IN":
+            commandType = "tuneInRadio"
+            break
+        case "PANDORA":
+            commandType = "pandoraRadio"
+            break
+        case "SIRIUSXM":
+            commandType = "siriusXm"
+            break
+        case "SPOTIFY":
+            commandType = "spotify"
+            break
+        case "I_HEART_RADIO":
+            commandType = "iHeartRadio"
+            break
+    }
+    return commandType
 }
 
 def searchAmazonMusic(String searchPhrase, volume=null) {
@@ -1540,6 +1573,10 @@ def sendTestTts(ttsMsg) {
     ]
     if(!ttsMsg) { ttsMsg = getRandomItem(items) }
     speak(ttsMsg as String)
+}
+
+def sendTestAnnouncement() {
+    playAnnouncement("Test announcement from device")
 }
 
 /*******************************************************************
@@ -1981,6 +2018,30 @@ Map createSequenceNode(command, value) {
             case "speak":
                 seqNode?.type = "Alexa.Speak"
                 seqNode?.operationPayload?.textToSpeak = value as String
+                break
+            case "announcement":
+                seqNode?.type = "AlexaAnnouncement"
+                Map payload = seqNode?.operationPayload
+                payload?.remove('deviceType')
+                payload?.remove('deviceSerialNumber')
+                payload?.remove('locale')
+                payload?.expireAfter = "PT5S"
+                List payloadContent = []
+                Map payloadContentItem = [
+                    "locale": "en-US",
+                    "display": [ 
+                        "title": "Alexa Announcements",
+                        "body": value
+                    ],
+                    "speak": [
+                        "type": "text",
+                        "value": value
+                    ]
+                ]
+                payloadContent.push(payloadContentItem)
+                payload?.content = payloadContent
+                Map payloadTarget = [ "customerId" : state?.deviceOwnerCustomerId ]
+                payload?.target = payloadTarget
                 break
             default:
                 return
