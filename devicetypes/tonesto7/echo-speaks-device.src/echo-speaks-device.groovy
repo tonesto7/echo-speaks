@@ -19,7 +19,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 String devVersion() { return "2.0.7"}
-String devModified() { return "2018-12-18" }
+String devModified() { return "2018-12-30" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -62,6 +62,7 @@ metadata {
         command "playTextAndRestore"
         command "sendTestTts"
         command "sendTestAnnouncement"
+        command "sendTestAnnouncementAll"
         command "replayText"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
@@ -71,10 +72,18 @@ metadata {
         command "playWeather"
         command "playSingASong"
         command "playFlashBrief"
+        command "playFunFact"
         command "playGoodMorning"
         command "playTraffic"
+        command "playJoke"
         command "playTellStory"
+        command "playWelcomeHome"
         command "playAnnouncement"
+        command "playAnnouncementAll"
+        command "playCalendarToday"
+        command "playCalendarTomorrow"
+        command "playCalendarNext"
+        command "stopAllDevices"
         command "searchMusic"
         command "searchAmazonMusic"
         command "searchAppleMusic"
@@ -83,6 +92,7 @@ metadata {
         command "searchSiriusXm"
         command "searchSpotify"
         command "searchTuneIn"
+        command "sendAlexaAppNotification"
         command "createAlarm"
         command "createReminder"
         command "removeNotification"
@@ -197,7 +207,7 @@ metadata {
             state("paused_one_link", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/one_link.png", backgroundColor: "#cccccc")
             state("playing_one_link", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/one_link.png", backgroundColor: "#00a0dc")
             state("stopped_one_link", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/one_link.png")
-            
+
             state("paused_sonos_generic", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/sonos_generic.png", backgroundColor: "#cccccc")
             state("playing_sonos_generic", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/sonos_generic.png", backgroundColor: "#00a0dc")
             state("stopped_sonos_generic", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/sonos_generic.png")
@@ -252,8 +262,14 @@ metadata {
             state("default", label:'Send Test TTS', action: 'sendTestTts')
         }
         standardTile("sendTestAnnouncement", "sendTestAnnouncement", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Send Test Announcement', action: 'sendTestAnnouncement')
-        }        
+            state("default", label:'Test Announcement', action: 'sendTestAnnouncement')
+        }
+        standardTile("sendTestAnnouncementAll", "sendTestAnnouncementAll", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Test Announcement (All)', action: 'sendTestAnnouncementAll')
+        }
+        standardTile("stopAllDevices", "stopAllDevices", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Stop All Devices', action: 'stopAllDevices')
+        }
         standardTile("playWeather", "playWeather", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Weather Report', action: 'playWeather')
         }
@@ -272,8 +288,23 @@ metadata {
         standardTile("playTellStory", "playTellStory", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Tell-a-Story', action: 'playTellStory')
         }
-        standardTile("testSports", "testSports", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Sports Test', action: 'testSports')
+        standardTile("playJoke", "playJoke", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Joke', action: 'playJoke')
+        }
+        standardTile("playFunFact", "playFunFact", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Fun-Fact', action: 'playFunFact')
+        }
+        standardTile("playCalendarToday", "playCalendarToday", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Calendar Today', action: 'playCalendarToday')
+        }
+        standardTile("playCalendarTomorrow", "playCalendarTomorrow", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Calendar Tomorrow', action: 'playCalendarTomorrow')
+        }
+        standardTile("playCalendarNext", "playCalendarNext", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Calendar Next', action: 'playCalendarNext')
+        }
+        standardTile("playWelcomeHome", "playWelcomeHome", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Welcome Home', action: 'playWelcomeHome')
         }
         standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Reset Queue', action: 'resetQueue')
@@ -287,9 +318,9 @@ metadata {
         }
         main(["deviceStatus"])
         details([
-            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported",
-            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "sendTest", "sendTestAnnouncement", "doNotDisturb", "resetQueue", "refresh", "supportedMusic",
-            "lastSpeakCmd", "lastCmdSentDt"])
+            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported", "stopAllDevices",
+            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "playFunFact", "playJoke", "playWelcomeHome", "playCalendarToday", "playCalendarTomorrow",
+            "playCalendarNext", "sendTest", "sendTestAnnouncement", "sendTestAnnouncementAll", "doNotDisturb", "resetQueue", "refresh", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt"])
     }
 
     preferences {
@@ -514,6 +545,7 @@ void updateDeviceStatus(Map devData) {
         }
         setOnlineStatus(isOnline)
         sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
+        state?.fullRefreshOk = true
         schedDataRefresh()
     // } catch(ex) {
     //     log.error "updateDeviceStatus Error: ", ex
@@ -542,16 +574,19 @@ public schedDataRefresh(frc) {
 
 private refreshData() {
     logger("trace", "refreshData()...")
-    if(device?.currentValue("onlineStatus") != "online") { 
+    if(device?.currentValue("onlineStatus") != "online") {
         log.warn "Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)"
-        return 
+        return
     }
     if(!isAuthOk()) {return}
     logger("trace", "permissions: ${state?.permissions}")
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
         getPlaylists()
-        getMusicProviders()
+        if(state?.fullRefreshOk) {
+            getMusicProviders()
+            state?.fullRefreshOk = false
+        }
     }
 
     if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
@@ -587,11 +622,16 @@ public setOnlineStatus(Boolean isOnline) {
 }
 
 private respIsValid(response, methodName, falseOnErr=false) {
-    if (response.hasError()) { 
+    try {
+
+    } catch (ex) {
+        // catches non-2xx status codes
+    }
+    if (response.hasError()) {
         if(response?.getStatus() == 401) {
             setAuthState(false)
             return false
-        } else { if(response?.getStatus() > 401) { log.error "${methodName} Error: ${response.getErrorMessage()}" } }
+        } else { if(response?.getStatus() > 401 && response?.getStatus() < 500) { log.error "${methodName} Error: ${response.getErrorMessage()}" } }
         if(falseOnErr) { return false }
     }
     return true
@@ -617,7 +657,9 @@ private getPlaybackState() {
 
 def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     if(!respIsValid(response, "getPlaybackStateHandler", true)) {return}
-    
+    try {} catch (ex) {
+        //handles non-2xx status codes
+    }
     // log.debug "response: ${response?.json}"
     def sData = [:]
     def isPlayStateChange = false
@@ -634,7 +676,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
         log.trace "Status Changed to ${playState}"
         isPlayStateChange = true
-        if (isGroupResponse) { 
+        if (isGroupResponse) {
             state?.isGroupPlaying = (sData?.state == 'PLAYING')
         }
         sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
@@ -703,7 +745,9 @@ private getAlarmVolume() {
 
 def getAlarmVolumeHandler(response, data) {
     if(!respIsValid(response, "getAlarmVolumeHandler")) {return}
-    
+    try {} catch (ex) {
+        //handles non-2xx status codes
+    }
     def sData = response?.json
     logger("trace", "getAlarmVolume: $sData")
     if(isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
@@ -727,6 +771,9 @@ private getWakeWord() {
 
 def getWakeWordHandler(response, data) {
     if(!respIsValid(response, "getWakeWordHandler")) {return}
+    try {} catch (ex) {
+        //handles non-2xx status codes
+    }
     def sData = response?.json
     // log.debug "sData: $sData"
     def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
@@ -757,7 +804,9 @@ private getAvailableWakeWords() {
 
 def getAvailableWakeWordsHandler(response, data) {
     if(!respIsValid(response, "getAvailableWakeWordsHandler")) {return}
-    
+    try {} catch (ex) {
+        //handles non-2xx status codes
+    }
     def sData = response?.json
     def wakeWords = sData?.wakeWords ?: []
     logger("trace", "getAvailableWakeWords: ${wakeWords}")
@@ -781,7 +830,9 @@ private getDoNotDisturb() {
 
 def getDoNotDisturbHandler(response, data) {
     if(!respIsValid(response, "getDoNotDisturbHandler")) {return}
-    
+    try {} catch (ex) {
+        //handles non-2xx status codes
+    }
     def sData = response?.json
     def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
     logger("trace", "getDoNotDisturb: $dndData")
@@ -813,7 +864,9 @@ private getPlaylists() {
 
 def getPlaylistsHandler(response, data) {
     if(!respIsValid(response, "getPlaylistsHandler")) {return}
-    
+    try {} catch (ex) {
+        //handles non-2xx status codes
+    }
     def sData = response?.json
     logger("trace", "getPlaylists: ${sData}")
     Map playlists = sData?.playlists ?: [:]
@@ -840,7 +893,11 @@ private getMusicProviders() {
 
 def getMusicProvidersHandler(response, data) {
     if(!respIsValid(response, "getMusicProvidersHandler")) {return}
-    
+    try {
+
+    } catch (ex) {
+        //handles non-2xx status codes
+    }
     def sData = response?.json
     logger("trace", "getMusicProviders: ${sData}")
     Map items = [:]
@@ -877,7 +934,9 @@ private getNotifications() {
 
 def getNotificationsHandler(response, data) {
     if(!respIsValid(response, "getNotificationsHandler")) {return}
-    
+    try {} catch (ex) {
+        //handles non-2xx status codes
+    }
     List newList = []
     if(response?.getStatus() == 200) {
         def sData = response?.json
@@ -934,7 +993,7 @@ def amazonCommandResp(response, data) {
                 data?.validObj?.operationPayload = resp?.operationPayload
                 Map seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": data?.validObj]
                 seqJson?.startNode["@type"] = "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"
-                if(data?.volume) { 
+                if(data?.volume) {
                     sendMultiSequenceCommand([[command: data?.validObj], [command: "volume", value: data?.volume]], true)
                 } else {
                     sendSequenceCommand("PlayMusic | Provider: (${data?.validObj?.operationPayload?.musicProviderId})", seqJson, null)
@@ -962,7 +1021,7 @@ private sendSequenceCommand(type, command, value) {
 private sendMultiSequenceCommand(commands, parallel=false) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
     List nodeList = []
-    commands?.each { cmdItem-> 
+    commands?.each { cmdItem->
         if(cmdItem?.command instanceof Map) {
             nodeList?.push(cmdItem?.command)
         } else { nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value)) }
@@ -973,11 +1032,6 @@ private sendMultiSequenceCommand(commands, parallel=false) {
 
 def searchTest() {
     searchAmazonMusic("thriller")
-}
-
-def testSports() {
-    log.trace "testSports"
-    sendSequenceCommand("Test", "stop", null)
 }
 /*******************************************************************
             Device Command FUNCTIONS
@@ -1020,6 +1074,11 @@ def stop() {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
         }
     }
+}
+
+def stopAllDevices() {
+    doSequenceCmd("StopAllDevicesCommand", "stopalldevices")
+    incrementCntByKey("use_cnt_stopAllDevices")
 }
 
 def previousTrack() {
@@ -1168,7 +1227,7 @@ def deviceNotification(String msg) {
 
 def setVolumeAndSpeak(volume, String msg) {
     logger("trace", "setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
-    if(volume && volume?.isNumber() && permissionOk("volumeControl")) { 
+    if(volume && volume?.isNumber() && permissionOk("volumeControl")) {
         state?.useThisVolume = volume
         sendEvent(name: "level", value: volume, display: false, displayed: false)
         sendEvent(name: "volume", value: volume, display: false, displayed: false)
@@ -1182,7 +1241,7 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     if(msg) {
         if(volume && volume?.isNumber() && permissionOk("volumeControl")) {
             state?.useThisVolume = volume
-            if(restVolume && restVolume?.isNumber()) { 
+            if(restVolume && restVolume?.isNumber()) {
                 state?.lastVolume = restVolume as Integer
             } else { storeLastVolume() }
             sendEvent(name: "level", value: volume, display: false, displayed: false)
@@ -1257,6 +1316,15 @@ def playFlashBrief(volume=null, restoreVolume=null) {
     }
 }
 
+def playWelcomeHome(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "welcomehomerandom"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("WelcomeHomeCommand", "welcomehomerandom") }
+    incrementCntByKey("use_cnt_playWelcomeHome")
+}
+
 def playGoodMorning(volume=null, restoreVolume=null) {
     if(volume) {
         List seqs = [[command: "volume", value: volume], [command: "goodmorning"]]
@@ -1275,8 +1343,57 @@ def playTellStory(volume=null, restoreVolume=null) {
     incrementCntByKey("use_cnt_playStory")
 }
 
-def playAnnouncement(String text) { 
+def playFunFact(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "funfact"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("FunFactCommand", "funfact") }
+    incrementCntByKey("use_cnt_funfact")
+}
+
+def playJoke(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "joke"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("JokeCommand", "joke") }
+    incrementCntByKey("use_cnt_joke")
+}
+
+def playCalendarToday(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "calendartoday"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("CalendarTodayCommand", "calendartoday") }
+    incrementCntByKey("use_cnt_calendarToday")
+}
+
+def playCalendarTomorrow(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "calendartomorrow"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("CalendarTomorrowCommand", "calendartomorrow") }
+    incrementCntByKey("use_cnt_calendarTomorrow")
+}
+
+def playCalendarNext(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "calendarnext"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("CalendarNextCommand", "calendarnext") }
+    incrementCntByKey("use_cnt_calendarNext")
+}
+
+def playAnnouncement(String text) {
     doSequenceCmd("Announcement", "announcement", text)
+}
+
+def playAnnouncementAll(String text) {
+    doSequenceCmd("AnnouncementAll", "announcementall", text)
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null) {
@@ -1287,7 +1404,7 @@ def searchMusic(String searchPhrase, String providerId, volume=null) {
     }
 }
 
-String getCommandTypeForProvider(String providerId) { 
+String getCommandTypeForProvider(String providerId) {
     def commandType = providerId
     switch (providerId) {
         case "AMAZON_MUSIC":
@@ -1450,7 +1567,7 @@ def createReminder(String remLbl, String remDate, String remTime) {
         if(remLbl && remDate && remTime) {
             createNotification("Reminder", [
                 cmdType: "CreateReminder",
-                label: remLbl?.toString()?.replaceAll(" ", ""),
+                label: remLbl?.toString(),//?.replaceAll(" ", ""),
                 date: remDate,
                 time: remTime,
                 type: "Reminder"
@@ -1577,6 +1694,10 @@ def sendTestTts(ttsMsg) {
 
 def sendTestAnnouncement() {
     playAnnouncement("Test announcement from device")
+}
+
+def sendTestAnnouncementAll() {
+    playAnnouncementAll("Test announcement to all devices")
 }
 
 /*******************************************************************
@@ -1748,7 +1869,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
     // if(!isQueueCmd) { log.trace "speakVolumeCmd(${headers?.cmdDesc}, $isQueueCmd)" }
     def random = new Random()
     def randCmdId = random?.nextInt(300)
-    
+
     Map queryMap = [:]
     List logItems = []
     String healthStatus = getHealthStatus()
@@ -2005,11 +2126,39 @@ Map createSequenceNode(command, value) {
             case "tellstory":
                 seqNode?.type = "Alexa.TellStory.Play"
                 break
+            case "funfact":
+                seqNode?.type = "Alexa.FunFact.Play"
+                break
+            case "joke":
+                seqNode?.type = "Alexa.Joke.Play"
+                break
             case "playsearch":
                 seqNode?.type = "Alexa.Music.PlaySearchPhrase"
                 break
+            case "calendartomorrow":
+                seqNode?.type = "Alexa.Calendar.PlayTomorrow"
+                break
+            case "calendartoday":
+                seqNode?.type = "Alexa.Calendar.PlayToday"
+                break
+            case "calendarnext":
+                seqNode?.type = "Alexa.Calendar.PlayNext"
+                break
             case "stop":
-                seqNode?.type = "Alexa.AudioPlayer.Stop"
+                seqNode?.type = "Alexa.DeviceControls.Stop"
+                break
+            case "stopalldevices":
+                seqNode?.type = "Alexa.DeviceControls.Stop"
+                seqNode?.operationPayload?.remove('deviceType')
+                seqNode?.operationPayload?.remove('deviceSerialNumber')
+                seqNode?.operationPayload?.remove('locale')
+                seqNode?.operationPayload?.devices = [
+                    [
+                        deviceType: "ALEXA_ALL_DEVICE_TYPE",
+                        deviceSerialNumber: "ALEXA_ALL_DSN"
+                    ]
+                ]
+                seqNode?.operationPayload?.isAssociatedDevice = false
                 break
             case "volume":
                 seqNode?.type = "Alexa.DeviceControls.Volume"
@@ -2021,27 +2170,45 @@ Map createSequenceNode(command, value) {
                 break
             case "announcement":
                 seqNode?.type = "AlexaAnnouncement"
-                Map payload = seqNode?.operationPayload
-                payload?.remove('deviceType')
-                payload?.remove('deviceSerialNumber')
-                payload?.remove('locale')
-                payload?.expireAfter = "PT5S"
-                List payloadContent = []
-                Map payloadContentItem = [
-                    "locale": "en-US",
-                    "display": [ 
-                        "title": "Alexa Announcements",
-                        "body": value
-                    ],
-                    "speak": [
-                        "type": "text",
-                        "value": value
-                    ]
+                seqNode?.operationPayload?.remove('deviceType')
+                seqNode?.operationPayload?.remove('deviceSerialNumber')
+                seqNode?.operationPayload?.remove('locale')
+                seqNode?.operationPayload?.expireAfter = "PT5S"
+                seqNode?.operationPayload?.content = [[
+                    locale: "en-US",
+                    display: [ title: "Echo Speaks Announcement", body: value as String ],
+                    speak: [ type: "text", value: value as String ],
+                ]]
+                seqNode?.operationPayload?.target = [
+                    customerId : state?.deviceOwnerCustomerId,
+                    devices: [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ]
                 ]
-                payloadContent.push(payloadContentItem)
-                payload?.content = payloadContent
-                Map payloadTarget = [ "customerId" : state?.deviceOwnerCustomerId ]
-                payload?.target = payloadTarget
+                break
+            case "announcementall":
+                seqNode?.type = "AlexaAnnouncement"
+                seqNode?.operationPayload?.remove('deviceType')
+                seqNode?.operationPayload?.remove('deviceSerialNumber')
+                seqNode?.operationPayload?.remove('locale')
+                seqNode?.operationPayload?.expireAfter = "PT5S"
+                seqNode?.operationPayload?.content = [[
+                    locale: "en-US",
+                    display: [ title: "Echo Speaks Announcements", body: value as String ],
+                    speak: [ type: "text", value: value as String ],
+                ]]
+                seqNode?.operationPayload?.target = [ customerId : state?.deviceOwnerCustomerId ]
+                break
+            case "welcomehomerandom":
+                seqNode?.type = "Alexa.CannedTts.Speak"
+                seqNode?.operationPayload?.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-iamhome/alexa.cannedtts.speak.curatedtts-random"
+                break
+            case "pushnotification":
+                seqNode?.type = "Alexa.Notifications.SendMobilePush"
+                seqNode?.operationPayload?.remove('deviceType')
+                seqNode?.operationPayload?.remove('deviceSerialNumber')
+                seqNode?.operationPayload?.remove('locale')
+                seqNode?.operationPayload?.notificationMessage = value as String
+                seqNode?.operationPayload?.alexaUrl = "#v2/behaviors"
+                seqNode?.operationPayload?.title = "Amazon Alexa"
                 break
             default:
                 return
