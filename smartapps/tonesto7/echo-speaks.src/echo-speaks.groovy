@@ -921,6 +921,29 @@ private getEchoDevices() {
     asynchttp_v1.get(echoDevicesResponse, params, [execDt: now()])
 }
 
+private getMusicProviders() {
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/behaviors/entities",
+        query: [ skillId: "amzn1.ask.1p.music" ],
+        headers: [
+            "Routines-Version": "1.1.210292",
+            "Cookie": state?.cookie?.cookie as String,
+            "csrf": state?.cookie?.csrf as String
+        ],
+        requestContentType: "application/json",
+        contentType: "application/json"
+    ]
+    Map items = [:]
+    List musicResp = makeSyncronousReq(params, "get", "getMusicProviders") ?: [:]
+    if(musicResp?.size()) {
+        musicResp?.findAll { it?.availability == "AVAILABLE" }?.each { item->
+            items[item?.id] = item?.displayName
+        }
+    }
+    return items
+}
+
 def echoDevicesResponse(response, data) {
     List ignoreTypes = ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
@@ -951,7 +974,7 @@ def echoDevicesResponse(response, data) {
             }
         }
         // log.debug "echoDevices: ${echoDevices}"
-        receiveEventData([echoDevices: echoDevices, execDt: data?.execDt], "Groovy")
+        receiveEventData([echoDevices: echoDevices, musicProviders: getMusicProviders(), execDt: data?.execDt], "Groovy")
     } catch (ex) {
         log.error "echoDevicesResponse Exception", ex
     }
@@ -963,7 +986,7 @@ def receiveEventData(Map evtData, String src) {
             log.warn "Possible Code Version Change Detected... Device Updates will occur on next cycle."
             return
         }
-
+        log.debug "musicProviders: ${evtData?.musicProviders}"
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
@@ -1007,12 +1030,12 @@ def receiveEventData(Map evtData, String src) {
                     permissions["volumeControl"] = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     permissions["mediaPlayer"] = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
                     permissions["amazonMusic"] = (echoValue?.capabilities.contains("AMAZON_MUSIC"))
-                    // permissions["appleMusic"] = (echoValue?.capabilities.contains("APPLE_MUSIC"))
                     permissions["tuneInRadio"] = (echoValue?.capabilities.contains("TUNE_IN"))
                     permissions["iHeartRadio"] = (echoValue?.capabilities.contains("I_HEART_RADIO"))
                     permissions["pandoraRadio"] = (echoValue?.capabilities.contains("PANDORA"))
-                    // permissions["siriusXm"] = (echoValue?.capabilities.contains("SIRIUSXM"))
-                    // permissions["spotify"] = true //(echoValue?.capabilities.contains("SPOTIFY")) // Temporarily removed restriction check
+                    permissions["appleMusic"] = (evtData?.musicProviders.containsKey("APPLE_MUSIC"))
+                    permissions["siriusXm"] = (evtData?.musicProviders?.containsKey("SIRIUSXM"))
+                    permissions["spotify"] = true //(echoValue?.capabilities.contains("SPOTIFY")) // Temporarily removed restriction check
                     permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false;
                     permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false;
                     permissions["alarms"] = (echoValue?.capabilities.contains("TIMERS_AND_ALARMS"))
@@ -1022,6 +1045,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["flashBriefing"] = (echoValue?.capabilities?.contains("FLASH_BRIEFING"))
                     permissions["microphone"] = (echoValue?.capabilities?.contains("MICROPHONE"))
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
+                    echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
                     // log.warn "Device Permisions | Name: ${echoValue?.accountName} | $permissions"

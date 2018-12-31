@@ -534,6 +534,15 @@ void updateDeviceStatus(Map devData) {
                 sendEvent(name: "deviceType", value: devType?.toString(), display: false, displayed: false)
             }
 
+            Map musicProviders = devData?.musicProviders ?: [:]
+            String lItems = musicProviders?.collect{ it?.value }?.sort()?.join(", ")
+            if(isStateChange(device, "supportedMusic", lItems?.toString())) {
+                sendEvent(name: "supportedMusic", value: lItems?.toString(), display: false, displayed: false)
+            }
+            if(isStateChange(device, "alexaMusicProviders", musicProviders?.toString())) {
+                // log.trace "Alexa Music Providers Changed to ${musicProviders}"
+                sendEvent(name: "alexaMusicProviders", value: musicProviders?.toString(), display: false, displayed: false)
+            }
             if(isOnline) {
                 refreshData()
             } else {
@@ -583,10 +592,6 @@ private refreshData() {
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
         getPlaylists()
-        if(state?.fullRefreshOk) {
-            getMusicProviders()
-            state?.fullRefreshOk = false
-        }
     }
 
     if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
@@ -882,7 +887,7 @@ private getMusicProviders() {
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
         headers: [
-            "Routines-Version": '1.1.210292',
+            "Routines-Version": "1.1.210292",
             "Cookie": state?.cookie?.cookie as String,
             "csrf": state?.cookie?.csrf as String
         ],
@@ -893,9 +898,7 @@ private getMusicProviders() {
 
 def getMusicProvidersHandler(response, data) {
     if(!respIsValid(response, "getMusicProvidersHandler")) {return}
-    try {
-
-    } catch (ex) {
+    try { } catch (ex) {
         //handles non-2xx status codes
     }
     def sData = response?.json
