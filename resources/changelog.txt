@@ -8,6 +8,7 @@ App:
 
 Device:
  • UPDATED: Bug fixes
+ • UPDATED: searchMusic commands with an optional sleep timer parameter
  • ADDED: New Commands
     Calendar Actions:
     • playCalendarToday()

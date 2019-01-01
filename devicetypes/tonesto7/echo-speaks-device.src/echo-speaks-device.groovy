@@ -1399,9 +1399,9 @@ def playAnnouncementAll(String text) {
     doSequenceCmd("AnnouncementAll", "announcementall", text)
 }
 
-def searchMusic(String searchPhrase, String providerId, volume=null) {
+def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
     if(isCommandTypeAllowed(getCommandTypeForProvider(providerId))) {
-        doSearchMusicCmd(searchPhrase, providerId, volume)
+        doSearchMusicCmd(searchPhrase, providerId, volume, sleepSeconds)
     } else {
         log.warn "searchMusic not supported for ${providerId}"
     }
@@ -1435,51 +1435,51 @@ String getCommandTypeForProvider(String providerId) {
     return commandType
 }
 
-def searchAmazonMusic(String searchPhrase, volume=null) {
+def searchAmazonMusic(String searchPhrase, volume=null, sleepSeconds=null) {
     if(isCommandTypeAllowed("amazonMusic")) {
-        doSearchMusicCmd(searchPhrase, "AMAZON_MUSIC", volume)
+        doSearchMusicCmd(searchPhrase, "AMAZON_MUSIC", volume, sleepSeconds)
         incrementCntByKey("use_cnt_searchAmazon")
     }
 }
 
-def searchAppleMusic(String searchPhrase, volume=null) {
+def searchAppleMusic(String searchPhrase, volume=null, sleepSeconds=null) {
     if(isCommandTypeAllowed("appleMusic")) {
-        doSearchMusicCmd(searchPhrase, "APPLE_MUSIC", volume)
+        doSearchMusicCmd(searchPhrase, "APPLE_MUSIC", volume, sleepSeconds)
         incrementCntByKey("use_cnt_searchApple")
     }
 }
 
-def searchTuneIn(String searchPhrase, volume=null) {
+def searchTuneIn(String searchPhrase, volume=null, sleepSeconds=null) {
     if(isCommandTypeAllowed("tuneInRadio")) {
-        doSearchMusicCmd(searchPhrase, "TUNE_IN", volume)
+        doSearchMusicCmd(searchPhrase, "TUNE_IN", volume, sleepSeconds)
         incrementCntByKey("use_cnt_searchTuneIn")
     }
 }
 
-def searchPandora(String searchPhrase, volume=null) {
+def searchPandora(String searchPhrase, volume=null, sleepSeconds=null) {
     if(isCommandTypeAllowed("pandoraRadio")) {
-        doSearchMusicCmd(searchPhrase, "PANDORA", volume)
+        doSearchMusicCmd(searchPhrase, "PANDORA", volume, sleepSeconds)
         incrementCntByKey("use_cnt_searchPandora")
     }
 }
 
-def searchSiriusXm(String searchPhrase, volume=null) {
+def searchSiriusXm(String searchPhrase, volume=null, sleepSeconds=null) {
     if(isCommandTypeAllowed("siriusXm")) {
-        doSearchMusicCmd(searchPhrase, "SIRIUSXM", volume)
+        doSearchMusicCmd(searchPhrase, "SIRIUSXM", volume, sleepSeconds)
         incrementCntByKey("use_cnt_searchSiriusXM")
     }
 }
 
-def searchSpotify(String searchPhrase, volume=null) {
+def searchSpotify(String searchPhrase, volume=null, sleepSeconds=null) {
     if(isCommandTypeAllowed("spotify")) {
-        doSearchMusicCmd(searchPhrase, "SPOTIFY", volume)
+        doSearchMusicCmd(searchPhrase, "SPOTIFY", volume, sleepSeconds)
         incrementCntByKey("use_cnt_searchSpotify")
     }
 }
 
-def searchIheart(String searchPhrase, volume=null) {
+def searchIheart(String searchPhrase, volume=null, sleepSeconds=null) {
     if(isCommandTypeAllowed("iHeartRadio")) {
-        doSearchMusicCmd(searchPhrase, "I_HEART_RADIO", volume)
+        doSearchMusicCmd(searchPhrase, "I_HEART_RADIO", volume, sleepSeconds)
         incrementCntByKey("use_cnt_searchIheart")
     }
 }
@@ -1491,14 +1491,14 @@ private doSequenceCmd(cmdType, seqCmd, seqVal="") {
     } else { log.warn "doSequenceCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
 
-private doSearchMusicCmd(searchPhrase, musicProvId, volume=null) {
+private doSearchMusicCmd(searchPhrase, musicProvId, volume=null, sleepSeconds=null) {
     if(state?.serialNumber && searchPhrase && musicProvId) {
-        playMusicProvider(searchPhrase, musicProvId, volume)
+        playMusicProvider(searchPhrase, musicProvId, volume, sleepSeconds)
         incrementCntByKey("use_cnt_searchMusic")
     } else { log.warn "doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} | searchPhrase: ${searchPhrase} | musicProvider: ${musicProvId}" }
 }
 
-private playMusicProvider(searchPhrase, providerId, volume=null) {
+private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=null) {
     logger("trace", "playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId")
     if (options?.searchPhrase == "") { log.error 'PlayMusicProvider Searchphrase empty'; return; }
     Map validObj = [
@@ -1507,6 +1507,7 @@ private playMusicProvider(searchPhrase, providerId, volume=null) {
             deviceType: state?.deviceType,
             deviceSerialNumber: state?.serialNumber,
             customerId: state?.deviceOwnerCustomerId,
+            waitTimeInSeconds: sleepSeconds,
             locale: "en-US",
             musicProviderId: providerId,
             searchPhrase: searchPhrase
