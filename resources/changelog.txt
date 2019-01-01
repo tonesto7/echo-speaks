@@ -21,7 +21,7 @@ Device:
 
     Canned TTS Responses:
     • playWelcomeHome()
-    • play()
+    • playGoodNight()
 
     New Device Control Actions:
     • stopAllDevices() - (Stops all echos devices)(ONLY Send to one device)

@@ -78,6 +78,7 @@ metadata {
         command "playJoke"
         command "playTellStory"
         command "playWelcomeHome"
+        command "playGoodNight"
         command "playAnnouncement"
         command "playAnnouncementAll"
         command "playCalendarToday"
@@ -306,6 +307,9 @@ metadata {
         standardTile("playWelcomeHome", "playWelcomeHome", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Welcome Home', action: 'playWelcomeHome')
         }
+        standardTile("playGoodNight", "playGoodNight", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Good Night', action: 'playGoodNight')
+        }
         standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Reset Queue', action: 'resetQueue')
         }
@@ -319,7 +323,7 @@ metadata {
         main(["deviceStatus"])
         details([
             "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported", "stopAllDevices",
-            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "playFunFact", "playJoke", "playWelcomeHome", "playCalendarToday", "playCalendarTomorrow",
+            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "playFunFact", "playJoke", "playWelcomeHome", "playGoodNight", "playCalendarToday", "playCalendarTomorrow",
             "playCalendarNext", "sendTest", "sendTestAnnouncement", "sendTestAnnouncementAll", "doNotDisturb", "resetQueue", "refresh", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt"])
     }
 
@@ -1328,6 +1332,15 @@ def playWelcomeHome(volume=null, restoreVolume=null) {
     incrementCntByKey("use_cnt_playWelcomeHome")
 }
 
+def playGoodNight(volume=null, restoreVolume=null) {
+    if(volume) {
+        List seqs = [[command: "volume", value: volume], [command: "goodnight"]]
+        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("GoodNightCommand", "goodnight") }
+    incrementCntByKey("use_cnt_playGoodNight")
+}
+
 def playGoodMorning(volume=null, restoreVolume=null) {
     if(volume) {
         List seqs = [[command: "volume", value: volume], [command: "goodmorning"]]
@@ -2123,6 +2136,9 @@ Map createSequenceNode(command, value) {
                 break
             case "goodmorning":
                 seqNode?.type = "Alexa.GoodMorning.Play"
+                break
+            case "goodnight":
+                seqNode?.type = "Alexa.GoodNight.Play"
                 break
             case "singasong":
                 seqNode?.type = "Alexa.SingASong.Play"
