@@ -19,6 +19,11 @@
         }
     },
     "deviceSupport": {
+        "A1JJ0KFC4ZPNJ3": {
+            "name": "Echo Input",
+            "image": "echo_input",
+            "allowTTS": true
+        },
         "A38949IHXHRQ5P": {
             "name": "Echo Tap",
             "image": "echo_tap",
