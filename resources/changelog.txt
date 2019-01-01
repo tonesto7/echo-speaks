@@ -1,3 +1,38 @@
+V2.0.8 (December 31st, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • UPDATED: UI refinements
+ • UPDATED: Bug fixes
+ • UPDATED: Mover musicprovider check to the app to elimate 50X errors and unnecessary calls by the devices
+ • FIXED: Rename devices setting is no longer ignored and works correctly
+
+Device:
+ • UPDATED: Bug fixes
+ • UPDATED: searchMusic commands with an optional sleep timer parameter
+ • ADDED: New Commands
+    Calendar Actions:
+    • playCalendarToday()
+    • playCalendarTomorrow()
+    • playCalendarNext()
+
+    New TTS Actions:
+    • playJoke()
+    • playFunFact()
+
+    Canned TTS Responses:
+    • playWelcomeHome()
+    • playGoodNight()
+
+    New Device Control Actions:
+    • stopAllDevices() - (Stops all echos devices)(ONLY Send to one device)
+
+    Send Announcements:
+    • playAnnouncement()
+    • playAnnouncementAll() - (To All Echo Devices)(Only send to one device)
+
+    Send Alexa App Notifications:
+    • sendAlexaAppNotification() - (Sends Push message to Alexa Mobile App)
+
 V2.0.7 (December 18th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
