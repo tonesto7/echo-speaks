@@ -12,5 +12,5 @@ Gone are the days of needing to use expensive speakers connected to your hub. So
 
 **Author**: Anthony Santilli
 
-[**Documentation**](https://tonesto7.gitbook.io/echo-speaks)
+[**Documentation**](https://tonesto7.github.io/echo-speaks-docs)
 
