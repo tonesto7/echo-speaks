@@ -1,3 +1,11 @@
+V2.0.9 (January 3rd, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • UPDATED: increased required device version
+
+Device:
+ • FIXED: forgot to add the actual function for the sendAlexaAppNotification
+
 V2.0.8 (December 31st, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
