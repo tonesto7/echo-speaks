@@ -25,6 +25,7 @@ String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto
 Map minVersions() { //These define the minimum versions of code this app will work with.
     return [echoDevice: 210, server: 210]
 }
+Boolean isBeta() { return true }
 
 definition(
     name: "Echo Speaks",
@@ -1872,7 +1873,7 @@ def renderConfig() {
                     </div>
                     <div class="my-2 text-center">
                         <h5>2. Tap Button to deploy to Heroku</h5>
-                        <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/dev${getEnvParamsStr()}">
+                        <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/${isBeta() ? "dev" : "master"}${getEnvParamsStr()}">
                             <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
                         </a>
                     </div>
