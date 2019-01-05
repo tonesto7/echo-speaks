@@ -17,15 +17,16 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
+Boolean isBeta() { return true }
 String appVersion()	 { return "2.1.0" }
-String appModified() { return "2019-01-04" }
+String appModified() { return "2019-01-05" }
 String appAuthor()	 { return "Anthony S." }
-String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
+String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
     return [echoDevice: 210, server: 210]
 }
-Boolean isBeta() { return true }
+
 
 definition(
     name: "Echo Speaks",
@@ -1386,7 +1387,7 @@ private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||
 /******************************************
 |       Changelog Logic
 ******************************************/
-String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
+String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
 Boolean showChgLogOk() { return (state?.isInstalled && state?.installData?.shownChgLog != true) }
 def changeLogPage() {
     def execTime = now()
@@ -1597,7 +1598,7 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
 
 private getConfigData() {
     def params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/appData.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData.json",
         contentType: "application/json"
     ]
     def data = getWebData(params, "appData", false)
@@ -1885,9 +1886,6 @@ def renderConfig() {
         \$("#copyName").on("click", function () {
             console.log("click")
             \$(this).select();
-        });
-        \$('#generateEmail').click(function() {
-            \$("#generateEmail").attr("href", "mailto:example@email.com?subject=Echo Speaks URL Info&body=${getAppEndpointUrl("receiveData")}").attr("target", "_blank");
         });
     </script>
     """
