@@ -17,13 +17,13 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "2.0.8" }
-String appModified() { return "2018-12-31" }
+String appVersion()	 { return "2.1.0" }
+String appModified() { return "2019-01-04" }
 String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 207, server: 201]
+    return [echoDevice: 210, server: 210]
 }
 
 definition(
@@ -276,7 +276,7 @@ private sendSequenceCommand(type, command, value) {
     sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
         body: seqObj
@@ -361,7 +361,7 @@ def servPrefPage() {
             "amazon.de":"Amazon.de",
             "amazon.it":"Amazon.it"
         ]
-        List localeOpts = ["en-US", "en-CA", "de-DE", "en-GB"]
+        List localeOpts = ["en-US", "en-CA", "de-DE", "en-GB", "it-IT"]
         Boolean herokuOn = (settings?.useHeroku == true)
         Boolean hubOn = (settings?.stHub != null)
         Boolean hasChild = (app.getChildDevices(true)?.size())
@@ -430,13 +430,16 @@ def servPrefPage() {
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: "Heroku App Logs", description: "Tap to proceed", image: getAppImg("heroku.png")
                 }
             }
-
+            section() {
+                input "refreshCookie", "bool", title: "Refresh Alexa Cookie?", description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
+            }
+            if(settings?.refreshCookie == true) { runCookieRefresh() }
             section("Reset Options:", hideable:true, hidden: true) {
                 input "resetService", "bool", title: "Reset Service Data?", description: "This will clear all traces of the current service info and allow you to redeploy or reconfigure a new instance.\nLeave the page and come back after toggling.",
                     required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
                 input "resetCookies", "bool", title: "Clear Stored Cookie Data?", description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
                 if(settings?.resetService == true) { clearCloudConfig() }
-                if(settings?.resetCookies == true) { clearCookie() }
+                if(settings?.resetCookies == true) { clearCookieData() }
             }
         }
     }
@@ -586,8 +589,11 @@ mappings {
     path("/renderMetricData") { action: [GET: "renderMetricData"] }
     path("/receiveData")      { action: [POST: "processData"] }
     path("/config")            { action: [GET: "renderConfig"]  }
-    path("/cookie")           { action: [GET: "getCookie", POST: "storeCookie", DELETE: "clearCookie"] }
+    path("/cookie")           { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
 }
+
+String getCookieVal() { return (state?.cookieData && state?.cookieData.localCookie) ? state?.cookieData.localCookie as String : null }
+String getCsrfVal() { return (state?.cookieData && state?.cookieData.csrf) ? state?.cookieData.csrf as String : null }
 
 def clearCloudConfig() {
     settingUpdate("resetService", "false", "bool")
@@ -633,7 +639,7 @@ private checkIfCodeUpdated() {
 }
 
 private stateCleanup() {
-    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", ]
+    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
@@ -677,36 +683,40 @@ def processData() {
     render contentType: "application/json", data: json, status: 200
 }
 
-def getCookie() {
-    log.trace "getCookie() Request Received..."
-    Map resp = state?.cookie ?: [:]
+def getCookieData() {
+    log.trace "getCookieData() Request Received..."
+    Map resp = state?.cookieData ?: [:]
     def json = new groovy.json.JsonOutput().toJson(resp)
     incrementCntByKey("getCookieCnt")
     render contentType: "application/json", data: json
 }
 
-def storeCookie() {
-    log.trace "storeCookie Request Received..."
-    if(request?.JSON && request?.JSON?.cookie && request?.JSON?.csrf) {
+def storeCookieData() {
+    log.trace "storeCookieData Request Received..."
+    if(request?.JSON && request?.JSON?.cookieData) {
         Map obj = [:]
-        obj?.cookie = request?.JSON?.cookie as String ?: null
-        obj?.csrf = request?.JSON?.csrf as String ?: null
-        state?.cookie = obj
+        request?.JSON?.cookieData?.each { k,v->
+            obj[k as String] = v as String
+        }
+        state?.cookieData = obj
         updCodeVerMap("server", request?.JSON?.version)
     }
-    if(state?.cookie?.cookie && state?.cookie?.csrf) {
-        log.info "Cookie Has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds..."
+    if(state?.cookieData?.localCookie && state?.cookieData?.csrf) {
+        log.info "Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds..."
         validateCookie(true)
+        state?.lastCookieRefresh = getDtNow()
         runIn(10, "initialize", [overwrite: true])
     }
 }
 
-def clearCookie() {
-    logger("trace", "clearCookie()")
+def clearCookieData() {
+    logger("trace", "clearCookieData()")
     settingUpdate("resetCookies", "false", "bool")
     state?.remove("cookie")
+    state?.remove("cookieData")
+    state?.remove("lastCookieRefresh")
     unschedule("getEchoDevices")
-    log.warn "Cookie has been cleared and Device Data Refreshes have been suspended..."
+    log.warn "Cookie Data has been cleared and Device Data Refreshes have been suspended..."
     updateChildAuth(false)
 }
 
@@ -717,7 +727,7 @@ private updateChildAuth(Boolean isValid) {
 private authEvtHandler(Boolean isAuth) {
     state?.authValid = (isAuth == true)
     if(isAuth == false && !state?.noAuthActive) {
-        clearCookie()
+        clearCookieData()
         noAuthReminder()
         sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
         runEvery1Hour("noAuthReminder")
@@ -741,13 +751,13 @@ Boolean isAuthValid(methodName) {
 }
 
 private validateCookie(frc=false) {
-    if((!frc && getLastCookieChkSec() <= 1800) || !state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) {
+    if((!frc && getLastCookieChkSec() <= 1800) || !getCookieVal() || !getCsrfVal()) {
         // if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { log.warn "Cannot Validate Cookie!  Missing required Cookie Data..." }
         // if(!frc && getLastCookieChkSec() <= 1800) { log.warn "Cannot Validate Cookie!  It's Too Soon to Check again..." }
         return
     }
     try {
-        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: ["Cookie": state?.cookie?.cookie as String, "csrf": state?.cookie?.csrf as String], contentType: "application/json"]
+        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()], contentType: "application/json"]
         asynchttp_v1.get(cookieValidResp, params, [execDt: now()])
     } catch(ex) {
         incrementCntByKey("err_app_cookieValidCnt")
@@ -755,10 +765,60 @@ private validateCookie(frc=false) {
     }
 }
 
+String toQueryString(Map m) {
+	return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort().join("&")
+}
+
+Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 100000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
+private runCookieRefresh() {
+    Map params = [
+        uri: "https://${getRandAppName()}.herokuapp.com",
+        path: "/config",
+        contentType: "text/html",
+        requestContentType: "text/html",
+    ]
+    asynchttp_v1.get(wakeUpServerResp, params, [execDt: now()])
+    settingUpdate("refreshCookie", "false", "bool")
+}
+
+def wakeUpServerResp(response, data) {
+    log.trace "wakeUpServerResp..."
+    if (response.hasError()) {
+        log.error "message: ${response?.getErrorMessage()}"
+    }
+    def rData = response?.data ?: null
+    if (rData) {
+        // log.debug "rData: $rData"
+        log.debug "wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)"
+        Map cookieData = state?.cookieData ?: [:]
+        if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
+            log.error("Required Registration data is missing for Cookie Refresh")
+            return
+        }
+        Map params = [
+            uri: "https://${getRandAppName()}.herokuapp.com",
+            path: "/refreshCookie"
+        ]
+        asynchttp_v1.get(cookieRefreshResp, params, [execDt: now()])
+    }
+}
+
+def cookieRefreshResp(response, data) {
+    log.trace "cookieRefreshResp..."
+    if (response.hasError()) {
+        log.error "message: ${response?.getErrorMessage()}"
+    }
+    Map rData = response?.json ?: [:]
+    if (rData && rData?.result && rData?.result?.size()) {
+        log.debug "refreshAlexaCookie Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)"
+        // log.debug "refreshAlexaCookie Response: ${rData?.result}"
+    }
+}
+
 private apiHealthCheck(frc=false) {
     // if(!frc || (getLastApiChkSec() <= 1800)) { return }
     try {
-        def params = [uri: getAmazonUrl(), path: "/api/ping", query: ["_": ""], headers: ["Cookie": state?.cookie?.cookie as String, "csrf": state?.cookie?.csrf as String], contentType: "plain/text"]
+        def params = [uri: getAmazonUrl(), path: "/api/ping", query: ["_": ""], headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()], contentType: "plain/text"]
         httpGet(params) { resp->
             log.debug "API Health Check Resp: (${resp?.getData()})"
             return (resp?.getData().toString() == "healthy")
@@ -830,8 +890,8 @@ private getEchoDevices() {
         path: "/api/devices-v2/device",
         query: [ cached: true ],
         headers: [
-            "Cookie": state?.cookie?.cookie as String,
-            "csrf": state?.cookie?.csrf as String
+            "Cookie": getCookieVal(),
+            "csrf": getCsrfVal()
         ],
         requestContentType: "application/json",
         contentType: "application/json",
@@ -847,8 +907,8 @@ private getMusicProviders() {
         query: [ skillId: "amzn1.ask.1p.music" ],
         headers: [
             "Routines-Version": "1.1.210292",
-            "Cookie": state?.cookie?.cookie as String,
-            "csrf": state?.cookie?.csrf as String
+            "Cookie": getCookieVal(),
+            "csrf": getCsrfVal()
         ],
         requestContentType: "application/json",
         contentType: "application/json"
@@ -938,7 +998,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["authValid"] = (state?.authValid == true)
                     echoValue["amazonDomain"] = (settings?.amazonDomain ?: "amazon.com")
                     echoValue["regionLocale"] = (settings?.regionLocale ?: "en-US")
-                    echoValue["cookie"] = state?.cookie
+                    echoValue["cookie"] = [cookie: getCookieVal(), csrf: getCsrfVal()]
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     // log.debug "deviceStyle: ${echoValue?.deviceStyle}"
 
@@ -1075,7 +1135,7 @@ public sendPlaybackStateToClusterMembers(whaKey, response, data) {
     if (clusterMembers) {
         def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
         clusterMemberDevices.each {
-            it.getPlaybackStateHandler(response, data, true)
+            it?.getPlaybackStateHandler(response, data, true)
         }
     } else {
         // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
@@ -1150,6 +1210,7 @@ private healthCheck() {
         return
     }
     validateCookie()
+    if(getLastCookieRefreshSec() > 432000) { runCookieRefresh() }
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()

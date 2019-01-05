@@ -18,8 +18,8 @@ import groovy.json.*
 import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "2.0.8"}
-String devModified() { return "2018-12-30" }
+String devVersion() { return "2.1.0"}
+String devModified() { return "2019-01-04" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -1410,10 +1410,12 @@ def playCalendarNext(volume=null, restoreVolume=null) {
 
 def playAnnouncement(String text) {
     doSequenceCmd("Announcement", "announcement", text)
+    incrementCntByKey("use_cnt_announcement")
 }
 
 def playAnnouncementAll(String text) {
     doSequenceCmd("AnnouncementAll", "announcementall", text)
+    incrementCntByKey("use_cnt_announcementAll")
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
@@ -1653,6 +1655,11 @@ private createNotification(type, options) {
         ]
     ]
     sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+}
+
+def sendAlexaAppNotification(String text) {
+    doSequenceCmd("AlexaAppNotification", "pushnotification", text)
+    incrementCntByKey("use_cnt_alexaAppNotification")
 }
 
 def getRandomItem(items) {
