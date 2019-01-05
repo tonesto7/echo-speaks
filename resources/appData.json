@@ -1,13 +1,13 @@
 {
     "versions": {
         "mainApp": {
-            "ver": "2.0.7"
+            "ver": "2.1.0"
         },
         "echoDevice": {
-            "ver": "2.0.7"
+            "ver": "2.1.0"
         },
         "server": {
-            "ver": "2.0.1"
+            "ver": "2.1.0"
         }
     },
     "settings": {
@@ -19,6 +19,11 @@
         }
     },
     "deviceSupport": {
+        "A1JJ0KFC4ZPNJ3": {
+            "name": "Echo Input",
+            "image": "echo_input",
+            "allowTTS": true
+        },
         "A38949IHXHRQ5P": {
             "name": "Echo Tap",
             "image": "echo_tap",
