@@ -23,7 +23,7 @@ String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 208, server: 201]
+    return [echoDevice: 210, server: 210]
 }
 
 definition(
@@ -129,10 +129,6 @@ def mainPage() {
                 section("Remove Everything:") {
                     href "uninstallPage", title: "Uninstall this App", description: "Tap to Remove...", image: getAppImg("uninstall.png")
                 }
-                section() {
-                    input "refreshCookie", "bool", title: "Refresh Alexa Cookie Data?", description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
-                }
-                if(settings?.refreshCookie == true) { refreshAlexaCookie() }
             }
         }
     }
@@ -434,7 +430,10 @@ def servPrefPage() {
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: "Heroku App Logs", description: "Tap to proceed", image: getAppImg("heroku.png")
                 }
             }
-
+            section() {
+                input "refreshCookie", "bool", title: "Refresh Alexa Cookie?", description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
+            }
+            if(settings?.refreshCookie == true) { runCookieRefresh() }
             section("Reset Options:", hideable:true, hidden: true) {
                 input "resetService", "bool", title: "Reset Service Data?", description: "This will clear all traces of the current service info and allow you to redeploy or reconfigure a new instance.\nLeave the page and come back after toggling.",
                     required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
@@ -705,6 +704,7 @@ def storeCookieData() {
     if(state?.cookieData?.localCookie && state?.cookieData?.csrf) {
         log.info "Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds..."
         validateCookie(true)
+        state?.lastCookieRefresh = getDtNow()
         runIn(10, "initialize", [overwrite: true])
     }
 }
@@ -714,6 +714,7 @@ def clearCookieData() {
     settingUpdate("resetCookies", "false", "bool")
     state?.remove("cookie")
     state?.remove("cookieData")
+    state?.remove("lastCookieRefresh")
     unschedule("getEchoDevices")
     log.warn "Cookie Data has been cleared and Device Data Refreshes have been suspended..."
     updateChildAuth(false)
@@ -765,77 +766,54 @@ private validateCookie(frc=false) {
 }
 
 String toQueryString(Map m) {
-	return m.collect { k, v -> "${k}=${v?.toString()}" }?.sort().join("&")
+	return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort().join("&")
 }
 
-private refreshAlexaCookie() {
-    try {
+Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 100000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
+private runCookieRefresh() {
+    Map params = [
+        uri: "https://${getRandAppName()}.herokuapp.com",
+        path: "/config",
+        contentType: "text/html",
+        requestContentType: "text/html",
+    ]
+    asynchttp_v1.get(wakeUpServerResp, params, [execDt: now()])
+    settingUpdate("refreshCookie", "false", "bool")
+}
+
+def wakeUpServerResp(response, data) {
+    log.trace "wakeUpServerResp..."
+    if (response.hasError()) {
+        log.error "message: ${response?.getErrorMessage()}"
+    }
+    def rData = response?.data ?: null
+    if (rData) {
+        // log.debug "rData: $rData"
+        log.debug "wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)"
         Map cookieData = state?.cookieData ?: [:]
         if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
             log.error("Required Registration data is missing for Cookie Refresh")
             return
         }
         Map params = [
-            uri: "https://api.${getAmazonDomain()}",
-            path: "/auth/token",
-            headers: [
-                "User-Agent": "AmazonWebView/Amazon Alexa/2.2.223830.0/iOS/11.4.1/iPhone",
-                "Accept-Language": settings?.regionLocale as String,
-                "Accept-Charset": "utf-8",
-                "Connection": "keep-alive",
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Cookie": cookieData?.loginCookie as String,
-                "Accept": "application/json",
-                "x-amzn-identity-auth-domain": "api.${getAmazonDomain()}"
-            ],
-            body: toQueryString([
-                "app_name": "Echo Speaks",
-                "app_version": "2.2.223830.0",
-                "di.sdk.version": "6.10.0",
-                "source_token": cookieData?.refreshToken,
-                "package_name": "com.amazon.echo",
-                "di.hw.version": "iPhone",
-                "platform": "iOS",
-                "requested_token_type": "access_token",
-                "source_token_type": "refresh_token",
-                "di.os.name": "iOS",
-                "di.os.version": "11.4.1",
-                "current_version": "6.10.0"
-            ])
+            uri: "https://${getRandAppName()}.herokuapp.com",
+            path: "/refreshCookie"
         ]
-        // log.debug "params: $params"
-        asynchttp_v1.post(cookieRefreshResp, params, [execDt: now()])
-    } catch(ex) {
-        log.error "refreshAlexaCookie exception: ", ex
+        asynchttp_v1.get(cookieRefreshResp, params, [execDt: now()])
     }
-    settingUpdate("refreshCookie", "false", "bool")
 }
 
 def cookieRefreshResp(response, data) {
     log.trace "cookieRefreshResp..."
-
     if (response.hasError()) {
         log.error "message: ${response?.getErrorMessage()}"
     }
-    Map aData = response?.json ?: [:]
-    response?.getHeaders()?.each { h->
-        log.debug "$h"
-    }
-    def execTime = data?.execDt ? (now()-data?.execDt) : 0
-    if (aData) {
-        log.debug "refreshData: $aData | Process Time: (${execTime}ms)"
-        // _options.formerRegistrationData.loginCookie = addCookies(_options.formerRegistrationData.loginCookie, response.headers);
-
-        // if (!body.access_token) {
-        //     log.error('No new access token in Refresh Token response')
-        //     return
-        // }
-        // _options.formerRegistrationData.loginCookie = addCookies(Cookie, response.headers);
-        // _options.formerRegistrationData.accessToken = body.access_token;
-        // handleTokenRegistration(_options, _options.formerRegistrationData, callback);
+    Map rData = response?.json ?: [:]
+    if (rData && rData?.result && rData?.result?.size()) {
+        log.debug "refreshAlexaCookie Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)"
+        // log.debug "refreshAlexaCookie Response: ${rData?.result}"
     }
 }
-
 
 private apiHealthCheck(frc=false) {
     // if(!frc || (getLastApiChkSec() <= 1800)) { return }
@@ -1157,7 +1135,7 @@ public sendPlaybackStateToClusterMembers(whaKey, response, data) {
     if (clusterMembers) {
         def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
         clusterMemberDevices.each {
-            it.getPlaybackStateHandler(response, data, true)
+            it?.getPlaybackStateHandler(response, data, true)
         }
     } else {
         // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
@@ -1232,6 +1210,7 @@ private healthCheck() {
         return
     }
     validateCookie()
+    if(getLastCookieRefreshSec() > 432000) { runCookieRefresh() }
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()

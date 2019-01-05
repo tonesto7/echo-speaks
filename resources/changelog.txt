@@ -1,3 +1,16 @@
+V2.1.0 (January 4th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • ADDED: Support for Self refreshing Amazon Cookies!
+ • ADDED: Local it-IT to options
+
+Device:
+ • FIXED: forgot to add the actual function for the sendAlexaAppNotification
+
+Server:
+ • ADDED: Self refreshing Amazon Cookies!
+ • UPDATED: Lot of code cleanups
+
 V2.0.9 (January 3rd, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:

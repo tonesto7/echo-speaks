@@ -1,42 +1,42 @@
 {
-  "namespace": "tonesto7",
-  "repoOwner": "tonesto7",
-  "repoName": "echo-speaks",
-  "repoBranch": "master",
-  "name": "Echo Speaks",
-  "author": "Anthony S.",
-  "description": "Integrate your Amazon Devices into your SmartThing Environment.",
-  "category": "My Apps",
-  "bannerUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
-  "forumUrl": "https://community.smartthings.com/t/release-echo-speaks/",
-  "docUrl": "http://thingsthataresmart.wiki/index.php?title=Echo_Speaks",
-  "releaseType": "production",
-  "keywords": [
-    "amazon",
-    "alexa",
-    "voice",
-    "assistant",
-    "echo"
-  ],
-  "notes": "Nothing to show here (yet)",
-  "smartApps": {
-    "parent": {
-      "name": "Echo Speaks",
-      "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
-      "published": true,
-      "oAuth": true,
-      "version": "2.0.9",
-      "appSettings": {},
-      "appUrl": "smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy"
+    "namespace": "tonesto7",
+    "repoOwner": "tonesto7",
+    "repoName": "echo-speaks",
+    "repoBranch": "master",
+    "name": "Echo Speaks",
+    "author": "Anthony S.",
+    "description": "Integrate your Amazon Devices into your SmartThing Environment.",
+    "category": "My Apps",
+    "bannerUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
+    "forumUrl": "https://community.smartthings.com/t/release-echo-speaks/",
+    "docUrl": "http://thingsthataresmart.wiki/index.php?title=Echo_Speaks",
+    "releaseType": "production",
+    "keywords": [
+        "amazon",
+        "alexa",
+        "voice",
+        "assistant",
+        "echo"
+    ],
+    "notes": "Nothing to show here (yet)",
+    "smartApps": {
+        "parent": {
+            "name": "Echo Speaks",
+            "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
+            "published": true,
+            "oAuth": true,
+            "version": "2.1.0",
+            "appSettings": {},
+            "appUrl": "smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy"
+        },
+        "children": []
     },
-    "children": []
-  },
-  "deviceHandlers": [{
-    "name": "Echo Speaks Device",
-    "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.png",
-    "published": true,
-    "version": "2.0.9",
-    "appUrl": "deviceTypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy",
-    "optional": false
-  }]
+    "deviceHandlers": [{
+        "name": "Echo Speaks Device",
+        "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.png",
+        "published": true,
+        "version": "2.1.0",
+        "appUrl": "deviceTypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy",
+        "optional": false
+    }]
 }
