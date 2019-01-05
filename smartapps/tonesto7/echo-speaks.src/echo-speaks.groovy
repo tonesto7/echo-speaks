@@ -1811,7 +1811,7 @@ def renderConfig() {
                     </div>
                     <div class="my-2 text-center">
                         <h5>2. Tap Button to deploy to Heroku</h5>
-                        <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/dev${getEnvParamsStr()}">
+                        <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/master${getEnvParamsStr()}">
                             <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
                         </a>
                     </div>
