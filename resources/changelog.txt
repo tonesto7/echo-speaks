@@ -1,7 +1,9 @@
 V2.1.1 (January 6th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
- • FIXED: Minor bugs
+ • ADDED: Documentation link now on main page.
+ • ADDED: regionLocale environment variable is now passed and created by the server.
+ • FIXED: Some minor bug fixes
 
 Server:
  • FIXED: Hopefully the login issues for non-us users
