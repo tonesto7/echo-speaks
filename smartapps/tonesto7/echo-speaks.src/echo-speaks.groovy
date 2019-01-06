@@ -18,13 +18,13 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 Boolean isBeta() { return false }
-String appVersion()	 { return "2.1.0" }
-String appModified() { return "2019-01-05" }
+String appVersion()	 { return "2.1.1" }
+String appModified() { return "2019-01-06" }
 String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 210, server: 210]
+    return [echoDevice: 210, server: 211]
 }
 
 
@@ -615,6 +615,7 @@ String getEnvParamsStr() {
     envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
     envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
     envParams["amazonDomain"] = settings?.amazonDomain as String
+    envParams["regionLocale"] = settings?.regionLocale as String
     envParams["refreshSeconds"] = settings?.refreshSeconds as String
     envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com"
     // envParams["HEROKU_APP_NAME"] = "${getRandAppName()}"
@@ -1506,6 +1507,7 @@ private createMetricsDataJson(rendAsMap=false) {
             installDt: state?.installData?.dt,
             updatedDt: state?.installData?.updatedDt,
             timeZone: location?.timeZone?.ID?.toString(),
+            authValid: (state?.authValid == true),
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
             serverPlatform: state?.onHeroku ? "Cloud" : "Local",
