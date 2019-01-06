@@ -1,3 +1,11 @@
+V2.1.1 (January 6th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Minor bugs
+
+Server:
+ • FIXED: Hopefully the login issues for non-us users
+
 V2.1.0 (January 4th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
