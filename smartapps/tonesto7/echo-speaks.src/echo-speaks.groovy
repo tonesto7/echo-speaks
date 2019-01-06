@@ -18,8 +18,8 @@ import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
 Boolean isBeta() { return false }
-String appVersion()	 { return "2.1.0" }
-String appModified() { return "2019-01-05" }
+String appVersion()	 { return "2.1.1" }
+String appModified() { return "2019-01-06" }
 String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
@@ -107,8 +107,9 @@ def mainPage() {
                 href "notifPrefPage", title: "App and Device\nNotifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2.png")
             }
 
-            section ("Application Preferences") {
+            section ("Application Preferences & Documentation:") {
                 href "settingsPage", title: "Manage Logging, and Metrics", description: "Tap to modify...", image: getAppImg("settings.png")
+                href url: documentationLink(), style: "internal", required: false, title: "View Documentation", description: "Tap to proceed", state: "complete", image: getAppImg("documentation.png")
             }
 
             if(!newInstall) {
@@ -116,18 +117,21 @@ def mainPage() {
                     def t0 = getServiceConfDesc()
                     href "servPrefPage", title: "Login Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
                 }
-            }
-
-            section ("Broadcasts (Experimental)") {
-                href "broadcastTestPage", title: "Broadcast Test Page", description: "Tap to modify...", image: getAppImg("settings.png")
-            }
-            if(!newInstall) {
+                section ("Broadcasts (Experimental)") {
+                    href "broadcastTestPage", title: "Broadcast Test Page", description: "Tap to modify...", image: getAppImg("broadcast.png")
+                }
                 if(!state?.shownDevSharePage) {
                     showDevSharePrefs()
                 }
                 section("Donations:") {
-                    href url: textDonateLink(), style:"external", required: false, title:"Donations", description:"Tap to open browser", image: getAppImg("donate.png")
+                    href url: textDonateLink(), style:"external", required: false, title: "Donations", description: "Tap to open browser", image: getAppImg("donate.png")
                 }
+            }
+            section("Documentation${!newInstall ? " & Donations:" : "" }") {
+                href url: documentationLink(), style: "internal", required: false, title: "View Documentation", description: "Tap to proceed", state: "complete", image: getAppImg("documentation.png")
+                if(!newInstall) href url: textDonateLink(), style: "external", required: false, title: "Donations", description: "Tap to open browser", image: getAppImg("donate.png")
+            }
+            if(!newInstall) {
                 section("Remove Everything:") {
                     href "uninstallPage", title: "Uninstall this App", description: "Tap to Remove...", image: getAppImg("uninstall.png")
                 }
@@ -615,6 +619,7 @@ String getEnvParamsStr() {
     envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
     envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
     envParams["amazonDomain"] = settings?.amazonDomain as String
+    envParams["regionLocale"] = settings?.regionLocale as String
     envParams["refreshSeconds"] = settings?.refreshSeconds as String
     envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com"
     // envParams["HEROKU_APP_NAME"] = "${getRandAppName()}"
@@ -1364,6 +1369,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     }
     return sent
 }
+String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 String getAppEndpointUrl(subPath)   { return "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" }
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
@@ -1506,6 +1512,7 @@ private createMetricsDataJson(rendAsMap=false) {
             installDt: state?.installData?.dt,
             updatedDt: state?.installData?.updatedDt,
             timeZone: location?.timeZone?.ID?.toString(),
+            authValid: (state?.authValid == true),
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
             serverPlatform: state?.onHeroku ? "Cloud" : "Local",
