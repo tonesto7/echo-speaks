@@ -127,10 +127,6 @@ def mainPage() {
                     href url: textDonateLink(), style:"external", required: false, title: "Donations", description: "Tap to open browser", image: getAppImg("donate.png")
                 }
             }
-            section("Documentation${!newInstall ? " & Donations:" : "" }") {
-                href url: documentationLink(), style: "internal", required: false, title: "View Documentation", description: "Tap to proceed", state: "complete", image: getAppImg("documentation.png")
-                if(!newInstall) href url: textDonateLink(), style: "external", required: false, title: "Donations", description: "Tap to open browser", image: getAppImg("donate.png")
-            }
             if(!newInstall) {
                 section("Remove Everything:") {
                     href "uninstallPage", title: "Uninstall this App", description: "Tap to Remove...", image: getAppImg("uninstall.png")
