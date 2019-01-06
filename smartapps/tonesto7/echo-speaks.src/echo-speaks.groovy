@@ -17,7 +17,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-Boolean isBeta() { return false }
+Boolean isBeta() { return true }
 String appVersion()	 { return "2.1.1" }
 String appModified() { return "2019-01-06" }
 String appAuthor()	 { return "Anthony S." }
