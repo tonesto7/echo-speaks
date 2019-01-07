@@ -1,3 +1,11 @@
+V2.1.2 (January 7th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • ADDED: New Music Search Test Page which allows you to perform search commands on your device.  It also allows you to perform tunein search and see results returned by Amazon
+
+Device (v2.1.1):
+ • FIXED: TuneIn search command is now fixed
+
 V2.1.1 (January 6th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
