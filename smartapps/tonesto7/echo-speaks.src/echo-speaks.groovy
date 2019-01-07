@@ -19,7 +19,7 @@ include 'asynchttp_v1'
 
 Boolean isBeta() { return false }
 String appVersion()	 { return "2.1.1" }
-String appModified() { return "2019-01-06" }
+String appModified() { return "2019-01-07" }
 String appAuthor()	 { return "Anthony S." }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
 String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }

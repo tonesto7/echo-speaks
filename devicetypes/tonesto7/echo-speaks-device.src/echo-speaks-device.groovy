@@ -19,7 +19,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 String devVersion() { return "2.1.0"}
-String devModified() { return "2019-01-04" }
+String devModified() { return "2019-01-06" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
