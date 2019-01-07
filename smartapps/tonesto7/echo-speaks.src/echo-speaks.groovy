@@ -1,7 +1,7 @@
 /**
  *  Echo Speaks SmartApp
  *
- *  Copyright 2018 Anthony Santilli
+ *  Copyright 2018, 2019 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -50,6 +50,8 @@ preferences {
     page(name: "changeLogPage")
     page(name: "notifPrefPage")
     page(name: "servPrefPage")
+    page(name: "musicSearchTestPage")
+    page(name: "searchTuneInResultsPage")
     page(name: "broadcastTestPage")
     page(name: "setNotificationTimePage")
     page(name: "uninstallPage")
@@ -99,7 +101,7 @@ def mainPage() {
                     } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
                 }
                 def devPrefDesc = devicePrefsDesc()
-                href "devicePrefsPage", title: "Detection Preferences", description: "${devPrefDesc ? "Current Preferences:\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices.png")
+                href "devicePrefsPage", title: "Device Detection\nPreferences", description: "${devPrefDesc ? "Current Preferences:\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices.png")
             }
 
             section("Notifications:") {
@@ -117,12 +119,11 @@ def mainPage() {
                     def t0 = getServiceConfDesc()
                     href "servPrefPage", title: "Login Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
                 }
-                section ("Broadcasts (Experimental)") {
+                section ("Experimental Functions:") {
                     href "broadcastTestPage", title: "Broadcast Test Page", description: "Tap to modify...", image: getAppImg("broadcast.png")
+                    href "musicSearchTestPage", title: "Music Search Tests", description: "Tap to view...", image: getAppImg("music.png")
                 }
-                if(!state?.shownDevSharePage) {
-                    showDevSharePrefs()
-                }
+                if(!state?.shownDevSharePage) { showDevSharePrefs() }
                 section("Donations:") {
                     href url: textDonateLink(), style:"external", required: false, title: "Donations", description: "Tap to open browser", image: getAppImg("donate.png")
                 }
@@ -179,10 +180,7 @@ def broadcastTestPage() {
         if(settings?.broadcastDevices) {
             section() {
                 input "performBroadcast", "bool", title: "Perform the Broadcast?", description: "", required: false, defaultValue: false, submitOnChange: true
-                if(performBroadcast) {
-                    executeBroadcast()
-
-                }
+                if(performBroadcast) { executeBroadcast() }
             }
         }
     }
@@ -205,6 +203,83 @@ private executeBroadcast() {
     }
     sendMultiSequenceCommand(seqItems, settings?.broadcastParallel)
     settingUpdate("performBroadcast", "false", "bool")
+}
+
+private executeTuneInSearch() {
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/tunein/search",
+        query: [ query: settings?.tuneinSearchQuery, mediaOwnerCustomerId: state?.deviceOwnerCustomerId ],
+        headers: [ "Cookie": getCookieVal(), "csrf": getCsrfVal() ],
+        requestContentType: "application/json",
+        contentType: "application/json"
+    ]
+    Map results = makeSyncronousReq(params, "get", "tuneInSearch") ?: [:]
+    return results
+}
+
+private executeMusicSearchTest() {
+    settingUpdate("performMusicTest", "false", "bool")
+    if(settings?.musicTestDevice && settings?.musicTestProvider && settings?.musicTestQuery) {
+        log.debug "Performing ${settings?.musicTestProvider} Music Search Test with Query: (${settings?.musicTestQuery}) on Device: (${settings?.musicTestDevice})"
+        settings?.musicTestDevice?.searchMusic(settings?.musicTestQuery as String, settings?.musicTestProvider as String)
+    }
+}
+
+def musicSearchTestPage() {
+    return dynamicPage(name: "musicSearchTestPage", uninstall: false, install: false) {
+        section("Test a Music Search on Device:") {
+            paragraph "Use this to test the search you discovered above directly on a device.", state: "complete"
+            Map testEnum = ["CLOUDPLAYER": "My Library", "AMAZON_MUSIC": "Amazon Music", "I_HEART_RADIO": "iHeartRadio", "PANDORA": "Pandora", "APPLE_MUSIC": "Apple Music", "TUNEIN": "TuneIn", "SIRIUSXM": "siriusXm", "SPOTIFY": "Spotify"]
+            input "musicTestProvider", "enum", title: "Select Music Provider to perform test", defaultValue: null, required: false, options: testEnum, submitOnChange: true
+            if(musicTestProvider) {
+                input "musicTestQuery", "text", title: "Music Search term to test on Device", defaultValue: null, required: false, submitOnChange: true
+                if(settings?.musicTestQuery) {
+                    input "musicTestDevice", "device.echoSpeaksDevice", title: "Select a Device to Test Music Search", description: "Tap to select", multiple: false, required: false, submitOnChange: true
+                    if(musicTestDevice) {
+                        input "performMusicTest", "bool", title: "Perform the Music Search Test?", description: "", required: false, defaultValue: false, submitOnChange: true
+                        if(performMusicTest) { executeMusicSearchTest() }
+                    }
+                }
+            }
+        }
+        section("TuneIn Search Test", hideable: true, hidden: false) {
+            paragraph "This will show you results when querying TuneIn to help you find the right search term to use in searchTuneIn() command.", state: "complete"
+            input "tuneinSearchQuery", "text", title: "Enter phrase to Search for on TuneIn", defaultValue: null, required: false, submitOnChange: true
+            if(settings?.tuneinSearchQuery) {
+                href "searchTuneInResultsPage", title: "Show TuneIn Search Results!", description: "Tap to proceed...", image: getAppImg("search.png")
+            }
+        }
+    }
+}
+
+def searchTuneInResultsPage() {
+    return dynamicPage(name: "searchTuneInResultsPage", uninstall: false, install: false) {
+        def results = executeTuneInSearch()
+        section("Search Results: (Query: ${settings?.tuneinSearchQuery})") {
+            if(results?.browseList && results?.browseList?.size()) {
+                results?.browseList?.eachWithIndex { item, i->
+                    if(i < 25) {
+                        if(item?.browseList != null && item?.browseList?.size()) {
+                            item?.browseList?.eachWithIndex { item2, i2->
+                                String str = ""
+                                str += "ContentType: (${item2?.contentType})"
+                                str += "\nId: (${item2?.id})"
+                                str += "\nDescription: ${item2?.description}"
+                                paragraph title: "${item2?.name?.take(75)}", str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: item2?.image ?: ""
+                            }
+                        } else {
+                            String str = ""
+                            str += "ContentType: (${item?.contentType})"
+                            str += "\nId: (${item?.id})"
+                            str += "\nDescription: ${item?.description}"
+                            paragraph title: "${item?.name?.take(75)}", str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: item?.image ?: ""
+                        }
+                    }
+                }
+            } else { paragraph "No Results found..." }
+        }
+    }
 }
 
 Map sequenceBuilder(cmd, val) {
@@ -564,7 +639,7 @@ def initialize() {
     subscribe(app, onAppTouch)
     if(!state?.resumeConfig) {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
-        stateCleanup()
+        appCleanup()
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         validateCookie(true)
         runIn(15, "reInitDevices")
@@ -585,6 +660,11 @@ void settingUpdate(name, value, type=null) {
         app?.updateSetting("$name", [type: "$type", value: value])
     }
     else if (name && type == null){ app?.updateSetting(name.toString(), value) }
+}
+
+void settingRemove(name) {
+	logger("trace", "settingRemove($name)...")
+	if(name && settings?.containsKey(name)) { app?.deleteSetting("$name") }
 }
 
 mappings {
@@ -641,12 +721,16 @@ private checkIfCodeUpdated() {
     return false
 }
 
-private stateCleanup() {
+private appCleanup() {
     List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
     state?.deviceRefreshInProgress = false
+    // Settings Cleanup
+    ["tuneinSearchQuery", "musicTestQuery", "musicTestDevice", "musicTestProvider", "performBroadcast", "performMusicTest", "broadcastDevices", "broadcastMessage", "broadcastParallel", "broadcastVolume"]?.each { sI->
+        if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
+    }
 }
 
 def onAppTouch(evt) {

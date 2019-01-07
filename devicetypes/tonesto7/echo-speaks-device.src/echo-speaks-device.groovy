@@ -1,7 +1,7 @@
 /**
  *	Echo Speaks Device
  *
- *  Copyright 2018 Anthony Santilli
+ *  Copyright 2018, 2019 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -18,8 +18,8 @@ import groovy.json.*
 import org.apache.commons.lang3.StringEscapeUtils;
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
-String devVersion() { return "2.1.0"}
-String devModified() { return "2019-01-06" }
+String devVersion() { return "2.1.1"}
+String devModified() { return "2019-01-07" }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
 
 metadata {
@@ -1007,10 +1007,10 @@ def amazonCommandResp(response, data) {
                 if(data?.volume) {
                     sendMultiSequenceCommand([[command: data?.validObj], [command: "volume", value: data?.volume]], true)
                 } else {
-                    sendSequenceCommand("PlayMusic | Provider: (${data?.validObj?.operationPayload?.musicProviderId})", seqJson, null)
+                    sendSequenceCommand("PlayMusic | Provider: ${data?.validObj?.operationPayload?.musicProviderId}", seqJson, null)
                 }
             } else {
-                log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | (${data?.cmdDesc}) was Successfully Sent!!!"
+                log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
             }
         }
     }
@@ -1419,6 +1419,7 @@ def playAnnouncementAll(String text) {
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
+    // log.trace "searchMusic(${searchPhrase}, ${providerId})"
     if(isCommandTypeAllowed(getCommandTypeForProvider(providerId))) {
         doSearchMusicCmd(searchPhrase, providerId, volume, sleepSeconds)
     } else {
@@ -1435,7 +1436,7 @@ String getCommandTypeForProvider(String providerId) {
         case "APPLE_MUSIC":
             commandType = "appleMusic"
             break
-        case "TUNE_IN":
+        case "TUNEIN":
             commandType = "tuneInRadio"
             break
         case "PANDORA":
@@ -1470,7 +1471,7 @@ def searchAppleMusic(String searchPhrase, volume=null, sleepSeconds=null) {
 
 def searchTuneIn(String searchPhrase, volume=null, sleepSeconds=null) {
     if(isCommandTypeAllowed("tuneInRadio")) {
-        doSearchMusicCmd(searchPhrase, "TUNE_IN", volume, sleepSeconds)
+        doSearchMusicCmd(searchPhrase, "TUNEIN", volume, sleepSeconds)
         incrementCntByKey("use_cnt_searchTuneIn")
     }
 }
@@ -1518,7 +1519,7 @@ private doSearchMusicCmd(searchPhrase, musicProvId, volume=null, sleepSeconds=nu
 }
 
 private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=null) {
-    logger("trace", "playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId")
+    logger("trace", "playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId | sleepSeconds: $sleepSeconds")
     if (options?.searchPhrase == "") { log.error 'PlayMusicProvider Searchphrase empty'; return; }
     Map validObj = [
         type: 'Alexa.Music.PlaySearchPhrase',
