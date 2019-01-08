@@ -15,18 +15,14 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-include 'asynchttp_v1'
-
-Boolean isBeta() { return false }
 String appVersion()	 { return "2.1.2" }
-String appModified() { return "2019-01-07" }
+String appModified() { return "2019-01-08" }
 String appAuthor()	 { return "Anthony S." }
-String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
-String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
+Boolean isBeta() { return false }
+Boolean isST() { return true }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 210, server: 210]
+    return [echoDevice: 212, server: 211]
 }
-
 
 definition(
     name: "Echo Speaks",
@@ -287,7 +283,7 @@ Map sequenceBuilder(cmd, val) {
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = ["behaviorId": seqJson?.sequenceId ? cmd?.automationId : "PREVIEW", "sequenceJson": seqJson?.encodeAsJson() as String, "status": "ENABLED"]
+    Map seqObj = ["behaviorId": seqJson?.sequenceId ? cmd?.automationId : "PREVIEW", "sequenceJson": new JsonOutput().toJson(seqJson), "status": "ENABLED"]
     return seqObj
 }
 
@@ -331,8 +327,32 @@ Map createSequenceNode(serialNumber, deviceType, command, value) {
     }
 }
 
+private asyncCommand(String m, c, p, o = null) {
+    if(m && p) {
+        if(isST()) {
+            include 'asynchttp_v1'
+            asynchttp_v1."${m?.toLowerCase()}"( c, p, o )
+        } else {
+            switch(m) {
+                case "get":
+                    asynchttpGet( c, p, o )
+                    break
+                case "put":
+                    asynchttpPut( c, p, o )
+                    break
+                case "post":
+                    asynchttpPost( c, p, o )
+                    break
+                case "delete":
+                    asynchttpDelete( c, p, o )
+                    break
+            }
+        }
+    }
+}
+
 private sendAmazonCommand(String method, Map params, Map otherData) {
-    asynchttp_v1."${method?.toString()?.toLowerCase()}"(amazonCommandResp, params, otherData)
+    asyncCommand(method, "amazonCommandResp", params, otherData)
 }
 
 def amazonCommandResp(response, data) {
@@ -430,7 +450,7 @@ Map getDeviceList(isInputEnum=false, hideDefaults=true) {
 def servPrefPage() {
     Boolean newInstall = !state?.isInstalled
     Boolean resumeConf = (state?.resumeConfig == true)
-    return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf)) {
+    return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : "")) {
         Map amazonDomainOpts = [
             "amazon.com":"Amazon.com",
             "amazon.ca":"Amazon.ca",
@@ -441,7 +461,7 @@ def servPrefPage() {
         List localeOpts = ["en-US", "en-CA", "de-DE", "en-GB", "it-IT"]
         Boolean herokuOn = (settings?.useHeroku == true)
         Boolean hubOn = (settings?.stHub != null)
-        Boolean hasChild = (app.getChildDevices(true)?.size())
+        Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
         if(newInstall) {
             section("") {
                 input "useHeroku", "bool", title: "Will you be deploying to Heroku Cloud?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("heroku.png")
@@ -485,7 +505,7 @@ def servPrefPage() {
         if((newInstall && !useHeroku) || !newInstall) {
             if(!hasChild) {
                 section("Hub Selection:") {
-                    input(name: "stHub", type: "hub", title: "Select Local Hub", description: "This is mainly used for when the service runs on local network.", required: true, submitOnChange: true, image: getAppImg("hub.png"))
+                    input(name: "stHub", type: "hub", title: "Select Local Hub", description: "This is mainly used for when the service runs on local network.", required: isST(), submitOnChange: true, image: getAppImg("hub.png"))
                 }
             }
             if(settings?.stHub && !settings?.useHeroku) {
@@ -538,7 +558,7 @@ def notifPrefPage() {
             input "smsNumbers", "text", title: "Send SMS to Text to...\n(Optional)", required: false, submitOnChange: true, image: getAppImg("sms_phone.png")
         }
         section("Pushover Support:") {
-            input ("pushoverEnabled", "bool", title: "Use Pushover Integration", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover.png"))
+            input ("pushoverEnabled", "bool", title: "Use Pushover Integration", description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover.png"))
             if(settings?.pushoverEnabled == true) {
                 if(state?.isInstalled) {
                     if(!state?.pushoverManager) {
@@ -614,7 +634,7 @@ def setNotificationTimePage() {
 def uninstallPage() {
     dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
         section("") { paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
-        remove("Remove ${app?.label} and Devices!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis App and Devices will be removed")
+        if(isST()) { remove("Remove ${app?.label} and Devices!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis App and Devices will be removed") }
     }
 }
 
@@ -684,7 +704,7 @@ def clearCloudConfig() {
     remItems?.each { rem->
         state?.remove(rem as String)
     }
-    app.getChildDevices(true)?.each { dev-> dev?.resetServiceInfo() }
+    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { dev-> dev?.resetServiceInfo() }
     state?.resumeConfig = true
 }
 
@@ -710,7 +730,7 @@ private checkIfCodeUpdated() {
         log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
         state?.pollBlocked = true
         updCodeVerMap("mainApp", appVersion())
-        Map iData = atomicState?.installData
+        Map iData = atomicState?.installData ?: [:]
         iData["updatedDt"] = getDtNow().toString()
         iData["shownChgLog"] = false
         atomicState?.installData = iData
@@ -739,11 +759,11 @@ def onAppTouch(evt) {
 }
 
 private resetQueues() {
-    app.getChildDevices(true)?.each { it?.resetQueue() }
+    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.resetQueue() }
 }
 
 private reInitDevices() {
-    app.getChildDevices(true)?.each { it?.triggerInitialize() }
+    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.triggerInitialize() }
 }
 
 private updCodeVerMap(key, val) {
@@ -810,7 +830,7 @@ def clearCookieData(src=null) {
 }
 
 private updateChildAuth(Boolean isValid) {
-    app?.getChildDevices(true)?.each { it?.setAuthState(isValid) }
+    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.setAuthState(isValid) }
 }
 
 private authEvtHandler(Boolean isAuth) {
@@ -847,7 +867,7 @@ private validateCookie(frc=false) {
     }
     try {
         def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()], contentType: "application/json"]
-        asynchttp_v1.get(cookieValidResp, params, [execDt: now()])
+        asyncCommand("get", "cookieValidResp", params, [execDt: now()])
     } catch(ex) {
         incrementCntByKey("err_app_cookieValidCnt")
         log.error "validateCookie() Exception:", ex
@@ -866,7 +886,7 @@ private runCookieRefresh() {
         contentType: "text/html",
         requestContentType: "text/html",
     ]
-    asynchttp_v1.get(wakeUpServerResp, params, [execDt: now()])
+    asyncCommand("get", "wakeUpServerResp", params, [execDt: now()])
     settingUpdate("refreshCookie", "false", "bool")
 }
 
@@ -888,13 +908,14 @@ def wakeUpServerResp(response, data) {
             uri: "https://${getRandAppName()}.herokuapp.com",
             path: "/refreshCookie"
         ]
-        asynchttp_v1.get(cookieRefreshResp, params, [execDt: now()])
+        asyncCommand("get", "cookieRefreshResp", params, [execDt: now()])
+
     }
 }
 
 def cookieRefreshResp(response, data) {
     log.trace "cookieRefreshResp..."
-    if (response.hasError()) {
+    if (isST() && response.hasError()) {
         log.error "message: ${response?.getErrorMessage()}"
     }
     Map rData = response?.json ?: [:]
@@ -987,7 +1008,7 @@ private getEchoDevices() {
         contentType: "application/json",
     ]
     state?.deviceRefreshInProgress = true
-    asynchttp_v1.get(echoDevicesResponse, params, [execDt: now()])
+    asyncCommand("get", "echoDevicesResponse", params, [execDt: now()])
 }
 
 private getMusicProviders() {
@@ -1147,7 +1168,7 @@ def receiveEventData(Map evtData, String src) {
                             try{
                                 log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)"
                                 childDevice = addChildDevice("tonesto7", childHandlerName, dni, hubId, [name: childHandlerName, label: devLabel, completedSetup: true])
-                            } catch(physicalgraph.app.exception.UnknownDeviceTypeException ex) {
+                            } catch(ex) {
                                 log.error "AddDevice Error! ", ex
                             }
                         }
@@ -1321,7 +1342,7 @@ private missPollNotify(Boolean on, Integer wait) {
             state?.lastMisPollMsgDt = getDtNow()
         }
         if(state?.authValid) {
-            app.getChildDevices(true)?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
+            (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
         }
     }
 }
@@ -1454,7 +1475,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
 }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
-String getAppEndpointUrl(subPath)   { return "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" }
+String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
@@ -1485,7 +1506,7 @@ def changeLogPage() {
             paragraph title: "What's New in this Release...", "", state: "complete", image: getAppImg("whats_new.png")
             paragraph changeLogData()
         }
-        Map iData = atomicState?.installData
+        Map iData = atomicState?.installData ?: [:]
         iData["shownChgLog"] = true
         atomicState?.installData = iData
     }
@@ -1496,7 +1517,7 @@ def changeLogPage() {
 ******************************************/
 String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com/" }
 Integer getLastMetricUpdSec() { return !state?.lastMetricUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastMetricUpdDt, "getLastMetricUpdSec").toInteger() }
-Boolean metricsOk() { return true; }// (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
+Boolean metricsOk() { (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
 private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID().toString() } }
 private sendInstallData() { if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), createMetricsDataJson(), "clients/${state?.appGuid}.json", null, "heartbeat") } }
 private removeInstallData() { return removeFirebaseData("clients/${state?.appGuid}.json") }
@@ -1512,10 +1533,10 @@ def queueFirebaseData(url, data, pathVal, cmdType=null, type=null) {
     String typeDesc = type ? type as String : "Data"
     try {
         if(!cmdType || cmdType == "put") {
-            asynchttp_v1.put(processFirebaseResponse, params, [type: typeDesc])
+            asyncCommand(cmdType, "processFirebaseResponse", params, [type: typeDesc])
             result = true
         } else if (cmdType == "post") {
-            asynchttp_v1.post(processFirebaseResponse, params, [type: typeDesc])
+            asyncCommand(cmdType, "processFirebaseResponse", params, [type: typeDesc])
             result = true
         } else { log.debug "queueFirebaseData UNKNOWN cmdType: ${cmdType}" }
 
@@ -1576,7 +1597,7 @@ private createMetricsDataJson(rendAsMap=false) {
         Map swVer = state?.codeVersions
         Map deviceUsageMap = [:]
         Map deviceErrorMap = [:]
-        app?.getChildDevices(true)?.each { d->
+        (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { d->
             Map obj = d?.getDeviceMetrics()
             if(obj?.usage?.size()) {
                 obj?.usage?.each { k,v->
@@ -1875,6 +1896,26 @@ String getInputToStringDesc(inpt, addSpace = null) {
     }
     //log.debug "str: $str"
     return (str != "") ? "${str}" : null
+}
+
+def sectionTitleStr(title) 	{ return "<h2>$title</h2>" }
+def inputTitleStr(title) 	{ return "<u>$title</u>" }
+def pageTitleStr(title) 	{ return "<h1>$title</h1>" }
+def imgTitle(imgSrc, imgWidth, imgHeight, titleStr, color=null) {
+    def imgStyle = ""
+    imgStyle += imgWidth ? "width: ${imgWidth}px !important;" : ""
+    imgStyle += imgHeight ? "${imgWidth ? " " : ""}height: ${imgHeight}px !important;" : ""
+    if(color) { return """<div style="color: ${color}; font-weight: bold;"><img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img></div>""" }
+    else { return """<img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img>""" }
+}
+
+String getAppImg(imgName) {
+    String url = "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName"
+    return isST() ? url : """<img src="${url}" width="40px"/>"""
+}
+String getPublicImg(imgName) {
+    String url = "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName"
+    return isST() ? url : """<img src="${url}" width="40px"/>"""
 }
 
 String randomString(Integer len) {

@@ -15,18 +15,20 @@
  */
 
 import groovy.json.*
-import org.apache.commons.lang3.StringEscapeUtils;
+import grails.converters.*
 import java.text.SimpleDateFormat
-include 'asynchttp_v1'
 String devVersion() { return "2.1.2"}
-String devModified() { return "2019-01-07" }
-String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
+String devModified() { return "2019-01-08" }
+Boolean isBeta() { return false }
+Boolean isST() { return true }
+String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player") {
         capability "Sensor"
         capability "Refresh"
-        capability "Audio Mute"
+        // Not Supported by Hubitat
+        // capability "Audio Mute"
         capability "Audio Volume"
         capability "Music Player"
         capability "Notification"
@@ -368,7 +370,7 @@ def updated() {
 def initialize() {
     log.trace "${device?.displayName} Executing initialize()"
     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
-    sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
+    sendEvent(name: "DeviceWatch-Enroll", value: new JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), displayed: false)
     resetQueue()
     stateCleanup()
     schedDataRefresh(true)
@@ -655,7 +657,7 @@ private respIsValid(response, methodName, falseOnErr=false) {
 }
 
 private getPlaybackState() {
-    asynchttp_v1.get(getPlaybackStateHandler, [
+    asyncCommand("get", "getPlaybackStateHandler", [
         uri: getAmazonUrl(),
         path: "/api/np/player",
         query: [
@@ -748,7 +750,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
 }
 
 private getAlarmVolume() {
-    asynchttp_v1.get(getAlarmVolumeHandler, [
+    asyncCommand("get", "getAlarmVolumeHandler", [
         uri: getAmazonUrl(),
         path: "/api/device-notification-state/${state?.deviceType}/${device.currentState("firmwareVer")?.stringValue}/${state.serialNumber}",
         headers: [
@@ -774,7 +776,7 @@ def getAlarmVolumeHandler(response, data) {
 }
 
 private getWakeWord() {
-    asynchttp_v1.get(getWakeWordHandler, [
+    asyncCommand("get", "getWakeWordHandler", [
         uri: getAmazonUrl(),
         path: "/api/wake-word",
         headers: [
@@ -802,7 +804,7 @@ def getWakeWordHandler(response, data) {
 }
 
 private getAvailableWakeWords() {
-    asynchttp_v1.get(getAvailableWakeWordsHandler, [
+    asyncCommand("get", "getAvailableWakeWordsHandler", [
         uri: getAmazonUrl(),
         path: "/api/wake-words-locale",
         query: [
@@ -833,7 +835,7 @@ def getAvailableWakeWordsHandler(response, data) {
 }
 
 private getDoNotDisturb() {
-    asynchttp_v1.get(getDoNotDisturbHandler, [
+    asyncCommand("get", "getDoNotDisturbHandler", [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
         headers: [
@@ -861,7 +863,7 @@ def getDoNotDisturbHandler(response, data) {
 }
 
 private getPlaylists() {
-    asynchttp_v1.get(getPlaylistsHandler, [
+    asyncCommand("get", "getPlaylistsHandler", [
         uri: getAmazonUrl(),
         path: "/api/cloudplayer/playlists",
         query: [
@@ -894,7 +896,7 @@ def getPlaylistsHandler(response, data) {
 }
 
 private getMusicProviders() {
-    asynchttp_v1.get(getMusicProvidersHandler, [
+    asyncCommand("get", "getMusicProvidersHandler", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
@@ -934,7 +936,7 @@ def getMusicProvidersHandler(response, data) {
 }
 
 private getNotifications() {
-    asynchttp_v1.get(getNotificationsHandler, [
+    asyncCommand("get", "getNotificationsHandler", [
         uri: getAmazonUrl(),
         path: "/api/notifications",
         query: [ cached: true ],
@@ -975,7 +977,7 @@ def getNotificationsHandler(response, data) {
 *******************************************************************/
 
 private sendAmazonBasicCommand(String cmdType) {
-    asynchttp_v1.post(amazonCommandResp, [
+    asyncCommand("post", "amazonCommandResp", [
         uri: getAmazonUrl(),
         path: "/api/np/command",
         headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
@@ -989,8 +991,32 @@ private sendAmazonBasicCommand(String cmdType) {
     ], [cmdDesc: cmdType])
 }
 
+private asyncCommand(String m, c, p, o = null) {
+    if(m && p) {
+        if(isST()) {
+            include 'asynchttp_v1'
+            asynchttp_v1."${m?.toLowerCase()}"( c, p, o )
+        } else {
+            switch(m) {
+                case "get":
+                    asynchttpGet( "${c}", p, o )
+                    break
+                case "put":
+                    asynchttpPut( "${c}", p, o )
+                    break
+                case "post":
+                    asynchttpPost( "${c}", p, o )
+                    break
+                case "delete":
+                    asynchttpDelete( "${c}", p, o )
+                    break
+            }
+        }
+    }
+}
+
 private sendAmazonCommand(String method, Map params, Map otherData) {
-    asynchttp_v1."${method?.toString()?.toLowerCase()}"(amazonCommandResp, params, otherData)
+    asyncCommand(method, "amazonCommandResp", params, otherData)
 }
 
 def amazonCommandResp(response, data) {
@@ -1182,13 +1208,13 @@ def setVolume(volume) {
 }
 
 def volumeUp() {
-    Integer curVol = device?.currentValue('level')
-    if(curVol < 100) { setVolume(curVol+1) }
+    Integer curVol = device?.currentValue('level') ?: 0
+    if(curVol < 100) { setVolume(curVol+5) }
 }
 
 def volumeDown() {
-    Integer curVol = device?.currentValue('level')
-    if(curVol > 0) { setVolume(curVol-1) }
+    Integer curVol = device?.currentValue('level') ?: 0
+    if(curVol > 0) { setVolume(curVol-5) }
 }
 
 def setTrack(String uri, metaData="") {
@@ -1539,8 +1565,9 @@ private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=nu
             locale: "en-US",
             musicProviderId: providerId,
             searchPhrase: searchPhrase
-        ]?.encodeAsJson() as String
+        ]
     ]
+    validObj?.operationPayload = new JsonOutput().toJson(validObj?.operationPayload)
     sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/operation/validate",
@@ -1975,7 +2002,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
                 contentType: "application/json",
                 body: bodyData
             ]
-            asynchttp_v1.post(asyncSpeechHandler, params, [
+            asyncCommand("post", "asyncSpeechHandler", params, [
                 cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
                 message: (headerMap?.message ?: null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null)
             ])
@@ -2120,7 +2147,8 @@ Map sequenceBuilder(cmd, val) {
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = ["behaviorId": seqJson?.sequenceId ? cmd?.automationId : "PREVIEW", "sequenceJson": seqJson?.encodeAsJson() as String, "status": "ENABLED"]
+    Map seqObj = ["behaviorId": seqJson?.sequenceId ? cmd?.automationId : "PREVIEW", "sequenceJson": new JsonOutput().toJson(seqJson), "status": "ENABLED"]
+    log.debug "seqObj: $seqObj"
     return seqObj
 }
 
