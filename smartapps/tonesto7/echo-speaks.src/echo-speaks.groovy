@@ -120,8 +120,8 @@ def mainPage() {
                     href "servPrefPage", title: "Login Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
                 }
                 section ("Experimental Functions:") {
-                    href "broadcastTestPage", title: "Broadcast Test Page", description: "Tap to modify...", image: getAppImg("broadcast.png")
-                    href "musicSearchTestPage", title: "Music Search Tests", description: "Tap to view...", image: getAppImg("music.png")
+                    href "broadcastTestPage", title: "Broadcast Test Page", description: "Tap to proceed...", image: getAppImg("broadcast.png")
+                    href "musicSearchTestPage", title: "Music Search Tests", description: "Tap to proceed...", image: getAppImg("music.png")
                 }
                 if(!state?.shownDevSharePage) { showDevSharePrefs() }
                 section("Donations:") {
@@ -231,23 +231,23 @@ def musicSearchTestPage() {
         section("Test a Music Search on Device:") {
             paragraph "Use this to test the search you discovered above directly on a device.", state: "complete"
             Map testEnum = ["CLOUDPLAYER": "My Library", "AMAZON_MUSIC": "Amazon Music", "I_HEART_RADIO": "iHeartRadio", "PANDORA": "Pandora", "APPLE_MUSIC": "Apple Music", "TUNEIN": "TuneIn", "SIRIUSXM": "siriusXm", "SPOTIFY": "Spotify"]
-            input "musicTestProvider", "enum", title: "Select Music Provider to perform test", defaultValue: null, required: false, options: testEnum, submitOnChange: true
+            input "musicTestProvider", "enum", title: "Select Music Provider to perform test", defaultValue: null, required: false, options: testEnum, submitOnChange: true, image: getAppImg("music.png")
             if(musicTestProvider) {
-                input "musicTestQuery", "text", title: "Music Search term to test on Device", defaultValue: null, required: false, submitOnChange: true
+                input "musicTestQuery", "text", title: "Music Search term to test on Device", defaultValue: null, required: false, submitOnChange: true, image: getAppImg("search2.png")
                 if(settings?.musicTestQuery) {
-                    input "musicTestDevice", "device.echoSpeaksDevice", title: "Select a Device to Test Music Search", description: "Tap to select", multiple: false, required: false, submitOnChange: true
+                    input "musicTestDevice", "device.echoSpeaksDevice", title: "Select a Device to Test Music Search", description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks.1x.png")
                     if(musicTestDevice) {
-                        input "performMusicTest", "bool", title: "Perform the Music Search Test?", description: "", required: false, defaultValue: false, submitOnChange: true
+                        input "performMusicTest", "bool", title: "Perform the Music Search Test?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music.png")
                         if(performMusicTest) { executeMusicSearchTest() }
                     }
                 }
             }
         }
-        section("TuneIn Search Test", hideable: true, hidden: false) {
-            paragraph "This will show you results when querying TuneIn to help you find the right search term to use in searchTuneIn() command.", state: "complete"
-            input "tuneinSearchQuery", "text", title: "Enter phrase to Search for on TuneIn", defaultValue: null, required: false, submitOnChange: true
+        section("TuneIn Search Results:") {
+            paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: "complete"
+            input "tuneinSearchQuery", "text", title: "Enter search phrase for TuneIn", defaultValue: null, required: false, submitOnChange: true, image: getAppImg("tunein.png")
             if(settings?.tuneinSearchQuery) {
-                href "searchTuneInResultsPage", title: "Show TuneIn Search Results!", description: "Tap to proceed...", image: getAppImg("search.png")
+                href "searchTuneInResultsPage", title: "View search results!", description: "Tap to proceed...", image: getAppImg("search2.png")
             }
         }
     }
@@ -781,6 +781,8 @@ def getCookieData() {
 def storeCookieData() {
     log.trace "storeCookieData Request Received..."
     if(request?.JSON && request?.JSON?.cookieData) {
+        log.trace "cookieData Received: ${request?.JSON?.cookieData?.keySet()}"
+        logger("trace", "cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
         Map obj = [:]
         request?.JSON?.cookieData?.each { k,v->
             obj[k as String] = v as String
@@ -796,8 +798,8 @@ def storeCookieData() {
     }
 }
 
-def clearCookieData() {
-    logger("trace", "clearCookieData()")
+def clearCookieData(src=null) {
+    logger("trace", "clearCookieData(${src ?: ""})")
     settingUpdate("resetCookies", "false", "bool")
     state?.remove("cookie")
     state?.remove("cookieData")
@@ -920,6 +922,7 @@ def cookieValidResp(response, data) {
     // log.trace "cookieValidResp..."
     if (response.hasError()) {
         if(response?.getStatus() == 401) {
+            log.error "cookieValidResp Status: (${response.getStatus()})"
             authEvtHandler(false)
             state?.lastCookieChkDt = getDtNow()
             return
