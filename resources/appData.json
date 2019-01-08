@@ -1,10 +1,10 @@
 {
     "versions": {
         "mainApp": {
-            "ver": "2.1.1"
+            "ver": "2.1.2"
         },
         "echoDevice": {
-            "ver": "2.1.0"
+            "ver": "2.1.2"
         },
         "server": {
             "ver": "2.1.0"
@@ -177,6 +177,11 @@
         "A1C66CX2XD756O": {
             "name": "Fire Tablet HD",
             "image": "amazon_tablet",
+            "allowTTS": true
+        },
+        "A1RTAM01W29CUP": {
+            "name": "Alexa App - Windows 10",
+            "image": "alexa_windows",
             "allowTTS": true
         }
     }
