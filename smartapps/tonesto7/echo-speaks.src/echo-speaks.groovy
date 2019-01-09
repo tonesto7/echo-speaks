@@ -123,7 +123,7 @@ def mainPage() {
             }
             if(!newInstall) {
                 section("Remove Everything:") {
-                    href "uninstallPage", title: inputTitleStr("Uninstall this App" , getAppImg("uninstall.png")), description: "Tap to Remove..."//, image: getAppImg("uninstall.png")
+                    href "uninstallPage", title: inputTitleStr("Uninstall this App" , getAppImg("uninstall.png")), description: "Tap to Remove...", image: getAppImg("uninstall.png")
                 }
             }
         }
@@ -131,10 +131,10 @@ def mainPage() {
 }
 
 String getAppImg(imgName) {
-    return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName"
+    return isST() ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" : ""
 }
 String getPublicImg(imgName) {
-    return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName"
+    return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" : ""
 }
 
 def sectionTitleStr(title, img=null) 	{ return isST() ? title : """<h2>${img ? """<img src="${url}" width="36">""" : ""}${title}</h2>""" }
