@@ -31,6 +31,7 @@ metadata {
         capability "Music Player"
         capability "Notification"
         capability "Speech Synthesis"
+	capability "Audio Notification"
 
         attribute "lastUpdated", "string"
         attribute "deviceStatus", "string"
