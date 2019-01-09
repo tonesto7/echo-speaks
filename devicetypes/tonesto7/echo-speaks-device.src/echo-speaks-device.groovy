@@ -27,8 +27,8 @@ metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player") {
         capability "Sensor"
         capability "Refresh"
-        // Not Supported by Hubitat
-        // capability "Audio Mute"
+        //capability "Audio Mute" // Not Compatible with Hubitat
+        capability "Audio Notification"
         capability "Audio Volume"
         capability "Music Player"
         capability "Notification"
@@ -46,6 +46,7 @@ metadata {
         attribute "lastSpeakCmd", "string"
         attribute "lastCmdSentDt", "string"
         attribute "trackImage", "string"
+        attribute "volume", "number"
         attribute "alarmVolume", "number"
         attribute "alexaWakeWord", "string"
         attribute "wakeWords", "enum"
@@ -58,6 +59,7 @@ metadata {
         attribute "alarmSupported", "string"
         attribute "reminderSupported", "string"
         attribute "supportedMusic", "string"
+        command "playText" //This command is deprecated in ST but will work
         command "playTextAndResume"
         command "playTrackAndResume"
         command "playTrackAndRestore"
@@ -585,10 +587,9 @@ void refresh() {
 }
 
 private stateCleanup() {
-    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "serviceHost", "allowDnD", "allowReminders"]
+    List items = [""]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
-    state?.resumeConfig = false
 }
 
 public schedDataRefresh(frc) {
@@ -630,7 +631,7 @@ public updateServiceInfo(String svcHost, useHeroku=false) {
 public resetServiceInfo() {
     logger("trace", "resetServiceInfo() received...")
     resetQueue()
-    ["serviceHost", "useHeroku", ""]?.each { item->
+    ["serviceHost", "useHeroku"]?.each { item->
         state?.remove(item)
     }
 }
@@ -649,7 +650,7 @@ private respIsValid(response, methodName, falseOnErr=false) {
     } catch (ex) {
         // catches non-2xx status codes
     }
-    if (response?.hasError() == true) {
+    if (response?.hasError() && response?.hasError() instanceof Boolean ) {
         if(response?.getStatus() == 401) {
             setAuthState(false)
             return false
@@ -1012,7 +1013,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
 }
 
 def amazonCommandResp(response, data) {
-    if(response?.hasError() == true) {
+    if(response?.hasError() && response?.hasError() instanceof Boolean ) {
         log.error "amazonCommandResp error: ${response?.getErrorMessage()} | Json: ${response?.getErrorJson() ?: null}"
     } else {
         def resp = response?.data ? response?.getJson() : null
@@ -1162,7 +1163,7 @@ def setMute(muteState) {
     }
 }
 
-def setLevel(level) {
+def setLevel(Integer level) {
     logger("trace", "setVolume($level) command received...")
     if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
         if(volume != device?.currentState('level')) {
@@ -1174,7 +1175,7 @@ def setLevel(level) {
     }
 }
 
-def setAlarmVolume(volume) {
+def setAlarmVolume(Integer volume) {
     logger("trace", "setAlarmVolume($level) command received...")
     if(isCommandTypeAllowed("alarms") && volume>=0 && volume<=100) {
         sendAmazonCommand("put", [
@@ -1195,18 +1196,18 @@ def setAlarmVolume(volume) {
     }
 }
 
-def setVolume(volume) {
+def setVolume(Integer volume) {
     setLevel(volume)
 }
 
 def volumeUp() {
-    Integer curVol = device?.currentValue('level') ?: 0
-    if(curVol < 100) { setVolume(curVol+5) }
+    def curVol = device?.currentValue('level') ?: 1
+    if(curVol < 100) { setVolume(curVol?.toInteger()+5) }
 }
 
 def volumeDown() {
-    Integer curVol = device?.currentValue('level') ?: 0
-    if(curVol > 0) { setVolume(curVol-5) }
+    def curVol = device?.currentValue('level') ?: 0
+    if(curVol > 0) { setVolume(curVol?.toInteger()-5) }
 }
 
 def setTrack(String uri, metaData="") {
@@ -1276,7 +1277,7 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
             state?.useThisVolume = volume
             if(restVolume && restVolume?.isNumber()) {
                 state?.lastVolume = restVolume as Integer
-            } else { storeLastVolume() }
+            } else { storeCurrentVolume() }
             sendEvent(name: "level", value: volume, display: false, displayed: false)
             sendEvent(name: "volume", value: volume, display: false, displayed: false)
             incrementCntByKey("use_cnt_setVolumeSpeakRestore")
@@ -1285,10 +1286,11 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     }
 }
 
-private storeLastVolume() {
-    logger("trace", "storeLastVolume() command received...")
-    Integer curVol = device?.currentState('volume') ?: 0
-    if(curVol) { state?.lastVolume = curVol }
+def storeCurrentVolume() {
+    logger("trace", "storeCurrentVolume() command received...")
+    def curVol = device?.currentState("level") ?: 1
+    log.trace "curVol: ${curVol}"
+    if(curVol != null) { state?.lastVolume = curVol as Integer }
 }
 
 private restoreLastVolume() {
@@ -2015,7 +2017,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
 def asyncSpeechHandler(response, data) {
     def resp = null
     data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-    if(response?.hasError() == true) {
+    if(response?.hasError() && response?.hasError() instanceof Boolean) {
         resp = response?.getErrorJson() ?: null
         // log.error "asyncSpeechHandler Error Message: (${response?.getErrorJson()} )"
     } else {
@@ -2137,10 +2139,8 @@ public Map getDeviceMetrics() {
 
 private getHubPlatform() {
     def p = "SmartThings"
-    if(!state?.hubPlatform) {
-        try {
-            [dummy: "dummyVal"]?.encodeAsJson()
-        } catch (e) { p = "Hubitat" }
+    if(state?.hubPlatform == null) {
+        try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
         state?.hubPlatform = p
         log.debug "hubPlatform: (${state?.hubPlatform})"
     }

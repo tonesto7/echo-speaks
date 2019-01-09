@@ -347,7 +347,7 @@ private sendAmazonCommand(String method, Map params, Map otherData) {
 }
 
 def amazonCommandResp(response, data) {
-    if(response?.hasError() == true) {
+    if(response?.hasError() && response?.hasError() instanceof Boolean) {
         log.error "amazonCommandResp error: ${response?.getErrorMessage()}"
     } else {
         def resp = response?.data ? response?.getJson() : null
@@ -883,7 +883,7 @@ private runCookieRefresh() {
 
 def wakeUpServerResp(response, data) {
     log.trace "wakeUpServerResp..."
-    if (response.hasError() == true) {
+    if (response.hasError() && response?.hasError() instanceof Boolean ) {
         log.error "message: ${response?.getErrorMessage()}"
     }
     def rData = response?.data ?: null
@@ -906,7 +906,7 @@ def wakeUpServerResp(response, data) {
 
 def cookieRefreshResp(response, data) {
     log.trace "cookieRefreshResp..."
-    if (isST() && response.hasError() == true) {
+    if (isST() && response.hasError() && response?.hasError() instanceof Boolean ) {
         log.error "message: ${response?.getErrorMessage()}"
     }
     Map rData = response?.json ?: [:]
@@ -932,7 +932,7 @@ private apiHealthCheck(frc=false) {
 
 def cookieValidResp(response, data) {
     // log.trace "cookieValidResp..."
-    if (response.hasError() == true) {
+    if (response.hasError() && response?.hasError() instanceof Boolean) {
         if(response?.getStatus() == 401) {
             log.error "cookieValidResp Status: (${response.getStatus()})"
             authEvtHandler(false)
@@ -1028,7 +1028,7 @@ private getMusicProviders() {
 def echoDevicesResponse(response, data) {
     List ignoreTypes = ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
-    if (response.hasError() == true) {
+    if (response.hasError() && response?.hasError() instanceof Boolean ) {
         if(response?.getStatus() == 401) {
             authEvtHandler(false)
             return
@@ -1569,7 +1569,7 @@ def processFirebaseResponse(resp, data) {
         }
         else if(resp?.status == 400) { log.error "processFirebaseResponse: 'Bad Request': ${resp?.status}" }
         else { log.warn "processFirebaseResponse: 'Unexpected' Response: ${resp?.status}" }
-        if(resp?.hasError() == true) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
+        if(resp?.hasError() && response?.hasError() instanceof Boolean ) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
     } catch(ex) {
         log.error "processFirebaseResponse (type: $typeDesc) Exception:", ex
     }
