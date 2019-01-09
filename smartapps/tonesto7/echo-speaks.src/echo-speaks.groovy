@@ -15,13 +15,13 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.1.2" }
-String appModified() { return "2019-01-08" }
+String appVersion()	 { return "2.1.3" }
+String appModified() { return "2019-01-09" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta() { return false }
-Boolean isST() { return true }
+Boolean isST() { return (getHubPlatform() == "SmartThings") }
 Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 212, server: 211]
+    return [echoDevice: 213, server: 211]
 }
 
 definition(
@@ -30,9 +30,9 @@ definition(
     author: "Anthony Santilli",
     description: "Allow you to create virtual echo devices and send tts to them in SmartThings",
     category: "My Apps",
-    iconUrl: getAppImg("echo_speaks.1x.png"),
-    iconX2Url: getAppImg("echo_speaks.2x.png"),
-    iconX3Url: getAppImg("echo_speaks.3x.png"),
+    iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
+    iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x.png",
+    iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x.png",
     pausable: true,
     oauth: true)
 
@@ -218,7 +218,9 @@ private executeMusicSearchTest() {
     settingUpdate("performMusicTest", "false", "bool")
     if(settings?.musicTestDevice && settings?.musicTestProvider && settings?.musicTestQuery) {
         log.debug "Performing ${settings?.musicTestProvider} Music Search Test with Query: (${settings?.musicTestQuery}) on Device: (${settings?.musicTestDevice})"
-        settings?.musicTestDevice?.searchMusic(settings?.musicTestQuery as String, settings?.musicTestProvider as String)
+        if(settings?.musicTestDevice?.hasCommand("searchMusic")) {
+            settings?.musicTestDevice?.searchMusic(settings?.musicTestQuery as String, settings?.musicTestProvider as String)
+        } else { log.error "The Device ${settings?.musicTestDevice} does NOT support the searchMusic() command..." }
     }
 }
 
@@ -231,7 +233,7 @@ def musicSearchTestPage() {
             if(musicTestProvider) {
                 input "musicTestQuery", "text", title: "Music Search term to test on Device", defaultValue: null, required: false, submitOnChange: true, image: getAppImg("search2.png")
                 if(settings?.musicTestQuery) {
-                    input "musicTestDevice", "device.echoSpeaksDevice", title: "Select a Device to Test Music Search", description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks.1x.png")
+                    input "musicTestDevice", (isST() ? "device.echoSpeaksDevice" : "capability.speechSynthesis"), title: "Select a Device to Test Music Search", description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks.1x.png")
                     if(musicTestDevice) {
                         input "performMusicTest", "bool", title: "Perform the Music Search Test?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music.png")
                         if(performMusicTest) { executeMusicSearchTest() }
@@ -327,36 +329,25 @@ Map createSequenceNode(serialNumber, deviceType, command, value) {
     }
 }
 
-private asyncCommand(String m, c, p, o = null) {
-    if(m && p) {
+private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
+    if(method && callbackHandler && params) {
         if(isST()) {
             include 'asynchttp_v1'
-            asynchttp_v1."${m?.toLowerCase()}"( c, p, o )
+            def m = method?.toString()?.toLowerCase()
+            asynchttp_v1."${m}"(callbackHandler, params, otherData)
         } else {
-            switch(m) {
-                case "get":
-                    asynchttpGet( c, p, o )
-                    break
-                case "put":
-                    asynchttpPut( c, p, o )
-                    break
-                case "post":
-                    asynchttpPost( c, p, o )
-                    break
-                case "delete":
-                    asynchttpDelete( c, p, o )
-                    break
-            }
+            def m = method?.toString()?.capitalize()
+            "asynchttp${m}"("${callbackHandler}", params, otherData)
         }
     }
 }
 
 private sendAmazonCommand(String method, Map params, Map otherData) {
-    asyncCommand(method, "amazonCommandResp", params, otherData)
+    execAsyncCmd(method, "amazonCommandResp", params, otherData)
 }
 
 def amazonCommandResp(response, data) {
-    if(response?.hasError()) {
+    if(response?.hasError() == true) {
         log.error "amazonCommandResp error: ${response?.getErrorMessage()}"
     } else {
         def resp = response?.data ? response?.getJson() : null
@@ -682,9 +673,9 @@ void settingUpdate(name, value, type=null) {
     else if (name && type == null){ app?.updateSetting(name.toString(), value) }
 }
 
-void settingRemove(name) {
+void settingRemove(String name) {
 	logger("trace", "settingRemove($name)...")
-	if(name && settings?.containsKey(name)) { app?.deleteSetting("$name") }
+	if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
 }
 
 mappings {
@@ -867,7 +858,7 @@ private validateCookie(frc=false) {
     }
     try {
         def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()], contentType: "application/json"]
-        asyncCommand("get", "cookieValidResp", params, [execDt: now()])
+        execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
     } catch(ex) {
         incrementCntByKey("err_app_cookieValidCnt")
         log.error "validateCookie() Exception:", ex
@@ -886,13 +877,13 @@ private runCookieRefresh() {
         contentType: "text/html",
         requestContentType: "text/html",
     ]
-    asyncCommand("get", "wakeUpServerResp", params, [execDt: now()])
+    execAsyncCmd("get", "wakeUpServerResp", params, [execDt: now()])
     settingUpdate("refreshCookie", "false", "bool")
 }
 
 def wakeUpServerResp(response, data) {
     log.trace "wakeUpServerResp..."
-    if (response.hasError()) {
+    if (response.hasError() == true) {
         log.error "message: ${response?.getErrorMessage()}"
     }
     def rData = response?.data ?: null
@@ -908,14 +899,14 @@ def wakeUpServerResp(response, data) {
             uri: "https://${getRandAppName()}.herokuapp.com",
             path: "/refreshCookie"
         ]
-        asyncCommand("get", "cookieRefreshResp", params, [execDt: now()])
+        execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
 
     }
 }
 
 def cookieRefreshResp(response, data) {
     log.trace "cookieRefreshResp..."
-    if (isST() && response.hasError()) {
+    if (isST() && response.hasError() == true) {
         log.error "message: ${response?.getErrorMessage()}"
     }
     Map rData = response?.json ?: [:]
@@ -941,7 +932,7 @@ private apiHealthCheck(frc=false) {
 
 def cookieValidResp(response, data) {
     // log.trace "cookieValidResp..."
-    if (response.hasError()) {
+    if (response.hasError() == true) {
         if(response?.getStatus() == 401) {
             log.error "cookieValidResp Status: (${response.getStatus()})"
             authEvtHandler(false)
@@ -1008,7 +999,7 @@ private getEchoDevices() {
         contentType: "application/json",
     ]
     state?.deviceRefreshInProgress = true
-    asyncCommand("get", "echoDevicesResponse", params, [execDt: now()])
+    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
 }
 
 private getMusicProviders() {
@@ -1037,7 +1028,7 @@ private getMusicProviders() {
 def echoDevicesResponse(response, data) {
     List ignoreTypes = ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
-    if (response.hasError()) {
+    if (response.hasError() == true) {
         if(response?.getStatus() == 401) {
             authEvtHandler(false)
             return
@@ -1533,10 +1524,10 @@ def queueFirebaseData(url, data, pathVal, cmdType=null, type=null) {
     String typeDesc = type ? type as String : "Data"
     try {
         if(!cmdType || cmdType == "put") {
-            asyncCommand(cmdType, "processFirebaseResponse", params, [type: typeDesc])
+            execAsyncCmd(cmdType, "processFirebaseResponse", params, [type: typeDesc])
             result = true
         } else if (cmdType == "post") {
-            asyncCommand(cmdType, "processFirebaseResponse", params, [type: typeDesc])
+            execAsyncCmd(cmdType, "processFirebaseResponse", params, [type: typeDesc])
             result = true
         } else { log.debug "queueFirebaseData UNKNOWN cmdType: ${cmdType}" }
 
@@ -1578,7 +1569,7 @@ def processFirebaseResponse(resp, data) {
         }
         else if(resp?.status == 400) { log.error "processFirebaseResponse: 'Bad Request': ${resp?.status}" }
         else { log.warn "processFirebaseResponse: 'Unexpected' Response: ${resp?.status}" }
-        if(resp?.hasError()) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
+        if(resp?.hasError() == true) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
     } catch(ex) {
         log.error "processFirebaseResponse (type: $typeDesc) Exception:", ex
     }
@@ -2022,6 +2013,19 @@ def renderConfig() {
     """
     render contentType: "text/html", data: html
 }
+
+private getHubPlatform() {
+    def p = "SmartThings"
+    if(!state?.hubPlatform) {
+        try {
+            [dummy: "dummyVal"]?.encodeAsJson()
+        } catch (e) { p = "Hubitat" }
+        state?.hubPlatform = p
+        log.debug "hubPlatform: (${state?.hubPlatform})"
+    }
+    return state?.hubPlatform
+}
+
 Integer stateSize() {
     def j = new groovy.json.JsonOutput().toJson(state)
     return j?.toString().length()

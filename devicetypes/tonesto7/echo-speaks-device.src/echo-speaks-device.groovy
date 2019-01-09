@@ -17,10 +17,10 @@
 import groovy.json.*
 import grails.converters.*
 import java.text.SimpleDateFormat
-String devVersion() { return "2.1.2"}
-String devModified() { return "2019-01-08" }
+String devVersion() { return "2.1.3"}
+String devModified() { return "2019-01-09" }
 Boolean isBeta() { return false }
-Boolean isST() { return true }
+Boolean isST() { return (getHubPlatform() == "SmartThings") }
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
 
 metadata {
@@ -103,6 +103,9 @@ metadata {
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "setVolumeSpeakAndRestore"
+        command "setVolume"
+        command "volumeUp"
+        command "volumeDown"
     }
 
     tiles (scale: 2) {
@@ -415,7 +418,7 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
     if(!state?.deviceType) { if(!noLogs) { log.warn "DeviceType State Value Missing: ${state?.deviceType}" }; return false }
     if(!state?.deviceOwnerCustomerId) { if(!noLogs) { log.warn "OwnerCustomerId State Value Missing: ${state?.deviceOwnerCustomerId}" }; return false }
     if(!type || state?.permissions == null) { if(!noLogs) { log.warn "Permissions State Object Missing: ${state?.permissions}" }; return false }
-    if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord"]))) { if(!noLogs) { log.warn "No Voice Output Blocked While Do Not Disturb is ON" }; return false }
+    if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord"]))) { if(!noLogs) { log.warn "Voice Output Blocked While Do Not Disturb is ON" }; return false }
     if(state?.permissions?.containsKey(type) && state?.permissions[type] == true) { return true }
     else {
         String warnMsg = null
@@ -646,18 +649,18 @@ private respIsValid(response, methodName, falseOnErr=false) {
     } catch (ex) {
         // catches non-2xx status codes
     }
-    if (response.hasError()) {
+    if (response?.hasError() == true) {
         if(response?.getStatus() == 401) {
             setAuthState(false)
             return false
-        } else { if(response?.getStatus() > 401 && response?.getStatus() < 500) { log.error "${methodName} Error: ${response.getErrorMessage()}" } }
+        } else { if(response?.getStatus() > 401 && response?.getStatus() < 500) { log.error "${methodName} Error: ${response?.getErrorMessage()}" } }
         if(falseOnErr) { return false }
     }
     return true
 }
 
 private getPlaybackState() {
-    asyncCommand("get", "getPlaybackStateHandler", [
+    execAsyncCmd("get", "getPlaybackStateHandler", [
         uri: getAmazonUrl(),
         path: "/api/np/player",
         query: [
@@ -671,7 +674,7 @@ private getPlaybackState() {
         ],
         requestContentType: "application/json",
         contentType: "application/json",
-    ])
+    ], null)
 }
 
 def getPlaybackStateHandler(response, data, isGroupResponse=false) {
@@ -750,7 +753,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
 }
 
 private getAlarmVolume() {
-    asyncCommand("get", "getAlarmVolumeHandler", [
+    execAsyncCmd("get", "getAlarmVolumeHandler", [
         uri: getAmazonUrl(),
         path: "/api/device-notification-state/${state?.deviceType}/${device.currentState("firmwareVer")?.stringValue}/${state.serialNumber}",
         headers: [
@@ -776,7 +779,7 @@ def getAlarmVolumeHandler(response, data) {
 }
 
 private getWakeWord() {
-    asyncCommand("get", "getWakeWordHandler", [
+    execAsyncCmd("get", "getWakeWordHandler", [
         uri: getAmazonUrl(),
         path: "/api/wake-word",
         headers: [
@@ -804,7 +807,7 @@ def getWakeWordHandler(response, data) {
 }
 
 private getAvailableWakeWords() {
-    asyncCommand("get", "getAvailableWakeWordsHandler", [
+    execAsyncCmd("get", "getAvailableWakeWordsHandler", [
         uri: getAmazonUrl(),
         path: "/api/wake-words-locale",
         query: [
@@ -835,7 +838,7 @@ def getAvailableWakeWordsHandler(response, data) {
 }
 
 private getDoNotDisturb() {
-    asyncCommand("get", "getDoNotDisturbHandler", [
+    execAsyncCmd("get", "getDoNotDisturbHandler", [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
         headers: [
@@ -863,7 +866,7 @@ def getDoNotDisturbHandler(response, data) {
 }
 
 private getPlaylists() {
-    asyncCommand("get", "getPlaylistsHandler", [
+    execAsyncCmd("get", "getPlaylistsHandler", [
         uri: getAmazonUrl(),
         path: "/api/cloudplayer/playlists",
         query: [
@@ -896,7 +899,7 @@ def getPlaylistsHandler(response, data) {
 }
 
 private getMusicProviders() {
-    asyncCommand("get", "getMusicProvidersHandler", [
+    execAsyncCmd("get", "getMusicProvidersHandler", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
@@ -936,7 +939,7 @@ def getMusicProvidersHandler(response, data) {
 }
 
 private getNotifications() {
-    asyncCommand("get", "getNotificationsHandler", [
+    execAsyncCmd("get", "getNotificationsHandler", [
         uri: getAmazonUrl(),
         path: "/api/notifications",
         query: [ cached: true ],
@@ -977,7 +980,7 @@ def getNotificationsHandler(response, data) {
 *******************************************************************/
 
 private sendAmazonBasicCommand(String cmdType) {
-    asyncCommand("post", "amazonCommandResp", [
+    execAsyncCmd("post", "amazonCommandResp", [
         uri: getAmazonUrl(),
         path: "/api/np/command",
         headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
@@ -991,37 +994,26 @@ private sendAmazonBasicCommand(String cmdType) {
     ], [cmdDesc: cmdType])
 }
 
-private asyncCommand(String m, c, p, o = null) {
-    if(m && p) {
+def execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
+    if(method && callbackHandler && params) {
         if(isST()) {
             include 'asynchttp_v1'
-            asynchttp_v1."${m?.toLowerCase()}"( c, p, o )
+            def m = method?.toString()?.toLowerCase()
+            asynchttp_v1."${m}"(callbackHandler, params, otherData)
         } else {
-            switch(m) {
-                case "get":
-                    asynchttpGet( "${c}", p, o )
-                    break
-                case "put":
-                    asynchttpPut( "${c}", p, o )
-                    break
-                case "post":
-                    asynchttpPost( "${c}", p, o )
-                    break
-                case "delete":
-                    asynchttpDelete( "${c}", p, o )
-                    break
-            }
+            def m = method?.toString()?.capitalize()
+            "asynchttp${m}"("${callbackHandler}", params, otherData)
         }
     }
 }
 
-private sendAmazonCommand(String method, Map params, Map otherData) {
-    asyncCommand(method, "amazonCommandResp", params, otherData)
+private sendAmazonCommand(String method, Map params, Map otherData=null) {
+    execAsyncCmd(method, "amazonCommandResp", params, otherData)
 }
 
 def amazonCommandResp(response, data) {
-    if(response?.hasError()) {
-        log.error "amazonCommandResp error: ${response?.getErrorMessage()} | Json: ${response?.errorJson ?: null}"
+    if(response?.hasError() == true) {
+        log.error "amazonCommandResp error: ${response?.getErrorMessage()} | Json: ${response?.getErrorJson() ?: null}"
     } else {
         def resp = response?.data ? response?.getJson() : null
         // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
@@ -1049,7 +1041,7 @@ def amazonCommandResp(response, data) {
 private sendSequenceCommand(type, command, value) {
     // logger("trace", "sendSequenceCommand($type) | command: $command | value: $value")
     Map seqObj = sequenceBuilder(command, value)
-    sendAmazonCommand("POST", [
+    sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
         headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
@@ -1141,7 +1133,7 @@ def nextTrack() {
 def mute() {
     logger("trace", "mute() command received...")
     if(isCommandTypeAllowed("volumeControl")) {
-        state.muteLevel = device?.currentState("level")?.integerValue
+        state.muteLevel = device?.currentState("level") ?: 0
         incrementCntByKey("use_cnt_muteCmd")
         if(isStateChange(device, "mute", "muted")) {
             sendEvent(name: "mute", value: "muted", descriptionText: "Mute is set to muted", display: true, displayed: true)
@@ -1173,7 +1165,7 @@ def setMute(muteState) {
 def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
     if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
-        if(volume != device?.currentState('level')?.integerValue) {
+        if(volume != device?.currentState('level')) {
             sendSequenceCommand("VolumeCommand", "volume", level)
             incrementCntByKey("use_cnt_volumeCmd")
             sendEvent(name: "level", value: level, display: false, displayed: false)
@@ -1185,7 +1177,7 @@ def setLevel(level) {
 def setAlarmVolume(volume) {
     logger("trace", "setAlarmVolume($level) command received...")
     if(isCommandTypeAllowed("alarms") && volume>=0 && volume<=100) {
-        sendAmazonCommand("PUT", [
+        sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/device-notification-state/${state?.deviceType}/${state?.softwareVersion}/${state?.serialNumber}",
             headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
@@ -1240,7 +1232,7 @@ def doNotDisturbOn() {
 def setDoNotDisturb(Boolean val) {
     logger("trace", "setDoNotDisturb($val) command received...")
     if(isCommandTypeAllowed("doNotDisturb")) {
-        sendAmazonCommand("PUT", [
+        sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/dnd/status",
             headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
@@ -1295,7 +1287,7 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
 
 private storeLastVolume() {
     logger("trace", "storeLastVolume() command received...")
-    Integer curVol = device?.currentState('volume')?.integerValue
+    Integer curVol = device?.currentState('volume') ?: 0
     if(curVol) { state?.lastVolume = curVol }
 }
 
@@ -1568,7 +1560,7 @@ private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=nu
         ]
     ]
     validObj?.operationPayload = new JsonOutput().toJson(validObj?.operationPayload)
-    sendAmazonCommand("POST", [
+    sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/operation/validate",
         headers: [
@@ -1587,7 +1579,7 @@ def setWakeWord(String newWord) {
     def wwList = device?.currentValue('wakeWords') ?: []
     log.debug "newWord: $newWord | oldWord: $oldWord | wwList: $wwList (${wwList?.contains(newWord.toString()?.toUpperCase())})"
     if(oldWord && newWord && wwList && wwList?.contains(newWord.toString()?.toUpperCase())) {
-        sendAmazonCommand("PUT", [
+        sendAmazonCommand("post", [
             uri: getAmazonUrl(),
             path: "/api/wake-word/${state?.serialNumber}",
             headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
@@ -1640,7 +1632,7 @@ def removeNotification(String id) {
     logger("trace", "removeNotification($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
-            sendAmazonCommand("DELETE", [
+            sendAmazonCommand("delete", [
                 uri: getAmazonUrl(),
                 path: "/api/notifications/${id}",
                 headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
@@ -1690,7 +1682,7 @@ private createNotification(type, options) {
             remainingDuration: type != "Timer" ? 0 : options?.timerDuration
         ]
     ]
-    sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+    sendAmazonCommand("put", params, [cmdDesc: "Create${type}"])
 }
 
 def sendAlexaAppNotification(String text) {
@@ -2002,10 +1994,11 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
                 contentType: "application/json",
                 body: bodyData
             ]
-            asyncCommand("post", "asyncSpeechHandler", params, [
+            Map oData = [
                 cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
                 message: (headerMap?.message ?: null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null)
-            ])
+            ]
+            execAsyncCmd("post", "asyncSpeechHandler", params, oData)
         } catch (e) {
             log.error "something went wrong: ", e
             incrementCntByKey("err_cloud_command")
@@ -2022,9 +2015,9 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
 def asyncSpeechHandler(response, data) {
     def resp = null
     data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-    if(response?.hasError()) {
-        resp = response?.errorJson ?: null
-        // log.error "asyncSpeechHandler Error Message: (${response?.errorJson} )"
+    if(response?.hasError() == true) {
+        resp = response?.getErrorJson() ?: null
+        // log.error "asyncSpeechHandler Error Message: (${response?.getErrorJson()} )"
     } else {
         resp = response?.getData() ?: null
         // log.trace "asyncSpeechHandler | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}"
@@ -2142,13 +2135,24 @@ public Map getDeviceMetrics() {
     return out
 }
 
+private getHubPlatform() {
+    def p = "SmartThings"
+    if(!state?.hubPlatform) {
+        try {
+            [dummy: "dummyVal"]?.encodeAsJson()
+        } catch (e) { p = "Hubitat" }
+        state?.hubPlatform = p
+        log.debug "hubPlatform: (${state?.hubPlatform})"
+    }
+    return state?.hubPlatform
+}
+
 Map sequenceBuilder(cmd, val) {
     def seqJson = null
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
     Map seqObj = ["behaviorId": seqJson?.sequenceId ? cmd?.automationId : "PREVIEW", "sequenceJson": new JsonOutput().toJson(seqJson), "status": "ENABLED"]
-    log.debug "seqObj: $seqObj"
     return seqObj
 }
 
