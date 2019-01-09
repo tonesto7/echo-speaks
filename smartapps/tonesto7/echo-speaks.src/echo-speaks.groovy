@@ -118,12 +118,12 @@ def mainPage() {
                 }
                 if(!state?.shownDevSharePage) { showDevSharePrefs() }
                 section("Donations:") {
-                    href url: textDonateLink(), style:"external", required: false, title: "Donations", description: "Tap to open browser", image: getAppImg("donate.png")
+                    href url: textDonateLink(), style:"external", required: false, title: iTS("Donations", getAppImg("donate.png")), description: "Tap to open browser", image: getAppImg("donate.png")
                 }
             }
             if(!newInstall) {
                 section("Remove Everything:") {
-                    href "uninstallPage", title: inputTitleStr("Uninstall this App" , getAppImg("uninstall.png")), description: "Tap to Remove...", image: getAppImg("uninstall.png")
+                    href "uninstallPage", title: iTS("Uninstall this App" , getAppImg("uninstall.png")), description: "Tap to Remove...", image: getAppImg("uninstall.png")
                 }
             }
         }
@@ -138,7 +138,7 @@ String getPublicImg(imgName) {
 }
 
 def sectionTitleStr(title, img=null) 	{ return isST() ? title : """<h2>${img ? """<img src="${url}" width="36">""" : ""}${title}</h2>""" }
-def inputTitleStr(String title, String img=null) {
+def iTS(String title, String img=null) {
     if(isST()) { return title }
     String i = img ? """<img src="${img}" width="40"> """ : ""
     return """${i} <u>${title}</u>"""
