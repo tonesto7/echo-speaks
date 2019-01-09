@@ -62,13 +62,10 @@ public getDeviceStyle(String family, String type) {
 }
 
 def appInfoSect(sect=true)	{
-    def str = ""
-    str += "${app?.name}"
-    str += "\nAuthor: ${appAuthor()}"
-    str += "\nVersion: ${appVersion()}"
+    def str = "${app?.name}\nAuthor: ${appAuthor()}\nVersion: ${appVersion()}"
     section() {
         href "changeLogPage", title: "", description: str, image: getAppImg("echo_speaks.2x.png")
-        if(state?.customerName) { paragraph "Hello, ${state?.customerName}" }
+        if(isST() && state?.customerName) { paragraph "Hello, ${state?.customerName}" }
     }
 }
 
@@ -126,11 +123,35 @@ def mainPage() {
             }
             if(!newInstall) {
                 section("Remove Everything:") {
-                    href "uninstallPage", title: "Uninstall this App", description: "Tap to Remove...", image: getAppImg("uninstall.png")
+                    href "uninstallPage", title: inputTitleStr("Uninstall this App" , getAppImg("uninstall.png")), description: "Tap to Remove..."//, image: getAppImg("uninstall.png")
                 }
             }
         }
     }
+}
+
+String getAppImg(imgName) {
+    return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName"
+}
+String getPublicImg(imgName) {
+    return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName"
+}
+
+def sectionTitleStr(title, img=null) 	{ return isST() ? title : """<h2>${img ? """<img src="${url}" width="36">""" : ""}${title}</h2>""" }
+def inputTitleStr(String title, String img=null) {
+    if(isST()) { return title }
+    String i = img ? """<img src="${img}" width="40"> """ : ""
+    return """${i} <u>${title}</u>"""
+}
+
+def pageTitleStr(title) 	{ return isST() ? title : "<h1>$title</h1>" }
+def imgTitle(imgSrc, imgWidth, imgHeight, titleStr, color=null) {
+    if(isST()) { return titleStr }
+    def imgStyle = ""
+    imgStyle += imgWidth ? "width: ${imgWidth}px !important;" : ""
+    imgStyle += imgHeight ? "${imgWidth ? " " : ""}height: ${imgHeight}px !important;" : ""
+    if(color) { return """<div style="color: ${color}; font-weight: bold;"><img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img></div>""" }
+    else { return """<img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img>""" }
 }
 
 def devicePrefsPage() {
@@ -233,7 +254,7 @@ def musicSearchTestPage() {
             if(musicTestProvider) {
                 input "musicTestQuery", "text", title: "Music Search term to test on Device", defaultValue: null, required: false, submitOnChange: true, image: getAppImg("search2.png")
                 if(settings?.musicTestQuery) {
-                    input "musicTestDevice", (isST() ? "device.echoSpeaksDevice" : "capability.speechSynthesis"), title: "Select a Device to Test Music Search", description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks.1x.png")
+                    input "musicTestDevice", "device.EchoSpeaksDevice", title: "Select a Device to Test Music Search", description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks.1x.png")
                     if(musicTestDevice) {
                         input "performMusicTest", "bool", title: "Perform the Music Search Test?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music.png")
                         if(performMusicTest) { executeMusicSearchTest() }
@@ -1889,25 +1910,9 @@ String getInputToStringDesc(inpt, addSpace = null) {
     return (str != "") ? "${str}" : null
 }
 
-def sectionTitleStr(title) 	{ return "<h2>$title</h2>" }
-def inputTitleStr(title) 	{ return "<u>$title</u>" }
-def pageTitleStr(title) 	{ return "<h1>$title</h1>" }
-def imgTitle(imgSrc, imgWidth, imgHeight, titleStr, color=null) {
-    def imgStyle = ""
-    imgStyle += imgWidth ? "width: ${imgWidth}px !important;" : ""
-    imgStyle += imgHeight ? "${imgWidth ? " " : ""}height: ${imgHeight}px !important;" : ""
-    if(color) { return """<div style="color: ${color}; font-weight: bold;"><img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img></div>""" }
-    else { return """<img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img>""" }
-}
 
-String getAppImg(imgName) {
-    String url = "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName"
-    return isST() ? url : """<img src="${url}" width="40px"/>"""
-}
-String getPublicImg(imgName) {
-    String url = "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName"
-    return isST() ? url : """<img src="${url}" width="40px"/>"""
-}
+
+
 
 String randomString(Integer len) {
     def pool = ["a".."z",0..9].flatten()
