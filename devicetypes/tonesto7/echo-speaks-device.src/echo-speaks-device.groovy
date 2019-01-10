@@ -59,7 +59,7 @@ metadata {
         attribute "alarmSupported", "string"
         attribute "reminderSupported", "string"
         attribute "supportedMusic", "string"
-        command "playText" //This command is deprecated in ST but will work
+        command "playText", ["string"] //This command is deprecated in ST but will work
         command "playTextAndResume"
         command "playTrackAndResume"
         command "playTrackAndRestore"
@@ -70,42 +70,42 @@ metadata {
         command "replayText"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
-        command "setVolumeAndSpeak"
-        command "setAlarmVolume"
+        command "setAlarmVolume", ["number"]
         command "resetQueue"
-        command "playWeather"
-        command "playSingASong"
-        command "playFlashBrief"
-        command "playFunFact"
-        command "playGoodMorning"
-        command "playTraffic"
-        command "playJoke"
-        command "playTellStory"
-        command "playWelcomeHome"
-        command "playGoodNight"
-        command "playAnnouncement"
+        command "playWeather", ["number", "number"]
+        command "playSingASong", ["number", "number"]
+        command "playFlashBrief", ["number", "number"]
+        command "playFunFact", ["number", "number"]
+        command "playGoodMorning", ["number", "number"]
+        command "playTraffic", ["number", "number"]
+        command "playJoke", ["number", "number"]
+        command "playTellStory", ["number", "number"]
+        command "playWelcomeHome", ["number", "number"]
+        command "playGoodNight", ["number", "number"]
+        command "playAnnouncement", ["string", "number", "number"]
         command "playAnnouncementAll"
-        command "playCalendarToday"
-        command "playCalendarTomorrow"
-        command "playCalendarNext"
+        command "playCalendarToday", ["number", "number"]
+        command "playCalendarTomorrow", ["number", "number"]
+        command "playCalendarNext", ["number", "number"]
         command "stopAllDevices"
-        command "searchMusic"
-        command "searchAmazonMusic"
-        command "searchAppleMusic"
-        command "searchPandora"
-        command "searchIheart"
-        command "searchSiriusXm"
-        command "searchSpotify"
-        command "searchTuneIn"
-        command "sendAlexaAppNotification"
-        command "createAlarm"
-        command "createReminder"
+        command "searchMusic", ["string", "string", "number", "number"]
+        command "searchAmazonMusic", ["string", "number", "number"]
+        command "searchAppleMusic", ["string", "number", "number"]
+        command "searchPandora", ["string", "number", "number"]
+        command "searchIheart", ["string", "number", "number"]
+        command "searchSiriusXm", ["string", "number", "number"]
+        command "searchSpotify", ["string", "number", "number"]
+        command "searchTuneIn", ["string", "number", "number"]
+        command "sendAlexaAppNotification", ["string"]
+        command "createAlarm", ["string", "string", "string"]
+        command "createReminder", ["string", "string", "string"]
         command "removeNotification"
-        command "setWakeWord"
+        command "setWakeWord", ["string"]
         command "storeCurrentVolume"
         command "restoreLastVolume"
-        command "setVolumeSpeakAndRestore"
-        command "setVolume"
+        command "setVolumeAndSpeak", ["number", "string"]
+        command "setVolumeSpeakAndRestore", ["number", "string", "number"]
+        command "setVolume", ["number"]
         command "volumeUp"
         command "volumeDown"
     }
@@ -1134,7 +1134,7 @@ def nextTrack() {
 def mute() {
     logger("trace", "mute() command received...")
     if(isCommandTypeAllowed("volumeControl")) {
-        state.muteLevel = device?.currentState("level") ?: 0
+        state.muteLevel = device?.currentState("level") ?: 5
         incrementCntByKey("use_cnt_muteCmd")
         if(isStateChange(device, "mute", "muted")) {
             sendEvent(name: "mute", value: "muted", descriptionText: "Mute is set to muted", display: true, displayed: true)
@@ -1432,7 +1432,7 @@ def playCalendarNext(volume=null, restoreVolume=null) {
     incrementCntByKey("use_cnt_calendarNext")
 }
 
-def playAnnouncement(String text) {
+def playAnnouncement(String text, volume=null, restoreVolume=null) {
     if(volume) {
         List seqs = [[command: "volume", value: volume], [command: "announcement", value: text]]
         if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }

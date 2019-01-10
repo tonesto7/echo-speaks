@@ -612,7 +612,7 @@ def notifPrefPage() {
                 }
             }
             section(sTS("Code Update Alerts:")) {
-                input (name: "sendAppUpdateMsg", type: "bool", title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update"))
+                input "sendAppUpdateMsg", "bool", title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update")
                 if(settings?.sendAppUpdateMsg) {
                     def updNotifyWaitValDesc = settings?.updNotifyWaitVal ?: "Default: 12 Hours"
                     input (name: "updNotifyWaitVal", type: "enum", title: inTS("Send Reminders After?", getAppImg("reminder", true)), required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
@@ -1370,7 +1370,7 @@ private appUpdateNotify() {
     Boolean servUpd = isServerUpdateAvail()
     logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | grpUpd: (${grpUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
-        if(appUpd || actUpd || grpUpd || echoDevUpd || servUpd) {
+        if(on && (appUpd || actUpd || grpUpd || echoDevUpd || servUpd)) {
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
