@@ -16,27 +16,27 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.1.3" }
-String appModified() { return "2019-01-09" }
-String appAuthor()	 { return "Anthony S." }
-Boolean isBeta() { return false }
-Boolean isST() { return (getHubPlatform() == "SmartThings") }
-Map minVersions() { //These define the minimum versions of code this app will work with.
-    return [echoDevice: 213, server: 211]
-}
+String appModified() { return "2019-01-10" }
+String appAuthor()   { return "Anthony S." }
+Boolean isBeta()     { return false }
+Boolean isST()       { return (getHubPlatform() == "SmartThings") }
+Map minVersions()    { return [echoDevice: 213, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
-    name: "Echo Speaks",
-    namespace: "tonesto7",
-    author: "Anthony Santilli",
+    name       : "Echo Speaks",
+    namespace  : "tonesto7",
+    author     : "Anthony Santilli",
     description: "Allow you to create virtual echo devices and send tts to them in SmartThings",
-    category: "My Apps",
-    iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x",
-    iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x",
-    iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x",
-    pausable: true,
-    oauth: true)
+    category   : "My Apps",
+    iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png", //getAppImg("echo_speaks.1x"),
+    iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x.png", //getAppImg("echo_speaks.2x"),
+    iconX3Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x.png",//getAppImg("echo_speaks.3x"),
+    pausable   : true,
+    oauth      : true
+)
 
 preferences {
+    page(name: "startPage")
     page(name: "mainPage")
     page(name: "settingsPage")
     page(name: "devicePrefsPage")
@@ -51,6 +51,17 @@ preferences {
     page(name: "broadcastTestPage")
     page(name: "setNotificationTimePage")
     page(name: "uninstallPage")
+}
+
+def startPage() {
+    state?.isParent = true
+    checkVersionData(true)
+    state?.childInstallOkFlag = false
+    if(state?.resumeConfig) {
+        return servPrefPage()
+    } else if(showChgLogOk()) {
+        return changeLogPage()
+    } else { return mainPage() }
 }
 
 public getDeviceStyle(String family, String type) {
@@ -70,71 +81,62 @@ def appInfoSect()	{
 }
 
 def mainPage() {
-    state?.isParent = true
     def tokenOk = getAccessToken()
-    checkVersionData(true)
     Boolean newInstall = !state?.isInstalled
-    state?.childInstallOkFlag = false
-    if(state?.resumeConfig) {
-        return servPrefPage()
-    } else if(showChgLogOk()) {
-        return changeLogPage()
-    } else {
-        return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: newInstall, install: !newInstall) {
-            appInfoSect()
-            if(!tokenOk) {
-                paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH"
-                return
-            }
-            section(sTS("Alexa Devices:")) {
-                if(!newInstall) {
-                    List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}" }?.sort()
-                    if(devs?.size()) {
-                        href "deviceListPage", title: "Installed Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
-                    } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
-                }
-                def devPrefDesc = devicePrefsDesc()
-                href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "Current Preferences:\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
-            }
-
-            section(sTS("Notifications:")) {
-                def t0 = getAppNotifConfDesc()
-                href "notifPrefPage", title: inTS("App and Device\nNotifications", getAppImg("devices", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
-            }
-
-            section(sTS("Application Preferences & Documentation:")) {
-                href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
-                href url: documentationLink(), style: "internal", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")
-            }
-
+    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: newInstall, install: !newInstall) {
+        appInfoSect()
+        if(!tokenOk) {
+            section() { paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH" }
+            return
+        }
+        section(sTS("Alexa Devices:")) {
             if(!newInstall) {
-                section(sTS("Alexa Login Service:")) {
-                    def t0 = getServiceConfDesc()
-                    href "servPrefPage", title: inTS("Login Service\nSettings", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
-                }
-                section(sTS("Experimental Functions:")) {
-                    href "broadcastTestPage", title: inTS("Broadcast Test Page", getAppImg("broadcast", true)), description: "Tap to proceed...", image: getAppImg("broadcast")
-                    href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Tap to proceed...", image: getAppImg("music")
-                }
-                if(!state?.shownDevSharePage) { showDevSharePrefs() }
-                section(sTS("Donations:")) {
-                    href url: textDonateLink(), style: "external", required: false, title: inTS("Donations", getAppImg("donate", true)), description: "Tap to open browser", image: getAppImg("donate")
-                }
+                List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}" }?.sort()
+                if(devs?.size()) {
+                    href "deviceListPage", title: "Installed Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
+                } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
             }
-            if(!newInstall) {
-                section(sTS("Remove Everything:")) {
-                    href "uninstallPage", title: inTS("Uninstall this App", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
-                }
+            def devPrefDesc = devicePrefsDesc()
+            href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "Current Preferences:\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
+        }
+
+        section(sTS("Notifications:")) {
+            def t0 = getAppNotifConfDesc()
+            href "notifPrefPage", title: inTS("App and Device\nNotifications", getAppImg("devices", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+        }
+
+        section(sTS("Application Preferences & Documentation:")) {
+            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
+            href url: documentationLink(), style: "internal", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")
+        }
+
+        if(!newInstall) {
+            section(sTS("Alexa Login Service:")) {
+                def t0 = getServiceConfDesc()
+                href "servPrefPage", title: inTS("Login Service\nSettings", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
+            }
+            section(sTS("Experimental Functions:")) {
+                href "broadcastTestPage", title: inTS("Broadcast Test Page", getAppImg("broadcast", true)), description: "Tap to proceed...", image: getAppImg("broadcast")
+                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Tap to proceed...", image: getAppImg("music")
+            }
+            if(!state?.shownDevSharePage) { showDevSharePrefs() }
+            section(sTS("Donations:")) {
+                href url: textDonateLink(), style: "external", required: false, title: inTS("Donations", getAppImg("donate", true)), description: "Tap to open browser", image: getAppImg("donate")
+            }
+        }
+        if(!newInstall) {
+            section(sTS("Remove Everything:")) {
+                href "uninstallPage", title: inTS("Uninstall this App", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
             }
         }
     }
 }
 
 String getAppImg(String imgName, frc=false) {
-    return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : null
+    return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : ""
 }
 String getPublicImg(String imgName) {
-    return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : null
+    return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : ""
 }
 
 String sTS(String t, String i = null) 	{
@@ -232,8 +234,8 @@ private executeTuneInSearch() {
 private executeMusicSearchTest() {
     settingUpdate("performMusicTest", "false", "bool")
     if(settings?.musicTestDevice && settings?.musicTestProvider && settings?.musicTestQuery) {
-        log.debug "Performing ${settings?.musicTestProvider} Music Search Test with Query: (${settings?.musicTestQuery}) on Device: (${settings?.musicTestDevice})"
         if(settings?.musicTestDevice?.hasCommand("searchMusic")) {
+            log.debug "Performing ${settings?.musicTestProvider} Search Test with Query: (${settings?.musicTestQuery}) on Device: (${settings?.musicTestDevice})"
             settings?.musicTestDevice?.searchMusic(settings?.musicTestQuery as String, settings?.musicTestProvider as String)
         } else { log.error "The Device ${settings?.musicTestDevice} does NOT support the searchMusic() command..." }
     }
@@ -367,14 +369,14 @@ private sendAmazonCommand(String method, Map params, Map otherData) {
 }
 
 def amazonCommandResp(response, data) {
-    if(response?.hasError() instanceof Boolean && response?.hasError()) {
-        log.error "amazonCommandResp error: ${response?.getErrorMessage()}"
-    } else {
-        def resp = response?.data ? response?.getJson() : null
-        // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
-        if(response?.getStatus() == 200) {
-            log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | (${data?.cmdDesc}) was Successfully Sent!!!"
-        }
+    if(!respIsValid(response, "amazonCommandResp", true)) {return}
+    try {} catch (ex) {
+        //handles non-2xx status codes
+    }
+    def resp = response?.data ? response?.getJson() : null
+    // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
+    if(response?.getStatus() == 200) {
+        log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | (${data?.cmdDesc}) was Successfully Sent!!!"
     }
 }
 
@@ -502,30 +504,27 @@ def servPrefPage() {
                 }
             }
             if(settings?.useHeroku) {
-                section(sTS("Service Preferences"), hideable: true, hidden: state?.onHeroku) {
+                section(sTS("Service Preferences"), hideable: state?.onHeroku, hidden: state?.onHeroku) {
                     input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getAppImg("amazon_orange")
                     input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("web", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts, submitOnChange: true, image: getAppImg("web")
-                    input "refreshSeconds", "number", title: inTS("Poll Amazon for Device Status (in Seconds)", getAppImg("delay_time", true)), description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time")
                 }
                 if(!state?.onHeroku) {
                     section(sTS("Deploy the Service:")) {
-                        if(settings?.amazonDomain && settings?.refreshSeconds) {
-                            href url: getAppEndpointUrl("config"), style: "external", required: false, title: inTS("Begin Heroku Setup", getAppImg("upload", true)), description: "Tap to proceed", state: "complete", image: getAppImg("upload")
-                        }
+                        if(!settings?.amazonDomain) { settingUpdate("amazonDomain", "amazon.com", "enum") }
+                        href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Heroku Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
                     }
                 }
             }
         }
         if((newInstall && !useHeroku) || !newInstall) {
-            if(!hasChild) {
+            if(!hasChild && isST()) {
                 section(sTS("Hub Selection:")) {
-                    input "stHub", "hub", title: inTS("Select Local Hub", getAppImg("hub", true)), description: "This is mainly used for when the service runs on local network.", required: isST(), submitOnChange: true, image: getAppImg("hub")
+                    input (name: "stHub", type: "hub", title: inTS("Select Local Hub", getAppImg("hub", true)), description: "This is mainly used for when the service runs on local network.", required: isST(), submitOnChange: true, image: getAppImg("hub"))
                 }
             }
             if(settings?.stHub && !settings?.useHeroku) {
                 section(sTS("Service Preferences"), hideable: true, hidden: !newInstall) {
                     input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getAppImg("amazon_orange")
-                    input "refreshSeconds", "number", title: inTS("Poll Amazon for Device Status (in Seconds)", getAppImg("delay_time", true)), description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time")
                     if(!newInstall && settings?.stHub && !settings?.useHeroku) {
                         paragraph title: "Notice", "These changes will be applied on the next server data refresh."
                     }
@@ -541,8 +540,10 @@ def servPrefPage() {
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
                 }
             }
-            section() {
-                input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+            if(state?.onHeroku && state?.authValid) {
+                section() {
+                    input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                }
             }
             if(settings?.refreshCookie == true) { runCookieRefresh() }
             section(sTS("Reset Options:"), hideable:true, hidden: true) {
@@ -687,6 +688,7 @@ def uninstalled() {
     if(settings?.optOutMetrics != true) {
         if(removeInstallData()) { state?.appGuid = null }
     }
+    removeAllDevices()
 }
 
 void settingUpdate(name, value, type=null) {
@@ -725,12 +727,13 @@ def clearCloudConfig() {
 String getEnvParamsStr() {
     Map envParams = [:]
     envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
+    envParams["appEndpointUrl"] = "${getAppEndpointUrl("receiveData")}"
+    envParams["hubPlatform"] = "${getHubPlatform()}"
     envParams["useHeroku"] = (settings?.useHeroku == true) ? "true" : "false"
     envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
     envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
     envParams["amazonDomain"] = settings?.amazonDomain as String
     envParams["regionLocale"] = settings?.regionLocale as String
-    envParams["refreshSeconds"] = settings?.refreshSeconds as String
     envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com"
     // envParams["HEROKU_APP_NAME"] = "${getRandAppName()}"
     String envs = ""
@@ -906,9 +909,7 @@ private runCookieRefresh() {
 
 def wakeUpServerResp(response, data) {
     log.trace "wakeUpServerResp..."
-    if (response?.hasError() instanceof Boolean && response.hasError()) {
-        log.error "message: ${response?.getErrorMessage()}"
-    }
+    try { } catch(ex) { log.error "wakeUpServerResp Error: ${response?.getErrorMessage()}" }
     def rData = response?.data ?: null
     if (rData) {
         // log.debug "rData: $rData"
@@ -929,9 +930,7 @@ def wakeUpServerResp(response, data) {
 
 def cookieRefreshResp(response, data) {
     log.trace "cookieRefreshResp..."
-    if (response?.hasError() instanceof Boolean && response.hasError()) {
-        log.error "message: ${response?.getErrorMessage()}"
-    }
+    try { } catch(ex) { log.error "cookieRefreshResp Error: ${response?.getErrorMessage()}" }
     Map rData = response?.json ?: [:]
     if (rData && rData?.result && rData?.result?.size()) {
         log.debug "refreshAlexaCookie Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)"
@@ -955,13 +954,11 @@ private apiHealthCheck(frc=false) {
 
 def cookieValidResp(response, data) {
     // log.trace "cookieValidResp..."
-    if (response?.hasError() instanceof Boolean && response.hasError()) {
-        if(response?.getStatus() == 401) {
-            log.error "cookieValidResp Status: (${response.getStatus()})"
-            authEvtHandler(false)
-            state?.lastCookieChkDt = getDtNow()
-            return
-        }
+    if(response?.getStatus() == 401) {
+        log.error "cookieValidResp Status: (${response.getStatus()})"
+        authEvtHandler(false)
+        state?.lastCookieChkDt = getDtNow()
+        return
     }
     Map aData = response?.json?.authentication ?: [:]
     Boolean valid = false
@@ -974,6 +971,17 @@ def cookieValidResp(response, data) {
     def execTime = data?.execDt ? (now()-data?.execDt) : 0
     log.debug "Cookie Validation: (${valid}) | Process Time: (${execTime}ms)"
     authEvtHandler(valid)
+}
+
+private respIsValid(response, methodName, falseOnErr=false) {
+    Boolean isErr = (response?.hasError() == true)
+    try { } catch (ex) { }
+    if(response?.getStatus() == 401) {
+        setAuthState(false)
+        return false
+    } else { if(response?.getStatus() > 401 && response?.getStatus() < 500) { log.error "${methodName} Error: ${response?.getErrorMessage()}" } }
+    if(isErr && falseOnErr) { return false }
+    return true
 }
 
 private noAuthReminder() { log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..." }
@@ -1051,18 +1059,15 @@ private getMusicProviders() {
 def echoDevicesResponse(response, data) {
     List ignoreTypes = ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
-    if (response?.hasError() instanceof Boolean && response.hasError()) {
-        if(response?.getStatus() == 401) {
-            authEvtHandler(false)
-            return
-        }
+    if(response?.getStatus() == 401) {
+        authEvtHandler(false)
+        return
     }
     try {
         // log.debug "json response is: ${response.json}"
         state?.deviceRefreshInProgress=false
         List eDevData = response?.json?.devices ?: []
         Map echoDevices = [:]
-
         if(eDevData?.size()) {
             eDevData?.each { eDevice->
                 String serialNumber = eDevice?.serialNumber;
@@ -1174,7 +1179,7 @@ def receiveEventData(Map evtData, String src) {
                     def childDevice = getChildDevice(dni)
                     String devLabel = "Echo - ${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
                     String childHandlerName = "Echo Speaks Device"
-                    String hubId = settings?.stHub?.getId()
+                    String hubId = isST() ? settings?.stHub?.getId() : null
 
                     if (!childDevice) {
                         // log.debug "childDevice not found | autoCreateDevices: ${settings?.autoCreateDevices}"
@@ -1311,6 +1316,18 @@ public getServiceHostInfo() {
 //         log.error "echoServiceUpdate HubAction Exception, $hubAction", ex
 //     }
 // }
+
+def removeAllDevices() {
+    try {
+		app.getChildDevices()?.each {
+            if(isST()) {
+                deleteChildDevice(it.deviceNetworkId, true)
+            } else { removeChildDevice(it?.deviceNetworkId, true) }
+        }
+    } catch (ex) {
+        log.error "Device Removal Failed: ", ex
+    }
+}
 
 /******************************************
 |    Notification Functions
@@ -1592,7 +1609,7 @@ def processFirebaseResponse(resp, data) {
         }
         else if(resp?.status == 400) { log.error "processFirebaseResponse: 'Bad Request': ${resp?.status}" }
         else { log.warn "processFirebaseResponse: 'Unexpected' Response: ${resp?.status}" }
-        if (resp?.hasError() instanceof Boolean && resp.hasError()) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
+        if (isST() && resp?.hasError()) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
     } catch(ex) {
         log.error "processFirebaseResponse (type: $typeDesc) Exception:", ex
     }
@@ -1989,7 +2006,7 @@ def renderConfig() {
             <form class="p-1">
                 <div class="my-3 text-center">
                     <span>
-                        <img src="${getAppImg("echo_speaks.1x")}"/>
+                        <img src="${getAppImg("echo_speaks.1x", true)}"/>
                         <p class="h4 text-center">Echo Speaks</p>
                     </span>
                 </div>
