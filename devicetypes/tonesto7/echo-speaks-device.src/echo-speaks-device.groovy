@@ -650,7 +650,7 @@ private respIsValid(response, methodName, falseOnErr=false) {
     } catch (ex) {
         // catches non-2xx status codes
     }
-    if (response?.hasError() && response?.hasError() instanceof Boolean ) {
+    if (response?.hasError() instanceof Boolean && response.hasError()) {
         if(response?.getStatus() == 401) {
             setAuthState(false)
             return false
@@ -1013,7 +1013,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
 }
 
 def amazonCommandResp(response, data) {
-    if(response?.hasError() && response?.hasError() instanceof Boolean ) {
+    if (response?.hasError() instanceof Boolean && response.hasError()) {
         log.error "amazonCommandResp error: ${response?.getErrorMessage()} | Json: ${response?.getErrorJson() ?: null}"
     } else {
         def resp = response?.data ? response?.getJson() : null
@@ -2017,7 +2017,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
 def asyncSpeechHandler(response, data) {
     def resp = null
     data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-    if(response?.hasError() && response?.hasError() instanceof Boolean) {
+    if (response?.hasError() instanceof Boolean && response.hasError()) {
         resp = response?.getErrorJson() ?: null
         // log.error "asyncSpeechHandler Error Message: (${response?.getErrorJson()} )"
     } else {

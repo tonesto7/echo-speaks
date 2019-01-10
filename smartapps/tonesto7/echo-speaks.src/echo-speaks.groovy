@@ -30,9 +30,9 @@ definition(
     author: "Anthony Santilli",
     description: "Allow you to create virtual echo devices and send tts to them in SmartThings",
     category: "My Apps",
-    iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
-    iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x.png",
-    iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x.png",
+    iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x",
+    iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x",
+    iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x",
     pausable: true,
     oauth: true)
 
@@ -61,10 +61,10 @@ public getDeviceStyle(String family, String type) {
     } else { return [name: "Echo Unknown $type", image: "unknown", allowTTS: false] }
 }
 
-def appInfoSect(sect=true)	{
-    def str = "${app?.name}\nAuthor: ${appAuthor()}\nVersion: ${appVersion()}"
+def appInfoSect()	{
+    def str = "Author: ${appAuthor()}\nVersion: ${appVersion()}"
     section() {
-        href "changeLogPage", title: "", description: str, image: getAppImg("echo_speaks.2x.png")
+        href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
         if(isST() && state?.customerName) { paragraph "Hello, ${state?.customerName}" }
     }
 }
@@ -86,7 +86,7 @@ def mainPage() {
                 paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH"
                 return
             }
-            section("Alexa Devices:") {
+            section(sTS("Alexa Devices:")) {
                 if(!newInstall) {
                     List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}" }?.sort()
                     if(devs?.size()) {
@@ -94,79 +94,73 @@ def mainPage() {
                     } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
                 }
                 def devPrefDesc = devicePrefsDesc()
-                href "devicePrefsPage", title: "Device Detection\nPreferences", description: "${devPrefDesc ? "Current Preferences:\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices.png")
+                href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "Current Preferences:\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
             }
 
-            section("Notifications:") {
+            section(sTS("Notifications:")) {
                 def t0 = getAppNotifConfDesc()
-                href "notifPrefPage", title: "App and Device\nNotifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2.png")
+                href "notifPrefPage", title: inTS("App and Device\nNotifications", getAppImg("devices", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
             }
 
-            section ("Application Preferences & Documentation:") {
-                href "settingsPage", title: "Manage Logging, and Metrics", description: "Tap to modify...", image: getAppImg("settings.png")
-                href url: documentationLink(), style: "internal", required: false, title: "View Documentation", description: "Tap to proceed", state: "complete", image: getAppImg("documentation.png")
+            section(sTS("Application Preferences & Documentation:")) {
+                href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
+                href url: documentationLink(), style: "internal", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")
             }
 
             if(!newInstall) {
-                section("Alexa Login Service:") {
+                section(sTS("Alexa Login Service:")) {
                     def t0 = getServiceConfDesc()
-                    href "servPrefPage", title: "Login Service\nSettings", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings.png")
+                    href "servPrefPage", title: inTS("Login Service\nSettings", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
                 }
-                section ("Experimental Functions:") {
-                    href "broadcastTestPage", title: "Broadcast Test Page", description: "Tap to proceed...", image: getAppImg("broadcast.png")
-                    href "musicSearchTestPage", title: "Music Search Tests", description: "Tap to proceed...", image: getAppImg("music.png")
+                section(sTS("Experimental Functions:")) {
+                    href "broadcastTestPage", title: inTS("Broadcast Test Page", getAppImg("broadcast", true)), description: "Tap to proceed...", image: getAppImg("broadcast")
+                    href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Tap to proceed...", image: getAppImg("music")
                 }
                 if(!state?.shownDevSharePage) { showDevSharePrefs() }
-                section("Donations:") {
-                    href url: textDonateLink(), style:"external", required: false, title: iTS("Donations", getAppImg("donate.png")), description: "Tap to open browser", image: getAppImg("donate.png")
+                section(sTS("Donations:")) {
+                    href url: textDonateLink(), style: "external", required: false, title: inTS("Donations", getAppImg("donate", true)), description: "Tap to open browser", image: getAppImg("donate")
                 }
             }
             if(!newInstall) {
-                section("Remove Everything:") {
-                    href "uninstallPage", title: iTS("Uninstall this App" , getAppImg("uninstall.png")), description: "Tap to Remove...", image: getAppImg("uninstall.png")
+                section(sTS("Remove Everything:")) {
+                    href "uninstallPage", title: inTS("Uninstall this App", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
                 }
             }
         }
     }
 }
 
-String getAppImg(imgName) {
-    return isST() ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" : ""
+String getAppImg(String imgName, frc=false) {
+    return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : null
 }
-String getPublicImg(imgName) {
-    return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" : ""
-}
-
-def sectionTitleStr(title, img=null) 	{ return isST() ? title : """<h2>${img ? """<img src="${url}" width="36">""" : ""}${title}</h2>""" }
-def iTS(String title, String img=null) {
-    if(isST()) { return title }
-    String i = img ? """<img src="${img}" width="40"> """ : ""
-    return """${i} <u>${title}</u>"""
+String getPublicImg(String imgName) {
+    return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : null
 }
 
-def pageTitleStr(title) 	{ return isST() ? title : "<h1>$title</h1>" }
-def imgTitle(imgSrc, imgWidth, imgHeight, titleStr, color=null) {
-    if(isST()) { return titleStr }
-    def imgStyle = ""
-    imgStyle += imgWidth ? "width: ${imgWidth}px !important;" : ""
-    imgStyle += imgHeight ? "${imgWidth ? " " : ""}height: ${imgHeight}px !important;" : ""
-    if(color) { return """<div style="color: ${color}; font-weight: bold;"><img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img></div>""" }
-    else { return """<img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img>""" }
+String sTS(String t, String i = null) 	{
+    return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>"""
+}
+String inTS(String t, String i = null) {
+    return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>"""
+}
+
+String pTS(String t, String i = null) 	{
+    return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>"""
 }
 
 def devicePrefsPage() {
     return dynamicPage(name: "devicePrefsPage", uninstall: false, install: false) {
-        section("Device Preferences") {
-            input "autoCreateDevices", "bool", title: "Auto Create New Devices?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices.png")
-            input "createTablets", "bool", title: "Create Devices for Tablets?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet.png")
-            input "createWHA", "bool", title: "Create Multiroom Devices?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha.png")
-            input "createOtherDevices", "bool", title: "Create Other Alexa Enabled Devices?", description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices.png")
-            input "autoRenameDevices", "bool", title: "Rename Devices to Match Amazon Echo Name?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag.png")
+        section(sTS("Device Preferences")) {
+            input "autoCreateDevices", "bool", title: inTS("Auto Create New Devices?", getAppImg("devices", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices")
+            input "createTablets", "bool", title: inTS("Create Devices for Tablets?", getAppImg("amazon_tablet", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet")
+            input "createWHA", "bool", title: inTS("Create Multiroom Devices?", getAppImg("echo_wha", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
+            input "createOtherDevices", "bool", title: inTS("Create Other Alexa Enabled Devices?", getAppImg("devices", true)), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices")
+            input "autoRenameDevices", "bool", title: inTS("Rename Devices to Match Amazon Echo Name?", getAppImg("name_tag", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
             if(newInstall) {
                 paragraph title:"Notice:", "Device filtering options will be available once app install is complete.", required: true, state: null
             } else {
                 Map devs = getDeviceList(true, false)
-                input "echoDeviceFilter", "enum", title: "Don't Use these Devices", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude.png")
+                input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
                 paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
             }
         }
@@ -189,14 +183,14 @@ def broadcastTestPage() {
     return dynamicPage(name: "broadcastTestPage", uninstall: false, install: false) {
         section("") {
             Map devs = getDeviceList(true, false)
-            input "broadcastDevices", "enum", title: "Select Devices to Test the Broadcast", description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
-            input "broadcastVolume", "number", title: "Broadcast at this volume", description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
-            input "broadcastMessage", "text", title: "Message to broadcast", defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
-            input "broadcastParallel", "bool", title: "Execute commands in Parallel?", description: "", required: false, defaultValue: true, submitOnChange: true
+            input "broadcastDevices", "enum", title: inTS("Select Devices to Test the Broadcast"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            input "broadcastVolume", "number", title: inTS("Broadcast at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
+            input "broadcastMessage", "text", title: inTS("Message to broadcast"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
+            input "broadcastParallel", "bool", title: inTS("Execute commands in Parallel?"), description: "", required: false, defaultValue: true, submitOnChange: true
         }
         if(settings?.broadcastDevices) {
             section() {
-                input "performBroadcast", "bool", title: "Perform the Broadcast?", description: "", required: false, defaultValue: false, submitOnChange: true
+                input "performBroadcast", "bool", title: inTS("Perform the Broadcast?"), description: "", required: false, defaultValue: false, submitOnChange: true
                 if(performBroadcast) { executeBroadcast() }
             }
         }
@@ -247,26 +241,26 @@ private executeMusicSearchTest() {
 
 def musicSearchTestPage() {
     return dynamicPage(name: "musicSearchTestPage", uninstall: false, install: false) {
-        section("Test a Music Search on Device:") {
+        section(sTS("Test a Music Search on Device:")) {
             paragraph "Use this to test the search you discovered above directly on a device.", state: "complete"
             Map testEnum = ["CLOUDPLAYER": "My Library", "AMAZON_MUSIC": "Amazon Music", "I_HEART_RADIO": "iHeartRadio", "PANDORA": "Pandora", "APPLE_MUSIC": "Apple Music", "TUNEIN": "TuneIn", "SIRIUSXM": "siriusXm", "SPOTIFY": "Spotify"]
-            input "musicTestProvider", "enum", title: "Select Music Provider to perform test", defaultValue: null, required: false, options: testEnum, submitOnChange: true, image: getAppImg("music.png")
+            input "musicTestProvider", "enum", title: inTS("Select Music Provider to perform test", getAppImg("music", true)), defaultValue: null, required: false, options: testEnum, submitOnChange: true, image: getAppImg("music")
             if(musicTestProvider) {
-                input "musicTestQuery", "text", title: "Music Search term to test on Device", defaultValue: null, required: false, submitOnChange: true, image: getAppImg("search2.png")
+                input "musicTestQuery", "text", title: inTS("Music Search term to test on Device", getAppImg("search2", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("search2")
                 if(settings?.musicTestQuery) {
-                    input "musicTestDevice", "device.EchoSpeaksDevice", title: "Select a Device to Test Music Search", description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks.1x.png")
+                    input "musicTestDevice", "device.EchoSpeaksDevice", title: inTS("Select a Device to Test Music Search", getAppImg("echo_speaks.1x", true)), description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks.1x")
                     if(musicTestDevice) {
-                        input "performMusicTest", "bool", title: "Perform the Music Search Test?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music.png")
+                        input "performMusicTest", "bool", title: inTS("Perform the Music Search Test?", getAppImg("music", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music")
                         if(performMusicTest) { executeMusicSearchTest() }
                     }
                 }
             }
         }
-        section("TuneIn Search Results:") {
+        section(sTS("TuneIn Search Results:")) {
             paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: "complete"
-            input "tuneinSearchQuery", "text", title: "Enter search phrase for TuneIn", defaultValue: null, required: false, submitOnChange: true, image: getAppImg("tunein.png")
+            input "tuneinSearchQuery", "text", title: inTS("Enter search phrase for TuneIn", getAppImg("tunein", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("tunein")
             if(settings?.tuneinSearchQuery) {
-                href "searchTuneInResultsPage", title: "View search results!", description: "Tap to proceed...", image: getAppImg("search2.png")
+                href "searchTuneInResultsPage", title: inTS("View search results!", getAppImg("search2", true)), description: "Tap to proceed...", image: getAppImg("search2")
             }
         }
     }
@@ -275,7 +269,8 @@ def musicSearchTestPage() {
 def searchTuneInResultsPage() {
     return dynamicPage(name: "searchTuneInResultsPage", uninstall: false, install: false) {
         def results = executeTuneInSearch()
-        section("Search Results: (Query: ${settings?.tuneinSearchQuery})") {
+        Boolean onST = isST()
+        section(sTS("Search Results: (Query: ${settings?.tuneinSearchQuery})")) {
             if(results?.browseList && results?.browseList?.size()) {
                 results?.browseList?.eachWithIndex { item, i->
                     if(i < 25) {
@@ -285,14 +280,18 @@ def searchTuneInResultsPage() {
                                 str += "ContentType: (${item2?.contentType})"
                                 str += "\nId: (${item2?.id})"
                                 str += "\nDescription: ${item2?.description}"
-                                paragraph title: "${item2?.name?.take(75)}", str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: item2?.image ?: ""
+                                if(onST) {
+                                    paragraph title: pTS(item2?.name?.take(75), (onST ? null : item2?.image)), str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: item2?.image ?: ""
+                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (onST ? null : item2?.image)), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: onST && item2?.image ? item2?.image : null }
                             }
                         } else {
                             String str = ""
                             str += "ContentType: (${item?.contentType})"
                             str += "\nId: (${item?.id})"
                             str += "\nDescription: ${item?.description}"
-                            paragraph title: "${item?.name?.take(75)}", str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: item?.image ?: ""
+                            if(onST) {
+                                paragraph title: pTS(item?.name?.take(75), (onST ? null : item?.image)), str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: item?.image ?: ""
+                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (onST ? null : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: onST && item?.image ? item?.image : null }
                         }
                     }
                 }
@@ -368,7 +367,7 @@ private sendAmazonCommand(String method, Map params, Map otherData) {
 }
 
 def amazonCommandResp(response, data) {
-    if(response?.hasError() && response?.hasError() instanceof Boolean) {
+    if(response?.hasError() instanceof Boolean && response?.hasError()) {
         log.error "amazonCommandResp error: ${response?.getErrorMessage()}"
     } else {
         def resp = response?.data ? response?.getJson() : null
@@ -402,15 +401,15 @@ private sendMultiSequenceCommand(commands, parallel=false) {
 
 def settingsPage() {
     return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
-        section("Logging:") {
-            input (name: "appDebug", type: "bool", title: "Show Debug Logs in the IDE?", description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
+        section(sTS("Logging:")) {
+            input "appDebug", "bool", title: inTS("Show Debug Logs in the IDE?", getAppImg("debug", true)), description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
             if(settings?.appDebug) {
-                input (name: "appTrace", type: "bool", title: "Show Detailed Trace Logs in the IDE?", description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
+                input "appTrace", "bool", title: inTS("Show Detailed Trace Logs in the IDE?", getAppImg("debug", true)), description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
             }
         }
         showDevSharePrefs()
-        section("App Change Details:") {
-            href "changeLogPage", title: "View App Revision History", description: "Tap to view", image: getAppImg("change_log.png")
+        section(sTS("App Change Details:")) {
+            href "changeLogPage", title: inTS("View App Revision History", getAppImg("change_log", true)), description: "Tap to view", image: getAppImg("change_log")
         }
     }
 }
@@ -419,6 +418,7 @@ def deviceListPage() {
     return dynamicPage(name: "deviceListPage", install: false) {
         Map devMap = state?.echoDeviceMap
         // log.debug "devMap: $devMap"
+        Boolean onST = isST()
         section() {
             state?.echoDeviceMap?.sort { it?.value?.name }?.each { k,v->
                 String str = "Status: (${v?.online ? "Online" : "Offline"})"
@@ -429,18 +429,20 @@ def deviceListPage() {
                 str += "\nText-to-Speech: (${v?.ttsSupport?.toString()?.capitalize()})"
                 str += "\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
                 str += (v?.mediaPlayer == true && v?.musicProviders) ? "\nMusic Providers: [${v?.musicProviders}]" : ""
-                paragraph title: v?.name, str, state: (v?.online ? "complete" : null), image: getAppImg("${v?.style?.image}.png"), required: true
+                if(onST) {
+                    paragraph title: pTS(v?.name, getAppImg(v?.style?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image)
+                } else { href "deviceListPage", title: pTS(v?.name, getAppImg(v?.style?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image) }
             }
         }
     }
 }
 
 def showDevSharePrefs() {
-    section("Share Data with Developer:") {
+    section(sTS("Share Data with Developer:")) {
         paragraph title: "What is this used for?", "These options send non-user identifiable information and error data to diagnose catch trending issues."
-        input ("optOutMetrics", "bool", title: "Do Not Share Data?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics.png"))
+        input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
         if(settings?.optOutMetrics != true) {
-            href url: getAppEndpointUrl("renderMetricData"), style:"embedded", title:"View the Data shared with Developer", description: "Tap to view Data", required:false, image: getAppImg("view.png")
+            href url: getAppEndpointUrl("renderMetricData"), style :"embedded", title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
         }
     }
     state?.shownDevSharePage = true
@@ -476,7 +478,7 @@ def servPrefPage() {
         Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
         if(newInstall) {
             section("") {
-                input "useHeroku", "bool", title: "Will you be deploying to Heroku Cloud?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("heroku.png")
+                input "useHeroku", "bool", title: inTS("Will you be deploying to Heroku Cloud?", getAppImg("heroku", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("heroku")
                 if(useHeroku) {
                     paragraph "Please complete the install and return to the Echo Speaks SmartApp to resume deployment and configuration of the service", required: true, state: null
                     state?.resumeConfig = true
@@ -490,8 +492,8 @@ def servPrefPage() {
         if(!newInstall) {
             state?.resumeConfig = false
             if(!hasChild || !state?.serviceConfigured) {
-                section("Cloud Service Hosting:") {
-                    input "useHeroku", "bool", title: "Use Heroku Cloud to Host Service?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("heroku.png")
+                section(sTS("Cloud Service Hosting:")) {
+                    input "useHeroku", "bool", title: inTS("Use Heroku Cloud to Host Service?", getAppImg("heroku", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("heroku")
                 }
             }
             if(state?.nodeServiceInfo) {
@@ -500,15 +502,15 @@ def servPrefPage() {
                 }
             }
             if(settings?.useHeroku) {
-                section("Service Preferences", hideable: true, hidden: state?.onHeroku) {
-                    input (name: "amazonDomain", type: "enum", title: "Select your Amazon Domain?", description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getPublicImg("amazon_orange.png"))
-                    input (name: "regionLocale", type: "enum", title: "Select your Locale?", description: "", required: true, defaultValue: "en-US", options: localeOpts, submitOnChange: true, image: getPublicImg("web.png"))
-                    input (name: "refreshSeconds", type: "number", title: "Poll Amazon for Device Status (in Seconds)", description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time.png"))
+                section(sTS("Service Preferences"), hideable: true, hidden: state?.onHeroku) {
+                    input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getAppImg("amazon_orange")
+                    input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("web", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts, submitOnChange: true, image: getAppImg("web")
+                    input "refreshSeconds", "number", title: inTS("Poll Amazon for Device Status (in Seconds)", getAppImg("delay_time", true)), description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time")
                 }
                 if(!state?.onHeroku) {
-                    section("Deploy the Service:") {
+                    section(sTS("Deploy the Service:")) {
                         if(settings?.amazonDomain && settings?.refreshSeconds) {
-                            href url: getAppEndpointUrl("config"), style: "external", required: false, title: "Begin Heroku Setup", description: "Tap to proceed", state: "complete", image: getPublicImg("upload.png")
+                            href url: getAppEndpointUrl("config"), style: "external", required: false, title: inTS("Begin Heroku Setup", getAppImg("upload", true)), description: "Tap to proceed", state: "complete", image: getAppImg("upload")
                         }
                     }
                 }
@@ -516,14 +518,14 @@ def servPrefPage() {
         }
         if((newInstall && !useHeroku) || !newInstall) {
             if(!hasChild) {
-                section("Hub Selection:") {
-                    input(name: "stHub", type: "hub", title: "Select Local Hub", description: "This is mainly used for when the service runs on local network.", required: isST(), submitOnChange: true, image: getAppImg("hub.png"))
+                section(sTS("Hub Selection:")) {
+                    input "stHub", "hub", title: inTS("Select Local Hub", getAppImg("hub", true)), description: "This is mainly used for when the service runs on local network.", required: isST(), submitOnChange: true, image: getAppImg("hub")
                 }
             }
             if(settings?.stHub && !settings?.useHeroku) {
-                section("Service Preferences", hideable: true, hidden: !newInstall) {
-                    input (name: "amazonDomain", type: "enum", title: "Select your Amazon Domain?", description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getPublicImg("amazon_orange.png"))
-                    input (name: "refreshSeconds", type: "number", title: "Poll Amazon for Device Status (in Seconds)", description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time.png"))
+                section(sTS("Service Preferences"), hideable: true, hidden: !newInstall) {
+                    input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getAppImg("amazon_orange")
+                    input "refreshSeconds", "number", title: inTS("Poll Amazon for Device Status (in Seconds)", getAppImg("delay_time", true)), description: "in Seconds...", required: false, defaultValue: 60, submitOnChange: true, image: getAppImg("delay_time")
                     if(!newInstall && settings?.stHub && !settings?.useHeroku) {
                         paragraph title: "Notice", "These changes will be applied on the next server data refresh."
                     }
@@ -532,21 +534,21 @@ def servPrefPage() {
         }
         if(!newInstall) {
             if(settings?.useHeroku && state?.onHeroku) {
-                section("Cloud App Management:") {
-                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: "Service Config Page", description: "Tap to proceed", image: getPublicImg("web.png")
-                    href url: "https://${getRandAppName()}.herokuapp.com/manualCookie", style: "external", required: false, title: "Manual Cookie Page", description: "Tap to proceed", image: getPublicImg("web.png")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: "Heroku App Settings", description: "Tap to proceed", image: getAppImg("heroku.png")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: "Heroku App Logs", description: "Tap to proceed", image: getAppImg("heroku.png")
+                section(sTS("Cloud App Management:")) {
+                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Service Config Page", getAppImg("web", true)), description: "Tap to proceed", image: getAppImg("web")
+                    href url: "https://${getRandAppName()}.herokuapp.com/manualCookie", style: "external", required: false, title: inTS("Manual Cookie Page", getAppImg("web", true)), description: "Tap to proceed", image: getAppImg("web")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
                 }
             }
             section() {
-                input "refreshCookie", "bool", title: "Refresh Alexa Cookie?", description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
+                input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
             }
             if(settings?.refreshCookie == true) { runCookieRefresh() }
-            section("Reset Options:", hideable:true, hidden: true) {
-                input "resetService", "bool", title: "Reset Service Data?", description: "This will clear all traces of the current service info and allow you to redeploy or reconfigure a new instance.\nLeave the page and come back after toggling.",
-                    required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
-                input "resetCookies", "bool", title: "Clear Stored Cookie Data?", description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getPublicImg("reset.png")
+            section(sTS("Reset Options:"), hideable:true, hidden: true) {
+                input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all traces of the current service info and allow you to redeploy or reconfigure a new instance.\nLeave the page and come back after toggling.",
+                    required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 if(settings?.resetService == true) { clearCloudConfig() }
                 if(settings?.resetCookies == true) { clearCookieData() }
             }
@@ -562,26 +564,26 @@ def notifPrefPage() {
         section("") {
             paragraph title: "Notice:", "The settings configure here are used by both the App and the Devices.", state: "complete"
         }
-        section("Push Messages:") {
-            input "usePush", "bool", title: "Send Push Notitifications\n(Optional)", required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification.png")
+        section(sTS("Push Messages:")) {
+            input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
         }
-        section("SMS Text Messaging:") {
+        section(sTS("SMS Text Messaging:")) {
             paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
-            input "smsNumbers", "text", title: "Send SMS to Text to...\n(Optional)", required: false, submitOnChange: true, image: getAppImg("sms_phone.png")
+            input "smsNumbers", "text", title: inTS("Send SMS to Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
         }
-        section("Pushover Support:") {
-            input ("pushoverEnabled", "bool", title: "Use Pushover Integration", description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover.png"))
+        section(sTS("Pushover Support:")) {
+            input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
             if(settings?.pushoverEnabled == true) {
                 if(state?.isInstalled) {
                     if(!state?.pushoverManager) {
                         paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
                         pushover_init()
                     } else {
-                        input "pushoverDevices", "enum", title: "Select Pushover Devices", description: "Tap to select", groupedOptions: getPushoverDevices(), multiple: true, required: false, submitOnChange: true
+                        input "pushoverDevices", "enum", title: inTS("Select Pushover Devices"), description: "Tap to select", groupedOptions: getPushoverDevices(), multiple: true, required: false, submitOnChange: true
                         if(settings?.pushoverDevices) {
                             def t0 = ["-2":"Lowest", "-1":"Low", "0":"Normal", "1":"High", "2":"Emergency"]
-                            input "pushoverPriority", "enum", title: "Notification Priority (Optional)", description: "Tap to select", defaultValue: "0", required: false, multiple: false, submitOnChange: true, options: t0
-                            input "pushoverSound", "enum", title: "Notification Sound (Optional)", description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
+                            input "pushoverPriority", "enum", title: inTS("Notification Priority (Optional)"), description: "Tap to select", defaultValue: "0", required: false, multiple: false, submitOnChange: true, options: t0
+                            input "pushoverSound", "enum", title: inTS("Notification Sound (Optional)"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
                         }
                     }
                 } else { paragraph "New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", state: "complete" }
@@ -593,27 +595,27 @@ def notifPrefPage() {
                     state.pushTested = true
                 }
             }
-            section("Notification Restrictions:") {
+            section(sTS("Notification Restrictions:")) {
                 def t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: "Notification Restrictions", description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("restriction.png")
+                href "setNotificationTimePage", title: inTS("Notification Restrictions", getAppImg("restriction", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("restriction")
             }
-            section("Missed Poll Alerts:") {
-                input (name: "sendMissedPollMsg", type: "bool", title: "Send Missed Checkin Alerts?", defaultValue: true, submitOnChange: true, image: getAppImg("late.png"))
+            section(sTS("Missed Poll Alerts:")) {
+                input (name: "sendMissedPollMsg", type: "bool", title: inTS("Send Missed Checkin Alerts?", getAppImg("late", true)), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
                 if(settings?.sendMissedPollMsg) {
                     def misPollNotifyWaitValDesc = settings?.misPollNotifyWaitVal ?: "Default: 45 Minutes"
-                    input (name: "misPollNotifyWaitVal", type: "enum", title: "Time Past the Missed Checkin?", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time.png"))
+                    input (name: "misPollNotifyWaitVal", type: "enum", title: inTS("Time Past the Missed Checkin?", getAppImg("delay_time", true)), required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time"))
                     if(settings?.misPollNotifyWaitVal) { pollWait = settings?.misPollNotifyWaitVal as Integer }
 
                     def misPollNotifyMsgWaitValDesc = settings?.misPollNotifyMsgWaitVal ?: "Default: 1 Hour"
-                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: "Send Reminder After?", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder.png"))
+                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: inTS("Send Reminder After?", getAppImg("reminder", true)), required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
                     if(settings?.misPollNotifyMsgWaitVal) { pollMsgWait = settings?.misPollNotifyMsgWaitVal as Integer }
                 }
             }
-            section("Code Update Alerts:") {
-                input (name: "sendAppUpdateMsg", type: "bool", title: "Send for Updates...", defaultValue: true, submitOnChange: true, image: getAppImg("update.png"))
+            section(sTS("Code Update Alerts:")) {
+                input (name: "sendAppUpdateMsg", type: "bool", title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update"))
                 if(settings?.sendAppUpdateMsg) {
                     def updNotifyWaitValDesc = settings?.updNotifyWaitVal ?: "Default: 12 Hours"
-                    input (name: "updNotifyWaitVal", type: "enum", title: "Send Reminders After?", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder.png"))
+                    input (name: "updNotifyWaitVal", type: "enum", title: inTS("Send Reminders After?", getAppImg("reminder", true)), required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
                     if(settings?.updNotifyWaitVal) { updNotifyWait = settings?.updNotifyWaitVal as Integer }
                 }
             }
@@ -628,17 +630,17 @@ def setNotificationTimePage() {
     dynamicPage(name: "setNotificationTimePage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
         Boolean timeReq = (settings["qStartTime"] || settings["qStopTime"]) ? true : false
         section() {
-            input "qStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time.png")
+            input "qStartInput", "enum", title: inTS("Starting at", getAppImg("start_time", true)), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
             if(settings["qStartInput"] == "A specific time") {
-                input "qStartTime", "time", title: "Start time", required: timeReq, image: getAppImg("start_time.png")
+                input "qStartTime", "time", title: inTS("Start time", getAppImg("start_time", true)), required: timeReq, image: getAppImg("start_time")
             }
-            input "qStopInput", "enum", title: "Stopping at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time.png")
+            input "qStopInput", "enum", title: inTS("Stopping at", getAppImg("stop_time", true)), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
             if(settings?."qStopInput" == "A specific time") {
-                input "qStopTime", "time", title: "Stop time", required: timeReq, image: getAppImg("stop_time.png")
+                input "qStopTime", "time", title: inTS("Stop time", getAppImg("stop_time", true)), required: timeReq, image: getAppImg("stop_time")
             }
-            input "quietDays", "enum", title: "Only on these days of the week", multiple: true, required: false, image: getAppImg("day_calendar.png"),
+            input "quietDays", "enum", title: inTS("Only on these days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"),
                     options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            input "quietModes", "mode", title: "When these Modes are Active", multiple: true, submitOnChange: true, required: false, image: getAppImg("mode.png")
+            input "quietModes", "mode", title: inTS("When these Modes are Active", getAppImg("mode", true)), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
         }
     }
 }
@@ -904,7 +906,7 @@ private runCookieRefresh() {
 
 def wakeUpServerResp(response, data) {
     log.trace "wakeUpServerResp..."
-    if (response.hasError() && response?.hasError() instanceof Boolean ) {
+    if (response?.hasError() instanceof Boolean && response.hasError()) {
         log.error "message: ${response?.getErrorMessage()}"
     }
     def rData = response?.data ?: null
@@ -927,7 +929,7 @@ def wakeUpServerResp(response, data) {
 
 def cookieRefreshResp(response, data) {
     log.trace "cookieRefreshResp..."
-    if (isST() && response.hasError() && response?.hasError() instanceof Boolean ) {
+    if (response?.hasError() instanceof Boolean && response.hasError()) {
         log.error "message: ${response?.getErrorMessage()}"
     }
     Map rData = response?.json ?: [:]
@@ -953,7 +955,7 @@ private apiHealthCheck(frc=false) {
 
 def cookieValidResp(response, data) {
     // log.trace "cookieValidResp..."
-    if (response.hasError() && response?.hasError() instanceof Boolean) {
+    if (response?.hasError() instanceof Boolean && response.hasError()) {
         if(response?.getStatus() == 401) {
             log.error "cookieValidResp Status: (${response.getStatus()})"
             authEvtHandler(false)
@@ -1049,7 +1051,7 @@ private getMusicProviders() {
 def echoDevicesResponse(response, data) {
     List ignoreTypes = ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
-    if (response.hasError() && response?.hasError() instanceof Boolean ) {
+    if (response?.hasError() instanceof Boolean && response.hasError()) {
         if(response?.getStatus() == 401) {
             authEvtHandler(false)
             return
@@ -1515,7 +1517,7 @@ def changeLogPage() {
     def execTime = now()
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
-            paragraph title: "What's New in this Release...", "", state: "complete", image: getAppImg("whats_new.png")
+            paragraph title: "What's New in this Release...", "", state: "complete", image: getAppImg("whats_new")
             paragraph changeLogData()
         }
         Map iData = atomicState?.installData ?: [:]
@@ -1590,7 +1592,7 @@ def processFirebaseResponse(resp, data) {
         }
         else if(resp?.status == 400) { log.error "processFirebaseResponse: 'Bad Request': ${resp?.status}" }
         else { log.warn "processFirebaseResponse: 'Unexpected' Response: ${resp?.status}" }
-        if(resp?.hasError() && response?.hasError() instanceof Boolean ) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
+        if (resp?.hasError() instanceof Boolean && resp.hasError()) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
     } catch(ex) {
         log.error "processFirebaseResponse (type: $typeDesc) Exception:", ex
     }
@@ -1987,7 +1989,7 @@ def renderConfig() {
             <form class="p-1">
                 <div class="my-3 text-center">
                     <span>
-                        <img src="${getAppImg("echo_speaks.1x.png")}"/>
+                        <img src="${getAppImg("echo_speaks.1x")}"/>
                         <p class="h4 text-center">Echo Speaks</p>
                     </span>
                 </div>
