@@ -16,11 +16,11 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.1.3" }
-String appModified() { return "2019-01-10" }
+String appModified() { return "2019-01-11" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getHubPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 213, server: 211] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 213, server: 212] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -974,7 +974,7 @@ def cookieValidResp(response, data) {
 }
 
 private respIsValid(response, methodName, falseOnErr=false) {
-    Boolean isErr = (response?.hasError() == true)
+    Boolean isErr = (getObjType(response?.hasError()) == "Boolean" && response?.hasError() == true)
     try { } catch (ex) { }
     if(response?.getStatus() == 401) {
         setAuthState(false)
@@ -1647,6 +1647,7 @@ private createMetricsDataJson(rendAsMap=false) {
             installDt: state?.installData?.dt,
             updatedDt: state?.installData?.updatedDt,
             timeZone: location?.timeZone?.ID?.toString(),
+            hubPlatform: getHubPlatform(),
             authValid: (state?.authValid == true),
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
@@ -1929,10 +1930,6 @@ String getInputToStringDesc(inpt, addSpace = null) {
     return (str != "") ? "${str}" : null
 }
 
-
-
-
-
 String randomString(Integer len) {
     def pool = ["a".."z",0..9].flatten()
     Random rand = new Random(new Date().getTime())
@@ -2038,12 +2035,27 @@ def renderConfig() {
     render contentType: "text/html", data: html
 }
 
+String getObjType(obj) {
+	if(obj instanceof String) {return "String"}
+	else if(obj instanceof GString) {return "GString"}
+	else if(obj instanceof Map) {return "Map"}
+	else if(obj instanceof List) {return "List"}
+	else if(obj instanceof ArrayList) {return "ArrayList"}
+	else if(obj instanceof Integer) {return "Integer"}
+	else if(obj instanceof BigInteger) {return "BigInteger"}
+	else if(obj instanceof Long) {return "Long"}
+	else if(obj instanceof Boolean) {return "Boolean"}
+	else if(obj instanceof BigDecimal) {return "BigDecimal"}
+	else if(obj instanceof Float) {return "Float"}
+	else if(obj instanceof Byte) {return "Byte"}
+	else { return "unknown"}
+}
+
 private getHubPlatform() {
     def p = "SmartThings"
-    if(!state?.hubPlatform) {
-        try {
-            [dummy: "dummyVal"]?.encodeAsJson()
-        } catch (e) { p = "Hubitat" }
+    if(state?.hubPlatform == null) {
+        // try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
+        p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
         state?.hubPlatform = p
         log.debug "hubPlatform: (${state?.hubPlatform})"
     }
