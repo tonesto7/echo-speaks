@@ -1257,7 +1257,7 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     if(msg) {
         if(volume && volume?.isNumber() && permissionOk("volumeControl")) {
             state?.useThisVolume = volume
-            if(restVolume && restVolume?.isNumber()) {
+            if((restVolume != null) && restVolume?.isNumber()) {
                 state?.lastVolume = restVolume as Integer
             } else { storeLastVolume() }
             sendEvent(name: "level", value: volume, display: false, displayed: false)
@@ -1271,7 +1271,7 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
 private storeLastVolume() {
     logger("trace", "storeLastVolume() command received...")
     Integer curVol = device?.currentState('volume')?.integerValue
-    if(curVol) { state?.lastVolume = curVol }
+    if(curVol != null) { state?.lastVolume = curVol }
 }
 
 private restoreLastVolume() {
@@ -1694,8 +1694,12 @@ def playTrackAndResume(uri, duration, volume=null) {
 }
 
 def playTextAndResume(text, volume=null) {
-    log.warn "Uh-Oh... The playTextAndResume(text: $text, volume: $volume) Command is NOT Supported by this Device!!!"
-    speak(text as String)
+    logger("trace", "The playTextAndResume(text: $text, volume: $volume) command received...")
+    def restVolume = device?.currentState("level")?.integerValue
+	if (volume)
+		setVolumeSpeakAndRestore(volume, text, restVolume)
+	else
+    	speak(text as String)
 }
 
 def playTrackAndRestore(uri, duration, volume=null) {
@@ -1704,7 +1708,11 @@ def playTrackAndRestore(uri, duration, volume=null) {
 
 def playTextAndRestore(text, volume=null) {
     logger("trace", "playTextAndRestore(text: $text, volume: $volume) command received...")
-    speak(text as String)
+    def restVolume = device?.currentState("level")?.integerValue
+	if (volume)
+		setVolumeSpeakAndRestore(volume, text, restVolume)
+	else
+    	speak(text as String)
 }
 
 def playURL(theURL) {
