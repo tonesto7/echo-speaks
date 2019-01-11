@@ -87,7 +87,7 @@ metadata {
         command "playCalendarTomorrow", ["number", "number"]
         command "playCalendarNext", ["number", "number"]
         command "stopAllDevices"
-        command "searchMusic", ["string", "string", "number", "number"]
+        command "searchMusic"
         command "searchAmazonMusic", ["string", "number", "number"]
         command "searchAppleMusic", ["string", "number", "number"]
         command "searchPandora", ["string", "number", "number"]
@@ -277,7 +277,7 @@ metadata {
             state("default", label:'Speech Test', action: 'speechTest')
         }
         standardTile("searchTest", "searchTest", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Speech Test', action: 'searchTest')
+            state("default", label:'MusicSearch Test', action: 'searchTest')
         }
         standardTile("sendTestAnnouncement", "sendTestAnnouncement", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Test Announcement', action: 'sendTestAnnouncement')
@@ -648,7 +648,9 @@ public setOnlineStatus(Boolean isOnline) {
 
 private respIsValid(response, methodName, falseOnErr=false) {
     Boolean isErr = (response?.hasError() instanceof Boolean && response?.hasError() == true)
-    try { } catch (ex) { }
+    try { } catch (ex) {
+        // catches non-2xx status codes
+    }
     if(response?.getStatus() == 401) {
         setAuthState(false)
         return false
@@ -680,6 +682,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     try {} catch (ex) {
         //handles non-2xx status codes
     }
+    // log.debug "response: ${response?.json}"
     def sData = [:]
     def isPlayStateChange = false
     sData = response?.json
@@ -972,6 +975,9 @@ def getNotificationsHandler(response, data) {
     }
 }
 
+String getCookieVal() { return (state?.cookie && state?.cookie?.localCookie) ? state?.cookie?.localCookie as String : null }
+String getCsrfVal() { return (state?.cookie && state?.cookie?.csrf) ? state?.cookie?.csrf as String : null }
+
 /*******************************************************************
             Amazon Command Logic
 *******************************************************************/
@@ -995,8 +1001,12 @@ def execAsyncCmd(String method, String callbackHandler, Map params, Map otherDat
     if(method && callbackHandler && params) {
         if(isST()) {
             include 'asynchttp_v1'
-            asynchttp_v1."${method?.toString()?.toLowerCase()}"(callbackHandler, params, otherData)
-        } else { "asynchttp${method?.toString()?.capitalize()}"("${callbackHandler}", params, otherData) }
+            def m = method?.toString()?.toLowerCase()
+            asynchttp_v1."${m}"(callbackHandler, params, otherData)
+        } else {
+            def m = method?.toString()?.capitalize()
+            "asynchttp${m}"("${callbackHandler}", params, otherData)
+        }
     }
 }
 
@@ -1006,29 +1016,37 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
 
 def amazonCommandResp(response, data) {
     log.warn "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${response?.getData()}"
-    if(!respIsValid(response, "amazonCommandResp", true)) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
-    def resp = response?.data ? response?.getJson() : null
-    // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
-    // log.warn "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}"
-    if(response?.getStatus() == 200) {
-        if(data?.cmdDesc?.startsWith("PlayMusicValidate")) {
-            if (resp?.result != "VALID") {
-                log.error "Amazon the Music Search Request as Invalid | MusicProvider: [${data?.validObj?.operationPayload?.musicProviderId}] | Search Phrase: (${data?.validObj?.operationPayload?.searchPhrase})"
-                return
-            }
-            data?.validObj?.operationPayload = resp?.operationPayload
-            Map seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": data?.validObj]
-            seqJson?.startNode["@type"] = "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"
-            if(data?.volume) {
-                sendMultiSequenceCommand([[command: data?.validObj], [command: "volume", value: data?.volume]], true)
+    // if (response?.hasError() instanceof Boolean && response.hasError()) {
+    //     log.error "amazonCommandResp error: ${response?.getErrorMessage()} | Json: ${response?.getErrorJson() ?: null}"
+    // } else {
+
+        if(!respIsValid(response, "amazonCommandResp", true)) {return}
+        try {} catch (ex) {
+            //handles non-2xx status codes
+        }
+        def resp = response?.json ?: null
+        log.debug "resp: $resp"
+        // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
+        // log.warn "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}"
+        if(response?.getStatus() == 200) {
+            if(data?.cmdDesc?.startsWith("PlayMusicValidate")) {
+                if (resp?.result != "VALID") {
+                    log.error "Amazon the Music Search Request as Invalid | MusicProvider: [${data?.validObj?.operationPayload?.musicProviderId}] | Search Phrase: (${data?.validObj?.operationPayload?.searchPhrase})"
+                    return
+                }
+                data?.validObj?.operationPayload = new JsonOutput().toJson(resp?.operationPayload)
+                Map seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": data?.validObj]
+                seqJson?.startNode["@type"] = "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"
+                if(data?.volume) {
+                    sendMultiSequenceCommand([[command: data?.validObj], [command: "volume", value: data?.volume]], true)
+                } else {
+                    sendSequenceCommand("PlayMusic | Provider: ${data?.validObj?.operationPayload?.musicProviderId}", seqJson, null)
+                }
             } else {
-                sendSequenceCommand("PlayMusicProvider: (${data?.validObj?.operationPayload?.musicProviderId})", seqJson, null)
+                log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
             }
-        } else { log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!" }
-    }
+        }
+    // }
 }
 
 private sendSequenceCommand(type, command, value) {
@@ -1041,7 +1059,7 @@ private sendSequenceCommand(type, command, value) {
         requestContentType: "application/json",
         contentType: "application/json",
         body: seqObj
-    ], [ cmdDesc: "SequenceCommand (${type})" ])
+    ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
 private sendMultiSequenceCommand(commands, parallel=false) {
@@ -1126,7 +1144,7 @@ def nextTrack() {
 def mute() {
     logger("trace", "mute() command received...")
     if(isCommandTypeAllowed("volumeControl")) {
-        state.muteLevel = device?.currentValue("level")?.toInteger()
+        state.muteLevel = device?.currentValue("level")?.toInteger() ?: 5
         incrementCntByKey("use_cnt_muteCmd")
         if(isStateChange(device, "mute", "muted")) {
             sendEvent(name: "mute", value: "muted", descriptionText: "Mute is set to muted", display: true, displayed: true)
@@ -1155,7 +1173,7 @@ def setMute(muteState) {
     }
 }
 
-def setLevel(level) {
+def setLevel(Integer level) {
     logger("trace", "setVolume($level) command received...")
     if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
         if(level != device?.currentValue('level')) {
@@ -1167,9 +1185,9 @@ def setLevel(level) {
     }
 }
 
-def setAlarmVolume(volume) {
-    logger("trace", "setAlarmVolume($volume) command received...")
-    if(isCommandTypeAllowed("alarms") && volume>=0 && volume<=100) {
+def setAlarmVolume(vol) {
+    logger("trace", "setAlarmVolume($vol) command received...")
+    if(isCommandTypeAllowed("alarms") && vol>=0 && vol<=100) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/device-notification-state/${state?.deviceType}/${state?.softwareVersion}/${state?.serialNumber}",
@@ -1180,11 +1198,11 @@ def setAlarmVolume(volume) {
                 deviceSerialNumber: state?.serialNumber,
                 deviceType: state?.deviceType,
                 softwareVersion: device?.currentValue('firmwareVer'),
-                volumeLevel: volume
+                volumeLevel: vol
             ]
         ], [cmdDesc: "AlarmVolume"])
         incrementCntByKey("use_cnt_alarmVolumeCmd")
-        sendEvent(name: "alarmVolume", value: volume, display: false, displayed: false)
+        sendEvent(name: "alarmVolume", value: vol, display: false, displayed: false)
     }
 }
 
@@ -1195,7 +1213,7 @@ def setVolume(vol) {
 
 def volumeUp() {
     def curVol = (device?.currentValue('level') ?: 1)
-    if(curVol < 100) { setVolume(curVol?.toInteger()+5) }
+    if(curVol >= 0 && curVol < 100) { setVolume(curVol?.toInteger()+5) }
 }
 
 def volumeDown() {
@@ -1252,7 +1270,7 @@ def deviceNotification(String msg) {
     }
 }
 
-def setVolumeAndSpeak(Integer volume, String msg) {
+def setVolumeAndSpeak(volume, String msg) {
     logger("trace", "setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
     if(volume && permissionOk("volumeControl")) {
         state?.useThisVolume = volume
@@ -1439,7 +1457,7 @@ def playAnnouncementAll(String text) {
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
-    log.trace "searchMusic(${searchPhrase}, ${providerId})"
+    // log.trace "searchMusic(${searchPhrase}, ${providerId})"
     if(isCommandTypeAllowed(getCommandTypeForProvider(providerId))) {
         doSearchMusicCmd(searchPhrase, providerId, volume, sleepSeconds)
     } else {
@@ -1540,21 +1558,21 @@ private doSearchMusicCmd(searchPhrase, musicProvId, volume=null, sleepSeconds=nu
 
 private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=null) {
     logger("trace", "playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId | sleepSeconds: $sleepSeconds")
-    if (!searchPhrase || !(searchPhrase?.toString()?.length() > 3)) { log.error 'PlayMusicProvider Searchphrase empty or too short'; return; }
+    if (options?.searchPhrase == "") { log.error 'PlayMusicProvider Searchphrase empty'; return; }
     Map validObj = [
-        type: 'Alexa.Music.PlaySearchPhrase',
+        type: "Alexa.Music.PlaySearchPhrase",
         operationPayload: [
-            deviceType: state?.deviceType as String,
-            deviceSerialNumber: state?.serialNumber as String,
-            customerId: state?.deviceOwnerCustomerId as String,
+            deviceType: state?.deviceType,
+            deviceSerialNumber: state?.serialNumber,
+            customerId: state?.deviceOwnerCustomerId,
             waitTimeInSeconds: sleepSeconds,
             locale: (state?.regionLocale ?: "en-US"),
-            musicProviderId: providerId as String,
-            searchPhrase: searchPhrase as String
+            musicProviderId: providerId,
+            searchPhrase: searchPhrase
         ]
     ]
-    def oJson = new JsonOutput().toJson(validObj)
-    httpPostJson([
+    validObj?.operationPayload = new JsonOutput().toJson(validObj?.operationPayload)
+    sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/operation/validate",
         headers: [
@@ -1563,39 +1581,8 @@ private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=nu
         ],
         requestContentType: "application/json",
         contentType: "application/json",
-        body: oJson
-    ]) { -> resp
-        // def resp = response?.data ? response?.getJson() : null
-        // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
-        // log.warn "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}"
-        if(resp?.status() == 200) {
-            if (!resp?.data || resp?.data?.result != "VALID") {
-                log.error "Amazon the Music Search Request as Invalid | MusicProvider: [${validObj?.operationPayload?.musicProviderId}] | Search Phrase: (${validObj?.operationPayload?.searchPhrase})"
-                return
-            }
-            validObj?.operationPayload = resp?.operationPayload
-            Map seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": validObj]
-            seqJson?.startNode["@type"] = "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"
-            if(volume) {
-                sendMultiSequenceCommand([[command: validObj], [command: "volume", value: volume]], true)
-            } else {
-                sendSequenceCommand("PlayMusicProvider: (${validObj?.operationPayload?.musicProviderId})", seqJson, null)
-            }
-        } else { log.trace "amazonCommandResp | Status: (${resp?.getStatus()}) | Response: ${resp} | PlayMusicValidate(${type}) was Successfully Sent!!!" }
-    }
-
-    // sendAmazonCommand("post", [
-    //     uri: getAmazonUrl(),
-    //     path: "/api/behaviors/operation/validate",
-    //     headers: [
-    //         "cookie": state?.cookie?.cookie,
-    //         "csrf": state?.cookie?.csrf
-    //     ],
-    //     requestContentType: "application/json",
-    //     contentType: "application/json",
-    //     body: validObj
-    // ], [cmdDesc: "PlayMusicValidate(${type})", validObj: validObj, volume: volume])
-
+        body: validObj
+    ], [cmdDesc: "PlayMusicValidate(${providerId})", validObj: validObj, volume: volume])
 }
 
 def setWakeWord(String newWord) {

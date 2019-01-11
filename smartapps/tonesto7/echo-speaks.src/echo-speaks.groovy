@@ -710,8 +710,8 @@ mappings {
     path("/cookie")           { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
 }
 
-String getCookieVal() { return (state?.cookieData && state?.cookieData.localCookie) ? state?.cookieData.localCookie as String : null }
-String getCsrfVal() { return (state?.cookieData && state?.cookieData.csrf) ? state?.cookieData.csrf as String : null }
+String getCookieVal() { return (state?.cookieData && state?.cookieData?.localCookie) ? state?.cookieData?.localCookie as String : null }
+String getCsrfVal() { return (state?.cookieData && state?.cookieData?.csrf) ? state?.cookieData?.csrf as String : null }
 
 def clearCloudConfig() {
     settingUpdate("resetService", "false", "bool")
