@@ -15,7 +15,7 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.1.3" }
+String appVersion()	 { return "2.2.0" }
 String appModified() { return "2019-01-11" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
@@ -64,14 +64,6 @@ def startPage() {
     } else { return mainPage() }
 }
 
-public getDeviceStyle(String family, String type) {
-    if(!state?.appData) { checkVersionData(true) }
-    Map typeData = state?.appData?.deviceSupport ?: [:]
-    if(typeData[type]) {
-        return typeData[type]
-    } else { return [name: "Echo Unknown $type", image: "unknown", allowTTS: false] }
-}
-
 def appInfoSect()	{
     def str = "Author: ${appAuthor()}\nVersion: ${appVersion()}"
     section() {
@@ -107,7 +99,7 @@ def mainPage() {
 
         section(sTS("Application Preferences & Documentation:")) {
             href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
-            href url: documentationLink(), style: "internal", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")
+            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")
         }
 
         if(!newInstall) {
@@ -163,8 +155,13 @@ def devicePrefsPage() {
             } else {
                 Map devs = getDeviceList(true, false)
                 input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
-                paragraph title:"Notice:", "Any Echo devices created by this app will require manual removal, or uninstall the app to remove all devices!\nTo prevent an unwanted device from reinstalling after removal make sure to add it to the Don't use input before removing."
+                paragraph title:"Notice:", "To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use input before removing."
             }
+        }
+        section() {
+            paragraph title:"Notice:", "Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations"
+            input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: "", required: false, defaultValue: false, submitOnChange: true
+            if(cleanUpDevices) { removeDevices() }
         }
     }
 }
@@ -302,105 +299,6 @@ def searchTuneInResultsPage() {
     }
 }
 
-Map sequenceBuilder(cmd, val) {
-    def seqJson = null
-    if (cmd instanceof Map) {
-        seqJson = cmd?.sequence ?: cmd
-    } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = ["behaviorId": seqJson?.sequenceId ? cmd?.automationId : "PREVIEW", "sequenceJson": new JsonOutput().toJson(seqJson), "status": "ENABLED"]
-    return seqObj
-}
-
-Map multiSequenceBuilder(commands, parallel=false) {
-    String seqType = parallel ? "ParallelNode" : "SerialNode"
-    List nodeList = []
-    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.serial, cmdItem?.type, cmdItem?.command, cmdItem?.value)) }
-    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
-    Map seqObj = sequenceBuilder(seqJson, null)
-    return seqObj
-}
-
-Map createSequenceNode(serialNumber, deviceType, command, value) {
-    try {
-        Map seqNode = [
-            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
-            "operationPayload": [
-                "deviceType": deviceType,
-                "deviceSerialNumber": serialNumber,
-                "locale": (settings?.regionLocale ?: "en-US"),
-                "customerId": state?.deviceOwnerCustomerId
-            ]
-        ]
-        switch (command) {
-            case "volume":
-                seqNode?.type = "Alexa.DeviceControls.Volume"
-                seqNode?.operationPayload?.value = value;
-                break
-            case "speak":
-                seqNode?.type = "Alexa.Speak"
-                seqNode?.operationPayload?.textToSpeak = value as String
-                break
-            default:
-                return
-        }
-        // log.debug "seqNode: $seqNode"
-        return seqNode
-    } catch (ex) {
-        log.error "createSequenceNode Exception: $ex"
-        return [:]
-    }
-}
-
-private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
-    if(method && callbackHandler && params) {
-        if(isST()) {
-            include 'asynchttp_v1'
-            def m = method?.toString()?.toLowerCase()
-            asynchttp_v1."${m}"(callbackHandler, params, otherData)
-        } else {
-            def m = method?.toString()?.capitalize()
-            "asynchttp${m}"("${callbackHandler}", params, otherData)
-        }
-    }
-}
-
-private sendAmazonCommand(String method, Map params, Map otherData) {
-    execAsyncCmd(method, "amazonCommandResp", params, otherData)
-}
-
-def amazonCommandResp(response, data) {
-    if(!respIsValid(response, "amazonCommandResp", true)) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
-    def resp = response?.data ? response?.getJson() : null
-    // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
-    if(response?.getStatus() == 200) {
-        log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | (${data?.cmdDesc}) was Successfully Sent!!!"
-    }
-}
-
-private sendSequenceCommand(type, command, value) {
-    // logger("trace", "sendSequenceCommand($type) | command: $command | value: $value")
-    Map seqObj = sequenceBuilder(command, value)
-    sendAmazonCommand("POST", [
-        uri: getAmazonUrl(),
-        path: "/api/behaviors/preview",
-        headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()],
-        requestContentType: "application/json",
-        contentType: "application/json",
-        body: seqObj
-    ], [cmdDesc: "SequenceCommand (${type})"])
-}
-
-private sendMultiSequenceCommand(commands, parallel=false) {
-    String seqType = parallel ? "ParallelNode" : "SerialNode"
-    List nodeList = []
-    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.serial, cmdItem?.type, cmdItem?.command, cmdItem?.value)) }
-    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
-    sendSequenceCommand("MultiSequence", seqJson, null)
-}
-
 def settingsPage() {
     return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
         section(sTS("Logging:")) {
@@ -444,8 +342,12 @@ def showDevSharePrefs() {
         paragraph title: "What is this used for?", "These options send non-user identifiable information and error data to diagnose catch trending issues."
         input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
         if(settings?.optOutMetrics != true) {
-            href url: getAppEndpointUrl("renderMetricData"), style :"embedded", title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
+            href url: getAppEndpointUrl("renderMetricData"), style: (isST() ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
         }
+    }
+    if(optOutMetrics != true && state?.isInstalled && state?.onHeroku && !state?.resumeConfig) {
+        section() { input "sendMetricsNow", "bool", title: inTS("Send Metrics Now?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
+        if(sendMetricsNow) { sendInstallData() }
     }
     state?.shownDevSharePage = true
 }
@@ -688,7 +590,7 @@ def uninstalled() {
     if(settings?.optOutMetrics != true) {
         if(removeInstallData()) { state?.appGuid = null }
     }
-    removeAllDevices()
+    removeDevices(true)
 }
 
 void settingUpdate(name, value, type=null) {
@@ -772,7 +674,8 @@ private appCleanup() {
 
 def onAppTouch(evt) {
     // log.trace "appTouch..."
-    updated()
+    // updated()
+    removeDevices()
 }
 
 private resetQueues() {
@@ -1057,7 +960,7 @@ private getMusicProviders() {
 }
 
 def echoDevicesResponse(response, data) {
-    List ignoreTypes = ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
+    List ignoreTypes = getDeviceTypesMap()?.ignore ?: []
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     if(response?.getStatus() == 401) {
         authEvtHandler(false)
@@ -1071,7 +974,7 @@ def echoDevicesResponse(response, data) {
         if(eDevData?.size()) {
             eDevData?.each { eDevice->
                 String serialNumber = eDevice?.serialNumber;
-                if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.contains("Alexa App")) {
+                if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.contains("Alexa App") && !eDevice?.accountName?.startsWith("This Device")) {
                     removeKeys?.each { rk->
                         eDevice?.remove(rk as String)
                     }
@@ -1099,6 +1002,7 @@ def receiveEventData(Map evtData, String src) {
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
+            Map notRecognized = [:]
             Boolean onHeroku = true
             state?.serviceConfigured = true
             state?.onHeroku = onHeroku
@@ -1116,7 +1020,7 @@ def receiveEventData(Map evtData, String src) {
 
             if (evtData?.echoDevices?.size()) {
                 def execTime = evtData?.execDt ? (now()-evtData?.execDt) : 0
-                log.debug "Device Data Received for (${evtData?.echoDevices?.size()}) Echo Devices${!onHeroku && src ? " [$src]" : ""} | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)"
+                // log.debug "Device Data Received for (${evtData?.echoDevices?.size()}) Total Amazon Devices${!onHeroku && src ? " [$src]" : ""} | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)"
                 Map echoDeviceMap = [:]
                 List curDevFamily = []
                 Integer cnt = 0
@@ -1133,6 +1037,7 @@ def receiveEventData(Map evtData, String src) {
                     // log.debug "deviceStyle: ${echoValue?.deviceStyle}"
 
                     Boolean allowTTS = (echoValue?.deviceStyle?.allowTTS == true)
+                    Boolean isMediaPlayer
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     Map permissions = [:]
                     permissions["TTS"] = allowTTS
@@ -1158,8 +1063,9 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
                     // log.warn "Device Permisions | Name: ${echoValue?.accountName} | $permissions"
-                    if(permissions?.mediaPlayer != true && allowTTS != true && (!(echoValue?.deviceFamily in ["ROOK", "ECHO", "KNIGHT"]))) {
-                        log.warn "IGNORED Device | Name: ${echoValue?.accountName} | Permissions: $permissions"
+                    if(!permissions?.mediaPlayer && !allowTTS && (!(echoValue?.deviceFamily in state?.appData?.deviceFamilies?.echo))) {
+                        notRecognized[echoValue?.deviceType] = [family: echoValue?.deviceFamily, tts: false, volume: permissions?.volumeControl, mediaPlayer: permissions?.mediaPlayer, microphone: permissions?.microphone]
+                        // log.warn "IGNORED Device | Name: ${echoValue?.accountName} | Permissions: $permissions"
                         logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!")
                         return
                     }
@@ -1179,7 +1085,7 @@ def receiveEventData(Map evtData, String src) {
                     def childDevice = getChildDevice(dni)
                     String devLabel = "Echo - ${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
                     String childHandlerName = "Echo Speaks Device"
-                    String hubId = isST() ? settings?.stHub?.getId() : null
+                    String hubId = isST() ? settings?.stHub?.getId() : location?.hubs[0]?.id?.toString()
 
                     if (!childDevice) {
                         // log.debug "childDevice not found | autoCreateDevices: ${settings?.autoCreateDevices}"
@@ -1206,9 +1112,11 @@ def receiveEventData(Map evtData, String src) {
 
                     curDevFamily.push(echoValue?.deviceStyle?.name)
                 }
+                log.debug "Device Data Received for (${echoDeviceMap?.size()}) Alexa Devices${!onHeroku && src ? " [$src]" : ""} | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)"
                 state?.lastDevDataUpd = getDtNow()
                 state?.echoDeviceMap = echoDeviceMap
                 state?.deviceStyleCnts = curDevFamily?.countBy { it }
+                state?.notRecognized = notRecognized
             } else {
                 log.warn "No Echo Device Data Sent... This may be the first transmission from the service after it started up!"
             }
@@ -1239,6 +1147,24 @@ def receiveEventData(Map evtData, String src) {
         log.error "receiveEventData Error:", ex
         incrementCntByKey("appErrorCnt")
     }
+}
+
+public getDeviceStyle(String family, String type) {
+    if(!state?.appData || !state?.appData?.deviceSupport) { checkVersionData(true) }
+    Map typeData = state?.appData?.deviceSupport ?: [:]
+    if(typeData[type]) {
+        return typeData[type]
+    } else { return [name: "Echo Unknown $type", image: "unknown", allowTTS: false] }
+}
+
+public Map getDeviceFamilyMap() {
+    if(!state?.appData || !state?.appData?.deviceFamilies) { checkVersionData(true) }
+    return state?.appData?.deviceFamilies ?: [:]
+}
+
+public Map getDeviceTypesMap() {
+    if(!state?.appData || !state?.appData?.deviceTypes) { checkVersionData(true) }
+    return state?.appData?.deviceTypes ?: [:]
 }
 
 private getDevicesFromSerialList(serialNumberList) {
@@ -1274,10 +1200,11 @@ public sendPlaybackStateToClusterMembers(whaKey, response, data) {
 }
 
 Boolean deviceFamilyAllowed(String family) {
-    if(family in ["ROOK", "KNIGHT", "ECHO"]) { return true }
-    if(settings?.createTablets == true && family == "TABLET") { return true }
-    if(settings?.createWHA == true && family == "WHA") { return true }
-    if(settings?.createOtherDevices == true && !(family in ["DASH_WAND"])) { return true }
+    Map famMap = getDeviceFamilyMap()
+    if(family in famMap?.echo) { return true }
+    if(settings?.createTablets == true && family in fam?.tablet) { return true }
+    if(settings?.createWHA == true && family in famMap?.wha) { return true }
+    if(settings?.createOtherDevices == true && !(family in famMap?.block)) { return true }
     return false
 }
 
@@ -1291,42 +1218,115 @@ public getServiceHostInfo() {
     }
 }
 
-// private echoServiceUpdate() {
-//     // log.trace("echoServiceUpdate")
-//     String host = getServiceHostInfo()
-//     String smartThingsHubIp = settings?.stHub?.getLocalIP()
-//     if(!host) { return }
-
-//     logger("trace", "echoServiceUpdate host: ${host}")
-//     try {
-//         def hubAction = new physicalgraph.device.HubAction(
-//             method: "POST",
-//             headers: [
-//                 "HOST": host,
-//                 "smartThingsHubIp": "${smartThingsHubIp}",
-//                 "refreshSeconds": settings?.refreshSeconds
-//             ],
-//             path: "/updateSettings",
-//             body: ""
-//         )
-//         sendHubCommand(hubAction)
-//     }
-//     catch (Exception e) {
-//         incrementCntByKey("appErrorCnt")
-//         log.error "echoServiceUpdate HubAction Exception, $hubAction", ex
-//     }
-// }
-
-def removeAllDevices() {
+private removeDevices(all=false) {
     try {
-		app.getChildDevices()?.each {
-            if(isST()) {
-                deleteChildDevice(it.deviceNetworkId, true)
-            } else { removeChildDevice(it?.deviceNetworkId, true) }
+        settingUpdate("cleanUpDevices", "false", "bool")
+        List devList = getDeviceList(true, false)?.collect { String dni = [app?.id, "echoSpeaks", it?.key].join("|") }
+        def items = app.getChildDevices()?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : null }
+        log.warn "removeDevices(${all ? "all" : ""}) | In Use: (${all ? 0 : devList?.size()}) | Removing: (${items?.size()})"
+        if(items?.size() > 0) {
+            // delete.each { isST() ? deleteChildDevice(it, true) ? removeChildDevice(it, true) }
         }
+    } catch (ex) { log.error "Device Removal Failed: ", ex }
+}
+
+Map sequenceBuilder(cmd, val) {
+    def seqJson = null
+    if (cmd instanceof Map) {
+        seqJson = cmd?.sequence ?: cmd
+    } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
+    Map seqObj = ["behaviorId": seqJson?.sequenceId ? cmd?.automationId : "PREVIEW", "sequenceJson": new JsonOutput().toJson(seqJson), "status": "ENABLED"]
+    return seqObj
+}
+
+Map multiSequenceBuilder(commands, parallel=false) {
+    String seqType = parallel ? "ParallelNode" : "SerialNode"
+    List nodeList = []
+    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.serial, cmdItem?.type, cmdItem?.command, cmdItem?.value)) }
+    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+    Map seqObj = sequenceBuilder(seqJson, null)
+    return seqObj
+}
+
+Map createSequenceNode(serialNumber, deviceType, command, value) {
+    try {
+        Map seqNode = [
+            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+            "operationPayload": [
+                "deviceType": deviceType,
+                "deviceSerialNumber": serialNumber,
+                "locale": (settings?.regionLocale ?: "en-US"),
+                "customerId": state?.deviceOwnerCustomerId
+            ]
+        ]
+        switch (command) {
+            case "volume":
+                seqNode?.type = "Alexa.DeviceControls.Volume"
+                seqNode?.operationPayload?.value = value;
+                break
+            case "speak":
+                seqNode?.type = "Alexa.Speak"
+                seqNode?.operationPayload?.textToSpeak = value as String
+                break
+            default:
+                return
+        }
+        // log.debug "seqNode: $seqNode"
+        return seqNode
     } catch (ex) {
-        log.error "Device Removal Failed: ", ex
+        log.error "createSequenceNode Exception: $ex"
+        return [:]
     }
+}
+
+private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
+    if(method && callbackHandler && params) {
+        if(isST()) {
+            include 'asynchttp_v1'
+            def m = method?.toString()?.toLowerCase()
+            asynchttp_v1."${m}"(callbackHandler, params, otherData)
+        } else {
+            def m = method?.toString()?.capitalize()
+            "asynchttp${m}"("${callbackHandler}", params, otherData)
+        }
+    }
+}
+
+private sendAmazonCommand(String method, Map params, Map otherData) {
+    execAsyncCmd(method, "amazonCommandResp", params, otherData)
+}
+
+def amazonCommandResp(response, data) {
+    if(!respIsValid(response, "amazonCommandResp", true)) {return}
+    try {} catch (ex) {
+        //handles non-2xx status codes
+    }
+    def resp = response?.data ? response?.getJson() : null
+    // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
+    if(response?.getStatus() == 200) {
+        log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | (${data?.cmdDesc}) was Successfully Sent!!!"
+    }
+}
+
+private sendSequenceCommand(type, command, value) {
+    // logger("trace", "sendSequenceCommand($type) | command: $command | value: $value")
+    Map seqObj = sequenceBuilder(command, value)
+    sendAmazonCommand("POST", [
+        uri: getAmazonUrl(),
+        path: "/api/behaviors/preview",
+        headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json",
+        body: seqObj
+    ], [cmdDesc: "SequenceCommand (${type})"])
+}
+
+private sendMultiSequenceCommand(commands, parallel=false) {
+    String seqType = parallel ? "ParallelNode" : "SerialNode"
+    List nodeList = []
+    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.serial, cmdItem?.type, cmdItem?.command, cmdItem?.value)) }
+    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+    sendSequenceCommand("MultiSequence", seqJson, null)
 }
 
 /******************************************
@@ -1550,7 +1550,7 @@ String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl
 Integer getLastMetricUpdSec() { return !state?.lastMetricUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastMetricUpdDt, "getLastMetricUpdSec").toInteger() }
 Boolean metricsOk() { (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
 private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID().toString() } }
-private sendInstallData() { if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), createMetricsDataJson(), "clients/${state?.appGuid}.json", null, "heartbeat") } }
+private sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), createMetricsDataJson(), "clients/${state?.appGuid}.json", null, "heartbeat") } }
 private removeInstallData() { return removeFirebaseData("clients/${state?.appGuid}.json") }
 private sendFirebaseData(url, data, pathVal, cmdType=null, type=null) {
     logger("trace", "sendFirebaseData(${data}, ${pathVal}, $cmdType, $type", true)
@@ -1630,16 +1630,8 @@ private createMetricsDataJson(rendAsMap=false) {
         Map deviceErrorMap = [:]
         (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { d->
             Map obj = d?.getDeviceMetrics()
-            if(obj?.usage?.size()) {
-                obj?.usage?.each { k,v->
-                    deviceUsageMap[k as String] = (deviceUsageMap[k as String] ? deviceUsageMap[k as String] + v : v)
-                }
-            }
-            if(obj?.errors?.size()) {
-                obj?.errors?.each { k,v->
-                    deviceErrorMap[k as String] = (deviceErrorMap[k as String] ? deviceErrorMap[k as String] + v : v)
-                }
-            }
+            if(obj?.usage?.size()) { obj?.usage?.each { k,v-> deviceUsageMap[k as String] = (deviceUsageMap[k as String] ? deviceUsageMap[k as String] + v : v) } }
+            if(obj?.errors?.size()) { obj?.errors?.each { k,v-> deviceErrorMap[k as String] = (deviceErrorMap[k as String] ? deviceErrorMap[k as String] + v : v) } }
         }
         def dataObj = [
             guid: state?.appGuid,
@@ -1653,6 +1645,7 @@ private createMetricsDataJson(rendAsMap=false) {
             amazonDomain: settings?.amazonDomain,
             serverPlatform: state?.onHeroku ? "Cloud" : "Local",
             versions: [app: appVersion(), server: swVer?.server ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
+            detections: [notRecognized: (state?.notRecognized ?: [:])],
             counts: [
                 deviceStyleCnts: state?.deviceStyleCnts ?: [:],
                 appHeartbeatCnt: state?.appHeartbeatCnt ?: 0,

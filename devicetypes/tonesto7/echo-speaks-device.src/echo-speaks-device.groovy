@@ -15,7 +15,7 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String devVersion()  { return "2.1.3"}
+String devVersion()  { return "2.2.0"}
 String devModified() { return "2019-01-11" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getHubPlatform() == "SmartThings") }
@@ -77,6 +77,7 @@ metadata {
         command "playTellStory", ["number", "number"]
         command "playWelcomeHome", ["number", "number"]
         command "playGoodNight", ["number", "number"]
+        command "playAnnouncement", ["string", "number", "number"]
         command "playAnnouncement", ["string", "string", "number", "number"]
         command "playAnnouncementAll", ["string", "string"]
         command "playCalendarToday", ["number", "number"]
@@ -1154,9 +1155,7 @@ def unmute() {
 }
 
 def setMute(muteState) {
-    if(muteState) {
-        (muteState == "muted") ? mute() : unmute()
-    }
+    if(muteState) { (muteState == "muted") ? mute() : unmute() }
 }
 
 def setLevel(Integer level) {
@@ -1257,7 +1256,7 @@ def deviceNotification(String msg) {
 
 def setVolumeAndSpeak(volume, String msg) {
     logger("trace", "setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
-    if(volume && permissionOk("volumeControl")) {
+    if(volume != null && permissionOk("volumeControl")) {
         state?.useThisVolume = volume
         sendEvent(name: "level", value: volume?.toInteger(), display: false, displayed: false)
         sendEvent(name: "volume", value: volume?.toInteger(), display: false, displayed: false)
@@ -1266,12 +1265,12 @@ def setVolumeAndSpeak(volume, String msg) {
     speak(msg)
 }
 
-def setVolumeSpeakAndRestore(Integer volume, String msg, restVolume=null) {
+def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     logger("trace", "setVolumeSpeakAndRestore(volume: $volume, msg: $msg, restVolume) command received...")
     if(msg) {
-        if(volume && permissionOk("volumeControl")) {
+        if(volume != null && permissionOk("volumeControl")) {
             state?.useThisVolume = volume?.toInteger()
-            if(restVolume) {
+            if(restVolume != null) {
                 state?.lastVolume = restVolume as Integer
             } else { storeCurrentVolume() }
             sendEvent(name: "level", value: volume?.toInteger(), display: false, displayed: false)
@@ -1309,27 +1308,27 @@ def speak(String msg) {
 }
 
 def playWeather(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "weather"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("WeatherCommand", "weather") }
     incrementCntByKey("use_cnt_playWeather")
 }
 
 def playTraffic(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "traffic"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("TrafficCommand", "traffic") }
     incrementCntByKey("use_cnt_playTraffic")
 }
 
 def playSingASong(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "singasong"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("SingCommand", "singasong") }
     incrementCntByKey("use_cnt_playSong")
@@ -1337,9 +1336,9 @@ def playSingASong(volume=null, restoreVolume=null) {
 
 def playFlashBrief(volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("flashBriefing")) {
-        if(volume) {
+        if(volume != null) {
             List seqs = [[command: "volume", value: volume], [command: "flashbriefing"]]
-            if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
             sendMultiSequenceCommand(seqs)
         } else { doSequenceCmd("FlashCommand", "flashbriefing") }
         incrementCntByKey("use_cnt_playBrief")
@@ -1347,93 +1346,100 @@ def playFlashBrief(volume=null, restoreVolume=null) {
 }
 
 def playWelcomeHome(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "welcomehomerandom"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("WelcomeHomeCommand", "welcomehomerandom") }
     incrementCntByKey("use_cnt_playWelcomeHome")
 }
 
 def playGoodNight(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "goodnight"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("GoodNightCommand", "goodnight") }
     incrementCntByKey("use_cnt_playGoodNight")
 }
 
 def playGoodMorning(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "goodmorning"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("GoodMorningCommand", "goodmorning") }
     incrementCntByKey("use_cnt_playGoodMorning")
 }
 
 def playTellStory(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "tellstory"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("StoryCommand", "tellstory") }
     incrementCntByKey("use_cnt_playStory")
 }
 
 def playFunFact(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "funfact"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("FunFactCommand", "funfact") }
     incrementCntByKey("use_cnt_funfact")
 }
 
 def playJoke(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "joke"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("JokeCommand", "joke") }
     incrementCntByKey("use_cnt_joke")
 }
 
 def playCalendarToday(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "calendartoday"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("CalendarTodayCommand", "calendartoday") }
     incrementCntByKey("use_cnt_calendarToday")
 }
 
 def playCalendarTomorrow(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "calendartomorrow"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("CalendarTomorrowCommand", "calendartomorrow") }
     incrementCntByKey("use_cnt_calendarTomorrow")
 }
 
 def playCalendarNext(volume=null, restoreVolume=null) {
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "calendarnext"]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("CalendarNextCommand", "calendarnext") }
     incrementCntByKey("use_cnt_calendarNext")
 }
 
-
+def playAnnouncement(String msg, volume=null, restoreVolume=null) {
+    if(volume != null) {
+        List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("Announcement", "announcement", msg) }
+    incrementCntByKey("use_cnt_announcement")
+}
 
 def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
     msg = "${title ? "${title}::" : ""}${msg}"
-    if(volume) {
+    if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
-        if(restoreVolume) { seqs?.push([command: "volume", value: restoreVolume]) }
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("Announcement", "announcement", msg) }
     incrementCntByKey("use_cnt_announcement")
@@ -1714,8 +1720,11 @@ def playTrackAndResume(uri, duration, volume=null) {
 }
 
 def playTextAndResume(text, volume=null) {
-    log.warn "Uh-Oh... The playTextAndResume(text: $text, volume: $volume) Command is NOT Supported by this Device!!!"
-    speak(text as String)
+    logger("trace", "The playTextAndResume(text: $text, volume: $volume) command received...")
+    def restVolume = device?.currentValue("level")?.toInteger()
+	if (volume != null) {
+		setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
+    } else { speak(text as String) }
 }
 
 def playTrackAndRestore(uri, duration, volume=null) {
@@ -1723,8 +1732,11 @@ def playTrackAndRestore(uri, duration, volume=null) {
 }
 
 def playTextAndRestore(text, volume=null) {
-    logger("trace", "playTextAndRestore(text: $text, volume: $volume) command received...")
-    speak(text as String)
+    logger("trace", "The playTextAndRestore(text: $text, volume: $volume) command received...")
+    def restVolume = device?.currentValue("level")?.toInteger()
+	if (volume != null) {
+		setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
+    } else { speak(text as String) }
 }
 
 def playURL(theURL) {
