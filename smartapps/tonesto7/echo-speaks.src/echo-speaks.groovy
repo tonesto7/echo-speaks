@@ -49,6 +49,8 @@ preferences {
     page(name: "musicSearchTestPage")
     page(name: "searchTuneInResultsPage")
     page(name: "broadcastTestPage")
+    page(name: "deviceCmdTestPage")
+    page(name: "deviceCmdTestPage2")
     page(name: "setNotificationTimePage")
     page(name: "uninstallPage")
 }
@@ -110,6 +112,7 @@ def mainPage() {
             section(sTS("Experimental Functions:")) {
                 href "broadcastTestPage", title: inTS("Broadcast Test Page", getAppImg("broadcast", true)), description: "Tap to proceed...", image: getAppImg("broadcast")
                 href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Tap to proceed...", image: getAppImg("music")
+                href "deviceCmdTestPage", title: inTS("Device Command Tests", getAppImg("devices", true)), description: "Tap to proceed...", image: getAppImg("devices")
             }
             if(!state?.shownDevSharePage) { showDevSharePrefs() }
             section(sTS("Donations:")) {
@@ -122,24 +125,6 @@ def mainPage() {
             }
         }
     }
-}
-
-String getAppImg(String imgName, frc=false) {
-    return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : ""
-}
-String getPublicImg(String imgName) {
-    return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : ""
-}
-
-String sTS(String t, String i = null) 	{
-    return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>"""
-}
-String inTS(String t, String i = null) {
-    return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>"""
-}
-
-String pTS(String t, String i = null) 	{
-    return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>"""
 }
 
 def devicePrefsPage() {
@@ -261,6 +246,94 @@ def musicSearchTestPage() {
             if(settings?.tuneinSearchQuery) {
                 href "searchTuneInResultsPage", title: inTS("View search results!", getAppImg("search2", true)), description: "Tap to proceed...", image: getAppImg("search2")
             }
+        }
+    }
+}
+
+def deviceCmdTestPage() {
+    return dynamicPage(name: "deviceCmdTestPage", uninstall: false, install: false) {
+        section(sTS("Test Device Commands:")) {
+            paragraph "Use this to test any commands directly on a device.", state: "complete"
+            input "echoTestDevice", "device.EchoSpeaksDevice", title: inTS("Select a Device to Test Music Search", getAppImg("echo_speaks.1x", true)), description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks.1x")
+            if(echoTestDevice) {
+                List supCmds = echoTestDevice?.supportedCommands?.collect{ it?.name as String}?.sort()?.unique() ?: []
+                input "echoTestDeviceCmd", "enum", title: inTS("Select the command to execute", getAppImg("command", true)), defaultValue: null, multiple: false, required: false, options: supCmds, submitOnChange: true, image: getAppImg("command")
+                if(echoTestDeviceCmd) {
+                    def supAttrs = echoTestDevice?.supportedCommands?.find { it?.name?.toString() == settings?.echoTestDeviceCmd?.toString() }?.collect{ it?.arguments ? it?.arguments.toString()?.toLowerCase()?.replaceAll("\\[|\\]", "") : null }?.sort()?.unique() ?: []
+                    state?.echoTestDeviceCmdAttrs = supAttrs[0]?.split(", ")
+                    log.debug "supAttrs: ${state?.echoTestDeviceCmdAttrs} | cnt: (${state?.echoTestDeviceCmdAttrs?.size()})"
+                    href "deviceCmdTestPage2", title: pTS("Configure parameters and execute"), description: "Tap to proceed", state: "complete"
+                }
+            }
+        }
+    }
+}
+
+def deviceCmdTestPage2() {
+    return dynamicPage(name: "deviceCmdTestPage2", uninstall: false, install: false) {
+        def attrs = state?.echoTestDeviceCmdAttrs
+         section(sTS("${settings?.echoTestDeviceCmd} Parameters (${attrs?.size()}):")) {
+            if(attrs?.size()) {
+                attrs?.eachWithIndex { attr, n ->
+                    input "echoTestDeviceCmd_attr${n}", (attr == "number" ? "text" : "string"), title: inTS("Parameter (${n}) | (${attr})"), description: "enter a ${attr} value", defaultValue: null, required: false, submitOnChange: true, image: getAppImg("command")
+                }
+            } else {
+                paragraph "Command doesn't require parameters"
+            }
+            if(settings?.echoTestDevice) {
+                input "executeEchoDeviceTest", "bool", title: inTS("Perform the Command Test ?", getAppImg("command", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("command")
+                if(executeEchoDeviceTest) { executeCommandTest() }
+            }
+        }
+
+    }
+}
+
+def castByType(type, value) {
+    if(type == "number") {
+        return value as Integer
+    } else {
+        return value as String
+    }
+}
+
+private executeCommandTest() {
+    settingUpdate("executeEchoDeviceTest", "false", "bool")
+    if(settings?.echoTestDevice && settings?.echoTestDeviceCmd) {
+        Map params = [:]
+        def attrs = state?.echoTestDeviceCmdAttrs
+        if(attrs?.size()) {
+            attrs?.eachWithIndex { attr, n ->
+                if(settings?."echoTestDeviceCmd_attr${n}" != null) {
+                    params[n] = [:]
+                    params[n]?.type = attr
+                    params[n]?.value = settings?."echoTestDeviceCmd_attr${n}"
+                }
+            }
+            if(params?.size()) {
+                switch(params?.size()) {
+                    case 1:
+                        settings?.echoTestDevice?."$method"(castByType(params[0]?.type, params[0]?.value))
+                        break
+                    case 2:
+                        settings?.echoTestDevice?."$method"(castByType(params[0]?.type, params[0]?.value), castByType(params[1]?.type, params[1]?.value))
+                        break
+                    case 3:
+                        settings?.echoTestDevice?."$method"(castByType(params[0]?.type, params[0]?.value), castByType(params[1]?.type, params[1]?.value), castByType(params[2]?.type, params[2]?.value))
+                        break
+                    case 4:
+                        settings?.echoTestDevice?."$method"(castByType(params[0]?.type, params[0]?.value), castByType(params[1]?.type, params[1]?.value), castByType(params[2]?.type, params[2]?.value), castByType(params[3]?.type, params[3]?.value))
+                        break
+                    case 5:
+                        settings?.echoTestDevice?."$method"(castByType(params[0]?.type, params[0]?.value), castByType(params[1]?.type, params[1]?.value), castByType(params[2]?.type, params[2]?.value), castByType(params[3]?.type, params[3]?.value), castByType(params[4]?.type, params[4]?.value))
+                        break
+                    default:
+                        settings?.echoTestDevice?."$method"()
+                        break
+                }
+            }
+        } else {
+            settings?.echoTestDevice?."$method"()
         }
     }
 }
@@ -443,17 +516,15 @@ def servPrefPage() {
                 }
             }
             if(state?.onHeroku && state?.authValid) {
-                section() {
-                    input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                }
+                section() { input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
             }
             if(settings?.refreshCookie == true) { runCookieRefresh() }
             section(sTS("Reset Options:"), hideable:true, hidden: true) {
-                input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all traces of the current service info and allow you to redeploy or reconfigure a new instance.\nLeave the page and come back after toggling.",
+                input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current service and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
                     required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.resetService == true) { clearCloudConfig() }
-                if(settings?.resetCookies == true) { clearCookieData() }
+                if(settings?.resetService) { clearCloudConfig() }
+                if(settings?.resetCookies) { clearCookieData() }
             }
         }
     }
@@ -1504,6 +1575,13 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     }
     return sent
 }
+
+String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
+String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>""" }
+String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>""" }
+String pTS(String t, String i = null) { return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>""" }
+
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
@@ -1865,7 +1943,7 @@ String getServiceConfDesc() {
     String str = ""
     str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""}Heroku Info:" : ""
     str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""} • Name: ${state?.generatedHerokuName}" : ""
-    str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Domain : (${settings?.amazonDomain})" : ""
+    str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Domain: (${settings?.amazonDomain})" : ""
     return str != "" ? str : null
 }
 
