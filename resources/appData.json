@@ -1,188 +1,198 @@
 {
-    "versions": {
-        "mainApp": {
-            "ver": "2.1.2"
-        },
-        "echoDevice": {
-            "ver": "2.1.2"
-        },
-        "server": {
-            "ver": "2.1.0"
-        }
+  "versions": {
+    "mainApp": {
+      "ver": "2.2.0"
     },
-    "settings": {
-        "installNotif": true,
-        "updateNotif": true,
-        "sendMetrics": true,
-        "database": {
-            "metricsUrl": "https://echo-speaks-metrics.firebaseio.com/"
-        }
+    "echoDevice": {
+      "ver": "2.2.0"
     },
-    "deviceSupport": {
-        "A1JJ0KFC4ZPNJ3": {
-            "name": "Echo Input",
-            "image": "echo_input",
-            "allowTTS": true
-        },
-        "A38949IHXHRQ5P": {
-            "name": "Echo Tap",
-            "image": "echo_tap",
-            "allowTTS": true
-        },
-        "AB72C64C86AW2": {
-            "name": "Echo (Gen1)",
-            "image": "echo_gen1",
-            "allowTTS": true
-        },
-        "A7WXQPH584YP": {
-            "name": "Echo (Gen2)",
-            "image": "echo_gen2",
-            "allowTTS": true
-        },
-        "A2M35JJZWCQOMZ": {
-            "name": "Echo Plus (Gen1)",
-            "image": "echo_plus_gen1",
-            "allowTTS": true
-        },
-        "A18O6U1UQFJ0XK": {
-            "name": "Echo Plus (Gen2)",
-            "image": "echo_plus_gen2",
-            "allowTTS": true
-        },
-        "A1NL4BVLQ4L3N3": {
-            "name": "Echo Show (Gen1)",
-            "image": "echo_show_gen1",
-            "allowTTS": true
-        },
-        "AWZZ5CVHX2CD": {
-            "name": "Echo Show (Gen2)",
-            "image": "echo_show_gen2",
-            "allowTTS": true
-        },
-        "AKNO1N0KSFN8L": {
-            "name": "Echo Dot (Gen1)",
-            "image": "echo_dot_gen1",
-            "allowTTS": true
-        },
-        "A3S5BH2HU6VAYF": {
-            "name": "Echo Dot (Gen2)",
-            "image": "echo_dot_gen2",
-            "allowTTS": true
-        },
-        "A32DOYMUN6DTXA": {
-            "name": "Echo Dot (Gen3)",
-            "image": "echo_dot_gen3",
-            "allowTTS": true
-        },
-        "A10A33FOX2NUBK": {
-            "name": "Echo Spot",
-            "image": "echo_spot_gen1",
-            "allowTTS": true
-        },
-        "A3SSG6GR8UU7SN": {
-            "name": "Echo Sub",
-            "image": "echo_sub_gen1",
-            "allowTTS": true
-        },
-        "A12GXV8XMS007S": {
-            "name": "Fire TV (Gen1)",
-            "image": "firetv_gen1",
-            "allowTTS": true
-        },
-        "A2E0SNTXJVT7WK": {
-            "name": "Fire TV (Gen2)",
-            "image": "firetv_gen1",
-            "allowTTS": true
-        },
-        "A2GFL5ZMWNE0PX": {
-            "name": "Fire TV (Gen3)",
-            "image": "firetv_gen1",
-            "allowTTS": true
-        },
-        "ADVBD696BHNV5": {
-            "name": "Fire TV Stick (Gen1)",
-            "image": "firetv_stick_gen1",
-            "allowTTS": true
-        },
-        "A2LWARUGJLBYEW": {
-            "name": "Fire TV Stick (Gen2)",
-            "image": "firetv_stick_gen1",
-            "allowTTS": true
-        },
-        "AKPGW064GI9HE": {
-            "name": "Fire TV Stick 4K (Gen3)",
-            "image": "firetv_stick_gen1",
-            "allowTTS": true
-        },
-        "A3HF4YRA2L7XGC": {
-            "name": "Fire TV Cube",
-            "image": "firetv_cube",
-            "allowTTS": true
-        },
-        "A2M4YX06LWP8WI": {
-            "name": "Fire Tablet",
-            "image": "amazon_tablet",
-            "allowTTS": true
-        },
-        "A1J16TEDOYCZTN": {
-            "name": "Fire Tablet",
-            "image": "amazon_tablet",
-            "allowTTS": true
-        },
-        "A1M0A9L9HDBID3": {
-            "name": "One-Link Safe and Sound",
-            "image": "one-link",
-            "allowTTS": true
-        },
-        "A38EHHIB10L47V": {
-            "name": "Fire Tablet HD 8",
-            "image": "tablet_hd10",
-            "allowTTS": true
-        },
-        "A3R9S4ZZECZ6YL": {
-            "name": "Fire Tablet HD 10",
-            "image": "tablet_hd10",
-            "allowTTS": true
-        },
-        "A3C9PE6TNYLTCH": {
-            "name": "Multiroom",
-            "image": "echo_wha",
-            "allowTTS": false
-        },
-        "A15ERDAKK5HQQG": {
-            "name": "Sonos",
-            "image": "sonos_generic",
-            "allowTTS": false
-        },
-        "A2OSP3UA4VC85F": {
-            "name": "Sonos",
-            "image": "sonos_generic",
-            "allowTTS": false
-        },
-        "A3NPD82ABCPIDP": {
-            "name": "Sonos Beam",
-            "image": "sonos_beam",
-            "allowTTS": true
-        },
-        "A18BI6KPKDOEI4": {
-            "name": "Ecobee4",
-            "image": "ecobee4",
-            "allowTTS": true
-        },
-        "A1N9SW0I0LUX5Y": {
-            "name": "Dash Wand",
-            "image": "dash_wand",
-            "allowTTS": false
-        },
-        "A1C66CX2XD756O": {
-            "name": "Fire Tablet HD",
-            "image": "amazon_tablet",
-            "allowTTS": true
-        },
-        "A1RTAM01W29CUP": {
-            "name": "Alexa App - Windows 10",
-            "image": "alexa_windows",
-            "allowTTS": true
-        }
+    "server": {
+      "ver": "2.1.2"
     }
+  },
+  "settings": {
+    "installNotif": true,
+    "updateNotif": true,
+    "sendMetrics": true,
+    "database": {
+      "metricsUrl": "https://echo-speaks-metrics.firebaseio.com/"
+    }
+  },
+  "deviceTypes": {
+    "ignore": ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
+  },
+  "deviceFamilies": {
+    "echo": ["ROOK", "KNIGHT", "ECHO"],
+    "tablet": ["TABLET"],
+    "wha": ["WHA"],
+    "other": ["REAPER"],
+    "block": ["DASH_WAND"]
+  },
+  "deviceSupport": {
+    "A1JJ0KFC4ZPNJ3": {
+      "name": "Echo Input",
+      "image": "echo_input",
+      "allowTTS": true
+    },
+    "A38949IHXHRQ5P": {
+      "name": "Echo Tap",
+      "image": "echo_tap",
+      "allowTTS": true
+    },
+    "AB72C64C86AW2": {
+      "name": "Echo (Gen1)",
+      "image": "echo_gen1",
+      "allowTTS": true
+    },
+    "A7WXQPH584YP": {
+      "name": "Echo (Gen2)",
+      "image": "echo_gen2",
+      "allowTTS": true
+    },
+    "A2M35JJZWCQOMZ": {
+      "name": "Echo Plus (Gen1)",
+      "image": "echo_plus_gen1",
+      "allowTTS": true
+    },
+    "A18O6U1UQFJ0XK": {
+      "name": "Echo Plus (Gen2)",
+      "image": "echo_plus_gen2",
+      "allowTTS": true
+    },
+    "A1NL4BVLQ4L3N3": {
+      "name": "Echo Show (Gen1)",
+      "image": "echo_show_gen1",
+      "allowTTS": true
+    },
+    "AWZZ5CVHX2CD": {
+      "name": "Echo Show (Gen2)",
+      "image": "echo_show_gen2",
+      "allowTTS": true
+    },
+    "AKNO1N0KSFN8L": {
+      "name": "Echo Dot (Gen1)",
+      "image": "echo_dot_gen1",
+      "allowTTS": true
+    },
+    "A3S5BH2HU6VAYF": {
+      "name": "Echo Dot (Gen2)",
+      "image": "echo_dot_gen2",
+      "allowTTS": true
+    },
+    "A32DOYMUN6DTXA": {
+      "name": "Echo Dot (Gen3)",
+      "image": "echo_dot_gen3",
+      "allowTTS": true
+    },
+    "A10A33FOX2NUBK": {
+      "name": "Echo Spot",
+      "image": "echo_spot_gen1",
+      "allowTTS": true
+    },
+    "A3SSG6GR8UU7SN": {
+      "name": "Echo Sub",
+      "image": "echo_sub_gen1",
+      "allowTTS": true
+    },
+    "A12GXV8XMS007S": {
+      "name": "Fire TV (Gen1)",
+      "image": "firetv_gen1",
+      "allowTTS": true
+    },
+    "A2E0SNTXJVT7WK": {
+      "name": "Fire TV (Gen2)",
+      "image": "firetv_gen1",
+      "allowTTS": true
+    },
+    "A2GFL5ZMWNE0PX": {
+      "name": "Fire TV (Gen3)",
+      "image": "firetv_gen1",
+      "allowTTS": true
+    },
+    "ADVBD696BHNV5": {
+      "name": "Fire TV Stick (Gen1)",
+      "image": "firetv_stick_gen1",
+      "allowTTS": true
+    },
+    "A2LWARUGJLBYEW": {
+      "name": "Fire TV Stick (Gen2)",
+      "image": "firetv_stick_gen1",
+      "allowTTS": true
+    },
+    "AKPGW064GI9HE": {
+      "name": "Fire TV Stick 4K (Gen3)",
+      "image": "firetv_stick_gen1",
+      "allowTTS": true
+    },
+    "A3HF4YRA2L7XGC": {
+      "name": "Fire TV Cube",
+      "image": "firetv_cube",
+      "allowTTS": true
+    },
+    "A2M4YX06LWP8WI": {
+      "name": "Fire Tablet",
+      "image": "amazon_tablet",
+      "allowTTS": true
+    },
+    "A1J16TEDOYCZTN": {
+      "name": "Fire Tablet",
+      "image": "amazon_tablet",
+      "allowTTS": true
+    },
+    "A1M0A9L9HDBID3": {
+      "name": "One-Link Safe and Sound",
+      "image": "one-link",
+      "allowTTS": true
+    },
+    "A38EHHIB10L47V": {
+      "name": "Fire Tablet HD 8",
+      "image": "tablet_hd10",
+      "allowTTS": true
+    },
+    "A3R9S4ZZECZ6YL": {
+      "name": "Fire Tablet HD 10",
+      "image": "tablet_hd10",
+      "allowTTS": true
+    },
+    "A3C9PE6TNYLTCH": {
+      "name": "Multiroom",
+      "image": "echo_wha",
+      "allowTTS": false
+    },
+    "A15ERDAKK5HQQG": {
+      "name": "Sonos",
+      "image": "sonos_generic",
+      "allowTTS": false
+    },
+    "A2OSP3UA4VC85F": {
+      "name": "Sonos",
+      "image": "sonos_generic",
+      "allowTTS": false
+    },
+    "A3NPD82ABCPIDP": {
+      "name": "Sonos Beam",
+      "image": "sonos_beam",
+      "allowTTS": true
+    },
+    "A18BI6KPKDOEI4": {
+      "name": "Ecobee4",
+      "image": "ecobee4",
+      "allowTTS": true
+    },
+    "A1N9SW0I0LUX5Y": {
+      "name": "Dash Wand",
+      "image": "dash_wand",
+      "allowTTS": false
+    },
+    "A1C66CX2XD756O": {
+      "name": "Fire Tablet HD",
+      "image": "amazon_tablet",
+      "allowTTS": true
+    },
+    "A1RTAM01W29CUP": {
+      "name": "Alexa App - Windows 10",
+      "image": "alexa_windows",
+      "allowTTS": true
+    }
+  }
 }
