@@ -93,6 +93,7 @@ metadata {
         command "searchSpotify", ["string", "number", "number"]
         command "searchTuneIn", ["string", "number", "number"]
         command "sendAlexaAppNotification", ["string"]
+        command "executeRoutineId", ["string"]
         command "createAlarm", ["string", "string", "string"]
         command "createReminder", ["string", "string", "string"]
         command "removeNotification", ["string"]
@@ -1307,6 +1308,16 @@ def speak(String msg) {
     }
 }
 
+def executeRoutineId(String rId) {
+    def execDt = now()
+    logger("trace", "executeRoutineId($rId) command received...")
+    if(!rId) { log.warn "No Routine ID sent with executeRoutineId($rId) command" }
+    if(parent?.executeRoutineById(rId as String)) {
+        log.debug "Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${rId}"
+        incrementCntByKey("use_cnt_executeRoutine")
+    }
+}
+
 def playWeather(volume=null, restoreVolume=null) {
     if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "weather"]]
@@ -1445,7 +1456,7 @@ def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) 
     incrementCntByKey("use_cnt_announcement")
 }
 
-def playAnnouncementAll(String msg, String title) {
+def playAnnouncementAll(String msg, String title=null) {
     msg = "${title ? "${title}::" : ""}${msg}"
     doSequenceCmd("AnnouncementAll", "announcementall", msg)
     incrementCntByKey("use_cnt_announcementAll")
@@ -2166,7 +2177,6 @@ Map sequenceBuilder(cmd, val) {
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    String t1 = new JsonOutput().toJson(seqJson)
     Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new JsonOutput().toJson(seqJson) as String, status: "ENABLED"]
     return seqObj
 }

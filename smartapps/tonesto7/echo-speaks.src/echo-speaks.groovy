@@ -746,7 +746,7 @@ private appCleanup() {
 def onAppTouch(evt) {
     // log.trace "appTouch..."
     // updated()
-    removeDevices()
+    executeRoutineById("amzn1.alexa.automation.fc6f6e48-10e1-4d34-8c4f-a1a2421680b1")
 }
 
 private resetQueues() {
@@ -1030,6 +1030,46 @@ private getMusicProviders() {
     return items
 }
 
+private getRoutines(autoId=null, limit=2000) {
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
+        query: [ limit: limit ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json"
+    ]
+    Map items = [:]
+    def routineResp = makeSyncronousReq(params, "get", "getRoutinesHandler") ?: [:]
+    // log.debug "routineResp: $routineResp"
+    if(routineResp) {
+        if(autoId) {
+            return routineResp
+        } else {
+            if(routineResp?.size()) {
+                routineResp?.findAll { it?.status == "ENABLED" }?.each { item->
+                    items[item?.automationId] = item?.name
+                }
+            }
+        }
+    }
+    // log.debug "routine items: $items"
+    return items
+}
+
+def executeRoutineById(String routineId) {
+    def execDt = now()
+    Map routineData = getRoutines(routineId)
+    if(routineData && routineData?.sequence) {
+        sendSequenceCommand("ExecuteRoutine", routineData, null)
+        // log.debug "Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${routineId}"
+        return true
+    } else {
+        log.debug "No Routine Data Returned for ID: (${routineId})"
+        return false
+    }
+}
+
 def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: []
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
@@ -1306,7 +1346,7 @@ Map sequenceBuilder(cmd, val) {
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = ["behaviorId": seqJson?.sequenceId ? cmd?.automationId : "PREVIEW", "sequenceJson": new JsonOutput().toJson(seqJson), "status": "ENABLED"]
+    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new JsonOutput().toJson(seqJson) as String, status: "ENABLED"]
     return seqObj
 }
 
@@ -1352,14 +1392,11 @@ Map createSequenceNode(serialNumber, deviceType, command, value) {
 
 private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
     if(method && callbackHandler && params) {
+        String m = method?.toString()?.toLowerCase()
         if(isST()) {
             include 'asynchttp_v1'
-            def m = method?.toString()?.toLowerCase()
             asynchttp_v1."${m}"(callbackHandler, params, otherData)
-        } else {
-            def m = method?.toString()?.capitalize()
-            "asynchttp${m}"("${callbackHandler}", params, otherData)
-        }
+        } else { "asynchttp${m?.capitalize()}"("${callbackHandler}", params, otherData) }
     }
 }
 
@@ -1382,7 +1419,7 @@ def amazonCommandResp(response, data) {
 private sendSequenceCommand(type, command, value) {
     // logger("trace", "sendSequenceCommand($type) | command: $command | value: $value")
     Map seqObj = sequenceBuilder(command, value)
-    sendAmazonCommand("POST", [
+    sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
         headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()],
