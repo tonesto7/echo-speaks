@@ -16,9 +16,9 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.2.0" }
-String appModified() { return "2019-01-11" }
+String appModified()  { return "2019-01-11" }
 String appAuthor()   { return "Anthony S." }
-Boolean isBeta()     { return false }
+Boolean isBeta()     { return true }
 Boolean isST()       { return (getHubPlatform() == "SmartThings") }
 Map minVersions()    { return [echoDevice: 213, server: 212] } //These values define the minimum versions of code this app will work with.
 
@@ -28,9 +28,9 @@ definition(
     author     : "Anthony Santilli",
     description: "Allow you to create virtual echo devices and send tts to them in SmartThings",
     category   : "My Apps",
-    iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png", //getAppImg("echo_speaks.1x"),
-    iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x.png", //getAppImg("echo_speaks.2x"),
-    iconX3Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x.png",//getAppImg("echo_speaks.3x"),
+    iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
+    iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x.png",
+    iconX3Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x.png",
     pausable   : true,
     oauth      : true
 )
@@ -143,10 +143,12 @@ def devicePrefsPage() {
                 paragraph title:"Notice:", "To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use input before removing."
             }
         }
-        section() {
-            paragraph title:"Notice:", "Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations"
-            input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: "", required: false, defaultValue: false, submitOnChange: true
-            if(cleanUpDevices) { removeDevices() }
+        if(state?.isInstalled && !state?.resumeConfig) {
+            section() {
+                paragraph title:"Notice:", "Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations"
+                input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: "", required: false, defaultValue: false, submitOnChange: true
+                if(cleanUpDevices) { removeDevices() }
+            }
         }
     }
 }
@@ -256,12 +258,16 @@ def deviceCmdTestPage() {
             paragraph "Use this to test any commands directly on a device.", state: "complete"
             input "echoTestDevice", "device.EchoSpeaksDevice", title: inTS("Select a Device to Test Music Search", getAppImg("echo_speaks.1x", true)), description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks.1x")
             if(echoTestDevice) {
-                List supCmds = echoTestDevice?.supportedCommands?.collect{ it?.name as String}?.sort()?.unique() ?: []
+                List supCmds = echoTestDevice?.getSupportedCommands()?.sort() ?: []
                 input "echoTestDeviceCmd", "enum", title: inTS("Select the command to execute", getAppImg("command", true)), defaultValue: null, multiple: false, required: false, options: supCmds, submitOnChange: true, image: getAppImg("command")
                 if(echoTestDeviceCmd) {
-                    def supAttrs = echoTestDevice?.supportedCommands?.find { it?.name?.toString() == settings?.echoTestDeviceCmd?.toString() }?.collect{ it?.arguments ? it?.arguments.toString()?.toLowerCase()?.replaceAll("\\[|\\]", "") : null }?.sort()?.unique() ?: []
-                    state?.echoTestDeviceCmdAttrs = supAttrs[0]?.split(", ")
-                    log.debug "supAttrs: ${state?.echoTestDeviceCmdAttrs} | cnt: (${state?.echoTestDeviceCmdAttrs?.size()})"
+                    List supAttrs = echoTestDevice?.getSupportedCommands()?.find { it?.name?.toString() == settings?.echoTestDeviceCmd?.toString() }?.getArguments()?.collect { it ? it?.toString()?.toLowerCase()?.replaceAll("\\[|\\]", "") : null } ?: []
+                    log.debug "supAttrs: ${supAttrs} | cnt: (${supAttrs?.size()})"
+                    // Map cmdObj = [:]
+                    // cmdObj[settings?.echoTestDeviceCmd] = [:]
+                    // cmdObj[settings?.echoTestDeviceCmd]["params"] = [:]
+                    // supAttrs?.eachWithIndex { it, i ->  cmdObj[settings?.echoTestDeviceCmd]["params"][i] = it}
+                    state?.echoTestDeviceCmdAttrs = supAttrs
                     href "deviceCmdTestPage2", title: pTS("Configure parameters and execute"), description: "Tap to proceed", state: "complete"
                 }
             }
@@ -310,6 +316,7 @@ private executeCommandTest() {
                     params[n]?.value = settings?."echoTestDeviceCmd_attr${n}"
                 }
             }
+            log.debug "params: $params"
             if(params?.size()) {
                 switch(params?.size()) {
                     case 1:
@@ -661,6 +668,8 @@ def uninstalled() {
     if(settings?.optOutMetrics != true) {
         if(removeInstallData()) { state?.appGuid = null }
     }
+    clearCloudConfig()
+    clearCookieData()
     removeDevices(true)
 }
 
@@ -700,13 +709,13 @@ def clearCloudConfig() {
 String getEnvParamsStr() {
     Map envParams = [:]
     envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
-    envParams["appEndpointUrl"] = "${getAppEndpointUrl("receiveData")}"
+    envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["hubPlatform"] = "${getHubPlatform()}"
     envParams["useHeroku"] = (settings?.useHeroku == true) ? "true" : "false"
     envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
     envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
-    envParams["amazonDomain"] = settings?.amazonDomain as String
-    envParams["regionLocale"] = settings?.regionLocale as String
+    envParams["amazonDomain"] = settings?.amazonDomain as String ?: "amazon.com"
+    envParams["regionLocale"] = settings?.regionLocale as String ?: "en-US"
     envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com"
     // envParams["HEROKU_APP_NAME"] = "${getRandAppName()}"
     String envs = ""
@@ -745,8 +754,7 @@ private appCleanup() {
 
 def onAppTouch(evt) {
     // log.trace "appTouch..."
-    // updated()
-    executeRoutineById("amzn1.alexa.automation.fc6f6e48-10e1-4d34-8c4f-a1a2421680b1")
+    updated()
 }
 
 private resetQueues() {
@@ -1196,8 +1204,7 @@ def receiveEventData(Map evtData, String src) {
                     def childDevice = getChildDevice(dni)
                     String devLabel = "Echo - ${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
                     String childHandlerName = "Echo Speaks Device"
-                    String hubId = isST() ? settings?.stHub?.getId() : location?.hubs[0]?.id?.toString()
-
+                    String hubId = isST() ? settings?.stHub?.getId() : null//location?.hubs[0]?.getId()
                     if (!childDevice) {
                         // log.debug "childDevice not found | autoCreateDevices: ${settings?.autoCreateDevices}"
                         if(settings?.autoCreateDevices != false) {
@@ -1336,7 +1343,8 @@ private removeDevices(all=false) {
         def items = app.getChildDevices()?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : null }
         log.warn "removeDevices(${all ? "all" : ""}) | In Use: (${all ? 0 : devList?.size()}) | Removing: (${items?.size()})"
         if(items?.size() > 0) {
-            // delete.each { isST() ? deleteChildDevice(it, true) ? removeChildDevice(it, true) }
+            Boolean isST = isST()
+            items?.each {  isST ? deleteChildDevice(it as String, true) : deleteChildDevice(it as String) }
         }
     } catch (ex) { log.error "Device Removal Failed: ", ex }
 }

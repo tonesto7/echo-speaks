@@ -327,6 +327,12 @@ metadata {
         standardTile("playGoodNight", "playGoodNight", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Good Night', action: 'playGoodNight')
         }
+        standardTile("volumeUp", "volumeUp", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Volume Up', action: 'volumeUp')
+        }
+        standardTile("volumeDown", "volumeDown", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Volume Down', action: 'volumeDown')
+        }
         standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Reset Queue', action: 'resetQueue')
         }
@@ -341,7 +347,7 @@ metadata {
         details([
             "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported", "stopAllDevices",
             "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "playFunFact", "playJoke", "playWelcomeHome", "playGoodNight", "playCalendarToday", "playCalendarTomorrow",
-            "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll", "doNotDisturb", "resetQueue", "refresh", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt"])
+            "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll", "doNotDisturb", "resetQueue", "volumeUp", "volumeDown", "refresh", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt"])
     }
 
     preferences {
