@@ -1,3 +1,22 @@
+V2.1.2 (January 7th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • ADDED: New Music Search Test Page which allows you to perform search commands on your device.  It also allows you to perform tunein search and see results returned by Amazon
+
+Device (v2.1.2):
+ • FIXED: TuneIn search command is now fixed
+ • ADDED: Support for Alexa for Windows Detection (Supports all features)
+
+V2.1.1 (January 6th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • ADDED: Documentation link now on the main page.
+ • ADDED: regionLocale environment variable is now passed and created by the server.
+ • FIXED: Some minor bug fixes
+
+Server:
+ • FIXED: Hopefully the login issues for non-us users
+
 V2.1.0 (January 4th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
