@@ -155,11 +155,11 @@ def devicePrefsPage() {
 
 def devicePrefsDesc() {
     String str = ""
-    str += settings?.autoCreateDevices ? "" : " • Auto Create Devices (Disabled)"
+    str += " • Auto Create Devices (${(settings?.autoCreateDevices == false) ? "Disabled" : "Enabled"})"
     if(settings?.autoCreateDevices) {
-        str += settings?.createTablets ? "${str == "" ? "" : "\n"} • Auto Create Tablets (Enabled)" : ""
-        str += settings?.createWHA ? "${str == "" ? "" : "\n"} • Auto Create WHA (Enabled)" : ""
-        str += settings?.createOtherDevices ? "${str == "" ? "" : "\n"} • Auto Create Other Alexa Devices (Enabled)" : ""
+        str += (settings?.createTablets == true) ? "${str == "" ? "" : "\n"} • Auto Create Tablets (Enabled)" : ""
+        str += (settings?.createWHA == true) ? "${str == "" ? "" : "\n"} • Auto Create WHA (Enabled)" : ""
+        str += (settings?.createOtherDevices == true) ? "${str == "" ? "" : "\n"} • Auto Create Other Alexa Devices (Enabled)" : ""
     }
     str += "${str == "" ? "" : "\n"} • Auto Rename Devices (${settings?.autoRenameDevices == false ? "Disabled" : "Enabled"})"
     return str != "" ? str : null
@@ -457,64 +457,36 @@ def servPrefPage() {
             "amazon.it":"Amazon.it"
         ]
         List localeOpts = ["en-US", "en-CA", "de-DE", "en-GB", "it-IT"]
-        Boolean herokuOn = (settings?.useHeroku == true)
-        Boolean hubOn = (settings?.stHub != null)
+        Boolean herokuOn = true
         Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
         if(newInstall) {
-            section("") {
-                input "useHeroku", "bool", title: inTS("Will you be deploying to Heroku Cloud?", getAppImg("heroku", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("heroku")
-                if(useHeroku) {
-                    paragraph "Please complete the install and return to the Echo Speaks SmartApp to resume deployment and configuration of the service", required: true, state: null
-                    state?.resumeConfig = true
-                } else {
-                    paragraph "Please Configure these Options before completing the App install", state: "complete"
-                    state?.resumeConfig = false
-                }
-            }
             showDevSharePrefs()
+            section(sTS("Important Step:")) {
+                paragraph title: "Notice:", "Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", required: true, state: null
+                state?.resumeConfig = true
+
+            }
         }
         if(!newInstall) {
             state?.resumeConfig = false
-            if(!hasChild || !state?.serviceConfigured) {
-                section(sTS("Cloud Service Hosting:")) {
-                    input "useHeroku", "bool", title: inTS("Use Heroku Cloud to Host Service?", getAppImg("heroku", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("heroku")
-                }
-            }
             if(state?.nodeServiceInfo) {
-                section() {
-                    paragraph title: "${settings?.useHeroku && state?.onHeroku ? "Heroku" : "Service"} Info:", getServInfoDesc(), state: "complete"
-                }
+                section() { paragraph title: "Heroku Info:", getServInfoDesc(), state: "complete" }
             }
-            if(settings?.useHeroku) {
-                section(sTS("Service Preferences"), hideable: state?.onHeroku, hidden: state?.onHeroku) {
-                    input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getAppImg("amazon_orange")
-                    input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("web", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts, submitOnChange: true, image: getAppImg("web")
-                }
-                if(!state?.onHeroku) {
-                    section(sTS("Deploy the Service:")) {
-                        if(!settings?.amazonDomain) { settingUpdate("amazonDomain", "amazon.com", "enum") }
-                        href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Heroku Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
-                    }
-                }
+            if(!settings?.amazonDomain) { settingUpdate("amazonDomain", "amazon.com", "enum") }
+            if(!settings?.regionLocale) { settingUpdate("regionLocale", "en-US", "enum") }
+            section(sTS("Service Preferences${state?.onHeroku ? " (Tap to view)" : ""}"), hideable: state?.onHeroku, hidden: state?.onHeroku) {
+                input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getAppImg("amazon_orange")
+                input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("web", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts, submitOnChange: true, image: getAppImg("web")
             }
-        }
-        if((newInstall && !useHeroku) || !newInstall) {
-            if(!hasChild && isST()) {
-                section(sTS("Hub Selection:")) {
-                    input (name: "stHub", type: "hub", title: inTS("Select Local Hub", getAppImg("hub", true)), description: "This is mainly used for when the service runs on local network.", required: false, submitOnChange: true, image: getAppImg("hub"))
-                }
-            }
-            if(settings?.stHub && !settings?.useHeroku) {
-                section(sTS("Service Preferences"), hideable: true, hidden: !newInstall) {
-                    input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getAppImg("amazon_orange")
-                    if(!newInstall && settings?.stHub && !settings?.useHeroku) {
-                        paragraph title: "Notice", "These changes will be applied on the next server data refresh."
-                    }
+            if(!state?.onHeroku) {
+                section(sTS("Deploy the Service:")) {
+                    if(!settings?.amazonDomain) { settingUpdate("amazonDomain", "amazon.com", "enum") }
+                    href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Heroku Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
                 }
             }
         }
         if(!newInstall) {
-            if(settings?.useHeroku && state?.onHeroku) {
+            if(state?.onHeroku) {
                 section(sTS("Cloud App Management:")) {
                     href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
                     // href url: "https://${getRandAppName()}.herokuapp.com/manualCookie", style: "external", required: false, title: inTS("Manual Cookie Page", getAppImg("web", true)), description: "Tap to proceed", image: getAppImg("web")
@@ -526,7 +498,7 @@ def servPrefPage() {
                 section() { input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
             }
             if(settings?.refreshCookie == true) { runCookieRefresh() }
-            section(sTS("Reset Options:"), hideable:true, hidden: true) {
+            section(sTS("Reset Options (Tap to view):"), hideable:true, hidden: true) {
                 input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current service and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
                     required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
@@ -711,7 +683,7 @@ String getEnvParamsStr() {
     envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["hubPlatform"] = "${getHubPlatform()}"
-    envParams["useHeroku"] = (settings?.useHeroku == true) ? "true" : "false"
+    envParams["useHeroku"] = "true"
     envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
     envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
     envParams["amazonDomain"] = settings?.amazonDomain as String ?: "amazon.com"
@@ -747,7 +719,10 @@ private appCleanup() {
     state?.resumeConfig = false
     state?.deviceRefreshInProgress = false
     // Settings Cleanup
-    ["tuneinSearchQuery", "musicTestQuery", "musicTestDevice", "musicTestProvider", "performBroadcast", "performMusicTest", "broadcastDevices", "broadcastMessage", "broadcastParallel", "broadcastVolume"]?.each { sI->
+
+    List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "useHeroku", "stHub"]
+    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("echoTestDevice")) { setItems?.push(si?.key as String) } }
+    setItems?.each { sI->
         if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
     }
 }
@@ -1205,13 +1180,12 @@ def receiveEventData(Map evtData, String src) {
                     def childDevice = getChildDevice(dni)
                     String devLabel = "Echo - ${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
                     String childHandlerName = "Echo Speaks Device"
-                    String hubId = isST() ? settings?.stHub?.getId() : null//location?.hubs[0]?.getId()
                     if (!childDevice) {
                         // log.debug "childDevice not found | autoCreateDevices: ${settings?.autoCreateDevices}"
                         if(settings?.autoCreateDevices != false) {
                             try{
                                 log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)"
-                                childDevice = addChildDevice("tonesto7", childHandlerName, dni, hubId, [name: childHandlerName, label: devLabel, completedSetup: true])
+                                childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
                             } catch(ex) {
                                 log.error "AddDevice Error! ", ex
                             }
@@ -1328,13 +1302,7 @@ Boolean deviceFamilyAllowed(String family) {
 }
 
 public getServiceHostInfo() {
-    if(settings?.useHeroku) {
-        return (state?.onHeroku && state?.cloudUrl) ? state?.cloudUrl : null
-    } else {
-        String ip = state?.nodeServiceInfo?.ip
-        String port = state?.nodeServiceInfo?.port
-        return ip && port ? "${ip}:${port}" : null
-    }
+    return (state?.onHeroku && state?.cloudUrl) ? state?.cloudUrl : null
 }
 
 private removeDevices(all=false) {
@@ -2030,7 +1998,7 @@ String getServInfoDesc() {
         dtstr += dt?.m ? "${dt?.m}min${dt?.m > 1 ? "s" : ""} " : ""
         dtstr += dt?.s ? "${dt?.s}sec" : ""
     }
-    if(settings?.useHeroku && state?.onHeroku) {
+    if(state?.onHeroku) {
         str += " ├ App Name: (${state?.generatedHerokuName})\n"
     }
     str += " ├ IP: (${rData?.ip})"
