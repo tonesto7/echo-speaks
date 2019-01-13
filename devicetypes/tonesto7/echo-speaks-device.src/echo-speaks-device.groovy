@@ -17,7 +17,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 String devVersion()  { return "2.2.0"}
 String devModified() { return "2019-01-13" }
-Boolean isBeta()     { return false }
+Boolean isBeta()     { return true }
 Boolean isST()       { return (getHubPlatform() == "SmartThings") }
 
 metadata {
@@ -388,7 +388,6 @@ def initialize() {
     stateCleanup()
     schedDataRefresh(true)
     refreshData()
-
 }
 
 public triggerInitialize() {

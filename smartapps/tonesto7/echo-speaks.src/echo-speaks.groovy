@@ -20,7 +20,7 @@ String appModified()  { return "2019-01-13" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getHubPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 213, server: 212] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 220, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -67,7 +67,13 @@ def startPage() {
 }
 
 def appInfoSect()	{
-    def str = "Author: ${appAuthor()}\nVersion: ${appVersion()}"
+    Map codeVer = state?.codeVersions ?: null
+    def str = "Author: ${appAuthor()}"
+    if(codeVer && (codeVer?.server || codeVer?.echoDevice)) {
+        str += "\nVersions:\n • App: (${appVersion()})"
+        str += (codeVer && codeVer?.echoDevice) ? "\n • Device: (${codeVer?.echoDevice})" : ""
+        str += (codeVer && codeVer?.server) ? "\n • Server: (${codeVer?.server})" : ""
+    } else { str += "\nApp: v${appVersion()}" }
     section() {
         href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
         if(isST() && state?.customerName) { paragraph "Hello, ${state?.customerName}" }
@@ -689,7 +695,6 @@ String getEnvParamsStr() {
     envParams["amazonDomain"] = settings?.amazonDomain as String ?: "amazon.com"
     envParams["regionLocale"] = settings?.regionLocale as String ?: "en-US"
     envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com"
-    // envParams["HEROKU_APP_NAME"] = "${getRandAppName()}"
     String envs = ""
     envParams?.each { k, v-> envs += "&env[${k}]=${v}" }
     return envs
@@ -1200,7 +1205,7 @@ def receiveEventData(Map evtData, String src) {
                         // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
                         childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
-                        updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersion state Map
+                        updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
 
                     curDevFamily.push(echoValue?.deviceStyle?.name)
