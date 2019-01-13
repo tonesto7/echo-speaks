@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String devVersion()  { return "2.2.0"}
-String devModified() { return "2019-01-11" }
+String devModified() { return "2019-01-13" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getHubPlatform() == "SmartThings") }
 
@@ -2170,8 +2170,8 @@ public Map getDeviceMetrics() {
 private getHubPlatform() {
     def p = "SmartThings"
     if(state?.hubPlatform == null) {
-        // try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
-        if (location?.hubs[0]?.id?.toString()?.length() > 5) { p = "SmartThings" } else { p = "Hubitat" }
+        try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
+        // if (location?.hubs[0]?.id?.toString()?.length() > 5) { p = "SmartThings" } else { p = "Hubitat" }
         state?.hubPlatform = p
         log.debug "hubPlatform: (${state?.hubPlatform})"
     }

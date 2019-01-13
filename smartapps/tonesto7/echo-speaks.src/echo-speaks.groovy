@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.2.0" }
-String appModified()  { return "2019-01-11" }
+String appModified()  { return "2019-01-13" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getHubPlatform() == "SmartThings") }
@@ -501,7 +501,7 @@ def servPrefPage() {
         if((newInstall && !useHeroku) || !newInstall) {
             if(!hasChild && isST()) {
                 section(sTS("Hub Selection:")) {
-                    input (name: "stHub", type: "hub", title: inTS("Select Local Hub", getAppImg("hub", true)), description: "This is mainly used for when the service runs on local network.", required: isST(), submitOnChange: true, image: getAppImg("hub"))
+                    input (name: "stHub", type: "hub", title: inTS("Select Local Hub", getAppImg("hub", true)), description: "This is mainly used for when the service runs on local network.", required: false, submitOnChange: true, image: getAppImg("hub"))
                 }
             }
             if(settings?.stHub && !settings?.useHeroku) {
@@ -516,8 +516,8 @@ def servPrefPage() {
         if(!newInstall) {
             if(settings?.useHeroku && state?.onHeroku) {
                 section(sTS("Cloud App Management:")) {
-                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Service Config Page", getAppImg("web", true)), description: "Tap to proceed", image: getAppImg("web")
-                    href url: "https://${getRandAppName()}.herokuapp.com/manualCookie", style: "external", required: false, title: inTS("Manual Cookie Page", getAppImg("web", true)), description: "Tap to proceed", image: getAppImg("web")
+                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    // href url: "https://${getRandAppName()}.herokuapp.com/manualCookie", style: "external", required: false, title: inTS("Manual Cookie Page", getAppImg("web", true)), description: "Tap to proceed", image: getAppImg("web")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
                 }
@@ -813,6 +813,7 @@ def storeCookieData() {
         log.info "Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds..."
         validateCookie(true)
         state?.lastCookieRefresh = getDtNow()
+        state?.onHeroku = true
         runIn(10, "initialize", [overwrite: true])
     }
 }
@@ -1478,12 +1479,19 @@ private missPollNotify(Boolean on, Integer wait) {
     logger("debug", "missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastDevicePollSec()}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastMisPollMsgSec()})")
     if(!on || !wait || !(getLastDevicePollSec() > (state?.misPollNotifyWaitVal ?: 2700))) { return }
     if(!(getLastMisPollMsgSec() > wait.toInteger())) {
+        state?.missPollRepair = false
         return
     } else {
+        if(!state?.missPollRepair) {
+            state?.missPollRepair = true
+            initialize()
+            return
+        }
+        state?.missPollRepair = true
         String msg = ""
         if(state?.authValid) {
-            msg = "\nThe app has not received any device data from Echo Speaks service in the last (${getLastDevicePollSec()}) seconds.\nSomething must be wrong with the node server."
-        } else { msg = "\nThe amazon login cookie has expired!\nPlease open the heroku config page and login again to restore normal operation." }
+            msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastDevicePollSec()}) seconds.\nThere maybe an issue with the scheduling.  Please open the app and press Done/Save."
+        } else { msg = "\nThe Amazon login cookie has expired!\nPlease open the heroku config page and login again to restore normal operation." }
         log.warn "${msg.toString().replaceAll("\n", " ")}"
         if(sendMsg("${app.name} ${state?.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
             state?.lastMisPollMsgDt = getDtNow()
@@ -2170,8 +2178,8 @@ String getObjType(obj) {
 private getHubPlatform() {
     def p = "SmartThings"
     if(state?.hubPlatform == null) {
-        // try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
-        p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
+        try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
+        // p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
         state?.hubPlatform = p
         log.debug "hubPlatform: (${state?.hubPlatform})"
     }
