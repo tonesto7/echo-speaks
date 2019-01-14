@@ -26,7 +26,7 @@ definition(
     name       : "Echo Speaks",
     namespace  : "tonesto7",
     author     : "Anthony Santilli",
-    description: "Allows you to integrate your Amazon Echo devices into your ${getPlatform()} environment to create virtual Echo Devices. This will allow you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
+    description: "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
     category   : "My Apps",
     iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
     iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x.png",

@@ -5,7 +5,7 @@
   "repoBranch": "master",
   "name": "Echo Speaks",
   "author": "Anthony S.",
-  "description": "Allows you to integrate your Amazon Echo devices into your SmartThings environment to create virtual Echo Devices. This will allow you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
+  "description": "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
   "category": "My Apps",
   "bannerUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
   "forumUrl": "https://community.smartthings.com/t/release-echo-speaks/",
