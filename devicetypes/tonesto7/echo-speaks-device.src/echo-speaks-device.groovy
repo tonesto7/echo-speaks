@@ -113,8 +113,8 @@ metadata {
         command "speechTest"
         command "sendTestAnnouncement"
         command "sendTestAnnouncementAll"
-        command "updateDeviceActivity"
-        command "updateBluetoothDevices"
+        command "getDeviceActivity"
+        command "getBluetoothDevices"
         command "connectBluetooth", ["string"]
         command "disconnectBluetooth"
         command "removeBluetooth", ["string"]
@@ -452,7 +452,7 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
     if(!state?.deviceType) { if(!noLogs) { log.warn "DeviceType State Value Missing: ${state?.deviceType}" }; return false }
     if(!state?.deviceOwnerCustomerId) { if(!noLogs) { log.warn "OwnerCustomerId State Value Missing: ${state?.deviceOwnerCustomerId}" }; return false }
     if(!type || state?.permissions == null) { if(!noLogs) { log.warn "Permissions State Object Missing: ${state?.permissions}" }; return false }
-    if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord"]))) { if(!noLogs) { log.warn "All Voice Output Blocked... Do Not Disturb is ON" }; return false }
+    if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl"]))) { if(!noLogs) { log.warn "All Voice Output Blocked... Do Not Disturb is ON" }; return false }
     if(state?.permissions?.containsKey(type) && state?.permissions[type] == true) { return true }
     else {
         String warnMsg = null
@@ -663,9 +663,9 @@ private refreshData() {
         getNotifications()
     }
     if(state?.permissions?.bluetoothControl) {
-        updateBluetoothDevices()
+        getBluetoothDevices()
     }
-    updateDeviceActivity()
+    getDeviceActivity()
 }
 
 public updateServiceInfo(String svcHost, useHeroku=false) {
@@ -689,8 +689,11 @@ public setOnlineStatus(Boolean isOnline) {
     }
 }
 
-private respIsValid(response, String methodName, Boolean hasErr, Boolean falseOnErr=false) {
-    try {} catch (ex) { }
+private respIsValid(response, String methodName, Boolean falseOnErr=false) {
+    Boolean hasErr = false
+    try {
+        hasErr = (response?.hasError() == true)
+    } catch (ex) { hasErr = true }
     if(response?.getStatus() == 401) {
         setAuthState(false)
         return false
@@ -715,7 +718,7 @@ private getPlaybackState() {
 }
 
 def getPlaybackStateHandler(response, data, isGroupResponse=false) {
-    if(!respIsValid(response, "getPlaybackStateHandler", (response?.hasError() == true), true)) {return}
+    if(!respIsValid(response, "getPlaybackStateHandler", true)) {return}
     try {} catch (ex) { }
     // log.debug "response: ${response?.json}"
     def sData = [:]
@@ -798,7 +801,7 @@ private getAlarmVolume() {
 }
 
 def getAlarmVolumeHandler(response, data) {
-    if(!respIsValid(response, "getAlarmVolumeHandler", (response?.hasError() == true))) {return}
+    if(!respIsValid(response, "getAlarmVolumeHandler")) {return}
     try {} catch (ex) { }
     def sData = response?.json
     logger("trace", "getAlarmVolume: $sData")
@@ -819,7 +822,7 @@ private getWakeWord() {
 }
 
 def getWakeWordHandler(response, data) {
-    if(!respIsValid(response, "getWakeWordHandler", (response?.hasError() == true))) {return}
+    if(!respIsValid(response, "getWakeWordHandler")) {return}
     try {} catch (ex) { }
     def sData = response?.json
     // log.debug "sData: $sData"
@@ -847,7 +850,7 @@ private getAvailableWakeWords() {
 }
 
 def getAvailableWakeWordsHandler(response, data) {
-    if(!respIsValid(response, "getAvailableWakeWordsHandler", (response?.hasError() == true))) {return}
+    if(!respIsValid(response, "getAvailableWakeWordsHandler")) {return}
     try {} catch (ex) { }
     def sData = response?.json
     def wakeWords = sData?.wakeWords ?: []
@@ -857,8 +860,8 @@ def getAvailableWakeWordsHandler(response, data) {
     }
 }
 
-private updateBluetoothDevices() {
-    execAsyncCmd("get", "updBluetoothHandler", [
+private getBluetoothDevices() {
+    execAsyncCmd("get", "getBluetoothHandler", [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
@@ -867,8 +870,8 @@ private updateBluetoothDevices() {
     ])
 }
 
-def updBluetoothHandler(response, data) {
-    if(!respIsValid(response, "updBluetoothHandler", (response?.hasError() == true))) {return}
+def getBluetoothHandler(response, data) {
+    if(!respIsValid(response, "getBluetoothHandler")) {return}
     try {} catch (ex) { }
     String curConnName = null
     Map btObjs = [:]
@@ -884,11 +887,12 @@ def updBluetoothHandler(response, data) {
     logger("debug", "Current Bluetooth Device: $curConnName | Bluetooth Objects: $btObjs")
     state?.bluetoothObjs = btObjs
     List pairedNames = btObjs?.collect { it?.value?.friendlyName as String } ?: []
-    if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
-        log.info "Bluetooth Device Connected: (${curConnName})"
+    // if(!(device.currentValue("btDeviceConnected")?.toString()?.equals(curConnName?.toString()))) {
+        // log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
-    }
-    if(!device.currentValue("btDevicesPaired")?.toString()?.equals(pairedNames?.toString())) {
+    // }
+
+    if(!(device.currentValue("btDevicesPaired")?.toString()?.equals(pairedNames?.toString()))) {
         log.info "Paired Bluetooth Devices: ${pairedNames}"
         sendEvent(name: "btDevicesPaired", value: pairedNames?.toString(), descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
     }
@@ -912,7 +916,7 @@ private getDoNotDisturb() {
 }
 
 def getDoNotDisturbHandler(response, data) {
-    if(!respIsValid(response, "getDoNotDisturbHandler", (response?.hasError() == true))) {return}
+    if(!respIsValid(response, "getDoNotDisturbHandler")) {return}
     try {} catch (ex) { }
     def sData = response?.json
     def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
@@ -941,7 +945,7 @@ private getPlaylists() {
 }
 
 def getPlaylistsHandler(response, data) {
-    if(!respIsValid(response, "getPlaylistsHandler", (response?.hasError() == true))) {return}
+    if(!respIsValid(response, "getPlaylistsHandler")) {return}
     try {} catch (ex) { }
     def sData = response?.json
     logger("trace", "getPlaylists: ${sData}")
@@ -964,7 +968,7 @@ private getMusicProviders() {
 }
 
 def getMusicProvidersHandler(response, data) {
-    if(!respIsValid(response, "getMusicProvidersHandler", (response?.hasError() == true))) {return}
+    if(!respIsValid(response, "getMusicProvidersHandler")) {return}
     try {} catch (ex) { }
     def sData = response?.json
     logger("trace", "getMusicProviders: ${sData}")
@@ -998,7 +1002,7 @@ private getNotifications() {
 }
 
 def getNotificationsHandler(response, data) {
-    if(!respIsValid(response, "getNotificationsHandler", (response?.hasError() == true))) {return}
+    if(!respIsValid(response, "getNotificationsHandler")) {return}
     try {} catch (ex) { }
     List newList = []
     if(response?.getStatus() == 200) {
@@ -1018,7 +1022,7 @@ def getNotificationsHandler(response, data) {
     }
 }
 
-private updateDeviceActivity() {
+private getDeviceActivity() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/activities",
@@ -1099,7 +1103,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
 }
 
 def amazonCommandResp(response, data) {
-    if(!respIsValid(response, "amazonCommandResp", (response?.hasError() == true), true)) {return}
+    if(!respIsValid(response, "amazonCommandResp", true)) {return}
     try {} catch (ex) { }
     def resp = response?.data ? response?.json : null
     // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
@@ -2209,7 +2213,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
 def asyncSpeechHandler(response, data) {
     def resp = null
     data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-    if(!respIsValid(response, "asyncSpeechHandler", (response?.hasError() == true), true)){
+    if(!respIsValid(response, "asyncSpeechHandler", true)){
         resp = response?.getErrorJson() ?: null
     } else { resp = response?.getData() ?: null }
     try {} catch (ex) {

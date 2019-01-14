@@ -936,8 +936,11 @@ def cookieValidResp(response, data) {
     authEvtHandler(valid)
 }
 
-private respIsValid(response, String methodName, Boolean hasErr, Boolean falseOnErr=false) {
-    try { } catch (ex) { }
+private respIsValid(response, String methodName, Boolean falseOnErr=false) {
+    Boolean hasErr = false
+    try {
+        hasErr = (response?.hasError() == true)
+    } catch (ex) { hasErr = true }
     if(response?.getStatus() == 401) {
         setAuthState(false)
         return false
@@ -1381,7 +1384,7 @@ private sendAmazonCommand(String method, Map params, Map otherData) {
 }
 
 def amazonCommandResp(response, data) {
-    if(!respIsValid(response, "amazonCommandResp", (response?.hasError() == true), true)) {return}
+    if(!respIsValid(response, "amazonCommandResp", true)) {return}
     try {} catch (ex) {
         //handles non-2xx status codes
     }
