@@ -1125,6 +1125,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["amazonDomain"] = (settings?.amazonDomain ?: "amazon.com")
                     echoValue["regionLocale"] = (settings?.regionLocale ?: "en-US")
                     echoValue["cookie"] = [cookie: getCookieVal(), csrf: getCsrfVal()]
+                    echoValue["deviceAccountId"] = echoValue?.deviceAccountId as String ?: null
                     echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     // log.debug "deviceStyle: ${echoValue?.deviceStyle}"
 

@@ -538,6 +538,7 @@ void updateDeviceStatus(Map devData) {
             state?.serialNumber = devData?.serialNumber
             state?.deviceType = devData?.deviceType
             state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
+            state?.deviceAccountId = devData?.deviceAccountId
             state?.softwareVersion = devData?.softwareVersion
             state?.cookie = devData?.cookie
             state?.amazonDomain = devData?.amazonDomain
@@ -1112,8 +1113,10 @@ def amazonCommandResp(response, data) {
             }
         } else if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
             runIn(4, "getBluetoothDevices", [overwrite: true])
+            log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         } else if(data?.cmdDesc?.startsWith("renameDevice")) {
-            parent?.childInitiatedRefresh()
+            runIn(4, "refresh", [overwrite: true])
+            log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         } else {
             log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         }
@@ -1786,6 +1789,7 @@ private createNotification(type, options) {
 
 def renameDevice(newName) {
     logger("trace", "renameDevice($newName) command received...")
+    if(!state?.deviceAccountId) { log.error "renameDevice Failed because deviceAccountId is not found..."; return; }
     sendAmazonCommand("put", [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device/${state?.serialNumber}",
@@ -1795,7 +1799,7 @@ def renameDevice(newName) {
         body: [
             serialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
-            deviceAccountId: state?.deviceOwnerCustomerId,
+            deviceAccountId: state?.deviceAccountId,
             accountName: newName
         ]
     ], [cmdDesc: "renameDevice(${newName})"])
