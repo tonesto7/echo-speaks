@@ -16,10 +16,10 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.2.0" }
-String appModified()  { return "2019-01-13" }
+String appModified()  { return "2019-01-14" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
-Boolean isST()       { return (getHubPlatform() == "SmartThings") }
+Boolean isST()       { return (getPlaform() == "SmartThings") }
 Map minVersions()    { return [echoDevice: 220, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
@@ -213,7 +213,7 @@ private executeTuneInSearch() {
         uri: getAmazonUrl(),
         path: "/api/tunein/search",
         query: [ query: settings?.tuneinSearchQuery, mediaOwnerCustomerId: state?.deviceOwnerCustomerId ],
-        headers: [ "Cookie": getCookieVal(), "csrf": getCsrfVal() ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json"
     ]
@@ -688,7 +688,7 @@ String getEnvParamsStr() {
     Map envParams = [:]
     envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}"
-    envParams["hubPlatform"] = "${getHubPlatform()}"
+    envParams["hubPlatform"] = "${getPlaform()}"
     envParams["useHeroku"] = "true"
     envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
     envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
@@ -846,7 +846,7 @@ private validateCookie(frc=false) {
         return
     }
     try {
-        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()], contentType: "application/json"]
+        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
         execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
     } catch(ex) {
         incrementCntByKey("err_app_cookieValidCnt")
@@ -904,7 +904,7 @@ def cookieRefreshResp(response, data) {
 private apiHealthCheck(frc=false) {
     // if(!frc || (getLastApiChkSec() <= 1800)) { return }
     try {
-        def params = [uri: getAmazonUrl(), path: "/api/ping", query: ["_": ""], headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()], contentType: "plain/text"]
+        def params = [uri: getAmazonUrl(), path: "/api/ping", query: ["_": ""], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "plain/text"]
         httpGet(params) { resp->
             log.debug "API Health Check Resp: (${resp?.getData()})"
             return (resp?.getData().toString() == "healthy")
@@ -936,14 +936,13 @@ def cookieValidResp(response, data) {
     authEvtHandler(valid)
 }
 
-private respIsValid(response, methodName, falseOnErr=false) {
-    Boolean isErr = (getObjType(response?.hasError()) == "Boolean" && response?.hasError() == true)
+private respIsValid(response, String methodName, Boolean hasErr, Boolean falseOnErr=false) {
     try { } catch (ex) { }
     if(response?.getStatus() == 401) {
         setAuthState(false)
         return false
     } else { if(response?.getStatus() > 401 && response?.getStatus() < 500) { log.error "${methodName} Error: ${response?.getErrorMessage()}" } }
-    if(isErr && falseOnErr) { return false }
+    if(hasErr && falseOnErr) { return false }
     return true
 }
 
@@ -985,10 +984,7 @@ private getEchoDevices() {
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
         query: [ cached: true ],
-        headers: [
-            "Cookie": getCookieVal(),
-            "csrf": getCsrfVal()
-        ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
     ]
@@ -1001,11 +997,7 @@ private getMusicProviders() {
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
-        headers: [
-            "Routines-Version": "1.1.210292",
-            "Cookie": getCookieVal(),
-            "csrf": getCsrfVal()
-        ],
+        headers: ["Routines-Version": "1.1.210292", cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json"
     ]
@@ -1159,7 +1151,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["flashBriefing"] = (echoValue?.capabilities?.contains("FLASH_BRIEFING"))
                     permissions["microphone"] = (echoValue?.capabilities?.contains("MICROPHONE"))
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
-                    permissions["bluetoothControl"] = (echoValue?.capabilities.contains("PAIR_BT_SOURCE"))
+                    permissions["bluetoothControl"] = (echoValue?.capabilities.contains("PAIR_BT_SOURCE") || echoValue?.capabilities.contains("PAIR_BT_SINK"))
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
@@ -1388,7 +1380,7 @@ private sendAmazonCommand(String method, Map params, Map otherData) {
 }
 
 def amazonCommandResp(response, data) {
-    if(!respIsValid(response, "amazonCommandResp", true)) {return}
+    if(!respIsValid(response, "amazonCommandResp", (response?.hasError() == true), true)) {return}
     try {} catch (ex) {
         //handles non-2xx status codes
     }
@@ -1405,7 +1397,7 @@ private sendSequenceCommand(type, command, value) {
     sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: ["Cookie": getCookieVal(), "csrf": getCsrfVal()],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
         body: seqObj
@@ -1744,7 +1736,7 @@ private createMetricsDataJson(rendAsMap=false) {
             installDt: state?.installData?.dt,
             updatedDt: state?.installData?.updatedDt,
             timeZone: location?.timeZone?.ID?.toString(),
-            hubPlatform: getHubPlatform(),
+            hubPlatform: getPlaform(),
             authValid: (state?.authValid == true),
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
@@ -2149,7 +2141,7 @@ String getObjType(obj) {
 	else { return "unknown"}
 }
 
-private getHubPlatform() {
+private getPlaform() {
     def p = "SmartThings"
     if(state?.hubPlatform == null) {
         try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }

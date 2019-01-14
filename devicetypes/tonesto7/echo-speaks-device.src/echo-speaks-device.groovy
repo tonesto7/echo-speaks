@@ -16,9 +16,9 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String devVersion()  { return "2.2.0"}
-String devModified() { return "2019-01-13" }
+String devModified() { return "2019-01-14" }
 Boolean isBeta()     { return true }
-Boolean isST()       { return (getHubPlatform() == "SmartThings") }
+Boolean isST()       { return (getPlaform() == "SmartThings") }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player") {
@@ -31,31 +31,36 @@ metadata {
         capability "Notification"
         capability "Speech Synthesis"
 
-        attribute "lastUpdated", "string"
+        attribute "alarmSupported", "string"
+        attribute "alarmVolume", "number"
+        attribute "alexaMusicProviders", "JSON_OBJECT"
+        attribute "alexaNotifications", "JSON_OBJECT"
+        attribute "alexaPlaylists", "JSON_OBJECT"
+        attribute "alexaWakeWord", "string"
+        attribute "btDeviceConnected", "string"
+        attribute "btDevicesPaired", "string"
+        attribute "currentAlbum", "string"
+        attribute "currentStation", "string"
+        attribute "deviceFamily", "string"
         attribute "deviceStatus", "string"
-        attribute "deviceType", "string"
         attribute "deviceStyle", "string"
+        attribute "deviceType", "string"
         attribute "doNotDisturb", "string"
         attribute "firmwareVer", "string"
-        attribute "onlineStatus", "string"
-        attribute "currentStation", "string"
-        attribute "currentAlbum", "string"
-        attribute "lastSpeakCmd", "string"
         attribute "lastCmdSentDt", "string"
-        attribute "trackImage", "string"
-        attribute "volume", "number"
-        attribute "alarmVolume", "number"
-        attribute "alexaWakeWord", "string"
-        attribute "wakeWords", "enum"
-        attribute "alexaPlaylists", "JSON_OBJECT"
-        attribute "alexaNotifications", "JSON_OBJECT"
-        attribute "alexaMusicProviders", "JSON_OBJECT"
-        attribute "volumeSupported", "string"
-        attribute "ttsSupported", "string"
+        attribute "lastSpeakCmd", "string"
+        attribute "lastVoiceActivity", "string"
+        attribute "lastUpdated", "string"
         attribute "musicSupported", "string"
-        attribute "alarmSupported", "string"
+        attribute "onlineStatus", "string"
         attribute "reminderSupported", "string"
         attribute "supportedMusic", "string"
+        attribute "trackImage", "string"
+        attribute "ttsSupported", "string"
+        attribute "volume", "number"
+        attribute "volumeSupported", "string"
+        attribute "wakeWords", "enum"
+        attribute "wasSpokenToDevice", "string"
 
         command "playText", ["string"] //This command is deprecated in ST but will work
         command "playTextAndResume"
@@ -108,6 +113,11 @@ metadata {
         command "speechTest"
         command "sendTestAnnouncement"
         command "sendTestAnnouncementAll"
+        command "updateDeviceActivity"
+        command "getBluetoothDevices"
+        command "connectBluetooth", ["string"]
+        command "disconnectBluetooth"
+        command "removeBluetooth", ["string"]
     }
 
     tiles (scale: 2) {
@@ -268,11 +278,20 @@ metadata {
         valueTile("lastCmdSentDt", "device.lastCmdSentDt", height: 2, width: 3, inactiveLabel: false, decoration: "flat") {
             state("lastCmdSentDt", label:'Last Text Sent:\n${currentValue}')
         }
+        valueTile("lastVoiceActivity", "device.lastVoiceActivity", height: 2, width: 3, inactiveLabel: false, decoration: "flat") {
+            state("lastVoiceActivity", label:'Last Voice Cmd:\n${currentValue}')
+        }
         valueTile("alexaWakeWord", "device.alexaWakeWord", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("alexaWakeWord", label:'Wake Word:\n${currentValue}')
         }
         valueTile("supportedMusic", "device.supportedMusic", height: 2, width: 4, inactiveLabel: false, decoration: "flat") {
             state("supportedMusic", label:'Supported Music:\n${currentValue}')
+        }
+        valueTile("btDeviceConnected", "device.btDeviceConnected", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("btDeviceConnected", label:'Connected Bluetooth Device:\n${currentValue}')
+        }
+        valueTile("btDevicesPaired", "device.btDevicesPaired", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("btDevicesPaired", label:'Paired Bluetooth Devices:\n${currentValue}')
         }
         standardTile("speechTest", "speechTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'Speech Test', action: 'speechTest')
@@ -344,11 +363,16 @@ metadata {
             state "true", label: 'DnD: ON', action: "doNotDisturbOff", nextState: "false"
             state "false", label: 'DnD: OFF', action: "doNotDisturbOn", nextState: "true"
         }
+        standardTile("disconnectBluetooth", "disconnectBluetooth", height: 1, width: 2, decoration: "flat") {
+            state("default", label:'Disconnect Bluetooth', action: 'disconnectBluetooth')
+        }
         main(["deviceStatus"])
         details([
-            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceFamily", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported", "stopAllDevices",
-            "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "playFunFact", "playJoke", "playWelcomeHome", "playGoodNight", "playCalendarToday", "playCalendarTomorrow",
-            "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll", "doNotDisturb", "resetQueue", "volumeUp", "volumeDown", "refresh", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt"])
+            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "lastVoiceActivity", "btDeviceConnected", "btDevicesPaired", "ttsSupported",
+            "blank2x1", "blank2x1", "stopAllDevices", "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "playFunFact", "playJoke", "playWelcomeHome", "playGoodNight", "playCalendarToday",
+            "playCalendarTomorrow", "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll", "doNotDisturb", "resetQueue", "volumeUp", "volumeDown", "refresh", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt",
+            "disconnectBluetooth"
+        ])
     }
 
     preferences {
@@ -634,6 +658,7 @@ private refreshData() {
     if(state?.permissions?.bluetoothControl) {
         getBluetoothDevices()
     }
+    updateDeviceActivity()
 }
 
 public updateServiceInfo(String svcHost, useHeroku=false) {
@@ -657,16 +682,13 @@ public setOnlineStatus(Boolean isOnline) {
     }
 }
 
-private respIsValid(response, methodName, falseOnErr=false) {
-    Boolean isErr = (getObjType(response?.hasError()) == "Boolean" && response?.hasError() == true)
-    try { } catch (ex) {
-        // catches non-2xx status codes
-    }
+private respIsValid(response, String methodName, Boolean hasErr, Boolean falseOnErr=false) {
+    try {} catch (ex) { }
     if(response?.getStatus() == 401) {
         setAuthState(false)
         return false
     } else { if(response?.getStatus() > 401 && response?.getStatus() < 500) { log.error "${methodName} Error: ${response?.getErrorMessage()}" } }
-    if(isErr && falseOnErr) { return false }
+    if(hasErr && falseOnErr) { return false }
     return true
 }
 
@@ -679,20 +701,15 @@ private getPlaybackState() {
             deviceType: state?.deviceType,
             screenWidth: 2560
         ],
-        headers: [
-            "Cookie": state?.cookie?.cookie as String,
-            "csrf": state?.cookie?.csrf as String
-        ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
     ], null)
 }
 
 def getPlaybackStateHandler(response, data, isGroupResponse=false) {
-    if(!respIsValid(response, "getPlaybackStateHandler", true)) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
+    if(!respIsValid(response, "getPlaybackStateHandler", (response?.hasError() == true), true)) {return}
+    try {} catch (ex) { }
     // log.debug "response: ${response?.json}"
     def sData = [:]
     def isPlayStateChange = false
@@ -767,20 +784,15 @@ private getAlarmVolume() {
     execAsyncCmd("get", "getAlarmVolumeHandler", [
         uri: getAmazonUrl(),
         path: "/api/device-notification-state/${state?.deviceType}/${device.currentValue("firmwareVer") as String}/${state.serialNumber}",
-        headers: [
-            "Cookie": state?.cookie?.cookie as String,
-            "csrf": state?.cookie?.csrf as String
-        ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
     ])
 }
 
 def getAlarmVolumeHandler(response, data) {
-    if(!respIsValid(response, "getAlarmVolumeHandler")) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
+    if(!respIsValid(response, "getAlarmVolumeHandler", (response?.hasError() == true))) {return}
+    try {} catch (ex) { }
     def sData = response?.json
     logger("trace", "getAlarmVolume: $sData")
     if(isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
@@ -793,20 +805,15 @@ private getWakeWord() {
     execAsyncCmd("get", "getWakeWordHandler", [
         uri: getAmazonUrl(),
         path: "/api/wake-word",
-        headers: [
-            "Cookie": state?.cookie?.cookie as String,
-            "csrf": state?.cookie?.csrf as String
-        ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
     ])
 }
 
 def getWakeWordHandler(response, data) {
-    if(!respIsValid(response, "getWakeWordHandler")) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
+    if(!respIsValid(response, "getWakeWordHandler", (response?.hasError() == true))) {return}
+    try {} catch (ex) { }
     def sData = response?.json
     // log.debug "sData: $sData"
     def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
@@ -826,20 +833,15 @@ private getAvailableWakeWords() {
             deviceType: state?.deviceType,
             softwareVersion: device.currentValue('firmwareVer')
         ],
-        headers: [
-            "Cookie": state?.cookie?.cookie as String,
-            "csrf": state?.cookie?.csrf as String
-        ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
     ])
 }
 
 def getAvailableWakeWordsHandler(response, data) {
-    if(!respIsValid(response, "getAvailableWakeWordsHandler")) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
+    if(!respIsValid(response, "getAvailableWakeWordsHandler", (response?.hasError() == true))) {return}
+    try {} catch (ex) { }
     def sData = response?.json
     def wakeWords = sData?.wakeWords ?: []
     logger("trace", "getAvailableWakeWords: ${wakeWords}")
@@ -852,53 +854,59 @@ private getBluetoothDevices() {
     execAsyncCmd("get", "getBluetoothHandler", [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
-        headers: [ "Cookie": state?.cookie?.cookie as String, "csrf": state?.cookie?.csrf as String ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json"
     ])
 }
 
 def getBluetoothHandler(response, data) {
-    if(!respIsValid(response, "getBluetoothHandler")) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
-    List btItems = []
+    if(!respIsValid(response, "getBluetoothHandler", (response?.hasError() == true))) {return}
+    try {} catch (ex) { }
+    String curConnName = null
     Map btObjs = [:]
-    def rData = response?.json
-    def bluData = rData?.bluetoothStates?.size() ? rData?.bluetoothStates?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
+    def rData = response?.getJson()
+    def bluData = rData?.bluetoothStates?.size() ? rData?.bluetoothStates?.find { it?.deviceSerialNumber == state?.serialNumber } : null
     if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
-        bluData?.pairedDeviceList?.each {
-            it?.connected
+        def bData = bluData?.pairedDeviceList?.findAll { (it?.deviceClass != "GADGET") }
+        bData?.each {
+            btObjs[it?.address as String] = it
+            if(it?.connected == true) { curConnName = it?.friendlyName as String }
         }
     }
-    logger("trace", "getBluetoothHandler: $bluData")
+    logger("debug", "Current Bluetooth Device: $curConnName | Bluetooth Objects: $btObjs")
+    state?.bluetoothObjs = btObjs
+    List pairedNames = btObjs?.collect { it?.value?.friendlyName as String } ?: []
+    if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
+        log.info "Bluetooth Device Connected: (${curConnName})"
+        sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
+    }
+    if(!device.currentValue("btDevicesPaired")?.toString()?.equals(pairedNames?.toString())) {
+        log.info "Paired Bluetooth Devices: ${pairedNames}"
+        sendEvent(name: "btDevicesPaired", value: pairedNames?.toString(), descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
+    }
+}
 
-    // state?.doNotDisturb = (dndData?.enabled == true)
-    // if(isStateChange(device, "pairedBtDevices", (bluData?.enabled == true)?.toString())) {
-    //     log.info "Do Not Disturb: (${(dndData?.enabled == true)})"
-    //     sendEvent(name: "doNotDisturb", value: (dndData?.enabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndData?.enabled == true)}", display: true, displayed: true)
-    // }
+private String getBtAddrByAddrOrName(String btNameOrAddr) {
+    Map btObj = state?.bluetoothObjs
+    String curBtAddr = btObj?.find { it?.value?.friendlyName == btNameOrAddr || it?.value?.address == btNameOrAddr }?.value?.address ?: null
+    logger("debug", "curBtAddr: ${curBtAddr}")
+    return curBtAddr
 }
 
 private getDoNotDisturb() {
     execAsyncCmd("get", "getDoNotDisturbHandler", [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
-        headers: [
-            "Cookie": state?.cookie?.cookie as String,
-            "csrf": state?.cookie?.csrf as String
-        ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
     ])
 }
 
 def getDoNotDisturbHandler(response, data) {
-    if(!respIsValid(response, "getDoNotDisturbHandler")) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
+    if(!respIsValid(response, "getDoNotDisturbHandler", (response?.hasError() == true))) {return}
+    try {} catch (ex) { }
     def sData = response?.json
     def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
     logger("trace", "getDoNotDisturb: $dndData")
@@ -919,20 +927,15 @@ private getPlaylists() {
             mediaOwnerCustomerId: state?.deviceOwnerCustomerId,
             screenWidth: 2560
         ],
-        headers: [
-            "Cookie": state?.cookie?.cookie as String,
-            "csrf": state?.cookie?.csrf as String
-        ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
     ])
 }
 
 def getPlaylistsHandler(response, data) {
-    if(!respIsValid(response, "getPlaylistsHandler")) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
+    if(!respIsValid(response, "getPlaylistsHandler", (response?.hasError() == true))) {return}
+    try {} catch (ex) { }
     def sData = response?.json
     logger("trace", "getPlaylists: ${sData}")
     Map playlists = sData?.playlists ?: [:]
@@ -947,21 +950,15 @@ private getMusicProviders() {
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
-        headers: [
-            "Routines-Version": "1.1.210292",
-            "Cookie": state?.cookie?.cookie as String,
-            "csrf": state?.cookie?.csrf as String
-        ],
+        headers: ["Routines-Version": "1.1.210292", cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json"
     ])
 }
 
 def getMusicProvidersHandler(response, data) {
-    if(!respIsValid(response, "getMusicProvidersHandler")) {return}
-    try { } catch (ex) {
-        //handles non-2xx status codes
-    }
+    if(!respIsValid(response, "getMusicProvidersHandler", (response?.hasError() == true))) {return}
+    try {} catch (ex) { }
     def sData = response?.json
     logger("trace", "getMusicProviders: ${sData}")
     Map items = [:]
@@ -987,20 +984,15 @@ private getNotifications() {
         uri: getAmazonUrl(),
         path: "/api/notifications",
         query: [ cached: true ],
-        headers: [
-            "Cookie": state?.cookie?.cookie as String,
-            "csrf": state?.cookie?.csrf as String
-        ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json"
     ])
 }
 
 def getNotificationsHandler(response, data) {
-    if(!respIsValid(response, "getNotificationsHandler")) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
+    if(!respIsValid(response, "getNotificationsHandler", (response?.hasError() == true))) {return}
+    try {} catch (ex) { }
     List newList = []
     if(response?.getStatus() == 200) {
         def sData = response?.json
@@ -1019,7 +1011,7 @@ def getNotificationsHandler(response, data) {
     }
 }
 
-private getLastSpokenToDevice() {
+private updateDeviceActivity() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/activities",
@@ -1028,33 +1020,42 @@ private getLastSpokenToDevice() {
             size:"50",
             offset:"-1"
         ],
-        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-    execAsyncCmd("GET", "lastSpokenToHandler", params)
+    execAsyncCmd("GET", "deviceActivityHandler", params)
 }
 
-def lastSpokenToHandler(response, data) {
+def deviceActivityHandler(response, data) {
     def sData = response?.json
-    def activities = sData?.activities
-    if (activities != null) {
-        def lastCommand = activities.find {
-            (it.domainAttributes == null || it.domainAttributes.startsWith("{")) &&
-            it.activityStatus.equals("SUCCESS") &&
-            it.utteranceId.startsWith(it.sourceDeviceIds.deviceType)
+    Boolean wasLastDevice = false
+    String lastVoiceActivity = null
+    if (sData?.activities != null) {
+        def lastCommand = sData?.activities?.find {
+            (it?.domainAttributes == null || it?.domainAttributes.startsWith("{")) &&
+            it?.activityStatus.equals("SUCCESS") &&
+            it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType)
         }
         if (lastCommand) {
             def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
             def spokenText = lastDescription?.summary
             def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
-            log.trace "last text|${spokenText}|device|${ lastDevice}|"
-            log.trace "deviceType|${ lastDevice.deviceType}|serial|${ lastDevice.serialNumber}"
+            if(lastDevice?.serialNumber == state?.serialNumber) {
+                wasLastDevice = true
+                lastVoiceActivity = spokenText as String
+            }
         }
+    }
+    if(isStateChange(device, "lastVoiceActivity", lastVoiceActivity?.toString())) {
+        sendEvent(name: "lastVoiceActivity", value: lastVoiceActivity, display: false, displayed: false)
+    }
+    if(isStateChange(device, "wasSpokenToDevice", wasLastDevice?.toString())) {
+        sendEvent(name: "wasSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
     }
 }
 
-String getCookieVal() { return (state?.cookie && state?.cookie?.localCookie) ? state?.cookie?.localCookie as String : null }
+String getCookieVal() { return (state?.cookie && state?.cookie?.cookie) ? state?.cookie?.cookie as String : null }
 String getCsrfVal() { return (state?.cookie && state?.cookie?.csrf) ? state?.cookie?.csrf as String : null }
 
 /*******************************************************************
@@ -1065,7 +1066,7 @@ private sendAmazonBasicCommand(String cmdType) {
     execAsyncCmd("post", "amazonCommandResp", [
         uri: getAmazonUrl(),
         path: "/api/np/command",
-        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         query: [
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType
@@ -1091,10 +1092,8 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
 }
 
 def amazonCommandResp(response, data) {
-    if(!respIsValid(response, "amazonCommandResp", true)) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
+    if(!respIsValid(response, "amazonCommandResp", (response?.hasError() == true), true)) {return}
+    try {} catch (ex) { }
     def resp = response?.data ? response?.json : null
     // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
     if(response?.getStatus() == 200) {
@@ -1111,6 +1110,10 @@ def amazonCommandResp(response, data) {
             } else {
                 sendSequenceCommand("PlayMusic | Provider: ${data?.validObj?.operationPayload?.musicProviderId}", seqJson, null)
             }
+        } else if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
+            runIn(4, "getBluetoothDevices", [overwrite: true])
+        } else if(data?.cmdDesc?.startsWith("renameDevice")) {
+            parent?.childInitiatedRefresh()
         } else {
             log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         }
@@ -1123,7 +1126,7 @@ private sendSequenceCommand(type, command, value) {
     sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
         body: seqObj
@@ -1257,7 +1260,7 @@ def setAlarmVolume(vol) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/device-notification-state/${state?.deviceType}/${state?.softwareVersion}/${state?.serialNumber}",
-            headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
             requestContentType: "application/json",
             contentType: "application/json",
             body: [
@@ -1312,7 +1315,7 @@ def setDoNotDisturb(Boolean val) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/dnd/status",
-            headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
             requestContentType: "application/json",
             contentType: "application/json",
             body: [
@@ -1661,10 +1664,7 @@ private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=nu
     sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/operation/validate",
-        headers: [
-            "cookie": state?.cookie?.cookie,
-            "csrf": state?.cookie?.csrf
-        ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
         body: validObj
@@ -1680,7 +1680,7 @@ def setWakeWord(String newWord) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/wake-word/${state?.serialNumber}",
-            headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
             requestContentType: "application/json",
             contentType: "application/json",
             body: [
@@ -1734,7 +1734,7 @@ def removeNotification(String id) {
             sendAmazonCommand("delete", [
                 uri: getAmazonUrl(),
                 path: "/api/notifications/${id}",
-                headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
                 requestContentType: "application/json",
                 contentType: "application/json",
                 body: []
@@ -1753,7 +1753,7 @@ private createNotification(type, options) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications/create${type}",
-        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
         body: [
@@ -1788,8 +1788,8 @@ def renameDevice(newName) {
     logger("trace", "renameDevice($newName) command received...")
     sendAmazonCommand("put", [
         uri: getAmazonUrl(),
-        path: "https://alexa.amazon.de/api/devices-v2/device/${state?.serialNumber}",
-        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        path: "/api/devices-v2/device/${state?.serialNumber}",
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
         body: [
@@ -1798,8 +1798,63 @@ def renameDevice(newName) {
             deviceAccountId: state?.deviceOwnerCustomerId,
             accountName: newName
         ]
-    ], [cmdDesc: "renameDevice"])
+    ], [cmdDesc: "renameDevice(${newName})"])
     incrementCntByKey("use_cnt_renameDevice")
+}
+
+def connectBluetooth(String btNameOrAddr) {
+    logger("trace", "connectBluetooth(${btName}) command received...")
+    if(isCommandTypeAllowed("bluetoothControl")) {
+        String curBtAddr = getBtAddrByAddrOrName(btNameOrAddr as String)
+        if(curBtAddr) {
+            sendAmazonCommand("post", [
+                uri: getAmazonUrl(),
+                path: "/api/bluetooth/pair-sink/${state?.deviceType}/${state?.serialNumber}",
+                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+                requestContentType: "application/json",
+                contentType: "application/json",
+                body: [ bluetoothDeviceAddress: curBtAddr ]
+            ], [cmdDesc: "connectBluetooth($btNameOrAddr)"])
+            incrementCntByKey("use_cnt_connectBluetooth")
+            sendEvent(name: "btDeviceConnected", value: btNameOrAddr, display: true, displayed: true)
+        } else { log.error "ConnectBluetooth Error: Unable to find the connected bluetooth device address..." }
+    }
+}
+
+def disconnectBluetooth() {
+    logger("trace", "disconnectBluetooth() command received...")
+    if(isCommandTypeAllowed("bluetoothControl")) {
+        String curBtAddr = getBtAddrByAddrOrName(device?.currentValue("btDeviceConnected") as String)
+        if(curBtAddr) {
+            sendAmazonCommand("post", [
+                uri: getAmazonUrl(),
+                path: "/api/bluetooth/disconnect-sink/${state?.deviceType}/${state?.serialNumber}",
+                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+                requestContentType: "application/json",
+                contentType: "application/json",
+                body: [ bluetoothDeviceAddress: curBtAddr ]
+            ], [cmdDesc: "disconnectBluetooth"])
+            incrementCntByKey("use_cnt_disconnectBluetooth")
+        } else { log.error "DisconnectBluetooth Error: Unable to find the connected bluetooth device address..." }
+    }
+}
+
+def removeBluetooth(String btNameOrAddr) {
+    logger("trace", "removeBluetooth(${btNameOrAddr}) command received...")
+    if(isCommandTypeAllowed("bluetoothControl")) {
+        String curBtAddr = getBtAddrByAddrOrName(btNameOrAddr)
+        if(curBtAddr) {
+            sendAmazonCommand("post", [
+                uri: getAmazonUrl(),
+                path: "/api/bluetooth/unpair-sink/${state?.deviceType}/${state?.serialNumber}",
+                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+                requestContentType: "application/json",
+                contentType: "application/json",
+                body: [ bluetoothDeviceAddress: curBtAddr, bluetoothDeviceClass: "OTHER" ]
+            ], [cmdDesc: "removeBluetooth(${btNameOrAddr})"])
+            incrementCntByKey("use_cnt_removeBluetooth")
+        } else { log.error "RemoveBluetooth Error: Unable to find the connected bluetooth device address..." }
+    }
 }
 
 def sendAlexaAppNotification(String text) {
@@ -2082,7 +2137,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
     }
     try {
         state?.speakingNow = true
-        Map headerMap = ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf]
+        Map headerMap = [cookie: getCookieVal(), csrf: getCsrfVal()]
         headers?.each { k,v-> headerMap[k] = v }
         Integer qSize = getQueueSize()
         logItems?.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${state?.cmdQueueWorking})")
@@ -2137,7 +2192,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
 def asyncSpeechHandler(response, data) {
     def resp = null
     data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-    if(!respIsValid(response, "asyncSpeechHandler", true)){
+    if(!respIsValid(response, "asyncSpeechHandler", (response?.hasError() == true), true)){
         resp = response?.getErrorJson() ?: null
     } else { resp = response?.getData() ?: null }
     try {} catch (ex) {
@@ -2232,6 +2287,8 @@ String getObjType(obj) {
 	if(obj instanceof String) {return "String"}
 	else if(obj instanceof GString) {return "GString"}
 	else if(obj instanceof Map) {return "Map"}
+    else if(obj instanceof LinkedHashMap) {return "LinkedHashMap"}
+    else if(obj instanceof HashMap) {return "HashMap"}
 	else if(obj instanceof List) {return "List"}
 	else if(obj instanceof ArrayList) {return "ArrayList"}
 	else if(obj instanceof Integer) {return "Integer"}
@@ -2259,7 +2316,7 @@ public Map getDeviceMetrics() {
     return out
 }
 
-private getHubPlatform() {
+private getPlaform() {
     def p = "SmartThings"
     if(state?.hubPlatform == null) {
         try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
