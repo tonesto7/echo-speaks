@@ -368,10 +368,10 @@ metadata {
         }
         main(["deviceStatus"])
         details([
-            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "lastVoiceActivity", "btDeviceConnected", "btDevicesPaired", "ttsSupported",
-            "blank2x1", "blank2x1", "stopAllDevices", "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "playFunFact", "playJoke", "playWelcomeHome", "playGoodNight", "playCalendarToday",
-            "playCalendarTomorrow", "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll", "doNotDisturb", "resetQueue", "volumeUp", "volumeDown", "refresh", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt",
-            "disconnectBluetooth"
+            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported", "btDeviceConnected", "btDevicesPaired", "blank2x1",
+            "stopAllDevices", "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "playFunFact", "playJoke", "playWelcomeHome", "playGoodNight", "playCalendarToday",
+            "playCalendarTomorrow", "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll", "doNotDisturb", "resetQueue", "disconnectBluetooth", "volumeUp", "volumeDown", "refresh", "supportedMusic",
+            "lastSpeakCmd", "lastCmdSentDt", "lastVoiceActivity"
         ])
     }
 
