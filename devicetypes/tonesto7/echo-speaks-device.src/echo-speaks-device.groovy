@@ -60,7 +60,7 @@ metadata {
         attribute "volume", "number"
         attribute "volumeSupported", "string"
         attribute "wakeWords", "enum"
-        attribute "wasSpokenToDevice", "string"
+        attribute "wasLastSpokenToDevice", "string"
 
         command "playText", ["string"] //This command is deprecated in ST but will work
         command "playTextAndResume"
@@ -114,7 +114,7 @@ metadata {
         command "sendTestAnnouncement"
         command "sendTestAnnouncementAll"
         command "updateDeviceActivity"
-        command "getBluetoothDevices"
+        command "updateBluetoothDevices"
         command "connectBluetooth", ["string"]
         command "disconnectBluetooth"
         command "removeBluetooth", ["string"]
@@ -663,7 +663,7 @@ private refreshData() {
         getNotifications()
     }
     if(state?.permissions?.bluetoothControl) {
-        getBluetoothDevices()
+        updateBluetoothDevices()
     }
     updateDeviceActivity()
 }
@@ -857,8 +857,8 @@ def getAvailableWakeWordsHandler(response, data) {
     }
 }
 
-private getBluetoothDevices() {
-    execAsyncCmd("get", "getBluetoothHandler", [
+private updateBluetoothDevices() {
+    execAsyncCmd("get", "updBluetoothHandler", [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
@@ -867,8 +867,8 @@ private getBluetoothDevices() {
     ])
 }
 
-def getBluetoothHandler(response, data) {
-    if(!respIsValid(response, "getBluetoothHandler", (response?.hasError() == true))) {return}
+def updBluetoothHandler(response, data) {
+    if(!respIsValid(response, "updBluetoothHandler", (response?.hasError() == true))) {return}
     try {} catch (ex) { }
     String curConnName = null
     Map btObjs = [:]
@@ -1057,8 +1057,8 @@ def deviceActivityHandler(response, data) {
     if(isStateChange(device, "lastVoiceActivity", lastVoiceActivity?.toString())) {
         sendEvent(name: "lastVoiceActivity", value: lastVoiceActivity, display: false, displayed: false)
     }
-    if(isStateChange(device, "wasSpokenToDevice", wasLastDevice?.toString())) {
-        sendEvent(name: "wasSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
+    if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
+        sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
     }
 }
 
@@ -2438,22 +2438,6 @@ Map createSequenceNode(command, value) {
                 seqNode?.operationPayload?.textToSpeak = value as String
                 break
             case "announcement":
-                seqNode?.type = "AlexaAnnouncement"
-                seqNode?.operationPayload?.remove('deviceType')
-                seqNode?.operationPayload?.remove('deviceSerialNumber')
-                seqNode?.operationPayload?.remove('locale')
-                seqNode?.operationPayload?.expireAfter = "PT5S"
-                List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
-                seqNode?.operationPayload?.content = [[
-                    locale: (state?.regionLocale ?: "en-US"),
-                    display: [ title: valObj[0], body: valObj[1] as String ],
-                    speak: [ type: "text", value: valObj[1] as String ],
-                ]]
-                seqNode?.operationPayload?.target = [
-                    customerId : state?.deviceOwnerCustomerId,
-                    devices: [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ]
-                ]
-                break
             case "announcementall":
                 seqNode?.type = "AlexaAnnouncement"
                 seqNode?.operationPayload?.remove('deviceType')
@@ -2467,6 +2451,7 @@ Map createSequenceNode(command, value) {
                     speak: [ type: "text", value: valObj[1] as String ],
                 ]]
                 seqNode?.operationPayload?.target = [ customerId : state?.deviceOwnerCustomerId ]
+                if(command != "announcementall") { seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ] }
                 break
             case "welcomehomerandom":
                 seqNode?.type = "Alexa.CannedTts.Speak"

@@ -1,45 +1,26 @@
-V2.2.0 (January 13th, 2019):
+V2.2.0 (January 14th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
+ • FIXED: Update Notifications are now off when you disable them.
+ • FIXED: Reduced missed poll notifications.  The app will attempt to reinitiate the data updates 1x before alerting you.
+ • FIXED: Many, many bug fixes. So many that it leads me to wonder how the app even worked at all.
  • UPDATED: Code base now supports 100% Cross-Platform Support for both SmartThings and Hubitat!
- • ADDED: Local it-IT to options
+ • UPDATED: UI flow and layout updates and reorganization.
+ • UPDATED: Added Device and Server Version to head section on the main page for easy viewing of installed versions.
+ • ADDED: The supported device is now dynamic and the update process is now 100% remote.  Meaning I can support remotely and your app will update it's data every 6 hours or will update when you open the smartapp.
+ • ADDED: Device Cleanup Option to remove unwanted devices or All devices on uninstall
 
 Device:
- • FIXED: forgot to add the actual function for the sendAlexaAppNotification
+ • FIXED: Volume logic fixes (Thanks to @RBoy)
+ • UPDATED: playAnnouncement() changes.. Added optional parameters Title, Volume, Restore Volume to playAnnouncement command.  (Unfortunately playAnnouncementAll() does not support volume yet)
+            You will see 2 playAnnouncement commands now.  the new one excepts playAnnouncement(message, title, volume, restoreVolume)
+ • UPDATED: playText* commands have been updated to provide better support for legacy smartapps (Thanks @RBoy)
+ • UPDATED: sendTtsTest() command has been renamed to speechTest()
+ • ADDED: Bluetooth Device Control.  You can connected/disconnect as well as delete there pairing from the device.
+ • ADDED: Account activity is now checked to determine if a device was that last device spoken to on your account. The value will be found in `wasLastSpokenToDevice` attribute. (Thanks @TonyFleisher)
+ • ADDED: You can also get the last command spoken on the device in the attribute `lastVoiceActivity`.
+ • ADDED: Command to Rename your alexa device on your Amazon account.
+ • ADDED: Undocumented command that I will not explain how to use yet. :|
 
 Server:
- • ADDED: Self refreshing Amazon Cookies!
- • UPDATED: Lot of code cleanups
-
-
-V2.1.2 (January 7th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • ADDED: New Music Search Test Page which allows you to perform search commands on your device.  It also allows you to perform tunein search and see results returned by Amazon
-
-Device (v2.1.2):
- • FIXED: TuneIn search command is now fixed
- • ADDED: Support for Alexa for Windows Detection (Supports all features)
-
-V2.1.1 (January 6th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • ADDED: Documentation link now on the main page.
- • ADDED: regionLocale environment variable is now passed and created by the server.
- • FIXED: Some minor bug fixes
-
-Server:
- • FIXED: Hopefully the login issues for non-us users
-
-V2.1.0 (January 4th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • ADDED: Support for Self refreshing Amazon Cookies!
- • ADDED: Local it-IT to options
-
-Device:
- • FIXED: forgot to add the actual function for the sendAlexaAppNotification
-
-Server:
- • ADDED: Self refreshing Amazon Cookies!
- • UPDATED: Lot of code cleanups
+ • UPDATED: Minor tweaks to remove specifics for ST (This update is optional)
