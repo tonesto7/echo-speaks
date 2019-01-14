@@ -1159,6 +1159,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["flashBriefing"] = (echoValue?.capabilities?.contains("FLASH_BRIEFING"))
                     permissions["microphone"] = (echoValue?.capabilities?.contains("MICROPHONE"))
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
+                    permissions["bluetoothControl"] = (echoValue?.capabilities.contains("PAIR_BT_SOURCE"))
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false

@@ -98,6 +98,7 @@ metadata {
         command "createReminder", ["string", "string", "string"]
         command "removeNotification", ["string"]
         command "setWakeWord", ["string"]
+        command "renameDevice", ["string"]
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "setVolumeAndSpeak", ["number", "string"]
@@ -441,6 +442,9 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
             case "volumeControl":
                 warnMsg = "OOPS... Volume Control is NOT Supported by this Device!!!"
                 break
+            case "bluetoothControl":
+                warnMsg = "OOPS... Bluetooth Control is NOT Supported by this Device!!!"
+                break
             case "alarms":
                 warnMsg = "OOPS... Alarm Notification are NOT Supported by this Device!!!"
                 break
@@ -626,6 +630,9 @@ private refreshData() {
     if((state?.permissions?.alarms == true) || (state?.permissions?.reminders == true)) {
         if(state?.permissions?.alarms == true) { getAlarmVolume() }
         getNotifications()
+    }
+    if(state?.permissions?.bluetoothControl) {
+        getBluetoothDevices()
     }
 }
 
@@ -841,6 +848,39 @@ def getAvailableWakeWordsHandler(response, data) {
     }
 }
 
+private getBluetoothDevices() {
+    execAsyncCmd("get", "getBluetoothHandler", [
+        uri: getAmazonUrl(),
+        path: "/api/bluetooth",
+        headers: [ "Cookie": state?.cookie?.cookie as String, "csrf": state?.cookie?.csrf as String ],
+        requestContentType: "application/json",
+        contentType: "application/json"
+    ])
+}
+
+def getBluetoothHandler(response, data) {
+    if(!respIsValid(response, "getBluetoothHandler")) {return}
+    try {} catch (ex) {
+        //handles non-2xx status codes
+    }
+    List btItems = []
+    Map btObjs = [:]
+    def rData = response?.json
+    def bluData = rData?.bluetoothStates?.size() ? rData?.bluetoothStates?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
+    if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
+        bluData?.pairedDeviceList?.each {
+            it?.connected
+        }
+    }
+    logger("trace", "getBluetoothHandler: $bluData")
+
+    // state?.doNotDisturb = (dndData?.enabled == true)
+    // if(isStateChange(device, "pairedBtDevices", (bluData?.enabled == true)?.toString())) {
+    //     log.info "Do Not Disturb: (${(dndData?.enabled == true)})"
+    //     sendEvent(name: "doNotDisturb", value: (dndData?.enabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndData?.enabled == true)}", display: true, displayed: true)
+    // }
+}
+
 private getDoNotDisturb() {
     execAsyncCmd("get", "getDoNotDisturbHandler", [
         uri: getAmazonUrl(),
@@ -976,6 +1016,41 @@ def getNotificationsHandler(response, data) {
     // log.trace "notifications: $newList"
     if(isStateChange(device, "alexaNotifications", newList?.toString())) {
         sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
+    }
+}
+
+private getLastSpokenToDevice() {
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/activities",
+        query: [
+            startTime:"",
+            size:"50",
+            offset:"-1"
+        ],
+        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        requestContentType: "application/json",
+        contentType: "application/json"
+    ]
+    execAsyncCmd("GET", "lastSpokenToHandler", params)
+}
+
+def lastSpokenToHandler(response, data) {
+    def sData = response?.json
+    def activities = sData?.activities
+    if (activities != null) {
+        def lastCommand = activities.find {
+            (it.domainAttributes == null || it.domainAttributes.startsWith("{")) &&
+            it.activityStatus.equals("SUCCESS") &&
+            it.utteranceId.startsWith(it.sourceDeviceIds.deviceType)
+        }
+        if (lastCommand) {
+            def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
+            def spokenText = lastDescription?.summary
+            def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
+            log.trace "last text|${spokenText}|device|${ lastDevice}|"
+            log.trace "deviceType|${ lastDevice.deviceType}|serial|${ lastDevice.serialNumber}"
+        }
     }
 }
 
@@ -1707,6 +1782,24 @@ private createNotification(type, options) {
         ]
     ]
     sendAmazonCommand("put", params, [cmdDesc: "Create${type}"])
+}
+
+def renameDevice(newName) {
+    logger("trace", "renameDevice($newName) command received...")
+    sendAmazonCommand("put", [
+        uri: getAmazonUrl(),
+        path: "https://alexa.amazon.de/api/devices-v2/device/${state?.serialNumber}",
+        headers: ["Cookie": state?.cookie?.cookie, "csrf": state?.cookie?.csrf],
+        requestContentType: "application/json",
+        contentType: "application/json",
+        body: [
+            serialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            deviceAccountId: state?.deviceOwnerCustomerId,
+            accountName: newName
+        ]
+    ], [cmdDesc: "renameDevice"])
+    incrementCntByKey("use_cnt_renameDevice")
 }
 
 def sendAlexaAppNotification(String text) {
