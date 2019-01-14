@@ -622,6 +622,12 @@ void refresh() {
     // refreshData()
 }
 
+private triggerDataRrsh(parentRefresh=false) {
+    if(parentRefresh) {
+        runIn(4, "refresh", [overwrite: true])
+    } else { runIn(4, "refreshData", [overwrite: true]) }
+}
+
 private stateCleanup() {
     List items = [""]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
@@ -1112,10 +1118,10 @@ def amazonCommandResp(response, data) {
                 sendSequenceCommand("PlayMusic | Provider: ${data?.validObj?.operationPayload?.musicProviderId}", seqJson, null)
             }
         } else if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
-            runIn(4, "getBluetoothDevices", [overwrite: true])
+            triggerDataRrsh()
             log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         } else if(data?.cmdDesc?.startsWith("renameDevice")) {
-            runIn(4, "refresh", [overwrite: true])
+            triggerDataRrsh(true)
             log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         } else {
             log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
@@ -1163,6 +1169,7 @@ def play() {
         if(isStateChange(device, "status", "playing")) {
             sendEvent(name: "status", value: "playing", descriptionText: "Player Status is playing", display: true, displayed: true)
         }
+        triggerDataRrsh()
     }
 }
 
@@ -1179,7 +1186,9 @@ def pause() {
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
         }
+        triggerDataRrsh()
     }
+
 }
 
 def stop() {
@@ -1191,12 +1200,14 @@ def stop() {
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
         }
+        triggerDataRrsh()
     }
 }
 
 def stopAllDevices() {
     doSequenceCmd("StopAllDevicesCommand", "stopalldevices")
     incrementCntByKey("use_cnt_stopAllDevices")
+    triggerDataRrsh()
 }
 
 def previousTrack() {
@@ -1204,6 +1215,7 @@ def previousTrack() {
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("PreviousCommand")
         incrementCntByKey("use_cnt_prevTrackCmd")
+        triggerDataRrsh()
     }
 }
 
@@ -1212,6 +1224,7 @@ def nextTrack() {
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("NextCommand")
         incrementCntByKey("use_cnt_nextTrackCmd")
+        triggerDataRrsh()
     }
 }
 
