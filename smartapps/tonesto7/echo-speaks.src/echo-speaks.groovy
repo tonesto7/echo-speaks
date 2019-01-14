@@ -16,10 +16,10 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.2.0" }
-String appModified()  { return "2019-01-14" }
+String appModified() { return "2019-01-14" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
-Boolean isST()       { return (getPlaform() == "SmartThings") }
+Boolean isST()       { return (getPlatform() == "SmartThings") }
 Map minVersions()    { return [echoDevice: 220, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
@@ -688,7 +688,7 @@ String getEnvParamsStr() {
     Map envParams = [:]
     envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}"
-    envParams["hubPlatform"] = "${getPlaform()}"
+    envParams["hubPlatform"] = "${getPlatform()}"
     envParams["useHeroku"] = "true"
     envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
     envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
@@ -1737,7 +1737,7 @@ private createMetricsDataJson(rendAsMap=false) {
             installDt: state?.installData?.dt,
             updatedDt: state?.installData?.updatedDt,
             timeZone: location?.timeZone?.ID?.toString(),
-            hubPlatform: getPlaform(),
+            hubPlatform: getPlatform(),
             authValid: (state?.authValid == true),
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
@@ -2142,7 +2142,7 @@ String getObjType(obj) {
 	else { return "unknown"}
 }
 
-private getPlaform() {
+private getPlatform() {
     def p = "SmartThings"
     if(state?.hubPlatform == null) {
         try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }

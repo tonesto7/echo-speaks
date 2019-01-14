@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 String devVersion()  { return "2.2.0"}
 String devModified() { return "2019-01-14" }
 Boolean isBeta()     { return true }
-Boolean isST()       { return (getPlaform() == "SmartThings") }
+Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player") {
@@ -2320,7 +2320,7 @@ public Map getDeviceMetrics() {
     return out
 }
 
-private getPlaform() {
+private getPlatform() {
     def p = "SmartThings"
     if(state?.hubPlatform == null) {
         try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }

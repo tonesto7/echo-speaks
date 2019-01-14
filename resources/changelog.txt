@@ -1,7 +1,7 @@
 V2.2.0 (January 13th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
- • ADDED: Support for Self refreshing Amazon Cookies!
+ • UPDATED: Code base now supports 100% Cross-Platform Support for both SmartThings and Hubitat!
  • ADDED: Local it-IT to options
 
 Device:
