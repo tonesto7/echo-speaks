@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String devVersion()  { return "2.2.0"}
-String devModified() { return "2019-01-14" }
+String devModified() { return "2019-01-15" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -284,7 +284,7 @@ metadata {
         valueTile("alexaWakeWord", "device.alexaWakeWord", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("alexaWakeWord", label:'Wake Word:\n${currentValue}')
         }
-        valueTile("supportedMusic", "device.supportedMusic", height: 2, width: 4, inactiveLabel: false, decoration: "flat") {
+        valueTile("supportedMusic", "device.supportedMusic", height: 2, width: 3, inactiveLabel: false, decoration: "flat") {
             state("supportedMusic", label:'Supported Music:\n${currentValue}')
         }
         valueTile("btDeviceConnected", "device.btDeviceConnected", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
@@ -293,85 +293,88 @@ metadata {
         valueTile("btDevicesPaired", "device.btDevicesPaired", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("btDevicesPaired", label:'Paired Bluetooth Devices:\n${currentValue}')
         }
-        standardTile("speechTest", "speechTest", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Speech Test', action: 'speechTest')
+        standardTile("speechTest", "speechTest", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'speechTest', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/speak_test.png")
         }
         standardTile("searchTest", "searchTest", height: 1, width: 2, decoration: "flat") {
             state("default", label:'MusicSearch Test', action: 'searchTest')
         }
-        standardTile("sendTestAnnouncement", "sendTestAnnouncement", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Test Announcement', action: 'sendTestAnnouncement')
+        standardTile("sendTestAnnouncement", "sendTestAnnouncement", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'sendTestAnnouncement', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/announcement.png")
         }
-        standardTile("sendTestAnnouncementAll", "sendTestAnnouncementAll", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Test Announcement (All)', action: 'sendTestAnnouncementAll')
+        standardTile("sendTestAnnouncementAll", "sendTestAnnouncementAll", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'sendTestAnnouncementAll', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/announcement_all.png")
         }
-        standardTile("stopAllDevices", "stopAllDevices", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Stop All Devices', action: 'stopAllDevices')
+        standardTile("stopAllDevices", "stopAllDevices", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'stopAllDevices', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/stop_all.png")
         }
-        standardTile("playWeather", "playWeather", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Weather Report', action: 'playWeather')
+        standardTile("playWeather", "playWeather", height: 1, width: 1, decoration: "flat") {
+            state("default", action: 'playWeather', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/weather_report.png")
         }
-        standardTile("playSingASong", "playSingASong", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Sing-A-Song', action: 'playSingASong')
+        standardTile("playSingASong", "playSingASong", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playSingASong', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/sing_song.png")
         }
-        standardTile("playFlashBrief", "playFlashBrief", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Flash Briefing', action: 'playFlashBrief')
+        standardTile("playFlashBrief", "playFlashBrief", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playFlashBrief', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/flash_brief.png")
         }
-        standardTile("playGoodMorning", "playGoodMorning", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Good Morning', action: 'playGoodMorning')
+        standardTile("playGoodMorning", "playGoodMorning", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playGoodMorning', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/good_morning.png")
         }
-        standardTile("playTraffic", "playTraffic", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Traffic', action: 'playTraffic')
+        standardTile("playTraffic", "playTraffic", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playTraffic', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/play_traffic.png")
         }
-        standardTile("playTellStory", "playTellStory", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Tell-a-Story', action: 'playTellStory')
+        standardTile("playTellStory", "playTellStory", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playTellStory', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/story.png")
         }
-        standardTile("playJoke", "playJoke", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Joke', action: 'playJoke')
+        standardTile("playJoke", "playJoke", height: 1, width: 1, decoration: "flat") {
+            state("default", action: 'playJoke', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/play_joke.png")
         }
-        standardTile("playFunFact", "playFunFact", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Fun-Fact', action: 'playFunFact')
+        standardTile("playFunFact", "playFunFact", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playFunFact', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/fact.png")
         }
-        standardTile("playCalendarToday", "playCalendarToday", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Calendar Today', action: 'playCalendarToday')
+        standardTile("playCalendarToday", "playCalendarToday", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playCalendarToday', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/calendar_today.png")
         }
-        standardTile("playCalendarTomorrow", "playCalendarTomorrow", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Calendar Tomorrow', action: 'playCalendarTomorrow')
+        standardTile("playCalendarTomorrow", "playCalendarTomorrow", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playCalendarTomorrow', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/calendar_tomorrow.png")
         }
-        standardTile("playCalendarNext", "playCalendarNext", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Calendar Next', action: 'playCalendarNext')
+        standardTile("playCalendarNext", "playCalendarNext", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playCalendarNext', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/calendar_next.png")
         }
-        standardTile("playWelcomeHome", "playWelcomeHome", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Welcome Home', action: 'playWelcomeHome')
+        standardTile("playWelcomeHome", "playWelcomeHome", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playWelcomeHome', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/welcome_home.png")
         }
-        standardTile("playGoodNight", "playGoodNight", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Good Night', action: 'playGoodNight')
+        standardTile("playGoodNight", "playGoodNight", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'playGoodNight', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/good_night.png")
         }
-        standardTile("volumeUp", "volumeUp", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Volume Up', action: 'volumeUp')
+        standardTile("volumeUp", "volumeUp", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'volumeUp', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/volume_up.png")
         }
-        standardTile("volumeDown", "volumeDown", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Volume Down', action: 'volumeDown')
+        standardTile("volumeDown", "volumeDown", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'volumeDown', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/volume_down.png")
         }
-        standardTile("resetQueue", "resetQueue", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Reset Queue', action: 'resetQueue')
+        standardTile("resetQueue", "resetQueue", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'resetQueue', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/reset_queue.png")
         }
-        standardTile("refresh", "device.refresh", width:2, height:2, decoration: "flat") {
-			state "default", action:"refresh.refresh", icon:"https://raw.githubusercontent.com/tonesto7/nest-manager/master/Images/Devices/refresh_icon.png"
+        standardTile("refresh", "device.refresh", width:1, height:1, decoration: "flat") {
+			state "default", action:"refresh.refresh", icon:"https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/refresh.png"
 		}
-        standardTile("doNotDisturb", "device.doNotDisturb", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state "true", label: 'DnD: ON', action: "doNotDisturbOff", nextState: "false"
-            state "false", label: 'DnD: OFF', action: "doNotDisturbOn", nextState: "true"
+        standardTile("doNotDisturb", "device.doNotDisturb", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
+            state "true", label: '', action: "doNotDisturbOff", nextState: "false", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/dnd_on.png"
+            state "false", label: '', action: "doNotDisturbOn", nextState: "true", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/dnd_off.png"
         }
-        standardTile("disconnectBluetooth", "disconnectBluetooth", height: 1, width: 2, decoration: "flat") {
-            state("default", label:'Disconnect Bluetooth', action: 'disconnectBluetooth')
+        standardTile("disconnectBluetooth", "disconnectBluetooth", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'disconnectBluetooth', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/disconnect_bluetooth.png")
         }
         main(["deviceStatus"])
         details([
-            "mediaMulti", "currentAlbum", "currentStation", "dtCreated", "deviceStyle", "onlineStatus", "alarmVolume", "volumeSupported", "alexaWakeWord", "ttsSupported", "btDeviceConnected", "btDevicesPaired", "blank2x1",
-            "stopAllDevices", "playWeather", "playSingASong", "playFlashBrief", "playGoodMorning", "playTraffic", "playTellStory", "playFunFact", "playJoke", "playWelcomeHome", "playGoodNight", "playCalendarToday",
-            "playCalendarTomorrow", "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll", "doNotDisturb", "resetQueue", "disconnectBluetooth", "volumeUp", "volumeDown", "refresh", "supportedMusic",
-            "lastSpeakCmd", "lastCmdSentDt", "lastVoiceActivity"
+            "mediaMulti",
+            "volumeUp", "volumeDown", "stopAllDevices", "doNotDisturb", "refresh", "disconnectBluetooth",
+            "playWeather", "playSingASong", "playFlashBrief", "playTraffic", "playTellStory", "playFunFact",
+            "playJoke", "playWelcomeHome", "playGoodMorning", "playGoodNight", "resetQueue", "blank1x1",
+            "playCalendarToday", "playCalendarTomorrow", "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll",
+            "currentAlbum", "currentStation",
+            "alarmVolume",  "btDeviceConnected", "btDevicesPaired", "deviceStyle", "onlineStatus", "volumeSupported", "alexaWakeWord", "ttsSupported", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt", "lastVoiceActivity"
         ])
     }
 
@@ -1064,6 +1067,11 @@ def deviceActivityHandler(response, data) {
     if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
         sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
     }
+}
+
+private getTodaysWeather(String zipCode) {
+    def curForecast = getTwcForecast()
+    log.debug "curForecast: ${curForecast?.narrative?.get(0)}"
 }
 
 String getCookieVal() { return (state?.cookie && state?.cookie?.cookie) ? state?.cookie?.cookie as String : null }
