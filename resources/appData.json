@@ -29,6 +29,22 @@
     "block": ["DASH_WAND"]
   },
   "deviceSupport": {
+    "A1X7HJX9QL16M5": {
+      "name": "Bespoken.io",
+      "blocked": true
+    },
+    "A37SHHQ3NUL7B5": {
+      "name": "Bose Homespeaker",
+      "blocked": true
+    },
+    "A38BPK7OW001EX": {
+      "name": "Raspberry Alexa",
+      "blocked": true
+    },
+    "A1DL2DVDQVK3Q": {
+      "name": "Mobile App",
+      "blocked": true
+    },
     "A1JJ0KFC4ZPNJ3": {
       "name": "Echo Input",
       "image": "echo_input",
@@ -190,7 +206,7 @@
       "allowTTS": true
     },
     "A1RTAM01W29CUP": {
-      "name": "Alexa App - Windows 10",
+      "name": "Windows App",
       "image": "alexa_windows",
       "allowTTS": true
     }
