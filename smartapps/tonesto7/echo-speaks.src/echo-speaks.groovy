@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 String appVersion()	 { return "2.2.0" }
 String appModified() { return "2019-01-15" }
 String appAuthor()   { return "Anthony S." }
-Boolean isBeta()     { return true }
+Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Map minVersions()    { return [echoDevice: 220, server: 211] } //These values define the minimum versions of code this app will work with.
 
