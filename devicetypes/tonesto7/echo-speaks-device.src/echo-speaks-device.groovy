@@ -30,7 +30,6 @@ metadata {
         capability "Refresh"
         capability "Sensor"
         capability "Speech Synthesis"
-	capability "Audio Notification"
 
         attribute "alarmSupported", "string"
         attribute "alarmVolume", "number"
