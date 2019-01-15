@@ -22,13 +22,13 @@ Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player") {
-        capability "Sensor"
-        capability "Refresh"
         //capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
         capability "Audio Volume"
         capability "Music Player"
         capability "Notification"
+        capability "Refresh"
+        capability "Sensor"
         capability "Speech Synthesis"
 	capability "Audio Notification"
 
