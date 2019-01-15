@@ -17,7 +17,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 String devVersion()  { return "2.2.0"}
 String devModified() { return "2019-01-15" }
-Boolean isBeta()     { return true }
+Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 metadata {
