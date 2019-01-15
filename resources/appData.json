@@ -26,7 +26,7 @@
     "tablet": ["TABLET"],
     "wha": ["WHA"],
     "other": ["REAPER"],
-    "block": ["DASH_WAND"]
+    "block": ["AMAZONMOBILEMUSIC_ANDROID", "TBIRD_IOS", "VOX"]
   },
   "deviceSupport": {
     "A1X7HJX9QL16M5": {
