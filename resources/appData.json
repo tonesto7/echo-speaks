@@ -1,4 +1,5 @@
 {
+  "appDataVer": "1.0",
   "versions": {
     "mainApp": {
       "ver": "2.2.0"
@@ -19,16 +20,32 @@
     }
   },
   "deviceTypes": {
-    "ignore": ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL", "A38BPK7OW001EX"]
+    "ignore": ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
   },
   "deviceFamilies": {
     "echo": ["ROOK", "KNIGHT", "ECHO"],
     "tablet": ["TABLET"],
     "wha": ["WHA"],
     "other": ["REAPER"],
-    "block": ["DASH_WAND"]
+    "block": ["AMAZONMOBILEMUSIC_ANDROID", "TBIRD_IOS", "VOX"]
   },
   "deviceSupport": {
+    "A1X7HJX9QL16M5": {
+      "name": "Bespoken.io",
+      "blocked": true
+    },
+    "A37SHHQ3NUL7B5": {
+      "name": "Bose Homespeaker",
+      "blocked": true
+    },
+    "A38BPK7OW001EX": {
+      "name": "Raspberry Alexa",
+      "blocked": true
+    },
+    "A1DL2DVDQVK3Q": {
+      "name": "Mobile App",
+      "blocked": true
+    },
     "A1JJ0KFC4ZPNJ3": {
       "name": "Echo Input",
       "image": "echo_input",
@@ -190,8 +207,13 @@
       "allowTTS": true
     },
     "A1RTAM01W29CUP": {
-      "name": "Alexa App - Windows 10",
+      "name": "Windows App",
       "image": "alexa_windows",
+      "allowTTS": true
+    },
+    "A3F1S88NTZZXS9": {
+      "name": "Dash Wand",
+      "image": "dash_wand",
       "allowTTS": true
     }
   }

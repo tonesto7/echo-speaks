@@ -99,13 +99,15 @@ def mainPage() {
             def devPrefDesc = devicePrefsDesc()
             href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "Current Preferences:\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
         }
-
-        section(sTS("Notifications:")) {
-            def t0 = getAppNotifConfDesc()
-            href "notifPrefPage", title: inTS("App and Device\nNotifications", getAppImg("devices", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+        if(!newInstall) {
+            section(sTS("Experimental Functions:")) {
+                href "broadcastTestPage", title: inTS("Broadcast Test Page", getAppImg("broadcast", true)), description: "Tap to proceed...", image: getAppImg("broadcast")
+                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Tap to proceed...", image: getAppImg("music")
+                // href "deviceCmdTestPage", title: inTS("Device Command Tests", getAppImg("devices", true)), description: "Tap to proceed...", image: getAppImg("devices")
+            }
         }
 
-        section(sTS("Application Preferences & Documentation:")) {
+        section(sTS("Documentation & Settings:")) {
             href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
             href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")
         }
@@ -115,17 +117,21 @@ def mainPage() {
                 def t0 = getServiceConfDesc()
                 href "servPrefPage", title: inTS("Login Service\nSettings", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
             }
-            section(sTS("Experimental Functions:")) {
-                href "broadcastTestPage", title: inTS("Broadcast Test Page", getAppImg("broadcast", true)), description: "Tap to proceed...", image: getAppImg("broadcast")
-                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Tap to proceed...", image: getAppImg("music")
-                // href "deviceCmdTestPage", title: inTS("Device Command Tests", getAppImg("devices", true)), description: "Tap to proceed...", image: getAppImg("devices")
-            }
+
             if(!state?.shownDevSharePage) { showDevSharePrefs() }
+            section(sTS("Notifications:")) {
+                def t0 = getAppNotifConfDesc()
+                href "notifPrefPage", title: inTS("App and Device\nNotifications", getAppImg("devices", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+            }
+        }
+        section(sTS("Documentation & Settings:")) {
+            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")
+            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
+        }
+        if(!newInstall) {
             section(sTS("Donations:")) {
                 href url: textDonateLink(), style: "external", required: false, title: inTS("Donations", getAppImg("donate", true)), description: "Tap to open browser", image: getAppImg("donate")
             }
-        }
-        if(!newInstall) {
             section(sTS("Remove Everything:")) {
                 href "uninstallPage", title: inTS("Uninstall this App", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
             }
@@ -161,15 +167,260 @@ def devicePrefsPage() {
 
 def devicePrefsDesc() {
     String str = ""
-    str += " • Auto Create Devices (${(settings?.autoCreateDevices == false) ? "Disabled" : "Enabled"})"
+    str += bulletItem(str, "Auto Create Devices (${(settings?.autoCreateDevices == false) ? "Disabled" : "Enabled"})")
     if(settings?.autoCreateDevices) {
-        str += (settings?.createTablets == true) ? "${str == "" ? "" : "\n"} • Auto Create Tablets (Enabled)" : ""
-        str += (settings?.createWHA == true) ? "${str == "" ? "" : "\n"} • Auto Create WHA (Enabled)" : ""
-        str += (settings?.createOtherDevices == true) ? "${str == "" ? "" : "\n"} • Auto Create Other Alexa Devices (Enabled)" : ""
+        str += (settings?.createTablets == true) ? bulletItem(str, "Auto Create Tablets (Enabled)") : ""
+        str += (settings?.createWHA == true) ? bulletItem(str, "Auto Create WHA (Enabled)") : ""
+        str += (settings?.createOtherDevices == true) ? bulletItem(str, "Auto Create Other Alexa Devices (Enabled)") : ""
     }
-    str += "${str == "" ? "" : "\n"} • Auto Rename Devices (${settings?.autoRenameDevices == false ? "Disabled" : "Enabled"})"
+    str += bulletItem(str, "Auto Rename Devices (${settings?.autoRenameDevices == false ? "Disabled" : "Enabled"})")
     return str != "" ? str : null
 }
+
+def settingsPage() {
+    return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
+        section(sTS("Logging:")) {
+            input "appDebug", "bool", title: inTS("Show Debug Logs in the IDE?", getAppImg("debug", true)), description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            if(settings?.appDebug) {
+                input "appTrace", "bool", title: inTS("Show Detailed Trace Logs in the IDE?", getAppImg("debug", true)), description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            }
+        }
+        showDevSharePrefs()
+        section(sTS("App Change Details:")) {
+            href "changeLogPage", title: inTS("View App Revision History", getAppImg("change_log", true)), description: "Tap to view", image: getAppImg("change_log")
+        }
+    }
+}
+
+def deviceListPage() {
+    return dynamicPage(name: "deviceListPage", install: false) {
+        Map devMap = state?.echoDeviceMap
+        // log.debug "devMap: $devMap"
+        Boolean onST = isST()
+        section(sTS("Discovered Devices:")) {
+            state?.echoDeviceMap?.sort { it?.value?.name }?.each { k,v->
+                String str = "Status: (${v?.online ? "Online" : "Offline"})"
+                str += "\nStyle: ${v?.style?.name}"
+                str += "\nFamily: ${v?.family}"
+                str += "\nType: ${v?.type}"
+                str += "\nVolume Control: (${v?.volumeSupport?.toString()?.capitalize()})"
+                str += "\nText-to-Speech: (${v?.ttsSupport?.toString()?.capitalize()})"
+                str += "\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
+                str += (v?.mediaPlayer == true && v?.musicProviders) ? "\nMusic Providers: [${v?.musicProviders}]" : ""
+                if(onST) {
+                    paragraph title: pTS(v?.name, getAppImg(v?.style?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image)
+                } else { href "deviceListPage", title: pTS(v?.name, getAppImg(v?.style?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image) }
+            }
+        }
+        section(sTS("Unrecognized Devices:")) {
+            if(state?.skippedDevices?.size()) {
+                state?.skippedDevices?.sort { it?.value?.name }?.each { k,v->
+                    String str = "Status: (${v?.online ? "Online" : "Offline"})"
+                    str += "\nStyle: ${v?.name}"
+                    str += "\nFamily: ${v?.family}"
+                    str += "\nType: ${v?.type}"
+                    str += "\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
+                    str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})"
+                    str += "\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
+                    str += "\nReason Ignored: (${v?.reason})"
+                    if(onST) {
+                        paragraph title: pTS(v?.name, getAppImg(v?.style?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image)
+                    } else { href "deviceListPage", title: pTS(v?.name, getAppImg(v?.style?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image) }
+                }
+            } else {
+                paragraph "No Uncognized Devices"
+            }
+        }
+    }
+}
+
+def showDevSharePrefs() {
+    section(sTS("Share Data with Developer:")) {
+        paragraph title: "What is this used for?", "These options send non-user identifiable information and error data to diagnose catch trending issues."
+        input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
+        if(settings?.optOutMetrics != true) {
+            href url: getAppEndpointUrl("renderMetricData"), style: (isST() ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
+        }
+    }
+    if(optOutMetrics != true && state?.isInstalled && state?.onHeroku && !state?.resumeConfig) {
+        section() { input "sendMetricsNow", "bool", title: inTS("Send Metrics Now?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
+        if(settings?.sendMetricsNow) { sendInstallData() }
+    }
+    state?.shownDevSharePage = true
+}
+
+Map getDeviceList(isInputEnum=false, hideDefaults=true) {
+    Map devMap = [:]
+    Map availDevs = state?.echoDeviceMap ?: [:]
+    availDevs?.each { key, val->
+        if(hideDefaults) {
+            if(!(key?.toString() in ["nothing here"])) {
+                devMap[key] = val
+            }
+        } else { devMap[key] = val }
+    }
+    return isInputEnum ? (devMap?.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
+}
+
+def servPrefPage() {
+    Boolean newInstall = !state?.isInstalled
+    Boolean resumeConf = (state?.resumeConfig == true)
+    return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : "")) {
+        Boolean herokuOn = true
+        Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
+        if(newInstall) {
+            showDevSharePrefs()
+            section(sTS("Important Step:")) {
+                paragraph title: "Notice:", "Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", required: true, state: null
+                state?.resumeConfig = true
+            }
+        }
+        if(!newInstall) {
+            state?.resumeConfig = false
+            if(state?.generatedHerokuName) {
+                section() { paragraph title: "Heroku Name:", state?.generatedHerokuName, state: "complete" }
+            }
+            if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
+            if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
+            if(!state?.onHeroku) { srvcPrefOpts() }
+
+            if(!state?.onHeroku) {
+                section(sTS("Deploy the Service:")) {
+                    if(!settings?.amazonDomain) { settingUpdate("amazonDomain", "amazon.com", "enum") }
+                    href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Heroku Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
+                }
+            }
+        }
+        if(!newInstall) {
+            if(state?.onHeroku) {
+                section(sTS("Cloud App Management:")) {
+                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    // href url: "https://${getRandAppName()}.herokuapp.com/manualCookie", style: "external", required: false, title: inTS("Manual Cookie Page", getAppImg("web", true)), description: "Tap to proceed", image: getAppImg("web")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                }
+            }
+
+            if(state?.onHeroku && state?.authValid) {
+                section() { input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
+            }
+            if(settings?.refreshCookie == true) { runCookieRefresh() }
+            if(state?.onHeroku) { srvcPrefOpts() }
+            section(sTS("Reset Options (Tap to view):"), hideable:true, hidden: true) {
+                input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current service and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
+                    required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(settings?.resetService) { clearCloudConfig() }
+                if(settings?.resetCookies) { clearCookieData() }
+            }
+        }
+    }
+}
+
+def srvcPrefOpts() {
+    section(sTS("Service Preferences${state?.onHeroku ? " (Tap to view)" : ""}"), hideable: state?.onHeroku, hidden: state?.onHeroku) {
+        input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
+        input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("web", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("web")
+    }
+}
+
+def notifPrefPage() {
+    dynamicPage(name: "notifPrefPage", install: false) {
+        Integer pollWait = 900
+        Integer pollMsgWait = 3600
+        Integer updNotifyWait = 7200
+        section("") {
+            paragraph title: "Notice:", "The settings configure here are used by both the App and the Devices.", state: "complete"
+        }
+        section(sTS("Push Messages:")) {
+            input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
+        }
+        section(sTS("SMS Text Messaging:")) {
+            paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
+            input "smsNumbers", "text", title: inTS("Send SMS to Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+        }
+        section(sTS("Pushover Support:")) {
+            input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
+            if(settings?.pushoverEnabled == true) {
+                if(state?.isInstalled) {
+                    if(!state?.pushoverManager) {
+                        paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
+                        pushover_init()
+                    } else {
+                        input "pushoverDevices", "enum", title: inTS("Select Pushover Devices"), description: "Tap to select", groupedOptions: getPushoverDevices(), multiple: true, required: false, submitOnChange: true
+                        if(settings?.pushoverDevices) {
+                            def t0 = ["-2":"Lowest", "-1":"Low", "0":"Normal", "1":"High", "2":"Emergency"]
+                            input "pushoverPriority", "enum", title: inTS("Notification Priority (Optional)"), description: "Tap to select", defaultValue: "0", required: false, multiple: false, submitOnChange: true, options: t0
+                            input "pushoverSound", "enum", title: inTS("Notification Sound (Optional)"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
+                        }
+                    }
+                } else { paragraph "New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", state: "complete" }
+            }
+        }
+        if(settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) {
+            if((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
+                if(sendMsg("Info", "Push Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
+                    state.pushTested = true
+                }
+            }
+            section(sTS("Notification Restrictions:")) {
+                def t1 = getNotifSchedDesc()
+                href "setNotificationTimePage", title: inTS("Notification Restrictions", getAppImg("restriction", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("restriction")
+            }
+            section(sTS("Missed Poll Alerts:")) {
+                input (name: "sendMissedPollMsg", type: "bool", title: inTS("Send Missed Checkin Alerts?", getAppImg("late", true)), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
+                if(settings?.sendMissedPollMsg) {
+                    def misPollNotifyWaitValDesc = settings?.misPollNotifyWaitVal ?: "Default: 45 Minutes"
+                    input (name: "misPollNotifyWaitVal", type: "enum", title: inTS("Time Past the Missed Checkin?", getAppImg("delay_time", true)), required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time"))
+                    if(settings?.misPollNotifyWaitVal) { pollWait = settings?.misPollNotifyWaitVal as Integer }
+
+                    def misPollNotifyMsgWaitValDesc = settings?.misPollNotifyMsgWaitVal ?: "Default: 1 Hour"
+                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: inTS("Send Reminder After?", getAppImg("reminder", true)), required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
+                    if(settings?.misPollNotifyMsgWaitVal) { pollMsgWait = settings?.misPollNotifyMsgWaitVal as Integer }
+                }
+            }
+            section(sTS("Code Update Alerts:")) {
+                input "sendAppUpdateMsg", "bool", title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update")
+                if(settings?.sendAppUpdateMsg) {
+                    def updNotifyWaitValDesc = settings?.updNotifyWaitVal ?: "Default: 12 Hours"
+                    input (name: "updNotifyWaitVal", type: "enum", title: inTS("Send Reminders After?", getAppImg("reminder", true)), required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
+                    if(settings?.updNotifyWaitVal) { updNotifyWait = settings?.updNotifyWaitVal as Integer }
+                }
+            }
+        } else { state.pushTested = false }
+        state.misPollNotifyWaitVal = pollWait
+        state.misPollNotifyMsgWaitVal = pollMsgWait
+        state.updNotifyWaitVal = updNotifyWait
+    }
+}
+
+def setNotificationTimePage() {
+    dynamicPage(name: "setNotificationTimePage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
+        Boolean timeReq = (settings["qStartTime"] || settings["qStopTime"]) ? true : false
+        section() {
+            input "qStartInput", "enum", title: inTS("Starting at", getAppImg("start_time", true)), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
+            if(settings["qStartInput"] == "A specific time") {
+                input "qStartTime", "time", title: inTS("Start time", getAppImg("start_time", true)), required: timeReq, image: getAppImg("start_time")
+            }
+            input "qStopInput", "enum", title: inTS("Stopping at", getAppImg("stop_time", true)), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
+            if(settings?."qStopInput" == "A specific time") {
+                input "qStopTime", "time", title: inTS("Stop time", getAppImg("stop_time", true)), required: timeReq, image: getAppImg("stop_time")
+            }
+            input "quietDays", "enum", title: inTS("Only on these days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"),
+                    options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            input "quietModes", "mode", title: inTS("When these Modes are Active", getAppImg("mode", true)), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
+        }
+    }
+}
+
+def uninstallPage() {
+    dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
+        section("") { paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
+        if(isST()) { remove("Remove ${app?.label} and Devices!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis App and Devices will be removed") }
+    }
+}
+
+String bulletItem(String inStr, String strVal) { return "${inStr == "" ? "" : "\n"} \u2022 ${strVal}" }
 
 def broadcastTestPage() {
     return dynamicPage(name: "broadcastTestPage", uninstall: false, install: false) {
@@ -385,232 +636,6 @@ def searchTuneInResultsPage() {
     }
 }
 
-def settingsPage() {
-    return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
-        section(sTS("Logging:")) {
-            input "appDebug", "bool", title: inTS("Show Debug Logs in the IDE?", getAppImg("debug", true)), description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
-            if(settings?.appDebug) {
-                input "appTrace", "bool", title: inTS("Show Detailed Trace Logs in the IDE?", getAppImg("debug", true)), description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
-            }
-        }
-        showDevSharePrefs()
-        section(sTS("App Change Details:")) {
-            href "changeLogPage", title: inTS("View App Revision History", getAppImg("change_log", true)), description: "Tap to view", image: getAppImg("change_log")
-        }
-    }
-}
-
-def deviceListPage() {
-    return dynamicPage(name: "deviceListPage", install: false) {
-        Map devMap = state?.echoDeviceMap
-        // log.debug "devMap: $devMap"
-        Boolean onST = isST()
-        section() {
-            state?.echoDeviceMap?.sort { it?.value?.name }?.each { k,v->
-                String str = "Status: (${v?.online ? "Online" : "Offline"})"
-                str += "\nStyle: ${v?.style?.name}"
-                str += "\nFamily: ${v?.family}"
-                str += "\nType: ${v?.type}"
-                str += "\nVolume Control: (${v?.volumeSupport?.toString()?.capitalize()})"
-                str += "\nText-to-Speech: (${v?.ttsSupport?.toString()?.capitalize()})"
-                str += "\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
-                str += (v?.mediaPlayer == true && v?.musicProviders) ? "\nMusic Providers: [${v?.musicProviders}]" : ""
-                if(onST) {
-                    paragraph title: pTS(v?.name, getAppImg(v?.style?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image)
-                } else { href "deviceListPage", title: pTS(v?.name, getAppImg(v?.style?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image) }
-            }
-        }
-    }
-}
-
-def showDevSharePrefs() {
-    section(sTS("Share Data with Developer:")) {
-        paragraph title: "What is this used for?", "These options send non-user identifiable information and error data to diagnose catch trending issues."
-        input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
-        if(settings?.optOutMetrics != true) {
-            href url: getAppEndpointUrl("renderMetricData"), style: (isST() ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
-        }
-    }
-    if(optOutMetrics != true && state?.isInstalled && state?.onHeroku && !state?.resumeConfig) {
-        section() { input "sendMetricsNow", "bool", title: inTS("Send Metrics Now?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
-        if(sendMetricsNow) { sendInstallData() }
-    }
-    state?.shownDevSharePage = true
-}
-
-Map getDeviceList(isInputEnum=false, hideDefaults=true) {
-    Map devMap = [:]
-    Map availDevs = state?.echoDeviceMap ?: [:]
-    availDevs?.each { key, val->
-        if(hideDefaults) {
-            if(!(key?.toString() in ["nothing here"])) {
-                devMap[key] = val
-            }
-        } else { devMap[key] = val }
-    }
-    return isInputEnum ? (devMap?.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
-}
-
-def servPrefPage() {
-    Boolean newInstall = !state?.isInstalled
-    Boolean resumeConf = (state?.resumeConfig == true)
-    return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : "")) {
-        Map amazonDomainOpts = [
-            "amazon.com":"Amazon.com",
-            "amazon.ca":"Amazon.ca",
-            "amazon.co.uk":"amazon.co.uk",
-            "amazon.de":"Amazon.de",
-            "amazon.it":"Amazon.it"
-        ]
-        List localeOpts = ["en-US", "en-CA", "de-DE", "en-GB", "it-IT"]
-        Boolean herokuOn = true
-        Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
-        if(newInstall) {
-            showDevSharePrefs()
-            section(sTS("Important Step:")) {
-                paragraph title: "Notice:", "Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", required: true, state: null
-                state?.resumeConfig = true
-
-            }
-        }
-        if(!newInstall) {
-            state?.resumeConfig = false
-            if(state?.nodeServiceInfo) {
-                section() { paragraph title: "Heroku Info:", getServInfoDesc(), state: "complete" }
-            }
-            if(!settings?.amazonDomain) { settingUpdate("amazonDomain", "amazon.com", "enum") }
-            if(!settings?.regionLocale) { settingUpdate("regionLocale", "en-US", "enum") }
-            section(sTS("Service Preferences${state?.onHeroku ? " (Tap to view)" : ""}"), hideable: state?.onHeroku, hidden: state?.onHeroku) {
-                input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts, submitOnChange: true, image: getAppImg("amazon_orange")
-                input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("web", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts, submitOnChange: true, image: getAppImg("web")
-            }
-            if(!state?.onHeroku) {
-                section(sTS("Deploy the Service:")) {
-                    if(!settings?.amazonDomain) { settingUpdate("amazonDomain", "amazon.com", "enum") }
-                    href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Heroku Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
-                }
-            }
-        }
-        if(!newInstall) {
-            if(state?.onHeroku) {
-                section(sTS("Cloud App Management:")) {
-                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                    // href url: "https://${getRandAppName()}.herokuapp.com/manualCookie", style: "external", required: false, title: inTS("Manual Cookie Page", getAppImg("web", true)), description: "Tap to proceed", image: getAppImg("web")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
-                }
-            }
-            if(state?.onHeroku && state?.authValid) {
-                section() { input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
-            }
-            if(settings?.refreshCookie == true) { runCookieRefresh() }
-            section(sTS("Reset Options (Tap to view):"), hideable:true, hidden: true) {
-                input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current service and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
-                    required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.resetService) { clearCloudConfig() }
-                if(settings?.resetCookies) { clearCookieData() }
-            }
-        }
-    }
-}
-
-def notifPrefPage() {
-    dynamicPage(name: "notifPrefPage", install: false) {
-        Integer pollWait = 900
-        Integer pollMsgWait = 3600
-        Integer updNotifyWait = 7200
-        section("") {
-            paragraph title: "Notice:", "The settings configure here are used by both the App and the Devices.", state: "complete"
-        }
-        section(sTS("Push Messages:")) {
-            input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
-        }
-        section(sTS("SMS Text Messaging:")) {
-            paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
-            input "smsNumbers", "text", title: inTS("Send SMS to Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
-        }
-        section(sTS("Pushover Support:")) {
-            input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
-            if(settings?.pushoverEnabled == true) {
-                if(state?.isInstalled) {
-                    if(!state?.pushoverManager) {
-                        paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
-                        pushover_init()
-                    } else {
-                        input "pushoverDevices", "enum", title: inTS("Select Pushover Devices"), description: "Tap to select", groupedOptions: getPushoverDevices(), multiple: true, required: false, submitOnChange: true
-                        if(settings?.pushoverDevices) {
-                            def t0 = ["-2":"Lowest", "-1":"Low", "0":"Normal", "1":"High", "2":"Emergency"]
-                            input "pushoverPriority", "enum", title: inTS("Notification Priority (Optional)"), description: "Tap to select", defaultValue: "0", required: false, multiple: false, submitOnChange: true, options: t0
-                            input "pushoverSound", "enum", title: inTS("Notification Sound (Optional)"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
-                        }
-                    }
-                } else { paragraph "New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", state: "complete" }
-            }
-        }
-        if(settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) {
-            if((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
-                if(sendMsg("Info", "Push Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
-                    state.pushTested = true
-                }
-            }
-            section(sTS("Notification Restrictions:")) {
-                def t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: inTS("Notification Restrictions", getAppImg("restriction", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("restriction")
-            }
-            section(sTS("Missed Poll Alerts:")) {
-                input (name: "sendMissedPollMsg", type: "bool", title: inTS("Send Missed Checkin Alerts?", getAppImg("late", true)), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
-                if(settings?.sendMissedPollMsg) {
-                    def misPollNotifyWaitValDesc = settings?.misPollNotifyWaitVal ?: "Default: 45 Minutes"
-                    input (name: "misPollNotifyWaitVal", type: "enum", title: inTS("Time Past the Missed Checkin?", getAppImg("delay_time", true)), required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time"))
-                    if(settings?.misPollNotifyWaitVal) { pollWait = settings?.misPollNotifyWaitVal as Integer }
-
-                    def misPollNotifyMsgWaitValDesc = settings?.misPollNotifyMsgWaitVal ?: "Default: 1 Hour"
-                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: inTS("Send Reminder After?", getAppImg("reminder", true)), required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
-                    if(settings?.misPollNotifyMsgWaitVal) { pollMsgWait = settings?.misPollNotifyMsgWaitVal as Integer }
-                }
-            }
-            section(sTS("Code Update Alerts:")) {
-                input "sendAppUpdateMsg", "bool", title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update")
-                if(settings?.sendAppUpdateMsg) {
-                    def updNotifyWaitValDesc = settings?.updNotifyWaitVal ?: "Default: 12 Hours"
-                    input (name: "updNotifyWaitVal", type: "enum", title: inTS("Send Reminders After?", getAppImg("reminder", true)), required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
-                    if(settings?.updNotifyWaitVal) { updNotifyWait = settings?.updNotifyWaitVal as Integer }
-                }
-            }
-        } else { state.pushTested = false }
-        state.misPollNotifyWaitVal = pollWait
-        state.misPollNotifyMsgWaitVal = pollMsgWait
-        state.updNotifyWaitVal = updNotifyWait
-    }
-}
-
-def setNotificationTimePage() {
-    dynamicPage(name: "setNotificationTimePage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
-        Boolean timeReq = (settings["qStartTime"] || settings["qStopTime"]) ? true : false
-        section() {
-            input "qStartInput", "enum", title: inTS("Starting at", getAppImg("start_time", true)), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
-            if(settings["qStartInput"] == "A specific time") {
-                input "qStartTime", "time", title: inTS("Start time", getAppImg("start_time", true)), required: timeReq, image: getAppImg("start_time")
-            }
-            input "qStopInput", "enum", title: inTS("Stopping at", getAppImg("stop_time", true)), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
-            if(settings?."qStopInput" == "A specific time") {
-                input "qStopTime", "time", title: inTS("Stop time", getAppImg("stop_time", true)), required: timeReq, image: getAppImg("stop_time")
-            }
-            input "quietDays", "enum", title: inTS("Only on these days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"),
-                    options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            input "quietModes", "mode", title: inTS("When these Modes are Active", getAppImg("mode", true)), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
-        }
-    }
-}
-
-def uninstallPage() {
-    dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
-        section("") { paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
-        if(isST()) { remove("Remove ${app?.label} and Devices!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis App and Devices will be removed") }
-    }
-}
-
 def installed() {
     log.debug "Installed with settings: ${settings}"
     state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: "Not Set", sentMetrics: false, shownChgLog: true]
@@ -629,6 +654,7 @@ def updated() {
 
 def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
+    if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
     subscribe(app, onAppTouch)
     if(!state?.resumeConfig) {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
@@ -643,12 +669,16 @@ def initialize() {
 def uninstalled() {
     log.warn "uninstalling app and devices"
     unschedule()
-    if(settings?.optOutMetrics != true) {
-        if(removeInstallData()) { state?.appGuid = null }
-    }
+    if(settings?.optOutMetrics != true) { if(removeInstallData()) { state?.appGuid = null } }
     clearCloudConfig()
     clearCookieData()
     removeDevices(true)
+}
+
+def onAppTouch(evt) {
+    // log.trace "appTouch..."
+    // updated()
+    getEchoDevices()
 }
 
 void settingUpdate(name, value, type=null) {
@@ -710,11 +740,16 @@ private checkIfCodeUpdated() {
         iData["updatedDt"] = getDtNow().toString()
         iData["shownChgLog"] = false
         atomicState?.installData = iData
-        runIn(5, "updated", [overwrite: false])
+        runIn(5, "postCodeUpdated", [overwrite: false])
         return true
     }
     state?.pollBlocked = false
     return false
+}
+
+private postCodeUpdated() {
+    updated()
+    runIn(10, "sendInstallData", [overwrite: false])
 }
 
 private appCleanup() {
@@ -730,11 +765,6 @@ private appCleanup() {
     setItems?.each { sI->
         if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
     }
-}
-
-def onAppTouch(evt) {
-    // log.trace "appTouch..."
-    updated()
 }
 
 private resetQueues() {
@@ -1097,7 +1127,6 @@ def receiveEventData(Map evtData, String src) {
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
-            Map notRecognized = [:]
             Boolean onHeroku = true
             state?.serviceConfigured = true
             state?.onHeroku = onHeroku
@@ -1117,28 +1146,43 @@ def receiveEventData(Map evtData, String src) {
                 def execTime = evtData?.execDt ? (now()-evtData?.execDt) : 0
                 // log.debug "Device Data Received for (${evtData?.echoDevices?.size()}) Total Amazon Devices${!onHeroku && src ? " [$src]" : ""} | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)"
                 Map echoDeviceMap = [:]
+                Map skippedDevices = [:]
                 List curDevFamily = []
                 Integer cnt = 0
                 evtData?.echoDevices?.each { echoKey, echoValue->
                     logger("debug", "echoDevice | $echoKey | ${echoValue}", true)
                     logger("debug", "echoDevice | ${echoValue?.accountName}", false)
+                    Map deviceStyleData = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
+                    // log.debug "deviceStyle: ${deviceStyleData}"
+                    Boolean isBlocked = (deviceStyleData?.blocked && deviceStyleData?.blocked == true)
+                    Boolean allowTTS = (deviceStyleData?.allowTTS == true)
+                    Boolean isMediaPlayer = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
+                    Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     Boolean familyAllowed = deviceFamilyAllowed(echoValue?.deviceFamily as String)
-                    if(!familyAllowed) { return }
+                    if(familyAllowed == false || isBlocked == true || (!allowTTS && !isMediaPlayer)) {
+                        log.debug "familyAllowed(${echoValue?.deviceFamily}): $familyAllowed | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}"
+                        if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
+                            List reasons = []
+                            if(!familyAllowed) { reasons?.push("Family Blocked") }
+                            if(isBlocked) { reasons?.push("Blocked by config") }
+                            if((!allowTTS && !isMediaPlayer)) { reasons?.push("No TTS or Media Controls") }
+                            skippedDevices[echoValue?.serialNumber as String] = [name: deviceStyleData?.name, family: echoValue?.deviceFamily, type: echoValue?.deviceType, tts: allowTTS, volume: volumeSupport, mediaPlayer: isMediaPlayer, reason: reasons?.join(", ")]
+                        }
+                        return
+                    }
+
                     echoValue["authValid"] = (state?.authValid == true)
                     echoValue["amazonDomain"] = (settings?.amazonDomain ?: "amazon.com")
                     echoValue["regionLocale"] = (settings?.regionLocale ?: "en-US")
                     echoValue["cookie"] = [cookie: getCookieVal(), csrf: getCsrfVal()]
                     echoValue["deviceAccountId"] = echoValue?.deviceAccountId as String ?: null
-                    echoValue["deviceStyle"] = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
+                    echoValue["deviceStyle"] = deviceStyleData
                     // log.debug "deviceStyle: ${echoValue?.deviceStyle}"
 
-                    Boolean allowTTS = (echoValue?.deviceStyle?.allowTTS == true)
-                    Boolean isMediaPlayer
-                    Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     Map permissions = [:]
                     permissions["TTS"] = allowTTS
-                    permissions["volumeControl"] = (echoValue?.capabilities.contains("VOLUME_SETTING"))
-                    permissions["mediaPlayer"] = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
+                    permissions["volumeControl"] = volumeSupport
+                    permissions["mediaPlayer"] = isMediaPlayer
                     permissions["amazonMusic"] = (echoValue?.capabilities.contains("AMAZON_MUSIC"))
                     permissions["tuneInRadio"] = (echoValue?.capabilities.contains("TUNE_IN"))
                     permissions["iHeartRadio"] = (echoValue?.capabilities.contains("I_HEART_RADIO"))
@@ -1160,15 +1204,15 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
                     // log.warn "Device Permisions | Name: ${echoValue?.accountName} | $permissions"
-                    if(!permissions?.mediaPlayer && !allowTTS && (!(echoValue?.deviceFamily in state?.appData?.deviceFamilies?.echo))) {
-                        notRecognized[echoValue?.deviceType] = [family: echoValue?.deviceFamily, tts: false, volume: permissions?.volumeControl, mediaPlayer: permissions?.mediaPlayer, microphone: permissions?.microphone]
-                        // log.warn "IGNORED Device | Name: ${echoValue?.accountName} | Permissions: $permissions"
-                        logger("warn", "Ignoring Device: ${echoValue?.deviceStyle?.name} because it does not support Playback Control or TTS!!!")
-                        return
-                    }
+
+                    // if(!isMediaPlayer && !allowTTS && (!(echoValue?.deviceFamily in state?.appData?.deviceFamilies?.echo))) {
+                    //     // log.warn "IGNORED Device | Name: ${echoValue?.accountName} | Permissions: $permissions"
+                    //     logger("warn", "Ignoring Device: ${deviceStyleData?.name} because it does not support Playback Control or TTS!!!")
+                    //     return
+                    // }
                     echoDeviceMap[echoKey] = [
                         name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey,
-                        style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: (permissions?.mediaPlayer == true),
+                        style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: isMediaPlayer,
                         ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers,
                         musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", ")
                     ]
@@ -1207,11 +1251,12 @@ def receiveEventData(Map evtData, String src) {
 
                     curDevFamily.push(echoValue?.deviceStyle?.name)
                 }
-                log.debug "Device Data Received for (${echoDeviceMap?.size()}) Alexa Devices${!onHeroku && src ? " [$src]" : ""} | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)"
+                log.debug "Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices${!onHeroku && src ? " [$src]" : ""} | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)"
                 state?.lastDevDataUpd = getDtNow()
                 state?.echoDeviceMap = echoDeviceMap
+                state?.skippedDevices = skippedDevices
+                log.warn "skippedDevices: ${skippedDevices}"
                 state?.deviceStyleCnts = curDevFamily?.countBy { it }
-                state?.notRecognized = notRecognized
             } else {
                 log.warn "No Echo Device Data Sent... This may be the first transmission from the service after it started up!"
             }
@@ -1242,6 +1287,15 @@ def receiveEventData(Map evtData, String src) {
         log.error "receiveEventData Error:", ex
         incrementCntByKey("appErrorCnt")
     }
+}
+
+Boolean deviceFamilyAllowed(String family) {
+    Map famMap = getDeviceFamilyMap()
+    if(family in famMap?.echo) { return true }
+    if(settings?.createTablets == true && (family in famMap?.tablet)) { return true }
+    if(settings?.createWHA == true && (family in famMap?.wha)) { return true }
+    if(settings?.createOtherDevices == true && !(family in famMap?.block)) { return true }
+    return false
 }
 
 public getDeviceStyle(String family, String type) {
@@ -1292,15 +1346,6 @@ public sendPlaybackStateToClusterMembers(whaKey, response, data) {
         // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
         //log.debug "sendPlaybackStateToClusterMembers: no data found for ${ whaKey} (first refresh?)"
     }
-}
-
-Boolean deviceFamilyAllowed(String family) {
-    Map famMap = getDeviceFamilyMap()
-    if(family in famMap?.echo) { return true }
-    if(settings?.createTablets == true && family in fam?.tablet) { return true }
-    if(settings?.createWHA == true && family in famMap?.wha) { return true }
-    if(settings?.createOtherDevices == true && !(family in famMap?.block)) { return true }
-    return false
 }
 
 public getServiceHostInfo() {
@@ -1376,7 +1421,7 @@ private execAsyncCmd(String method, String callbackHandler, Map params, Map othe
             include 'asynchttp_v1'
             asynchttp_v1."${m}"(callbackHandler, params, otherData)
         } else { "asynchttp${m?.capitalize()}"("${callbackHandler}", params, otherData) }
-    }
+    } else { log.error "execAsyncCmd Error | Missing a required parameter" }
 }
 
 private sendAmazonCommand(String method, Map params, Map otherData) {
@@ -1443,6 +1488,7 @@ private healthCheck() {
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
+    if(state?.isInstalled && getLastMetricUpdSec() > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
 }
 
 private missPollNotify(Boolean on, Integer wait) {
@@ -1651,7 +1697,7 @@ String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl
 Integer getLastMetricUpdSec() { return !state?.lastMetricUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastMetricUpdDt, "getLastMetricUpdSec").toInteger() }
 Boolean metricsOk() { (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
 private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID().toString() } }
-private sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), createMetricsDataJson(), "clients/${state?.appGuid}.json", null, "heartbeat") } }
+private sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), createMetricsDataJson(), "clients/${state?.appGuid}.json", "put", "heartbeat"); } }
 private removeInstallData() { return removeFirebaseData("clients/${state?.appGuid}.json") }
 private sendFirebaseData(url, data, pathVal, cmdType=null, type=null) {
     logger("trace", "sendFirebaseData(${data}, ${pathVal}, $cmdType, $type", true)
@@ -1683,8 +1729,7 @@ def removeFirebaseData(pathVal) {
         httpDelete(uri: "${getFbMetricsUrl()}/${pathVal}") { resp ->
             logger("debug", "Remove Firebase | resp: ${resp?.status}")
         }
-    }
-    catch (ex) {
+    } catch (ex) {
         if(ex instanceof groovyx.net.http.ResponseParseException) {
             logger("error", "removeFirebaseData: Response: ${ex?.message}")
         } else {
@@ -1707,9 +1752,9 @@ def processFirebaseResponse(resp, data) {
             iData["sentMetrics"] = true
             atomicState?.installData = iData
             result = true
-        }
-        else if(resp?.status == 400) { log.error "processFirebaseResponse: 'Bad Request': ${resp?.status}" }
-        else { log.warn "processFirebaseResponse: 'Unexpected' Response: ${resp?.status}" }
+        } else if(resp?.status == 400) {
+            log.error "processFirebaseResponse: 'Bad Request': ${resp?.status}"
+        } else { log.warn "processFirebaseResponse: 'Unexpected' Response: ${resp?.status}" }
         if (isST() && resp?.hasError()) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
     } catch(ex) {
         log.error "processFirebaseResponse (type: $typeDesc) Exception:", ex
@@ -1746,7 +1791,7 @@ private createMetricsDataJson(rendAsMap=false) {
             amazonDomain: settings?.amazonDomain,
             serverPlatform: state?.onHeroku ? "Cloud" : "Local",
             versions: [app: appVersion(), server: swVer?.server ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
-            detections: [notRecognized: (state?.notRecognized ?: [:])],
+            detections: [skippedDevices: (state?.skippedDevices ?: [:])],
             counts: [
                 deviceStyleCnts: state?.deviceStyleCnts ?: [:],
                 appHeartbeatCnt: state?.appHeartbeatCnt ?: 0,
@@ -1840,12 +1885,10 @@ private getConfigData() {
     ]
     def data = getWebData(params, "appData", false)
     if(data) {
-        log.info "Getting Latest Version Data from appData.json File"
+
         state?.appData = data
         state?.lastVerUpdDt = getDtNow()
-    }
-    if(state?.isInstalled) {
-        if(getLastMetricUpdSec() > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
+        log.info "Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo..."
     }
 }
 
@@ -1858,8 +1901,7 @@ private getWebData(params, desc, text=true) {
                 return resp?.data
             }
         }
-    }
-    catch (ex) {
+    } catch (ex) {
         incrementCntByKey("appErrorCnt")
         if(ex instanceof groovyx.net.http.HttpResponseException) {
             log.warn("${desc} file not found")
@@ -1934,8 +1976,8 @@ String getAppNotifConfDesc() {
         def nd = getNotifSchedDesc()
         str += (settings?.usePush) ? "${str != "" ? "\n" : ""}Sending via: (Push)" : ""
         str += (settings?.pushoverEnabled) ? "${str != "" ? "\n" : ""}Pushover: (Enabled)" : ""
-        str += (settings?.pushoverEnabled && settings?.pushoverPriority) ? "${str != "" ? "\n" : ""} • Priority: (${settings?.pushoverPriority})" : ""
-        str += (settings?.pushoverEnabled && settings?.pushoverSound) ? "${str != "" ? "\n" : ""} • Sound: (${settings?.pushoverSound})" : ""
+        str += (settings?.pushoverEnabled && settings?.pushoverPriority) ? bulletItem(str, "Priority: (${settings?.pushoverPriority})") : ""
+        str += (settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : ""
         str += (settings?.phone) ? "${str != "" ? "\n" : ""}Sending via: (SMS)" : ""
         str += (ap) ? "${str != "" ? "\n\n" : ""}Enabled Alerts:\n${ap}" : ""
         str += (ap && nd) ? "${str != "" ? "\n" : ""}\nAlert Restrictions:\n${nd}" : ""
@@ -1964,16 +2006,16 @@ String getNotifSchedDesc() {
 
 String getServiceConfDesc() {
     String str = ""
-    str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""}Heroku Info:" : ""
-    str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""} • Name: ${state?.generatedHerokuName}" : ""
-    str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Domain: (${settings?.amazonDomain})" : ""
+    str += (state?.generatedHerokuName && state?.onHeroku) ? bulletItem(str, "Heroku: (Configured)") : ""
+
+    str += (settings?.amazonDomain) ? bulletItem(str, "Domain: (${settings?.amazonDomain})") : ""
     return str != "" ? str : null
 }
 
 String getAppNotifDesc() {
     def str = ""
-    str += settings?.sendMissedPollMsg != false ? "${str != "" ? "\n" : ""} • Missed Poll Alerts" : ""
-    str += settings?.sendAppUpdateMsg != false ? "${str != "" ? "\n" : ""} • Code Updates" : ""
+    str += settings?.sendMissedPollMsg != false ? bulletItem(str, "Missed Poll Alerts") : ""
+    str += settings?.sendAppUpdateMsg != false ? bulletItem(str, "Code Updates") : ""
     return str != "" ? str : null
 }
 
@@ -2144,6 +2186,17 @@ String getObjType(obj) {
 	else if(obj instanceof Byte) {return "Byte"}
 	else { return "unknown"}
 }
+
+private Map amazonDomainOpts() {
+    return [
+        "amazon.com":"Amazon.com",
+        "amazon.ca":"Amazon.ca",
+        "amazon.co.uk":"amazon.co.uk",
+        "amazon.de":"Amazon.de",
+        "amazon.it":"Amazon.it"
+    ]
+}
+private List localeOpts() { return ["en-US", "en-CA", "de-DE", "en-GB", "it-IT"] }
 
 private getPlatform() {
     def p = "SmartThings"
