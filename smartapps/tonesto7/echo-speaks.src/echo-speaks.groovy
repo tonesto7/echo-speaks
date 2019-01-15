@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.2.0" }
-String appModified() { return "2019-01-14" }
+String appModified() { return "2019-01-15" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1461,7 +1461,7 @@ private missPollNotify(Boolean on, Integer wait) {
         String msg = ""
         if(state?.authValid) {
             msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastDevicePollSec()}) seconds.\nThere maybe an issue with the scheduling.  Please open the app and press Done/Save."
-        } else { msg = "\nThe Amazon login cookie has expired!\nPlease open the heroku config page and login again to restore normal operation." }
+        } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
         log.warn "${msg.toString().replaceAll("\n", " ")}"
         if(sendMsg("${app.name} ${state?.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
             state?.lastMisPollMsgDt = getDtNow()
