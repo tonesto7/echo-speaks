@@ -1289,9 +1289,11 @@ def receiveEventData(Map evtData, String src) {
     }
 }
 
-Boolean deviceFamilyAllowed(String family) {
+Map deviceFamilyAllowed(String family) {
     Map famMap = getDeviceFamilyMap()
-    if(family in famMap?.echo) { return true }
+    if(family in famMap?.echo) {
+        return true
+    }
     if(settings?.createTablets == true && (family in famMap?.tablet)) { return true }
     if(settings?.createWHA == true && (family in famMap?.wha)) { return true }
     if(settings?.createOtherDevices == true && !(family in famMap?.block)) { return true }

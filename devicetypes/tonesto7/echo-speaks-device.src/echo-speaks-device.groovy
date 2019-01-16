@@ -15,8 +15,8 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String devVersion()  { return "2.2.0"}
-String devModified() { return "2019-01-15" }
+String devVersion()  { return "2.2.1"}
+String devModified() { return "2019-01-16" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -49,6 +49,7 @@ metadata {
         attribute "firmwareVer", "string"
         attribute "lastCmdSentDt", "string"
         attribute "lastSpeakCmd", "string"
+        attribute "lastSpokenToTime", "number"
         attribute "lastVoiceActivity", "string"
         attribute "lastUpdated", "string"
         attribute "musicSupported", "string"
@@ -1045,6 +1046,7 @@ def deviceActivityHandler(response, data) {
     def sData = response?.json
     Boolean wasLastDevice = false
     String lastVoiceActivity = null
+    def actTS = null
     if (sData?.activities != null) {
         def lastCommand = sData?.activities?.find {
             (it?.domainAttributes == null || it?.domainAttributes.startsWith("{")) &&
@@ -1052,10 +1054,11 @@ def deviceActivityHandler(response, data) {
             it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType)
         }
         if (lastCommand) {
-            def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
+            def lastDescription = new JsonSlurper().parseText(lastCommand?.description)
             def spokenText = lastDescription?.summary
             def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
             if(lastDevice?.serialNumber == state?.serialNumber) {
+                actTS = lastCommand?.creationTimestamp
                 wasLastDevice = true
                 lastVoiceActivity = spokenText as String
             }
@@ -1063,6 +1066,9 @@ def deviceActivityHandler(response, data) {
     }
     if(isStateChange(device, "lastVoiceActivity", lastVoiceActivity?.toString())) {
         sendEvent(name: "lastVoiceActivity", value: lastVoiceActivity, display: false, displayed: false)
+    }
+    if(isStateChange(device, "lastSpokenToTime", actTS?.toString())) {
+        sendEvent(name: "lastSpokenToTime", value: actTS, display: false, displayed: false)
     }
     if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
         sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
