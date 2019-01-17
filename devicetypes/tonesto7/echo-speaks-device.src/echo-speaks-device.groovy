@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String devVersion()  { return "2.2.1"}
-String devModified() { return "2019-01-16" }
+String devModified() { return "2019-01-17" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -626,6 +626,13 @@ void refresh() {
     // refreshData()
 }
 
+public updateLabel(String lbl) {
+    if(lbl) {
+        log.trace "Updating Device Label to (${lbl})"
+        device?.setLlabel(lbl as String)
+    }
+}
+
 private triggerDataRrsh(parentRefresh=false) {
     if(parentRefresh) {
         runIn(4, "refresh", [overwrite: true])
@@ -672,18 +679,18 @@ private refreshData() {
     getDeviceActivity()
 }
 
-public updateServiceInfo(String svcHost, useHeroku=false) {
-    state?.serviceHost = svcHost
-    state?.useHeroku = useHeroku
-}
+// public updateServiceInfo(String svcHost, useHeroku=false) {
+//     state?.serviceHost = svcHost
+//     state?.useHeroku = useHeroku
+// }
 
-public resetServiceInfo() {
-    logger("trace", "resetServiceInfo() received...")
-    resetQueue()
-    ["serviceHost", "useHeroku"]?.each { item->
-        state?.remove(item)
-    }
-}
+// public resetServiceInfo() {
+//     logger("trace", "resetServiceInfo() received...")
+//     resetQueue()
+//     ["serviceHost", "useHeroku"]?.each { item->
+//         state?.remove(item)
+//     }
+// }
 
 public setOnlineStatus(Boolean isOnline) {
     String onlStatus = (isOnline ? "online" : "offline")

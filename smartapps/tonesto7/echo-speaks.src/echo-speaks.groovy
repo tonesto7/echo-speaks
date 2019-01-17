@@ -15,8 +15,8 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.2.0" }
-String appModified() { return "2019-01-15" }
+String appVersion()	 { return "2.2.1" }
+String appModified() { return "2019-01-17" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -43,6 +43,7 @@ preferences {
     page(name: "newSetupPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
+    page(name: "unrecogDevicesPage")
     page(name: "changeLogPage")
     page(name: "notifPrefPage")
     page(name: "servPrefPage")
@@ -95,6 +96,9 @@ def mainPage() {
                 if(devs?.size()) {
                     href "deviceListPage", title: "Installed Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                 } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
+                if(state?.skippedDevices?.size()) {
+                    href "unrecogDevicesPage", title: "Ignored Devices:", description: "(${state?.skippedDevices?.size()}) Devices\n\nTap to view details..."
+                }
             }
             def devPrefDesc = devicePrefsDesc()
             href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
@@ -198,8 +202,6 @@ def settingsPage() {
 
 def deviceListPage() {
     return dynamicPage(name: "deviceListPage", install: false) {
-        Map devMap = state?.echoDeviceMap
-        // log.debug "devMap: $devMap"
         Boolean onST = isST()
         section(sTS("Discovered Devices:")) {
             state?.echoDeviceMap?.sort { it?.value?.name }?.each { k,v->
@@ -210,12 +212,19 @@ def deviceListPage() {
                 str += "\nVolume Control: (${v?.volumeSupport?.toString()?.capitalize()})"
                 str += "\nText-to-Speech: (${v?.ttsSupport?.toString()?.capitalize()})"
                 str += "\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
+                str += v?.supported != true ? "\nUnsupported Device: (True)" : ""
                 str += (v?.mediaPlayer == true && v?.musicProviders) ? "\nMusic Providers: [${v?.musicProviders}]" : ""
                 if(onST) {
                     paragraph title: pTS(v?.name, getAppImg(v?.style?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image)
                 } else { href "deviceListPage", title: pTS(v?.name, getAppImg(v?.style?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image) }
             }
         }
+    }
+}
+
+def unrecogDevicesPage() {
+    return dynamicPage(name: "unrecogDevicesPage", install: false) {
+        Boolean onST = isST()
         section(sTS("Unrecognized Devices:")) {
             if(state?.skippedDevices?.size()) {
                 state?.skippedDevices?.sort { it?.value?.name }?.each { k,v->
@@ -228,9 +237,10 @@ def deviceListPage() {
                     str += "\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
                     str += "\nReason Ignored: (${v?.reason})"
                     if(onST) {
-                        paragraph title: pTS(v?.name, getAppImg(v?.style?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image)
-                    } else { href "deviceListPage", title: pTS(v?.name, getAppImg(v?.style?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image) }
+                        paragraph title: pTS(v?.name, getAppImg(v?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
+                    } else { href "deviceListPage", title: pTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
                 }
+                input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
                 paragraph "No Uncognized Devices"
             }
@@ -286,7 +296,7 @@ def servPrefPage() {
             }
             if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
             if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
-            if(!state?.onHeroku) { srvcPrefOpts() }
+            if(!state?.onHeroku || ) { srvcPrefOpts() }
 
             if(!state?.onHeroku) {
                 section(sTS("Deploy the Service:")) {
@@ -701,7 +711,7 @@ void settingRemove(String name) {
 mappings {
     path("/renderMetricData") { action: [GET: "renderMetricData"] }
     path("/receiveData")      { action: [POST: "processData"] }
-    path("/config")            { action: [GET: "renderConfig"]  }
+    path("/config")           { action: [GET: "renderConfig"] }
     path("/cookie")           { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
 }
 
@@ -715,7 +725,7 @@ def clearCloudConfig() {
     remItems?.each { rem->
         state?.remove(rem as String)
     }
-    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { dev-> dev?.resetServiceInfo() }
+    // (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { dev-> dev?.resetServiceInfo() }
     state?.resumeConfig = true
 }
 
@@ -922,7 +932,6 @@ def wakeUpServerResp(response, data) {
             path: "/refreshCookie"
         ]
         execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
-
     }
 }
 
@@ -1094,7 +1103,6 @@ def testFamilies() {
         "echo": ["ROOK", "KNIGHT", "ECHO"],
         "tablet": ["TABLET"],
         "wha": ["WHA"],
-        "other": ["REAPER"],
         "block": ["AMAZONMOBILEMUSIC_ANDROID", "TBIRD_IOS", "VOX", "TABLET"]
     ]
 }
@@ -1282,48 +1290,37 @@ def deviceSupport() {
         "A1RTAM01W29CUP": [
         "name": "Windows App",
         "image": "alexa_windows",
-        "allowTTS": true
+        "allowTTS": true,
+        "blocked": true
         ],
         "A3F1S88NTZZXS9": [
         "name": "Dash Wand",
         "image": "dash_wand",
-        "allowTTS": true
+        "blocked": true
         ]
     ]
 }
 
 Map isFamilyAllowed(String family) {
     Map famMap = testFamilies()//getDeviceFamilyMap()
-    if(family in famMap?.block) {
-        return [result: false, reason: "Blocked by App Config"]
-    }
-    if(family in famMap?.echo) {
-        return [result: true, reason: "is echo device"]
-    }
+    if(family in famMap?.block) { return [ok: false, reason: "Family Blocked"] }
+    if(family in famMap?.echo) { return [ok: true, reason: "Amazon Echos Allowed"] }
     if(family in famMap?.tablet) {
-        if(settings?.createTablets == true) {
-            return [result: true, reason: "tablets enabled"]
-        }
-        return [result: false, reason: "tablets not enabled"]
+        if(settings?.createTablets == true) { return [ok: true, reason: "Tablets Enabled"] }
+        return [ok: false, reason: "Tablets Not Enabled"]
     }
     if(family in famMap?.wha) {
-        if(settings?.createWHA == true) {
-            return [result: true, reason: "WHA enabled"]
-        }
-        return [result: false, reason: "wha not enabled"]
+        if(settings?.createWHA == true) { return [ok: true, reason: "WHA Enabled"] }
+        return [ok: false, reason: "WHA Devices Not Enabled"]
     }
-    // if(!(family in famMap?.block)) {
-        if(settings?.createOtherDevices == true) {
-            return [result: true, reason: "Other Devices Enabled"]
-        } else {
-            return [result: false, reason: "other devices not enabled"]
-        }
-    // }
-    return [result: false, reason: "unknown reason"]
+    if(settings?.createOtherDevices == true) {
+        return [ok: true, reason: "Other Devices Enabled"]
+    } else { return [ok: false, reason: "Other Devices Not Enabled"] }
+    return [ok: false, reason: "Unknown Reason"]
 }
 
 def echoDevicesResponse(response, data) {
-    List ignoreTypes = getDeviceTypesMap()?.ignore ?: []
+    List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     if(response?.getStatus() == 401) {
         authEvtHandler(false)
@@ -1364,7 +1361,7 @@ def receiveEventData(Map evtData, String src) {
             Boolean onHeroku = true
             state?.serviceConfigured = true
             state?.onHeroku = onHeroku
-            state?.cloudUrl = (onHeroku && evtData?.cloudUrl) ? evtData?.cloudUrl : null
+            // state?.cloudUrl = (onHeroku && evtData?.cloudUrl) ? evtData?.cloudUrl : null
             //Check for minimum versions before processing
             Boolean updRequired = false
             List updRequiredItems = []
@@ -1389,19 +1386,34 @@ def receiveEventData(Map evtData, String src) {
                     Map familyAllowed = isFamilyAllowed(echoValue?.deviceFamily as String)
                     Map deviceStyleData = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     // log.debug "deviceStyle: ${deviceStyleData}"
-                    Boolean isBlocked = (deviceStyleData?.blocked && deviceStyleData?.blocked == true)
+                    Boolean isBlocked = (deviceStyleData?.blocked || familyAllowed?.reason == "Family Blocked")
+                    Boolean isInIgnoreInput = (echoValue?.serialNumber in settings?.ignoreTheseDevs)
                     Boolean allowTTS = (deviceStyleData?.allowTTS == true)
                     Boolean isMediaPlayer = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
+                    Boolean unsupportedDevice = (familyAllowed?.ok == false || isBlocked == true)
 
-                    if(familyAllowed?.result == false || isBlocked == true || (!allowTTS && !isMediaPlayer)) {
-                        log.debug "familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.result} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}"
+                    if(settings?.bypassDeviceBlocks != true && familyAllowed?.ok == false || isBlocked == true || (!allowTTS && !isMediaPlayer) || isInIgnoreInput) {
+                        logger("debug", "familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
                         if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
                             List reasons = []
-                            if(!familyAllowed?.result) { reasons?.push(familyAllowed?.reason) }
-                            if(isBlocked) { reasons?.push("Blocked by config") }
-                            if((!allowTTS && !isMediaPlayer)) { reasons?.push("No TTS or Media Controls") }
-                            skippedDevices[echoValue?.serialNumber as String] = [name: deviceStyleData?.name, family: echoValue?.deviceFamily, type: echoValue?.deviceType, tts: allowTTS, volume: volumeSupport, mediaPlayer: isMediaPlayer, reason: reasons?.join(", ")]
+                            if(deviceStyleData?.blocked) {
+                                reasons?.push("Device Blocked by App Config")
+                            } else if(familyAllowed?.reason == "Family Blocked") {
+                                reasons?.push("Family Blocked by App Config")
+                            } else if (!familyAllowed?.ok) {
+                                reasons?.push(familyAllowed?.reason)
+                            } else if(isInIgnoreInput) {
+                                reasons?.push("In Ignore Device Input")
+                                logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
+                            } else {
+                                if(!allowTTS) { reasons?.push("No TTS") }
+                                if(!isMediaPlayer) { reasons?.push("No Media Controls") }
+                            }
+                            skippedDevices[echoValue?.serialNumber as String] = [
+                                name: deviceStyleData?.name, image: deviceStyleData?.image, family: echoValue?.deviceFamily, type: echoValue?.deviceType,
+                                tts: allowTTS, volume: volumeSupport, mediaPlayer: isMediaPlayer, reason: reasons?.join(", "), online: echoValue?.online
+                            ]
                         }
                         return
                     }
@@ -1440,22 +1452,12 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
                     // log.warn "Device Permisions | Name: ${echoValue?.accountName} | $permissions"
 
-                    // if(!isMediaPlayer && !allowTTS && (!(echoValue?.deviceFamily in state?.appData?.deviceFamilies?.echo))) {
-                    //     // log.warn "IGNORED Device | Name: ${echoValue?.accountName} | Permissions: $permissions"
-                    //     logger("warn", "Ignoring Device: ${deviceStyleData?.name} because it does not support Playback Control or TTS!!!")
-                    //     return
-                    // }
                     echoDeviceMap[echoKey] = [
                         name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey,
                         style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: isMediaPlayer,
                         ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers,
-                        musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", ")
+                        musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", "), supported: (unsupportedDevice != true)
                     ]
-
-                    if(echoValue?.serialNumber in ignoreTheseDevs) {
-                        logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
-                        return
-                    }
 
                     String dni = [app?.id, "echoSpeaks", echoKey].join("|")
                     def childDevice = getChildDevice(dni)
@@ -1475,22 +1477,20 @@ def receiveEventData(Map evtData, String src) {
                         //Check and see if name needs a refresh
                         if (settings?.autoRenameDevices != false && (childDevice?.name != childHandlerName || childDevice?.label != devLabel)) {
                             log.debug ("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${childDevice?.label})")
-                            childDevice?.name = childHandlerName
-                            childDevice?.label = devLabel
+                            childDevice?.name = childHandlerName as String
+                            childDevice?.setLabel(devLabel as String)
                         }
                         // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
-                        childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
+                        // childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
                         updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
-
                     curDevFamily.push(echoValue?.deviceStyle?.name)
                 }
                 log.debug "Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices${!onHeroku && src ? " [$src]" : ""} | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)"
                 state?.lastDevDataUpd = getDtNow()
                 state?.echoDeviceMap = echoDeviceMap
                 state?.skippedDevices = skippedDevices
-                log.warn "skippedDevices: ${skippedDevices}"
                 state?.deviceStyleCnts = curDevFamily?.countBy { it }
             } else {
                 log.warn "No Echo Device Data Sent... This may be the first transmission from the service after it started up!"
@@ -1516,15 +1516,15 @@ def receiveEventData(Map evtData, String src) {
                 log.warn "CODE UPDATES REQUIRED: Echo Speaks Integration may not function until the following items are ALL Updated ${updRequiredItems}..."
                 appUpdateNotify()
             }
-            if(state?.installData?.sentMetrics != true) { runIn(900, "sendInstallData", [overwrite: false]) }
+            if(state?.installData?.sentMetrics != true) {
+                runIn(900, "sendInstallData", [overwrite: false])
+            }
         }
     } catch(ex) {
         log.error "receiveEventData Error:", ex
         incrementCntByKey("appErrorCnt")
     }
 }
-
-
 
 public getDeviceStyle(String family, String type) {
     if(!state?.appData || !state?.appData?.deviceSupport) { checkVersionData(true) }
@@ -1921,23 +1921,24 @@ def changeLogPage() {
 /******************************************
 |    METRIC Logic
 ******************************************/
-String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com/" }
+String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com" }
 Integer getLastMetricUpdSec() { return !state?.lastMetricUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastMetricUpdDt, "getLastMetricUpdSec").toInteger() }
 Boolean metricsOk() { (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
 private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID().toString() } }
-private sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), createMetricsDataJson(), "clients/${state?.appGuid}.json", "put", "heartbeat"); } }
-private removeInstallData() { return removeFirebaseData("clients/${state?.appGuid}.json") }
-private sendFirebaseData(url, data, pathVal, cmdType=null, type=null) {
-    logger("trace", "sendFirebaseData(${data}, ${pathVal}, $cmdType, $type", true)
-    return queueFirebaseData(url, data, pathVal, cmdType, type)
+private sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), "/clients/${state?.appGuid}.json", createMetricsDataJson(), "put", "heartbeat"); } }
+private removeInstallData() { return removeFirebaseData("/clients/${state?.appGuid}.json") }
+private sendFirebaseData(url, path, data, cmdType=null, type=null) {
+    logger("trace", "sendFirebaseData(${path}, ${data}, $cmdType, $type", true)
+    return queueFirebaseData(url, path, data, cmdType, type)
 }
-def queueFirebaseData(url, data, pathVal, cmdType=null, type=null) {
-    logger("trace", "queueFirebaseData(${data}, ${pathVal}, $cmdType, $type", true)
+def queueFirebaseData(url, path, data, cmdType=null, type=null) {
+    logger("trace", "queueFirebaseData(${path}, ${data}, $cmdType, $type", true)
     Boolean result = false
     def json = new groovy.json.JsonOutput().prettyPrint(data)
-    Map params = [uri: "${url}/${pathVal}", body: json.toString()]
+    Map params = [uri: url as String, path: path as String, requestContentType: "application/json", contentType: "application/json", body: json.toString()]
     String typeDesc = type ? type as String : "Data"
     try {
+        log
         if(!cmdType || cmdType == "put") {
             execAsyncCmd(cmdType, "processFirebaseResponse", params, [type: typeDesc])
             result = true
@@ -1954,7 +1955,7 @@ def removeFirebaseData(pathVal) {
     logger("trace", "removeFirebaseData(${pathVal})", true)
     Boolean result = true
     try {
-        httpDelete(uri: "${getFbMetricsUrl()}/${pathVal}") { resp ->
+        httpDelete(uri: getFbMetricsUrl() as String, path: pathVal as String) { resp ->
             logger("debug", "Remove Firebase | resp: ${resp?.status}")
         }
     } catch (ex) {
@@ -1974,6 +1975,7 @@ def processFirebaseResponse(resp, data) {
     String typeDesc = data?.type as String
     try {
         if(resp?.status == 200) {
+            log.info "Metrics Sent Successfully..."
             logger("info", "processFirebaseResponse: ${typeDesc} Data Sent SUCCESSFULLY")
             if(typeDesc?.toString() == "heartbeat") { state?.lastMetricUpdDt = getDtNow() }
             def iData = atomicState?.installData ?: [:]
@@ -1994,6 +1996,13 @@ def renderMetricData() {
         def json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
         render contentType: "application/json", data: json
     } catch (ex) { log.error "renderMetricData Exception:", ex }
+}
+
+private Map getSkippedDevsAnon() {
+    Map res = [:]
+    Map sDevs = state?.skippedDevices ?: [:]
+    sDevs?.each { k, v-> if(!res?.containsKey(v?.type)) { res[v?.type] = v } }
+    return res
 }
 
 private createMetricsDataJson(rendAsMap=false) {
@@ -2019,7 +2028,7 @@ private createMetricsDataJson(rendAsMap=false) {
             amazonDomain: settings?.amazonDomain,
             serverPlatform: state?.onHeroku ? "Cloud" : "Local",
             versions: [app: appVersion(), server: swVer?.server ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
-            detections: [skippedDevices: (state?.skippedDevices ?: [:])],
+            detections: [skippedDevices: getSkippedDevsAnon()],
             counts: [
                 deviceStyleCnts: state?.deviceStyleCnts ?: [:],
                 appHeartbeatCnt: state?.appHeartbeatCnt ?: 0,
