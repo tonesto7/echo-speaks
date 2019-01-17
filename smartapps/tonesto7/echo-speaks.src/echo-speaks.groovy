@@ -97,7 +97,7 @@ def mainPage() {
                 } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
             }
             def devPrefDesc = devicePrefsDesc()
-            href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "Current Preferences:\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
+            href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
         }
         if(!newInstall) {
             section(sTS("Experimental Functions:")) {
@@ -155,25 +155,29 @@ def devicePrefsPage() {
                 paragraph title:"Notice:", "To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use input before removing."
             }
         }
-        if(state?.isInstalled && !state?.resumeConfig) {
-            section() {
-                paragraph title:"Notice:", "Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations"
-                input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: "", required: false, defaultValue: false, submitOnChange: true
-                if(cleanUpDevices) { removeDevices() }
-            }
+        devCleanupSect()
+    }
+}
+
+private devCleanupSect() {
+    if(state?.isInstalled && !state?.resumeConfig) {
+        section() {
+            paragraph title:"Notice:", "Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations"
+            input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: "", required: false, defaultValue: false, submitOnChange: true
+            if(cleanUpDevices) { removeDevices() }
         }
     }
 }
 
 def devicePrefsDesc() {
     String str = ""
-    str += bulletItem(str, "Auto Create Devices (${(settings?.autoCreateDevices == false) ? "Disabled" : "Enabled"})")
+    str += "Auto Create (${(settings?.autoCreateDevices == false) ? "Disabled" : "Enabled"})"
     if(settings?.autoCreateDevices) {
-        str += (settings?.createTablets == true) ? bulletItem(str, "Auto Create Tablets (Enabled)") : ""
-        str += (settings?.createWHA == true) ? bulletItem(str, "Auto Create WHA (Enabled)") : ""
-        str += (settings?.createOtherDevices == true) ? bulletItem(str, "Auto Create Other Alexa Devices (Enabled)") : ""
+        str += (settings?.createTablets == true) ? bulletItem(str, "Tablets") : ""
+        str += (settings?.createWHA == true) ? bulletItem(str, "WHA") : ""
+        str += (settings?.createOtherDevices == true) ? bulletItem(str, "Other Devices") : ""
     }
-    str += bulletItem(str, "Auto Rename Devices (${settings?.autoRenameDevices == false ? "Disabled" : "Enabled"})")
+    str += bulletItem(str, "Rename Devices")
     return str != "" ? str : null
 }
 
@@ -659,7 +663,8 @@ def initialize() {
     if(!state?.resumeConfig) {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
         appCleanup()
-        runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
+        // runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
+        runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
         validateCookie(true)
         runIn(15, "reInitDevices")
         getEchoDevices()
@@ -1084,6 +1089,239 @@ def executeRoutineById(String routineId) {
     }
 }
 
+def testFamilies() {
+    return  [
+        "echo": ["ROOK", "KNIGHT", "ECHO"],
+        "tablet": ["TABLET"],
+        "wha": ["WHA"],
+        "other": ["REAPER"],
+        "block": ["AMAZONMOBILEMUSIC_ANDROID", "TBIRD_IOS", "VOX", "TABLET"]
+    ]
+}
+
+
+def deviceSupport() {
+
+    return [
+        "A1X7HJX9QL16M5": [
+        "name": "Bespoken.io",
+        "blocked": true
+        ],
+        "A37SHHQ3NUL7B5": [
+        "name": "Bose Homespeaker",
+        "blocked": true
+        ],
+        "A38BPK7OW001EX": [
+        "name": "Raspberry Alexa",
+        "blocked": true
+        ],
+        "A1DL2DVDQVK3Q": [
+        "name": "Mobile App",
+        "blocked": true
+        ],
+        "A1JJ0KFC4ZPNJ3": [
+        "name": "Echo Input",
+        "image": "echo_input",
+        "allowTTS": true
+        ],
+        "A38949IHXHRQ5P": [
+        "name": "Echo Tap",
+        "image": "echo_tap",
+        "allowTTS": true
+        ],
+        "AB72C64C86AW2": [
+        "name": "Echo (Gen1)",
+        "image": "echo_gen1",
+        "allowTTS": true
+        ],
+        "A7WXQPH584YP": [
+        "name": "Echo (Gen2)",
+        "image": "echo_gen2",
+        "allowTTS": true
+        ],
+        "A2M35JJZWCQOMZ": [
+        "name": "Echo Plus (Gen1)",
+        "image": "echo_plus_gen1",
+        "allowTTS": true
+        ],
+        "A18O6U1UQFJ0XK": [
+        "name": "Echo Plus (Gen2)",
+        "image": "echo_plus_gen2",
+        "allowTTS": true
+        ],
+        "A1NL4BVLQ4L3N3": [
+        "name": "Echo Show (Gen1)",
+        "image": "echo_show_gen1",
+        "allowTTS": true
+        ],
+        "AWZZ5CVHX2CD": [
+        "name": "Echo Show (Gen2)",
+        "image": "echo_show_gen2",
+        "allowTTS": true
+        ],
+        "AKNO1N0KSFN8L": [
+        "name": "Echo Dot (Gen1)",
+        "image": "echo_dot_gen1",
+        "allowTTS": true
+        ],
+        "A3S5BH2HU6VAYF": [
+        "name": "Echo Dot (Gen2)",
+        "image": "echo_dot_gen2",
+        "allowTTS": true
+        ],
+        "A32DOYMUN6DTXA": [
+        "name": "Echo Dot (Gen3)",
+        "image": "echo_dot_gen3",
+        "allowTTS": true
+        ],
+        "A10A33FOX2NUBK": [
+        "name": "Echo Spot",
+        "image": "echo_spot_gen1",
+        "allowTTS": true
+        ],
+        "A3SSG6GR8UU7SN": [
+        "name": "Echo Sub",
+        "image": "echo_sub_gen1",
+        "allowTTS": true
+        ],
+        "A12GXV8XMS007S": [
+        "name": "Fire TV (Gen1)",
+        "image": "firetv_gen1",
+        "allowTTS": true
+        ],
+        "A2E0SNTXJVT7WK": [
+        "name": "Fire TV (Gen2)",
+        "image": "firetv_gen1",
+        "allowTTS": true
+        ],
+        "A2GFL5ZMWNE0PX": [
+        "name": "Fire TV (Gen3)",
+        "image": "firetv_gen1",
+        "allowTTS": true
+        ],
+        "ADVBD696BHNV5": [
+        "name": "Fire TV Stick (Gen1)",
+        "image": "firetv_stick_gen1",
+        "allowTTS": true
+        ],
+        "A2LWARUGJLBYEW": [
+        "name": "Fire TV Stick (Gen2)",
+        "image": "firetv_stick_gen1",
+        "allowTTS": true
+        ],
+        "AKPGW064GI9HE": [
+        "name": "Fire TV Stick 4K (Gen3)",
+        "image": "firetv_stick_gen1",
+        "allowTTS": true
+        ],
+        "A3HF4YRA2L7XGC": [
+        "name": "Fire TV Cube",
+        "image": "firetv_cube",
+        "allowTTS": true
+        ],
+        "A2M4YX06LWP8WI": [
+        "name": "Fire Tablet",
+        "image": "amazon_tablet",
+        "allowTTS": true
+        ],
+        "A1J16TEDOYCZTN": [
+        "name": "Fire Tablet",
+        "image": "amazon_tablet",
+        "allowTTS": true
+        ],
+        "A1M0A9L9HDBID3": [
+        "name": "One-Link Safe and Sound",
+        "image": "one-link",
+        "allowTTS": true
+        ],
+        "A38EHHIB10L47V": [
+        "name": "Fire Tablet HD 8",
+        "image": "tablet_hd10",
+        "allowTTS": true
+        ],
+        "A3R9S4ZZECZ6YL": [
+        "name": "Fire Tablet HD 10",
+        "image": "tablet_hd10",
+        "allowTTS": true
+        ],
+        "A3C9PE6TNYLTCH": [
+        "name": "Multiroom",
+        "image": "echo_wha",
+        "allowTTS": false
+        ],
+        "A15ERDAKK5HQQG": [
+        "name": "Sonos",
+        "image": "sonos_generic",
+        "allowTTS": false
+        ],
+        "A2OSP3UA4VC85F": [
+        "name": "Sonos",
+        "image": "sonos_generic",
+        "allowTTS": false
+        ],
+        "A3NPD82ABCPIDP": [
+        "name": "Sonos Beam",
+        "image": "sonos_beam",
+        "allowTTS": true
+        ],
+        "A18BI6KPKDOEI4": [
+        "name": "Ecobee4",
+        "image": "ecobee4",
+        "allowTTS": true
+        ],
+        "A1N9SW0I0LUX5Y": [
+        "name": "Dash Wand",
+        "image": "dash_wand",
+        "allowTTS": false
+        ],
+        "A1C66CX2XD756O": [
+        "name": "Fire Tablet HD",
+        "image": "amazon_tablet",
+        "allowTTS": true
+        ],
+        "A1RTAM01W29CUP": [
+        "name": "Windows App",
+        "image": "alexa_windows",
+        "allowTTS": true
+        ],
+        "A3F1S88NTZZXS9": [
+        "name": "Dash Wand",
+        "image": "dash_wand",
+        "allowTTS": true
+        ]
+    ]
+}
+
+Map isFamilyAllowed(String family) {
+    Map famMap = testFamilies()//getDeviceFamilyMap()
+    if(family in famMap?.block) {
+        return [result: false, reason: "Blocked by App Config"]
+    }
+    if(family in famMap?.echo) {
+        return [result: true, reason: "is echo device"]
+    }
+    if(family in famMap?.tablet) {
+        if(settings?.createTablets == true) {
+            return [result: true, reason: "tablets enabled"]
+        }
+        return [result: false, reason: "tablets not enabled"]
+    }
+    if(family in famMap?.wha) {
+        if(settings?.createWHA == true) {
+            return [result: true, reason: "WHA enabled"]
+        }
+        return [result: false, reason: "wha not enabled"]
+    }
+    // if(!(family in famMap?.block)) {
+        if(settings?.createOtherDevices == true) {
+            return [result: true, reason: "Other Devices Enabled"]
+        } else {
+            return [result: false, reason: "other devices not enabled"]
+        }
+    // }
+    return [result: false, reason: "unknown reason"]
+}
+
 def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: []
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
@@ -1100,12 +1338,8 @@ def echoDevicesResponse(response, data) {
             eDevData?.each { eDevice->
                 String serialNumber = eDevice?.serialNumber;
                 if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.contains("Alexa App") && !eDevice?.accountName?.startsWith("This Device")) {
-                    removeKeys?.each { rk->
-                        eDevice?.remove(rk as String)
-                    }
-                    if (eDevice?.deviceOwnerCustomerId != null) {
-                        state?.deviceOwnerCustomerId = eDevice?.deviceOwnerCustomerId
-                    }
+                    removeKeys?.each { rk-> eDevice?.remove(rk as String) }
+                    if (eDevice?.deviceOwnerCustomerId != null) { state?.deviceOwnerCustomerId = eDevice?.deviceOwnerCustomerId }
                     echoDevices[serialNumber] = eDevice;
                 }
             }
@@ -1152,18 +1386,19 @@ def receiveEventData(Map evtData, String src) {
                 evtData?.echoDevices?.each { echoKey, echoValue->
                     logger("debug", "echoDevice | $echoKey | ${echoValue}", true)
                     logger("debug", "echoDevice | ${echoValue?.accountName}", false)
+                    Map familyAllowed = isFamilyAllowed(echoValue?.deviceFamily as String)
                     Map deviceStyleData = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     // log.debug "deviceStyle: ${deviceStyleData}"
                     Boolean isBlocked = (deviceStyleData?.blocked && deviceStyleData?.blocked == true)
                     Boolean allowTTS = (deviceStyleData?.allowTTS == true)
                     Boolean isMediaPlayer = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
-                    Boolean familyAllowed = deviceFamilyAllowed(echoValue?.deviceFamily as String)
-                    if(familyAllowed == false || isBlocked == true || (!allowTTS && !isMediaPlayer)) {
-                        log.debug "familyAllowed(${echoValue?.deviceFamily}): $familyAllowed | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}"
+
+                    if(familyAllowed?.result == false || isBlocked == true || (!allowTTS && !isMediaPlayer)) {
+                        log.debug "familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.result} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}"
                         if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
                             List reasons = []
-                            if(!familyAllowed) { reasons?.push("Family Blocked") }
+                            if(!familyAllowed?.result) { reasons?.push(familyAllowed?.reason) }
                             if(isBlocked) { reasons?.push("Blocked by config") }
                             if((!allowTTS && !isMediaPlayer)) { reasons?.push("No TTS or Media Controls") }
                             skippedDevices[echoValue?.serialNumber as String] = [name: deviceStyleData?.name, family: echoValue?.deviceFamily, type: echoValue?.deviceType, tts: allowTTS, volume: volumeSupport, mediaPlayer: isMediaPlayer, reason: reasons?.join(", ")]
@@ -1289,20 +1524,11 @@ def receiveEventData(Map evtData, String src) {
     }
 }
 
-Map deviceFamilyAllowed(String family) {
-    Map famMap = getDeviceFamilyMap()
-    if(family in famMap?.echo) {
-        return true
-    }
-    if(settings?.createTablets == true && (family in famMap?.tablet)) { return true }
-    if(settings?.createWHA == true && (family in famMap?.wha)) { return true }
-    if(settings?.createOtherDevices == true && !(family in famMap?.block)) { return true }
-    return false
-}
+
 
 public getDeviceStyle(String family, String type) {
     if(!state?.appData || !state?.appData?.deviceSupport) { checkVersionData(true) }
-    Map typeData = state?.appData?.deviceSupport ?: [:]
+    Map typeData = deviceSupport()//state?.appData?.deviceSupport ?: [:]
     if(typeData[type]) {
         return typeData[type]
     } else { return [name: "Echo Unknown $type", image: "unknown", allowTTS: false] }
