@@ -435,7 +435,10 @@ def getShortDevName(){
 
 public setAuthState(authenticated) {
     state?.authValid = (authenticated == true)
-    if(authenticated != true && state?.refreshScheduled) { unschedule("refreshData"); state?.refreshScheduled = false }
+    if(authenticated != true && state?.refreshScheduled) {
+        log.warn "Cookie Authentication Cleared by Parent.  Scheduled Refreshes also cancelled!"
+        unschedule("refreshData"); state?.refreshScheduled = false
+    }
 }
 
 Boolean isAuthOk() {

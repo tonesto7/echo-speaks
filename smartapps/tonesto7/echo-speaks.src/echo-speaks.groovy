@@ -806,6 +806,9 @@ def processData() {
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
+            if(data?.onHeroku != false) {
+                state?.onHeroku = true
+            }
             log.trace "serverVersion Received: ${data?.version}"
             updCodeVerMap("server", data?.version)
         } else { log.debug "data: $data" }
@@ -832,6 +835,7 @@ def storeCookieData() {
             obj[k as String] = v as String
         }
         state?.cookieData = obj
+        state?.onHeroku = (request?.JSON.onHeroku != false)
         updCodeVerMap("server", request?.JSON?.version)
     }
     if(state?.cookieData?.localCookie && state?.cookieData?.csrf) {
@@ -1358,9 +1362,9 @@ def receiveEventData(Map evtData, String src) {
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
-            Boolean onHeroku = true
+            // Boolean onHeroku = true
             state?.serviceConfigured = true
-            state?.onHeroku = onHeroku
+            // state?.onHeroku = onHeroku
             // state?.cloudUrl = (onHeroku && evtData?.cloudUrl) ? evtData?.cloudUrl : null
             //Check for minimum versions before processing
             Boolean updRequired = false
