@@ -708,10 +708,10 @@ private respIsValid(response, String methodName, Boolean falseOnErr=false) {
     try {
         hasErr = (response?.hasError() == true)
     } catch (ex) { hasErr = true }
-    if(response?.getStatus() == 401) {
+    if(response?.statusCode == 401) {
         setAuthState(false)
         return false
-    } else { if(response?.getStatus() > 401 && response?.getStatus() < 500) { log.error "${methodName} Error: ${response?.getErrorMessage()}" } }
+    } else { if(response?.statusCode > 401 && response?.statusCode < 500) { log.error "${methodName} Error: ${response?.getErrorMessage()}" } }
     if(hasErr && falseOnErr) { return false }
     return true
 }
@@ -1019,7 +1019,7 @@ def getNotificationsHandler(response, data) {
     if(!respIsValid(response, "getNotificationsHandler")) {return}
     try {} catch (ex) { }
     List newList = []
-    if(response?.getStatus() == 200) {
+    if(response?.statusCode == 200) {
         def sData = response?.json
         if(sData) {
             List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
@@ -1130,8 +1130,8 @@ def amazonCommandResp(response, data) {
     if(!respIsValid(response, "amazonCommandResp", true)) {return}
     try {} catch (ex) { }
     def resp = response?.data ? response?.json : null
-    // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
-    if(response?.getStatus() == 200) {
+    // logger("warn", "amazonCommandResp | Status: (${response?.statusCode}) | Response: ${resp} | PassThru-Data: ${data}")
+    if(response?.statusCode == 200) {
         if(data?.cmdDesc?.startsWith("PlayMusicValidate")) {
             if (resp?.result != "VALID") {
                 log.error "Amazon the Music Search Request as Invalid | MusicProvider: [${data?.validObj?.operationPayload?.musicProviderId}] | Search Phrase: (${data?.validObj?.operationPayload?.searchPhrase})"
@@ -1147,12 +1147,12 @@ def amazonCommandResp(response, data) {
             }
         } else if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
             triggerDataRrsh()
-            log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
+            log.trace "amazonCommandResp | Status: (${response?.statusCode}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         } else if(data?.cmdDesc?.startsWith("renameDevice")) {
             triggerDataRrsh(true)
-            log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
+            log.trace "amazonCommandResp | Status: (${response?.statusCode}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         } else {
-            log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
+            log.trace "amazonCommandResp | Status: (${response?.statusCode}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         }
     }
 }
@@ -2243,8 +2243,8 @@ def asyncSpeechHandler(response, data) {
     try {} catch (ex) {
         //handles non-2xx status codes
     }
-    // log.trace "asyncSpeechHandler | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}"
-    postCmdProcess(resp, response?.getStatus(), data)
+    // log.trace "asyncSpeechHandler | Status: (${response?.statusCode}) | Response: ${resp} | PassThru-Data: ${data}"
+    postCmdProcess(resp, response?.statusCode, data)
 }
 
 private postCmdProcess(resp, statusCode, data) {

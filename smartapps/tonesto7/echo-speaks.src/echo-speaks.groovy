@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.2.1" }
-String appModified() { return "2019-01-17" }
+String appModified() { return "2019-01-20" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -296,22 +296,32 @@ def servPrefPage() {
             }
             if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
             if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
-            if(!state?.onHeroku || ) { srvcPrefOpts() }
-
-            if(!state?.onHeroku) {
-                section(sTS("Deploy the Service:")) {
-                    if(!settings?.amazonDomain) { settingUpdate("amazonDomain", "amazon.com", "enum") }
-                    href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Heroku Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
+            if(!state?.onHeroku || !state?.serviceConfigured) {
+                if(!isST()) {
+                    section(sTS("Server Deployment Option:")) {
+                        input "useHeroku", "bool", title: inTS("Deploy server to Heroku?", getAppImg("heroku", true)), description: "Turning Off will allow for local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("heroku")
+                    }
+                }
+                srvcPrefOpts()
+                section(sTS("Deploy the Server:")) {
+                    href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
                 }
             }
-        }
-        if(!newInstall) {
-            if(state?.onHeroku) {
-                section(sTS("Cloud App Management:")) {
-                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                    // href url: "https://${getRandAppName()}.herokuapp.com/manualCookie", style: "external", required: false, title: inTS("Manual Cookie Page", getAppImg("web", true)), description: "Tap to proceed", image: getAppImg("web")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+
+            if(settings?.useHeroku != false) {
+                if(state?.onHeroku && state?.serviceConfigured) {
+                    section(sTS("Cloud Server Management:")) {
+                        href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                        // href url: "https://${getRandAppName()}.herokuapp.com/manualCookie", style: "external", required: false, title: inTS("Manual Cookie Page", getAppImg("web", true)), description: "Tap to proceed", image: getAppImg("web")
+                        href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                        href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                    }
+                }
+            } else {
+                if(state?.serviceConfigured) {
+                    section(sTS("Local Server Management:")) {
+                        href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    }
                 }
             }
 
@@ -709,10 +719,10 @@ void settingRemove(String name) {
 }
 
 mappings {
-    path("/renderMetricData") { action: [GET: "renderMetricData"] }
-    path("/receiveData")      { action: [POST: "processData"] }
-    path("/config")           { action: [GET: "renderConfig"] }
-    path("/cookie")           { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
+    path("/renderMetricData")  { action: [GET: "renderMetricData"] }
+    path("/receiveData")       { action: [POST: "processData"] }
+    path("/config")             { action: [GET: "renderConfig"] }
+    path("/cookie")            { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
 }
 
 String getCookieVal() { return (state?.cookieData && state?.cookieData?.localCookie) ? state?.cookieData?.localCookie as String : null }
@@ -725,7 +735,7 @@ def clearCloudConfig() {
     remItems?.each { rem->
         state?.remove(rem as String)
     }
-    // (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { dev-> dev?.resetServiceInfo() }
+    // (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { dev-> dev?.isAuthOk(false) }
     state?.resumeConfig = true
 }
 
@@ -734,7 +744,7 @@ String getEnvParamsStr() {
     envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["hubPlatform"] = "${getPlatform()}"
-    envParams["useHeroku"] = "true"
+    envParams["useHeroku"] = (settings?.useHeroku != false)
     envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
     envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
     envParams["amazonDomain"] = settings?.amazonDomain as String ?: "amazon.com"
@@ -806,9 +816,8 @@ def processData() {
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
-            if(data?.onHeroku != false) {
-                state?.onHeroku = true
-            }
+            state?.onHeroku = (data?.onHeroku != false)
+            state?.serverHost = data?.serverUrl ?: null
             log.trace "serverVersion Received: ${data?.version}"
             updCodeVerMap("server", data?.version)
         } else { log.debug "data: $data" }
@@ -835,7 +844,8 @@ def storeCookieData() {
             obj[k as String] = v as String
         }
         state?.cookieData = obj
-        state?.onHeroku = (request?.JSON.onHeroku != false)
+        state?.onHeroku = (request?.JSON?.onHeroku != false)
+        state?.serverHost = request?.JSON?.serverUrl ?: null
         updCodeVerMap("server", request?.JSON?.version)
     }
     if(state?.cookieData?.localCookie && state?.cookieData?.csrf) {
@@ -907,10 +917,12 @@ String toQueryString(Map m) {
 	return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort().join("&")
 }
 
+String getServerHostURL() { (settings?.useHeroku == false ) ? (state?.serverUrl ? "${state?.serverUrl}" : null) : "https://${getRandAppName()}.herokuapp.com" }
+
 Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 100000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
 private runCookieRefresh() {
     Map params = [
-        uri: "https://${getRandAppName()}.herokuapp.com",
+        uri: getServerHostURL(),
         path: "/config",
         contentType: "text/html",
         requestContentType: "text/html",
@@ -932,7 +944,7 @@ def wakeUpServerResp(response, data) {
             return
         }
         Map params = [
-            uri: "https://${getRandAppName()}.herokuapp.com",
+            uri: getServerHostURL(),
             path: "/refreshCookie"
         ]
         execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
@@ -965,8 +977,8 @@ private apiHealthCheck(frc=false) {
 
 def cookieValidResp(response, data) {
     // log.trace "cookieValidResp..."
-    if(response?.getStatus() == 401) {
-        log.error "cookieValidResp Status: (${response.getStatus()})"
+    if(response?.statusCode == 401) {
+        log.error "cookieValidResp Status: (${response.statusCode})"
         authEvtHandler(false)
         state?.lastCookieChkDt = getDtNow()
         return
@@ -989,10 +1001,10 @@ private respIsValid(response, String methodName, Boolean falseOnErr=false) {
     try {
         hasErr = (response?.hasError() == true)
     } catch (ex) { hasErr = true }
-    if(response?.getStatus() == 401) {
+    if(response?.statusCode == 401) {
         setAuthState(false)
         return false
-    } else { if(response?.getStatus() > 401 && response?.getStatus() < 500) { log.error "${methodName} Error: ${response?.getErrorMessage()}" } }
+    } else { if(response?.statusCode > 401 && response?.statusCode < 500) { log.error "${methodName} Error: ${response?.getErrorMessage()}" } }
     if(hasErr && falseOnErr) { return false }
     return true
 }
@@ -1306,7 +1318,7 @@ def deviceSupport() {
 }
 
 Map isFamilyAllowed(String family) {
-    Map famMap = testFamilies()//getDeviceFamilyMap()
+    Map famMap = getDeviceFamilyMap()
     if(family in famMap?.block) { return [ok: false, reason: "Family Blocked"] }
     if(family in famMap?.echo) { return [ok: true, reason: "Amazon Echos Allowed"] }
     if(family in famMap?.tablet) {
@@ -1326,7 +1338,7 @@ Map isFamilyAllowed(String family) {
 def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
-    if(response?.getStatus() == 401) {
+    if(response?.statusCode == 401) {
         authEvtHandler(false)
         return
     }
@@ -1362,10 +1374,8 @@ def receiveEventData(Map evtData, String src) {
         logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
-            // Boolean onHeroku = true
+            Boolean onHeroku = (state?.onHeroku == true)
             state?.serviceConfigured = true
-            // state?.onHeroku = onHeroku
-            // state?.cloudUrl = (onHeroku && evtData?.cloudUrl) ? evtData?.cloudUrl : null
             //Check for minimum versions before processing
             Boolean updRequired = false
             List updRequiredItems = []
@@ -1499,23 +1509,6 @@ def receiveEventData(Map evtData, String src) {
             } else {
                 log.warn "No Echo Device Data Sent... This may be the first transmission from the service after it started up!"
             }
-            if(evtData?.serviceInfo) {
-                Map srvcInfo = evtData?.serviceInfo
-                state?.nodeServiceInfo = srvcInfo
-                Boolean sendSetUpd = false
-                if(srvcInfo?.config && srvcInfo?.config?.size() && !onHeroku) {
-                    srvcInfo?.config?.each { k,v->
-                        if(settings?.containsKey(k as String)) {
-                            if(settings[k as String] != v) {
-                                sendSetUpd = true
-                                log.debug "config($k) | Service: $v | App: ${settings[k as String]} | sendUpdate: ${sendSetUpd}"
-                            }
-                        }
-                    }
-                }
-                updCodeVerMap("server", srvcInfo?.version)
-                // if(sendSetUpd && !onHeroku) { echoServiceUpdate() }
-            }
             if(updRequired) {
                 log.warn "CODE UPDATES REQUIRED: Echo Speaks Integration may not function until the following items are ALL Updated ${updRequiredItems}..."
                 appUpdateNotify()
@@ -1571,17 +1564,45 @@ public sendPlaybackStateToClusterMembers(whaKey, response, data) {
 
     if (clusterMembers) {
         def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
-        clusterMemberDevices.each {
-            it?.getPlaybackStateHandler(response, data, true)
-        }
+        clusterMemberDevices?.each { it?.getPlaybackStateHandler(response, data, true) }
     } else {
         // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
-        //log.debug "sendPlaybackStateToClusterMembers: no data found for ${ whaKey} (first refresh?)"
+        //log.debug "sendPlaybackStateToClusterMembers: no data found for ${whaKey} (first refresh?)"
+    }
+}
+
+private echoServiceUpdate() {
+    // log.trace("echoServiceUpdate")
+    String host = getServerHostURL()
+
+    if(!host) { return }
+
+    logger("trace", "echoServiceUpdate host: ${host}")
+    try {
+        def params = [
+            uri: host,
+            path: "/configData",
+            headers: [
+                appCallbackUrl: getLocalEndpointUrl(),
+                regionLocale: settings?.regionLocale,
+                amazonDomain: settings?.amazonDomain
+            ],
+            body: ""
+        ]
+        httpPost(params) { resp->
+            if(resp?.statusCode == 200) {
+                log.info "Server Config Update Received..."
+            }
+        }
+    }
+    catch (Exception e) {
+        incrementCntByKey("appErrorCnt")
+        log.error "echoServiceUpdate HubAction Exception, $hubAction", ex
     }
 }
 
 public getServiceHostInfo() {
-    return (state?.onHeroku && state?.cloudUrl) ? state?.cloudUrl : null
+    return (state?.onHeroku && state?.serverUrl) ? state?.serverUrl : null
 }
 
 private removeDevices(all=false) {
@@ -1666,9 +1687,9 @@ def amazonCommandResp(response, data) {
         //handles non-2xx status codes
     }
     def resp = response?.data ? response?.getJson() : null
-    // logger("warn", "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | PassThru-Data: ${data}")
-    if(response?.getStatus() == 200) {
-        log.trace "amazonCommandResp | Status: (${response?.getStatus()}) | Response: ${resp} | (${data?.cmdDesc}) was Successfully Sent!!!"
+    // logger("warn", "amazonCommandResp | Status: (${response?.statusCode}) | Response: ${resp} | PassThru-Data: ${data}")
+    if(response?.statusCode == 200) {
+        log.trace "amazonCommandResp | Status: (${response?.statusCode}) | Response: ${resp} | (${data?.cmdDesc}) was Successfully Sent!!!"
     }
 }
 
@@ -2376,7 +2397,7 @@ def renderConfig() {
         </style>
     <head>
     <body>
-        <div style="margin: 0 auto; max-width: 500px;">
+        <div style="margin: 0 auto; max-width: 600px;">
             <form class="p-1">
                 <div class="my-3 text-center">
                     <span>
@@ -2385,11 +2406,11 @@ def renderConfig() {
                     </span>
                 </div>
                 <hr>
-                <div class="w-100 mb-3">
+                <div id="cloudServerDiv" class="w-100 mb-3">
                     <div class="my-2 text-center">
                         <h5>1. Copy the following Name and use it when asked by Heroku</h5>
                         <div class="all-copy nameContainer mx-5 mb-2 p-1">
-                          <p id="copyName" class="m-0 p-0">${getRandAppName()?.toString().trim()}</p>
+                          <p id="copyHeroku" class="m-0 p-0">${getRandAppName()?.toString().trim()}</p>
                         </div>
                     </div>
                     <div class="my-2 text-center">
@@ -2399,12 +2420,30 @@ def renderConfig() {
                         </a>
                     </div>
                 </div>
+
+                <div id="localServerDiv" class="w-100 mb-3">
+                    <div class="my-2 text-center">
+                        <h5>1. Copy the following URL and use it in the appCallbackUrl field of the Server Web Config Page</h5>
+                        <div class="all-copy nameContainer mx-0 mb-2 p-1">
+                          <p id="copyCallback" class="m-0 p-0">${getLocalEndpointUrl("receiveData") as String}</p>
+                        </div>
+                    </div>
+                </div>
+
             </form>
         </div>
     </body>
     <script>
-        \$("#copyName").on("click", function () {
-            console.log("click")
+        let useHeroku = ${(settings?.useHeroku != false)};
+        if(useHeroku === true) {
+            \$('#localServerDiv').hide();
+        } else { \$('#cloudServerDiv').hide(); }
+        \$("#copyHeroku").on("click", function () {
+            console.log("copyHerokuName Click...")
+            \$(this).select();
+        });
+        \$("#copyCallback").on("click", function () {
+            console.log("copyCallback Click...")
             \$(this).select();
         });
     </script>
