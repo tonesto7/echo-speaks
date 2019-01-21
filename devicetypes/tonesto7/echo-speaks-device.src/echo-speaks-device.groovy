@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String devVersion()  { return "2.2.1"}
-String devModified() { return "2019-01-17" }
+String devModified() { return "2019-01-21" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -657,7 +657,7 @@ public schedDataRefresh(frc) {
 private refreshData() {
     logger("trace", "refreshData()...")
     if(device?.currentValue("onlineStatus") != "online") {
-        log.warn "Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)"
+        logger("warn", "Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
         return
     }
     if(!isAuthOk()) {return}
@@ -682,19 +682,6 @@ private refreshData() {
     getDeviceActivity()
 }
 
-// public updateServiceInfo(String svcHost, useHeroku=false) {
-//     state?.serviceHost = svcHost
-//     state?.useHeroku = useHeroku
-// }
-
-// public resetServiceInfo() {
-//     logger("trace", "resetServiceInfo() received...")
-//     resetQueue()
-//     ["serviceHost", "useHeroku"]?.each { item->
-//         state?.remove(item)
-//     }
-// }
-
 public setOnlineStatus(Boolean isOnline) {
     String onlStatus = (isOnline ? "online" : "offline")
     if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString()) || isStateChange(device, "onlineStatus", onlStatus?.toString())) {
@@ -708,10 +695,10 @@ private respIsValid(response, String methodName, Boolean falseOnErr=false) {
     try {
         hasErr = (response?.hasError() == true)
     } catch (ex) { hasErr = true }
-    if(response?.statusCode == 401) {
+    if(response?.status == 401) {
         setAuthState(false)
         return false
-    } else { if(response?.statusCode > 401 && response?.statusCode < 500) { log.error "${methodName} Error: ${response?.getErrorMessage()}" } }
+    } else { if(response?.status > 401 && response?.status < 500) { log.error "${methodName} Error: ${response?.errorMessage ?: null}" } }
     if(hasErr && falseOnErr) { return false }
     return true
 }
@@ -817,7 +804,7 @@ private getAlarmVolume() {
 def getAlarmVolumeHandler(response, data) {
     if(!respIsValid(response, "getAlarmVolumeHandler")) {return}
     try {} catch (ex) { }
-    def sData = response?.json
+    def sData = response?.json ?: null
     logger("trace", "getAlarmVolume: $sData")
     if(isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
         log.trace "Alarm Volume Changed to ${(sData?.volumeLevel ?: 0)}"
@@ -838,7 +825,7 @@ private getWakeWord() {
 def getWakeWordHandler(response, data) {
     if(!respIsValid(response, "getWakeWordHandler")) {return}
     try {} catch (ex) { }
-    def sData = response?.json
+    def sData = response?.json ?: null
     // log.debug "sData: $sData"
     def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
     logger("trace", "getWakeWord: ${wakeWord?.wakeWord}")
@@ -1019,7 +1006,7 @@ def getNotificationsHandler(response, data) {
     if(!respIsValid(response, "getNotificationsHandler")) {return}
     try {} catch (ex) { }
     List newList = []
-    if(response?.statusCode == 200) {
+    if(response?.status == 200) {
         def sData = response?.json
         if(sData) {
             List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
@@ -1130,8 +1117,8 @@ def amazonCommandResp(response, data) {
     if(!respIsValid(response, "amazonCommandResp", true)) {return}
     try {} catch (ex) { }
     def resp = response?.data ? response?.json : null
-    // logger("warn", "amazonCommandResp | Status: (${response?.statusCode}) | Response: ${resp} | PassThru-Data: ${data}")
-    if(response?.statusCode == 200) {
+    // logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
+    if(response?.status == 200) {
         if(data?.cmdDesc?.startsWith("PlayMusicValidate")) {
             if (resp?.result != "VALID") {
                 log.error "Amazon the Music Search Request as Invalid | MusicProvider: [${data?.validObj?.operationPayload?.musicProviderId}] | Search Phrase: (${data?.validObj?.operationPayload?.searchPhrase})"
@@ -1147,12 +1134,12 @@ def amazonCommandResp(response, data) {
             }
         } else if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
             triggerDataRrsh()
-            log.trace "amazonCommandResp | Status: (${response?.statusCode}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
+            log.trace "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         } else if(data?.cmdDesc?.startsWith("renameDevice")) {
             triggerDataRrsh(true)
-            log.trace "amazonCommandResp | Status: (${response?.statusCode}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
+            log.trace "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         } else {
-            log.trace "amazonCommandResp | Status: (${response?.statusCode}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
+            log.trace "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
         }
     }
 }
@@ -2243,8 +2230,8 @@ def asyncSpeechHandler(response, data) {
     try {} catch (ex) {
         //handles non-2xx status codes
     }
-    // log.trace "asyncSpeechHandler | Status: (${response?.statusCode}) | Response: ${resp} | PassThru-Data: ${data}"
-    postCmdProcess(resp, response?.statusCode, data)
+    // log.trace "asyncSpeechHandler | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}"
+    postCmdProcess(resp, response?.status, data)
 }
 
 private postCmdProcess(resp, statusCode, data) {
