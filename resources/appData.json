@@ -26,7 +26,7 @@
     "echo": ["ROOK", "KNIGHT", "ECHO"],
     "tablet": ["TABLET"],
     "wha": ["WHA"],
-    "other": ["REAPER"],
+    "other": ["REAVER"],
     "block": ["AMAZONMOBILEMUSIC_ANDROID", "TBIRD_IOS", "VOX"]
   },
   "deviceSupport": {
@@ -197,8 +197,8 @@
       "allowTTS": true
     },
     "A1N9SW0I0LUX5Y": {
-      "name": "Dash Wand",
-      "image": "dash_wand",
+      "name": "Ford/Lincoln Alexa App",
+      "image": "unknown",
       "allowTTS": false,
       "blocked": true
     },

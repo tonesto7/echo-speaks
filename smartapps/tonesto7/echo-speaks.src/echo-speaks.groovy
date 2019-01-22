@@ -98,7 +98,6 @@ def mainPage() {
                     href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                 } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
                 if(state?.skippedDevices?.size()) {
-
                     String unrecDesc = "Devices Skipped: (${state?.skippedDevices?.size()})${settings?.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : ""}\n\nTap to view details..."
                     href "unrecogDevicesPage", title: inTS("Skipped Devices:"), description: unrecDesc
                 }
@@ -194,6 +193,7 @@ def devicePrefsDesc() {
         str += (settings?.createOtherDevices == true) ? bulletItem(str, "Other Devices") : ""
     }
     str += settings?.autoRenameDevices != false ? bulletItem(str, "Auto Rename") : ""
+    str += settings?.bypassDeviceBlocks == true ? "\nBlock Bypass: (Active)" : ""
     def remDevsSz = getRemovableDevCnt()
     str += remDevsSz > 0 ? "\n\nRemovable Devices: (${remDevsSz})" : ""
     return str != "" ? str : null
@@ -295,7 +295,7 @@ def servPrefPage() {
     Boolean resumeConf = (state?.resumeConfig == true)
     return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : "")) {
         Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
-        Boolean onHeroku = (settings?.useHeroku != true)
+        Boolean onHeroku = (isST() || settings?.useHeroku != false)
 
         if(newInstall) {
             showDevSharePrefs()
@@ -309,10 +309,9 @@ def servPrefPage() {
             if(state?.generatedHerokuName) {
                 section() { paragraph title: "Heroku Name:", "${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", state: "complete" }
             }
-            if(settings?.useHeroku == null && state?.onHeroku) settingUpdate("useHeroku", "false", "bool")
+            if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
             if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
             if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
-
 
             if(!state?.serviceConfigured) {
                 if(!isST()) {
@@ -342,8 +341,11 @@ def servPrefPage() {
                 }
 
                 if(state?.authValid) {
-                    section() { input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
-                    if(refreshCookie) { runCookieRefresh() }
+                    section(sTS("Cookie Info:")) {
+                        if(state?.lastCookieRefresh) { paragraph "Cookie Date: (${state?.lastCookieRefresh})", state: "complete" }
+                        input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                        if(refreshCookie) { runCookieRefresh() }
+                    }
                 }
                 srvcPrefOpts()
             }
@@ -420,6 +422,9 @@ def notifPrefPage() {
                     input (name: "misPollNotifyMsgWaitVal", type: "enum", title: inTS("Send Reminder After?", getAppImg("reminder", true)), required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
                     if(settings?.misPollNotifyMsgWaitVal) { pollMsgWait = settings?.misPollNotifyMsgWaitVal as Integer }
                 }
+            }
+            section(sTS("Cookie Refresh Alert:")) {
+                input (name: "sendCookieRefreshMsg", type: "bool", title: inTS("Send on Refreshed Cookie?", getAppImg("cookie", true)), defaultValue: false, submitOnChange: true, image: getAppImg("cookie"))
             }
             section(sTS("Code Update Alerts:")) {
                 input "sendAppUpdateMsg", "bool", title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update")
@@ -523,11 +528,11 @@ def sequencePage() {
                 str += "\n$k${v != null ? "::${v}" : ""}"
             }
             paragraph str, state: "complete"
-            paragraph "Enter the command in a format exactly like this:\nvolume::40, speak::this is so silly, weather, traffic, joke, volume::30\n\nEach command needs to be separated by a comma and the separator between the command and value must be command::value.", state: "complete"
+            paragraph "Enter the command in a format exactly like this:\nvolume::40, speak::this is so silly, wait::60, weather, wait::10, traffic, joke, volume::30\n\nEach command needs to be separated by a comma and the separator between the command and value must be command::value.", state: "complete"
         }
         section(sTS("Sequence Test Config:")) {
             input "sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: "Tap to select", multiple: false, required: false, submitOnChange: true
-            input "sequenceString", "text", title: inTS("Sequence String to Use"), defaultValue: "", required: true, submitOnChange: true
+            input "sequenceString", "text", title: inTS("Sequence String to Use"), defaultValue: "", required: false, submitOnChange: true
         }
         if(settings?.sequenceDevice && settings?.sequenceString) {
             section() {
@@ -745,7 +750,7 @@ String getEnvParamsStr() {
     envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["hubPlatform"] = "${getPlatform()}"
-    envParams["useHeroku"] = (settings?.useHeroku != false)
+    envParams["useHeroku"] = (isST() || settings?.useHeroku != false)
     envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
     envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
     envParams["amazonDomain"] = settings?.amazonDomain as String ?: "amazon.com"
@@ -786,7 +791,7 @@ private appCleanup() {
     state?.deviceRefreshInProgress = false
     // Settings Cleanup
 
-    List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "useHeroku", "stHub"]
+    List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "stHub"]
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence")) { setItems?.push(si?.key as String) } }
     setItems?.each { sI->
         if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
@@ -817,8 +822,8 @@ def processData() {
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
-            state?.onHeroku = (data?.onHeroku == true || data?.onHeroku == null || (!data?.isLocal && settings?.useHeroku != false))
-            state?.isLocal = (data?.isLocal == true)
+            state?.onHeroku = (isST() || data?.onHeroku == true || data?.onHeroku == null || (!data?.isLocal && settings?.useHeroku != false))
+            state?.isLocal = (!isST() && data?.isLocal == true)
             state?.serverHost = (data?.serverUrl ?: null)
             log.trace "processData Received | Version: ${data?.version} | onHeroku: ${data?.onHeroku} | serverUrl: ${data?.serverUrl}"
             updCodeVerMap("server", data?.version)
@@ -846,8 +851,8 @@ def storeCookieData() {
             obj[k as String] = v as String
         }
         state?.cookieData = obj
-        state?.onHeroku = (data?.onHeroku == true || data?.onHeroku == null || (!data?.isLocal && settings?.useHeroku != false))
-        state?.isLocal = (data?.isLocal == true)
+        state?.onHeroku = (isST() || data?.onHeroku == true || data?.onHeroku == null || (!data?.isLocal && settings?.useHeroku != false))
+        state?.isLocal = (!isST() && data?.isLocal == true)
         state?.serverHost = request?.JSON?.serverUrl ?: null
         updCodeVerMap("server", request?.JSON?.version)
     }
@@ -869,7 +874,7 @@ def clearCookieData(src=null) {
     unschedule("getEchoDevices")
     log.warn "Cookie Data has been cleared and Device Data Refreshes have been suspended..."
     updateChildAuth(false)
-    if(getServerHostURL()) { clearServerAuth() }
+    // if(getServerHostURL()) { clearServerAuth() }
 }
 
 private updateChildAuth(Boolean isValid) {
@@ -924,6 +929,7 @@ String getServerHostURL() {
 Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 100000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
 
 def clearServerAuth() {
+    log.debug "serverUrl: ${getServerHostURL()}"
     Map params = [ uri: getServerHostURL(), path: "/clearAuth" ]
     def execDt = now()
     httpGet(params) { resp->
@@ -971,6 +977,7 @@ def cookieRefreshResp(response, data) {
     Map rData = response?.json ?: [:]
     if (rData && rData?.result && rData?.result?.size()) {
         log.debug "refreshAlexaCookie Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)"
+        if(settings?.sendCookieRefreshMsg == true) { sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!") }
         // log.debug "refreshAlexaCookie Response: ${rData?.result}"
     }
 }
@@ -1161,7 +1168,8 @@ def echoDevicesResponse(response, data) {
         if(eDevData?.size()) {
             eDevData?.each { eDevice->
                 String serialNumber = eDevice?.serialNumber;
-                if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.contains("Alexa App") && !eDevice?.accountName?.startsWith("This Device")) {
+                // if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.contains("Alexa App") && !eDevice?.accountName?.startsWith("This Device")) {
+                if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.startsWith("This Device")) {
                     removeKeys?.each { rk-> eDevice?.remove(rk as String) }
                     if (eDevice?.deviceOwnerCustomerId != null) { state?.deviceOwnerCustomerId = eDevice?.deviceOwnerCustomerId }
                     echoDevices[serialNumber] = eDevice;
@@ -1207,6 +1215,7 @@ def receiveEventData(Map evtData, String src) {
                 evtData?.echoDevices?.each { echoKey, echoValue->
                     logger("debug", "echoDevice | $echoKey | ${echoValue}", true)
                     logger("debug", "echoDevice | ${echoValue?.accountName}", false)
+                    // log.debug "name: ${echoValue?.accountName}"
                     Map familyAllowed = isFamilyAllowed(echoValue?.deviceFamily as String)
                     Map deviceStyleData = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     // log.debug "deviceStyle: ${deviceStyleData}"
@@ -1217,7 +1226,7 @@ def receiveEventData(Map evtData, String src) {
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     Boolean unsupportedDevice = ((familyAllowed?.ok == false && familyAllowed?.reason == "Unknown Reason") || isBlocked == true)
                     Boolean bypassBlock = (settings?.bypassDeviceBlocks == true && !isInIgnoreInput)
-
+                    log.debug "bypassBlock: ${bypassBlock}"
                     if(!bypassBlock && (familyAllowed?.ok == false || isBlocked == true || (!allowTTS && !isMediaPlayer) || isInIgnoreInput)) {
                         logger("debug", "familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
                         if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
@@ -1802,7 +1811,6 @@ def processFirebaseResponse(resp, data) {
     String typeDesc = data?.type as String
     try {
         if(resp?.status == 200) {
-            log.info "Metrics Sent Successfully..."
             logger("info", "processFirebaseResponse: ${typeDesc} Data Sent SUCCESSFULLY")
             if(typeDesc?.toString() == "heartbeat") { state?.lastMetricUpdDt = getDtNow() }
             def iData = atomicState?.installData ?: [:]
@@ -2073,6 +2081,7 @@ String getServiceConfDesc() {
     str += (state?.generatedHerokuName && state?.onHeroku) ? bulletItem(str, "Heroku: (Configured)") : ""
     str += (state?.serviceConfigured && state?.isLocal) ? bulletItem(str, "Local Server: (Configured)") : ""
     str += (settings?.amazonDomain) ? bulletItem(str, "Domain: (${settings?.amazonDomain})") : ""
+    str += (state?.lastCookieRefresh) ? bulletItem(str, "Cookie Date: (${state?.lastCookieRefresh})") : ""
     return str != "" ? str : null
 }
 
@@ -2080,6 +2089,7 @@ String getAppNotifDesc() {
     def str = ""
     str += settings?.sendMissedPollMsg != false ? bulletItem(str, "Missed Poll Alerts") : ""
     str += settings?.sendAppUpdateMsg != false ? bulletItem(str, "Code Updates") : ""
+    str += settings?.sendCookieRefreshMsg == true ? bulletItem(str, "Cookie Refresh") : ""
     return str != "" ? str : null
 }
 
@@ -2152,10 +2162,19 @@ def getAccessToken() {
 
 def renderConfig() {
     String title = "Echo Speaks"
-
-    String oStr = ""
-    if (settings?.useHeroku == true) {
-         oStr = """
+    Boolean heroku = (isST() || (settings?.useHeroku == null || settings?.useHeroku != false))
+    String oStr = !heroku ? """<div id="localServerDiv" class="w-100 mb-3">
+                    <div class="my-2 text-left">
+                        <p>Due to the complexity of node environments I will not be able to support local server setup</p>
+                        <h5>1. Install the node server</h5>
+                        <h5>2. Start the node server</h5>
+                        <h5>3. Open the servers web config page</h5>
+                        <h5>4. Copy the following URL and use it in the appCallbackUrl field of the Server Web Config Page</h5>
+                    </div>
+                    <div class="all-copy nameContainer mx-0 mb-2 p-1">
+                        <p id="copyCallback" class="m-0 p-0">${getAppEndpointUrl("receiveData") as String}</p>
+                    </div>
+                </div>""" : """
         <div id="cloudServerDiv" class="w-100 mb-3">
             <div class="my-2 text-center">
                 <h5>1. Copy the following Name and use it when asked by Heroku</h5>
@@ -2170,7 +2189,6 @@ def renderConfig() {
                 </a>
             </div>
         </div>"""
-    }
 
     String html = """<head>
         <meta charset="utf-8">
@@ -2229,27 +2247,11 @@ def renderConfig() {
                 </div>
                 <hr>
                 ${oStr}
-                <div id="localServerDiv" class="w-100 mb-3">
-                    <div class="my-2 text-center">
-                        <p>Due to the complexity of node environments I will not be able to support local server setup</p>
-                        <h5>1. Install the node server</h5>
-                        <h5>2. Start the node server</h5>
-                        <h5>3. Open the servers web config page</h5>
-                        <h5>4. Copy the following URL and use it in the appCallbackUrl field of the Server Web Config Page</h5>
-                        <div class="all-copy nameContainer mx-0 mb-2 p-1">
-                          <p id="copyCallback" class="m-0 p-0">${getAppEndpointUrl("receiveData") as String}</p>
-                        </div>
-                    </div>
-                </div>
 
             </form>
         </div>
     </body>
     <script>
-        let useHeroku = ${(settings?.useHeroku != false)};
-        if(useHeroku === true) {
-            \$('#localServerDiv').hide();
-        } else { \$('#cloudServerDiv').hide(); }
         \$("#copyHeroku").on("click", function () {
             console.log("copyHerokuName Click...")
             \$(this).select();
