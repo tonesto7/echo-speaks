@@ -15,8 +15,8 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String devVersion()  { return "2.2.1"}
-String devModified() { return "2019-01-21" }
+String devVersion()  { return "2.3.0"}
+String devModified() { return "2019-01-22" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -99,6 +99,7 @@ metadata {
         command "searchSpotify", ["string", "number", "number"]
         command "searchTuneIn", ["string", "number", "number"]
         command "sendAlexaAppNotification", ["string"]
+        command "execSequenceCommand", ["string"]
         command "executeRoutineId", ["string"]
         command "createAlarm", ["string", "string", "string"]
         command "createReminder", ["string", "string", "string"]
@@ -242,6 +243,10 @@ metadata {
             state("paused_alexa_windows", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/alexa_windows.png", backgroundColor: "#cccccc")
             state("playing_alexa_windows", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/alexa_windows.png", backgroundColor: "#00a0dc")
             state("stopped_alexa_windows", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/alexa_windows.png")
+
+            state("paused_dash_wand", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/dash_wand.png", backgroundColor: "#cccccc")
+            state("playing_dash_wand", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/dash_wand.png", backgroundColor: "#00a0dc")
+            state("stopped_dash_wand", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/dash_wand.png")
         }
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state("default", label:'')
@@ -1966,6 +1971,29 @@ def sendTestAnnouncementAll() {
     playAnnouncementAll("Test announcement to all devices")
 }
 
+def execSequenceCommand(String seqStr) {
+    if(seqStr) {
+        List seqList = seqStr?.split(",")
+        List seqItems = []
+        if(seqList?.size()) {
+            seqList?.each {
+                def li = it?.toString()?.split("::")
+                // log.debug "li: $li"
+                if(li?.size()) {
+                    if(li?.size() == 1) {
+                        seqItems?.push([command: li[0]?.trim()])
+                    } else { seqItems?.push([command: li[0]?.trim(), value: li[1]?.trim()]) }
+                }
+            }
+        }
+        logger("debug", "seqItems: $seqItems")
+        if(seqItems?.size()) {
+            sendMultiSequenceCommand(seqItems)
+            incrementCntByKey("use_cnt_executeSequenceCommand")
+        }
+    }
+}
+
 /*******************************************************************
             Speech Queue Logic
 *******************************************************************/
@@ -2119,7 +2147,7 @@ void processCmdQueue() {
 }
 
 Integer getAdjCmdDelay(elap, reqDelay) {
-    if(elap && reqDelay) {
+    if(elap != null && reqDelay) {
         Integer res = (elap - reqDelay)?.abs()
         // log.debug "getAdjCmdDelay | reqDelay: $reqDelay | elap: $elap | res: ${res+3}"
         return res < 3 ? 3 : res+3
@@ -2202,12 +2230,27 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
                 headers: headerMap,
                 requestContentType: "application/json",
                 contentType: "application/json",
-                body: bodyData
+                body: new JsonOutput().toJson(bodyData)
             ]
             execAsyncCmd("post", "asyncSpeechHandler", params, [
                 cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
                 message: (headerMap?.message ?: null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null)
             ])
+            // httpPost(params) { response->
+            //     def resp = null
+            //     data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
+            //     if(response?.status != 200) {
+            //         resp = response?.data ?: null
+            //     } else { resp = response?.data ?: null }
+            //     try {} catch (ex) {
+            //         //handles non-2xx status codes
+            //     }
+            //     // log.trace "asyncSpeechHandler | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}"
+            //     postCmdProcess(resp, response?.status, [
+            //         cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
+            //         message: (headerMap?.message ?: null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null)
+            //     ])
+            // }
         } catch (e) {
             log.error "something went wrong: ", e
             incrementCntByKey("err_cloud_command")
@@ -2227,9 +2270,7 @@ def asyncSpeechHandler(response, data) {
     if(!respIsValid(response, "asyncSpeechHandler", true)){
         resp = response?.getErrorJson() ?: null
     } else { resp = response?.getData() ?: null }
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
+    try {} catch (ex) { }
     // log.trace "asyncSpeechHandler | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}"
     postCmdProcess(resp, response?.status, data)
 }
