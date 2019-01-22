@@ -1,3 +1,25 @@
+V2.3.0 (January 22nd, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Update Notifications are now off when you disable them.
+ • FIXED: Reduced missed poll notifications.  The app will attempt to reinitiate the data updates 1x before alerting you.
+ • FIXED: Many, many bug fixes. So many that it leads me to wonder how the app even worked at all.
+ • UPDATED: Code base now supports 100% Cross-Platform Support for both SmartThings and Hubitat!
+ • UPDATED: UI flow and layout updates and reorganization.
+ • UPDATED: Added Device and Server Version to head section on the main page for easy viewing of installed versions.
+ • ADDED: New Device Test page.
+ • ADDED: New Unrecognized device section.  It will show you which devices are being ignored and why.
+ • ADDED: Ability to override blocked device because they show unsupported.
+
+Device:
+ • FIXED: TTS Queue has been broken for sometime apparently. Should work as designed now
+ • ADDED: New executeSequenceCommand() see documentation for details
+ • ADDED: last command spoken date/time attribute on the device in the attribute `lastSpokenToTime`.
+ • ADDED: say****() commands for canned tts messages.
+
+Server:
+ • UPDATED: Minor tweaks to remove specifics for ST (This update is optional)
+
 V2.2.0 (January 14th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:

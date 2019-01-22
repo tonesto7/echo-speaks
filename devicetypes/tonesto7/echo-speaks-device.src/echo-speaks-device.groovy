@@ -2295,21 +2295,6 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
                 cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
                 message: (headerMap?.message ?: null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null)
             ])
-            // httpPost(params) { response->
-            //     def resp = null
-            //     data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-            //     if(response?.status != 200) {
-            //         resp = response?.data ?: null
-            //     } else { resp = response?.data ?: null }
-            //     try {} catch (ex) {
-            //         //handles non-2xx status codes
-            //     }
-            //     // log.trace "asyncSpeechHandler | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}"
-            //     postCmdProcess(resp, response?.status, [
-            //         cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
-            //         message: (headerMap?.message ?: null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null)
-            //     ])
-            // }
         } catch (e) {
             log.error "something went wrong: ", e
             incrementCntByKey("err_cloud_command")
