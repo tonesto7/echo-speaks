@@ -214,7 +214,8 @@
     "A3F1S88NTZZXS9": {
       "name": "Dash Wand",
       "image": "dash_wand",
-      "allowTTS": true
+      "allowTTS": false,
+      "blocked": true
     }
   }
 }
