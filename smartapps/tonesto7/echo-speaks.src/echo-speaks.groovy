@@ -1226,7 +1226,7 @@ def receiveEventData(Map evtData, String src) {
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     Boolean unsupportedDevice = ((familyAllowed?.ok == false && familyAllowed?.reason == "Unknown Reason") || isBlocked == true)
                     Boolean bypassBlock = (settings?.bypassDeviceBlocks == true && !isInIgnoreInput)
-                    log.debug "bypassBlock: ${bypassBlock}"
+
                     if(!bypassBlock && (familyAllowed?.ok == false || isBlocked == true || (!allowTTS && !isMediaPlayer) || isInIgnoreInput)) {
                         logger("debug", "familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
                         if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
