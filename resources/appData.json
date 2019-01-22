@@ -2,10 +2,10 @@
   "appDataVer": "1.0",
   "versions": {
     "mainApp": {
-      "ver": "2.2.0"
+      "ver": "2.3.0"
     },
     "echoDevice": {
-      "ver": "2.2.0"
+      "ver": "2.3.0"
     },
     "server": {
       "ver": "2.1.1"
@@ -199,7 +199,8 @@
     "A1N9SW0I0LUX5Y": {
       "name": "Dash Wand",
       "image": "dash_wand",
-      "allowTTS": false
+      "allowTTS": false,
+      "blocked": true
     },
     "A1C66CX2XD756O": {
       "name": "Fire Tablet HD",
@@ -214,7 +215,8 @@
     "A3F1S88NTZZXS9": {
       "name": "Dash Wand",
       "image": "dash_wand",
-      "allowTTS": true
+      "allowTTS": false,
+      "blocked": true
     }
   }
 }

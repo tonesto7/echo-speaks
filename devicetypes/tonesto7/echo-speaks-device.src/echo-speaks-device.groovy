@@ -77,12 +77,17 @@ metadata {
         command "playSingASong", ["number", "number"]
         command "playFlashBrief", ["number", "number"]
         command "playFunFact", ["number", "number"]
-        command "playGoodMorning", ["number", "number"]
         command "playTraffic", ["number", "number"]
         command "playJoke", ["number", "number"]
         command "playTellStory", ["number", "number"]
-        command "playWelcomeHome", ["number", "number"]
-        command "playGoodNight", ["number", "number"]
+        command "sayGoodbye", ["number", "number"]
+        command "sayGoodNight", ["number", "number"]
+        command "sayBirthday", ["number", "number"]
+        command "sayCompliment", ["number", "number"]
+        command "sayGoodMorning", ["number", "number"]
+        command "sayWelcomeHome", ["number", "number"]
+        // command "playCannedRandomTts", ["string", "number", "number"]
+        // command "playCannedTts", ["string", "string", "number", "number"]
         command "playAnnouncement", ["string", "number", "number"]
         command "playAnnouncement", ["string", "string", "number", "number"]
         command "playAnnouncementAll", ["string", "string"]
@@ -99,7 +104,7 @@ metadata {
         command "searchSpotify", ["string", "number", "number"]
         command "searchTuneIn", ["string", "number", "number"]
         command "sendAlexaAppNotification", ["string"]
-        command "execSequenceCommand", ["string"]
+        command "executeSequenceCommand", ["string"]
         command "executeRoutineId", ["string"]
         command "createAlarm", ["string", "string", "string"]
         command "createReminder", ["string", "string", "string"]
@@ -348,10 +353,10 @@ metadata {
             state("default", label:'', action: 'playCalendarNext', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/calendar_next.png")
         }
         standardTile("playWelcomeHome", "playWelcomeHome", height: 1, width: 1, decoration: "flat") {
-            state("default", label:'', action: 'playWelcomeHome', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/welcome_home.png")
+            state("default", label:'', action: 'sayWelcomeHome', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/welcome_home.png")
         }
         standardTile("playGoodNight", "playGoodNight", height: 1, width: 1, decoration: "flat") {
-            state("default", label:'', action: 'playGoodNight', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/good_night.png")
+            state("default", label:'', action: 'sayGoodNight', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/good_night.png")
         }
         standardTile("volumeUp", "volumeUp", height: 1, width: 1, decoration: "flat") {
             state("default", label:'', action: 'volumeUp', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/volume_up.png")
@@ -462,7 +467,8 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
     if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { if(!noLogs) { log.warn "Amazon Cookie State Values Missing: ${state?.cookie}" }; return false }
     if(!state?.serialNumber) { if(!noLogs) { log.warn "SerialNumber State Value Missing: ${state?.serialNumber}" }; return false }
     if(!state?.deviceType) { if(!noLogs) { log.warn "DeviceType State Value Missing: ${state?.deviceType}" }; return false }
-    if(!state?.deviceOwnerCustomerId) { if(!noLogs) { log.warn "OwnerCustomerId State Value Missing: ${state?.deviceOwnerCustomerId}" }; return false }
+    if(!state?.deviceOwnerCustomerId) { if(!noLogs) { log.warn "OwnerCustomerId State Value Missing: ${state?.deviceOwnerCustomerId}" }; return false; }
+    if(state?.isSupportedDevice == false) { log.warn "You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer"; return true; }
     if(!type || state?.permissions == null) { if(!noLogs) { log.warn "Permissions State Object Missing: ${state?.permissions}" }; return false }
     if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl"]))) { if(!noLogs) { log.warn "All Voice Output Blocked... Do Not Disturb is ON" }; return false }
     if(state?.permissions?.containsKey(type) && state?.permissions[type] == true) { return true }
@@ -547,6 +553,7 @@ void updateDeviceStatus(Map devData) {
             //         logger("debug", "$k: $v")
             //     }
             // }
+            state?.isSupportedDevice = (devData?.unsupported != true)
             state?.serialNumber = devData?.serialNumber
             state?.deviceType = devData?.deviceType
             state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
@@ -1427,6 +1434,60 @@ def speak(String msg) {
     }
 }
 
+def sayWelcomeHome(volume=null, restoreVolume=null) {
+    if(volume != null) {
+        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "iamhome"]]
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("WelcomeHomeCommand", "cannedtts_random", "iamhome") }
+    incrementCntByKey("use_cnt_sayWelcomeHome")
+}
+
+def sayCompliment(volume=null, restoreVolume=null) {
+    if(volume != null) {
+        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "compliments"]]
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("ComplimentCommand", "cannedtts_random", "compliments") }
+    incrementCntByKey("use_cnt_sayCompliment")
+}
+
+def sayBirthday(volume=null, restoreVolume=null) {
+    if(volume != null) {
+        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "birthday"]]
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("BirthdayCommand", "cannedtts_random", "birthday") }
+    incrementCntByKey("use_cnt_sayBirthday")
+}
+
+def sayGoodNight(volume=null, restoreVolume=null) {
+    if(volume != null) {
+        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "goodnight"]]
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("GoodNightCommand", "cannedtts_random", "goodnight") }
+    incrementCntByKey("use_cnt_sayGoodNight")
+}
+
+def sayGoodMorning(volume=null, restoreVolume=null) {
+    if(volume != null) {
+        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "goodmorning"]]
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("GoodMorningCommand", "cannedtts_random", "goodmorning") }
+    incrementCntByKey("use_cnt_sayGoodMorning")
+}
+
+def sayGoodbye(volume=null, restoreVolume=null) {
+    if(volume != null) {
+        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "goodbye"]]
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("GoodbyeCommand", "cannedtts_random", "goodbye") }
+    incrementCntByKey("use_cnt_sayGoodbye")
+}
+
 def executeRoutineId(String rId) {
     def execDt = now()
     logger("trace", "executeRoutineId($rId) command received...")
@@ -1473,33 +1534,6 @@ def playFlashBrief(volume=null, restoreVolume=null) {
         } else { doSequenceCmd("FlashCommand", "flashbriefing") }
         incrementCntByKey("use_cnt_playBrief")
     }
-}
-
-def playWelcomeHome(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "welcomehomerandom"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs)
-    } else { doSequenceCmd("WelcomeHomeCommand", "welcomehomerandom") }
-    incrementCntByKey("use_cnt_playWelcomeHome")
-}
-
-def playGoodNight(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "goodnight"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs)
-    } else { doSequenceCmd("GoodNightCommand", "goodnight") }
-    incrementCntByKey("use_cnt_playGoodNight")
-}
-
-def playGoodMorning(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "goodmorning"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs)
-    } else { doSequenceCmd("GoodMorningCommand", "goodmorning") }
-    incrementCntByKey("use_cnt_playGoodMorning")
 }
 
 def playTellStory(volume=null, restoreVolume=null) {
@@ -1554,6 +1588,15 @@ def playCalendarNext(volume=null, restoreVolume=null) {
         sendMultiSequenceCommand(seqs)
     } else { doSequenceCmd("CalendarNextCommand", "calendarnext") }
     incrementCntByKey("use_cnt_calendarNext")
+}
+
+def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
+    if(volume != null) {
+        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: type]]
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs)
+    } else { doSequenceCmd("CannedTtsRandom", "cannedtts_random", type) }
+    incrementCntByKey("use_cnt_playCannedRandomTTS")
 }
 
 def playAnnouncement(String msg, volume=null, restoreVolume=null) {
@@ -1971,7 +2014,15 @@ def sendTestAnnouncementAll() {
     playAnnouncementAll("Test announcement to all devices")
 }
 
-def execSequenceCommand(String seqStr) {
+Map seqItemsAvail() {
+    return ["weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null, "singasong":null, "tellstory":null, "funfact":null, "joke":null,
+        "playsearch":null, "calendartoday":null, "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null, "cannedtts_random": """type (goodbye, confirmations, goodmorning, compliments, birthday, goodnight, iamhome)""",
+        "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message", "announcementall": "message", "pushnotification": "message"
+    ]
+}
+
+def executeSequenceCommand(String seqStr) {
+
     if(seqStr) {
         List seqList = seqStr?.split(",")
         List seqItems = []
@@ -1980,13 +2031,17 @@ def execSequenceCommand(String seqStr) {
                 def li = it?.toString()?.split("::")
                 // log.debug "li: $li"
                 if(li?.size()) {
-                    if(li?.size() == 1) {
-                        seqItems?.push([command: li[0]?.trim()])
-                    } else { seqItems?.push([command: li[0]?.trim(), value: li[1]?.trim()]) }
+                    String cmd = li[0]?.trim()?.toString()?.toLowerCase() as String
+                    if(li?.size() == 1 && seqItemsAvail()?.containsKey(cmd)) {
+                        seqItems?.push([command: cmd])
+                    } else if(li?.size() == 2 && seqItemsAvail()?.containsKey(cmd)) {
+                        seqItems?.push([command: cmd, value: li[1]?.trim()])
+                    }
                 }
             }
         }
-        logger("debug", "seqItems: $seqItems")
+        logger("debug", "executeSequenceCommand Items: $seqItems")
+        log.debug "executeSequenceCommand Items: $seqItems | seqStr: ${seqStr}"
         if(seqItems?.size()) {
             sendMultiSequenceCommand(seqItems)
             incrementCntByKey("use_cnt_executeSequenceCommand")
@@ -2420,6 +2475,7 @@ Map multiSequenceBuilder(commands, parallel=false) {
 
 Map createSequenceNode(command, value) {
     try {
+        Boolean remDevSpecifics = false
         Map seqNode = [
             "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
             "operationPayload": [
@@ -2445,6 +2501,9 @@ Map createSequenceNode(command, value) {
             case "goodnight":
                 seqNode?.type = "Alexa.GoodNight.Play"
                 break
+            case "cleanup":
+                seqNode?.type = "Alexa.CleanUp.Play"
+                break
             case "singasong":
                 seqNode?.type = "Alexa.SingASong.Play"
                 break
@@ -2456,9 +2515,6 @@ Map createSequenceNode(command, value) {
                 break
             case "joke":
                 seqNode?.type = "Alexa.Joke.Play"
-                break
-            case "playsearch":
-                seqNode?.type = "Alexa.Music.PlaySearchPhrase"
                 break
             case "calendartomorrow":
                 seqNode?.type = "Alexa.Calendar.PlayTomorrow"
@@ -2473,17 +2529,28 @@ Map createSequenceNode(command, value) {
                 seqNode?.type = "Alexa.DeviceControls.Stop"
                 break
             case "stopalldevices":
-                seqNode?.type = "Alexa.DeviceControls.Stop"
-                seqNode?.operationPayload?.remove('deviceType')
-                seqNode?.operationPayload?.remove('deviceSerialNumber')
                 seqNode?.operationPayload?.remove('locale')
-                seqNode?.operationPayload?.devices = [
-                    [
-                        deviceType: "ALEXA_ALL_DEVICE_TYPE",
-                        deviceSerialNumber: "ALEXA_ALL_DSN"
-                    ]
-                ]
+                seqNode?.type = "Alexa.DeviceControls.Stop"
+                seqNode?.operationPayload?.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
                 seqNode?.operationPayload?.isAssociatedDevice = false
+                break
+            case "cannedtts_random":
+                List okVals = ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
+                if(!(value in okVals)) { return null }
+                seqNode?.type = "Alexa.CannedTts.Speak"
+                seqNode?.operationPayload?.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${value}/alexa.cannedtts.speak.curatedtts-random"
+                break
+            case "cannedtts":
+                List okVals = ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
+                if(!(value in okVals)) { return null }
+                seqNode?.type = "Alexa.CannedTts.Speak"
+                List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : [value as String, value as String]
+                seqNode?.operationPayload?.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
+                break
+            case "wait":
+                remDevSpecifics = true
+                seqNode?.type = "Alexa.System.Wait"
+                seqNode?.operationPayload?.waitTimeInSeconds = value;
                 break
             case "volume":
                 seqNode?.type = "Alexa.DeviceControls.Volume"
@@ -2495,35 +2562,29 @@ Map createSequenceNode(command, value) {
                 break
             case "announcement":
             case "announcementall":
+                remDevSpecifics = true
                 seqNode?.type = "AlexaAnnouncement"
-                seqNode?.operationPayload?.remove('deviceType')
-                seqNode?.operationPayload?.remove('deviceSerialNumber')
-                seqNode?.operationPayload?.remove('locale')
                 seqNode?.operationPayload?.expireAfter = "PT5S"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
-                seqNode?.operationPayload?.content = [[
-                    locale: (state?.regionLocale ?: "en-US"),
-                    display: [ title: valObj[0], body: valObj[1] as String ],
-                    speak: [ type: "text", value: valObj[1] as String ],
-                ]]
+                seqNode?.operationPayload?.content = [[ locale: (state?.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1] as String ], speak: [ type: "text", value: valObj[1] as String ] ] ]
                 seqNode?.operationPayload?.target = [ customerId : state?.deviceOwnerCustomerId ]
                 if(command != "announcementall") { seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ] }
                 break
-            case "welcomehomerandom":
-                seqNode?.type = "Alexa.CannedTts.Speak"
-                seqNode?.operationPayload?.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-iamhome/alexa.cannedtts.speak.curatedtts-random"
-                break
+
             case "pushnotification":
+                remDevSpecifics = true
                 seqNode?.type = "Alexa.Notifications.SendMobilePush"
-                seqNode?.operationPayload?.remove('deviceType')
-                seqNode?.operationPayload?.remove('deviceSerialNumber')
-                seqNode?.operationPayload?.remove('locale')
                 seqNode?.operationPayload?.notificationMessage = value as String
                 seqNode?.operationPayload?.alexaUrl = "#v2/behaviors"
                 seqNode?.operationPayload?.title = "Amazon Alexa"
                 break
             default:
                 return
+        }
+        if(removeDeviceSpecifics) {
+            seqNode?.operationPayload?.remove('deviceType')
+            seqNode?.operationPayload?.remove('deviceSerialNumber')
+            seqNode?.operationPayload?.remove('locale')
         }
         // log.debug "seqNode: $seqNode"
         return seqNode

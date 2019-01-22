@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.2.1" }
-String appModified() { return "2019-01-21" }
+String appVersion()	 { return "2.3.0" }
+String appModified() { return "2019-01-22" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 220, server: 211] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 230, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -49,9 +49,10 @@ preferences {
     page(name: "servPrefPage")
     page(name: "musicSearchTestPage")
     page(name: "searchTuneInResultsPage")
-    page(name: "broadcastTestPage")
-    page(name: "deviceCmdTestPage")
-    page(name: "deviceCmdTestPage2")
+    page(name: "deviceTestPage")
+    page(name: "broadcastPage")
+    page(name: "announcePage")
+    page(name: "sequencePage")
     page(name: "setNotificationTimePage")
     page(name: "uninstallPage")
 }
@@ -94,11 +95,12 @@ def mainPage() {
             if(!newInstall) {
                 List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }?.sort()
                 if(devs?.size()) {
-                    href "deviceListPage", title: "Installed Devices:", description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
+                    href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                 } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
                 if(state?.skippedDevices?.size()) {
-                    String unrecDesc = "(${state?.skippedDevices?.size()}) Devices${settings?.bypassDeviceBlocks ? "\nDevice Block Bypass: (Active)" : ""}\n\nTap to view details..."
-                    href "unrecogDevicesPage", title: "Ignored Devices:", description: "(${state?.skippedDevices?.size()}) Devices\n\nTap to view details..."
+
+                    String unrecDesc = "Devices Skipped: (${state?.skippedDevices?.size()})${settings?.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : ""}\n\nTap to view details..."
+                    href "unrecogDevicesPage", title: inTS("Skipped Devices:"), description: unrecDesc
                 }
             }
             def devPrefDesc = devicePrefsDesc()
@@ -106,8 +108,8 @@ def mainPage() {
         }
         if(!newInstall) {
             section(sTS("Experimental Functions:")) {
-                href "broadcastTestPage", title: inTS("Broadcast Test Page", getAppImg("broadcast", true)), description: "Tap to proceed...", image: getAppImg("broadcast")
-                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Tap to proceed...", image: getAppImg("music")
+                href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Announcements, Broadcasts, and Sequences\n\nTap to proceed...", image: getAppImg("broadcast")
+                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
             }
         }
 
@@ -159,18 +161,28 @@ def devicePrefsPage() {
                 paragraph title:"Notice:", "To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use input before removing."
             }
         }
+        section(sTS("Detection Override:")) {
+            paragraph "Device not detected?  Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.  This is useful for testing the device."
+            input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
+        }
         devCleanupSect()
     }
 }
 
 private devCleanupSect() {
     if(state?.isInstalled && !state?.resumeConfig) {
-        section() {
+        section(sTS("Device Cleanup Options:")) {
             paragraph title:"Notice:", "Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations"
             input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: "", required: false, defaultValue: false, submitOnChange: true
             if(cleanUpDevices) { removeDevices() }
         }
     }
+}
+
+def getRemovableDevCnt() {
+    def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    Map eDevs = state?.echoDeviceMap ?: [:]
+    return ((childDevs?.size() ?: 0) - (eDevs?.size() ?: 0))?.abs()
 }
 
 def devicePrefsDesc() {
@@ -181,7 +193,9 @@ def devicePrefsDesc() {
         str += (settings?.createWHA == true) ? bulletItem(str, "WHA") : ""
         str += (settings?.createOtherDevices == true) ? bulletItem(str, "Other Devices") : ""
     }
-    str += bulletItem(str, "Rename Devices")
+    str += settings?.autoRenameDevices != false ? bulletItem(str, "Auto Rename") : ""
+    def remDevsSz = getRemovableDevCnt()
+    str += remDevsSz > 0 ? "\n\nRemovable Devices: (${remDevsSz})" : ""
     return str != "" ? str : null
 }
 
@@ -225,7 +239,7 @@ def deviceListPage() {
 def unrecogDevicesPage() {
     return dynamicPage(name: "unrecogDevicesPage", install: false) {
         Boolean onST = isST()
-        section(sTS("Unrecognized Devices:")) {
+        section(sTS("Unrecognized/Unsupported Devices:")) {
             if(state?.skippedDevices?.size()) {
                 state?.skippedDevices?.sort { it?.value?.name }?.each { k,v->
                     String str = "Status: (${v?.online ? "Online" : "Offline"})"
@@ -450,8 +464,18 @@ def uninstallPage() {
 
 String bulletItem(String inStr, String strVal) { return "${inStr == "" ? "" : "\n"} \u2022 ${strVal}" }
 
-def broadcastTestPage() {
-    return dynamicPage(name: "broadcastTestPage", uninstall: false, install: false) {
+def deviceTestPage() {
+    return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
+        section("") {
+            href "broadcastPage", title: inTS("Broadcast Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
+            href "announcePage", title: inTS("Announcement Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
+            href "sequencePage", title: inTS("Sequence Creator Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
+        }
+    }
+}
+
+def broadcastPage() {
+    return dynamicPage(name: "broadcastPage", uninstall: false, install: false) {
         section("") {
             Map devs = getDeviceList(true, false)
             input "broadcastDevices", "enum", title: inTS("Select Devices to Test the Broadcast"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
@@ -461,30 +485,96 @@ def broadcastTestPage() {
         }
         if(settings?.broadcastDevices) {
             section() {
-                input "performBroadcast", "bool", title: inTS("Perform the Broadcast?"), description: "", required: false, defaultValue: false, submitOnChange: true
-                if(performBroadcast) { executeBroadcast() }
+                input "broadcastRun", "bool", title: inTS("Perform the Broadcast?"), description: "", required: false, defaultValue: false, submitOnChange: true
+                if(broadcastRun) { executeBroadcast() }
+            }
+        }
+    }
+}
+
+def announcePage() {
+    return dynamicPage(name: "announcePage", uninstall: false, install: false) {
+        section("") {
+            Map devs = getDeviceList(true, false)
+            input "announceDevices", "enum", title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            input "announceMessage", "text", title: inTS("Message to announce"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
+        }
+        if(settings?.announceDevices) {
+            section() {
+                input "announceRun", "bool", title: inTS("Perform the Announcement?"), description: "", required: false, defaultValue: false, submitOnChange: true
+                if(announceRun) { executeAnnouncement() }
+            }
+        }
+    }
+}
+
+Map seqItemsAvail() {
+    return ["weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null, "singasong":null, "tellstory":null, "funfact":null, "joke":null,
+        "playsearch":null, "calendartoday":null, "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null, "cannedtts_random": """type (goodbye, confirmations, goodmorning, compliments, birthday, goodnight, iamhome)""",
+        "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message", "announcementall": "message", "pushnotification": "message"
+    ]
+}
+
+def sequencePage() {
+    return dynamicPage(name: "sequencePage", uninstall: false, install: false) {
+        section(sTS("Sequence Legend:"), hideable: true, hidden: true) {
+            String str = "Available Options:"
+            seqItemsAvail()?.each { k, v->
+                str += "\n$k${v != null ? "::${v}" : ""}"
+            }
+            paragraph str, state: "complete"
+            paragraph "Enter the command in a format exactly like this:\nvolume::40, speak::this is so silly, weather, traffic, joke, volume::30\n\nEach command needs to be separated by a comma and the separator between the command and value must be command::value.", state: "complete"
+        }
+        section(sTS("Sequence Test Config:")) {
+            input "sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: "Tap to select", multiple: false, required: false, submitOnChange: true
+            input "sequenceString", "text", title: inTS("Sequence String to Use"), defaultValue: "", required: true, submitOnChange: true
+        }
+        if(settings?.sequenceDevice && settings?.sequenceString) {
+            section() {
+                input "sequenceRun", "bool", title: inTS("Perform the Sequence?"), description: "", required: false, defaultValue: false, submitOnChange: true
+                if(sequenceRun) { executeSequence() }
             }
         }
     }
 }
 
 private executeBroadcast() {
+    settingUpdate("broadcastRun", "false", "bool")
     String testMsg = settings?.broadcastMessage
     Map eDevs = state?.echoDeviceMap
     List seqItems = []
+    List seqItems2 = []
+    List seqItems3 = []
     Integer bcVol = settings?.broadcastVolume
     def selectedDevs = settings?.broadcastDevices
     selectedDevs?.each { dev->
         seqItems?.push([command: "volume", value: bcVol, serial: dev, type: eDevs[dev]?.type])
     }
-    selectedDevs?.each { dev->
-        seqItems?.push([command: "speak", value: testMsg, serial: dev, type: eDevs[dev]?.type])
-    }
-    selectedDevs?.each { dev->
-        seqItems?.push([command: "volume", value: 20, serial: dev, type: eDevs[dev]?.type])
-    }
     sendMultiSequenceCommand(seqItems, settings?.broadcastParallel)
-    settingUpdate("performBroadcast", "false", "bool")
+    selectedDevs?.each { dev->
+        seqItems2?.push([command: "speak", value: testMsg, serial: dev, type: eDevs[dev]?.type])
+    }
+    sendMultiSequenceCommand(seqItems2, settings?.broadcastParallel)
+    selectedDevs?.each { dev->
+        seqItems3?.push([command: "volume", value: 20, serial: dev, type: eDevs[dev]?.type])
+    }
+    sendMultiSequenceCommand(seqItems3, settings?.broadcastParallel)
+}
+
+private executeAnnouncement() {
+    settingUpdate("announceRun", "false", "bool")
+    String testMsg = settings?.announceMessage
+    sendSequenceCommand("AnnouncementTest", "announcementTest", testMsg)
+}
+
+private executeSequence() {
+    settingUpdate("sequenceRun", "false", "bool")
+    String seqStr = settings?.sequenceString
+    if(settings?.sequenceDevice?.hasCommand("executeSequenceCommand")) {
+        settings?.sequenceDevice?.executeSequenceCommand(seqStr as String)
+    } else {
+        log.warn "sequence test device doesn't support the executeSequenceCommand command..."
+    }
 }
 
 private executeTuneInSearch() {
@@ -612,8 +702,7 @@ def uninstalled() {
 
 def onAppTouch(evt) {
     // log.trace "appTouch..."
-    // updated()
-    getEchoDevices()
+    updated()
 }
 
 void settingUpdate(name, value, type=null) {
@@ -698,7 +787,7 @@ private appCleanup() {
     // Settings Cleanup
 
     List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "useHeroku", "stHub"]
-    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("echoTestDevice")) { setItems?.push(si?.key as String) } }
+    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence")) { setItems?.push(si?.key as String) } }
     setItems?.each { sI->
         if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
     }
@@ -1127,8 +1216,9 @@ def receiveEventData(Map evtData, String src) {
                     Boolean isMediaPlayer = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     Boolean unsupportedDevice = ((familyAllowed?.ok == false && familyAllowed?.reason == "Unknown Reason") || isBlocked == true)
+                    Boolean bypassBlock = (settings?.bypassDeviceBlocks == true && !isInIgnoreInput)
 
-                    if(settings?.bypassDeviceBlocks != true && familyAllowed?.ok == false || isBlocked == true || (!allowTTS && !isMediaPlayer) || isInIgnoreInput) {
+                    if(!bypassBlock && (familyAllowed?.ok == false || isBlocked == true || (!allowTTS && !isMediaPlayer) || isInIgnoreInput)) {
                         logger("debug", "familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
                         if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
                             List reasons = []
@@ -1153,6 +1243,7 @@ def receiveEventData(Map evtData, String src) {
                         return
                     }
 
+                    echoValue["unsupported"] = (unsupportedDevice == true)
                     echoValue["authValid"] = (state?.authValid == true)
                     echoValue["amazonDomain"] = (settings?.amazonDomain ?: "amazon.com")
                     echoValue["regionLocale"] = (settings?.regionLocale ?: "en-US")
@@ -1321,19 +1412,19 @@ Map sequenceBuilder(cmd, val) {
 Map multiSequenceBuilder(commands, parallel=false) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
     List nodeList = []
-    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.serial, cmdItem?.type, cmdItem?.command, cmdItem?.value)) }
+    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial, deviceType:cmdItem?.type])) }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     Map seqObj = sequenceBuilder(seqJson, null)
     return seqObj
 }
 
-Map createSequenceNode(serialNumber, deviceType, command, value) {
+Map createSequenceNode(command, value, Map deviceData = [:]) {
     try {
         Map seqNode = [
             "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
             "operationPayload": [
-                "deviceType": deviceType,
-                "deviceSerialNumber": serialNumber,
+                "deviceType": deviceData?.deviceType,
+                "deviceSerialNumber": deviceData?.serialNumber,
                 "locale": (settings?.regionLocale ?: "en-US"),
                 "customerId": state?.deviceOwnerCustomerId
             ]
@@ -1346,6 +1437,28 @@ Map createSequenceNode(serialNumber, deviceType, command, value) {
             case "speak":
                 seqNode?.type = "Alexa.Speak"
                 seqNode?.operationPayload?.textToSpeak = value as String
+                break
+            case "announcementTest":
+                log.debug "test"
+                seqNode?.type = "AlexaAnnouncement"
+                seqNode?.operationPayload?.remove('deviceType')
+                seqNode?.operationPayload?.remove('deviceSerialNumber')
+                seqNode?.operationPayload?.remove('locale')
+                seqNode?.operationPayload?.expireAfter = "PT5S"
+                List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
+                seqNode?.operationPayload?.content = [[
+                    locale: (state?.regionLocale ?: "en-US"),
+                    display: [ title: valObj[0], body: valObj[1] as String ],
+                    speak: [ type: "text", value: valObj[1] as String ],
+                ]]
+                List announceDevs = []
+                if(settings?.announceDevices) {
+                    Map eDevs = state?.echoDeviceMap
+                    settings?.announceDevices?.each { dev->
+                        announceDevs?.push([deviceTypeId: eDevs[dev]?.type, deviceSerialNumber: dev])
+                    }
+                }
+                seqNode?.operationPayload?.target = [ customerId : state?.deviceOwnerCustomerId, devices: announceDevs ]
                 break
             default:
                 return
@@ -1374,9 +1487,7 @@ private sendAmazonCommand(String method, Map params, Map otherData) {
 
 def amazonCommandResp(response, data) {
     if(!respIsValid(response, "amazonCommandResp", true)) {return}
-    try {} catch (ex) {
-        //handles non-2xx status codes
-    }
+    try {} catch (ex) { }
     def resp = response?.data ? response?.getJson() : null
     // logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
     if(response?.status == 200) {
@@ -1400,7 +1511,7 @@ private sendSequenceCommand(type, command, value) {
 private sendMultiSequenceCommand(commands, parallel=false) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
     List nodeList = []
-    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.serial, cmdItem?.type, cmdItem?.command, cmdItem?.value)) }
+    commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial, deviceType: cmdItem?.type])) }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     sendSequenceCommand("MultiSequence", seqJson, null)
 }
