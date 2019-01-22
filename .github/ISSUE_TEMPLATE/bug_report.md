@@ -1,38 +1,50 @@
 ---
-name: Bug report
+name: Bug Report
 about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: ''
+title: '(Bug) '
+labels: 'bug'
+assignees: 'tonesto7'
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Verify the following before opening an trouble issue:
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Go over all the following points, and put an `x` in all the boxes that apply.
+If you're unsure about any of these, don't hesitate to ask. We're here to help!**
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+- [ ] That _OAuth_ is Enabled for the SmartApp under the IDE.
+- [ ] The App/SmartApp and Device Handler/Driver are using the latest code available.
+- [ ] You have reviewed the [Echo Speaks Documentation](https://tonesto7.github.io/echo-speaks-docs) for potential fixes.
+- [ ] That Both the Apps/SmartApps and Device Handlers/Drivers have been _Published for You_ in the IDE.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+---
+## About Your Setup:
+- Hub Platform (SmartThings or Hubitat):
+- How many devices are detected?:
+- iOS or Android?:
+- Mobile App Version(Not required):
+- App/SmartApp Version:
+- Device Handler/Driver Version:
+- Heroku Server Version:
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+## Expected Behavior
+**tell us what should happen**
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+## Current Behavior
+**What happens instead of the expected behavior?**
 
-**Additional context**
-Add any other context about the problem here.
+## Steps to Reproduce (for bugs)
+**Provide a link to a live example, or an unambiguous set of steps to reproduce this bug. Include code to reproduce, if relevant**
+
+1.
+2.
+3.
+4.
+
+## Context
+**How has this issue affected you? What are you trying to accomplish?
+**Providing context helps us come up with a solution that is most useful in the real world**
+
+
+---
+Please include a copy of any relevant log output to assist in tracking down the bug
