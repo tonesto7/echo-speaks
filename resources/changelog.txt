@@ -1,3 +1,17 @@
+V2.3.1 (January 23rd, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Lot's of little bugs squashed and some minor UI tweaks.
+ • FIXED: Significantly reduced the icon sizes by 80-90% to speed up image loading
+ • UPDATED: Support for the new required executeSequenceCommand() split character from `,` to `,,`
+ Important Note: I've been seeing more Async Function errors on the Hubitat recently.  I will continue to investigate the issue.
+
+Device:
+ • FIXED: Broken tile buttons fixed
+ • FIXED: Significantly reduced the icon sizes by 80-90% to speed up icon and tile image loading.
+ • ADDED: sayCompliment button
+ • UPDATED: Modified the required executeSequenceCommand() split character from `,` to `,,`
+
 V2.3.0 (January 22nd, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:

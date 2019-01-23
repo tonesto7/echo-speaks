@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.3.0" }
+String appVersion()	 { return "2.3.1" }
 String appModified() { return "2019-01-23" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 230, server: 211] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 231, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -523,7 +523,7 @@ def sequencePage() {
                 str += "\n$k${v != null ? "::${v}" : ""}"
             }
             paragraph str, state: "complete"
-            paragraph "Enter the command in a format exactly like this:\nvolume::40, speak::this is so silly, wait::60, weather, wait::10, traffic, joke, volume::30\n\nEach command needs to be separated by a comma and the separator between the command and value must be command::value.", state: "complete"
+            paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60, weather,, wait::10,, traffic,, joke,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
         }
         section(sTS("Sequence Test Config:")) {
             input "sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: "Tap to select", multiple: false, required: false, submitOnChange: true
