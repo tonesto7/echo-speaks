@@ -333,8 +333,8 @@ metadata {
         standardTile("playFlashBrief", "playFlashBrief", height: 1, width: 1, decoration: "flat") {
             state("default", label:'', action: 'playFlashBrief', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/flash_brief.png")
         }
-        standardTile("playGoodMorning", "playGoodMorning", height: 1, width: 1, decoration: "flat") {
-            state("default", label:'', action: 'playGoodMorning', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/good_morning.png")
+        standardTile("sayGoodMorning", "sayGoodMorning", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'sayGoodMorning', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/good_morning.png")
         }
         standardTile("playTraffic", "playTraffic", height: 1, width: 1, decoration: "flat") {
             state("default", label:'', action: 'playTraffic', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/play_traffic.png")
@@ -357,11 +357,14 @@ metadata {
         standardTile("playCalendarNext", "playCalendarNext", height: 1, width: 1, decoration: "flat") {
             state("default", label:'', action: 'playCalendarNext', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/calendar_next.png")
         }
-        standardTile("playWelcomeHome", "playWelcomeHome", height: 1, width: 1, decoration: "flat") {
+        standardTile("sayWelcomeHome", "sayWelcomeHome", height: 1, width: 1, decoration: "flat") {
             state("default", label:'', action: 'sayWelcomeHome', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/welcome_home.png")
         }
-        standardTile("playGoodNight", "playGoodNight", height: 1, width: 1, decoration: "flat") {
+        standardTile("sayGoodNight", "sayGoodNight", height: 1, width: 1, decoration: "flat") {
             state("default", label:'', action: 'sayGoodNight', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/good_night.png")
+        }
+        standardTile("sayCompliment", "sayCompliment", height: 1, width: 1, decoration: "flat") {
+            state("default", label:'', action: 'sayCompliment', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/compliment.png")
         }
         standardTile("volumeUp", "volumeUp", height: 1, width: 1, decoration: "flat") {
             state("default", label:'', action: 'volumeUp', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/volume_up.png")
@@ -387,7 +390,7 @@ metadata {
             "mediaMulti",
             "volumeUp", "volumeDown", "stopAllDevices", "doNotDisturb", "refresh", "disconnectBluetooth",
             "playWeather", "playSingASong", "playFlashBrief", "playTraffic", "playTellStory", "playFunFact",
-            "playJoke", "playWelcomeHome", "playGoodMorning", "playGoodNight", "resetQueue", "blank1x1",
+            "playJoke", "sayWelcomeHome", "sayGoodMorning", "sayGoodNight", "sayCompliment", "resetQueue",
             "playCalendarToday", "playCalendarTomorrow", "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll",
             "currentAlbum", "currentStation",
             "alarmVolume",  "btDeviceConnected", "btDevicesPaired", "deviceStyle", "onlineStatus", "volumeSupported", "alexaWakeWord", "ttsSupported", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt", "lastVoiceActivity"
