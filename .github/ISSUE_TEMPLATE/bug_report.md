@@ -15,7 +15,7 @@ If you're unsure about any of these, don't hesitate to ask. We're here to help!*
 -  [ ] That _OAuth_ is Enabled for the SmartApp under the IDE.
 -  [ ] The App/SmartApp and Device Handler/Driver are using the latest code available.
 -  [ ] You have reviewed the [Echo Speaks Documentation](https://tonesto7.github.io/echo-speaks-docs) for potential fixes.
-- [ ] That Both the Apps/SmartApps and Device Handlers/Drivers have been _Published for You_ in the IDE.
+-  [ ] That Both the Apps/SmartApps and Device Handlers/Drivers have been _Published for You_ in the IDE.
 
 ---
 ## About Your Setup
