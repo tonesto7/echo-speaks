@@ -15,7 +15,7 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String devVersion()  { return "2.3.0"}
+String devVersion()  { return "2.3.1"}
 String devModified() { return "2019-01-23" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1439,7 +1439,7 @@ def speak(String msg) {
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { log.warn "No Message sent with speak($msg) command" }
         // log.trace "speak(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
-        if(msg?.toString()?.length() > 450) { log.warn "TTS Message Length is Too Long!!! | Current Length (${msg?.toString()?.length()})"; return; }
+        if(msg?.toString()?.length() > 450) { log.warn "The Current TTS Message Length (${msg?.toString()?.length()}) is Too Long and will likely not play!!!" }
         speakVolumeCmd([cmdDesc: "SpeakCommand", message: msg as String, newVolume: (state?.useThisVolume ?: null), oldVolume: (state?.lastVolume ?: null), cmdDt: now()])
         incrementCntByKey("use_cnt_speak")
     }
@@ -2033,9 +2033,9 @@ Map seqItemsAvail() {
 }
 
 def executeSequenceCommand(String seqStr) {
-
     if(seqStr) {
-        List seqList = seqStr?.split(",")
+        List seqList = seqStr?.split(",,")
+        log.debug "seqList: ${seqList}"
         List seqItems = []
         if(seqList?.size()) {
             seqList?.each {
