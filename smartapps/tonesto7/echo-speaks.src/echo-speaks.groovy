@@ -107,7 +107,7 @@ def mainPage() {
         }
         if(!newInstall) {
             section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Announcements, Broadcasts, and Sequences\n\nTap to proceed...", image: getAppImg("broadcast")
+                href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Announcements, Broadcasts, and Sequences\n\nTap to proceed...", image: getAppImg("testing")
                 href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
             }
         }
@@ -473,8 +473,8 @@ def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
         section("") {
             href "broadcastPage", title: inTS("Broadcast Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
-            href "announcePage", title: inTS("Announcement Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
-            href "sequencePage", title: inTS("Sequence Creator Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
+            href "announcePage", title: inTS("Announcement Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("announcement")
+            href "sequencePage", title: inTS("Sequence Creator Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("sequence")
         }
     }
 }
@@ -1774,7 +1774,6 @@ def queueFirebaseData(url, path, data, cmdType=null, type=null) {
     Map params = [uri: url as String, path: path as String, requestContentType: "application/json", contentType: "application/json", body: json.toString()]
     String typeDesc = type ? type as String : "Data"
     try {
-        log
         if(!cmdType || cmdType == "put") {
             execAsyncCmd(cmdType, "processFirebaseResponse", params, [type: typeDesc])
             result = true
@@ -1791,7 +1790,7 @@ def removeFirebaseData(pathVal) {
     logger("trace", "removeFirebaseData(${pathVal})", true)
     Boolean result = true
     try {
-        httpDelete(uri: getFbMetricsUrl() as String, path: pathVal as String) { resp ->
+        httpDelete(uri: getFbMetricsUrl(), path: pathVal as String) { resp ->
             logger("debug", "Remove Firebase | resp: ${resp?.status}")
         }
     } catch (ex) {

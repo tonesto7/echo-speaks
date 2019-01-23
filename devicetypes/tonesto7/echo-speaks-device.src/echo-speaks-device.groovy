@@ -57,6 +57,7 @@ metadata {
         attribute "reminderSupported", "string"
         attribute "supportedMusic", "string"
         attribute "trackImage", "string"
+        attribute "trackImageHtml", "string"
         attribute "ttsSupported", "string"
         attribute "volume", "number"
         attribute "volumeSupported", "string"
@@ -780,6 +781,9 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     if(isStateChange(device, "trackImage", trackImg?.toString())) {
         sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
     }
+    if(isStateChange(device, "trackImageHtml", """<img src="${trackImg?.toString()}"/>""")) {
+        sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)
+    }
 
     // Group response data never has valida data for volume
     if(!isGroupResponse && sData?.volume) {
@@ -892,7 +896,7 @@ def getBluetoothHandler(response, data) {
     try {} catch (ex) { }
     String curConnName = null
     Map btObjs = [:]
-    def rData = response?.getJson()
+    def rData = response?.json ?: null
     def bluData = rData?.bluetoothStates?.size() ? rData?.bluetoothStates?.find { it?.deviceSerialNumber == state?.serialNumber } : null
     if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
         def bData = bluData?.pairedDeviceList?.findAll { (it?.deviceClass != "GADGET") }
@@ -987,10 +991,10 @@ private getMusicProviders() {
 def getMusicProvidersHandler(response, data) {
     if(!respIsValid(response, "getMusicProvidersHandler")) {return}
     try {} catch (ex) { }
-    def sData = response?.json
+    def sData = response?.json ?: null
     logger("trace", "getMusicProviders: ${sData}")
     Map items = [:]
-    if(sData?.size()) {
+    if(sData && sData?.size()) {
         sData?.findAll { it?.availability == "AVAILABLE" }?.each { item->
             items[item?.id] = item?.displayName
         }
@@ -998,10 +1002,10 @@ def getMusicProvidersHandler(response, data) {
         state?.permissions["siriusXm"] = (items?.containsKey("SIRIUSXM"))
     }
     String lItems = items?.collect{ it?.value }?.sort()?.join(", ")
-    if(isStateChange(device, "supportedMusic", lItems?.toString())) {
+    if(sData && isStateChange(device, "supportedMusic", lItems?.toString())) {
         sendEvent(name: "supportedMusic", value: lItems?.toString(), display: false, displayed: false)
     }
-    if(isStateChange(device, "alexaMusicProviders", items?.toString())) {
+    if(sData && isStateChange(device, "alexaMusicProviders", items?.toString())) {
         // log.trace "Alexa Music Providers Changed to ${items}"
         sendEvent(name: "alexaMusicProviders", value: items?.toString(), display: false, displayed: false)
     }
@@ -1023,7 +1027,7 @@ def getNotificationsHandler(response, data) {
     try {} catch (ex) { }
     List newList = []
     if(response?.status == 200) {
-        def sData = response?.json
+        def sData = response?.json ?: null
         if(sData) {
             List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
             items?.each { item->
@@ -1032,11 +1036,11 @@ def getNotificationsHandler(response, data) {
                 newList?.push(li)
             }
         }
+        if(isStateChange(device, "alexaNotifications", newList?.toString())) {
+            sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
+        }
     }
     // log.trace "notifications: $newList"
-    if(isStateChange(device, "alexaNotifications", newList?.toString())) {
-        sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
-    }
 }
 
 private getDeviceActivity() {
@@ -1056,11 +1060,11 @@ private getDeviceActivity() {
 }
 
 def deviceActivityHandler(response, data) {
-    def sData = response?.json
+    def sData = response?.json ?: null
     Boolean wasLastDevice = false
     String lastVoiceActivity = null
     def actTS = null
-    if (sData?.activities != null) {
+    if (sData && sData?.activities != null) {
         def lastCommand = sData?.activities?.find {
             (it?.domainAttributes == null || it?.domainAttributes.startsWith("{")) &&
             it?.activityStatus.equals("SUCCESS") &&
@@ -1076,15 +1080,15 @@ def deviceActivityHandler(response, data) {
                 lastVoiceActivity = spokenText as String
             }
         }
-    }
-    if(isStateChange(device, "lastVoiceActivity", lastVoiceActivity?.toString())) {
-        sendEvent(name: "lastVoiceActivity", value: lastVoiceActivity, display: false, displayed: false)
-    }
-    if(isStateChange(device, "lastSpokenToTime", actTS?.toString())) {
-        sendEvent(name: "lastSpokenToTime", value: actTS, display: false, displayed: false)
-    }
-    if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
-        sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
+        if(isStateChange(device, "lastVoiceActivity", lastVoiceActivity?.toString())) {
+            sendEvent(name: "lastVoiceActivity", value: lastVoiceActivity, display: false, displayed: false)
+        }
+        if(isStateChange(device, "lastSpokenToTime", actTS?.toString())) {
+            sendEvent(name: "lastSpokenToTime", value: actTS, display: false, displayed: false)
+        }
+        if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
+            sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
+        }
     }
 }
 
