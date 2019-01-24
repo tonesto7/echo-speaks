@@ -1,7 +1,19 @@
+V2.3.2 (January 23rd, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Echo Device Filter not stopping selected devices from being created.
+ • FIXED: Made changes to address the random exception errors on async responses.
+
+Device:
+ • FIXED: Broken sequence commands from v2.3+
+ • FIXED: wait sequence command was breaking the whole sequence.
+ • FIXED: Made changes to address the random exception errors on async responses.
+
+ • UPDATED: Speak commands now handle long strings but splitting them into multiple sequence commands and playing them 1 by 1
+
 V2.3.1 (January 23rd, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
- • FIXED: Lot's of little bugs squashed and some minor UI tweaks.
  • FIXED: Significantly reduced the icon sizes by 80-90% to speed up image loading
  • UPDATED: Support for the new required executeSequenceCommand() split character from `,` to `,,`
  Important Note: I've been seeing more Async Function errors on the Hubitat recently.  I will continue to investigate the issue.

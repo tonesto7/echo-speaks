@@ -15,7 +15,7 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.3.1" }
+String appVersion()	 { return "2.3.2" }
 String appModified() { return "2019-01-23" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
@@ -103,7 +103,7 @@ def mainPage() {
                 }
             }
             def devPrefDesc = devicePrefsDesc()
-            href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "\n${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
+            href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
         }
         if(!newInstall) {
             section(sTS("Experimental Functions:")) {
@@ -510,7 +510,9 @@ def announcePage() {
 
 Map seqItemsAvail() {
     return ["weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null, "singasong":null, "tellstory":null, "funfact":null, "joke":null,
-        "playsearch":null, "calendartoday":null, "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null, "cannedtts_random": """type (goodbye, confirmations, goodmorning, compliments, birthday, goodnight, iamhome)""",
+        // "dnd_duration":"2H30M", "dnd_time":"00:30", "dnd_all_duration":"2H30M", "dnd_all_time":"00:30",
+        "playsearch":null, "calendartoday":null, "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null, "dnd_duration":"2H30M", "dnd_time":"00:30",
+        "cannedtts_random": """type (goodbye, confirmations, goodmorning, compliments, birthday, goodnight, iamhome)""",
         "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message", "announcementall": "message", "pushnotification": "message"
     ]
 }
@@ -1012,15 +1014,12 @@ def cookieValidResp(response, data) {
     authEvtHandler(valid)
 }
 
-private respIsValid(response, String methodName, Boolean falseOnErr=false) {
-    Boolean hasErr = false
-    try {
-        hasErr = (response?.hasError() == true)
-    } catch (ex) { hasErr = true }
-    if(response?.status == 401) {
+private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
+    statusCode = statusCode as Integer
+    if(statusCode == 401) {
         setAuthState(false)
         return false
-    } else { if(response?.status > 401 && response?.status < 500) { log.error "${methodName} Error: ${response?.getErrorMessage() ?: null}" } }
+    } else { if(statusCode > 401 && statusCode < 500) { log.error "${methodName} Error: ${errMsg ?: null}" } }
     if(hasErr && falseOnErr) { return false }
     return true
 }
@@ -1033,10 +1032,9 @@ private makeSyncronousReq(params, method="get", src, showLogs=false) {
             if(resp?.data) {
                 // log.debug "status: ${resp?.status}"
                 if(showLogs) { log.debug "makeSyncronousReq(Src: $src) | Status: ${resp?.status}: ${resp?.data}" }
-                return resp?.data ?: null
-            } else {
-                return null
+                return resp?.data
             }
+            return null
         }
     } catch (ex) {
         if(ex instanceof  groovyx.net.http.ResponseParseException) {
@@ -1055,6 +1053,18 @@ public childInitiatedRefresh() {
     } else {
         log.warn "childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)"
     }
+}
+
+private getFeaturesV3() {
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/featureaccess-v3",
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json",
+    ]
+    def resp = makeSyncronousReq(params, "post", "getFeaturesV3", true) ?: null
+    log.debug "features: ${resp}"
 }
 
 private getEchoDevices() {
@@ -1215,7 +1225,7 @@ def receiveEventData(Map evtData, String src) {
                     Map deviceStyleData = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
                     // log.debug "deviceStyle: ${deviceStyleData}"
                     Boolean isBlocked = (deviceStyleData?.blocked || familyAllowed?.reason == "Family Blocked")
-                    Boolean isInIgnoreInput = (echoValue?.serialNumber in settings?.ignoreTheseDevs)
+                    Boolean isInIgnoreInput = (echoValue?.serialNumber in settings?.echoDeviceFilter)
                     Boolean allowTTS = (deviceStyleData?.allowTTS == true)
                     Boolean isMediaPlayer = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
@@ -1490,7 +1500,9 @@ private sendAmazonCommand(String method, Map params, Map otherData) {
 }
 
 def amazonCommandResp(response, data) {
-    if(!respIsValid(response, "amazonCommandResp", true)) {return}
+    Boolean hasErr = (response?.hasError() == true)
+    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
+    if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
     try {} catch (ex) { }
     def resp = response?.data ? response?.getJson() : null
     // logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
