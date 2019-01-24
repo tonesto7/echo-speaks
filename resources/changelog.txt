@@ -8,7 +8,6 @@ Device:
  • FIXED: Broken sequence commands from v2.3+
  • FIXED: wait sequence command was breaking the whole sequence.
  • FIXED: Made changes to address the random exception errors on async responses.
-
  • UPDATED: Speak commands now handle long strings but splitting them into multiple sequence commands and playing them 1 by 1
 
 V2.3.1 (January 23rd, 2019):
