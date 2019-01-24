@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.3.2" }
-String appModified() { return "2019-01-23" }
+String appVersion()	 { return "2.3.3" }
+String appModified() { return "2019-01-24" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 231, server: 211] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 233, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -90,6 +90,9 @@ def mainPage() {
         if(!tokenOk) {
             section() { paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH" }
             return
+        }
+        if(!newInstall && !state?.resumeConfig && state?.authValid != true) {
+            section() { paragraph title: "NOTICE:", "You are not currently logged in to Amazon.  Please complete the Authentication Process on the Server Login Page...", required: true, state: null }
         }
         section(sTS("Alexa Devices:")) {
             if(!newInstall) {
@@ -506,6 +509,33 @@ def announcePage() {
             }
         }
     }
+}
+
+Map seqItemsAvail2() {
+    Map items = [
+        noValue: [
+            "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
+            "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
+            "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null
+        ],
+        dnd: [
+            "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
+            "dnd_duration":"2H30M", "dnd_time":"00:30"
+        ],
+        say: [
+            "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
+        ],
+        music: [
+            "amazonmusic": "search term::duration(seconds)(optional)", "applemusic": "search term::duration(seconds)(optional)",
+            "iheartradio": "search term::duration(seconds)(optional)", "pandora": "search term::duration(seconds)(optional)",
+            "spotify": "search term::duration(seconds)(optional)", "tunein": "search term::duration(seconds)(optional)",
+            "cloudplayer": "search term::duration(seconds)(optional)"
+        ],
+        cmds: [
+            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
+            "announcementall": "message", "pushnotification": "message"
+        ]
+    ]
 }
 
 Map seqItemsAvail() {
@@ -1097,6 +1127,7 @@ private getMusicProviders() {
             items[item?.id] = item?.displayName
         }
     }
+    log.debug "items: $items"
     return items
 }
 
@@ -1276,6 +1307,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["pandoraRadio"] = (echoValue?.capabilities.contains("PANDORA"))
                     permissions["appleMusic"] = (evtData?.musicProviders.containsKey("APPLE_MUSIC"))
                     permissions["siriusXm"] = (evtData?.musicProviders?.containsKey("SIRIUSXM"))
+                    // permissions["tidal"] = true
                     permissions["spotify"] = true //(echoValue?.capabilities.contains("SPOTIFY")) // Temporarily removed restriction check
                     permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false;
                     permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false;
