@@ -1129,16 +1129,9 @@ def amazonCommandResp(response, data) {
     if(response?.status == 200) {
         if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
             triggerDataRrsh()
-            log.trace "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
-        } else if(data?.cmdDesc?.startsWith("renameDevice")) {
-            triggerDataRrsh(true)
-            log.trace "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
-        } else {
-            log.trace "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
-        }
-    } else {
-        logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
-    }
+        } else if(data?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
+        log.trace "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
+    } else { logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}") }
 }
 
 private sendSequenceCommand(type, command, value) {
@@ -1408,52 +1401,7 @@ private restoreLastVolume() {
     } else { log.warn "Unable to restore Last Volume!!! lastVolume State Value not found..." }
 }
 
-def speak(String msg) {
-    logger("trace", "speak() command received...")
-    if(isCommandTypeAllowed("TTS")) {
-        if(!msg) { log.warn "No Message sent with speak($msg) command" }
-        msg = cleanString(msg, true)
-        log.debug "msg: $msg"
-        speakVolumeCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state?.useThisVolume ?: null), oldVolume: (state?.lastVolume ?: null), cmdDt: now()])
-        incrementCntByKey("use_cnt_speak")
-    }
-}
 
-String cleanString(str, translate = true) {
-    if(!str) { return null }
-    str?.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, "")?.replaceAll(/\s\s+/, " ")
-    if(translate) {
-        // Converts F temp values to readable text "19F"
-        str = str?.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
-        str?.replaceAll("[% ]"," percent ")
-        str?.replaceAll("[°]"," degree ")
-        log.debug "newStr2: $str"
-    }
-    log.debug "cleanString: $str"
-    return str?.toString()
-}
-
-Integer getStringLen(str) { return (str && str?.toString()?.length()) ? str?.toString()?.length() : 0 }
-
-private List msgSeqBuilder(String str) {
-    log.debug "str: $str"
-    List seqCmds = []
-    List strArr = []
-    if(str?.toString()?.length() < 450) {
-        seqCmds?.push([command: "speak", value: str as String])
-    } else {
-        List msgItems = str?.split()
-        msgItems?.each { wd->
-            if((getStringLen(strArr?.join(" ")) + wd?.length()) <= 430) {
-                // log.debug "CurArrLen: ${(getStringLen(strArr?.join(" ")))} | CurStrLen: (${wd?.length()})"
-                strArr?.push(wd as String)
-            } else { seqCmds?.push([command: "speak", value: strArr?.join(" ")]); strArr = []; strArr?.push(wd as String); }
-            if(wd == msgItems?.last()) { seqCmds?.push([command: "speak", value: strArr?.join(" ")]) }
-        }
-    }
-    // log.debug "seqCmds: $seqCmds"
-    return seqCmds
-}
 
 def sayWelcomeHome(volume=null, restoreVolume=null) {
     if(volume != null) {
@@ -2239,7 +2187,55 @@ def testMultiCmd() {
     sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]], "testMultiCmd")
 }
 
+def speak(String msg) {
+    logger("trace", "speak() command received...")
+    if(isCommandTypeAllowed("TTS")) {
+        if(!msg) { log.warn "No Message sent with speak($msg) command" }
+        msg = cleanString(msg, true)
+        log.debug "msg: $msg"
+        speakVolumeCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state?.useThisVolume ?: null), oldVolume: (state?.lastVolume ?: null), cmdDt: now()])
+        incrementCntByKey("use_cnt_speak")
+    }
+}
+
+String cleanString(str, translate = true) {
+    if(!str) { return null }
+    str?.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, "")?.replaceAll(/\s\s+/, " ")
+    if(translate) {
+        // Converts F temp values to readable text "19F"
+        str = str?.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
+        str?.replaceAll("[% ]"," percent ")
+        str?.replaceAll("[°]"," degree ")
+        log.debug "newStr2: $str"
+    }
+    log.debug "cleanString: $str"
+    return str?.toString()
+}
+
+Integer getStringLen(str) { return (str && str?.toString()?.length()) ? str?.toString()?.length() : 0 }
+
+private List msgSeqBuilder(String str) {
+    log.debug "msgSeqBuilder: $str"
+    List seqCmds = []
+    List strArr = []
+    if(str?.toString()?.length() < 450) {
+        seqCmds?.push([command: "speak", value: str as String])
+    } else {
+        List msgItems = str?.split()
+        msgItems?.each { wd->
+            if((getStringLen(strArr?.join(" ")) + wd?.length()) <= 430) {
+                // log.debug "CurArrLen: ${(getStringLen(strArr?.join(" ")))} | CurStrLen: (${wd?.length()})"
+                strArr?.push(wd as String)
+            } else { seqCmds?.push([command: "speak", value: strArr?.join(" ")]); strArr = []; strArr?.push(wd as String); }
+            if(wd == msgItems?.last()) { seqCmds?.push([command: "speak", value: strArr?.join(" ")]) }
+        }
+    }
+    // log.debug "seqCmds: $seqCmds"
+    return seqCmds
+}
+
 private speakVolumeCmd(headers=[:], isQueueCmd=false) {
+    log.debug "speakVolumeCmd($headers)..."
     // if(!isQueueCmd) { log.trace "speakVolumeCmd(${headers?.cmdDesc}, $isQueueCmd)" }
     def random = new Random()
     def randCmdId = random?.nextInt(300)
