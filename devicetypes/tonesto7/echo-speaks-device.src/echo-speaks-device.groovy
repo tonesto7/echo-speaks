@@ -2034,7 +2034,7 @@ String cleanString(str, frcTrans=false) {
 }
 
 private String textTransform(String str, force=false) {
-    if(!force && settings?.disableTextTransform == true) { return str }
+    if(!force && settings?.disableTextTransform == true) { return str; }
     // Converts F temp values to readable text "19F"
     str = str?.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
     str = str?.replaceAll(/(\sWSW\s)/, " west southwest ")?.replaceAll(/(\sWNW\s)/, " west northwest ")?.replaceAll(/(\sESE\s)/, " east southeast ")?.replaceAll(/(\sENE\s)/, " east northeast ")
@@ -2322,7 +2322,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
         return
     }
     Boolean isTTS = true
-    headers?.message = cleanString(headers?.message)
+    // headers?.message = cleanString(headers?.message)
     Integer lastTtsCmdSec = getLastTtsCmdSec()
     Integer msgLen = headers?.message?.toString()?.length()
     Integer recheckDelay = getRecheckDelay(msgLen)
@@ -2663,6 +2663,7 @@ Map createSequenceNode(command, value) {
                 break
             case "speak":
                 seqNode?.type = "Alexa.Speak"
+                value = cleanString(value as String)
                 seqNode?.operationPayload?.textToSpeak = value as String
                 break
             case "announcement":
