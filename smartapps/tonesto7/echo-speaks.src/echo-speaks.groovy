@@ -16,11 +16,11 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.3.3" }
-String appModified() { return "2019-01-24" }
+String appModified() { return "2019-01-25" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 233, server: 211] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 233, server: 220] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -85,6 +85,7 @@ def appInfoSect()	{
 def mainPage() {
     def tokenOk = getAccessToken()
     Boolean newInstall = !state?.isInstalled
+    if(state?.refreshDeviceData == true) { getEchoDevices() }
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: newInstall, install: !newInstall) {
         appInfoSect()
         if(!tokenOk) {
@@ -97,12 +98,16 @@ def mainPage() {
         section(sTS("Alexa Devices:")) {
             if(!newInstall) {
                 List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }?.sort()
+                Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
+                Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
                 if(devs?.size()) {
                     href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                 } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
-                if(state?.skippedDevices?.size()) {
-                    String unrecDesc = "Devices Skipped: (${state?.skippedDevices?.size()})${settings?.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : ""}\n\nTap to view details..."
-                    href "unrecogDevicesPage", title: inTS("Skipped Devices:"), description: unrecDesc
+                if(skDevs?.size()) {
+                    String uDesc = "Unsupported: (${skDevs?.size()})"
+                    uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : ""
+                    uDesc += settings?.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : ""
+                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details..."
                 }
             }
             def devPrefDesc = devicePrefsDesc()
@@ -143,6 +148,8 @@ def mainPage() {
 }
 
 def devicePrefsPage() {
+    Boolean newInstall = (state?.isInstalled != true)
+    Boolean resumeConf = (state?.resumeConfig == true)
     return dynamicPage(name: "devicePrefsPage", uninstall: false, install: false) {
         section(sTS("Device Preferences")) {
             input "autoCreateDevices", "bool", title: inTS("Auto Create New Devices?", getAppImg("devices", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices")
@@ -163,12 +170,15 @@ def devicePrefsPage() {
             input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
         }
         devCleanupSect()
+        if(!newInstall && !resumeConf) { state?.refreshDeviceData = true }
     }
 }
 
 private devCleanupSect() {
     if(state?.isInstalled && !state?.resumeConfig) {
         section(sTS("Device Cleanup Options:")) {
+            List remDevs = getRemovableDevs()
+            if(remDevs?.size()) { paragraph "Removable Devices:\n${remDevs?.sort()?.join("\n")}", required: true, state: null }
             paragraph title:"Notice:", "Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations"
             input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: "", required: false, defaultValue: false, submitOnChange: true
             if(cleanUpDevices) { removeDevices() }
@@ -176,13 +186,18 @@ private devCleanupSect() {
     }
 }
 
-def getRemovableDevCnt() {
+private List getRemovableDevs() {
     def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
     Map eDevs = state?.echoDeviceMap ?: [:]
-    return ((childDevs?.size() ?: 0) - (eDevs?.size() ?: 0))?.abs()
+    List remDevs = []
+    childDevs?.each { cDev->
+        def dni = cDev?.deviceNetworkId?.tokenize("|")
+        if(!eDevs?.containsKey(dni[2])) { remDevs?.push(cDev?.getLabel() as String) }
+    }
+    return remDevs ?: []
 }
 
-def devicePrefsDesc() {
+private String devicePrefsDesc() {
     String str = ""
     str += "Auto Create (${(settings?.autoCreateDevices == false) ? "Disabled" : "Enabled"})"
     if(settings?.autoCreateDevices) {
@@ -192,7 +207,7 @@ def devicePrefsDesc() {
     }
     str += settings?.autoRenameDevices != false ? bulletItem(str, "Auto Rename") : ""
     str += settings?.bypassDeviceBlocks == true ? "\nBlock Bypass: (Active)" : ""
-    def remDevsSz = getRemovableDevCnt()
+    def remDevsSz = getRemovableDevs()?.size() ?: 0
     str += remDevsSz > 0 ? "\n\nRemovable Devices: (${remDevsSz})" : ""
     return str != "" ? str : null
 }
@@ -217,13 +232,8 @@ def deviceListPage() {
         Boolean onST = isST()
         section(sTS("Discovered Devices:")) {
             state?.echoDeviceMap?.sort { it?.value?.name }?.each { k,v->
-                String str = "Status: (${v?.online ? "Online" : "Offline"})"
-                str += "\nStyle: ${v?.style?.name}"
-                str += "\nFamily: ${v?.family}"
-                str += "\nType: ${v?.type}"
-                str += "\nVolume Control: (${v?.volumeSupport?.toString()?.capitalize()})"
-                str += "\nText-to-Speech: (${v?.ttsSupport?.toString()?.capitalize()})"
-                str += "\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
+                String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${v?.style?.name}\nFamily: ${v?.family}\nType: ${v?.type}\nVolume Control: (${v?.volumeSupport?.toString()?.capitalize()})"
+                str += "\nText-to-Speech: (${v?.ttsSupport?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
                 str += v?.supported != true ? "\nUnsupported Device: (True)" : ""
                 str += (v?.mediaPlayer == true && v?.musicProviders) ? "\nMusic Providers: [${v?.musicProviders}]" : ""
                 if(onST) {
@@ -237,17 +247,14 @@ def deviceListPage() {
 def unrecogDevicesPage() {
     return dynamicPage(name: "unrecogDevicesPage", install: false) {
         Boolean onST = isST()
+        Map skDevMap = state?.skippedDevices ?: [:]
+        Map ignDevs = skDevMap?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+        Map unDevs = skDevMap?.findAll { (it?.value?.reason != "In Ignore Device Input") }
         section(sTS("Unrecognized/Unsupported Devices:")) {
-            if(state?.skippedDevices?.size()) {
-                state?.skippedDevices?.sort { it?.value?.name }?.each { k,v->
-                    String str = "Status: (${v?.online ? "Online" : "Offline"})"
-                    str += "\nStyle: ${v?.name}"
-                    str += "\nFamily: ${v?.family}"
-                    str += "\nType: ${v?.type}"
-                    str += "\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
-                    str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})"
-                    str += "\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
-                    str += "\nReason Ignored: (${v?.reason})"
+            if(unDevs?.size()) {
+                unDevs?.sort { it?.value?.name }?.each { k,v->
+                    String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${v?.desc}\nFamily: ${v?.family}\nType: ${v?.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
+                    str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
                     if(onST) {
                         paragraph title: pTS(v?.name, getAppImg(v?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
                     } else { href "unrecogDevicesPage", title: pTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
@@ -255,6 +262,17 @@ def unrecogDevicesPage() {
                 input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
                 paragraph "No Uncognized Devices"
+            }
+        }
+        if(ignDevs?.size()) {
+            section(sTS("User Ignored Devices:")) {
+                ignDevs?.sort { it?.value?.name }?.each { k,v->
+                    String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${v?.desc}\nFamily: ${v?.family}\nType: ${v?.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
+                    str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
+                    if(onST) {
+                        paragraph title: pTS(v?.name, getAppImg(v?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
+                    } else { href "unrecogDevicesPage", title: pTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
+                }
             }
         }
     }
@@ -289,7 +307,7 @@ Map getDeviceList(isInputEnum=false, hideDefaults=true) {
 }
 
 def servPrefPage() {
-    Boolean newInstall = !state?.isInstalled
+    Boolean newInstall = (state?.isInstalled != true)
     Boolean resumeConf = (state?.resumeConfig == true)
     return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : "")) {
         Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
@@ -466,6 +484,7 @@ def uninstallPage() {
 }
 
 String bulletItem(String inStr, String strVal) { return "${inStr == "" ? "" : "\n"} \u2022 ${strVal}" }
+String dashItem(String inStr, String strVal, newLine=false) { return "${(inStr == "" && !newLine) ? "" : "\n"} - ${strVal}" }
 
 def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
@@ -511,51 +530,50 @@ def announcePage() {
     }
 }
 
-Map seqItemsAvail2() {
-    Map items = [
-        noValue: [
+Map seqItemsAvail() {
+    return [
+        other: [
             "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
             "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
-            "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null
+            "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
+            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
+            "announcementall": "message", "pushnotification": "message"
         ],
-        dnd: [
-            "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
-            "dnd_duration":"2H30M", "dnd_time":"00:30"
-        ],
-        say: [
+        // dnd: [
+        //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
+        //     "dnd_duration":"2H30M", "dnd_time":"00:30"
+        // ],
+        speech: [
             "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
         ],
         music: [
-            "amazonmusic": "search term::duration(seconds)(optional)", "applemusic": "search term::duration(seconds)(optional)",
-            "iheartradio": "search term::duration(seconds)(optional)", "pandora": "search term::duration(seconds)(optional)",
-            "spotify": "search term::duration(seconds)(optional)", "tunein": "search term::duration(seconds)(optional)",
-            "cloudplayer": "search term::duration(seconds)(optional)"
-        ],
-        cmds: [
-            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message"
+            "amazonmusic": "search term", "applemusic": "search term", "iheartradio": "search term", "pandora": "search term",
+            "spotify": "search term", "tunein": "search term", "cloudplayer": "search term"
         ]
-    ]
-}
-
-Map seqItemsAvail() {
-    return ["weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null, "singasong":null, "tellstory":null, "funfact":null, "joke":null,
-        // "dnd_duration":"2H30M", "dnd_time":"00:30", "dnd_all_duration":"2H30M", "dnd_all_time":"00:30",
-        "playsearch":null, "calendartoday":null, "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null, "dnd_duration":"2H30M", "dnd_time":"00:30",
-        "cannedtts_random": """type (goodbye, confirmations, goodmorning, compliments, birthday, goodnight, iamhome)""",
-        "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message", "announcementall": "message", "pushnotification": "message"
     ]
 }
 
 def sequencePage() {
     return dynamicPage(name: "sequencePage", uninstall: false, install: false) {
-        section(sTS("Sequence Legend:"), hideable: true, hidden: true) {
-            String str = "Available Options:"
-            seqItemsAvail()?.each { k, v->
-                str += "\n$k${v != null ? "::${v}" : ""}"
+        section(sTS("Command Legend:"), hideable: true, hidden: true) {
+            String str1 = "Sequence Options:"
+            seqItemsAvail()?.other?.sort()?.each { k, v->
+                str1 += "${bulletItem(str1, "${k}${v != null ? "::${v}" : ""}")}"
             }
-            paragraph str, state: "complete"
-            paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60, weather,, wait::10,, traffic,, joke,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
+            String str2 = "Music Options:"
+            seqItemsAvail()?.music?.sort()?.each { k, v->
+                str2 += "${bulletItem(str2, "${k}${v != null ? "::${v}" : ""}")}"
+            }
+            String str3 = "Canned TTS Options:"
+            seqItemsAvail()?.speech?.sort()?.each { k, v->
+                def newV = v
+                if(v instanceof List) { newV = ""; v?.sort()?.each { newV += "     ${dashItem(newV, "${it}", true)}"; } }
+                str3 += "${bulletItem(str3, "${k}${newV != null ? "::${newV}" : ""}")}"
+            }
+            paragraph str1, state: "complete"
+            paragraph str2, state: "complete"
+            paragraph str3, state: "complete"
+            paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
         }
         section(sTS("Sequence Test Config:")) {
             input "sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: "Tap to select", multiple: false, required: false, submitOnChange: true
@@ -1085,18 +1103,6 @@ public childInitiatedRefresh() {
     }
 }
 
-private getFeaturesV3() {
-    Map params = [
-        uri: getAmazonUrl(),
-        path: "/api/featureaccess-v3",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
-        contentType: "application/json",
-    ]
-    def resp = makeSyncronousReq(params, "post", "getFeaturesV3", true) ?: null
-    log.debug "features: ${resp}"
-}
-
 private getEchoDevices() {
     if(!isAuthValid("getEchoDevices")) { return }
     def params = [
@@ -1108,6 +1114,7 @@ private getEchoDevices() {
         contentType: "application/json",
     ]
     state?.deviceRefreshInProgress = true
+    state?.refreshDeviceData = false
     execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
 }
 
@@ -1127,7 +1134,7 @@ private getMusicProviders() {
             items[item?.id] = item?.displayName
         }
     }
-    log.debug "items: $items"
+    // log.debug "items: $items"
     return items
 }
 
@@ -1208,7 +1215,7 @@ def echoDevicesResponse(response, data) {
                 if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.startsWith("This Device")) {
                     removeKeys?.each { rk-> eDevice?.remove(rk as String) }
                     if (eDevice?.deviceOwnerCustomerId != null) { state?.deviceOwnerCustomerId = eDevice?.deviceOwnerCustomerId }
-                    echoDevices[serialNumber] = eDevice;
+                    echoDevices[serialNumber] = eDevice
                 }
             }
         }
@@ -1281,8 +1288,9 @@ def receiveEventData(Map evtData, String src) {
                                 if(!isMediaPlayer) { reasons?.push("No Media Controls") }
                             }
                             skippedDevices[echoValue?.serialNumber as String] = [
-                                name: deviceStyleData?.name, image: deviceStyleData?.image, family: echoValue?.deviceFamily, type: echoValue?.deviceType,
-                                tts: allowTTS, volume: volumeSupport, mediaPlayer: isMediaPlayer, reason: reasons?.join(", "), online: echoValue?.online
+                                name: echoValue?.accountName, desc: deviceStyleData?.name, image: deviceStyleData?.image, family: echoValue?.deviceFamily,
+                                type: echoValue?.deviceType, tts: allowTTS, volume: volumeSupport, mediaPlayer: isMediaPlayer, reason: reasons?.join(", "),
+                                online: echoValue?.online
                             ]
                         }
                         return
@@ -1371,9 +1379,7 @@ def receiveEventData(Map evtData, String src) {
                 log.warn "CODE UPDATES REQUIRED: Echo Speaks Integration may not function until the following items are ALL Updated ${updRequiredItems}..."
                 appUpdateNotify()
             }
-            if(state?.installData?.sentMetrics != true) {
-                runIn(900, "sendInstallData", [overwrite: false])
-            }
+            if(state?.installData?.sentMetrics != true) { runIn(900, "sendInstallData", [overwrite: false]) }
         }
     } catch(ex) {
         log.error "receiveEventData Error:", ex

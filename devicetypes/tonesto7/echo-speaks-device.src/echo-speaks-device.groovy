@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "2.3.3"}
-String devModified() { return "2019-01-24" }
+String devModified() { return "2019-01-25" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -404,6 +404,7 @@ metadata {
         section("Preferences") {
             input "showLogs", "bool", required: false, title: "Show Debug Logs?", defaultValue: false
             input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
+            input "disableTextTransform", "bool", required: false, title: "Disable Text Transform?", description: "This will attempt to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false
         }
     }
 }
@@ -883,7 +884,7 @@ def getAvailableWakeWordsHandler(response, data) {
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getAvailableWakeWordsHandler", true)) {return}
     try {} catch (ex) { }
-    def sData = response?.getJson()
+    def sData = response?.getJson() ?: null
     def wakeWords = sData?.wakeWords ?: []
     logger("trace", "getAvailableWakeWords: ${wakeWords}")
     if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
@@ -1049,7 +1050,6 @@ def deviceActivityHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "deviceActivityHandler")) {return}
     def sData = response?.getJson() ?: null
     Boolean wasLastDevice = false
-    String lastVoiceActivity = null
     def actTS = null
     if (sData && sData?.activities != null) {
         def lastCommand = sData?.activities?.find {
@@ -1062,16 +1062,15 @@ def deviceActivityHandler(response, data) {
             def spokenText = lastDescription?.summary
             def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
             if(lastDevice?.serialNumber == state?.serialNumber) {
-                actTS = lastCommand?.creationTimestamp
                 wasLastDevice = true
-                lastVoiceActivity = spokenText as String
+                log.debug "spokenText: ${spokenText}"
+                if(isStateChange(device, "lastVoiceActivity", spokenText?.toString())) {
+                    sendEvent(name: "lastVoiceActivity", value: spokenText?.toString(), display: false, displayed: false)
+                }
+                if(isStateChange(device, "lastSpokenToTime", lastCommand?.creationTimestamp?.toString())) {
+                    sendEvent(name: "lastSpokenToTime", value: lastCommand?.creationTimestamp, display: false, displayed: false)
+                }
             }
-        }
-        if(isStateChange(device, "lastVoiceActivity", lastVoiceActivity?.toString())) {
-            sendEvent(name: "lastVoiceActivity", value: lastVoiceActivity, display: false, displayed: false)
-        }
-        if(isStateChange(device, "lastSpokenToTime", actTS?.toString())) {
-            sendEvent(name: "lastSpokenToTime", value: actTS, display: false, displayed: false)
         }
         if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
             sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
@@ -1122,6 +1121,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
 
 def amazonCommandResp(response, data) {
     Boolean hasErr = (response?.hasError() == true)
+    if(hasErr) log.debug "hasError: $hasErr | status: ${response?.status}"
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
     try {} catch (ex) { }
@@ -1143,7 +1143,7 @@ private sendSequenceCommand(type, command, value) {
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
-        body: seqObj
+        body: new JsonOutput().toJson(seqObj)
     ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
@@ -1193,7 +1193,6 @@ def pause() {
         }
         triggerDataRrsh()
     }
-
 }
 
 def stop() {
@@ -1597,9 +1596,7 @@ def searchMusic(String searchPhrase, String providerId, volume=null, sleepSecond
     // log.trace "searchMusic(${searchPhrase}, ${providerId})"
     if(isCommandTypeAllowed(getCommandTypeForProvider(providerId))) {
         doSearchMusicCmd(searchPhrase, providerId, volume, sleepSeconds)
-    } else {
-        log.warn "searchMusic not supported for ${providerId}"
-    }
+    } else { log.warn "searchMusic not supported for ${providerId}" }
 }
 
 String getCommandTypeForProvider(String providerId) {
@@ -1738,17 +1735,23 @@ private Map validateMusicSearch(searchPhrase, providerId, sleepSeconds=null) {
     return result
 }
 
-private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=null) {
-    logger("trace", "playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId | sleepSeconds: $sleepSeconds")
-    if (searchPhrase == "") { log.error 'PlayMusicProvider Searchphrase empty'; return; }
-    Map validObj = [type: "Alexa.Music.PlaySearchPhrase"]
+private getMusicSearchObj(String searchPhrase, String providerId, sleepSeconds=null) {
+    if (searchPhrase == "") { log.error 'getMusicSearchObj Searchphrase empty'; return; }
+    Map validObj = [type: "Alexa.Music.PlaySearchPhrase", "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"]
     Map validResp = validateMusicSearch(searchPhrase, providerId, sleepSeconds)
     if(validResp && validResp?.operationPayload) {
         validObj?.operationPayload = validResp?.operationPayload
     } else {
         log.error "Something went wrong with the Music Search | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})"
-        return
+        validObj = null
     }
+    return validObj
+}
+
+private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=null) {
+    logger("trace", "playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId | sleepSeconds: $sleepSeconds")
+    Map validObj = getMusicSearchObj(searchPhrase, providerId, sleepSeconds)
+    if(!validObj) { return }
     Map seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": validObj]
         seqJson?.startNode["@type"] = "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"
     if(volume) {
@@ -2012,6 +2015,60 @@ def speechTest(ttsMsg) {
     speak(ttsMsg as String)
 }
 
+def speak(String msg) {
+    logger("trace", "speak() command received...")
+    if(isCommandTypeAllowed("TTS")) {
+        if(!msg) { log.warn "No Message sent with speak($msg) command" }
+        // msg = cleanString(msg, true)
+        speakVolumeCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state?.useThisVolume ?: null), oldVolume: (state?.lastVolume ?: null), cmdDt: now()])
+        incrementCntByKey("use_cnt_speak")
+    }
+}
+
+String cleanString(str, frcTrans=false) {
+    if(!str) { return null }
+    //Cleans up characters from message
+    str?.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, "")?.replaceAll(/\s\s+/, " ")
+    str = textTransform(str, frcTrans)
+    // log.debug "cleanString: $str"
+    return str
+}
+
+private String textTransform(String str, force=false) {
+    if(!force && settings?.disableTextTransform == true) { return str }
+    // Converts F temp values to readable text "19F"
+    str = str?.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
+    str = str?.replaceAll(/(\sWSW\s)/, " west southwest ")?.replaceAll(/(\sWNW\s)/, " west northwest ")?.replaceAll(/(\sESE\s)/, " east southeast ")?.replaceAll(/(\sENE\s)/, " east northeast ")
+    str = str?.replaceAll(/(\sSSE\s)/, " south southeast ")?.replaceAll(/(\sSSW\s)/, " south southwest ")?.replaceAll(/(\sNNE\s)/, " north northeast ")?.replaceAll(/(\sNNW\s)/, " north northwest ")
+    str = str?.replaceAll(/(\sNW\s)/, " northwest ")?.replaceAll(/(\sNE\s)/, " northeast ")?.replaceAll(/(\sSW\s)/, " southwest ")?.replaceAll(/(\sSE\s)/, " southeast ")
+    str = str?.replaceAll(/(\sE\s)/," east ")?.replaceAll(/(\sS\s)/," south ")?.replaceAll(/(\sN\s)/," north ")?.replaceAll(/(\sW\s)/," west ")
+    str = str?.replaceAll("%"," percent ")
+    str = str?.replaceAll("°"," degree ")
+    return str
+}
+
+Integer getStringLen(str) { return (str && str?.toString()?.length()) ? str?.toString()?.length() : 0 }
+
+private List msgSeqBuilder(String str) {
+    // log.debug "msgSeqBuilder: $str"
+    List seqCmds = []
+    List strArr = []
+    if(str?.toString()?.length() < 450) {
+        seqCmds?.push([command: "speak", value: str as String])
+    } else {
+        List msgItems = str?.split()
+        msgItems?.each { wd->
+            if((getStringLen(strArr?.join(" ")) + wd?.length()) <= 430) {
+                // log.debug "CurArrLen: ${(getStringLen(strArr?.join(" ")))} | CurStrLen: (${wd?.length()})"
+                strArr?.push(wd as String)
+            } else { seqCmds?.push([command: "speak", value: strArr?.join(" ")]); strArr = []; strArr?.push(wd as String); }
+            if(wd == msgItems?.last()) { seqCmds?.push([command: "speak", value: strArr?.join(" ")]) }
+        }
+    }
+    // log.debug "seqCmds: $seqCmds"
+    return seqCmds
+}
+
 def sendTestAnnouncement() {
     playAnnouncement("Test announcement from device")
 }
@@ -2020,7 +2077,71 @@ def sendTestAnnouncementAll() {
     playAnnouncementAll("Test announcement to all devices")
 }
 
+Map seqItemsAvail() {
+    return [
+        other: [
+            "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
+            "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
+            "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
+            "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
+            "dnd_duration":"2H30M", "dnd_time":"00:30",
+            "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
+            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
+            "announcementall": "message", "pushnotification": "message"
+        ],
+        music: [
+            "amazonmusic": "AMAZON_MUSIC", "applemusic": "APPLE_MUSIC", "iheartradio": "I_HEART_RADIO", "pandora": "PANDORA",
+            "spotify": "SPOTIFY", "tunein": "TUNEIN", "cloudplayer": "CLOUDPLAYER"
+        ],
+        musicAlt: [
+            "amazonmusic": "amazonMusic", "applemusic": "appleMusic", "iheartradio": "iHeartRadio", "pandora": "pandoraRadio",
+            "spotify": "spotify", "tunein": "tuneInRadio", "cloudplayer": "cloudPlayer"
+        ]
+    ]
+}
 
+def executeSequenceCommand(String seqStr) {
+    if(seqStr) {
+        List seqList = seqStr?.split(",,")
+        log.debug "seqList: ${seqList}"
+        List seqItems = []
+        if(seqList?.size()) {
+            seqList?.each {
+                def li = it?.toString()?.split("::")
+                // log.debug "li: $li"
+                if(li?.size()) {
+                    String cmd = li[0]?.trim()?.toString()?.toLowerCase() as String
+                    Boolean isValidCmd = (seqItemsAvail()?.other?.containsKey(cmd) || (seqItemsAvail()?.music?.containsKey(cmd)))
+                    Boolean isMusicCmd = (seqItemsAvail()?.music?.containsKey(cmd) && !seqItemsAvail()?.other?.containsKey(cmd))
+                    log.debug "cmd: $cmd | isValidCmd: $isValidCmd | isMusicCmd: $isMusicCmd"
+
+                    if(!isValidCmd) { log.warn "executeSequenceCommand command ($cmd) is not a valid sequence command!!!"; return; }
+
+                    if(isMusicCmd) {
+                        List valObj = (li[1]?.trim()?.toString()?.contains("::")) ? li[1]?.trim()?.split("::") : [li[1]?.trim() as String]
+                        String provID = seqItemsAvail()?.music[cmd]
+                        if(!isCommandTypeAllowed(seqItemsAvail()?.musicAlt[cmd])) { log.warn "Current Music Sequence command ($cmd) not allowed... "; return; }
+                        if (!valObj || valObj[0] == "") { log.error 'Play Music Sequence it Searchphrase empty'; return; }
+                        Map validObj = getMusicSearchObj(valObj[0], provID, valObj[1] ?: null)
+                        if(!validObj) { return }
+                        seqItems?.push([command: validObj])
+                    } else {
+                        if(li?.size() == 1) {
+                            seqItems?.push([command: cmd])
+                        } else if(li?.size() == 2) {
+                            seqItems?.push([command: cmd, value: li[1]?.trim()])
+                        }
+                    }
+                }
+            }
+        }
+        logger("debug", "executeSequenceCommand Items: $seqItems | seqStr: ${seqStr}")
+        if(seqItems?.size()) {
+            sendMultiSequenceCommand(seqItems, "executeSequenceCommand")
+            incrementCntByKey("use_cnt_executeSequenceCommand")
+        }
+    }
+}
 
 /*******************************************************************
             Speech Queue Logic
@@ -2187,53 +2308,6 @@ def testMultiCmd() {
     sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]], "testMultiCmd")
 }
 
-def speak(String msg) {
-    logger("trace", "speak() command received...")
-    if(isCommandTypeAllowed("TTS")) {
-        if(!msg) { log.warn "No Message sent with speak($msg) command" }
-        msg = cleanString(msg, true)
-        log.debug "msg: $msg"
-        speakVolumeCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state?.useThisVolume ?: null), oldVolume: (state?.lastVolume ?: null), cmdDt: now()])
-        incrementCntByKey("use_cnt_speak")
-    }
-}
-
-String cleanString(str, translate = true) {
-    if(!str) { return null }
-    str?.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, "")?.replaceAll(/\s\s+/, " ")
-    if(translate) {
-        // Converts F temp values to readable text "19F"
-        str = str?.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
-        str?.replaceAll("[% ]"," percent ")
-        str?.replaceAll("[°]"," degree ")
-        log.debug "newStr2: $str"
-    }
-    log.debug "cleanString: $str"
-    return str?.toString()
-}
-
-Integer getStringLen(str) { return (str && str?.toString()?.length()) ? str?.toString()?.length() : 0 }
-
-private List msgSeqBuilder(String str) {
-    log.debug "msgSeqBuilder: $str"
-    List seqCmds = []
-    List strArr = []
-    if(str?.toString()?.length() < 450) {
-        seqCmds?.push([command: "speak", value: str as String])
-    } else {
-        List msgItems = str?.split()
-        msgItems?.each { wd->
-            if((getStringLen(strArr?.join(" ")) + wd?.length()) <= 430) {
-                // log.debug "CurArrLen: ${(getStringLen(strArr?.join(" ")))} | CurStrLen: (${wd?.length()})"
-                strArr?.push(wd as String)
-            } else { seqCmds?.push([command: "speak", value: strArr?.join(" ")]); strArr = []; strArr?.push(wd as String); }
-            if(wd == msgItems?.last()) { seqCmds?.push([command: "speak", value: strArr?.join(" ")]) }
-        }
-    }
-    // log.debug "seqCmds: $seqCmds"
-    return seqCmds
-}
-
 private speakVolumeCmd(headers=[:], isQueueCmd=false) {
     log.debug "speakVolumeCmd($headers)..."
     // if(!isQueueCmd) { log.trace "speakVolumeCmd(${headers?.cmdDesc}, $isQueueCmd)" }
@@ -2249,6 +2323,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
         return
     }
     Boolean isTTS = true
+    headers?.message = cleanString(headers?.message)
     Integer lastTtsCmdSec = getLastTtsCmdSec()
     Integer msgLen = headers?.message?.toString()?.length()
     Integer recheckDelay = getRecheckDelay(msgLen)
@@ -2308,7 +2383,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
                 body: bodyObj
             ]
             execAsyncCmd("post", "asyncSpeechHandler", params, [
-                cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
+                cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), msgLen: msgLen, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
                 message: (headerMap?.message ? (isST() && msgLen > 700 ? headerMap?.message?.take(700) : headerMap?.message) : null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null)
             ])
         } catch (e) {
@@ -2344,7 +2419,7 @@ private postCmdProcess(resp, statusCode, data) {
         if(statusCode == 200) {
             def execTime = data?.cmdDt ? (now()-data?.cmdDt) : 0
             // log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully${data?.queueKey ? " | QueueKey: (${data?.queueKey})" : ""}${data?.msgDelay ? " | RecheckDelay: (${data?.msgDelay} sec)" : ""} | Execution Time (${execTime}ms)"
-            log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully | Execution Time (${execTime}ms)${data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""}${showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""}${data?.cmdId ? " | CmdID: (${data?.cmdId})" : ""}"
+            log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully${data?.msgLen ? " | Length: (${data?.msgLen}) " : ""}| Execution Time (${execTime}ms)${data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""}${showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""}${data?.cmdId ? " | CmdID: (${data?.cmdId})" : ""}"
             if(data?.queueKey) { state?.remove(data?.queueKey as String) }
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
                 state?.lastTtsCmdDt = getDtNow()
@@ -2589,7 +2664,6 @@ Map createSequenceNode(command, value) {
                 break
             case "speak":
                 seqNode?.type = "Alexa.Speak"
-                log.debug "speak: $value"
                 seqNode?.operationPayload?.textToSpeak = value as String
                 break
             case "announcement":
@@ -2617,77 +2691,10 @@ Map createSequenceNode(command, value) {
             seqNode?.operationPayload?.remove('deviceSerialNumber')
             seqNode?.operationPayload?.remove('locale')
         }
-        log.debug "seqNode: $seqNode"
+        // log.debug "seqNode: $seqNode"
         return seqNode
     } catch (ex) {
         log.error "createSequenceNode Exception: $ex"
         return [:]
-    }
-}
-
-Map seqItemsAvail() {
-    return [
-        other: [
-            "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
-            "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
-            "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
-            "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
-            "dnd_duration":"2H30M", "dnd_time":"00:30",
-            "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
-            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message"
-        ],
-        music: [
-            "amazonmusic": "AMAZON_MUSIC", "applemusic": "APPLE_MUSIC", "iheartradio": "I_HEART_RADIO", "pandora": "PANDORA",
-            "spotify": "SPOTIFY", "tunein": "TUNEIN", "cloudplayer": "CLOUDPLAYER"
-        ]
-    ]
-}
-
-def executeSequenceCommand(String seqStr) {
-    if(seqStr) {
-        List seqList = seqStr?.split(",,")
-        log.debug "seqList: ${seqList}"
-        List seqItems = []
-        if(seqList?.size()) {
-            seqList?.each {
-                def li = it?.toString()?.split("::")
-                // log.debug "li: $li"
-                if(li?.size()) {
-                    String cmd = li[0]?.trim()?.toString()?.toLowerCase() as String
-                    Boolean isValidCmd = (seqItemsAvail()?.other?.containsKey(cmd) || (seqItemsAvail()?.music?.containsKey(cmd)))
-                    Boolean isMusicCmd = (seqItemsAvail()?.music?.containsKey(cmd) && !seqItemsAvail()?.other?.containsKey(cmd))
-                    log.debug "cmd: $cmd | isValidCmd: $isValidCmd | isMusicCmd: $isMusicCmd"
-
-                    if(!isValidCmd) { log.warn "executeSequenceCommand command ($cmd) is not a valid sequence command!!!"; return; }
-
-                    if(isMusicCmd) {
-                        List valObj = (li[1]?.trim()?.toString()?.contains("::")) ? li[1]?.trim()?.split("::") : [li[1]?.trim() as String]
-                        String provID = seqItemsAvail()?.music[cmd]
-                        if(!isCommandTypeAllowed(cmd)) { log.warn "Current Music Sequence command ($cmd) not allowed... "; return; }
-                        if (!valObj || valObj[0] == "") { log.error 'Play Music Sequence it Searchphrase empty'; return; }
-                        Map validObj = [type: "Alexa.Music.PlaySearchPhrase"]
-                        Map validResp = validateMusicSearch(valObj[0], provID, valObj[1] ?: null)
-                        log.debug "validResp: $validResp"
-                        if(validResp && validResp?.operationPayload) {
-                            validObj?.operationPayload = validResp?.operationPayload
-                            seqItems?.push([command: validObj])
-                        } else { return }
-                    } else {
-                        if(li?.size() == 1) {
-                            seqItems?.push([command: cmd])
-                        } else if(li?.size() == 2) {
-                            seqItems?.push([command: cmd, value: li[1]?.trim()])
-                        }
-                    }
-                }
-            }
-        }
-        logger("debug", "executeSequenceCommand Items: $seqItems")
-        log.debug "executeSequenceCommand Items: $seqItems | seqStr: ${seqStr}"
-        if(seqItems?.size()) {
-            sendMultiSequenceCommand(seqItems, "executeSequenceCommand")
-            incrementCntByKey("use_cnt_executeSequenceCommand")
-        }
     }
 }
