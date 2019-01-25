@@ -1063,7 +1063,6 @@ def deviceActivityHandler(response, data) {
             def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
             if(lastDevice?.serialNumber == state?.serialNumber) {
                 wasLastDevice = true
-                log.debug "spokenText: ${spokenText}"
                 if(isStateChange(device, "lastVoiceActivity", spokenText?.toString())) {
                     sendEvent(name: "lastVoiceActivity", value: spokenText?.toString(), display: false, displayed: false)
                 }
