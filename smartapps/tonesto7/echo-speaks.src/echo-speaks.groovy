@@ -78,7 +78,6 @@ def appInfoSect()	{
         str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
     } else { str += "\nApp: v${appVersion()}" }
-    log.debug "str: $str"
     section() {
         href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
         if(!state?.isInstalled) { paragraph "--NEW Install--", state: "complete" }
@@ -499,6 +498,7 @@ def broadcastPage() {
             Map devs = getDeviceList(true, true)
             input "broadcastDevices", "enum", title: inTS("Select Devices to Test the Broadcast"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             input "broadcastVolume", "number", title: inTS("Broadcast at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
+            input "broadcastRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
             input "broadcastMessage", "text", title: inTS("Message to broadcast"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
             input "broadcastParallel", "bool", title: inTS("Execute commands in Parallel?"), description: "", required: false, defaultValue: true, submitOnChange: true
         }
@@ -516,6 +516,8 @@ def announcePage() {
         section("") {
             Map devs = getDeviceList(true, true)
             input "announceDevices", "enum", title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            input "announceVolume", "number", title: inTS("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
+            input "announceRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
             input "announceMessage", "text", title: inTS("Message to announce"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
         }
         if(settings?.announceDevices) {
@@ -606,21 +608,37 @@ private executeBroadcast() {
     }
     sendMultiSequenceCommand(seqItems, "broadcastTest", settings?.broadcastParallel)
     // schedules volume restore
-    runIn(getRecheckDelay(testMsg?.length(), "broadcastVolumeRestore"))
+    runIn(getRecheckDelay(testMsg?.length()), "broadcastVolumeRestore")
 }
 
 private broadcastVolumeRestore() {
     Map eDevs = state?.echoDeviceMap
     def selectedDevs = settings?.broadcastDevices
     List seqItems = []
-    selectedDevs?.each { dev-> seqItems?.push([command: "volume", value: 20, serial: dev, type: eDevs[dev]?.type]) }
+    selectedDevs?.each { dev-> seqItems?.push([command: "volume", value: (settings?.broadcastRestVolume ?: 30), serial: dev, type: eDevs[dev]?.type]) }
     sendMultiSequenceCommand(seqItems, "broadcastVolumeRestore", settings?.broadcastParallel)
+}
+
+private announcementVolumeRestore() {
+    Map eDevs = state?.echoDeviceMap
+    def selectedDevs = settings?.announceDevices
+    List seqItems = []
+    selectedDevs?.each { dev-> seqItems?.push([command: "volume", value: (settings?.announceRestVolume ?: 30), serial: dev, type: eDevs[dev]?.type]) }
+    sendMultiSequenceCommand(seqItems, "announcementVolumeRestore", settings?.broadcastParallel)
 }
 
 private executeAnnouncement() {
     settingUpdate("announceRun", "false", "bool")
     String testMsg = settings?.announceMessage
-    sendSequenceCommand("AnnouncementTest", "announcementTest", testMsg)
+    Map eDevs = state?.echoDeviceMap
+    List seqItems = []
+    def selectedDevs = settings?.announceDevices
+    selectedDevs?.each { dev->
+        seqItems?.push([command: "volume", value: settings?.announceRestVolume as Integer, serial: dev, type: eDevs[dev]?.type])
+    }
+    seqItems?.push([command: "announcementTest", value: testMsg, serial: null, type: null])
+    sendMultiSequenceCommand(seqItems, "announcementTest", settings?.broadcastParallel)
+    runIn(getRecheckDelay(testMsg?.length()), "announcementVolumeRestore")
 }
 
 private executeSequence() {

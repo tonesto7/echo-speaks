@@ -4,7 +4,9 @@ App:
  • FIXED: Echo Device Filter not stopping selected devices from being created.
  • FIXED: Updated the UI some for devices.  It's easy to distinguish between unsupported and devices ignored by user.
  • UPDATED: Rewrote the broadcast test logic it works extremely well now.  Devices that are shown to not support TTS are not selectable in the list.
+ • UPDATED: Also rewrote the announcement test logic it works extremely well now.  Devices that are shown to not support TTS are not selectable in the list.
  • UPDATED: Echo Device Filter not stopping selected devices from being created.
+ • UPDATED: Streamlined the new install flow in the app to reduce page changes. (Update the documentation as well)
 
 Device:
  • FIXED: Speaking long text on ST would through exception
