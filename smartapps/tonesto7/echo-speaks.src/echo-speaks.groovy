@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.3.3" }
-String appModified() { return "2019-01-25" }
+String appVersion()	 { return "2.4.0" }
+String appModified() { return "2019-01-26" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 233, server: 220] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 240, server: 220] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -61,7 +61,8 @@ def startPage() {
     state?.isParent = true
     checkVersionData(true)
     state?.childInstallOkFlag = false
-    if(state?.resumeConfig) {
+    if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) {
+        log.debug "resumeConfig: true"
         return servPrefPage()
     } else if(showChgLogOk()) {
         return changeLogPage()
@@ -70,62 +71,62 @@ def startPage() {
 
 def appInfoSect()	{
     Map codeVer = state?.codeVersions ?: null
-    def str = "Author: ${appAuthor()}"
+    def str = ""//"Author: ${appAuthor()}"
+    // if(isST() && state?.customerName) { str += "User: ${state?.customerName}" }
     if(codeVer && (codeVer?.server || codeVer?.echoDevice)) {
-        str += "\nVersions:\n • App: (${appVersion()})"
-        str += (codeVer && codeVer?.echoDevice) ? "\n • Device: (${codeVer?.echoDevice})" : ""
-        str += (codeVer && codeVer?.server) ? "\n • Server: (${codeVer?.server})" : ""
+        str += bulletItem(str, "App: (v${appVersion()})")
+        str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
+        str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
     } else { str += "\nApp: v${appVersion()}" }
+    log.debug "str: $str"
     section() {
         href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
-        if(isST() && state?.customerName) { paragraph "Hello, ${state?.customerName}" }
+        if(!state?.isInstalled) { paragraph "--NEW Install--", state: "complete" }
     }
 }
 
 def mainPage() {
     def tokenOk = getAccessToken()
-    Boolean newInstall = !state?.isInstalled
+    Boolean newInstall = (state?.isInstalled != true)
+    Boolean resumeConf = (state?.resumeConfig == true)
     if(state?.refreshDeviceData == true) { getEchoDevices() }
-    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "servPrefPage"), uninstall: newInstall, install: !newInstall) {
+    return dynamicPage(name: "mainPage", uninstall: false, install: true) {
         appInfoSect()
         if(!tokenOk) {
-            section() { paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH" }
-            return
+            section() { paragraph title: "Uh OH!!!", "Oauth Has NOT BEEN ENABLED. Please Remove this app and try again after it after enabling OAUTH"; }; return;
         }
-        if(!newInstall && !state?.resumeConfig && state?.authValid != true) {
-            section() { paragraph title: "NOTICE:", "You are not currently logged in to Amazon.  Please complete the Authentication Process on the Server Login Page...", required: true, state: null }
-        }
-        section(sTS("Alexa Devices:")) {
-            if(!newInstall) {
-                List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }?.sort()
-                Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
-                Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
-                if(devs?.size()) {
-                    href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
-                } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
-                if(skDevs?.size()) {
-                    String uDesc = "Unsupported: (${skDevs?.size()})"
-                    uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : ""
-                    uDesc += settings?.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : ""
-                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details..."
-                }
+        if(newInstall) {
+            deviceDetectOpts()
+        } else {
+            if(!resumeConfig && state?.authValid != true) {
+                section() { paragraph title: "NOTICE:", "You are not currently logged in to Amazon.  Please complete the Authentication Process on the Server Login Page...", required: true, state: null }
             }
-            def devPrefDesc = devicePrefsDesc()
-            href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
-        }
-        if(!newInstall) {
+            section(sTS("Alexa Devices:")) {
+                if(!newInstall) {
+                    List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }?.sort()
+                    Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
+                    Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+                    if(devs?.size()) {
+                        href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
+                    } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
+                    if(skDevs?.size()) {
+                        String uDesc = "Unsupported: (${skDevs?.size()})"
+                        uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : ""
+                        uDesc += settings?.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : ""
+                        href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details..."
+                    }
+                }
+                def devPrefDesc = devicePrefsDesc()
+                href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
+            }
             section(sTS("Experimental Functions:")) {
                 href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Announcements, Broadcasts, and Sequences\n\nTap to proceed...", image: getAppImg("testing")
                 href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
             }
-        }
-
-        if(!newInstall) {
             section(sTS("Alexa Login Service:")) {
                 def t0 = getServiceConfDesc()
                 href "servPrefPage", title: inTS("Login Service\nSettings", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
             }
-
             if(!state?.shownDevSharePage) { showDevSharePrefs() }
             section(sTS("Notifications:")) {
                 def t0 = getAppNotifConfDesc()
@@ -143,6 +144,12 @@ def mainPage() {
             section(sTS("Remove Everything:")) {
                 href "uninstallPage", title: inTS("Uninstall this App", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
             }
+        } else {
+            showDevSharePrefs()
+            section(sTS("Important Step:")) {
+                paragraph title: "Notice:", "Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", required: true, state: null
+                state?.resumeConfig = true
+            }
         }
     }
 }
@@ -151,26 +158,33 @@ def devicePrefsPage() {
     Boolean newInstall = (state?.isInstalled != true)
     Boolean resumeConf = (state?.resumeConfig == true)
     return dynamicPage(name: "devicePrefsPage", uninstall: false, install: false) {
-        section(sTS("Device Preferences")) {
-            input "autoCreateDevices", "bool", title: inTS("Auto Create New Devices?", getAppImg("devices", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices")
-            input "createTablets", "bool", title: inTS("Create Devices for Tablets?", getAppImg("amazon_tablet", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet")
-            input "createWHA", "bool", title: inTS("Create Multiroom Devices?", getAppImg("echo_wha", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
-            input "createOtherDevices", "bool", title: inTS("Create Other Alexa Enabled Devices?", getAppImg("devices", true)), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices")
-            input "autoRenameDevices", "bool", title: inTS("Rename Devices to Match Amazon Echo Name?", getAppImg("name_tag", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
-            if(newInstall) {
-                paragraph title:"Notice:", "Device filtering options will be available once app install is complete.", required: true, state: null
-            } else {
-                Map devs = getDeviceList(true, false)
-                input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
-                paragraph title:"Notice:", "To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use input before removing."
-            }
-        }
+        deviceDetectOpts()
         section(sTS("Detection Override:")) {
             paragraph "Device not detected?  Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.  This is useful for testing the device."
             input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
         }
         devCleanupSect()
         if(!newInstall && !resumeConf) { state?.refreshDeviceData = true }
+    }
+}
+
+private deviceDetectOpts() {
+    Boolean newInstall = (state?.isInstalled != true)
+    Boolean resumeConf = (state?.resumeConfig == true)
+    section(sTS("Device Detection Preferences")) {
+        input "autoCreateDevices", "bool", title: inTS("Auto Create New Devices?", getAppImg("devices", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices")
+        input "createTablets", "bool", title: inTS("Create Devices for Tablets?", getAppImg("amazon_tablet", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet")
+        input "createWHA", "bool", title: inTS("Create Multiroom Devices?", getAppImg("echo_wha", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
+        input "createOtherDevices", "bool", title: inTS("Create Other Alexa Enabled Devices?", getAppImg("devices", true)), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices")
+        input "autoRenameDevices", "bool", title: inTS("Rename Devices to Match Amazon Echo Name?", getAppImg("name_tag", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
+        // if(newInstall) {
+        //     paragraph title:"Notice:", "Device filtering options will be available once app install is complete and device data has been loaded.", required: true, state: null
+        // }
+        Map devs = getDeviceList(true)
+        if(devs?.size()) {
+            input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
+            paragraph title:"Notice:", "To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use input before removing."
+        }
     }
 }
 
@@ -293,15 +307,12 @@ def showDevSharePrefs() {
     state?.shownDevSharePage = true
 }
 
-Map getDeviceList(isInputEnum=false, hideDefaults=true) {
+Map getDeviceList(isInputEnum=false, onlyTTS=false) {
     Map devMap = [:]
     Map availDevs = state?.echoDeviceMap ?: [:]
     availDevs?.each { key, val->
-        if(hideDefaults) {
-            if(!(key?.toString() in ["nothing here"])) {
-                devMap[key] = val
-            }
-        } else { devMap[key] = val }
+        if(onlyTTS && val?.ttsSupport != true) { return }
+        devMap[key] = val
     }
     return isInputEnum ? (devMap?.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
 }
@@ -309,71 +320,57 @@ Map getDeviceList(isInputEnum=false, hideDefaults=true) {
 def servPrefPage() {
     Boolean newInstall = (state?.isInstalled != true)
     Boolean resumeConf = (state?.resumeConfig == true)
-    return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : "")) {
+    return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : ""), uninstall: (state?.serviceConfigured != true)) {
         Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
         Boolean onHeroku = (isST() || settings?.useHeroku != false)
 
-        if(newInstall) {
-            showDevSharePrefs()
-            section(sTS("Important Step:")) {
-                paragraph title: "Notice:", "Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", required: true, state: null
-                state?.resumeConfig = true
+        if(state?.generatedHerokuName) { section() { paragraph title: "Heroku Name:", "${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", state: "complete" }; }
+        if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
+        if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
+        if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
+
+        if(!state?.serviceConfigured) {
+            if(!isST()) {
+                section(sTS("Server Deployment Option:")) {
+                    input "useHeroku", "bool", title: inTS("Deploy server to Heroku?", getAppImg("heroku", true)), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("heroku")
+                    if(settings?.useHeroku == false) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
+                }
             }
+            section("") { paragraph "Proceed with the server setup by tapping on Begin Server Setup", state: "complete" }
+            srvcPrefOpts(true)
+            section(sTS("Deploy the Server:")) {
+                href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
+            }
+        } else {
+            if(state?.onHeroku) {
+                section(sTS("Server Management:")) {
+                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                }
+            }
+            if(state?.isLocal) {
+                section(sTS("Local Server Management:")) {
+                    href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                }
+            }
+            if(state?.authValid) {
+                section(sTS("Cookie Info:")) {
+                    if(state?.lastCookieRefresh) { paragraph "Cookie Date: (${state?.lastCookieRefresh})", state: "complete" }
+                    input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                    if(refreshCookie) { runCookieRefresh() }
+                }
+            }
+            srvcPrefOpts()
         }
-        if(!newInstall) {
-            state?.resumeConfig = false
-            if(state?.generatedHerokuName) {
-                section() { paragraph title: "Heroku Name:", "${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", state: "complete" }
-            }
-            if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
-            if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
-            if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
-
-            if(!state?.serviceConfigured) {
-                if(!isST()) {
-                    section(sTS("Server Deployment Option:")) {
-                        input "useHeroku", "bool", title: inTS("Deploy server to Heroku?", getAppImg("heroku", true)), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("heroku")
-                        if(settings?.useHeroku == false) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
-                    }
-                }
-                srvcPrefOpts(true)
-                section(sTS("Deploy the Server:")) {
-                    href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
-                }
-            }
-
-            if(state?.serviceConfigured) {
-                if(state?.onHeroku) {
-                    section(sTS("Server Management:")) {
-                        href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                        href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
-                        href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
-                    }
-                }
-                if(state?.isLocal) {
-                    section(sTS("Local Server Management:")) {
-                        href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                    }
-                }
-
-                if(state?.authValid) {
-                    section(sTS("Cookie Info:")) {
-                        if(state?.lastCookieRefresh) { paragraph "Cookie Date: (${state?.lastCookieRefresh})", state: "complete" }
-                        input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                        if(refreshCookie) { runCookieRefresh() }
-                    }
-                }
-                srvcPrefOpts()
-            }
-
-            section(sTS("Reset Options (Tap to view):"), hideable:true, hidden: true) {
-                input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current service and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
-                    required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.resetService) { clearCloudConfig() }
-                if(settings?.resetCookies) { clearCookieData() }
-            }
+        section(sTS("Reset Options (Tap to view):"), hideable:true, hidden: true) {
+            input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
+                required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+            input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+            if(settings?.resetService) { clearCloudConfig() }
+            if(settings?.resetCookies) { clearCookieData() }
         }
+        state?.resumeConfig = false
     }
 }
 
@@ -499,7 +496,7 @@ def deviceTestPage() {
 def broadcastPage() {
     return dynamicPage(name: "broadcastPage", uninstall: false, install: false) {
         section("") {
-            Map devs = getDeviceList(true, false)
+            Map devs = getDeviceList(true, true)
             input "broadcastDevices", "enum", title: inTS("Select Devices to Test the Broadcast"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             input "broadcastVolume", "number", title: inTS("Broadcast at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
             input "broadcastMessage", "text", title: inTS("Message to broadcast"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
@@ -517,7 +514,7 @@ def broadcastPage() {
 def announcePage() {
     return dynamicPage(name: "announcePage", uninstall: false, install: false) {
         section("") {
-            Map devs = getDeviceList(true, false)
+            Map devs = getDeviceList(true)
             input "announceDevices", "enum", title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             input "announceMessage", "text", title: inTS("Message to announce"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
         }
@@ -588,27 +585,36 @@ def sequencePage() {
     }
 }
 
+Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
+    def random = new Random()
+	Integer randomInt = random?.nextInt(5) //Was using 7
+    if(!msgLen) { return 30 }
+    def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
+    // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
+    return addRandom ? (v + randomInt) : v
+}
+
 private executeBroadcast() {
     settingUpdate("broadcastRun", "false", "bool")
     String testMsg = settings?.broadcastMessage
     Map eDevs = state?.echoDeviceMap
     List seqItems = []
-    List seqItems2 = []
-    List seqItems3 = []
-    Integer bcVol = settings?.broadcastVolume
     def selectedDevs = settings?.broadcastDevices
     selectedDevs?.each { dev->
-        seqItems?.push([command: "volume", value: bcVol, serial: dev, type: eDevs[dev]?.type])
+        seqItems?.push([command: "volume", value: settings?.broadcastVolume as Integer, serial: dev, type: eDevs[dev]?.type])
+        seqItems?.push([command: "speak", value: testMsg, serial: dev, type: eDevs[dev]?.type])
     }
-    sendMultiSequenceCommand(seqItems, settings?.broadcastParallel)
-    selectedDevs?.each { dev->
-        seqItems2?.push([command: "speak", value: testMsg, serial: dev, type: eDevs[dev]?.type])
-    }
-    sendMultiSequenceCommand(seqItems2, settings?.broadcastParallel)
-    selectedDevs?.each { dev->
-        seqItems3?.push([command: "volume", value: 20, serial: dev, type: eDevs[dev]?.type])
-    }
-    sendMultiSequenceCommand(seqItems3, settings?.broadcastParallel)
+    sendMultiSequenceCommand(seqItems, "broadcastTest", settings?.broadcastParallel)
+    // schedules volume restore
+    runIn(getRecheckDelay(testMsg?.length()), "broadcastVolumeRestore")
+}
+
+private broadcastVolumeRestore() {
+    Map eDevs = state?.echoDeviceMap
+    def selectedDevs = settings?.broadcastDevices
+    List seqItems = []
+    selectedDevs?.each { dev-> seqItems?.push([command: "volume", value: 20, serial: dev, type: eDevs[dev]?.type]) }
+    sendMultiSequenceCommand(seqItems, "broadcastVolumeRestore", settings?.broadcastParallel)
 }
 
 private executeAnnouncement() {
@@ -1442,7 +1448,7 @@ public getServiceHostInfo() {
 private removeDevices(all=false) {
     try {
         settingUpdate("cleanUpDevices", "false", "bool")
-        List devList = getDeviceList(true, false)?.collect { String dni = [app?.id, "echoSpeaks", it?.key].join("|") }
+        List devList = getDeviceList(true)?.collect { String dni = [app?.id, "echoSpeaks", it?.key].join("|") }
         def items = app.getChildDevices()?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : null }
         log.warn "removeDevices(${all ? "all" : ""}) | In Use: (${all ? 0 : devList?.size()}) | Removing: (${items?.size()})"
         if(items?.size() > 0) {
@@ -1545,7 +1551,7 @@ def amazonCommandResp(response, data) {
     def resp = response?.data ? response?.getJson() : null
     // logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
     if(response?.status == 200) {
-        log.trace "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | (${data?.cmdDesc}) was Successfully Sent!!!"
+        log.trace "amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!"
     }
 }
 
@@ -1562,12 +1568,12 @@ private sendSequenceCommand(type, command, value) {
     ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
-private sendMultiSequenceCommand(commands, parallel=false) {
+private sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=false) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
     List nodeList = []
     commands?.each { cmdItem-> nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial, deviceType: cmdItem?.type])) }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
-    sendSequenceCommand("MultiSequence", seqJson, null)
+    sendSequenceCommand("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}", seqJson, null)
 }
 
 /******************************************

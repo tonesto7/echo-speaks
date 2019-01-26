@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.3.3"}
-String devModified() { return "2019-01-25" }
+String devVersion()  { return "2.4.0"}
+String devModified() { return "2019-01-26" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -1129,7 +1129,7 @@ def amazonCommandResp(response, data) {
         if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
             triggerDataRrsh()
         } else if(data?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
-        log.trace "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | ${data?.cmdDesc} was Successfully Sent!!!"
+        log.trace "amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!"
     } else { logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}") }
 }
 
@@ -1398,8 +1398,6 @@ private restoreLastVolume() {
         sendEvent(name: "volume", value: state?.lastVolume, display: false, displayed: false)
     } else { log.warn "Unable to restore Last Volume!!! lastVolume State Value not found..." }
 }
-
-
 
 def sayWelcomeHome(volume=null, restoreVolume=null) {
     if(volume != null) {
@@ -2148,7 +2146,7 @@ def executeSequenceCommand(String seqStr) {
 
 Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     def random = new Random()
-	Integer randomInt = random?.nextInt(5) //Was using 7
+    Integer randomInt = random?.nextInt(5) //Was using 7
     if(!msgLen) { return 30 }
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
     // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
