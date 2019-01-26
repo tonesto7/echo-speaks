@@ -591,7 +591,7 @@ Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     if(!msgLen) { return 30 }
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
     // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
-    return addRandom ? (v + randomInt) : v
+    return addRandom ? (v + randomInt) : (v < 5 ? 5 : v)
 }
 
 private executeBroadcast() {
@@ -606,7 +606,7 @@ private executeBroadcast() {
     }
     sendMultiSequenceCommand(seqItems, "broadcastTest", settings?.broadcastParallel)
     // schedules volume restore
-    runIn(getRecheckDelay(testMsg?.length()), "broadcastVolumeRestore")
+    runIn(getRecheckDelay(testMsg?.length(), "broadcastVolumeRestore")
 }
 
 private broadcastVolumeRestore() {
