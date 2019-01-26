@@ -514,7 +514,7 @@ def broadcastPage() {
 def announcePage() {
     return dynamicPage(name: "announcePage", uninstall: false, install: false) {
         section("") {
-            Map devs = getDeviceList(true)
+            Map devs = getDeviceList(true, true)
             input "announceDevices", "enum", title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             input "announceMessage", "text", title: inTS("Message to announce"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
         }
@@ -606,7 +606,7 @@ private executeBroadcast() {
     }
     sendMultiSequenceCommand(seqItems, "broadcastTest", settings?.broadcastParallel)
     // schedules volume restore
-    runIn(getRecheckDelay(testMsg?.length(), "broadcastVolumeRestore")
+    runIn(getRecheckDelay(testMsg?.length(), "broadcastVolumeRestore"))
 }
 
 private broadcastVolumeRestore() {
