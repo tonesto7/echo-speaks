@@ -2110,7 +2110,7 @@ def executeSequenceCommand(String seqStr) {
                     String cmd = li[0]?.trim()?.toString()?.toLowerCase() as String
                     Boolean isValidCmd = (seqItemsAvail()?.other?.containsKey(cmd) || (seqItemsAvail()?.music?.containsKey(cmd)))
                     Boolean isMusicCmd = (seqItemsAvail()?.music?.containsKey(cmd) && !seqItemsAvail()?.other?.containsKey(cmd))
-                    log.debug "cmd: $cmd | isValidCmd: $isValidCmd | isMusicCmd: $isMusicCmd"
+                    // log.debug "cmd: $cmd | isValidCmd: $isValidCmd | isMusicCmd: $isMusicCmd"
 
                     if(!isValidCmd) { log.warn "executeSequenceCommand command ($cmd) is not a valid sequence command!!!"; return; }
 
