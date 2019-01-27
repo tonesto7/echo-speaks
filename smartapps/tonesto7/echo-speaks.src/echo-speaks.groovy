@@ -176,10 +176,7 @@ private deviceDetectOpts() {
         input "createWHA", "bool", title: inTS("Create Multiroom Devices?", getAppImg("echo_wha", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
         input "createOtherDevices", "bool", title: inTS("Create Other Alexa Enabled Devices?", getAppImg("devices", true)), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices")
         input "autoRenameDevices", "bool", title: inTS("Rename Devices to Match Amazon Echo Name?", getAppImg("name_tag", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
-        // if(newInstall) {
-        //     paragraph title:"Notice:", "Device filtering options will be available once app install is complete and device data has been loaded.", required: true, state: null
-        // }
-        Map devs = getDeviceList(true)
+        Map devs = getAllDevices(true)
         if(devs?.size()) {
             input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
             paragraph title:"Notice:", "To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use input before removing."
@@ -313,6 +310,13 @@ Map getDeviceList(isInputEnum=false, onlyTTS=false) {
         if(onlyTTS && val?.ttsSupport != true) { return }
         devMap[key] = val
     }
+    return isInputEnum ? (devMap?.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
+}
+
+Map getAllDevices(isInputEnum=false) {
+    Map devMap = [:]
+    Map availDevs = state?.allEchoDevices ?: [:]
+    availDevs?.each { key, val-> devMap[key] = val }
     return isInputEnum ? (devMap?.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
 }
 
@@ -572,7 +576,7 @@ def sequencePage() {
             paragraph str1, state: "complete"
             paragraph str2, state: "complete"
             paragraph str3, state: "complete"
-            paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
+            paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
         }
         section(sTS("Sequence Test Config:")) {
             input "sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: "Tap to select", multiple: false, required: false, submitOnChange: true
@@ -1276,12 +1280,14 @@ def receiveEventData(Map evtData, String src) {
             if (evtData?.echoDevices?.size()) {
                 def execTime = evtData?.execDt ? (now()-evtData?.execDt) : 0
                 Map echoDeviceMap = [:]
+                Map allEchoDevices = [:]
                 Map skippedDevices = [:]
                 List curDevFamily = []
                 Integer cnt = 0
                 evtData?.echoDevices?.each { echoKey, echoValue->
                     logger("debug", "echoDevice | $echoKey | ${echoValue}", true)
                     logger("debug", "echoDevice | ${echoValue?.accountName}", false)
+                    allEchoDevices[echoKey] = [name: echoValue?.accountName]
                     // log.debug "name: ${echoValue?.accountName}"
                     Map familyAllowed = isFamilyAllowed(echoValue?.deviceFamily as String)
                     Map deviceStyleData = getDeviceStyle(echoValue?.deviceFamily as String, echoValue?.deviceType as String)
@@ -1394,6 +1400,7 @@ def receiveEventData(Map evtData, String src) {
                 log.debug "Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)"
                 state?.lastDevDataUpd = getDtNow()
                 state?.echoDeviceMap = echoDeviceMap
+                state?.allEchoDevices = allEchoDevices
                 state?.skippedDevices = skippedDevices
                 state?.deviceStyleCnts = curDevFamily?.countBy { it }
             } else {
