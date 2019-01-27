@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "2.4.0"}
-String devModified() { return "2019-01-26" }
+String devModified() { return "2019-01-27" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -260,6 +260,14 @@ metadata {
             state("paused_dash_wand", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/dash_wand.png", backgroundColor: "#cccccc")
             state("playing_dash_wand", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/dash_wand.png", backgroundColor: "#00a0dc")
             state("stopped_dash_wand", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/dash_wand.png")
+
+            state("paused_fabriq_chorus", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/fabriq_chorus.png", backgroundColor: "#cccccc")
+            state("playing_fabriq_chorus", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/fabriq_chorus.png", backgroundColor: "#00a0dc")
+            state("stopped_fabriq_chorus", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/fabriq_chorus.png")
+
+            state("paused_fabriq_riff", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/fabriq_riff.png", backgroundColor: "#cccccc")
+            state("playing_fabriq_riff", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/fabriq_riff.png", backgroundColor: "#00a0dc")
+            state("stopped_fabriq_riff", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/fabriq_riff.png")
         }
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state("default", label:'')
