@@ -217,6 +217,16 @@
             "image": "dash_wand",
             "allowTTS": false,
             "blocked": true
+        },
+        "A2LH725P8DQR2A": {
+            "name": "Fabriq Riff",
+            "image": "fabriq_riff",
+            "allowTTS": true
+        },
+        "A3QPPX1R9W5RJV": {
+            "name": "Fabriq Chorus",
+            "image": "fabriq_chorus",
+            "allowTTS": true
         }
     }
 }
