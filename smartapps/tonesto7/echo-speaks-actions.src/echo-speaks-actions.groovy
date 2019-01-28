@@ -1,7 +1,7 @@
 /**
  *  Echo Speaks Actions
  *
- *  Copyright 2018 Anthony Santilli
+ *  Copyright 2018, 2019 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -18,11 +18,11 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 include 'asynchttp_v1'
 
-String appVersion()	 { return "2.0.8" }
-String appModified() { return "2018-12-17" }
+String appVersion()	 { return "2.5.0" }
+String appModified() { return "2019-01-28" }
 String appAuthor()	 { return "Anthony S." }
-String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/$imgName" }
-String getPublicImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/$imgName" }
+Boolean isBeta()     { return false }
+Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 definition(
     name: "Echo Speaks - Actions",
@@ -31,9 +31,9 @@ definition(
     description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllow you to create echo device actions based on Events in your SmartThings home",
     category: "My Apps",
     parent: "tonesto7:Echo Speaks",
-    iconUrl: getAppImg("es_actions.png"),
-    iconX2Url: getAppImg("es_actions.png"),
-    iconX3Url: getAppImg("es_actions.png"),
+    iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
+    iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
+    iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     pausable: true)
 
 preferences {
@@ -65,19 +65,16 @@ def uhOhPage () {
     return dynamicPage(name: "uhOhPage", title: "This install Method is Not Allowed", install: false, uninstall: true) {
         section() {
             paragraph "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Groups can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them.", required: true,
-            state: null, image: getAppImg("exclude.png")
+            state: null, image: getAppImg("exclude")
         }
         remove("Remove this bad Group", "WARNING!!!", "BAD Group SHOULD be removed")
     }
 }
 
 def appInfoSect(sect=true)	{
-    def str = ""
-    str += "${app?.name}"
-    str += "\nAuthor: ${appAuthor()}"
-    str += "\nVersion: ${appVersion()}"
+    def str = "App: v${appVersion()}"
     section() {
-        paragraph str, image: getAppImg("es_actions.png")
+        href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: str, image: getAppImg("es_actions")
     }
 }
 
@@ -113,29 +110,29 @@ def mainPage() {
         if(!settings?.actionPause) {
             section ("") {
                 def trigsDef = settings?.findAll { it?.key?.startsWith("trig_") }
-                href "triggersPage", title: "Configure Events to Start this action...", description: (trigsDef?.size() ? "Triggers have been configured\n\ntap to modify..." : "tap to configure..."), state: (trigsDef?.size() ? "complete": ""), image: getPublicImg("trigger.png")
+                href "triggersPage", title: "Configure Events to Start this action...", description: (trigsDef?.size() ? "Triggers have been configured\n\ntap to modify..." : "tap to configure..."), state: (trigsDef?.size() ? "complete": ""), image: getPublicImg("trigger")
             }
             section("") {
                 def condDef = settings?.findAll { it?.key?.startsWith("cond_") }
-                href "conditionsPage", title: "(Optional)\nConditions", description: (condDef?.size() ? "Conditions have been configured\n\ntap to modify..." : "tap to configure any restrictions..."), state: (condDef?.size() ? "complete": ""), image: getPublicImg("evaluate.png")
+                href "conditionsPage", title: "(Optional)\nConditions", description: (condDef?.size() ? "Conditions have been configured\n\ntap to modify..." : "tap to configure any restrictions..."), state: (condDef?.size() ? "complete": ""), image: getPublicImg("evaluate")
             }
             section("") {
-                href "actionsPage", title: "Actions to Perform", description: "tap to configure...", image: getPublicImg("adhoc.png")
+                href "actionsPage", title: "Actions to Perform", description: "tap to configure...", image: getPublicImg("adhoc")
             }
             section("Preferences") {
-                input (name: "appDebug", type: "bool", title: "Show Debug Logs in the IDE?", description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug.png"))
+                input (name: "appDebug", type: "bool", title: "Show Debug Logs in the IDE?", description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug"))
             }
         } else {
-            paragraph "This Action is currently in a paused state...  To edit the configuration please un-pause", required: true, state: null, image: getPublicImg("issue.png")
+            paragraph "This Action is currently in a paused state...  To edit the configuration please un-pause", required: true, state: null, image: getPublicImg("issue")
         }
 
 
         if(state?.isInstalled) {
             section ("Place this action on hold:") {
-                   input "actionPause", "bool", title: "Pause this Actions from Running?", defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange.png")
+                   input "actionPause", "bool", title: "Pause this Actions from Running?", defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
             }
             section("Remove Broadcast Group:") {
-                href "uninstallPage", title: "Remove this Group", description: "Tap to Remove...", image: getAppImg("uninstall.png")
+                href "uninstallPage", title: "Remove this Group", description: "Tap to Remove...", image: getAppImg("uninstall")
             }
         }
     }
@@ -144,7 +141,7 @@ def mainPage() {
 def namePage() {
     return dynamicPage(name: "namePage", install: true, uninstall: true) {
         section("Name this Automation:") {
-            input "appLbl", "text", title:"Group Name", description: "", required:true, submitOnChange: true, image: getPublicImg("name_tag.png")
+            input "appLbl", "text", title:"Group Name", description: "", required:true, submitOnChange: true, image: getPublicImg("name_tag")
         }
     }
 }
@@ -153,16 +150,16 @@ def triggersPage() {
     return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
         def stRoutines = location.helloHome?.getPhrases()*.label.sort()
         section ("Select Capabilities") {
-            input "triggerEvents", "enum", title: "Select Trigger Events", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("trigger.png")
+            input "triggerEvents", "enum", title: "Select Trigger Events", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("trigger")
         }
         if (settings?.triggerEvents?.size()) {
             if ("Scheduled" in settings?.triggerEvents) {
                 section("Time Based Events", hideable: true) {
-                    input "trig_SunState", "enum", title: "Sunrise or Sunset...", options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("sun.png")
+                    input "trig_SunState", "enum", title: "Sunrise or Sunset...", options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("sun")
                     if(settings?.trigSunState) {
-                        input "offset", "number", range: "*..*", title: "Offset event this number of minutes (+/-)", required: true, image: getPublicImg(settings?.trig_SunState?.toString()?.toLowerCase() + ".png")
+                        input "offset", "number", range: "*..*", title: "Offset event this number of minutes (+/-)", required: true, image: getPublicImg(settings?.trig_SunState?.toString()?.toLowerCase() + "")
                     }
-                    input "trig_Schedule", "enum", title: "Date/Time Schedule", options: ["One Time", "Recurring"], required: false, submitOnChange: true, image: getPublicImg("day_calendar2.png")
+                    input "trig_Schedule", "enum", title: "Date/Time Schedule", options: ["One Time", "Recurring"], required: false, submitOnChange: true, image: getPublicImg("day_calendar2")
                 }
 
                 if(trig_Schedule == "One Time") {
@@ -222,7 +219,7 @@ def triggersPage() {
 
             if ("Smart Home Monitor" in settings?.triggerEvents) {
                 section ("Smart Home Monitor (SHM) Events", hideable: true) {
-                    input "trig_SHM", "enum", title: "Smart Home Monitor", options:["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed", "alerts": "Alerts"], multiple: true, required: true, submitOnChange: true, image: getPublicImg("alarm_home.png")
+                    input "trig_SHM", "enum", title: "Smart Home Monitor", options:["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed", "alerts": "Alerts"], multiple: true, required: true, submitOnChange: true, image: getPublicImg("alarm_home")
                     if("alerts" in trig_SHM) {
                         input "trig_SHMAlertsClear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
                     }
@@ -232,22 +229,22 @@ def triggersPage() {
             if ("Modes" in settings?.triggerEvents) {
                 section ("Mode Events", hideable: true) {
                     def actions = location.helloHome?.getPhrases()*.label.sort()
-                    input "trig_Modes", "mode", title: "Location Modes", multiple: true, required: true, submitOnChange: true, image: getPublicImg("mode.png")
+                    input "trig_Modes", "mode", title: "Location Modes", multiple: true, required: true, submitOnChange: true, image: getPublicImg("mode")
                 }
             }
 
             if("Routines" in settings?.triggerEvents) {
                 if ("Routines" in settings?.triggerEvents) {
                     section("Routine Events", hideable: true) {
-                        input "trig_Routine", "enum", title: "Routines", options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getPublicImg("routine.png")
+                        input "trig_Routine", "enum", title: "Routines", options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getPublicImg("routine")
                     }
                 }
             }
 
             if ("Weather" in settings?.triggerEvents) {
                 section ("Weather Events", hideable: true) {
-                    paragraph "Weather Events are not configured to take actions yet.", state: null, image: getPublicImg("weather.png")
-                    // input "trig_WeatherAlert", "enum", title: "Weather Alerts", required: false, multiple: true, submitOnChange: true, image: getAppImg("weather.png"),
+                    paragraph "Weather Events are not configured to take actions yet.", state: null, image: getPublicImg("weather")
+                    // input "trig_WeatherAlert", "enum", title: "Weather Alerts", required: false, multiple: true, submitOnChange: true, image: getAppImg("weather"),
                     //         options: [
                     //             "TOR":	"Tornado Warning",
                     //             "TOW":	"Tornado Watch",
@@ -262,15 +259,15 @@ def triggersPage() {
                     //             "VOL":	"Volcanic Activity Statement",
                     //             "HWW":	"Hurricane Wind Warning"
                     //         ]
-                    // input "trig_WeatherHourly", "enum", title: "Hourly Weather Forecast Updates", required: false, multiple: false, submitOnChange: true, options: ["Weather Condition Changes", "Chance of Precipitation Changes", "Wind Speed Changes", "Humidity Changes", "Any Weather Updates"], image: "blank.png"
-                    // input "trig_WeatherEvents", "enum", title: "Weather Elements", required: false, multiple: false, submitOnChange: true, options: ["Chance of Precipitation (in/mm)", "Wind Gust (MPH/kPH)", "Humidity (%)", "Temperature (F/C)"], image: "blank.png"
+                    // input "trig_WeatherHourly", "enum", title: "Hourly Weather Forecast Updates", required: false, multiple: false, submitOnChange: true, options: ["Weather Condition Changes", "Chance of Precipitation Changes", "Wind Speed Changes", "Humidity Changes", "Any Weather Updates"], image: "blank"
+                    // input "trig_WeatherEvents", "enum", title: "Weather Elements", required: false, multiple: false, submitOnChange: true, options: ["Chance of Precipitation (in/mm)", "Wind Gust (MPH/kPH)", "Humidity (%)", "Temperature (F/C)"], image: "blank"
                     // if (settings?.trig_WeatherEvents) {
-                    //     input "trig_WeatherEventsCond", "enum", title: "Notify when Weather Element changes...", options: ["above", "below"], required: false, submitOnChange: true, image: getAppImg("trigger.png")
+                    //     input "trig_WeatherEventsCond", "enum", title: "Notify when Weather Element changes...", options: ["above", "below"], required: false, submitOnChange: true, image: getAppImg("trigger")
                     // }
                     // if (settings?.trig_WeatherEventsCond) {
-                    //     input "trig_WeatherThreshold", "decimal", title: "Weather Variable Threshold...", required: false, submitOnChange: true, image: getAppImg("trigger.png")
+                    //     input "trig_WeatherThreshold", "decimal", title: "Weather Variable Threshold...", required: false, submitOnChange: true, image: getAppImg("trigger")
                     //     if (settings?.trig_WeatherThreshold) {
-                    //         input "trig_WeatherCheckSched", "enum", title: "How Often to Check for Weather Changes...", required: true, multiple: false, submitOnChange: true, image: getPublicImg("day_calendar2.png"),
+                    //         input "trig_WeatherCheckSched", "enum", title: "How Often to Check for Weather Changes...", required: true, multiple: false, submitOnChange: true, image: getPublicImg("day_calendar2"),
                     //             options: [
                     //                 "runEvery1Minute": "Every Minute",
                     //                 "runEvery5Minutes": "Every 5 Minutes",
@@ -287,21 +284,21 @@ def triggersPage() {
 
             if ("Dimmers, Outlets, Switches" in settings?.triggerEvents) {
                 section ("Dimmers, Outlets, Switches", hideable: true) {
-                    input "trig_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required: !(settings?.trig_Dimmer?.size() || settings?.trig_Outlet?.size()), image: getPublicImg("switch.png")
+                    input "trig_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required: !(settings?.trig_Dimmer?.size() || settings?.trig_Outlet?.size()), image: getPublicImg("switch")
                     if (settings?.trig_Switch) {
                         input "trig_SwitchCmd", "enum", title: "are turned...", options:["on", "off", "any"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_Switch?.size() > 1 && settings?.trig_SwitchCmd && settings?.trig_SwitchCmd != "any") {
                             input "trig_SwitchAll", "bool", title: "Require ALL Switches to be (${settings?.trig_SwitchCmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
-                    input "trig_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: !(settings?.trig_Switch?.size() || settings?.trig_Outlet?.size()), image: getPublicImg("speed_knob.png")
+                    input "trig_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: !(settings?.trig_Switch?.size() || settings?.trig_Outlet?.size()), image: getPublicImg("speed_knob")
                     if (settings?.trig_Dimmer) {
                         input "trig_DimmersCmd", "enum", title: "turn...", options:["on": "on", "off": "off", "gt": "to greater than", "lt": "to less than", "gte": "to greater than or equal to", "lte": "to less than or equal to", "eq": "to being equal to"], multiple: false, required: false, submitOnChange: true
                         if (settings?.trig_DimmerCmd in ["greater", "lessThan", "equal"]) {
                             input "trig_DimmerLvl", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
                         }
                     }
-                    input "trig_Outlet", "capability.outlet", title: "Outlets", multiple: true, submitOnChange: true, required: !(settings?.trig_Switch?.size() || settings?.trig_Dimmer?.size()), image: getPublicImg("outlet.png")
+                    input "trig_Outlet", "capability.outlet", title: "Outlets", multiple: true, submitOnChange: true, required: !(settings?.trig_Switch?.size() || settings?.trig_Dimmer?.size()), image: getPublicImg("outlet")
                     if (settings?.trig_Outlet) {
                         input "trig_OutletCmd", "enum", title: "are turned...", options:["on", "off", "any"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_Outlet?.size() > 1 && settings?.trig_OutletCmd && settings?.trig_OutletCmd != "any") {
@@ -313,7 +310,7 @@ def triggersPage() {
 
             if ("Motion" in settings?.triggerEvents) {
                 section ("Motion Sensors", hideable: true) {
-                    input "trig_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("motion.png")
+                    input "trig_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("motion")
                     if (settings?.trig_Motion) {
                         input "trig_MotionCmd", "enum", title: "become...", options: ["active", "inactive", "any"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_Motion?.size() > 1 && settings?.trig_MotionCmd && settings?.trig_MotionCmd != "any") {
@@ -325,7 +322,7 @@ def triggersPage() {
 
             if ("Presence" in settings?.triggerEvents) {
                 section ("Presence Events", hideable: true) {
-                    input "trig_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("presence.png")
+                    input "trig_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("presence")
                     if (settings?.trig_Presence) {
                         input "trig_PresenceCmd", "enum", title: "have...", options: ["present":"Arrived","not present":"Departed", "any":"any"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_Presence?.size() > 1 && settings?.trig_PresenceCmd && settings?.trig_PresenceCmd != "any") {
@@ -337,7 +334,7 @@ def triggersPage() {
 
             if ("Contacts, Doors, Windows" in settings?.triggerEvents) {
                 section ("Contacts, Doors, Windows", hideable: true) {
-                    input "trig_ContactDoor", "capability.contactSensor", title: "Doors", multiple: true, required: !(settings?.trig_ContactWindow?.size() || settings?.trig_Contact?.size()), submitOnChange: true, image: getPublicImg("door_open.png")
+                    input "trig_ContactDoor", "capability.contactSensor", title: "Doors", multiple: true, required: !(settings?.trig_ContactWindow?.size() || settings?.trig_Contact?.size()), submitOnChange: true, image: getPublicImg("door_open")
                     if (settings?.trig_ContactDoor) {
                         input "trig_ContactDoorCmd", "enum", title: "changes to?", options: ["open":"opened", "closed":"closed", "any":"any"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_ContactDoor?.size() > 1 && settings?.trig_ContactDoorCmd && settings?.trig_ContactDoorCmd != "any") {
@@ -345,7 +342,7 @@ def triggersPage() {
                         }
                     }
 
-                    input "trig_ContactWindow", "capability.contactSensor", title: "Windows", multiple: true, required: !(settings?.trig_ContactDoor?.size() || settings?.trig_Contact?.size()), submitOnChange: true, image: getPublicImg("window.png")
+                    input "trig_ContactWindow", "capability.contactSensor", title: "Windows", multiple: true, required: !(settings?.trig_ContactDoor?.size() || settings?.trig_Contact?.size()), submitOnChange: true, image: getPublicImg("window")
                     if (settings?.trig_ContactWindow) {
                         input "trig_ContactWindowCmd", "enum", title: "changes to?", options: ["open":"opened", "closed":"closed", "any":"any"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_ContactWindow?.size() > 1 && settings?.trig_ContactWindowCmd && settings?.trig_ContactWindowCmd != "any") {
@@ -353,7 +350,7 @@ def triggersPage() {
                         }
                     }
 
-                    input "trig_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: !(settings?.trig_ContactDoor?.size() || settings?.trig_ContactWindow?.size()), submitOnChange: true, image: getPublicImg("contact.png")
+                    input "trig_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: !(settings?.trig_ContactDoor?.size() || settings?.trig_ContactWindow?.size()), submitOnChange: true, image: getPublicImg("contact")
                     if (settings?.trig_Contact) {
                         input "trig_ContactCmd", "enum", title: "changes to?", options: ["open":"opened", "closed":"closed", "any":"any"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_Contact?.size() > 1 && settings?.trig_ContactCmd && settings?.trig_ContactCmd != "any") {
@@ -365,7 +362,7 @@ def triggersPage() {
 
             if ("Garage Door Openers" in settings?.triggerEvents) {
                 section ("Garage Door Openers", hideable: true) {
-                    input "trig_Garages", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("garage_door_open.png")
+                    input "trig_Garages", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("garage_door_open")
                     if (settings?.trig_Garages) {
                         input "trig_GaragesCmd", "enum", title: "change to?", options: ["open":"opened", "close":"closed", "opening":"opening", "closing":"closing", "any":"any"], multiple: false, required: true, submitOnChange: true
                         if (settings?.trig_Garages?.size() > 1 && trig_GaragesCmd && (trig_GaragesCmd == "open" || trig_GaragesCmd == "close")) {
@@ -377,7 +374,7 @@ def triggersPage() {
 
             if ("Locks" in settings?.triggerEvents) {
                 section ("Locks", hideable: true) {
-                    input "trig_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: true, submitOnChange: true, image: getPublicImg("lock.png")
+                    input "trig_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: true, submitOnChange: true, image: getPublicImg("lock")
                     if (settings?.trig_Locks) {
                         input "trig_LocksCmd", "enum", title: "changes to?", options: ["locked", "unlocked", "any"], multiple: false, required: true, submitOnChange:true
                         if (settings?.trig_Locks?.size() > 1 && settings?.trig_LocksCmd && settings?.trig_LocksCmd != "any") {
@@ -389,7 +386,7 @@ def triggersPage() {
 
             if ("Keypads" in settings?.triggerEvents) {
                 section ("Keypads", hideable: true) {
-                    input "trig_Keypads", "capability.lockCodes", title: "Select Keypads", multiple: true, required: true, submitOnChange: true, image: getPublicImg("door_control.png")
+                    input "trig_Keypads", "capability.lockCodes", title: "Select Keypads", multiple: true, required: true, submitOnChange: true, image: getPublicImg("door_control")
                     if (settings?.trig_Keypads) {
                         input "trig_KeyCode", "number", title: "Code (4 digits)", required: true, submitOnChange: true
                         input "trig_KeyButton", "enum", title: "Which button?", options: ["on":"On", "off":"Off", "partial":"Partial", "panic":"Panic"], multiple: false, required: true, submitOnChange: true
@@ -399,7 +396,7 @@ def triggersPage() {
 
             if ("Temperature" in settings?.triggerEvents) {
                 section ("Temperature Sensor Events", hideable: true) {
-                    input "trig_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: true, multiple: true, submitOnChange: true, image: getPublicImg("temperature.png")
+                    input "trig_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: true, multiple: true, submitOnChange: true, image: getPublicImg("temperature")
                     input "trig_TempCond", "enum", title: "Temperature is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
                     if (settings?.trig_TempCond) {
                         if (settings?.trig_TempCond in ["between", "below"]) {
@@ -418,7 +415,7 @@ def triggersPage() {
 
             if ("Humidity" in settings?.triggerEvents) {
                 section ("Humidity Sensor Events", hideable: true) {
-                    input "trig_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: true, multiple: true, submitOnChange: true, image: getPublicImg("humidity.png")
+                    input "trig_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: true, multiple: true, submitOnChange: true, image: getPublicImg("humidity")
                     if (settings?.trig_Humidity) {
                         input "trig_HumidityCond", "enum", title: "Relative Humidity (%) is...", options: ["above", "below", "equals"], required: false, submitOnChange: true
                         if(settings?.trig_HumidityCond) {
@@ -431,7 +428,7 @@ def triggersPage() {
 
             if ("Acceleration" in settings?.triggerEvents) {
                 section ("Acceleration Sensor Events", hideable: true) {
-                    input "trig_Acceleration", "capability.accelerationSensor", title: "Acceleration Sensors", required: true, multiple: true, submitOnChange: true, image: getPublicImg("humidity.png")
+                    input "trig_Acceleration", "capability.accelerationSensor", title: "Acceleration Sensors", required: true, multiple: true, submitOnChange: true, image: getPublicImg("humidity")
                     if (settings?.trig_Acceleration) {
                         input "trig_AccelerationCond", "enum", title: "Relative Humidity (%) is...", options: ["active", "inactive", "any"], required: false, submitOnChange: true
                         if (settings?.trig_Acceleration?.size() > 1 && settings?.trig_AccelerationCmd && settings?.trig_AccelerationCmd != "any") {
@@ -443,7 +440,7 @@ def triggersPage() {
 
             if ("Water" in settings?.triggerEvents) {
                 section ("Water Sensor Events", hideable: true) {
-                    input "trig_Water", "capability.waterSensor", title: "Water/Moisture Sensors", required: true, multiple: true, submitOnChange: true, image: getPublicImg("water.png")
+                    input "trig_Water", "capability.waterSensor", title: "Water/Moisture Sensors", required: true, multiple: true, submitOnChange: true, image: getPublicImg("water")
                     if (settings?.trig_Water) {
                         input "trig_WaterCmd", "enum", title: "changes to?", options: ["wet", "dry", "any"], required: false, submitOnChange: true
                         if (settings?.trig_Water?.size() > 1 && settings?.trig_WaterCmd && settings?.trig_WaterCmd != "any") {
@@ -455,7 +452,7 @@ def triggersPage() {
 
             if ("Power" in settings?.triggerEvents) {
                 section ("Power Events", hideable: true) {
-                    input "trig_Power", "capability.powerMeter", title: "Power Meters", required: true, multiple: true, submitOnChange: true, image: getPublicImg("power.png")
+                    input "trig_Power", "capability.powerMeter", title: "Power Meters", required: true, multiple: true, submitOnChange: true, image: getPublicImg("power")
                     input "trig_PowerCond", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
                     if (settings?.trig_PowerCond) {
                         if (settings?.trig_PowerCond in ["between", "below"]) {
@@ -474,7 +471,7 @@ def triggersPage() {
 
             if ("CO2 & Smoke" in settings?.triggerEvents) {
                 section ("CO\u00B2 Events", hideable: true) {
-                    input "trig_CO2", "capability.carbonDioxideMeasurement", title: "Carbon Dioxide (CO\u00B2)", required: !(settings?.trig_Smoke), multiple: true, submitOnChange: true, image: getPublicImg("co2_warn_status.png")
+                    input "trig_CO2", "capability.carbonDioxideMeasurement", title: "Carbon Dioxide (CO\u00B2)", required: !(settings?.trig_Smoke), multiple: true, submitOnChange: true, image: getPublicImg("co2_warn_status")
                     if (settings?.trig_CO2) {
                         input "trig_CO2Cmd", "enum", title: "changes to?", options: ["above", "below", "equals"], required: false, submitOnChange: true
                         if (settings?.trig_CO2Cmd) {
@@ -507,7 +504,7 @@ def triggersPage() {
 
             if ("Window Shades" in settings?.triggerEvents) {
                 section ("Window Shades", hideable: true) {
-                    input "trig_Shades", "capability.windowShades", title: "Window Shades", multiple: true, required: true, submitOnChange: true, image: getPublicImg("window_shade.png")
+                    input "trig_Shades", "capability.windowShades", title: "Window Shades", multiple: true, required: true, submitOnChange: true, image: getPublicImg("window_shade")
                     if (settings?.trig_Shades) {
                         input "trig_ShadesCmd", "enum", title: "changes to?", options:["open":"opened", "close":"closed", "any":"any"], multiple: false, required: true, submitOnChange:true
                         if (settings?.trig_Shades?.size() > 1 && settings?.trig_ShadesCmd && settings?.trig_ShadesCmd != "any") {
@@ -519,7 +516,7 @@ def triggersPage() {
 
             if ("Valves" in settings?.triggerEvents) {
                 section ("Valves", hideable: true) {
-                    input "trig_Valves", "capability.valve", title: "Valves", multiple: true, required: true, submitOnChange: true, image: getPublicImg("valve.png")
+                    input "trig_Valves", "capability.valve", title: "Valves", multiple: true, required: true, submitOnChange: true, image: getPublicImg("valve")
                     if (settings?.trig_Valves) {
                         input "trig_ValvesCmd", "enum", title: "changes to?", options:["open":"opened", "close":"closed", "any":"any"], multiple: false, required: true, submitOnChange:true
                         if (settings?.trig_Valves?.size() > 1 && settings?.trig_ValvesCmd && settings?.trig_ValvesCmd != "any") {
@@ -563,24 +560,24 @@ def triggersConfigured() {
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: "Only when these are true...", install: false, uninstall: false) {
         section("Time of Day") {
-            href "timePage", title: "Time Schedule", description: "", state: "", image: getPublicImg("clock.png")
+            href "timePage", title: "Time Schedule", description: "", state: "", image: getPublicImg("clock")
         }
 
         section ("Location Based Conditions") {
-            input "cond_Mode", "mode", title: "Location Mode is...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("mode.png")
-            input "cond_SHM", "enum", title: "Smart Home Monitor is...", options: ["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("alarm_home.png")
-            input "cond_Days", "enum", title: "Days of the week", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], image: getPublicImg("day_calendar.png")
+            input "cond_Mode", "mode", title: "Location Mode is...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("mode")
+            input "cond_SHM", "enum", title: "Smart Home Monitor is...", options: ["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("alarm_home")
+            input "cond_Days", "enum", title: "Days of the week", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], image: getPublicImg("day_calendar")
         }
 
         section ("Switch and Dimmer Conditions") {
-            input "cond_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required:false, image: getPublicImg("switch.png")
+            input "cond_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required:false, image: getPublicImg("switch")
             if (settings?.cond_Switch) {
                 input "cond_SwitchCmd", "enum", title: "are...", options:["on":"On","off":"Off"], multiple: false, required: true, submitOnChange: true
                 if (settings?.cond_Switch?.size() > 1) {
                     input "cond_SwitchAll", "bool", title: "Require ALL Switches to be (${settings?.cond_SwitchCmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
-            input "cond_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: false, image: getPublicImg("speed_knob.png")
+            input "cond_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: false, image: getPublicImg("speed_knob")
             if (settings?.cond_Dimmer) {
                 input "cond_DimmerCmd", "enum", title: "is...", options:["greater":"greater than","lessThan":"less than","equal":"equal to"], multiple: false, required: false, submitOnChange: true
                 if (settings?.cond_DimmerCmd in ["greater", "lessThan", "equal"]) {
@@ -592,14 +589,14 @@ def conditionsPage() {
             }
         }
         section ("Motion and Presence Conditions") {
-            input "cond_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("motion.png")
+            input "cond_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("motion")
             if (settings?.cond_Motion) {
                 input "cond_MotionCmd", "enum", title: "are...", options: ["active":"active", "inactive":"inactive"], multiple: false, required: true, submitOnChange: true
                 if (settings?.cond_Motion?.size() > 1 && settings?.cond_MotionCmd) {
                     input "cond_MotionAll", "bool", title: "Require ALL Motion Sensors to be (${settings?.cond_MotionCmd})?"
                 }
             }
-            input "cond_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("presence.png")
+            input "cond_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("presence")
             if (settings?.cond_Presence) {
                 input "cond_PresenceCmd", "enum", title: "are...", options: ["present":"Present","not present":"Not Present"], multiple: false, required: true, submitOnChange: true
                 if (settings?.cond_Presence?.size() > 1 && settings?.cond_PresenceCmd) {
@@ -608,21 +605,21 @@ def conditionsPage() {
             }
         }
         section ("Door, Window, Contact Sensors Conditions") {
-            input "cond_ContactDoor", "capability.contactSensor", title: "Contact Sensors only on Doors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("door_open.png")
+            input "cond_ContactDoor", "capability.contactSensor", title: "Contact Sensors only on Doors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("door_open")
             if (settings?.cond_ContactDoor) {
                 input "cond_ContactDoorCmd", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
                 if (settings?.cond_ContactDoor?.size() > 1 && settings?.cond_ContactDoorCmd) {
                     input "cond_ContactDoorAll", "bool", title: "Require ALL Doors to be (${settings?.cond_ContactDoorCmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
-            input "cond_ContactWindow", "capability.contactSensor", title: "Contact Sensors only on Windows", multiple: true, required: false, submitOnChange: true, image: getPublicImg("window.png")
+            input "cond_ContactWindow", "capability.contactSensor", title: "Contact Sensors only on Windows", multiple: true, required: false, submitOnChange: true, image: getPublicImg("window")
                 if (settings?.cond_ContactWindow) {
                 input "cond_ContactWindowCmd", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
                 if (settings?.cond_ContactWindow?.size() > 1 && settings?.cond_ContactWindowCmd) {
                     input "cond_ContactWindowAll", "bool", title: "Require ALL Windows to be (${settings?.cond_ContactWindowCmd})?", required: false, defaultValue: false, submitOnChange: true
                     }
                 }
-            input "cond_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("contact.png")
+            input "cond_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("contact")
             if (settings?.cond_Contact) {
                 input "cond_ContactCmd", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
                 if (settings?.cond_Contact?.size() > 1 && settings?.cond_ContactCmd) {
@@ -632,14 +629,14 @@ def conditionsPage() {
         }
 
         section ("Garage Door and Lock Conditions") {
-            input "cond_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true, image: getPublicImg("lock.png")
+            input "cond_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true, image: getPublicImg("lock")
             if (settings?.cond_Locks) {
                 input "cond_LocksCmd", "enum", title: "are...", options:["locked":"locked", "unlocked":"unlocked"], multiple: false, required: true, submitOnChange:true
                 if (settings?.cond_Locks?.size() > 1 && settings?.cond_LocksCmd) {
                     input "cond_LocksAll", "bool", title: "Require ALL Locks to be (${settings?.cond_LocksCmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
-            input "cond_Garages", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("garage_door_open.png")
+            input "cond_Garages", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("garage_door_open")
             if (settings?.cond_Garages) {
                 input "cond_GaragesCmd", "enum", title: "are...", options:["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
                 if (settings?.cond_Garages?.size() > 1 && settings?.cond_Garages) {
@@ -649,7 +646,7 @@ def conditionsPage() {
         }
 
         section ("Environmental Conditions") {
-            input "cond_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: false, submitOnChange: true, image: getPublicImg("humidity.png")
+            input "cond_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: false, submitOnChange: true, image: getPublicImg("humidity")
             if (settings?.cond_Humidity) {
                 input "cond_HumidityLevel", "enum", title: "Only when the Humidity is...", options: ["above", "below", "equal"], required: false, submitOnChange: true
                 if (settings?.cond_HumidityLevel) {
@@ -659,7 +656,7 @@ def conditionsPage() {
                     input "cond_HumidityStop", "number", title: "...but not ${settings?.cond_HumidityLevel} this percentage", required: false, description: "humidity"
                 }
             }
-            input "cond_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true, submitOnChange: true, image: getPublicImg("temperature.png")
+            input "cond_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true, submitOnChange: true, image: getPublicImg("temperature")
             if (settings?.cTemperature) {
                 input "cond_TemperatureLevel", "enum", title: "When the temperature is...", options: ["above", "below", "equal"], required: false, submitOnChange: true
                 if (settings?.cond_TemperatureLevel) {
@@ -676,14 +673,14 @@ def conditionsPage() {
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: "Actions to perform...", install: false, uninstall: false) {
         section("Output Devices:") {
-            input "act_SendToBrdGrp", "bool", title: "Send to an Echo Speaks Broadcast Group?", description: "This is ONLY for sending a Speech message to all devices in the group", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("es_groups.png")
+            input "act_SendToBrdGrp", "bool", title: "Send to an Echo Speaks Broadcast Group?", description: "This is ONLY for sending a Speech message to all devices in the group", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("es_groups")
             if(act_SendToBrdGrp) {
                 Map brdCastGrps = parent?.getBroadcastGrps()
                 state?.brdCastGrps = brdCastGrps
                 Map groups = brdCastGrps?.collectEntries { [(it?.key): it?.value?.name] }
-                input "act_BroadcastGrps", "enum", title: "Select the broadcast Group", options: groups, required: true, multiple: false, submitOnChange: true, image: getAppImg("es_groups.png")
+                input "act_BroadcastGrps", "enum", title: "Select the broadcast Group", options: groups, required: true, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
             } else {
-                input "act_EchoDevices", "device.echoSpeaksDevice", title: "Echo Speaks Device to Use", description: "Select the devices", multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1.png")
+                input "act_EchoDevices", "device.echoSpeaksDevice", title: "Echo Speaks Device to Use", description: "Select the devices", multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
             }
         }
         if(act_SendToBrdGrp && act_BroadcastGrps) {
@@ -705,21 +702,21 @@ def actionsPage() {
     		// }
             // section ("Text Messages:", hideWhenEmpty: true) {
             //     paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
-            //     input "smsNumbers", "text", title: "Send SMS Text to...", required: false, submitOnChange: true, image: getAppImg("sms_phone.png")
+            //     input "smsNumbers", "text", title: "Send SMS Text to...", required: false, submitOnChange: true, image: getAppImg("sms_phone")
             // }
             // section("Pushover Support:") {
-            //     input ("pushoverEnabled", "bool", title: "Use Pushover Integration", required: false, submitOnChange: true, image: getAppImg("pushover_icon.png"))
+            //     input ("pushoverEnabled", "bool", title: "Use Pushover Integration", required: false, submitOnChange: true, image: getAppImg("pushover_icon"))
             //     if(settings?.pushoverEnabled == true) {
             //         def poDevices = parent?.getPushoverDevices()
             //         if(!poDevices) {
             //             parent?.pushover_init()
             //             paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
             //         } else {
-            //             input "pushoverDevices", "enum", title: "Select Pushover Devices", description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon.png")
+            //             input "pushoverDevices", "enum", title: "Select Pushover Devices", description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
             //             if(settings?.pushoverDevices) {
             //                 def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
-            //                 input "pushoverPriority", "enum", title: "Notification Priority (Optional)", description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority.png")
-            //                 input "pushoverSound", "enum", title: "Notification Sound (Optional)", description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound.png")
+            //                 input "pushoverPriority", "enum", title: "Notification Priority (Optional)", description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority")
+            //                 input "pushoverSound", "enum", title: "Notification Sound (Optional)", description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound")
             //             }
             //         }
             //         // } else { paragraph "New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", state: "complete" }
@@ -773,17 +770,17 @@ def dateTimePage() {
     return dynamicPage(name: "dateTimePage", title: "Configure Date/Time Triggers", uninstall: false) {
         Boolean timeReq = (settings["qTrigStartTime"] || settings["qTrigStopTime"]) ? true : false
         section() {
-            input "qTrigStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time.png")
+            input "qTrigStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
             if(settings["qTrigStartInput"] == "A specific time") {
-                input "qTrigStartTime", "time", title: "Start time", required: timeReq, image: getAppImg("start_time.png")
+                input "qTrigStartTime", "time", title: "Start time", required: timeReq, image: getAppImg("start_time")
             }
-            input "qTrigStopInput", "enum", title: "Stopping at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time.png")
+            input "qTrigStopInput", "enum", title: "Stopping at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
             if(settings?."qTrigStopInput" == "A specific time") {
-                input "qTrigStopTime", "time", title: "Stop time", required: timeReq, image: getAppImg("stop_time.png")
+                input "qTrigStopTime", "time", title: "Stop time", required: timeReq, image: getAppImg("stop_time")
             }
-            input "triggerOnlyDays", "enum", title: "Only on these days of the week", multiple: true, required: false, image: getAppImg("day_calendar.png"),
+            input "triggerOnlyDays", "enum", title: "Only on these days of the week", multiple: true, required: false, image: getAppImg("day_calendar"),
                     options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            // input "quietModes", "mode", title: "When these Modes are Active", multiple: true, submitOnChange: true, required: false, image: getAppImg("mode.png")
+            // input "quietModes", "mode", title: "When these Modes are Active", multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
         }
     }
 }
@@ -792,17 +789,17 @@ def quietRestrictPage() {
     return dynamicPage(name: "quietRestrictPage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
         Boolean timeReq = (settings["qStartTime"] || settings["qStopTime"]) ? true : false
         section() {
-            input "qStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time.png")
+            input "qStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
             if(settings["qStartInput"] == "A specific time") {
-                input "qStartTime", "time", title: "Start time", required: timeReq, image: getAppImg("start_time.png")
+                input "qStartTime", "time", title: "Start time", required: timeReq, image: getAppImg("start_time")
             }
-            input "qStopInput", "enum", title: "Stopping at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time.png")
+            input "qStopInput", "enum", title: "Stopping at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
             if(settings?."qStopInput" == "A specific time") {
-                input "qStopTime", "time", title: "Stop time", required: timeReq, image: getAppImg("stop_time.png")
+                input "qStopTime", "time", title: "Stop time", required: timeReq, image: getAppImg("stop_time")
             }
-            input "quietDays", "enum", title: "Only on these days of the week", multiple: true, required: false, image: getAppImg("day_calendar.png"),
+            input "quietDays", "enum", title: "Only on these days of the week", multiple: true, required: false, image: getAppImg("day_calendar"),
                     options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            input "quietModes", "mode", title: "When these Modes are Active", multiple: true, submitOnChange: true, required: false, image: getAppImg("mode.png")
+            input "quietModes", "mode", title: "When these Modes are Active", multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
         }
     }
 }
@@ -1709,6 +1706,23 @@ String randomString(Integer len) {
     log.debug "randomString: ${randChars?.join()}"
     return randChars.join()
 }
+
+private getPlatform() {
+    def p = "SmartThings"
+    if(state?.hubPlatform == null) {
+        try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
+        // p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
+        state?.hubPlatform = p
+        log.debug "hubPlatform: (${state?.hubPlatform})"
+    }
+    return state?.hubPlatform
+}
+
+String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
+String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>""" }
+String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>""" }
+String pTS(String t, String i = null) { return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>""" }
 
 Integer stateSize() {
     def j = new groovy.json.JsonOutput().toJson(state)

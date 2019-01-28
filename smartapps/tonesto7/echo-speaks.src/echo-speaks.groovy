@@ -28,9 +28,9 @@ definition(
     author     : "Anthony Santilli",
     description: "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
     category   : "My Apps",
-    iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
-    iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x.png",
-    iconX3Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x.png",
+    iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x${state?.updateAvailable ? "_update" : ""}.png",
+    iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x${state?.updateAvailable ? "_update" : ""}.png",
+    iconX3Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x${state?.updateAvailable ? "_update" : ""}.png",
     pausable   : true,
     oauth      : true
 )
@@ -122,14 +122,14 @@ def mainPage() {
             }
             def t1 = getGroupsDesc()
             def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
-            section("Manage Groups:") {
-                href "groupsPage", title: "Broadcast Groups", description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups.png")
+            section(sTS("Manage Groups:")) {
+                href "groupsPage", title: inTS("Broadcast Groups", getAppImg("es_groups", true)), description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
             }
 
             def t2 = getActionsDesc()
             def actDesc = t2 ? "${t2}\n\nTap to modify" : null
-            section("Manage Actions:") {
-                href "actionsPage", title: "Actions", description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions.png")
+            section(sTS("Manage Actions:")) {
+                href "actionsPage", title: inTS("Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
             }
             state?.childInstallOkFlag = true
 
@@ -178,7 +178,7 @@ def groupsPage() {
             }
         }
         section("") {
-            app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: "Create New Group", image: getAppImg("es_groups.png"))
+            app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Group", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
         }
     }
 }
@@ -193,7 +193,7 @@ def actionsPage() {
             }
         }
         section("") {
-            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: "Create New Action", image: getAppImg("es_actions.png"))
+            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
         }
     }
 }
@@ -1730,6 +1730,7 @@ private appUpdateNotify() {
     logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | grpUpd: (${grpUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
         if(on && (appUpd || actUpd || grpUpd || echoDevUpd || servUpd)) {
+            state?.updateAvailable = true
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
@@ -1738,7 +1739,9 @@ private appUpdateNotify() {
             str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             state?.lastUpdMsgDt = getDtNow()
+            return
         }
+        state?.updateAvailable = false
     }
 }
 
@@ -1847,7 +1850,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     return sent
 }
 
-String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getAppImg(String imgName, frc=false) { return (frc || state?.hubPlatform == "SmartThings") ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
 String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
 String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>""" }
 String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>""" }

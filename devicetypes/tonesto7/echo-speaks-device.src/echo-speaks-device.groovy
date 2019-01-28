@@ -984,7 +984,7 @@ private getPlaylists() {
         ],
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
-        contentType: "application/json",
+        contentType: "application/json"
     ])
 }
 
@@ -993,9 +993,9 @@ def getPlaylistsHandler(response, data) {
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getPlaylistsHandler")) {return}
     try {} catch (ex) { }
-    def sData = response?.getJson() ?: [:]
+    def sData = response?.getJson() ?: null
     logger("trace", "getPlaylists: ${sData}")
-    Map playlists = sData?.playlists ?: [:]
+    Map playlists = sData ? sData?.playlists : "{}"
     if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
         log.trace "Alexa Playlists Changed to ${playlists}"
         sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
