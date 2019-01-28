@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.4.0"}
-String devModified() { return "2019-01-27" }
+String devVersion()  { return "2.5.0"}
+String devModified() { return "2019-01-28" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 

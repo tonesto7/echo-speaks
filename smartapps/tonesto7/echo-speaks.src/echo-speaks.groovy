@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.4.0" }
-String appModified() { return "2019-01-26" }
+String appVersion()	 { return "2.5.0" }
+String appModified() { return "2019-01-28" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 240, server: 211] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 250, actions:250, groups: 250, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -41,6 +41,8 @@ preferences {
     page(name: "settingsPage")
     page(name: "devicePrefsPage")
     page(name: "newSetupPage")
+    page(name: "groupsPage")
+    page(name: "actionsPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
     page(name: "unrecogDevicesPage")
@@ -118,6 +120,19 @@ def mainPage() {
                 def devPrefDesc = devicePrefsDesc()
                 href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
             }
+            def t1 = getGroupsDesc()
+            def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
+            section("Manage Groups:") {
+                href "groupsPage", title: "Broadcast Groups", description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups.png")
+            }
+
+            def t2 = getActionsDesc()
+            def actDesc = t2 ? "${t2}\n\nTap to modify" : null
+            section("Manage Actions:") {
+                href "actionsPage", title: "Actions", description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions.png")
+            }
+            state?.childInstallOkFlag = true
+
             section(sTS("Experimental Functions:")) {
                 href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Announcements, Broadcasts, and Sequences\n\nTap to proceed...", image: getAppImg("testing")
                 href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
@@ -149,6 +164,36 @@ def mainPage() {
                 paragraph title: "Notice:", "Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", required: true, state: null
                 state?.resumeConfig = true
             }
+        }
+    }
+}
+
+def groupsPage() {
+    return dynamicPage(name: "groupsPage", uninstall: false, install: false) {
+        def groupApp = findChildAppByName( grpChildName() )
+        if(groupApp) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph "You haven't created any Broadcast Groups yet!\nTap Create New Group to get Started"
+            }
+        }
+        section("") {
+            app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: "Create New Group", image: getAppImg("es_groups.png"))
+        }
+    }
+}
+
+def actionsPage() {
+    return dynamicPage(name: "actionsPage", uninstall: false, install: false) {
+        def actionApp = findChildAppByName( actChildName() )
+        if(actionApp) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph "You haven't created any Actions yet!\nTap Create New Action to get Started"
+            }
+        }
+        section("") {
+            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: "Create New Action", image: getAppImg("es_actions.png"))
         }
     }
 }
@@ -776,6 +821,23 @@ def uninstalled() {
     clearCloudConfig()
     clearCookieData()
     removeDevices(true)
+}
+
+def getGroupApps() {
+    return getChildApps()?.findAll { it?.name == grpChildName() }
+}
+
+def getActionApps() {
+    return getChildApps()?.findAll { it?.name == actChildName() }
+}
+
+public getBroadcastGrps() {
+    Map grps = [:]
+    def groupApps = getChildApps()?.findAll { it?.name == grpChildName() }
+    groupApps?.each { grp->
+        grps[grp?.getId() as String] = grp?.getBroadcastGroupData(true)
+    }
+    return grps
 }
 
 def onAppTouch(evt) {
@@ -1791,6 +1853,8 @@ String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img
 String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>""" }
 String pTS(String t, String i = null) { return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>""" }
 
+String actChildName(){ return "Echo Speaks - Actions" }
+String grpChildName(){ return "Echo Speaks - Groups" }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
