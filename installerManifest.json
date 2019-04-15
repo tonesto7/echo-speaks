@@ -9,7 +9,7 @@
     "category": "My Apps",
     "bannerUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
     "forumUrl": "https://community.smartthings.com/t/release-echo-speaks/",
-    "docUrl": "http://thingsthataresmart.wiki/index.php?title=Echo_Speaks",
+    "docUrl": "https://tonesto7.github.io/echo-speaks-docs/#/docs",
     "releaseType": "production",
     "keywords": [
         "amazon",
