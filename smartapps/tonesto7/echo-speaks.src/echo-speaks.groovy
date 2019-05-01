@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.5.0" }
-String appModified() { return "2019-01-28" }
+String appModified() { return "2019-05-01" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -120,17 +120,18 @@ def mainPage() {
                 def devPrefDesc = devicePrefsDesc()
                 href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
             }
-            def t1 = getGroupsDesc()
-            def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
-            section(sTS("Manage Groups:")) {
-                href "groupsPage", title: inTS("Broadcast Groups", getAppImg("es_groups", true)), description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
-            }
 
-            def t2 = getActionsDesc()
-            def actDesc = t2 ? "${t2}\n\nTap to modify" : null
-            section(sTS("Manage Actions:")) {
-                href "actionsPage", title: inTS("Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
-            }
+            // def t1 = getGroupsDesc()
+            // def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
+            // section(sTS("Manage Groups:")) {
+            //     href "groupsPage", title: inTS("Broadcast Groups", getAppImg("es_groups", true)), description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
+            // }
+
+            // def t2 = getActionsDesc()
+            // def actDesc = t2 ? "${t2}\n\nTap to modify" : null
+            // section(sTS("Manage Actions:")) {
+            //     href "actionsPage", title: inTS("Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
+            // }
             state?.childInstallOkFlag = true
 
             section(sTS("Experimental Functions:")) {
@@ -1723,8 +1724,8 @@ private missPollNotify(Boolean on, Integer wait) {
 private appUpdateNotify() {
     Boolean on = (settings?.sendAppUpdateMsg != false)
     Boolean appUpd = isAppUpdateAvail()
-    Boolean actUpd = isActionAppUpdateAvail()
-    Boolean grpUpd = isGroupAppUpdateAvail()
+    Boolean actUpd = false//isActionAppUpdateAvail()
+    Boolean grpUpd = false//isGroupAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
     logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | grpUpd: (${grpUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
