@@ -1,3 +1,14 @@
+V2.4.1 (May 1st, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Bug Fixes.
+
+Device:
+ • FIXED: Various bugs
+ • ADDED: Lenovo SmartTab Support.
+ • ADDED: togglePlayback() command.
+ • ADDED: wifiNetwork and followUpMode attributes
+
 V2.4.0 (January 26th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:

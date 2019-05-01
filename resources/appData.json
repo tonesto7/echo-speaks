@@ -2,10 +2,16 @@
     "appDataVer": "1.0",
     "versions": {
         "mainApp": {
-            "ver": "2.4.0"
+            "ver": "2.4.1"
+        },
+        "actionApp": {
+            "ver": "2.5.0"
+        },
+        "groupApp": {
+            "ver": "2.5.0"
         },
         "echoDevice": {
-            "ver": "2.4.0"
+            "ver": "2.4.1"
         },
         "server": {
             "ver": "2.1.1"
@@ -226,6 +232,11 @@
         "A3QPPX1R9W5RJV": {
             "name": "Fabriq Chorus",
             "image": "fabriq_chorus",
+            "allowTTS": true
+        },
+        "A2J0R2SD7G9LPA": {
+            "name": "Lenovo SmartTab M10",
+            "image": "lenovo_smarttab_m10",
             "allowTTS": true
         }
     }
