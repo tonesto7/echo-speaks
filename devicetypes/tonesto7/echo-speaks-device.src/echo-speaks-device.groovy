@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.4.0"}
-String devModified() { return "2019-01-27" }
+String devVersion()  { return "2.5.1"}
+String devModified() { return "2019-04-26" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -490,7 +490,7 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
     if(!state?.deviceOwnerCustomerId) { if(!noLogs) { log.warn "OwnerCustomerId State Value Missing: ${state?.deviceOwnerCustomerId}" }; return false; }
     if(state?.isSupportedDevice == false) { log.warn "You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer"; return true; }
     if(!type || state?.permissions == null) { if(!noLogs) { log.warn "Permissions State Object Missing: ${state?.permissions}" }; return false }
-    if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl"]))) { if(!noLogs) { log.warn "All Voice Output Blocked... Do Not Disturb is ON" }; return false }
+    if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { log.warn "All Voice Output Blocked... Do Not Disturb is ON" }; return false }
     if(state?.permissions?.containsKey(type) && state?.permissions[type] == true) { return true }
     else {
         String warnMsg = null
@@ -1180,6 +1180,8 @@ def play() {
         incrementCntByKey("use_cnt_playCmd")
         if(isStateChange(device, "status", "playing")) {
             sendEvent(name: "status", value: "playing", descriptionText: "Player Status is playing", display: true, displayed: true)
+            log.debug "deviceStatus: playing_${state?.deviceStyle?.image}"
+            sendEvent(name: "deviceStatus", value: "playing_${state?.deviceStyle?.image}", display: false, displayed: false)
         }
         triggerDataRrsh()
     }
@@ -1197,6 +1199,8 @@ def pause() {
         incrementCntByKey("use_cnt_pauseCmd")
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
+            log.debug "deviceStatus: stopped_${state?.deviceStyle?.image}"
+            sendEvent(name: "deviceStatus", value: "stopped_${state?.deviceStyle?.image}", display: false, displayed: false)
         }
         triggerDataRrsh()
     }
