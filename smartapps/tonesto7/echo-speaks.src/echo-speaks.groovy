@@ -1199,7 +1199,7 @@ private getEchoDevices() {
     def params = [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
-        query: [ cached: true ],
+        query: [ cached: true, _: new Date().getTime() ],
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
@@ -2429,11 +2429,12 @@ private Map amazonDomainOpts() {
         "amazon.com":"Amazon.com",
         "amazon.ca":"Amazon.ca",
         "amazon.co.uk":"amazon.co.uk",
+        "amazon.com.au":"amazon.com.au",
         "amazon.de":"Amazon.de",
         "amazon.it":"Amazon.it"
     ]
 }
-private List localeOpts() { return ["en-US", "en-CA", "de-DE", "en-GB", "it-IT"] }
+private List localeOpts() { return ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU"] }
 
 private getPlatform() {
     def p = "SmartThings"
