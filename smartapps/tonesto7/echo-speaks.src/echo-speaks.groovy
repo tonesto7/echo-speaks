@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.4.0" }
-String appModified() { return "2019-01-26" }
+String appVersion()	 { return "2.5.0" }
+String appModified() { return "2019-01-28" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 240, server: 211] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 250, actions:250, groups: 250, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -28,9 +28,9 @@ definition(
     author     : "Anthony Santilli",
     description: "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
     category   : "My Apps",
-    iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
-    iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x.png",
-    iconX3Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x.png",
+    iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x${state?.updateAvailable ? "_update" : ""}.png",
+    iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x${state?.updateAvailable ? "_update" : ""}.png",
+    iconX3Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x${state?.updateAvailable ? "_update" : ""}.png",
     pausable   : true,
     oauth      : true
 )
@@ -41,6 +41,8 @@ preferences {
     page(name: "settingsPage")
     page(name: "devicePrefsPage")
     page(name: "newSetupPage")
+    page(name: "groupsPage")
+    page(name: "actionsPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
     page(name: "unrecogDevicesPage")
@@ -118,6 +120,19 @@ def mainPage() {
                 def devPrefDesc = devicePrefsDesc()
                 href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
             }
+            def t1 = getGroupsDesc()
+            def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
+            section(sTS("Manage Groups:")) {
+                href "groupsPage", title: inTS("Broadcast Groups", getAppImg("es_groups", true)), description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
+            }
+
+            def t2 = getActionsDesc()
+            def actDesc = t2 ? "${t2}\n\nTap to modify" : null
+            section(sTS("Manage Actions:")) {
+                href "actionsPage", title: inTS("Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
+            }
+            state?.childInstallOkFlag = true
+
             section(sTS("Experimental Functions:")) {
                 href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Announcements, Broadcasts, and Sequences\n\nTap to proceed...", image: getAppImg("testing")
                 href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
@@ -149,6 +164,36 @@ def mainPage() {
                 paragraph title: "Notice:", "Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", required: true, state: null
                 state?.resumeConfig = true
             }
+        }
+    }
+}
+
+def groupsPage() {
+    return dynamicPage(name: "groupsPage", uninstall: false, install: false) {
+        def groupApp = findChildAppByName( grpChildName() )
+        if(groupApp) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph "You haven't created any Broadcast Groups yet!\nTap Create New Group to get Started"
+            }
+        }
+        section("") {
+            app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Group", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
+        }
+    }
+}
+
+def actionsPage() {
+    return dynamicPage(name: "actionsPage", uninstall: false, install: false) {
+        def actionApp = findChildAppByName( actChildName() )
+        if(actionApp) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph "You haven't created any Actions yet!\nTap Create New Action to get Started"
+            }
+        }
+        section("") {
+            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
         }
     }
 }
@@ -776,6 +821,23 @@ def uninstalled() {
     clearCloudConfig()
     clearCookieData()
     removeDevices(true)
+}
+
+def getGroupApps() {
+    return getChildApps()?.findAll { it?.name == grpChildName() }
+}
+
+def getActionApps() {
+    return getChildApps()?.findAll { it?.name == actChildName() }
+}
+
+public getBroadcastGrps() {
+    Map grps = [:]
+    def groupApps = getChildApps()?.findAll { it?.name == grpChildName() }
+    groupApps?.each { grp->
+        grps[grp?.getId() as String] = grp?.getBroadcastGroupData(true)
+    }
+    return grps
 }
 
 def onAppTouch(evt) {
@@ -1668,6 +1730,7 @@ private appUpdateNotify() {
     logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | grpUpd: (${grpUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
         if(on && (appUpd || actUpd || grpUpd || echoDevUpd || servUpd)) {
+            state?.updateAvailable = true
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
@@ -1676,7 +1739,9 @@ private appUpdateNotify() {
             str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             state?.lastUpdMsgDt = getDtNow()
+            return
         }
+        state?.updateAvailable = false
     }
 }
 
@@ -1785,12 +1850,14 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     return sent
 }
 
-String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getAppImg(String imgName, frc=false) { return (frc || state?.hubPlatform == "SmartThings") ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
 String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
 String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>""" }
 String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>""" }
 String pTS(String t, String i = null) { return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>""" }
 
+String actChildName(){ return "Echo Speaks - Actions" }
+String grpChildName(){ return "Echo Speaks - Groups" }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
