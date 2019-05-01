@@ -17,13 +17,13 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.5.0"}
+String devVersion()  { return "2.4.1"}
 String devModified() { return "2019-05-01" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player", runLocally: true, minHubCoreVersion: '000.025.00025', executeCommandsLocally: true) {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player") {
         //capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
         capability "Audio Volume"
@@ -49,7 +49,7 @@ metadata {
         attribute "deviceType", "string"
         attribute "doNotDisturb", "string"
         attribute "firmwareVer", "string"
-        attribute "followupMode", "string"
+        attribute "followUpMode", "string"
         attribute "lastCmdSentDt", "string"
         attribute "lastSpeakCmd", "string"
         attribute "lastSpokenToTime", "number"
@@ -76,8 +76,8 @@ metadata {
         command "replayText"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
-        command "followupModeOn"
-        command "followupModeOff"
+        // command "followUpModeOn"
+        // command "followUpModeOff"
         command "setAlarmVolume", ["number"]
         command "resetQueue"
         command "playWeather", ["number", "number"]
@@ -402,6 +402,10 @@ metadata {
             state "true", label: '', action: "doNotDisturbOff", nextState: "false", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/dnd_on.png"
             state "false", label: '', action: "doNotDisturbOn", nextState: "true", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/dnd_off.png"
         }
+        standardTile("followUpMode", "device.followUpMode", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
+            state "true", label: 'Followup: On', action: "followUpModeOff", nextState: "false"
+            state "false", label: 'Followup: Off', action: "followUpModeOn", nextState: "true"
+        }
         standardTile("disconnectBluetooth", "disconnectBluetooth", height: 1, width: 1, decoration: "flat") {
             state("default", label:'', action: 'disconnectBluetooth', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/disconnect_bluetooth.png")
         }
@@ -437,6 +441,7 @@ def installed() {
     sendEvent(name: "lastSpeakCmd", value: "Nothing sent yet...")
     sendEvent(name: "doNotDisturb", value: false)
     sendEvent(name: "onlineStatus", value: "online")
+    sendEvent(name: "followUpMode", value: false)
     sendEvent(name: "alarmVolume", value: 0)
     sendEvent(name: "alexaWakeWord", value: "")
     state?.doNotDisturb = false
@@ -507,6 +512,9 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
         switch(type) {
             case "TTS":
                 warnMsg = "OOPS... Text to Speech is NOT Supported by this Device!!!"
+                break
+            case "followUpMode":
+                warnMsg = "OOPS... Follow-Up Mode is NOT Supported by this Device!!!"
                 break
             case "mediaPlayer":
                 warnMsg = "OOPS... Media Player Controls are NOT Supported by this Device!!!"
@@ -944,9 +952,9 @@ def getDeviceSettingsHandler(response, data) {
     state?.devicePreferences = devData ?: [:]
     // log.debug "devData: $devData"
     def fupMode = (devData?.goldfishEnabled == true)
-    if(isStateChange(device, "followupMode", fupMode?.toString())) {
+    if(isStateChange(device, "followUpMode", fupMode?.toString())) {
         log.trace "FollowUp Mode Changed to ${(fupMode)}"
-        sendEvent(name: "followupMode", value: fupMode, display: false, displayed: false)
+        sendEvent(name: "followUpMode", value: fupMode, display: false, displayed: false)
     }
     // logger("trace", "getDeviceSettingsHandler: ${sData}")
 }
@@ -1442,12 +1450,12 @@ def doNotDisturbOn() {
     setDoNotDisturb(true)
 }
 
-def followupModeOff() {
-    setFollowupMode(false)
+def followUpModeOff() {
+    setFollowUpMode(false)
 }
 
-def followupModeOn() {
-    setFollowupMode(true)
+def followUpModeOn() {
+    setFollowUpMode(true)
 }
 
 def setDoNotDisturb(Boolean val) {
@@ -1469,8 +1477,10 @@ def setDoNotDisturb(Boolean val) {
     }
 }
 
-def setFollowupMode(Boolean val) {
-    logger("trace", "setFollowupMode($val) command received...")
+def setFollowUpMode(Boolean val) {
+    logger("trace", "setFollowUpMode($val) command received...")
+    if(state?.devicePreferences == null || !state?.devicePreferences?.size()) { return }
+    if(!state?.deviceAccountId) { log.error "renameDevice Failed because deviceAccountId is not found..."; return; }
     if(isCommandTypeAllowed("followUpMode")) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
@@ -1481,10 +1491,11 @@ def setFollowupMode(Boolean val) {
             body: [
                 deviceSerialNumber: state?.serialNumber,
                 deviceType: state?.deviceType,
+                deviceAccountId: state?.deviceAccountId,
                 goldfishEnabled: (val==true)
             ]
-        ], [cmdDesc: "setFollowupMode${val ? "On" : "Off"}"])
-        incrementCntByKey("use_cnt_followupModeCmd${val ? "On" : "Off"}")
+        ], [cmdDesc: "setFollowUpMode${val ? "On" : "Off"}"])
+        incrementCntByKey("use_cnt_followUpModeCmd${val ? "On" : "Off"}")
     }
 }
 

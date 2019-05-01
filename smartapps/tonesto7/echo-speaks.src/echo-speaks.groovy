@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.5.0" }
+String appVersion()	 { return "2.4.1" }
 String appModified() { return "2019-05-01" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 250, actions:250, groups: 250, server: 211] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 241, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -1418,6 +1418,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["wakeWord"] = (echoValue?.capabilities?.contains("FAR_FIELD_WAKE_WORD"))
                     permissions["flashBriefing"] = (echoValue?.capabilities?.contains("FLASH_BRIEFING"))
                     permissions["microphone"] = (echoValue?.capabilities?.contains("MICROPHONE"))
+                    permissions["followUpMode"] = (echoValue?.capabilities?.contains("GOLDFISH"))
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     permissions["bluetoothControl"] = (echoValue?.capabilities.contains("PAIR_BT_SOURCE") || echoValue?.capabilities.contains("PAIR_BT_SINK"))
                     echoValue["musicProviders"] = evtData?.musicProviders
