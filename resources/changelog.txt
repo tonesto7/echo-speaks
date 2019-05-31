@@ -1,3 +1,13 @@
+V2.5.0 (May 31st, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Significantly reduced the number of web requests made to Amazon by centralizing the Bluetooth and DoNotDisturb calls in the App.
+
+Device:
+ • FIXED: getBluetoothDevices() and getDoNotDisturb() handlers
+ • FIXED: Significantly reduced the number of web requests made to Amazon by centralizing the Bluetooth and DoNotDisturb calls in the App.
+ • ADDED: Echo Auto device support.
+
 V2.4.1 (May 1st, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
