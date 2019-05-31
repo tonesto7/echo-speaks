@@ -25,7 +25,7 @@
             "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
             "published": true,
             "oAuth": true,
-            "version": "2.4.1",
+            "version": "2.5.0",
             "appSettings": {},
             "appUrl": "smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy"
         },
@@ -35,7 +35,7 @@
         "name": "Echo Speaks Device",
         "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.png",
         "published": true,
-        "version": "2.4.1",
+        "version": "2.5.0",
         "appUrl": "deviceTypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy",
         "optional": false
     }]
