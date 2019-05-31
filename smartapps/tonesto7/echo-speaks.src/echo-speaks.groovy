@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.4.1" }
-String appModified() { return "2019-05-01" }
+String appVersion()	 { return "2.5.0" }
+String appModified() { return "2019-05-31" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 241, server: 211] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 250, server: 211] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -808,9 +808,11 @@ def initialize() {
     if(!state?.resumeConfig) {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
         appCleanup()
+        runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         validateCookie(true)
         runIn(15, "reInitDevices")
+        getOtherData()
         getEchoDevices()
     }
 }
@@ -1008,6 +1010,7 @@ def clearCookieData(src=null) {
     state?.remove("cookieData")
     state?.remove("lastCookieRefresh")
     unschedule("getEchoDevices")
+    unschedule("getOtherData")
     log.warn "Cookie Data has been cleared and Device Data Refreshes have been suspended..."
     updateChildAuth(false)
     // if(getServerHostURL()) { clearServerAuth() }
@@ -1188,6 +1191,7 @@ public childInitiatedRefresh() {
     if(state?.deviceRefreshInProgress != true && lastRfsh > 120) {
         log.debug "A Child Device is requesting a Device List Refresh..."
         state?.lastChildInitRefreshDt = getDtNow()
+        getOtherData()
         runIn(3, "getEchoDevices")
     } else {
         log.warn "childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)"
@@ -1227,6 +1231,61 @@ private getMusicProviders() {
     }
     // log.debug "items: $items"
     return items
+}
+
+private getOtherData() {
+    getBluetoothDevices()
+    getDoNotDisturb()
+}
+
+private getBluetoothDevices() {
+    // log.trace "getBluetoothDevices"
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/bluetooth",
+        query: [cached: true, _: new Date().getTime()],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json"
+    ]
+    def btResp = makeSyncronousReq(params, "get", "getBluetoothDevices") ?: null
+    state?.bluetoothData = btResp ?: [:]
+}
+
+def getBluetoothData(serialNumber) {
+    // log.trace "getBluetoothData: ${serialNumber}"
+    String curConnName = null
+    Map btObjs = [:]
+    Map btData = state?.bluetoothData ?: [:]
+    Map bluData = btData && btData?.bluetoothStates?.size() ? btData?.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
+    if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
+        def bData = bluData?.pairedDeviceList?.findAll { (it?.deviceClass != "GADGET") }
+        bData?.each {
+            btObjs[it?.address as String] = it
+            if(it?.connected == true) { curConnName = it?.friendlyName as String }
+        }
+    }
+    return [btObjs: btObjs, pairedNames: btObjs?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
+}
+
+private getDoNotDisturb() {
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/dnd/device-status-list",
+        query: [_: new Date().getTime()],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json",
+    ]
+    def dndResp = makeSyncronousReq(params, "get", "getDoNotDisturb") ?: null
+    state?.dndData = dndResp ?: [:]
+}
+
+def getDndEnabled(serialNumber) {
+    // log.trace "getBluetoothData: ${serialNumber}"
+    Map sData = state?.dndData ?: [:]
+    def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
+    return (dndData && dndData?.enabled == true)
 }
 
 private getRoutines(autoId=null, limit=2000) {
@@ -1421,6 +1480,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["followUpMode"] = (echoValue?.capabilities?.contains("GOLDFISH"))
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     permissions["bluetoothControl"] = (echoValue?.capabilities.contains("PAIR_BT_SOURCE") || echoValue?.capabilities.contains("PAIR_BT_SINK"))
+                    permissions["alexaGuardSupport"] = (echoValue?.capabilities?.contains("TUPLE"))
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false

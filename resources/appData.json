@@ -2,7 +2,7 @@
     "appDataVer": "1.0",
     "versions": {
         "mainApp": {
-            "ver": "2.4.1"
+            "ver": "2.5.0"
         },
         "actionApp": {
             "ver": "2.5.0"
@@ -11,7 +11,7 @@
             "ver": "2.5.0"
         },
         "echoDevice": {
-            "ver": "2.4.1"
+            "ver": "2.5.0"
         },
         "server": {
             "ver": "2.1.1"
@@ -26,14 +26,38 @@
         }
     },
     "deviceTypes": {
-        "ignore": ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
+        "ignore": [
+            "A1DL2DVDQVK3Q",
+            "A21Z3CGI8UIP0F",
+            "A2825NDLA7WDZV",
+            "A2IVLV5VM2W81",
+            "A2TF17PFR55MTB",
+            "A1X7HJX9QL16M5",
+            "A2T0P32DY3F7VB",
+            "A3H674413M2EKB",
+            "AILBSA2LNTOYL"
+        ]
     },
     "deviceFamilies": {
-        "echo": ["ROOK", "KNIGHT", "ECHO"],
-        "tablet": ["TABLET"],
-        "wha": ["WHA"],
-        "other": ["REAVER"],
-        "block": ["AMAZONMOBILEMUSIC_ANDROID", "TBIRD_IOS", "VOX"]
+        "echo": [
+            "ROOK",
+            "KNIGHT",
+            "ECHO"
+        ],
+        "tablet": [
+            "TABLET"
+        ],
+        "wha": [
+            "WHA"
+        ],
+        "other": [
+            "REAVER"
+        ],
+        "block": [
+            "AMAZONMOBILEMUSIC_ANDROID",
+            "TBIRD_IOS",
+            "VOX"
+        ]
     },
     "deviceSupport": {
         "A1X7HJX9QL16M5": {
@@ -237,6 +261,11 @@
         "A2J0R2SD7G9LPA": {
             "name": "Lenovo SmartTab M10",
             "image": "lenovo_smarttab_m10",
+            "allowTTS": true
+        },
+        "A303PJF6ISQ7IC": {
+            "name": "Echo Auto",
+            "image": "echo_auto",
             "allowTTS": true
         }
     }

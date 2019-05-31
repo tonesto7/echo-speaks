@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.4.1"}
-String devModified() { return "2019-05-01" }
+String devVersion()  { return "2.5.0"}
+String devModified() { return "2019-05-31" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -241,6 +241,10 @@ metadata {
             state("paused_echo_wha", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_wha.png", backgroundColor: "#cccccc")
             state("playing_echo_wha", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_wha.png", backgroundColor: "#00a0dc")
             state("stopped_echo_wha", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_wha.png")
+
+            state("paused_echo_auto", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_auto.png", backgroundColor: "#cccccc")
+            state("playing_echo_auto", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_auto.png", backgroundColor: "#00a0dc")
+            state("stopped_echo_auto", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_auto.png")
 
             state("paused_echo_input", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_input.png", backgroundColor: "#cccccc")
             state("playing_echo_input", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_input.png", backgroundColor: "#00a0dc")
@@ -734,10 +738,6 @@ private refreshData(full=false) {
     }
     // log.debug "bluetoothControl: ${state?.permissions?.bluetoothControl}"
     getDeviceActivity()
-    runIn(3, "refreshStage2")
-}
-
-private refreshStage2() {
     if(state?.permissions?.bluetoothControl) {
         getBluetoothDevices()
     }
@@ -989,44 +989,15 @@ def getAvailableWakeWordsHandler(response, data) {
     }
 }
 
-private getBluetoothDevices() {
-    // log.trace "getBluetoothDevices"
-    execAsyncCmd("get", "getBluetoothHandler", [
-        uri: getAmazonUrl(),
-        path: "/api/bluetooth",
-        query: [cached: true, _: new Date().getTime()],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
-        contentType: "application/json"
-    ])
-}
-
-def getBluetoothHandler(response, data) {
-    try {
-        //catches any non-2xx status codes.
-    } catch (ex) {
-        //catches any non-2xx status codes.
-     }
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "getBluetoothHandler")) {return}
-    // try {} catch (ex) { }
-    String curConnName = null
-    Map btObjs = [:]
-    def rData = response?.getJson() ?: null
-    def bluData = rData?.bluetoothStates?.size() ? rData?.bluetoothStates?.find { it?.deviceSerialNumber == state?.serialNumber } : null
-    if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
-        def bData = bluData?.pairedDeviceList?.findAll { (it?.deviceClass != "GADGET") }
-        bData?.each {
-            btObjs[it?.address as String] = it
-            if(it?.connected == true) { curConnName = it?.friendlyName as String }
-        }
-    }
-    logger("debug", "Current Bluetooth Device: $curConnName | Bluetooth Objects: $btObjs")
+def getBluetoothDevices() {
+    Map btData = parent?.getBluetoothData(state?.serialNumber) ?: [:]
+    String curConnName = btData?.curConnName ?: null
+    Map btObjs = btData?.btObjs ?: [:]
+    logger("debug", "Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
-    List pairedNames = btObjs?.collect { it?.value?.friendlyName as String } ?: []
-    // if(!(device.currentValue("btDeviceConnected")?.toString()?.equals(curConnName?.toString()))) {
-        // log.info "Bluetooth Device Connected: (${curConnName})"
+    List pairedNames = btData?.pairedNames ?: []
+    // if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
+    //     log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
     // }
 
@@ -1044,28 +1015,12 @@ private String getBtAddrByAddrOrName(String btNameOrAddr) {
 }
 
 private getDoNotDisturb() {
-    execAsyncCmd("get", "getDoNotDisturbHandler", [
-        uri: getAmazonUrl(),
-        path: "/api/dnd/device-status-list",
-        query: [_: new Date().getTime()],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
-        contentType: "application/json",
-    ])
-}
-
-def getDoNotDisturbHandler(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "getDoNotDisturbHandler")) {return}
-    try {} catch (ex) { }
-    def sData = response?.getJson()
-    def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == state?.serialNumber } : [:]
-    logger("trace", "getDoNotDisturb: $dndData")
-    state?.doNotDisturb = (dndData?.enabled == true)
-    if(isStateChange(device, "doNotDisturb", (dndData?.enabled == true)?.toString())) {
-        log.info "Do Not Disturb: (${(dndData?.enabled == true)})"
-        sendEvent(name: "doNotDisturb", value: (dndData?.enabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndData?.enabled == true)}", display: true, displayed: true)
+    Boolean dndEnabled = (parent?.getDndEnabled(state?.serialNumber) == true)
+    logger("trace", "getDoNotDisturb: $dndEnabled")
+    state?.doNotDisturb = dndEnabled
+    if(isStateChange(device, "doNotDisturb", (dndEnabled == true)?.toString())) {
+        log.info "Do Not Disturb: (${(dndEnabled == true)})"
+        sendEvent(name: "doNotDisturb", value: (dndEnabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndEnabled == true)}", display: true, displayed: true)
     }
 }
 
@@ -1094,7 +1049,7 @@ def getPlaylistsHandler(response, data) {
     logger("trace", "getPlaylists: ${sData}")
     Map playlists = sData ? sData?.playlists : "{}"
     if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
-        log.trace "Alexa Playlists Changed to ${playlists}"
+        // log.trace "Alexa Playlists Changed to ${playlists}"
         sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
     }
 }
