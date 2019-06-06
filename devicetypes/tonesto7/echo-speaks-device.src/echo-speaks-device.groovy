@@ -1486,8 +1486,15 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
             sendEvent(name: "level", value: volume?.toInteger(), display: false, displayed: false)
             sendEvent(name: "volume", value: volume?.toInteger(), display: false, displayed: false)
             incrementCntByKey("use_cnt_setVolumeSpeakRestore")
+            speak(msg)
+            if (restVolume != null) {
+                sendEvent(name: "level", value: restVolume as Integer, display: false, displayed: false)
+                sendEvent(name: "volume", value: restVolume as Integer, display: false, displayed: false)
+            }
+        } else {
+            incrementCntByKey("use_cnt_setVolumeSpeakRestore")
+            speak(msg)
         }
-        speak(msg)
     }
 }
 
