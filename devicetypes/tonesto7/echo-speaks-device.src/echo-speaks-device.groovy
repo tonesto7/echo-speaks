@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.5.0"}
-String devModified() { return "2019-05-31" }
+String devVersion()  { return "2.5.1"}
+String devModified() { return "2019-06-07" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -1468,8 +1468,6 @@ def setVolumeAndSpeak(volume, String msg) {
     logger("trace", "setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
     if(volume != null && permissionOk("volumeControl")) {
         state?.useThisVolume = volume
-        sendEvent(name: "level", value: volume?.toInteger(), display: false, displayed: false)
-        sendEvent(name: "volume", value: volume?.toInteger(), display: false, displayed: false)
     }
     incrementCntByKey("use_cnt_setVolSpeak")
     speak(msg)
@@ -1482,10 +1480,11 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
             state?.useThisVolume = volume?.toInteger()
             if(restVolume != null) {
                 state?.lastVolume = restVolume as Integer
-            } else { storeCurrentVolume() }
-            sendEvent(name: "level", value: volume?.toInteger(), display: false, displayed: false)
-            sendEvent(name: "volume", value: volume?.toInteger(), display: false, displayed: false)
-            incrementCntByKey("use_cnt_setVolumeSpeakRestore")
+                incrementCntByKey("use_cnt_setVolSpeak")
+            } else {
+                storeCurrentVolume()
+                incrementCntByKey("use_cnt_setVolumeSpeakRestore")
+            }
         }
         speak(msg)
     }
@@ -2530,6 +2529,10 @@ private postCmdProcess(resp, statusCode, data) {
                 String lastMsg = data?.message as String ?: "Nothing to Show Here..."
                 sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
                 sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
+                if(data?.oldVolume || data?.newVolume) {
+                    sendEvent(name: "level", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: false, displayed: false)
+                    sendEvent(name: "volume", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: false, displayed: false)
+                }
                 schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), data?.msgDelay), true, null, "postCmdProcess(adjDelay)")
             }
             return
