@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.5.1"}
-String devModified() { return "2019-06-07" }
+String devVersion()  { return "2.5.2"}
+String devModified() { return "2019-06-10" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -281,6 +281,10 @@ metadata {
             state("paused_lenovo_smarttab_m10", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/lenovo_smarttab_m10.png", backgroundColor: "#cccccc")
             state("playing_lenovo_smarttab_m10", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/lenovo_smarttab_m10.png", backgroundColor: "#00a0dc")
             state("stopped_lenovo_smarttab_m10", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/lenovo_smarttab_m10.png")
+
+            state("paused_vobot_bunny", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/vobot_bunny.png", backgroundColor: "#cccccc")
+            state("playing_vobot_bunny", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/vobot_bunny.png", backgroundColor: "#00a0dc")
+            state("stopped_vobot_bunny", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/vobot_bunny.png")
         }
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state("default", label:'')

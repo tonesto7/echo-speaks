@@ -267,6 +267,11 @@
             "name": "Echo Auto",
             "image": "echo_auto",
             "allowTTS": true
+        },
+        "A10L5JEZTKKCZ8": {
+            "name": "Vobot Bunny",
+            "image": "vobot_bunny",
+            "allowTTS": true
         }
     }
 }
