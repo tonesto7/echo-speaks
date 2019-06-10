@@ -1,6 +1,7 @@
-V2.5.1 Device (Juse 7th, 2019):
+V2.5.2 Device (Juse 7th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
  • FIXED: setVolumeSpeakRestore() command not setting current value after execution
+ • ADDED: Device recognition for the Vobot Bunny
 
 V2.5.0 (May 31st, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
