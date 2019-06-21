@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.5.0" }
-String appModified() { return "2019-05-31" }
+String appVersion()	 { return "2.5.1" }
+String appModified() { return "2019-06-21" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 250, server: 211] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 252, server: 222] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -83,6 +83,14 @@ def appInfoSect()	{
     section() {
         href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
         if(!state?.isInstalled) { paragraph "--NEW Install--", state: "complete" }
+    }
+    section("Developer Notices") {
+        if(!state?.noticeData) { getNoticeData() }
+        if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
+            state?.noticeData?.notices?.each { item-> paragraph bulletItem(str, item), required: true, state: null }
+        } else {
+            paragraph "No Issues to Report"
+        }
     }
 }
 
@@ -2151,6 +2159,7 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
     if (now || !state?.appData || (getLastVerUpdSec() > (3600*6))) {
         if(now && (getLastVerUpdSec() < 300)) { return }
         getConfigData()
+        getNoticeData()
     }
 }
 
@@ -2161,10 +2170,21 @@ private getConfigData() {
     ]
     def data = getWebData(params, "appData", false)
     if(data) {
-
         state?.appData = data
         state?.lastVerUpdDt = getDtNow()
         log.info "Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo..."
+    }
+}
+
+private getNoticeData() {
+    def params = [
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/notices.json",
+        contentType: "application/json"
+    ]
+    def data = getWebData(params, "noticeData", false)
+    if(data) {
+        state?.noticeData = data
+        log.info "Successfully Retrieved Developer Notices from GitHub Repo..."
     }
 }
 
