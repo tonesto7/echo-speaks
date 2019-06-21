@@ -2,7 +2,7 @@
     "appDataVer": "1.0",
     "versions": {
         "mainApp": {
-            "ver": "2.5.0"
+            "ver": "2.5.1"
         },
         "actionApp": {
             "ver": "2.5.0"
@@ -11,10 +11,10 @@
             "ver": "2.5.0"
         },
         "echoDevice": {
-            "ver": "2.5.1"
+            "ver": "2.5.2"
         },
         "server": {
-            "ver": "2.1.1"
+            "ver": "2.2.2"
         }
     },
     "settings": {

@@ -1,9 +1,9 @@
-V2.5.2 Device (Juse 7th, 2019):
+V2.5.1 (June 21st, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
- • FIXED: setVolumeSpeakRestore() command not setting current value after execution
- • ADDED: Device recognition for the Vobot Bunny
+ • UPDATED: Set minimum server version requirement to v2.2.2
+ • ADDED: New Developer notices section to top of app so I can share any outages or issues.
 
-V2.5.0 (May 31st, 2019):
+V2.5.0 (June 7th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
  • FIXED: Significantly reduced the number of web requests made to Amazon by centralizing the Bluetooth and DoNotDisturb calls in the App.
@@ -12,6 +12,8 @@ Device:
  • FIXED: getBluetoothDevices() and getDoNotDisturb() handlers
  • FIXED: Significantly reduced the number of web requests made to Amazon by centralizing the Bluetooth and DoNotDisturb calls in the App.
  • ADDED: Echo Auto device support.
+ • FIXED: setVolumeSpeakRestore() command not setting current value after execution
+ • ADDED: Device recognition for the Vobot Bunny
 
 V2.4.1 (May 1st, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔

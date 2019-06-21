@@ -434,6 +434,7 @@ metadata {
             input "showLogs", "bool", required: false, title: "Show Debug Logs?", defaultValue: false
             input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
             input "disableTextTransform", "bool", required: false, title: "Disable Text Transform?", description: "This will attempt to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false
+            input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
         }
     }
 }
