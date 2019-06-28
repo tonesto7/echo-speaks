@@ -11,7 +11,7 @@
             "ver": "2.5.0"
         },
         "echoDevice": {
-            "ver": "2.5.2"
+            "ver": "2.5.3"
         },
         "server": {
             "ver": "2.2.2"
@@ -119,6 +119,11 @@
         "AKNO1N0KSFN8L": {
             "name": "Echo Dot (Gen1)",
             "image": "echo_dot_gen1",
+            "allowTTS": true
+        },
+        "A4ZP7ZC4PI6TO": {
+            "name": "Echo Show 5",
+            "image": "echo_show_5",
             "allowTTS": true
         },
         "A3S5BH2HU6VAYF": {
