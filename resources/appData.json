@@ -79,66 +79,79 @@
         "A1JJ0KFC4ZPNJ3": {
             "name": "Echo Input",
             "image": "echo_input",
+            "bcast": true,
             "allowTTS": true
         },
         "A38949IHXHRQ5P": {
             "name": "Echo Tap",
             "image": "echo_tap",
+            "bcast": true,
             "allowTTS": true
         },
         "AB72C64C86AW2": {
             "name": "Echo (Gen1)",
             "image": "echo_gen1",
+            "bcast": true,
             "allowTTS": true
         },
         "A7WXQPH584YP": {
             "name": "Echo (Gen2)",
             "image": "echo_gen2",
+            "bcast": true,
             "allowTTS": true
         },
         "A2M35JJZWCQOMZ": {
             "name": "Echo Plus (Gen1)",
             "image": "echo_plus_gen1",
+            "bcast": true,
             "allowTTS": true
         },
         "A18O6U1UQFJ0XK": {
             "name": "Echo Plus (Gen2)",
             "image": "echo_plus_gen2",
+            "bcast": true,
             "allowTTS": true
         },
         "A1NL4BVLQ4L3N3": {
             "name": "Echo Show (Gen1)",
             "image": "echo_show_gen1",
+            "bcast": true,
             "allowTTS": true
         },
         "AWZZ5CVHX2CD": {
             "name": "Echo Show (Gen2)",
             "image": "echo_show_gen2",
+            "bcast": true,
             "allowTTS": true
         },
         "AKNO1N0KSFN8L": {
             "name": "Echo Dot (Gen1)",
             "image": "echo_dot_gen1",
+            "bcast": true,
             "allowTTS": true
         },
         "A4ZP7ZC4PI6TO": {
             "name": "Echo Show 5",
             "image": "echo_show_5",
+            "bcast": true,
             "allowTTS": true
         },
         "A3S5BH2HU6VAYF": {
             "name": "Echo Dot (Gen2)",
             "image": "echo_dot_gen2",
+            "bcast": true,
             "allowTTS": true
         },
         "A32DOYMUN6DTXA": {
             "name": "Echo Dot (Gen3)",
             "image": "echo_dot_gen3",
+            "bcast": true,
             "allowTTS": true
         },
         "A10A33FOX2NUBK": {
             "name": "Echo Spot",
             "image": "echo_spot_gen1",
+            "bcast": true,
             "allowTTS": true
         },
         "A3SSG6GR8UU7SN": {
@@ -271,6 +284,7 @@
         "A303PJF6ISQ7IC": {
             "name": "Echo Auto",
             "image": "echo_auto",
+            "bcast": true,
             "allowTTS": true
         },
         "A10L5JEZTKKCZ8": {
