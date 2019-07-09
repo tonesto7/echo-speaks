@@ -357,11 +357,13 @@ def showDevSharePrefs() {
     state?.shownDevSharePage = true
 }
 
-Map getDeviceList(isInputEnum=false, onlyTTS=false) {
+Map getDeviceList(isInputEnum=false, filters=[]) {
     Map devMap = [:]
     Map availDevs = state?.echoDeviceMap ?: [:]
     availDevs?.each { key, val->
-        if(onlyTTS && val?.ttsSupport != true) { return }
+        if(filters?.size()) {
+            if(val?.ttsSupport != true) { return }
+        }
         devMap[key] = val
     }
     return isInputEnum ? (devMap?.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
@@ -553,8 +555,8 @@ def deviceTestPage() {
 def broadcastPage() {
     return dynamicPage(name: "broadcastPage", uninstall: false, install: false) {
         section("") {
-            Map devs = getDeviceList(true, true)
-            input "broadcastDevices", "enum", title: inTS("Select Devices to Test the Broadcast"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            Map devs = getDeviceList(true, [broadcast])
+            input "broadcastDevices", "device.echoSpeaksDevice", title: inTS("Select Devices to Test the Broadcast"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             input "broadcastVolume", "number", title: inTS("Broadcast at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
             input "broadcastRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
             input "broadcastMessage", "text", title: inTS("Message to broadcast"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
@@ -572,7 +574,7 @@ def broadcastPage() {
 def announcePage() {
     return dynamicPage(name: "announcePage", uninstall: false, install: false) {
         section("") {
-            Map devs = getDeviceList(true, true)
+            Map devs = getDeviceList(true, [announce])
             input "announceDevices", "enum", title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             input "announceVolume", "number", title: inTS("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
             input "announceRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
@@ -1424,7 +1426,7 @@ def receiveEventData(Map evtData, String src) {
                     // log.debug "deviceStyle: ${deviceStyleData}"
                     Boolean isBlocked = (deviceStyleData?.blocked || familyAllowed?.reason == "Family Blocked")
                     Boolean isInIgnoreInput = (echoValue?.serialNumber in settings?.echoDeviceFilter)
-                    Boolean allowTTS = (deviceStyleData?.allowTTS == true)
+                    Boolean allowTTS = (deviceStyleData?.caps && deviceStyleData?.caps?.contains("t"))
                     Boolean isMediaPlayer = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
                     Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
                     Boolean unsupportedDevice = ((familyAllowed?.ok == false && familyAllowed?.reason == "Unknown Reason") || isBlocked == true)
@@ -1467,6 +1469,8 @@ def receiveEventData(Map evtData, String src) {
 
                     Map permissions = [:]
                     permissions["TTS"] = allowTTS
+                    permissions["broadcast"] = (deviceStyleData?.caps && deviceStyleData?.caps?.contains("b"))
+                    permissions["announce"] = (deviceStyleData?.caps && deviceStyleData?.caps?.contains("a"))
                     permissions["volumeControl"] = volumeSupport
                     permissions["mediaPlayer"] = isMediaPlayer
                     permissions["amazonMusic"] = (echoValue?.capabilities.contains("AMAZON_MUSIC"))
@@ -1851,7 +1855,8 @@ Boolean quietTimeOk() {
         else if(settings?.qStopInput == "A specific time" && settings?.qStopTime) { stopTime = settings?.qStopTime }
     } else { return true }
     if(strtTime && stopTime) {
-        return timeOfDayIsBetween(strtTime, stopTime, new Date(), location.timeZone) ? false : true
+        log.debug "quietTimeOk | Start: ${strtTime} | Stop: ${stopTime}"
+        return timeOfDayIsBetween(strtTime, stopTime, new Date(), location?.timeZone) ? false : true
     } else { return true }
 }
 
@@ -2165,7 +2170,7 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
 
 private getConfigData() {
     def params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData2.json",
         contentType: "application/json"
     ]
     def data = getWebData(params, "appData", false)

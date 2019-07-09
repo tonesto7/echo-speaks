@@ -41,6 +41,7 @@ metadata {
         attribute "alexaWakeWord", "string"
         attribute "btDeviceConnected", "string"
         attribute "btDevicesPaired", "string"
+        attribute "permissions", "string"
         attribute "currentAlbum", "string"
         attribute "currentStation", "string"
         attribute "deviceFamily", "string"
@@ -526,6 +527,12 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
             case "TTS":
                 warnMsg = "OOPS... Text to Speech is NOT Supported by this Device!!!"
                 break
+            case "broadcast":
+                warnMsg = "OOPS... Broadcast is NOT Supported by this Device!!!"
+                break
+            case "announce":
+                warnMsg = "OOPS... Announcements are NOT Supported by this Device!!!"
+                break
             case "followUpMode":
                 warnMsg = "OOPS... Follow-Up Mode is NOT Supported by this Device!!!"
                 break
@@ -622,7 +629,10 @@ void updateDeviceStatus(Map devData) {
             state?.hasClusterMembers = devData?.hasClusterMembers
             //log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
             // log.trace "permissions: ${state?.permissions}"
-
+            List permissionList = devData?.permissionMap?.findAll { it?.key == true}.collect {it?.key }
+            if(isStateChange(device, "permissions", permissionList?.toString())) {
+                sendEvent(name: "permissions", value: permissionList, display: false, displayed: false)
+            }
             if(isStateChange(device, "volumeSupported", (devData?.permissionMap?.volumeControl == true)?.toString())) {
                 sendEvent(name: "volumeSupported", value: (devData?.permissionMap?.volumeControl == true), display: false, displayed: false)
             }
