@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.5.1" }
-String appModified() { return "2019-06-21" }
+String appVersion()	 { return "2.6.0" }
+String appModified() { return "2019-07-09" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 252, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 260, server: 222] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -52,6 +52,7 @@ preferences {
     page(name: "musicSearchTestPage")
     page(name: "searchTuneInResultsPage")
     page(name: "deviceTestPage")
+    page(name: "speechPage")
     page(name: "broadcastPage")
     page(name: "announcePage")
     page(name: "sequencePage")
@@ -79,6 +80,7 @@ def appInfoSect()	{
         str += bulletItem(str, "App: (v${appVersion()})")
         str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
+        str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
     } else { str += "\nApp: v${appVersion()}" }
     section() {
         href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
@@ -143,7 +145,7 @@ def mainPage() {
             state?.childInstallOkFlag = true
 
             section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Announcements, Broadcasts, and Sequences\n\nTap to proceed...", image: getAppImg("testing")
+                href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
                 href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
             }
             section(sTS("Alexa Login Service:")) {
@@ -296,8 +298,14 @@ def deviceListPage() {
         Boolean onST = isST()
         section(sTS("Discovered Devices:")) {
             state?.echoDeviceMap?.sort { it?.value?.name }?.each { k,v->
-                String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${v?.style?.name}\nFamily: ${v?.family}\nType: ${v?.type}\nVolume Control: (${v?.volumeSupport?.toString()?.capitalize()})"
-                str += "\nText-to-Speech: (${v?.ttsSupport?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
+                String str = "Status: (${v?.online ? "Online" : "Offline"})"
+                str += "\nStyle: ${v?.style?.name}"
+                str += "\nFamily: ${v?.family}"
+                str += "\nType: ${v?.type}"
+                str += "\nVolume Control: (${v?.volumeSupport?.toString()?.capitalize()})"
+                str += "\nAnnouncements: (${v?.announceSupport?.toString()?.capitalize()})"
+                str += "\nText-to-Speech: (${v?.ttsSupport?.toString()?.capitalize()})"
+                str += "\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})"
                 str += v?.supported != true ? "\nUnsupported Device: (True)" : ""
                 str += (v?.mediaPlayer == true && v?.musicProviders) ? "\nMusic Providers: [${v?.musicProviders}]" : ""
                 if(onST) {
@@ -362,7 +370,8 @@ Map getDeviceList(isInputEnum=false, filters=[]) {
     Map availDevs = state?.echoDeviceMap ?: [:]
     availDevs?.each { key, val->
         if(filters?.size()) {
-            if(val?.ttsSupport != true) { return }
+            if(filters?.contains('tts') && val?.ttsSupport != true) { return }
+            if(filters?.contains('announce') && val?.ttsSupport != true && val?.announceSupport != true) { return }
         }
         devMap[key] = val
     }
@@ -545,9 +554,29 @@ String dashItem(String inStr, String strVal, newLine=false) { return "${(inStr =
 def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
         section("") {
-            href "broadcastPage", title: inTS("Broadcast Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
-            href "announcePage", title: inTS("Announcement Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("announcement")
-            href "sequencePage", title: inTS("Sequence Creator Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("sequence")
+            href "speechPage", title: inTS("Speech Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
+            // href "broadcastPage", title: inTS("Broadcast Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
+            href "announcePage", title: inTS("Announcement Test", getAppImg("announcement", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("announcement")
+            href "sequencePage", title: inTS("Sequence Creator Test", getAppImg("sequence", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("sequence")
+        }
+    }
+}
+
+def speechPage() {
+    return dynamicPage(name: "speechPage", uninstall: false, install: false) {
+        section("") {
+            Map devs = getDeviceList(true, [tts])
+            input "speechTestDevices", "enum", title: inTS("Select Devices to Test the Speech"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            if(speechDevices?.size() >= 3) { paragraph "Amazon will Rate Limit more than 3 device commands at a time.  There will be a delay in the other devices but they should play the test after a few seconds", state: null}
+            input "speechTestVolume", "number", title: inTS("Speak at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
+            input "speechTestRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
+            input "speechTestMessage", "text", title: inTS("Message to Speak"), defaultValue: "This is a speach test for your Echo speaks device!!!", required: true, submitOnChange: true
+        }
+        if(settings?.speechTestDevices) {
+            section() {
+                input "speechTestRun", "bool", title: inTS("Perform the Speech Test?"), description: "", required: false, defaultValue: false, submitOnChange: true
+                if(speechTestRun) { executeSpeechTest() }
+            }
         }
     }
 }
@@ -555,8 +584,9 @@ def deviceTestPage() {
 def broadcastPage() {
     return dynamicPage(name: "broadcastPage", uninstall: false, install: false) {
         section("") {
-            Map devs = getDeviceList(true, [broadcast])
-            input "broadcastDevices", "device.echoSpeaksDevice", title: inTS("Select Devices to Test the Broadcast"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            paragraph "This feature is not supported by all Alexa devices so using unsupported device may cause it not work"
+            Map devs = getDeviceList(true, [tts])
+            input "broadcastDevices", "enum", title: inTS("Select Devices to Test the Broadcast"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             input "broadcastVolume", "number", title: inTS("Broadcast at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
             input "broadcastRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
             input "broadcastMessage", "text", title: inTS("Message to broadcast"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
@@ -574,13 +604,21 @@ def broadcastPage() {
 def announcePage() {
     return dynamicPage(name: "announcePage", uninstall: false, install: false) {
         section("") {
+            paragraph "This feature is not supported by all Alexa devices so using unsupported device may cause it not work"
             Map devs = getDeviceList(true, [announce])
-            input "announceDevices", "enum", title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
-            input "announceVolume", "number", title: inTS("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
-            input "announceRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
-            input "announceMessage", "text", title: inTS("Message to announce"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
+            if(!announceDevices) {
+                input "announceAllDevices", "bool", title: inTS("Test Announcement using All Supported Devices"), defaultValue: false, required: false, submitOnChange: true
+            }
+            if(!announceAllDevices) {
+                input "announceDevices", "enum", title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            }
+            if(announceAllDevices || announceDevices) {
+                input "announceVolume", "number", title: inTS("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
+                input "announceRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
+                input "announceMessage", "text", title: inTS("Message to announce"), defaultValue: "This is a test of the Echo speaks announcement system!!!", required: true, submitOnChange: true
+            }
         }
-        if(settings?.announceDevices) {
+        if(settings?.announceDevices || settings?.announceAllDevices) {
             section() {
                 input "announceRun", "bool", title: inTS("Perform the Announcement?"), description: "", required: false, defaultValue: false, submitOnChange: true
                 if(announceRun) { executeAnnouncement() }
@@ -596,7 +634,7 @@ Map seqItemsAvail() {
             "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
             "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message"
+            "announcementall": "message", "pushnotification": "message", "email": null
         ],
         // dnd: [
         //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
@@ -619,6 +657,10 @@ def sequencePage() {
             seqItemsAvail()?.other?.sort()?.each { k, v->
                 str1 += "${bulletItem(str1, "${k}${v != null ? "::${v}" : ""}")}"
             }
+            String str4 = "DoNotDisturb Options:"
+            seqItemsAvail()?.dnd?.sort()?.each { k, v->
+                str4 += "${bulletItem(str4, "${k}${v != null ? "::${v}" : ""}")}"
+            }
             String str2 = "Music Options:"
             seqItemsAvail()?.music?.sort()?.each { k, v->
                 str2 += "${bulletItem(str2, "${k}${v != null ? "::${v}" : ""}")}"
@@ -630,6 +672,7 @@ def sequencePage() {
                 str3 += "${bulletItem(str3, "${k}${newV != null ? "::${newV}" : ""}")}"
             }
             paragraph str1, state: "complete"
+            // paragraph str4, state: "complete"
             paragraph str2, state: "complete"
             paragraph str3, state: "complete"
             paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
@@ -654,6 +697,20 @@ Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
     // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
     return addRandom ? (v + randomInt) : (v < 5 ? 5 : v)
+}
+
+private executeSpeechTest() {
+    settingUpdate("speechTestRun", "false", "bool")
+    String testMsg = settings?.speechTestMessage
+    List selectedDevs = settings?.speechTestDevices
+    selectedDevs?.each { devSerial->
+        def childDev = getChildDeviceBySerial(devSerial)
+        if(childDev && childDev?.hasCommand('setVolumeSpeakAndRestore')) {
+            childDev?.setVolumeSpeakAndRestore(settings?.speechTestVolume as Integer, testMsg, (settings?.speechTestRestVolume ?: 30))
+        } else {
+            log.error "Speech Test device with serial# (${devSerial} was not located!!!"
+        }
+    }
 }
 
 private executeBroadcast() {
@@ -690,14 +747,25 @@ private announcementVolumeRestore() {
 private executeAnnouncement() {
     settingUpdate("announceRun", "false", "bool")
     String testMsg = settings?.announceMessage
-    Map eDevs = state?.echoDeviceMap
-    List seqItems = []
-    def selectedDevs = settings?.announceDevices
-    selectedDevs?.each { dev->
-        seqItems?.push([command: "volume", value: settings?.announceRestVolume as Integer, serial: dev, type: eDevs[dev]?.type])
+    List selectedDevs = settings?.announceDevices
+    if(settings?.announceAllDevices) {
+        selectedDevs?.each { devSerial->
+            def childDev = getChildDeviceByCap("announce")
+            if(childDev && childDev?.hasCommand('playAnnouncementAll')) {
+                childDev?.playAnnouncementAll(testMsg)
+            } else {
+                log.error "Announcement Test All | A Device with was not found that supports announcements!!!"
+            }
+        }
+    } else {
+        Map eDevs = state?.echoDeviceMap
+        List seqItems = []
+        selectedDevs?.each { dev->
+            seqItems?.push([command: "volume", value: settings?.announceRestVolume as Integer, serial: dev, type: eDevs[dev]?.type])
+        }
+        seqItems?.push([command: "announcementTest", value: testMsg, serial: null, type: null])
+        sendMultiSequenceCommand(seqItems, "announcementTest", settings?.broadcastParallel)
     }
-    seqItems?.push([command: "announcementTest", value: testMsg, serial: null, type: null])
-    sendMultiSequenceCommand(seqItems, "announcementTest", settings?.broadcastParallel)
     runIn(getRecheckDelay(testMsg?.length()), "announcementVolumeRestore")
 }
 
@@ -793,6 +861,16 @@ def searchTuneInResultsPage() {
             } else { paragraph "No Results found..." }
         }
     }
+}
+
+private getChildDeviceBySerial(String serial) {
+    def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    return childDevs?.find { it?.deviceNetworkId?.tokenize("|")?.contains(serial) } ?: null
+}
+
+private getChildDeviceByCap(String cap) {
+    def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    return childDevs?.find { it?.currentValue('permissions') && it?.currentValue("permissions")?.toList()?.contains(cap) } ?: null
 }
 
 def installed() {
@@ -940,7 +1018,7 @@ private appCleanup() {
     // Settings Cleanup
 
     List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "stHub"]
-    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence")) { setItems?.push(si?.key as String) } }
+    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     setItems?.each { sI->
         if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
     }
@@ -1469,7 +1547,6 @@ def receiveEventData(Map evtData, String src) {
 
                     Map permissions = [:]
                     permissions["TTS"] = allowTTS
-                    permissions["broadcast"] = (deviceStyleData?.caps && deviceStyleData?.caps?.contains("b"))
                     permissions["announce"] = (deviceStyleData?.caps && deviceStyleData?.caps?.contains("a"))
                     permissions["volumeControl"] = volumeSupport
                     permissions["mediaPlayer"] = isMediaPlayer
@@ -1500,8 +1577,8 @@ def receiveEventData(Map evtData, String src) {
 
                     echoDeviceMap[echoKey] = [
                         name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey,
-                        style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: isMediaPlayer,
-                        ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers,
+                        style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: isMediaPlayer, announceSupport: permissions?.announce,
+                        ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers, broadcastSupport: permissions?.broadcast,
                         musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", "), supported: (unsupportedDevice != true)
                     ]
 
@@ -1856,6 +1933,10 @@ Boolean quietTimeOk() {
     } else { return true }
     if(strtTime && stopTime) {
         log.debug "quietTimeOk | Start: ${strtTime} | Stop: ${stopTime}"
+        if(!isST()) {
+            strtTime = toDateTime(strtTime)
+            stopTime = toDateTime(stopTime)
+        }
         return timeOfDayIsBetween(strtTime, stopTime, new Date(), location?.timeZone) ? false : true
     } else { return true }
 }
@@ -2367,6 +2448,12 @@ String getInputToStringDesc(inpt, addSpace = null) {
     }
     //log.debug "str: $str"
     return (str != "") ? "${str}" : null
+}
+
+def getRandomItem(items) {
+    def list = new ArrayList<String>();
+    items?.each { list?.add(it) }
+    return list?.get(new Random().nextInt(list?.size()));
 }
 
 String randomString(Integer len) {
