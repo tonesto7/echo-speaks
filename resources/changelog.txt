@@ -1,3 +1,17 @@
+V2.6.0 (July 10th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: timeOfDayIsBetween error.
+ • FIXED: Other bugs resolved.
+ • UPDATED: Added new speech testing and updated the announcement tests.
+
+Device:
+ • REMOVED: attributes *Supported attributes
+ • ADDED: New attribute 'permissions' to list features available.
+ • UPDATED: Made adjustments to help eliminate timeouts.
+ • ADDED: Sequence command added 'email' to read your email (Only non passcode protected email)
+ • Other stuff i'm not remembering
+
 V2.5.1 (June 27th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
  Device (v2.5.3):

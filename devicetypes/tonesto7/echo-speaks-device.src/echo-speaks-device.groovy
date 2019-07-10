@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.5.3"}
-String devModified()  { return "2019-06-27" }
+String devVersion()  { return "2.6.0"}
+String devModified() { return "2019-07-09" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -33,7 +33,6 @@ metadata {
         capability "Sensor"
         capability "Speech Synthesis"
 
-        attribute "alarmSupported", "string"
         attribute "alarmVolume", "number"
         attribute "alexaMusicProviders", "JSON_OBJECT"
         attribute "alexaNotifications", "JSON_OBJECT"
@@ -55,15 +54,13 @@ metadata {
         attribute "lastSpokenToTime", "number"
         attribute "lastVoiceActivity", "string"
         attribute "lastUpdated", "string"
-        attribute "musicSupported", "string"
         attribute "onlineStatus", "string"
-        attribute "reminderSupported", "string"
+        attribute "permissions", "string"
         attribute "supportedMusic", "string"
         attribute "trackImage", "string"
         attribute "trackImageHtml", "string"
-        attribute "ttsSupported", "string"
+
         attribute "volume", "number"
-        attribute "volumeSupported", "string"
         attribute "wakeWords", "enum"
         attribute "wifiNetwork", "string"
         attribute "wasLastSpokenToDevice", "string"
@@ -302,12 +299,6 @@ metadata {
         valueTile("alarmVolume", "device.alarmVolume", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("alarmVolume", label:'Alarm Volume:\n${currentValue}%')
         }
-        valueTile("volumeSupported", "device.volumeSupported", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("volumeSupported", label:'Volume Supported:\n${currentValue}')
-        }
-        valueTile("ttsSupported", "device.ttsSupported", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
-            state("ttsSupported", label:'TTS Supported:\n${currentValue}')
-        }
         valueTile("deviceStyle", "device.deviceStyle", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("deviceStyle", label:'Device Style:\n${currentValue}')
         }
@@ -421,6 +412,10 @@ metadata {
         standardTile("disconnectBluetooth", "disconnectBluetooth", height: 1, width: 1, decoration: "flat") {
             state("default", label:'', action: 'disconnectBluetooth', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/disconnect_bluetooth.png")
         }
+        valueTile("permissions", "device.permissions", height: 2, width: 6, inactiveLabel: false, decoration: "flat") {
+            state("permissions", label:'Capabilities:\n${currentValue}')
+        }
+
         main(["deviceStatus"])
         details([
             "mediaMulti",
@@ -429,7 +424,8 @@ metadata {
             "playJoke", "sayWelcomeHome", "sayGoodMorning", "sayGoodNight", "sayCompliment", "resetQueue",
             "playCalendarToday", "playCalendarTomorrow", "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll",
             "currentAlbum", "currentStation",
-            "alarmVolume",  "btDeviceConnected", "btDevicesPaired", "deviceStyle", "onlineStatus", "volumeSupported", "alexaWakeWord", "ttsSupported", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt", "lastVoiceActivity"
+            "alarmVolume",  "btDeviceConnected", "btDevicesPaired", "deviceStyle", "onlineStatus", "alexaWakeWord", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt", "lastVoiceActivity",
+            "permissions"
         ])
     }
 
@@ -525,6 +521,9 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
         switch(type) {
             case "TTS":
                 warnMsg = "OOPS... Text to Speech is NOT Supported by this Device!!!"
+                break
+            case "announce":
+                warnMsg = "OOPS... Announcements are NOT Supported by this Device!!!"
                 break
             case "followUpMode":
                 warnMsg = "OOPS... Follow-Up Mode is NOT Supported by this Device!!!"
@@ -622,21 +621,9 @@ void updateDeviceStatus(Map devData) {
             state?.hasClusterMembers = devData?.hasClusterMembers
             //log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
             // log.trace "permissions: ${state?.permissions}"
-
-            if(isStateChange(device, "volumeSupported", (devData?.permissionMap?.volumeControl == true)?.toString())) {
-                sendEvent(name: "volumeSupported", value: (devData?.permissionMap?.volumeControl == true), display: false, displayed: false)
-            }
-            if(isStateChange(device, "musicSupported", (devData?.permissionMap?.mediaPlayer == true)?.toString())) {
-                sendEvent(name: "musicSupported", value: (devData?.permissionMap?.mediaPlayer == true), display: false, displayed: false)
-            }
-            if(isStateChange(device, "ttsSupported", (devData?.permissionMap?.TTS == true)?.toString())) {
-                sendEvent(name: "ttsSupported", value: (devData?.permissionMap?.TTS == true), display: false, displayed: false)
-            }
-            if(isStateChange(device, "alarmSupported", (devData?.permissionMap?.alarms == true)?.toString())) {
-                sendEvent(name: "alarmSupported", value: (devData?.permissionMap?.alarms == true), display: false, displayed: false)
-            }
-            if(isStateChange(device, "reminderSupported", (devData?.permissionMap?.reminders == true)?.toString())) {
-                sendEvent(name: "reminderSupported", value: (devData?.permissionMap?.reminders == true), display: false, displayed: false)
+            List permissionList = permissions?.findAll { it?.value == true }?.collect { it?.key }
+            if(isStateChange(device, "permissions", permissionList?.toString())) {
+                sendEvent(name: "permissions", value: permissionList, display: false, displayed: false)
             }
             state?.authValid = (devData?.authValid == true)
             Map deviceStyle = devData?.deviceStyle
@@ -721,13 +708,13 @@ public schedDataRefresh(frc) {
 }
 
 private refreshData(full=false) {
-    logger("trace", "refreshData()...")
+    // logger("trace", "refreshData()...")
     if(device?.currentValue("onlineStatus") != "online") {
         logger("warn", "Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
         return
     }
     if(!isAuthOk()) {return}
-    logger("trace", "permissions: ${state?.permissions}")
+    // logger("trace", "permissions: ${state?.permissions}")
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
         getPlaylists()
@@ -737,6 +724,11 @@ private refreshData(full=false) {
         getDeviceSettings()
     }
     if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
+    getDeviceActivity()
+    runIn(3, "refreshStage2")
+}
+
+private refreshStage2() {
     if(state?.permissions?.wakeWord) {
         getWakeWord()
         getAvailableWakeWords()
@@ -746,7 +738,6 @@ private refreshData(full=false) {
         getNotifications()
     }
     // log.debug "bluetoothControl: ${state?.permissions?.bluetoothControl}"
-    getDeviceActivity()
     if(state?.permissions?.bluetoothControl) {
         getBluetoothDevices()
     }
@@ -795,7 +786,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
         log.debug "ignoring getPlaybackState because group is playing here"
         return
     }
-    logger("trace", "getPlaybackState: ${sData}")
+    // logger("trace", "getPlaybackState: ${sData}")
     String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
     String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
     // log.debug "deviceStatus: ${deviceStatus}"
@@ -876,7 +867,7 @@ def getAlarmVolumeHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getAlarmVolumeHandler")) {return}
     try {} catch (ex) { }
     def sData = response?.getJson() ?: null
-    logger("trace", "getAlarmVolume: $sData")
+    // logger("trace", "getAlarmVolume: $sData")
     if(isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
         log.trace "Alarm Volume Changed to ${(sData?.volumeLevel ?: 0)}"
         sendEvent(name: "alarmVolume", value: (sData?.volumeLevel ?: 0), display: false, displayed: false)
@@ -902,7 +893,7 @@ def getWakeWordHandler(response, data) {
     def sData = response?.getJson() ?: null
     // log.debug "sData: $sData"
     def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
-    logger("trace", "getWakeWord: ${wakeWord?.wakeWord}")
+    // logger("trace", "getWakeWord: ${wakeWord?.wakeWord}")
     if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
         log.trace "Wake Word Changed to ${(wakeWord?.wakeWord)}"
         sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
@@ -933,7 +924,7 @@ def getWifiDetailsHandler(response, data) {
     def sData = response?.json ? response?.getJson() : null
     // log.debug "sData: $sData"
     def wifiSsid = sData?.essid
-    logger("trace", "getWifiDetails: ${wifiSsid}")
+    // logger("trace", "getWifiDetails: ${wifiSsid}")
     if(isStateChange(device, "wifiNetwork", wifiSsid?.toString())) {
         log.trace "WiFi SSID Changed to ${(wifiSsid)}"
         sendEvent(name: "wifiNetwork", value: wifiSsid, display: false, displayed: false)
@@ -992,7 +983,7 @@ def getAvailableWakeWordsHandler(response, data) {
     try {} catch (ex) { }
     def sData = response?.getJson() ?: null
     def wakeWords = sData?.wakeWords ?: []
-    logger("trace", "getAvailableWakeWords: ${wakeWords}")
+    // logger("trace", "getAvailableWakeWords: ${wakeWords}")
     if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
         sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
     }
@@ -1002,7 +993,7 @@ def getBluetoothDevices() {
     Map btData = parent?.getBluetoothData(state?.serialNumber) ?: [:]
     String curConnName = btData?.curConnName ?: null
     Map btObjs = btData?.btObjs ?: [:]
-    logger("debug", "Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
+    // logger("debug", "Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
     List pairedNames = btData?.pairedNames ?: []
     // if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
@@ -1019,7 +1010,7 @@ def getBluetoothDevices() {
 private String getBtAddrByAddrOrName(String btNameOrAddr) {
     Map btObj = state?.bluetoothObjs
     String curBtAddr = btObj?.find { it?.value?.friendlyName == btNameOrAddr || it?.value?.address == btNameOrAddr }?.value?.address ?: null
-    logger("debug", "curBtAddr: ${curBtAddr}")
+    // logger("debug", "curBtAddr: ${curBtAddr}")
     return curBtAddr
 }
 
@@ -1055,7 +1046,7 @@ def getPlaylistsHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getPlaylistsHandler")) {return}
     try {} catch (ex) { }
     def sData = response?.getJson() ?: null
-    logger("trace", "getPlaylists: ${sData}")
+    // logger("trace", "getPlaylists: ${sData}")
     Map playlists = sData ? sData?.playlists : "{}"
     if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
         // log.trace "Alexa Playlists Changed to ${playlists}"
@@ -1199,7 +1190,9 @@ def amazonCommandResp(response, data) {
             triggerDataRrsh()
         } else if(data?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
         log.trace "amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!"
-    } else { logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}") }
+    } else {
+        // logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
+    }
 }
 
 private sendSequenceCommand(type, command, value) {
@@ -1222,7 +1215,7 @@ private sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=fals
         if(cmdItem?.command instanceof Map) {
             nodeList?.push(cmdItem?.command)
         } else { nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value)) }
-     }
+    }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     sendSequenceCommand("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}", seqJson, null)
 }
@@ -1241,7 +1234,7 @@ def play() {
         incrementCntByKey("use_cnt_playCmd")
         if(isStateChange(device, "status", "playing")) {
             sendEvent(name: "status", value: "playing", descriptionText: "Player Status is playing", display: true, displayed: true)
-            log.debug "deviceStatus: playing_${state?.deviceStyle?.image}"
+            // log.debug "deviceStatus: playing_${state?.deviceStyle?.image}"
             sendEvent(name: "deviceStatus", value: "playing_${state?.deviceStyle?.image}", display: false, displayed: false)
         }
         triggerDataRrsh()
@@ -1260,7 +1253,7 @@ def pause() {
         incrementCntByKey("use_cnt_pauseCmd")
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
-            log.debug "deviceStatus: stopped_${state?.deviceStyle?.image}"
+            // log.debug "deviceStatus: stopped_${state?.deviceStyle?.image}"
             sendEvent(name: "deviceStatus", value: "stopped_${state?.deviceStyle?.image}", display: false, displayed: false)
         }
         triggerDataRrsh()
@@ -1680,28 +1673,34 @@ def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
 }
 
 def playAnnouncement(String msg, volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playAnnouncement")
-    } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
-    incrementCntByKey("use_cnt_announcement")
+    if(isCommandTypeAllowed("announce")) {
+        if(volume != null) {
+            List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
+            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+            sendMultiSequenceCommand(seqs, "playAnnouncement")
+        } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
+        incrementCntByKey("use_cnt_announcement")
+    }
 }
 
 def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
-    msg = "${title ? "${title}::" : ""}${msg}"
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playAnnouncement")
-    } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
-    incrementCntByKey("use_cnt_announcement")
+    if(isCommandTypeAllowed("announce")) {
+        msg = "${title ? "${title}::" : ""}${msg}"
+        if(volume != null) {
+            List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
+            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+            sendMultiSequenceCommand(seqs, "playAnnouncement")
+        } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
+        incrementCntByKey("use_cnt_announcement")
+    }
 }
 
 def playAnnouncementAll(String msg, String title=null) {
-    msg = "${title ? "${title}::" : ""}${msg}"
-    doSequenceCmd("AnnouncementAll", "announcementall", msg)
-    incrementCntByKey("use_cnt_announcementAll")
+    // if(isCommandTypeAllowed("announce")) {
+        msg = "${title ? "${title}::" : ""}${msg}"
+        doSequenceCmd("AnnouncementAll", "announcementall", msg)
+        incrementCntByKey("use_cnt_announcementAll")
+    // }
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
@@ -2182,11 +2181,11 @@ private List msgSeqBuilder(String str) {
 }
 
 def sendTestAnnouncement() {
-    playAnnouncement("Test announcement from device")
+    playAnnouncement("Echo Speaks announcement test on ${device?.label?.replace("Echo - ", "")}")
 }
 
 def sendTestAnnouncementAll() {
-    playAnnouncementAll("Test announcement to all devices")
+    playAnnouncementAll("Echo Speaks Announcement Test on All devices")
 }
 
 Map seqItemsAvail() {
@@ -2199,7 +2198,7 @@ Map seqItemsAvail() {
             "dnd_duration":"2H30M", "dnd_time":"00:30",
             "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message"
+            "announcementall": "message", "pushnotification": "message", "email": null
         ],
         music: [
             "amazonmusic": "AMAZON_MUSIC", "applemusic": "APPLE_MUSIC", "iheartradio": "I_HEART_RADIO", "pandora": "PANDORA",
@@ -2215,7 +2214,7 @@ Map seqItemsAvail() {
 def executeSequenceCommand(String seqStr) {
     if(seqStr) {
         List seqList = seqStr?.split(",,")
-        log.debug "seqList: ${seqList}"
+        // log.debug "seqList: ${seqList}"
         List seqItems = []
         if(seqList?.size()) {
             seqList?.each {
@@ -2223,8 +2222,8 @@ def executeSequenceCommand(String seqStr) {
                 // log.debug "li: $li"
                 if(li?.size()) {
                     String cmd = li[0]?.trim()?.toString()?.toLowerCase() as String
-                    Boolean isValidCmd = (seqItemsAvail()?.other?.containsKey(cmd) || (seqItemsAvail()?.music?.containsKey(cmd)))
-                    Boolean isMusicCmd = (seqItemsAvail()?.music?.containsKey(cmd) && !seqItemsAvail()?.other?.containsKey(cmd))
+                    Boolean isValidCmd = (seqItemsAvail()?.other?.containsKey(cmd) || (seqItemsAvail()?.music?.containsKey(cmd)) || (seqItemsAvail()?.dnd?.containsKey(cmd)))
+                    Boolean isMusicCmd = (seqItemsAvail()?.music?.containsKey(cmd) && !seqItemsAvail()?.other?.containsKey(cmd) && !seqItemsAvail()?.dnd?.containsKey(cmd))
                     // log.debug "cmd: $cmd | isValidCmd: $isValidCmd | isMusicCmd: $isMusicCmd"
 
                     if(!isValidCmd) { log.warn "executeSequenceCommand command ($cmd) is not a valid sequence command!!!"; return; }
@@ -2758,25 +2757,23 @@ Map createSequenceNode(command, value) {
                 break
             case "dnd_duration":
             case "dnd_time":
-                remDevSpecifics = true
-                seqNode?.type = "Alexa.DeviceControls.DoNotDisturb"
-                seqNode?.operationPayload?.devices = [ [deviceAccountId: state?.deviceAccountId, deviceType: state?.deviceType, deviceSerialNumber: state?.serialNumber] ]
-                seqNode?.operationPayload?.action = "Enable"
-                if(command == "dnd_time") {
-                    seqNode?.operationPayload?.until = "TIME#T${value}"
-                } else { seqNode?.operationPayload?.duration = "DURATION#PT${value}" }
-                seqNode?.operationPayload?.timeZoneId = "America/New_York" //location?.timeZone?.ID ?: null
-                break
             case "dnd_all_duration":
             case "dnd_all_time":
                 remDevSpecifics = true
                 seqNode?.type = "Alexa.DeviceControls.DoNotDisturb"
-                seqNode?.operationPayload?.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
+                seqNode?.skillId = "amzn1.ask.1p.alexadevicecontrols"
+                seqNode?.operationPayload?.customerId = state?.deviceOwnerCustomerId
+                if(command == "dnd_all_time" || command == "dnd_all_duration") {
+                    seqNode?.operationPayload?.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
+                }
+                if(command == "dnd_time" || command == "dnd_duration") {
+                    seqNode?.operationPayload?.devices = [ [deviceAccountId: state?.deviceAccountId, deviceType: state?.deviceType, deviceSerialNumber: state?.serialNumber] ]
+                }
                 seqNode?.operationPayload?.action = "Enable"
-                if(command == "dnd_all_time") {
+                if(command == "dnd_time" || command == "dnd_all_time") {
                     seqNode?.operationPayload?.until = "TIME#T${value}"
-                } else { seqNode?.operationPayload?.duration = "DURATION#PT${value}" }
-                seqNode?.operationPayload?.timeZoneId = "America/New_York" //location?.timeZone?.ID ?: null
+                } else if (command == "dnd_duration" || command == "dnd_all_duration") { seqNode?.operationPayload?.duration = "DURATION#PT${value}" }
+                seqNode?.operationPayload?.timeZoneId = "America/Detroit" //location?.timeZone?.ID ?: null
                 break
             case "speak":
                 seqNode?.type = "Alexa.Speak"
@@ -2800,6 +2797,14 @@ Map createSequenceNode(command, value) {
                 seqNode?.operationPayload?.alexaUrl = "#v2/behaviors"
                 seqNode?.operationPayload?.title = "Amazon Alexa"
                 break
+            case "email":
+                seqNode?.type = "Alexa.Operation.SkillConnections.Email.EmailSummary"
+                seqNode?.skillId = "amzn1.ask.1p.email"
+                seqNode?.operationPayload?.targetDevice = [deviceType: state?.deviceType, deviceSerialNumber: state?.serialNumber ]
+                seqNode?.operationPayload?.connectionRequest = [uri: "connection://AMAZON.Read.EmailSummary/amzn1.alexa-speechlet-client.DOMAIN:ALEXA_CONNECT", input: [:] ]
+                seqNode?.operationPayload?.remove('deviceType')
+                seqNode?.operationPayload?.remove('deviceSerialNumber')
+                break
             default:
                 return null
         }
@@ -2808,7 +2813,6 @@ Map createSequenceNode(command, value) {
             seqNode?.operationPayload?.remove('deviceSerialNumber')
             seqNode?.operationPayload?.remove('locale')
         }
-        // log.debug "seqNode: $seqNode"
         return seqNode
     } catch (ex) {
         log.error "createSequenceNode Exception: $ex"
