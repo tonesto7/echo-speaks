@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.6.0" }
-String appModified() { return "2019-07-09" }
+String appModified() { return "2019-07-10" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -52,6 +52,7 @@ preferences {
     page(name: "musicSearchTestPage")
     page(name: "searchTuneInResultsPage")
     page(name: "deviceTestPage")
+    page(name: "donationPage")
     page(name: "speechPage")
     page(name: "broadcastPage")
     page(name: "announcePage")
@@ -67,9 +68,10 @@ def startPage() {
     if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) {
         log.debug "resumeConfig: true"
         return servPrefPage()
-    } else if(showChgLogOk()) {
-        return changeLogPage()
-    } else { return mainPage() }
+    }
+    else if(showChgLogOk()) { return changeLogPage() }
+    else if(showDonationOk()) { return donationPage() }
+    else { return mainPage() }
 }
 
 def appInfoSect()	{
@@ -692,7 +694,7 @@ def sequencePage() {
 
 Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     def random = new Random()
-	Integer randomInt = random?.nextInt(5) //Was using 7
+    Integer randomInt = random?.nextInt(5) //Was using 7
     if(!msgLen) { return 30 }
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
     // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
@@ -868,22 +870,31 @@ private getChildDeviceBySerial(String serial) {
 
 private getChildDeviceByCap(String cap) {
     def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
-    childDevs?.each { dev->
-        def perms = dev?.currentValue('permissions')
-        if(perms) {
-            if(perms?.toList()?.contains(cap)) {
-                return dev
-            }
+    return childDevs?.find { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) } ?: null
+}
+
+def donationPage() {
+    return dynamicPage(name: "donationPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
+        section("") {
+            def str = ""
+            str += "Hello User, \n\nPlease forgive the interuption but it's been 30 days since you installed/updated this SmartApp and I wanted to present you with this one time reminder that donations are accepted (We do not require them)."
+            str += "\n\nIf you have been enjoying the software and devices please remember that we have spent thousand's of hours of our spare time working on features and stability for those applications and devices."
+            str += "\n\nIf you have already donated, thank you very much for your support!"
+            str += "\n\nIf you are just not interested in donating please ignore this message"
+
+            str += "\n\nThanks again for using Echo Speaks"
+            paragraph str, required: true, state: null
+            href url: textDonateLink(), style: "external", required: false, title: "Donations", description: "Tap to open in browser", state: "complete", image: getAppImg("donate")
         }
-        // log.debug "perms: ${perms}"
+        def iData = atomicState?.installData
+        iData["shownDonation"] = true
+        atomicState?.installData = iData
     }
-    return null
-    // return childDevs?.find { it?.currentValue("permissions") && it?.currentValue("permissions")?.toList()?.contains(cap) } ?: null
 }
 
 def installed() {
     log.debug "Installed with settings: ${settings}"
-    state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: "Not Set", sentMetrics: false, shownChgLog: true]
+    state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: "Not Set", showDonation: false, sentMetrics: false, shownChgLog: true]
     state?.isInstalled = true
     sendInstallData()
     initialize()
@@ -892,7 +903,7 @@ def installed() {
 def updated() {
     log.debug "Updated with settings: ${settings}"
     if(!state?.isInstalled) { state?.isInstalled = true }
-    if(!state?.installData) { state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: getDtNow().toString(), sentMetrics: false] }
+    if(!state?.installData) { state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: getDtNow().toString(), shownDonation: false, sentMetrics: false] }
     unschedule()
     initialize()
 }
@@ -952,8 +963,8 @@ void settingUpdate(name, value, type=null) {
 }
 
 void settingRemove(String name) {
-	logger("trace", "settingRemove($name)...")
-	if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
+    logger("trace", "settingRemove($name)...")
+    if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
 }
 
 mappings {
@@ -1004,6 +1015,9 @@ private checkIfCodeUpdated() {
         Map iData = atomicState?.installData ?: [:]
         iData["updatedDt"] = getDtNow().toString()
         iData["shownChgLog"] = false
+        if(iData?.shownDonation == null) {
+            iData["shownDonation"] = false
+        }
         atomicState?.installData = iData
         runIn(5, "postCodeUpdated", [overwrite: false])
         return true
@@ -1154,7 +1168,7 @@ private validateCookie(frc=false) {
 }
 
 String toQueryString(Map m) {
-	return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort().join("&")
+    return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort().join("&")
 }
 
 String getServerHostURL() {
@@ -1940,7 +1954,7 @@ Boolean quietTimeOk() {
         else if(settings?.qStopInput == "A specific time" && settings?.qStopTime) { stopTime = settings?.qStopTime }
     } else { return true }
     if(strtTime && stopTime) {
-        log.debug "quietTimeOk | Start: ${strtTime} | Stop: ${stopTime}"
+        // log.debug "quietTimeOk | Start: ${strtTime} | Stop: ${stopTime}"
         if(!isST()) {
             strtTime = toDateTime(strtTime)
             stopTime = toDateTime(stopTime)
@@ -2046,6 +2060,35 @@ private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||
 /******************************************
 |       Changelog Logic
 ******************************************/
+Boolean showDonationOk() { return (!atomicState?.installData?.shownDonation && getDaysSinceUpdated() >= 30) ? true : false }
+Integer getDaysSinceInstall() {
+	def instDt = atomicState?.installData?.dt
+	if(instDt == null || instDt == "Not Set") {
+		def iData = atomicState?.installData
+		iData["dt"] = getDtNow().toString()
+		atomicState?.installData = iData
+		return 0
+	}
+	def start = Date.parse("E MMM dd HH:mm:ss z yyyy", instDt)
+	def stop = new Date()
+	if(start && stop) { return (stop - start) }
+	return 0
+}
+
+Integer getDaysSinceUpdated() {
+	def updDt = atomicState?.installData?.updatedDt
+	if(updDt == null || updDt == "Not Set") {
+		def iData = atomicState?.installData
+		iData["updatedDt"] = getDtNow().toString()
+		atomicState?.installData = iData
+		return 0
+	}
+	def start = Date.parse("E MMM dd HH:mm:ss z yyyy", updDt)
+	def stop = new Date()
+	if(start && stop) {	return (stop - start) }
+	return 0
+}
+
 String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
 Boolean showChgLogOk() { return (state?.isInstalled && state?.installData?.shownChgLog != true) }
 def changeLogPage() {
@@ -2590,19 +2633,19 @@ def renderConfig() {
 }
 
 String getObjType(obj) {
-	if(obj instanceof String) {return "String"}
-	else if(obj instanceof GString) {return "GString"}
-	else if(obj instanceof Map) {return "Map"}
-	else if(obj instanceof List) {return "List"}
-	else if(obj instanceof ArrayList) {return "ArrayList"}
-	else if(obj instanceof Integer) {return "Integer"}
-	else if(obj instanceof BigInteger) {return "BigInteger"}
-	else if(obj instanceof Long) {return "Long"}
-	else if(obj instanceof Boolean) {return "Boolean"}
-	else if(obj instanceof BigDecimal) {return "BigDecimal"}
-	else if(obj instanceof Float) {return "Float"}
-	else if(obj instanceof Byte) {return "Byte"}
-	else { return "unknown"}
+    if(obj instanceof String) {return "String"}
+    else if(obj instanceof GString) {return "GString"}
+    else if(obj instanceof Map) {return "Map"}
+    else if(obj instanceof List) {return "List"}
+    else if(obj instanceof ArrayList) {return "ArrayList"}
+    else if(obj instanceof Integer) {return "Integer"}
+    else if(obj instanceof BigInteger) {return "BigInteger"}
+    else if(obj instanceof Long) {return "Long"}
+    else if(obj instanceof Boolean) {return "Boolean"}
+    else if(obj instanceof BigDecimal) {return "BigDecimal"}
+    else if(obj instanceof Float) {return "Float"}
+    else if(obj instanceof Byte) {return "Byte"}
+    else { return "unknown"}
 }
 
 private Map amazonDomainOpts() {
