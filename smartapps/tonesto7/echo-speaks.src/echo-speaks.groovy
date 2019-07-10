@@ -749,13 +749,11 @@ private executeAnnouncement() {
     String testMsg = settings?.announceMessage
     List selectedDevs = settings?.announceDevices
     if(settings?.announceAllDevices) {
-        selectedDevs?.each { devSerial->
-            def childDev = getChildDeviceByCap("announce")
-            if(childDev && childDev?.hasCommand('playAnnouncementAll')) {
-                childDev?.playAnnouncementAll(testMsg)
-            } else {
-                log.error "Announcement Test All | A Device with was not found that supports announcements!!!"
-            }
+        def childDev = getChildDeviceByCap("announce")
+        if(childDev && childDev?.hasCommand('playAnnouncementAll')) {
+            childDev?.playAnnouncementAll(testMsg)
+        } else {
+            log.error "Announcement Test All | A Device with was not found that supports announcements!!!"
         }
     } else {
         Map eDevs = state?.echoDeviceMap
@@ -870,7 +868,17 @@ private getChildDeviceBySerial(String serial) {
 
 private getChildDeviceByCap(String cap) {
     def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
-    return childDevs?.find { it?.currentValue('permissions') && it?.currentValue("permissions")?.toList()?.contains(cap) } ?: null
+    childDevs?.each { dev->
+        def perms = dev?.currentValue('permissions')
+        if(perms) {
+            if(perms?.toList()?.contains(cap)) {
+                return dev
+            }
+        }
+        // log.debug "perms: ${perms}"
+    }
+    return null
+    // return childDevs?.find { it?.currentValue("permissions") && it?.currentValue("permissions")?.toList()?.contains(cap) } ?: null
 }
 
 def installed() {
