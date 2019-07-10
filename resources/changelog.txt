@@ -10,6 +10,7 @@ Device:
  • ADDED: New attribute 'permissions' to list features available.
  • UPDATED: Made adjustments to help eliminate timeouts.
  • ADDED: Sequence command added 'email' to read your email (Only non passcode protected email)
+ • Other stuff i'm not remembering
 
 V2.5.1 (June 27th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
