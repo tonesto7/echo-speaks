@@ -178,6 +178,7 @@ def mainPage() {
                 state?.resumeConfig = true
             }
         }
+        getGuardEntityId()
     }
 }
 
@@ -1437,6 +1438,64 @@ def executeRoutineById(String routineId) {
         return false
     }
 }
+
+def getGuardEntityId() {
+    if(!isAuthValid("getGuardEntityId")) { return }
+    def params = [
+        uri: getAmazonUrl(),
+        path: "/api/phoenix",
+        query: [ cached: true, _: new Date().getTime() ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json",
+    ]
+    execAsyncCmd("get", "getGuardEntityIdResponse", params, [execDt: now()])
+    // makeSyncronousReq(params, "get", "getRoutinesHandler") ?: [:]
+}
+
+def getGuardEntityIdResponse(response, data) {
+    def resp = response?.json
+    def jsonSlurper = new JsonSlurper()
+    if(resp) {
+        def details = jsonSlurper.parseText(resp?.networkDetail as String)
+        def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
+        if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
+            def guardKey = locDetails?.applianceDetails?.applianceDetails?.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+            def guardData = locDetails?.applianceDetails?.applianceDetails[guardKey?.key]
+            // log.debug "Guard: ${guardData}"
+            if(guardData?.entityId) {
+                state?.guardEntityId = guardData?.entityId
+                state?.guardApplianceId = guardData?.applianceId
+                getGuardState()
+            }
+        }
+    } else {
+        log.error "getGuardEntityIdResponse Error | No data received..."
+    }
+}
+
+def getGuardState() {
+    if(!isAuthValid("getGuardState")) { return }
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/phoenix/state",
+        query: [ cached: true, _: new Date().getTime() ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json",
+        body: [
+            stateRequests: [
+                [
+                    entityId: state?.applianceId,
+                    entityType: "APPLIANCE"
+                ]
+            ]
+        ]
+    ]
+    def resp = makeSyncronousReq(params, "post", "getGuardState") ?: [:]
+    log.debug "guardState resp: ${resp}"
+}
+
 
 Map isFamilyAllowed(String family) {
     Map famMap = getDeviceFamilyMap()
