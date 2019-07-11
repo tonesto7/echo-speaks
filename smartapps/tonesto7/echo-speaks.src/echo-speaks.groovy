@@ -1370,6 +1370,7 @@ private getMusicProviders() {
 private getOtherData() {
     getBluetoothDevices()
     getDoNotDisturb()
+    checkGuardSupport()
 }
 
 private getBluetoothDevices() {
@@ -1473,7 +1474,6 @@ def checkGuardSupport() {
         contentType: "application/json",
     ]
     execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
-    // makeSyncronousReq(params, "get", "getRoutinesHandler") ?: [:]
 }
 
 def checkGuardSupportResponse(response, data) {
@@ -1494,18 +1494,14 @@ def checkGuardSupportResponse(response, data) {
                     friendlyName: guardData?.friendlyName,
                 ]
                 guardSupported = true
-            } else {
-                log.error "checkGuardSupportResponse Error | No data received..."
-            }
+            } else { log.error "checkGuardSupportResponse Error | No data received..." }
         }
-    } else {
-        log.error "checkGuardSupportResponse Error | No data received..."
-    }
+    } else { log.error "checkGuardSupportResponse Error | No data received..." }
     state?.alexaGuardSupported = guardSupported
     if(guardSupported) getGuardState()
 }
 
-def getGuardState() {
+private getGuardState() {
     if(!isAuthValid("getGuardState")) { return }
     if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return }
     Map params = [
@@ -1534,7 +1530,7 @@ def getGuardState() {
     // log.debug "guardState resp: ${resp}"
 }
 
-def setGuardState(guardState) {
+private setGuardState(guardState) {
     if(!isAuthValid("setGuardState")) { return }
     if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return }
     guardState = guardStateConv(guardState)
@@ -1572,6 +1568,10 @@ def setGuardStateResponse(response, data) {
         log.info "Alexa Guard set to (${data?.requestedState}) Successfully!!!"
         state?.alexaGuardState = data?.requestedState
     } else { log.error "Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}" }
+}
+
+String getAlexaGuardStatus() {
+    return state?.alexaGuardState ?: null
 }
 
 Map isFamilyAllowed(String family) {
@@ -1727,7 +1727,8 @@ def receiveEventData(Map evtData, String src) {
                     permissions["followUpMode"] = (echoValue?.capabilities?.contains("GOLDFISH"))
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     permissions["bluetoothControl"] = (echoValue?.capabilities.contains("PAIR_BT_SOURCE") || echoValue?.capabilities.contains("PAIR_BT_SINK"))
-                    permissions["alexaGuardSupport"] = (echoValue?.capabilities?.contains("TUPLE"))
+                    permissions["guardSupported"] = (echoValue?.capabilities?.contains("TUPLE"))
+                    // echoValue["guardStatus"] = (state?.alexaGuardSupported && state?.alexaGuardState) ? state?.alexaGuardState as String : (permissions?.guardSupported ? "Unknown" : "Not Supported")
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false

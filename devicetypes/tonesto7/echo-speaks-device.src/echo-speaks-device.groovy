@@ -37,6 +37,7 @@ metadata {
         attribute "alexaMusicProviders", "JSON_OBJECT"
         attribute "alexaNotifications", "JSON_OBJECT"
         attribute "alexaPlaylists", "JSON_OBJECT"
+        attribute "alexaGuardStatus", "string"
         attribute "alexaWakeWord", "string"
         attribute "btDeviceConnected", "string"
         attribute "btDevicesPaired", "string"
@@ -658,6 +659,7 @@ void updateDeviceStatus(Map devData) {
                 // log.trace "Alexa Music Providers Changed to ${musicProviders}"
                 sendEvent(name: "alexaMusicProviders", value: musicProviders?.toString(), display: false, displayed: false)
             }
+            // if(devData?.guardStatus) { updGuardStatus(devData?.guardStatus) }
             if(isOnline) {
                 refreshData(true)
             } else {
@@ -738,9 +740,11 @@ private refreshStage2() {
         getNotifications()
     }
     // log.debug "bluetoothControl: ${state?.permissions?.bluetoothControl}"
+
     if(state?.permissions?.bluetoothControl) {
         getBluetoothDevices()
     }
+    updGuardStatus()
 }
 
 public setOnlineStatus(Boolean isOnline) {
@@ -1004,6 +1008,14 @@ def getBluetoothDevices() {
     if(!(device.currentValue("btDevicesPaired")?.toString()?.equals(pairedNames?.toString()))) {
         log.info "Paired Bluetooth Devices: ${pairedNames}"
         sendEvent(name: "btDevicesPaired", value: pairedNames?.toString(), descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
+    }
+}
+
+def updGuardStatus(val=null) {
+    String gState = val ?: (state?.permissions?.guardSupported ? (parent?.getAlexaGuardStatus() ?: "Unknown") : "Not Supported")
+    if(isStateChange(device, "alexaGuardStatus", gState?.toString())) {
+        sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)
+        log.info "Alexa Guard Status: (${gState})"
     }
 }
 
