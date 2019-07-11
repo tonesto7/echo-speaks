@@ -2061,32 +2061,20 @@ private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||
 |       Changelog Logic
 ******************************************/
 Boolean showDonationOk() { return (!atomicState?.installData?.shownDonation && getDaysSinceUpdated() >= 30) ? true : false }
-Integer getDaysSinceInstall() {
-	def instDt = atomicState?.installData?.dt
-	if(instDt == null || instDt == "Not Set") {
-		def iData = atomicState?.installData
-		iData["dt"] = getDtNow().toString()
-		atomicState?.installData = iData
-		return 0
-	}
-	def start = Date.parse("E MMM dd HH:mm:ss z yyyy", instDt)
-	def stop = new Date()
-	if(start && stop) { return (stop - start) }
-	return 0
-}
 
 Integer getDaysSinceUpdated() {
-	def updDt = atomicState?.installData?.updatedDt
+	def updDt = atomicState?.installData?.updatedDt ?: null
 	if(updDt == null || updDt == "Not Set") {
 		def iData = atomicState?.installData
 		iData["updatedDt"] = getDtNow().toString()
 		atomicState?.installData = iData
 		return 0
-	}
-	def start = Date.parse("E MMM dd HH:mm:ss z yyyy", updDt)
-	def stop = new Date()
-	if(start && stop) {	return (stop - start) }
-	return 0
+	} else {
+        def start = Date.parse("E MMM dd HH:mm:ss z yyyy", updDt)
+        def stop = new Date()
+        if(start && stop) {	return (stop - start) }
+        return 0
+    }
 }
 
 String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
