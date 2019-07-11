@@ -20,7 +20,7 @@ String appModified() { return "2019-07-11" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 270, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 270, actionApp: 270, groupApp, server: 222] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -135,17 +135,17 @@ def mainPage() {
                 href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
             }
 
-            // def t1 = getGroupsDesc()
-            // def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
-            // section(sTS("Manage Groups:")) {
-            //     href "groupsPage", title: inTS("Broadcast Groups", getAppImg("es_groups", true)), description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
-            // }
+            def t1 = getGroupsDesc()
+            def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
+            section(sTS("Manage Groups:")) {
+                href "groupsPage", title: inTS("Broadcast Groups", getAppImg("es_groups", true)), description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
+            }
 
-            // def t2 = getActionsDesc()
-            // def actDesc = t2 ? "${t2}\n\nTap to modify" : null
-            // section(sTS("Manage Actions:")) {
-            //     href "actionsPage", title: inTS("Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
-            // }
+            def t2 = getActionsDesc()
+            def actDesc = t2 ? "${t2}\n\nTap to modify" : null
+            section(sTS("Manage Actions:")) {
+                href "actionsPage", title: inTS("Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
+            }
             state?.childInstallOkFlag = true
             section(sTS("Alexa Guard:")) {
                 if(state?.alexaGuardSupported) {
@@ -1480,7 +1480,7 @@ def checkGuardSupportResponse(response, data) {
     def resp = response?.json
     def jsonSlurper = new JsonSlurper()
     Boolean guardSupported = false
-    if(resp) {
+    if(resp && resp?.networkDetail) {
         def details = jsonSlurper.parseText(resp?.networkDetail as String)
         def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
         if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
@@ -2033,8 +2033,8 @@ private missPollNotify(Boolean on, Integer wait) {
 private appUpdateNotify() {
     Boolean on = (settings?.sendAppUpdateMsg != false)
     Boolean appUpd = isAppUpdateAvail()
-    Boolean actUpd = false//isActionAppUpdateAvail()
-    Boolean grpUpd = false//isGroupAppUpdateAvail()
+    Boolean actUpd = isActionAppUpdateAvail()
+    Boolean grpUpd = isGroupAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
     logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | grpUpd: (${grpUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
