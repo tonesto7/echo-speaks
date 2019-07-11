@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.6.0" }
-String appModified() { return "2019-07-10" }
+String appVersion()	 { return "2.7.0" }
+String appModified() { return "2019-07-11" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 260, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 270, server: 222] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -48,6 +48,7 @@ preferences {
     page(name: "unrecogDevicesPage")
     page(name: "changeLogPage")
     page(name: "notifPrefPage")
+    page(name: "alexaGuardPage")
     page(name: "servPrefPage")
     page(name: "musicSearchTestPage")
     page(name: "searchTuneInResultsPage")
@@ -69,6 +70,7 @@ def startPage() {
         log.debug "resumeConfig: true"
         return servPrefPage()
     }
+    if(!state?.resumeConfig && state?.isInstalled) { checkGuardSupport() }
     else if(showChgLogOk()) { return changeLogPage() }
     else if(showDonationOk()) { return donationPage() }
     else { return mainPage() }
@@ -145,6 +147,13 @@ def mainPage() {
             //     href "actionsPage", title: inTS("Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
             // }
             state?.childInstallOkFlag = true
+            section(sTS("Alexa Guard:")) {
+                if(state?.alexaGuardSupported) {
+                    String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
+                    String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_home" : "alarm_away")
+                    href "alexaGuardPage", title: inTS("Alexa Guard Control", getPublicImg(gStateIcon, true)), description: "Current Status: ${gState}\n\nTap to proceed...", image: getPublicImg(gStateIcon)
+                } else { paragraph "Alexa Guard is not enabled or supported by any of your Echo Devices" }
+            }
 
             section(sTS("Experimental Functions:")) {
                 href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
@@ -178,7 +187,21 @@ def mainPage() {
                 state?.resumeConfig = true
             }
         }
-        getGuardEntityId()
+    }
+}
+
+def alexaGuardPage() {
+    return dynamicPage(name: "alexaGuardPage", uninstall: false, install: false) {
+        String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
+        String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_home" : "alarm_away")
+        String gStateTitle = (gState == "Unknown" || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
+        section("Alexa Guard Control") {
+            input "alexaGuardAwayToggle", "bool", title: inTS(gStateTitle, getPublicImg(gStateIcon, true)), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getPublicImg(gStateIcon)
+        }
+        if(settings?.alexaGuardAwayToggle != state?.alexaGuardAwayToggle) {
+            setGuardState(settings?.alexaGuardAwayToggle == true ? "ARMED_AWAY" : "ARMED_STAY")
+        }
+        state?.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
     }
 }
 
@@ -1439,8 +1462,8 @@ def executeRoutineById(String routineId) {
     }
 }
 
-def getGuardEntityId() {
-    if(!isAuthValid("getGuardEntityId")) { return }
+def checkGuardSupport() {
+    if(!isAuthValid("checkGuardSupport")) { return }
     def params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix",
@@ -1449,13 +1472,14 @@ def getGuardEntityId() {
         requestContentType: "application/json",
         contentType: "application/json",
     ]
-    execAsyncCmd("get", "getGuardEntityIdResponse", params, [execDt: now()])
+    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
     // makeSyncronousReq(params, "get", "getRoutinesHandler") ?: [:]
 }
 
-def getGuardEntityIdResponse(response, data) {
+def checkGuardSupportResponse(response, data) {
     def resp = response?.json
     def jsonSlurper = new JsonSlurper()
+    Boolean guardSupported = false
     if(resp) {
         def details = jsonSlurper.parseText(resp?.networkDetail as String)
         def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
@@ -1463,39 +1487,92 @@ def getGuardEntityIdResponse(response, data) {
             def guardKey = locDetails?.applianceDetails?.applianceDetails?.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
             def guardData = locDetails?.applianceDetails?.applianceDetails[guardKey?.key]
             // log.debug "Guard: ${guardData}"
-            if(guardData?.entityId) {
-                state?.guardEntityId = guardData?.entityId
-                state?.guardApplianceId = guardData?.applianceId
-                getGuardState()
+            if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
+                state?.guardData = [
+                    entityId: guardData?.entityId,
+                    applianceId: guardData?.applianceId,
+                    friendlyName: guardData?.friendlyName,
+                ]
+                guardSupported = true
+            } else {
+                log.error "checkGuardSupportResponse Error | No data received..."
             }
         }
     } else {
-        log.error "getGuardEntityIdResponse Error | No data received..."
+        log.error "checkGuardSupportResponse Error | No data received..."
     }
+    state?.alexaGuardSupported = guardSupported
+    if(guardSupported) getGuardState()
 }
 
 def getGuardState() {
     if(!isAuthValid("getGuardState")) { return }
+    if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
-        query: [ cached: true, _: new Date().getTime() ],
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
         body: [
             stateRequests: [
                 [
-                    entityId: state?.applianceId,
+                    entityId: state?.guardData?.applianceId,
                     entityType: "APPLIANCE"
                 ]
             ]
         ]
     ]
     def resp = makeSyncronousReq(params, "post", "getGuardState") ?: [:]
-    log.debug "guardState resp: ${resp}"
+    if(resp && resp?.deviceStates && resp?.deviceStates[0] && resp?.deviceStates[0]?.capabilityStates) {
+        def jsonSlurper = new JsonSlurper()
+        def guardStateData = jsonSlurper.parseText(resp?.deviceStates[0]?.capabilityStates)
+        state?.alexaGuardState = guardStateData?.value
+        settingUpdate("alexaGuardAwayToggle", (state?.alexaGuardState == "ARMED_AWAY" ? "true" : "false"), "bool")
+        log.debug "Alexa Guard State: (${state?.alexaGuardState})"
+    }
+    // log.debug "guardState resp: ${resp}"
 }
 
+def setGuardState(guardState) {
+    if(!isAuthValid("setGuardState")) { return }
+    if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return }
+    guardState = guardStateConv(guardState)
+    log.trace "setAlexaGuard($guardState)"
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/phoenix/state",
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json",
+        body: [ controlRequests: [ [ entityId: state?.guardData?.applianceId, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ]
+    ]
+    execAsyncCmd("put", "setGuardStateResponse", params, [execDt: now(), requestedState: guardState ])
+}
+
+private guardStateConv(gState) {
+    switch(gState) {
+        case "disarm":
+        case "stay":
+        case "home":
+        case "ARMED_STAY":
+            return "ARMED_STAY"
+        case "away":
+        case "ARMED_AWAY":
+            return "ARMED_AWAY"
+        default:
+            return "ARMED_STAY"
+    }
+}
+
+def setGuardStateResponse(response, data) {
+    def resp = response?.json
+    // log.debug "resp: ${resp}"
+    if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
+        log.info "Alexa Guard set to (${data?.requestedState}) Successfully!!!"
+        state?.alexaGuardState = data?.requestedState
+    } else { log.error "Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}" }
+}
 
 Map isFamilyAllowed(String family) {
     Map famMap = getDeviceFamilyMap()
@@ -2087,8 +2164,8 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     return sent
 }
 
-String getAppImg(String imgName, frc=false) { return (frc || state?.hubPlatform == "SmartThings") ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
-String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
+String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getPublicImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
 String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>""" }
 String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>""" }
 String pTS(String t, String i = null) { return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>""" }
