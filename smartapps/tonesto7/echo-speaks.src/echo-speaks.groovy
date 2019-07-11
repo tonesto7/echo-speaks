@@ -20,7 +20,7 @@ String appModified() { return "2019-07-11" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 270, actionApp: 270, groupApp, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 270, actionApp: 270, groupApp: 270, server: 222] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -49,6 +49,7 @@ preferences {
     page(name: "changeLogPage")
     page(name: "notifPrefPage")
     page(name: "alexaGuardPage")
+    page(name: "alexaGuardAutoPage")
     page(name: "servPrefPage")
     page(name: "musicSearchTestPage")
     page(name: "searchTuneInResultsPage")
@@ -66,11 +67,11 @@ def startPage() {
     state?.isParent = true
     checkVersionData(true)
     state?.childInstallOkFlag = false
+    if(!state?.resumeConfig && state?.isInstalled) { checkGuardSupport() }
     if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) {
         log.debug "resumeConfig: true"
         return servPrefPage()
     }
-    if(!state?.resumeConfig && state?.isInstalled) { checkGuardSupport() }
     else if(showChgLogOk()) { return changeLogPage() }
     else if(showDonationOk()) { return donationPage() }
     else { return mainPage() }
@@ -151,7 +152,8 @@ def mainPage() {
                 if(state?.alexaGuardSupported) {
                     String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_home" : "alarm_away")
-                    href "alexaGuardPage", title: inTS("Alexa Guard Control", getPublicImg(gStateIcon, true)), description: "Current Status: ${gState}\n\nTap to proceed...", image: getPublicImg(gStateIcon)
+                    href "alexaGuardPage", title: inTS("Alexa Guard Control", getPublicImg(gStateIcon, true)), image: getPublicImg(gStateIcon), state: guardAutoConfigured() ? "complete" : null,
+                            description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : ""}\n\nTap to proceed..."
                 } else { paragraph "Alexa Guard is not enabled or supported by any of your Echo Devices" }
             }
 
@@ -202,8 +204,84 @@ def alexaGuardPage() {
             setGuardState(settings?.alexaGuardAwayToggle == true ? "ARMED_AWAY" : "ARMED_STAY")
         }
         state?.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
+        section("Automate Guard Control") {
+            href "alexaGuardAutoPage", title: inTS("Automate Guard Changes", getPublicImg("es5_security", true)), description: guardAutoDesc(), image: getPublicImg("es5_security"), state: (guardAutoDesc() =="Tap to configure..." ? null : "complete")
+        }
     }
 }
+
+def alexaGuardAutoPage() {
+    return dynamicPage(name: "alexaGuardAutoPage", uninstall: false, install: false) {
+        section("Alexa Guard Using Modes") {
+            input "guardHomeModes", "mode", title: inTS("Home in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardAwayModes), submitOnChange: true, image: getPublicImg("mode")
+            input "guardAwayModes", "mode", title: inTS("Away in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardHomeModes), submitOnChange: true, image: getPublicImg("mode")
+        }
+        section("Alexa Guard Using Presence") {
+            input "guardAwayPresence", "capability.presenceSensor", title: "Away when all of these Sensors are away", description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("presence")
+        }
+        if(guardAutoConfigured()) {
+            section("Delay:") {
+                input "guardAwayDelay", "number", title: "Delay before setting Away", description: "Enter number in seconds", required: false, defaultValue: 10, submitOnChange: true, image: getPublicImg("delay")
+            }
+        }
+        section("Restrict Guard Changes (Optional):") {
+            input "guardRestrictOnSwitch", "capability.switch", title: "Only when these switch(es) are On", description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("switch")
+            input "guardRestrictOffSwitch", "capability.switch", title: "Only when these switch(es) are Off", description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("switch")
+        }
+    }
+}
+
+Boolean guardAutoConfigured() {
+    return ((settings?.guardAwayModes && settings?.guardHomeModes) || settings?.guardAwayPresence)
+}
+
+String guardAutoDesc() {
+    String str = ""
+    if(guardAutoConfigured()) {
+        str += "Guard Triggers:"
+        str += settings?.guardHomeModes ? bulletItem(str, "Home Modes: (${settings?.guardHomeModes?.size()})\n") : ""
+        str += settings?.guardAwayModes ? bulletItem(str, "Away Modes: (${settings?.guardAwayModes?.size()})\n") : ""
+        str += settings?.guardAwayPresence ? bulletItem(str, "Presence Home: (${settings?.guardAwayPresence?.size()})") : ""
+    }
+    return str == "" ? "Tap to configure..." : "${str}\n\nTap to configure..."
+}
+
+def guardTriggerEvtHandler(evt) {
+    def evtDelay = now() - evt?.date?.getTime()
+	log.trace "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    if(!guardRestrictOk()) {
+        log.debug "guardTriggerEvtHandler | Skipping Changes because restriction filter is active"
+        return
+    }
+    def desiredState = null
+    switch(evt?.name) {
+        case "mode":
+            Boolean inAwayMode = isInMode(settings?.guardAwayModes)
+            Boolean inHomeMode = isInMode(settings?.guardHomeModes)
+            if(inAwayMode && inHomeMode) {
+                log.error "Guard Control Trigger can't act because same mode is in both Home and Away input"
+                return
+            }
+            if(inAwayMode && !inHomeMode) { desiredState = "ARMED_AWAY" }
+            if(!inAwayMode && inHomeMode) { desiredState = "ARMED_HOME" }
+            break
+        case "presence":
+            desiredState = isSomebodyHome(settings?.guardAwayPresence) ? "ARMED_STAY" : "ARMED_AWAY"
+            break
+    }
+    if(desiredState && desiredState == "ARMED_STAY" && state?.alexaGuardState != "ARMED_STAY") { setGuardHome() }
+    else if(desiredState && desiredState == "ARMED_AWAY" && state?.alexaGuardState != "ARMED_AWAY") {
+        settings?.guardAwayDelay ? runIn(settings?.guardAwayDelay, "setGuardAway") : setGuardAway()
+    }
+
+}
+
+Boolean guardRestrictOk() {
+    Boolean onSwOk = settings?.guardRestrictOnSwitch ? isSwitchOn(settings?.guardRestrictOnSwitch) : true
+    Boolean offSwOk = settings?.guardRestrictOffSwitch ? !isSwitchOn(settings?.guardRestrictOffSwitch) : true
+    return (onSwOk && offSwOk)
+}
+
 
 def groupsPage() {
     return dynamicPage(name: "groupsPage", uninstall: false, install: false) {
@@ -946,6 +1024,9 @@ def initialize() {
         getOtherData()
         getEchoDevices()
     }
+    if(settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
+        subscribeToEvts()
+    }
 }
 
 def uninstalled() {
@@ -955,6 +1036,15 @@ def uninstalled() {
     clearCloudConfig()
     clearCookieData()
     removeDevices(true)
+}
+
+def subscribeToEvts() {
+    if(settings?.guardAwayModes || settings?.guardHomeModes) {
+        subscribe(location, "mode", guardTriggerEvtHandler)
+    }
+    if(settings?.guardAwayPresence) {
+        subscribe(settings?.guardAwayPresence, "presence", guardTriggerEvtHandler)
+    }
 }
 
 def getGroupApps() {
@@ -1572,6 +1662,18 @@ def setGuardStateResponse(response, data) {
 
 String getAlexaGuardStatus() {
     return state?.alexaGuardState ?: null
+}
+
+Boolean getAlexaGuardSupported() {
+    return (state?.alexaGuardSupported == true) ? true : false
+}
+
+public setGuardHome() {
+    setGuardState("ARMED_STAY")
+}
+
+public setGuardAway() {
+    setGuardState("ARMED_AWAY")
 }
 
 Map isFamilyAllowed(String family) {
@@ -2794,6 +2896,31 @@ private getPlatform() {
         log.debug "hubPlatform: (${state?.hubPlatform})"
     }
     return state?.hubPlatform
+}
+
+Boolean isContactOpen(sensors) {
+    if(sensors) { sensors?.each { if(sensors?.currentSwitch == "open") { return true } } }
+    return false
+}
+
+Boolean isSwitchOn(devs) {
+    if(devs) { devs?.each { if(it?.currentSwitch == "on") { return true } } }
+    return false
+}
+
+Boolean isSensorPresent(sensors) {
+    if(sensors) { sensors?.each { if(it?.currentPresence == "present") { return true } } }
+    return false
+}
+
+Boolean isSomebodyHome(sensors) {
+    if(sensors) { return (sensors?.findAll { it?.currentPresence == "present" }?.size() > 0) }
+    return false
+}
+
+Boolean isInMode(modes) {
+    if(modes) { return (location?.mode?.toString() in mode) }
+    return false
 }
 
 Integer stateSize() {
