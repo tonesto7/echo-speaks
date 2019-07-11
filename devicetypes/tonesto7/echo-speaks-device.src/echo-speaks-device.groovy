@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.6.0"}
-String devModified() { return "2019-07-10" }
+String devVersion()  { return "2.7.0"}
+String devModified() { return "2019-07-11" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -1322,6 +1322,24 @@ def mute() {
     }
 }
 
+def repeat() {
+    logger("trace", "repeat() command received...")
+    if(isCommandTypeAllowed("mediaPlayer")) {
+        sendAmazonBasicCommand("RepeatCommand")
+        incrementCntByKey("use_cnt_repeatCmd")
+        triggerDataRrsh()
+    }
+}
+
+def shuffle() {
+    logger("trace", "shuffle() command received...")
+    if(isCommandTypeAllowed("mediaPlayer")) {
+        sendAmazonBasicCommand("ShuffleCommand")
+        incrementCntByKey("use_cnt_shuffleCmd")
+        triggerDataRrsh()
+    }
+}
+
 def unmute() {
     logger("trace", "unmute() command received...")
     if(isCommandTypeAllowed("volumeControl")) {
@@ -2164,16 +2182,17 @@ private List msgSeqBuilder(String str) {
     // log.debug "msgSeqBuilder: $str"
     List seqCmds = []
     List strArr = []
+    Boolean isSSML = (str?.toString()?.startsWith("<speak>") && str?.toString()?.endsWith("</speak>"))
     if(str?.toString()?.length() < 450) {
-        seqCmds?.push([command: "speak", value: str as String])
+        seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: str as String])
     } else {
         List msgItems = str?.split()
         msgItems?.each { wd->
             if((getStringLen(strArr?.join(" ")) + wd?.length()) <= 430) {
                 // log.debug "CurArrLen: ${(getStringLen(strArr?.join(" ")))} | CurStrLen: (${wd?.length()})"
                 strArr?.push(wd as String)
-            } else { seqCmds?.push([command: "speak", value: strArr?.join(" ")]); strArr = []; strArr?.push(wd as String); }
-            if(wd == msgItems?.last()) { seqCmds?.push([command: "speak", value: strArr?.join(" ")]) }
+            } else { seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: strArr?.join(" ")]); strArr = []; strArr?.push(wd as String); }
+            if(wd == msgItems?.last()) { seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: strArr?.join(" ")]) }
         }
     }
     // log.debug "seqCmds: $seqCmds"
@@ -2476,7 +2495,8 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
         if(headerMap?.oldVolume) {logItems?.push("│ Restore Volume: (${headerMap?.oldVolume}%)") }
         if(headerMap?.newVolume) {logItems?.push("│ New Volume: (${headerMap?.newVolume}%)") }
         logItems?.push("│ Current Volume: (${device?.currentValue("volume")}%)")
-        logItems?.push("│ Command: (SpeakCommand)")
+        Boolean isSSML = (headers?.message?.toString()?.startsWith("<speak>") && headers?.message?.toString()?.endsWith("</speak>"))
+        logItems?.push("│ Command: (SpeakCommand)${isSSML ? " | (SSML)" : ""}")
         try {
             def bodyObj = null
             List seqCmds = []
@@ -2494,7 +2514,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
                 body: bodyObj
             ]
             execAsyncCmd("post", "asyncSpeechHandler", params, [
-                cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), msgLen: msgLen, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
+                cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
                 message: (headerMap?.message ? (isST() && msgLen > 700 ? headerMap?.message?.take(700) : headerMap?.message) : null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null)
             ])
         } catch (e) {
@@ -2530,7 +2550,7 @@ private postCmdProcess(resp, statusCode, data) {
         if(statusCode == 200) {
             def execTime = data?.cmdDt ? (now()-data?.cmdDt) : 0
             // log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully${data?.queueKey ? " | QueueKey: (${data?.queueKey})" : ""}${data?.msgDelay ? " | RecheckDelay: (${data?.msgDelay} sec)" : ""} | Execution Time (${execTime}ms)"
-            log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully${data?.msgLen ? " | Length: (${data?.msgLen}) " : ""}| Execution Time (${execTime}ms)${data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""}${showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""}${data?.cmdId ? " | CmdID: (${data?.cmdId})" : ""}"
+            log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"}${data?.isSSML ? " (SSML)" : ""} Sent Successfully${data?.msgLen ? " | Length: (${data?.msgLen}) " : ""}| Execution Time (${execTime}ms)${data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""}${showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""}${data?.cmdId ? " | CmdID: (${data?.cmdId})" : ""}"
             if(data?.queueKey) { state?.remove(data?.queueKey as String) }
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
                 state?.lastTtsCmdDt = getDtNow()
@@ -2780,13 +2800,14 @@ Map createSequenceNode(command, value) {
                 value = cleanString(value as String)
                 seqNode?.operationPayload?.textToSpeak = value as String
                 break
+            case "ssml":
             case "announcement":
             case "announcementall":
                 remDevSpecifics = true
                 seqNode?.type = "AlexaAnnouncement"
                 seqNode?.operationPayload?.expireAfter = "PT5S"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
-                seqNode?.operationPayload?.content = [[ locale: (state?.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1] as String ], speak: [ type: "text", value: valObj[1] as String ] ] ]
+                seqNode?.operationPayload?.content = [[ locale: (state?.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
                 seqNode?.operationPayload?.target = [ customerId : state?.deviceOwnerCustomerId ]
                 if(command != "announcementall") { seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ] }
                 break
