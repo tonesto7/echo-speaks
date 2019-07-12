@@ -41,6 +41,7 @@ preferences {
     page(name: "mainPage")
     page(name: "settingsPage")
     page(name: "devicePrefsPage")
+    page(name: "deviceManagePage")
     page(name: "newSetupPage")
     page(name: "groupsPage")
     page(name: "actionsPage")
@@ -118,23 +119,13 @@ def mainPage() {
             if(!resumeConfig && state?.authValid != true) {
                 section() { paragraph title: "NOTICE:", "You are not currently logged in to Amazon.  Please complete the Authentication Process on the Server Login Page...", required: true, state: null }
             }
-            section(sTS("Alexa Devices:")) {
+            section(sTS("Device Management:")) {
                 if(!newInstall) {
-                    List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }?.sort()
+                    List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }
                     Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
                     Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
-                    if(devs?.size()) {
-                        href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
-                    } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
-                    if(skDevs?.size()) {
-                        String uDesc = "Unsupported: (${skDevs?.size()})"
-                        uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : ""
-                        uDesc += settings?.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : ""
-                        href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details..."
-                    }
-                }
-                def devPrefDesc = devicePrefsDesc()
-                href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
+                    href "deviceManagePage", title: inTS("Device Management:"), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
+                } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
             def t1 = getGroupsDesc()
@@ -189,6 +180,30 @@ def mainPage() {
                 paragraph title: "Notice:", "Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", required: true, state: null
                 state?.resumeConfig = true
             }
+        }
+    }
+}
+
+def deviceManagePage() {
+    return dynamicPage(name: "deviceManagePage", uninstall: false, install: false) {
+        Boolean newInstall = (state?.isInstalled != true)
+        section(sTS("Alexa Devices:")) {
+            if(!newInstall) {
+                List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }?.sort()
+                Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
+                Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+                if(devs?.size()) {
+                    href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
+                } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
+                if(skDevs?.size()) {
+                    String uDesc = "Unsupported: (${skDevs?.size()})"
+                    uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : ""
+                    uDesc += settings?.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : ""
+                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details..."
+                }
+            }
+            def devPrefDesc = devicePrefsDesc()
+            href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
         }
     }
 }

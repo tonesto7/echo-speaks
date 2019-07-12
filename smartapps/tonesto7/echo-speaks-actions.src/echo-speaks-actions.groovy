@@ -94,7 +94,7 @@ String selTriggerTypes(type) {
 private List buildTriggerEnum() {
     List enumOpts = []
     Map buildItems = [:]
-    buildItems["Date/Time"] = ["Scheduled": "Scheduled"]?.sort{ it?.key }
+    buildItems["Date/Time"] = ["Scheduled": "Scheduled Time"]?.sort{ it?.key }
     buildItems["Location"] = ["Modes":"Modes", "Routines":"Routines"]?.sort{ it?.key }
     // buildItems["Weather Events"] = ["Weather":"Weather"]
     buildItems["Safety & Security"] = ["Smart Home Monitor": "Smart Home Monitor", "CO2 & Smoke":"CO\u00B2 & Smoke"]?.sort{ it?.key }
@@ -131,7 +131,7 @@ def mainPage() {
 
         if(state?.isInstalled) {
             section ("Place this action on hold:") {
-                   input "actionPause", "bool", title: "Pause this Actions from Running?", defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                input "actionPause", "bool", title: "Pause this Actions from Running?", defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
             }
             section("Remove Broadcast Group:") {
                 href "uninstallPage", title: "Remove this Group", description: "Tap to Remove...", image: getAppImg("uninstall")
@@ -164,7 +164,7 @@ def triggersPage() {
                         }
                     }
                     if(!settings?.trig_SunState) {
-                        input "trig_ScheduleTime", "time", title: "Time of Day?", required: false, submitOnChange: true
+                        input "trig_ScheduleTime", "time", title: "Time of Day?", required: false, submitOnChange: true, image: getPublicImg("clock")
                         if(settings?.trig_ScheduleTime) {
                             input "trig_ScheduleDays", "enum", title: "Days of the week", description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], image: getPublicImg("day_calendar2")
                         }
