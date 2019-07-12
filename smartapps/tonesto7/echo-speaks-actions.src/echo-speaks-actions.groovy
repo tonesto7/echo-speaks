@@ -34,6 +34,7 @@ definition(
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
+    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
     pausable: true)
 
 preferences {
@@ -110,11 +111,11 @@ def mainPage() {
         appInfoSect()
         if(!settings?.actionPause) {
             section ("") {
-                def trigsDef = settings?.findAll { it?.key?.startsWith("trig_") }
-                href "triggersPage", title: "Configure Events to Start this action...", description: (trigsDef?.size() ? "(${trigsDef?.size()}) Triggers have been configured\n\ntap to modify..." : "tap to configure..."), state: (trigsDef?.size() ? "complete": ""), image: getPublicImg("trigger")
+                Boolean trigConf = triggersConfigured()
+                href "triggersPage", title: "Configure Events to Start this action...", description: (trigConf ? "Triggers Configured\n\ntap to modify..." : "tap to configure..."), state: (trigConf ? "complete": ""), image: getPublicImg("trigger")
             }
             section("") {
-                def condDef = settings?.findAll { it?.key?.startsWith("cond_") }
+                def condDef = settings?.findAll { it?.key?.startsWith("cond_") }?.findAll { it?.value }
                 href "conditionsPage", title: "(Optional)\nConditions", description: (condDef?.size() ? "(${condDef?.size()}) Conditions have been configured\n\ntap to modify..." : "tap to configure any restrictions..."), state: (condDef?.size() ? "complete": ""), image: getPublicImg("evaluate")
             }
             section("") {
@@ -151,68 +152,21 @@ def triggersPage() {
     return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
         def stRoutines = location.helloHome?.getPhrases()*.label.sort()
         section ("Select Capabilities") {
-            input "triggerEvents", "enum", title: "Select Trigger Events", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("trigger")
+            input "triggerEvents", "enum", title: "Select Trigger Events", groupedOptions: buildTriggerEnum(), multiple: false, required: true, submitOnChange: true, image: getPublicImg("trigger")
         }
         if (settings?.triggerEvents?.size()) {
             if ("Scheduled" in settings?.triggerEvents) {
                 section("Time Based Events", hideable: true) {
-                    input "trig_SunState", "enum", title: "Sunrise or Sunset...", options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("sun")
-                    if(settings?.trigSunState) {
-                        input "offset", "number", range: "*..*", title: "Offset event this number of minutes (+/-)", required: true, image: getPublicImg(settings?.trig_SunState?.toString()?.toLowerCase() + "")
-                    }
-                    input "trig_Schedule", "enum", title: "Date/Time Schedule", options: ["One Time", "Recurring"], required: false, submitOnChange: true, image: getPublicImg("day_calendar2")
-                }
-
-                if(trig_Schedule == "One Time") {
-                    section("On Future Time & Date...", hideable: true) {
-                        input "trig_xFutureTime", "time", title: "Time of Day?", required: true, submitOnChange: true
-                        input "trig_xFutureDay", "number", title: "This Day number? (1-31)", range: "1..31", description: "Example: (${new Date(now()).format("dd")})", required: false, submitOnChange: true, image: getAppImg("")
-                        if(settings?.trig_xFutureDay) {
-                            input "trig_xFutureMonth", "enum", title: "This Month?", description: "Example: (${new Date(now()).format("MMMM")})", options: monthEnum(), multiple: false, required: true, submitOnChange: true, image: getAppImg("")
-                            if(settings?.trig_xFutureMonth) {
-                                input "trig_xFutureYear", "number", title: "This Year?", range: "2017..2020", description: "Example: (${new Date(now()).format("yyyy")})", required: true,  submitOnChange: true, image: getAppImg("")
-                            }
+                    if(!settings?.trig_ScheduleTime) {
+                        input "trig_SunState", "enum", title: "Sunrise or Sunset...", options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("sun")
+                        if(settings?.trigSunState) {
+                            input "offset", "number", range: "*..*", title: "Offset event this number of minutes (+/-)", required: true, image: getPublicImg(settings?.trig_SunState?.toString()?.toLowerCase() + "")
                         }
                     }
-                }
-
-                if(trig_Schedule == "Recurring") {
-                    section("Recurring Schedule", hideable:true) {
-                        input "trig_frequency", "enum", title: "Select frequency", submitOnChange: true, required: true, options: ["Minutes", "Hourly", "Daily", "Weekly", "Monthly", "Yearly"]
-                        if(settings?.trig_frequency == "Minutes") {
-                            input "trig_xMinutes", "number", title: "Every (XX) minute(s) - maximum 60", range: "1..59", submitOnChange: true, required: true
-                        }
-                        if(settings?.trig_frequency == "Hourly") {
-                            input "trig_xHours", "number", title: "Every (XX) hour(s) - maximum 24", range: "1..23", submitOnChange: true, required: true
-                        }
-                        if(settings?.trig_frequency == "Daily") {
-                            if (!settings?.trig_xDaysWeekDay) {
-                                input "trig_xDays", "number", title: "Every (XX) day(s) - maximum 31", range: "1..31", submitOnChange: true, required: (!settings?.trig_xDaysWeekDay)
-                            }
-                            input "trig_xDaysWeekDay", "bool", title: "OR Every Week Day (MON-FRI)", required: (!settings?.trig_xDays), defaultValue: false, submitOnChange: true
-                            if(settings?.trig_xDays || settings?.trig_xDaysWeekDay) {
-                                input "trig_xDaysStarting", "time", title: "starting at time...", submitOnChange: true, required: true
-                            }
-                        }
-                        if(settings?.trig_frequency == "Weekly") {
-                            input "trig_xWeeks", "enum", title: "Every selected day(s) of the week", submitOnChange: true, required: true, multiple: true, options: weekDaysEnum()
-                            if(settings?.trig_xWeeks) {
-                                input "trig_xWeeksStarting", "time", title: "starting at time...", submitOnChange: true, required: true
-                            }
-                        }
-                        if(settings?.trig_frequency == "Monthly") {
-                            input "trig_xMonths", "number", title: "Every X month(s) - maximum 12", range: "1..12", submitOnChange: true, required: true
-                            if(settings?.trig_xMonths) {
-                                input "trig_xMonthsDay", "number", title: "...on this day of the month", range: "1..31", submitOnChange: true, required: true
-                                input "trig_xMonthsStarting", "time", title: "starting at time...", submitOnChange: true, required: true
-                            }
-                        }
-                        if(settings?.trig_frequency == "Yearly") {
-                            input "trig_xYears", "enum", title: "Every selected month of the year", submitOnChange: true, required: true, multiple: false, options: monthEnum()
-                            if(settings?.trig_xYears) {
-                                input "trig_xYearsDay", "number", title: "...on this day of the month", range: "1..31", submitOnChange: true, required: true
-                                input "trig_xYearsStarting", "time", title: "starting at time...", submitOnChange: true, required: true
-                            }
+                    if(!settings?.trig_SunState) {
+                        input "trig_ScheduleTime", "time", title: "Time of Day?", required: false, submitOnChange: true
+                        if(settings?.trig_ScheduleTime) {
+                            input "trig_ScheduleDays", "enum", title: "Days of the week", description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], image: getPublicImg("day_calendar2")
                         }
                     }
                 }
@@ -531,24 +485,29 @@ def triggersPage() {
 }
 
 def scheduleTriggers() {
-	return ((settings?.frequency && (settings?.xMinutes || settings?.xHours || settings?.xDays || settings?.xMonths || settings?.xWeeks || settings?.xYears)) || settings?.xFutureTime || settings?.xFutureDay)
+	return (settings?.trig_ScheduleTime || settings?.trig_SunState)
 }
 
 def locationTriggers() {
-	return (settings?.myMode || settings?.mySHM || settings?.myRoutine || settings?.mySunState)
+	return (settings?.trig_Mode || settings?.trig_SHM || settings?.trig_Routine)
 }
 
 def deviceTriggers() {
-	return (settings?.myButton || settings?.myShades || settings?.myGarage || settings?.myValve || settings?.mySwitch || settings?.myLocks || settings?.myTstat)
+	return (settings?.trig_Buttons || (settings?.trig_Shades && settings?.trig_ShadesCmd) || (settings?.trig_Garages && settings?.trig_GaragesCmd) || (settings?.trig_Valves && settings?.trig_ValvesCmd) ||
+            (settings?.trig_Switch && settings?.trig_SwitchCmd) || (settings?.trig_Dimmer && settings?.trig_DimmerCmd) || (settings?.trig_Outlet && settings?.trig_OutletCmd) || (settings?.trig_Locks && settings?.trig_LocksCmd))
 }
 
 def sensorTriggers() {
-	return (settings?.myTemperature || settings?.myCO2 || settings?.myCO || settings?.myAcceleration || settings?.myHumidity || settings?.myWindow || settings?.myDoor || settings?.mySound  || settings?.myWater ||
-			settings?.mySmoke || settings?.myPresence || settings?.myMotion || settings?.myContact || settings?.myPower)
+    return (
+        (settings?.trig_Temperature && settings?.trig_TempCond) || (settings?.trig_CO2 && settings?.trig_CO2Cmd) || (settings?.trig_Humidity && settings?.trig_HumidityCond) ||
+        (settings?.trig_ContactWindow && settings?.trig_ContactWindowCmd) || (settings?.trig_ContactDoor && settings?.trig_ContactDoorCmd) || (settings?.trig_Water && settings?.trig_WaterCmd) ||
+        (settings?.trig_Smoke && settings?.trig_SmokeCmd) || (settings?.trig_Presence && settings?.trig_PresenceCmd) || (settings?.trig_Motion && settings?.trig_MotionCmd) ||
+        (settings?.trig_Contact && settings?.trig_ContactCmd) || (settings?.trig_Power && settings?.trig_PowerCond) || (settings?.trig_Illuminance && settings?.trig_IlluminanceLow && settings?.trig_IlluminanceHigh)
+    )
 }
 
 def weatherTriggers() {
-	return (settings?.myWeatherTriggers || settings?.myWeather || settings?.myWeatherAlert)
+	return (settings?.trig_Weather || settings?.myWeather || settings?.myWeatherAlert)
 }
 
 def triggersConfigured() {
@@ -558,6 +517,7 @@ def triggersConfigured() {
 /******************************************************************************
     CONDITIONS SELECTION PAGE
 ******************************************************************************/
+
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: "Only when these device, location conditions are True...", install: false, uninstall: false) {
         section("Time of Day") {
@@ -578,16 +538,17 @@ def conditionsPage() {
                     input "cond_Switch_allreq", "bool", title: "ALL Switches must be (${settings?.cond_Switch_state})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
-            input "cond_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: false, image: getPublicImg("speed_knob")
-            if (settings?.cond_Dimmer) {
-                input "cond_Dimmer_state", "enum", title: "is...", options:["greater":"greater than","lessThan":"less than","equal":"equal to"], multiple: false, required: false, submitOnChange: true
-                if (settings?.cond_Dimmer_state in ["greater", "lessThan", "equal"]) {
-                    input "cond_Dimmer_level", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
-                    if (settings?.cond_Dimmer?.size() > 1 && settings?.cond_Dimmer_state && settings?.cond_Dimmer_level) {
-                        input "cond_Dimmmer_allreq", "bool", title: "ALL Dimmers must be (${settings?.cond_Dimmer_state} ${settings?.cond_Dimmer_level}%)?", required: false, defaultValue: false, submitOnChange: true
-                    }
-                }
-            }
+
+            // input "cond_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: false, image: getPublicImg("speed_knob")
+            // if (settings?.cond_Dimmer) {
+            //     input "cond_Dimmer_state", "enum", title: "is...", options:["greater":"greater than","lessThan":"less than","equal":"equal to"], multiple: false, required: false, submitOnChange: true
+            //     if (settings?.cond_Dimmer_state in ["greater", "lessThan", "equal"]) {
+            //         input "cond_Dimmer_level", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
+            //         if (settings?.cond_Dimmer?.size() > 1 && settings?.cond_Dimmer_state && settings?.cond_Dimmer_level) {
+            //             input "cond_Dimmmer_allreq", "bool", title: "ALL Dimmers must be (${settings?.cond_Dimmer_state} ${settings?.cond_Dimmer_level}%)?", required: false, defaultValue: false, submitOnChange: true
+            //         }
+            //     }
+            // }
         }
         section ("Motion and Presence Conditions") {
             input "cond_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("motion")
@@ -597,6 +558,7 @@ def conditionsPage() {
                     input "cond_Motion_allreq", "bool", title: "ALL Motion Sensors must be (${settings?.cond_Motion_state})?"
                 }
             }
+
             input "cond_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("presence")
             if (settings?.cond_Presence) {
                 input "cond_Presence_state", "enum", title: "are...", options: ["present":"Present","not present":"Not Present"], multiple: false, required: true, submitOnChange: true
@@ -632,28 +594,28 @@ def conditionsPage() {
             }
         }
 
-        section ("Environmental Conditions") {
-            input "cond_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: false, submitOnChange: true, image: getPublicImg("humidity")
-            if (settings?.cond_Humidity) {
-                input "cond_HumidityLevel", "enum", title: "Only when the Humidity is...", options: ["above", "below", "equal"], required: false, submitOnChange: true
-                if (settings?.cond_HumidityLevel) {
-                    input "cond_HumidityPercent", "number", title: "this level...", required: true, description: "percent", submitOnChange: true
-                }
-                if (settings?.cond_HumidityPercent && settings?.cond_HumidityLevel != "equal") {
-                    input "cond_HumidityStop", "number", title: "...but not ${settings?.cond_HumidityLevel} this percentage", required: false, description: "humidity"
-                }
-            }
-            input "cond_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true, submitOnChange: true, image: getPublicImg("temperature")
-            if (settings?.cTemperature) {
-                input "cond_TemperatureLevel", "enum", title: "When the temperature is...", options: ["above", "below", "equal"], required: false, submitOnChange: true
-                if (settings?.cond_TemperatureLevel) {
-                    input "cond_TemperatureDegrees", "number", title: "Temperature...", required: true, description: "degrees", submitOnChange: true
-                }
-                if (settings?.cond_TemperatureDegrees && settings?.cond_TemperatureLevel != "equal") {
-                    input "cond_TemperatureStop", "number", title: "...but not ${settings?.cond_TemperatureLevel} this temperature", required: false, description: "degrees"
-                }
-            }
-        }
+        // section ("Environmental Conditions") {
+        //     input "cond_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: false, submitOnChange: true, image: getPublicImg("humidity")
+        //     if (settings?.cond_Humidity) {
+        //         input "cond_Humidity_level", "enum", title: "Only when the Humidity is...", options: ["above", "below", "equal"], required: false, submitOnChange: true
+        //         if (settings?.cond_Humidity_level) {
+        //             input "cond_Humidity_percent", "number", title: "this level...", required: true, description: "percent", submitOnChange: true
+        //         }
+        //         if (settings?.cond_Humidity_percent && settings?.cond_Humidity_level != "equal") {
+        //             input "cond_Humidity_stop", "number", title: "...but not ${settings?.cond_Humidity_level} this percentage", required: false, description: "humidity"
+        //         }
+        //     }
+        //     input "cond_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true, submitOnChange: true, image: getPublicImg("temperature")
+        //     if (settings?.cond_Temperature) {
+        //         input "cond_Temperature_level", "enum", title: "When the temperature is...", options: ["above", "below", "equal"], required: false, submitOnChange: true
+        //         if (settings?.cond_Temperature_level) {
+        //             input "cond_Temperature_degrees", "number", title: "Temperature...", required: true, description: "degrees", submitOnChange: true
+        //         }
+        //         if (settings?.cond_Temperature_degrees && settings?.cond_Temperature_level != "equal") {
+        //             input "cond_Temperature_stop", "number", title: "...but not ${settings?.cond_Temperature_level} this temperature", required: false, description: "degrees"
+        //         }
+        //     }
+        // }
     }
 }
 
@@ -680,6 +642,24 @@ def actionsPage() {
             }
 
             section("Configure Actions to Take:") {
+                /**
+                    Speak
+                    announcement
+                    volume
+                    Beep tones
+                    weather
+                    joke
+                    intro music (?)
+                    music (search, play, pause, start, stop)
+                    calendar
+                    create alarm
+                    create reminder
+                    set do not disturb
+                    set alarm volume
+                    connect/disconnect bluetooth
+                    create SSML (Create Web UI to design and test)
+
+                **/
 
             }
 
@@ -813,11 +793,14 @@ def initialize() {
     runIn(5, "subscribeToEvts")
 }
 
+private valTrigEvt(key) {
+    return (key in settings?.triggerEvents)
+}
+
 private subscribeToEvts() {
     //SCHEDULING
-
-    // if (settings?.trig_frequency)           { cronHandler(frequency) }
-    // if (settings?.trig_xFutureTime)         { oneTimeHandler() }
+    if (valTrigEvt("Scheduled") && settings?.trig_ScheduleTime) { schedule(settings?.trig_ScheduleTime, "scheduleTrigEvt") }
+    // TODO: Add sunset evts
     // if (settings?.trig_SunState == "Sunset") {
     //     subscribe(location, "sunsetTime", sunsetTimeHandler)
     //     sunsetTimeHandler(location.currentValue("sunsetTime"))
@@ -828,9 +811,9 @@ private subscribeToEvts() {
     // }
 
     // Location Events
-    if(("Smart Home Monitor" in settings?.triggerEvents) || ("Modes" in settings?.triggerEvents) || ("Routines" in settings?.triggerEvents)) {
-        if(settings?.trig_shm || settings?.trig_Modes || settings?.trig_Routine) { subscribe(location, locationEvtHandler) }
-    }
+    if(valTrigEvt("Smart Home Monitor") && settings?.trig_SHM) { subscribe(location, "alarmSystemStatus", shmEvtHandler) }
+    if(valTrigEvt("Modes") && settings?.trig_Mode) { subscribe(location, "mode", modeEvtHandler) }
+    if("Routines" in settings?.triggerEvents && settings?.trig_Routine) { subscribe(location, "routineExecuted", routineEvtHandler) }
 
     // ENVIRONMENTAL Sensors
     if("Presence" in settings?.triggerEvents) {
@@ -855,6 +838,7 @@ private subscribeToEvts() {
     if("Illuminance" in settings?.triggerEvents) {
         if(settings?.trig_Illuminance)      { subscribe(settings?.trig_Illuminance, "illuminance", triggerEvtHandler) }
     }
+
     //Power
     if("Power" in settings?.triggerEvents) {
         if(settings?.trig_Power) { subscribe(trig_Power, "power", triggerEvtHandler) }
@@ -880,30 +864,46 @@ private subscribeToEvts() {
 
     // Garage Door Openers
     if("Garage Door Openers" in settings?.triggerEvents) {
-        if(settings?.trig_Garages)      { subscribe(settings?.trig_Garages, "garageDoorControl", triggerEvtHandler) }
+        if(settings?.trig_Garages)       { subscribe(settings?.trig_Garages, "garageDoorControl", triggerEvtHandler) }
     }
 
     //Keypads
     if("Keypads" in settings?.triggerEvents) {
-        if(settings?.trig_Keypads)          { subscribe(settings?.trig_Keypads, "codeEntered", triggerEvtHandler) }
+        if(settings?.trig_Keypads)       { subscribe(settings?.trig_Keypads, "codeEntered", triggerEvtHandler) }
     }
 
     //Contacts
     if ("Contacts, Doors, Windows" in settings?.triggerEvents) {
-        if(settings?.trig_ContactDoor) { subscribe(trig_ContactDoor, "contact", triggerEvtHandler) }
+        if(settings?.trig_ContactDoor)   { subscribe(trig_ContactDoor, "contact", triggerEvtHandler) }
         if(settings?.trig_ContactWindow) { subscribe(trig_ContactWindow, "contact", triggerEvtHandler) }
-        if(settings?.trig_Contact) { subscribe(trig_Contact, "contact", triggerEvtHandler) }
+        if(settings?.trig_Contact)       { subscribe(trig_Contact, "contact", triggerEvtHandler) }
     }
 
     // Dimmers, Outlets, Switches
     if ("Dimmers, Outlets, Switches" in settings?.triggerEvents) {
-        if(settings?.trig_Switch) { subscribe(trig_Switch, "switch", triggerEvtHandler) }
-        if(settings?.trig_Outlet) { subscribe(trig_Outlet, "outlet", triggerEvtHandler) }
-        if(settings?.trig_Dimmer)		{
+        if(settings?.trig_Switch)        { subscribe(trig_Switch, "switch", triggerEvtHandler) }
+        if(settings?.trig_Outlet)        { subscribe(trig_Outlet, "outlet", triggerEvtHandler) }
+        if(settings?.trig_Dimmer) {
             subscribe(settings?.trig_Dimmer, "switch", triggerEvtHandler)
             subscribe(settings?.trig_Dimmer, "level", triggerEvtHandler)
         }
     }
+}
+
+// EVENT HANDLER FUNCTIONS
+def shmEvtHandler(evt) {
+    def evtDelay = now() - evt?.date?.getTime()
+	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+}
+
+def routineEvtHandler(evt) {
+    def evtDelay = now() - evt?.date?.getTime()
+	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+}
+
+def modeEvtHandler(evt) {
+    def evtDelay = now() - evt?.date?.getTime()
+	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
 }
 
 def locationEvtHandler(evt) {
@@ -917,14 +917,70 @@ def triggerEvtHandler(evt) {
 	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
 }
 
+def scheduleTrigEvt() {
+    if(isDayOfWeek()) {
+        // Execute Action Plan
+    }
+}
+
 
 /***********************************************************************************************************
    CONDITIONS HANDLER
 ************************************************************************************************************/
-def conditionHandler(evt) {
-    if (parent.debug) log.info "Checking that all conditions are ok."
-    def result = true
-    return result
+
+Boolean isShmState(String val) {
+    def curState = getShmState()
+    return (curState == val)
+}
+
+Boolean timeCondOk() {
+    // *TODO: Add timepage condition logic
+    return true
+}
+
+Boolean locationCondOk() {
+    Boolean mOk = settings?.cond_Mode ? (isInMode(settings?.cond_Mode)) : true
+    Boolean sOk = settings?.cond_SHM ? (isShmState(settings?.cond_SHM)) : true
+    Boolean dOk = settings?.cond_Days ? (isDayOfWeek(settings?.cond_Days)) : true
+    log.debug "locationCondOk | modeOk: $mOk | shmOk: $sOk | daysOk: $dOk"
+    return (mOk && sOk && dOk)
+}
+
+Boolean actionDevCondOk(type) {
+    def devs = settings?."cond_${type}" ?: null
+    def stateVal = settings?."cond_${type}_state" ?: null
+    if( !(type && devs && stateVal) ) { return true }
+    return settings?."cond_${type}_allreq" ? allDevEqCapVal(devs, type, stateVal) : anyDevEqCapVal(devs, type, stateVal)
+}
+
+Boolean allDevEqCapVal(devs, cap, val) {
+    if(devs) { return (devs?.findAll { it?."current${cap}" == val }?.size() > devs?.size()) }
+    return false
+}
+
+Boolean anyDevEqCapVal(devs, cap, val) {
+    if(devs) { return (devs?.findAll { it?."current${cap}" == val }?.size() > 0) }
+    return false
+}
+
+Boolean deviceCondOk() {
+    Boolean swDevOk = actionDevCondOk("Switch")
+    Boolean motDevOk = actionDevCondOk("Motion")
+    Boolean presDevOk = actionDevCondOk("Presence")
+    Boolean conDevOk = actionDevCondOk("Contact")
+    Boolean lockDevOk = actionDevCondOk("Locks")
+    Boolean garDevOk = actionDevCondOk("Garages")
+    log.debug "deviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk"
+    return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk)
+}
+
+def conditionValid() {
+    log.info "Checking that all conditions are ok."
+    def timeOk = timeCondOk()
+    def locOk = locationCondOk()
+    def devOk = deviceCondOk()
+    log.debug "conditionHandler | timeOk: $timeOk | locationOk: $locOk | deviceOk: $devOk"
+    return (timeOk && locOk && devOk)
 }
 
 /***********************************************************************************************************
@@ -986,12 +1042,15 @@ Map monthEnum() {
 }
 
 def getShmIncidents() {
-    //Thanks Adrian
     def incidentThreshold = now() - 604800000
     return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
 }
 
-def getShmStatus() {
+String getShmState() {
+    return location.currentState("alarmSystemStatus")?.value ?: null
+}
+
+String getShmStatus() {
     switch (location.currentState("alarmSystemStatus")?.value) { case 'off': return 'Disarmed' case 'stay': return 'Armed/Stay' case 'away': return 'Armed/Away' }
 }
 
@@ -1166,6 +1225,21 @@ Boolean isSomebodyHome(sensors) {
     return false
 }
 
+Boolean isIlluminanceBelow(sensors, val) {
+    if(sensors) { return (sensors?.findAll { it?.currentIlluminance?.integer() < val }?.size() > 0) }
+    return false
+}
+
+Boolean isIlluminanceAbove(sensors, val) {
+    if(sensors) { return (sensors?.findAll { it?.currentIlluminance?.integer() > val }?.size() > 0) }
+    return false
+}
+
+Boolean isWaterWet(sensors) {
+    if(sensors) { return (sensors?.findAll { it?.currentWater == "wet" }?.size() > 0) }
+    return false
+}
+
 Boolean isInMode(modes) {
     if(modes) { return (location?.mode?.toString() in mode) }
     return false
@@ -1225,6 +1299,19 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         log.error "GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate):", ex
         return 10000
     }
+}
+
+Boolean isDayOfWeek(opts) {
+    def df = new java.text.SimpleDateFormat("EEEE")
+    df.setTimeZone(location?.timeZone)
+    def day = df.format(new Date())
+    return ( opts?.contains(day) )
+}
+
+Boolean isTimeOfDay(startTime, stopTime) {
+    if(!startTime && !stopTime) { return true }
+    if(!isST()) { startTime = toDateTime(startTime); stopTime = toDateTime(stopTime); }
+    return timeOfDayIsBetween(startTime, stopTime, new Date(), location.timeZone)
 }
 
 /******************************************

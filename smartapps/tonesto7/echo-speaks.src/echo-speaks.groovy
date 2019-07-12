@@ -31,6 +31,7 @@ definition(
     iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x${state?.updateAvailable ? "_update" : ""}.png",
     iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x${state?.updateAvailable ? "_update" : ""}.png",
     iconX3Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x${state?.updateAvailable ? "_update" : ""}.png",
+    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
     pausable   : true,
     oauth      : true
 )
