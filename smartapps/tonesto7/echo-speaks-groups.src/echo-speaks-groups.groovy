@@ -60,7 +60,7 @@ def initialize() {
 
 def startPage() {
     if(parent) {
-        if(!state?.isInstalled && parent?.state?.childInstallOkFlag != true) {
+        if(!state?.isInstalled && parent?.childInstallOk() != true) {
             uhOhPage()
         } else {
             state?.isParent = false
@@ -84,7 +84,7 @@ def uhOhPage () {
             def str = "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Groups can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them."
             paragraph str, required: true, state: null, image: getAppImg("exclude")
         }
-        remove("Remove this bad Group", "WARNING!!!", "BAD Group SHOULD be removed")
+        if(isST()) { remove("Remove this bad Group", "WARNING!!!", "BAD Group SHOULD be removed") }
     }
 }
 

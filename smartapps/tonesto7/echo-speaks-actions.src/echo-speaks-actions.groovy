@@ -16,7 +16,6 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-include 'asynchttp_v1'
 
 String appVersion()	 { return "2.7.0" }
 String appModified() { return "2019-07-11" }
@@ -44,16 +43,18 @@ preferences {
     page(name: "namePage")
     page(name: "triggersPage")
     page(name: "conditionsPage")
+    page(name: "notifPrefPage")
     page(name: "actionsPage")
     page(name: "timePage")
     page(name: "dateTimePage")
     page(name: "quietRestrictPage")
     page(name: "uninstallPage")
+    page(name: "sequencePage")
 }
 
 def startPage() {
-    if(parent) {
-        if(!state?.isInstalled && parent?.state?.childInstallOkFlag != true) {
+    if(parent != null) {
+        if(!state?.isInstalled && parent?.childInstallOk() != true) {
             uhOhPage()
         } else {
             state?.isParent = false
@@ -68,7 +69,7 @@ def uhOhPage () {
             paragraph "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Groups can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them.", required: true,
             state: null, image: getAppImg("exclude")
         }
-        remove("Remove this bad Group", "WARNING!!!", "BAD Group SHOULD be removed")
+        if(isST()) { remove("Remove this bad Group", "WARNING!!!", "BAD Group SHOULD be removed") }
     }
 }
 
@@ -101,28 +102,44 @@ private List buildTriggerEnum() {
     buildItems["Actionable Devices"] = ["Locks":"Locks", "Dimmers, Outlets, Switches":"Dimmers, Outlets, Switches", "Garage Door Openers":"Garage Door Openers", "Valves":"Valves", "Window Shades":"Window Shades", "Buttons":"Buttons"]?.sort{ it?.key }
     // buildItems["Sensor Device"] = ["Acceleration":"Acceleration", "Contacts, Doors, Windows":"Contacts, Doors, Windows", "Motion":"Motion", "Presence":"Presence", "Temperature":"Temperature", "Humidity":"Humidity", "Water":"Water", "Power":"Power"]?.sort{ it?.key }
     buildItems["Sensor Device"] = ["Contacts, Doors, Windows":"Contacts, Doors, Windows", "Motion":"Motion", "Presence":"Presence", "Temperature":"Temperature", "Humidity":"Humidity", "Water":"Water", "Power":"Power"]?.sort{ it?.key }
-    buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
-    return enumOpts
+    if(isST()) {
+        buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
+        log.debug "enumOpts: $enumOpts"
+        return enumOpts
+    } else {
+        //TODO: FIX HUBITAT TRIGGER Loading Section
+        def newOpts = buildItems?.collectEntries { it?.value }
+        log.debug "newOpts: $newOpts"
+        return newOpts as Map
+    }
+
 }
 
 def mainPage() {
     Boolean newInstall = !state?.isInstalled
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
         appInfoSect()
-        if(!settings?.actionPause) {
-            section ("") {
-                Boolean trigConf = triggersConfigured()
-                href "triggersPage", title: "Configure Events to Start this action...", description: (trigConf ? "Triggers Configured\n\ntap to modify..." : "tap to configure..."), state: (trigConf ? "complete": ""), image: getPublicImg("trigger")
+        Boolean trigConf = triggersConfigured()
+        if(!isPaused()) {
+            section ("Configuration: Part 1") {
+                href "triggersPage", title: "Action Triggers", description: (trigConf ? "Triggers Configured\n\ntap to modify..." : "tap to configure..."), state: (trigConf ? "complete": ""), image: getPublicImg("trigger")
             }
-            section("") {
-                def condDef = settings?.findAll { it?.key?.startsWith("cond_") }?.findAll { it?.value }
-                href "conditionsPage", title: "(Optional)\nConditions", description: (condDef?.size() ? "(${condDef?.size()}) Conditions have been configured\n\ntap to modify..." : "tap to configure any restrictions..."), state: (condDef?.size() ? "complete": ""), image: getPublicImg("evaluate")
+
+            section("Configuration: Part 2:") {
+                if(trigConf) {
+                    def condDef = settings?.findAll { it?.key?.startsWith("cond_") }?.findAll { it?.value }
+                    href "conditionsPage", title: "Condition/Restrictions\n(Optional)", description: (condDef?.size() ? "(${condDef?.size()}) Conditions Configured\n\ntap to modify..." : "tap to configure..."), state: (condDef?.size() ? "complete": ""), image: getPublicImg("evaluate")
+                } else { paragraph "More Options will be shown once triggers are configured" }
             }
-            section("") {
-                href "actionsPage", title: "Actions to Perform", description: "tap to configure...", image: getPublicImg("adhoc")
+            section("Configuration: Part 3") {
+                if(trigConf) {
+                    def actDef = settings?.findAll { it?.key?.startsWith("act_") }?.findAll { it?.value }
+                    href "actionsPage", title: "Actions Tasks", description: (actDef?.size() ? "(${actDef?.size()}) Actions Configured\n\ntap to modify..." : "tap to configure..."), state: (actDef?.size() ? "complete": ""), image: getPublicImg("adhoc")
+                } else { paragraph "More Options will be shown once triggers are configured" }
             }
+
             section("Preferences") {
-                input (name: "appDebug", type: "bool", title: "Show Debug Logs in the IDE?", description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug"))
+                input (name: "appDebug", type: "bool", title: "Show Debug Logs in the IDE?", description: "Only enable when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug"))
             }
         } else {
             paragraph "This Action is currently in a paused state...  To edit the configuration please un-pause", required: true, state: null, image: getPublicImg("issue")
@@ -150,9 +167,13 @@ def namePage() {
 
 def triggersPage() {
     return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
-        def stRoutines = location.helloHome?.getPhrases()*.label.sort()
+        def stRoutines = isST() ? location.helloHome?.getPhrases()*.label.sort() : []
         section ("Select Capabilities") {
-            input "triggerEvents", "enum", title: "Select Trigger Events", groupedOptions: buildTriggerEnum(), multiple: false, required: true, submitOnChange: true, image: getPublicImg("trigger")
+            if(isST()) {
+                input "triggerEvents", "enum", title: "Select Trigger Event", groupedOptions: buildTriggerEnum(), multiple: false, required: false, submitOnChange: true, image: getPublicImg("trigger")
+            } else {
+                input "triggerEvents", "enum", title: "Select Trigger Event", options: buildTriggerEnum(), multiple: false, required: false, submitOnChange: true, image: getPublicImg("trigger")
+            }
         }
         if (settings?.triggerEvents?.size()) {
             if ("Scheduled" in settings?.triggerEvents) {
@@ -511,7 +532,12 @@ def weatherTriggers() {
 }
 
 def triggersConfigured() {
-	return (scheduleTriggers() || locationTriggers() || deviceTriggers() || sensorTriggers() || weatherTriggers()) ? "Configured" : "Tap to Configure"
+    def sched = scheduleTriggers()
+    def loc = locationTriggers()
+    def dev = deviceTriggers()
+    def sen = sensorTriggers()
+    def weath = weatherTriggers()
+	return (sched || loc || dev || sen || weath) ? true : false
 }
 
 /******************************************************************************
@@ -621,25 +647,23 @@ def conditionsPage() {
 
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: "Actions to perform...", install: false, uninstall: false) {
-        section("Output Devices:") {
+        Boolean confOk = actConfOk()
+        section("Group Devices:") {
             input "act_SendToBrdGrp", "bool", title: "Send to an Echo Speaks Broadcast Group?", description: "This is ONLY for sending a Speech message to all devices in the group", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("es_groups")
             if(act_SendToBrdGrp) {
                 Map brdCastGrps = parent?.getBroadcastGrps()
                 state?.brdCastGrps = brdCastGrps
                 Map groups = brdCastGrps?.collectEntries { [(it?.key): it?.value?.name] }
                 input "act_BroadcastGrps", "enum", title: "Select the broadcast Group", options: groups, required: true, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
-            } else {
-                input "act_EchoDevices", "device.echoSpeaksDevice", title: "Echo Speaks Device to Use", description: "Select the devices", multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
             }
+        }
+        else {
+            input "act_EchoDevices", "device.echoSpeaksDevice", title: "Echo Speaks Device to Use", description: "Select the devices", multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
         }
         if(act_SendToBrdGrp && act_BroadcastGrps) {
 
         } else {
-            if (settings?.triggerEvents?.size()) {
-                if ("Scheduled" in settings?.triggerEvents) {
-
-                }
-            }
+            List actionOpts = ["Speak", "Announcement", "Execute Sequence", "Beep Tones", "Weather Report", "Playback Control", "Sing, Jokes, Story, etc.", "Play Music", "Calendar Events", "Create Alarm", "Create Reminder", "Do Not Disturb", "Alarm Volume", "Bluetooth Control"]
 
             section("Configure Actions to Take:") {
                 /**
@@ -660,37 +684,32 @@ def actionsPage() {
                     create SSML (Create Web UI to design and test)
 
                 **/
+                input "actionType", "enum", title: "Actions Type", description: "", options: actionOpts, required: true, submitOnChange: true, image: getPublicImg("adhoc")
 
             }
+            section(sTS("Notifications:")) {
+                def t0 = getAppNotifConfDesc()
+                href "notifPrefPage", title: "Notifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+            }
 
-            // section ("Push Messages:") {
-            //     input "usePush", "bool", title: "Send Push Notifications...", required: false, defaultValue: false, submitOnChange: true
-            //     input "pushTimeStamp", "bool", title: "Add timestamp to Push Messages...", required: false, defaultValue: false, submitOnChange: true
-    		// }
-            // section ("Text Messages:", hideWhenEmpty: true) {
-            //     paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
-            //     input "smsNumbers", "text", title: "Send SMS Text to...", required: false, submitOnChange: true, image: getAppImg("sms_phone")
-            // }
-            // section("Pushover Support:") {
-            //     input ("pushoverEnabled", "bool", title: "Use Pushover Integration", required: false, submitOnChange: true, image: getAppImg("pushover_icon"))
-            //     if(settings?.pushoverEnabled == true) {
-            //         def poDevices = parent?.getPushoverDevices()
-            //         if(!poDevices) {
-            //             parent?.pushover_init()
-            //             paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
-            //         } else {
-            //             input "pushoverDevices", "enum", title: "Select Pushover Devices", description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
-            //             if(settings?.pushoverDevices) {
-            //                 def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
-            //                 input "pushoverPriority", "enum", title: "Notification Priority (Optional)", description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority")
-            //                 input "pushoverSound", "enum", title: "Notification Sound (Optional)", description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound")
-            //             }
-            //         }
-            //         // } else { paragraph "New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", state: "complete" }
-            //     }
-            // }
+        }
+        if(confOk) {
+            section("") {
+                paragraph ""
+                input "actTestRun", "bool", title: "Test this action right now?", description: "", required: false, defaultValue: false, submitOnChange: true
+                if(actTestRun) { executeActTest() }
+            }
         }
     }
+}
+
+Boolean actConfOk() {
+    // TODO: ACTIONs CONFIG TEST LOGIC
+}
+
+private executeActTest() {
+    settingUpdate("actTestRun", "false", "bool")
+    // TODO: ACTION TEST LOGIC
 }
 
 def timePage() {
@@ -771,6 +790,52 @@ def quietRestrictPage() {
     }
 }
 
+def notifPrefPage() {
+    return dynamicPage(name: "notifPrefPage", title: "Notifications", uninstall: false) {
+        section ("Push Messages:") {
+            input "usePush", "bool", title: "Send Push Notifications...", required: false, defaultValue: false, submitOnChange: true
+            input "pushTimeStamp", "bool", title: "Add timestamp to Push Messages...", required: false, defaultValue: false, submitOnChange: true
+        }
+        section ("Text Messages:", hideWhenEmpty: true) {
+            paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
+            input "smsNumbers", "text", title: "Send SMS Text to...", required: false, submitOnChange: true, image: getAppImg("sms_phone")
+        }
+        section ("Alexa Mobile Notification:") {
+            paragraph "This will send a push notification the Alexa Mobile app."
+            input "alexaMobileMsg", "text", title: "Send this message to Alexa App", required: false, submitOnChange: true, image: getAppImg("sms_phone")
+        }
+        section("Pushover Support:") {
+            input ("pushoverEnabled", "bool", title: "Use Pushover Integration", required: false, submitOnChange: true, image: getAppImg("pushover_icon"))
+            if(settings?.pushoverEnabled == true) {
+                def poDevices = parent?.getPushoverDevices()
+                if(!poDevices) {
+                    parent?.pushover_init()
+                    paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
+                } else {
+                    input "pushoverDevices", "enum", title: "Select Pushover Devices", description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
+                    if(settings?.pushoverDevices) {
+                        def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
+                        input "pushoverPriority", "enum", title: "Notification Priority (Optional)", description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority")
+                        input "pushoverSound", "enum", title: "Notification Sound (Optional)", description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound")
+                    }
+                }
+                // } else { paragraph "New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", state: "complete" }
+            }
+        }
+        if(settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) {
+            if((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
+                if(sendMsg("Info", "Push Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
+                    state.pushTested = true
+                }
+            }
+            section("Notification Restrictions:") {
+                def t1 = getNotifSchedDesc()
+                href "setNotificationTimePage", title: "Notification Restrictions", description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("restriction")
+            }
+        } else { state.pushTested = false }
+    }
+}
+
 
 def installed() {
     log.debug "Installed with settings: ${settings}"
@@ -791,6 +856,10 @@ def initialize() {
     if(settings?.appLbl && app?.getLabel() != "${settings?.appLbl} (Action)") { app?.updateLabel("${settings?.appLbl} (Action)") }
     // TODO: Cleanup unselected trigger types
     runIn(5, "subscribeToEvts")
+}
+
+Boolean isPaused() {
+    return (settings?.actionPause == true)
 }
 
 private valTrigEvt(key) {
@@ -1445,6 +1514,8 @@ String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercon
 String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>""" }
 String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>""" }
 String pTS(String t, String i = null) { return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>""" }
+String bulletItem(String inStr, String strVal) { return "${inStr == "" ? "" : "\n"} \u2022 ${strVal}" }
+String dashItem(String inStr, String strVal, newLine=false) { return "${(inStr == "" && !newLine) ? "" : "\n"} - ${strVal}" }
 
 Integer stateSize() {
     def j = new groovy.json.JsonOutput().toJson(state)
@@ -1468,5 +1539,80 @@ private logger(type, msg, traceOnly=false) {
     if (traceOnly && !settings?.appTrace) { return }
     if(type && msg && settings?.appDebug) {
         log."${type}" "${msg}"
+    }
+}
+
+// SEQUENCE TEST LOGIC
+
+Map seqItemsAvail() {
+    return [
+        other: [
+            "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
+            "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
+            "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
+            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
+            "announcementall": "message", "pushnotification": "message", "email": null
+        ],
+        // dnd: [
+        //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
+        //     "dnd_duration":"2H30M", "dnd_time":"00:30"
+        // ],
+        speech: [
+            "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
+        ],
+        music: [
+            "amazonmusic": "search term", "applemusic": "search term", "iheartradio": "search term", "pandora": "search term",
+            "spotify": "search term", "tunein": "search term", "cloudplayer": "search term"
+        ]
+    ]
+}
+
+def sequencePage() {
+    return dynamicPage(name: "sequencePage", uninstall: false, install: false) {
+        section(sTS("Command Legend:"), hideable: true, hidden: true) {
+            String str1 = "Sequence Options:"
+            seqItemsAvail()?.other?.sort()?.each { k, v->
+                str1 += "${bulletItem(str1, "${k}${v != null ? "::${v}" : ""}")}"
+            }
+            String str4 = "DoNotDisturb Options:"
+            seqItemsAvail()?.dnd?.sort()?.each { k, v->
+                str4 += "${bulletItem(str4, "${k}${v != null ? "::${v}" : ""}")}"
+            }
+            String str2 = "Music Options:"
+            seqItemsAvail()?.music?.sort()?.each { k, v->
+                str2 += "${bulletItem(str2, "${k}${v != null ? "::${v}" : ""}")}"
+            }
+            String str3 = "Canned TTS Options:"
+            seqItemsAvail()?.speech?.sort()?.each { k, v->
+                def newV = v
+                if(v instanceof List) { newV = ""; v?.sort()?.each { newV += "     ${dashItem(newV, "${it}", true)}"; } }
+                str3 += "${bulletItem(str3, "${k}${newV != null ? "::${newV}" : ""}")}"
+            }
+            paragraph str1, state: "complete"
+            // paragraph str4, state: "complete"
+            paragraph str2, state: "complete"
+            paragraph str3, state: "complete"
+            paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
+        }
+        section(sTS("Sequence Test Config:")) {
+            input "sequenceTestDevice", "device.EchoSpeaksDevice", title: "Select Devices to Test Sequence Command", description: "Tap to select", multiple: false, required: false, submitOnChange: true
+            input "sequenceTestString", "text", title: "Sequence String to Use", defaultValue: "", required: false, submitOnChange: true
+        }
+        if(settings?.sequenceTestDevice && settings?.sequenceTestString) {
+            section() {
+                input "sequenceTestRun", "bool", title: "Perform the Sequence?", description: "", required: false, defaultValue: false, submitOnChange: true
+                if(sequenceTestRun) { executeSequence() }
+            }
+        }
+    }
+}
+
+private executeSequence() {
+    settingUpdate("sequenceTestRun", "false", "bool")
+    String seqStr = settings?.sequenceTestString
+    if(settings?.sequenceTestDevice?.hasCommand("executeSequenceCommand")) {
+        settings?.sequenceTestDevice?.executeSequenceCommand(seqStr as String)
+    } else {
+        log.warn "sequence test device doesn't support the executeSequenceCommand command..."
     }
 }

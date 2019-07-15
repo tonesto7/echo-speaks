@@ -1,3 +1,16 @@
+V3.0.0 (July 19th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+Main App:
+ • ADDED: Ability to remove 'Echo - ' prefix from device names.
+ • FIXED: Other bugs resolved.
+ • UPDATED: Added new speech testing and updated the announcement tests.
+
+Device:
+ • ADDED: importUrl param for Hubitat users to quickly import
+ • UPDATED:
+ • ADDED:
+ • Other stuff i'm not remembering
+
 V2.6.0 (July 10th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 App:
