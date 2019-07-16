@@ -645,61 +645,292 @@ def conditionsPage() {
     }
 }
 
+private Boolean devsSupportVolume(devs) {
+    List noSupport = []
+    List supported = []
+    if(devs) {
+        devs?.each { dev->
+            if(dev?.hasAttribute("permissions") && devs?.currentState("permissions")?.toString()?.contains(volumeControl)) {
+                supported?.push(dev?.label)
+            } else { noSupport?.push(dev?.label) }
+        }
+    }
+    return [s:supported, n:noSupport]
+}
+
+def broadcastGroupsSect() {
+    section("Group Devices:") {
+        input "act_SendToBrdGrp", "bool", title: "Send to an Echo Speaks Broadcast Group?", description: "This is ONLY for sending a Speech message to all devices in the group", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("es_groups")
+        if(act_SendToBrdGrp) {
+            Map brdCastGrps = parent?.getBroadcastGrps()
+            state?.brdCastGrps = brdCastGrps
+            Map groups = brdCastGrps?.collectEntries { [(it?.key): it?.value?.name] }
+            input "act_BroadcastGrps", "enum", title: "Select the broadcast Group", options: groups, required: true, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
+        }
+    }
+}
+
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: "Actions to perform...", install: false, uninstall: false) {
         Boolean confOk = actConfOk()
-        if(!settings?.act_EchoDevices) {
-            section("Group Devices:") {
-                input "act_SendToBrdGrp", "bool", title: "Send to an Echo Speaks Broadcast Group?", description: "This is ONLY for sending a Speech message to all devices in the group", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("es_groups")
-                if(act_SendToBrdGrp) {
-                    Map brdCastGrps = parent?.getBroadcastGrps()
-                    state?.brdCastGrps = brdCastGrps
-                    Map groups = brdCastGrps?.collectEntries { [(it?.key): it?.value?.name] }
-                    input "act_BroadcastGrps", "enum", title: "Select the broadcast Group", options: groups, required: true, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
+        Map actionOpts = [
+            "speak":"Speak", "announcement":"Announcement", "sequence":"Execute Sequence", "beeps":"Beep Tones", "weather":"Weather Report", "playback":"Playback Control",
+            "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
+            "alarmVolume":"Alarm Volume", "bluetooth":"Bluetooth Control"
+        ]
+        section("Configure Actions to Take:") {
+            input "actionType", "enum", title: "Actions Type", description: "", options: actionOpts, required: true, submitOnChange: true, image: getPublicImg("adhoc")
+        }
+
+        if(actionType) {
+            Boolean done = false
+            switch(actionType) {
+                case "speak":
+                    String ssmlTestUrl = "https://topvoiceapps.com/ssml"
+                    String ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
+                    String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
+                    echoDevicesInputByPerm("TTS")
+                    if(settings?.act_EchoDevices) {
+                        section("SSML Info:") {
+                            paragraph title: "What is SSML?", "SSML allows for changes in tone, speed, voice, emphasis.  Also allows for using MP3, and access to the Sound Library"
+                            // input "act_speak_ssml", "bool", title: "Use SSML", defaultValue: false, submitOnChange: true, required: false, getAppImg("")
+                            href url: ssmlDocsUrl, style: "external", required: false, title: "Amazon SSML Docs", description: "Tap to open browser", image: getPublicImg("web")
+                            href url: ssmlSoundsUrl, style: "external", required: false, title: "Amazon Sound Library", description: "Tap to open browser", image: getPublicImg("web")
+                            href url: ssmlTestUrl, style: "external", required: false, title: "SSML Designer and Tester", description: "Tap to open browser", image: getPublicImg("web")
+                        }
+                        section("Other Tips:") {
+                            paragraph "You can make beeps with the text 'wop' (each wop is one beep)"
+                        }
+                        section("Speech Config:") {
+                            input "act_speak_txt", "text", title: "Enter speech text/ssml", submitOnChange: true, required: false, getAppImg("speak")
+                        }
+                        actionVolumeInputs()
+                        if(act_speak_txt) { done = true }
+                    }
+                    break
+
+                case "announcement":
+                    echoDevicesInputByPerm("announce")
+                    if(settings?.act_EchoDevices) {
+
+                    }
+                    break
+
+                case "sequence":
+                    echoDevicesInputByPerm("TTS")
+                    if(settings?.act_EchoDevices) {
+                        section("Info/Testing: ") {
+                            paragraph title: "What are they?", "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel."
+                            section(sTS("Command Legend:"), hideable: true, hidden: false) {
+                                String str1 = "Sequence Options:"
+                                seqItemsAvail()?.other?.sort()?.each { k, v->
+                                    str1 += "${bulletItem(str1, "${k}${v != null ? "::${v}" : ""}")}"
+                                }
+                                String str4 = "DoNotDisturb Options:"
+                                seqItemsAvail()?.dnd?.sort()?.each { k, v->
+                                    str4 += "${bulletItem(str4, "${k}${v != null ? "::${v}" : ""}")}"
+                                }
+                                String str2 = "Music Options:"
+                                seqItemsAvail()?.music?.sort()?.each { k, v->
+                                    str2 += "${bulletItem(str2, "${k}${v != null ? "::${v}" : ""}")}"
+                                }
+                                String str3 = "Canned TTS Options:"
+                                seqItemsAvail()?.speech?.sort()?.each { k, v->
+                                    def newV = v
+                                    if(v instanceof List) { newV = ""; v?.sort()?.each { newV += "     ${dashItem(newV, "${it}", true)}"; } }
+                                    str3 += "${bulletItem(str3, "${k}${newV != null ? "::${newV}" : ""}")}"
+                                }
+                                paragraph str1, state: "complete"
+                                // paragraph str4, state: "complete"
+                                paragraph str2, state: "complete"
+                                paragraph str3, state: "complete"
+                                paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
+                            }
+                        }
+                        section("Sequence Config:") {
+                            input "act_sequence_txt", "text", title: "Enter sequence string", submitOnChange: true, required: false, getAppImg("sequence")
+                        }
+                        if(settings?.act_sequence_txt) { done = true }
+                    }
+                    break
+
+                case "weather":
+                    echoDevicesInputByPerm("TTS")
+                    if(settings?.act_EchoDevices) {
+                        section("More Info:") {
+                            paragraph title: "What is this?", "Plays a very basic weather report."
+                        }
+                        section("Weather Report Config:") {
+                            actionVolumeInputs()
+                        }
+                        done = true
+                    }
+                    break
+
+                case "playback":
+                    echoDevicesInputByPerm("mediaPlayer")
+                    if(settings?.act_EchoDevices) {
+                        Map playbackOpts = [
+                            "pause":"Pause", "stop":"Stop", "play": "Play", "next": "Next Track", "prev":"Previous Track",
+                            "mute":"Mute"
+                        ]
+                        section("More Info:") {
+                            paragraph title: "What are they?", "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc."
+                        }
+                        section("Playback Config:") {
+                            input "act_playback_type", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
+                        }
+                        if(settings?.act_playback_type) { done = true }
+                    }
+                    break
+
+                case "builtin":
+                    echoDevicesInputByPerm("TTS")
+                    if(settings?.act_EchoDevices) {
+                        Map builtinOpts = [
+                            "sing":"Sing a Song", "flashbrief":"Flash Briefing", "funfact": "Fun Fact", "traffic": "Traffic", "joke":"Joke",
+                            "story":"Tell Story", "goodbye": "Say Goodbye", "goodnight": "Say Goodnight", "birthday": "Happy Birthday",
+                            "compliment": "Give Compliment", "goodmorning": "Good Morning", "welcomehome": "Welcome Home"
+                        ]
+                        section("More Info:") {
+                            paragraph title: "What are they?", "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc."
+                        }
+                        section("BuiltIn Speech Config:") {
+                            input "act_builtin_type", "enum", title: "Select Builtin Speech Type", description: "", options: builtinOpts, required: true, submitOnChange: true, image: getPublicImg("builtin")
+                        }
+                        actionVolumeInputs()
+                        if(settings?.act_builtin_type && (settings?.act_set_volume || settings?.act_restore_volume)) { done = true }
+                    }
+                    break
+
+                case "music":
+                    // TODO: Validate Music providers available
+
+                    echoDevicesInputByPerm("mediaPlayer")
+                    if(settings?.act_EchoDevices) {
+                        section("More Info:") {
+                            paragraph title: "What are they?", "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc."
+                        }
+                        section(sTS("TuneIn Search Results:")) {
+                            paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: "complete"
+                            input "tuneinSearchQuery", "text", title: inTS("Enter search phrase for TuneIn", getAppImg("tunein", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("tunein")
+                            if(settings?.tuneinSearchQuery) {
+                                href "searchTuneInResultsPage", title: inTS("View search results!", getAppImg("search2", true)), description: "Tap to proceed...", image: getAppImg("search2")
+                            }
+                        }
+                        section("Music Config:") {
+                            input "act_music_txt", "text", title: "Enter Music Search text", submitOnChange: true, required: false, getAppImg("music")
+                        }
+                        actionVolumeInputs()
+                        if(settings?.act_sequence_txt) { done = true }
+                    }
+
+                    break
+
+                case "calendar":
+                    echoDevicesInputByPerm("TTS")
+                    if(settings?.act_EchoDevices) {
+                        section("More Info:") {
+                            paragraph title: "What is this?", "This will allow you to enable/disable Do Not Disturb based on triggers"
+                        }
+                        actionVolumeInputs()
+                    }
+                    break
+
+                case "alarm":
+                    echoDevicesInputByPerm("alarms")
+                    if(settings?.act_EchoDevices) {
+                        section("More Info:") {
+                            paragraph title: "What is this?", "This will allow you to alexa alarms based on triggers"
+                        }
+                        section("Alarm Config:") {
+                            input "act_playback_type", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
+                        }
+                        //TODO: Allow alarm volume configuration
+                    }
+
+                    break
+
+                case "reminder":
+                    echoDevicesInputByPerm("reminders")
+                    if(settings?.act_EchoDevices) {
+                        section("More Info:") {
+                            paragraph title: "What is this?", "This will allow you to alexa reminders based on triggers"
+                        }
+                        section("Reminder Config:") {
+                            input "act_playback_type", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
+                        }
+                        //TODO: Allow alarm volume configuration
+                        if(settings?.act_dnd_type) { done = true }
+                    }
+
+                    break
+                case "dnd":
+                    echoDevicesInputByPerm("doNotDisturb")
+                    if(settings?.act_EchoDevices) {
+                        Map dndOpts = ["enable":"Enable", "disable":"Disable"]
+                        section("More Info:") {
+                            paragraph title: "What is this?", "This will allow you to enable/disable Do Not Disturb based on triggers"
+                        }
+                        section("DoNotDisturb Config:") {
+                            input "act_dnd_type", "enum", title: "Select Do Not Disturb Action", description: "", options: dndOpts, required: true, submitOnChange: true, image: getPublicImg("donotdisturb")
+                        }
+                        if(settings?.act_dnd_type) { done = true }
+                    }
+
+                    break
+                case "bluetooth":
+                    echoDevicesInputByPerm("bluetoothControl")
+                    if(settings?.act_EchoDevices) {
+                        section("More Info:") {
+                            paragraph title: "What is this?", "This will allow you to create, connect, disconnect bluetooth based on triggers"
+                        }
+                        section("Bluetooth Config:") {
+                            input "act_playback_type", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
+                        }
+                    }
+
+                    break
+            }
+            if(done) {
+                section("Delay Config:") {
+                    input "act_delay", "number", title: "Delay before performing Action\n(seconds)", defaultValue: 0, required: false, submitOnChange: true, getPublicImg("delay")
                 }
             }
-        } else {
-            input "act_EchoDevices", "device.echoSpeaksDevice", title: "Echo Speaks Device to Use", description: "Select the devices", multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
         }
-        if(act_SendToBrdGrp && act_BroadcastGrps) {
+        // section(sTS("Notifications:")) {
+        //     def t0 = getAppNotifConfDesc()
+        //     href "notifPrefPage", title: "Notifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+        // }
 
-        } else {
-            List actionOpts = ["Speak", "Announcement", "Execute Sequence", "Beep Tones", "Weather Report", "Playback Control", "Sing, Jokes, Story, etc.", "Play Music", "Calendar Events", "Create Alarm", "Create Reminder", "Do Not Disturb", "Alarm Volume", "Bluetooth Control"]
-
-            section("Configure Actions to Take:") {
-                /**
-                    Speak
-                    announcement
-                    volume
-                    Beep tones
-                    weather
-                    joke
-                    intro music (?)
-                    music (search, play, pause, start, stop)
-                    calendar
-                    create alarm
-                    create reminder
-                    set do not disturb
-                    set alarm volume
-                    connect/disconnect bluetooth
-                    create SSML (Create Web UI to design and test)
-
-                **/
-                input "actionType", "enum", title: "Actions Type", description: "", options: actionOpts, required: true, submitOnChange: true, image: getPublicImg("adhoc")
-
-            }
-            section(sTS("Notifications:")) {
-                def t0 = getAppNotifConfDesc()
-                href "notifPrefPage", title: "Notifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
-            }
-
+    }
+    if(confOk) {
+        section("") {
+            paragraph ""
+            input "actTestRun", "bool", title: "Test this action right now?", description: "", required: false, defaultValue: false, submitOnChange: true
+            if(actTestRun) { executeActTest() }
         }
-        if(confOk) {
-            section("") {
-                paragraph ""
-                input "actTestRun", "bool", title: "Test this action right now?", description: "", required: false, defaultValue: false, submitOnChange: true
-                if(actTestRun) { executeActTest() }
-            }
+    }
+}
+
+private echoDevicesInputByPerm(type) {
+    def echoDevs = parent?.getChildDevicesByCap(type as String)
+    log.debug "echoDevs: ${echoDevs}"
+    section("Alexa Devices: ") {
+        if(echoDevs?.size()) {
+            input "act_EchoDevices", "enum", title: "Echo Speaks Device(s) to Use", description: "Select the devices", options: echoDevs?.collectEntries, multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
+        } else { paragraph "No devices were found with support for ($type)"}
+    }
+}
+
+private actionVolumeInputs() {
+    if(settings?.act_EchoDevices && settings?.actionType in ["speak", "announcement", "beeps", "weather", "builtin", "music", "calendar"]) {
+        Map volMap = devsSupportVolume(settings?.act_EchoDevices)
+        section("Volume Options:") {
+            if(volMap?.n?.size() > 0 && volMap?.n?.size() < settings?.act_EchoDevices?.size()) { paragraph "Some of the selected devices do not support volume control" }
+            else if(settings?.act_EchoDevices?.size() == volMap?.n?.size()) { paragraph "Some of the selected devices do not support volume control"; return; }
+            input "act_set_volume", "number", title: "Volume Level", range: "0..100", required: true, submitOnChange: true, getPublicImg("speed_knob")
+            input "act_restore_volume", "number", title: "Restore Volume\n(Optional)", range: "0..100", required: false, submitOnChange: true, getPublicImg("speed_knob")
         }
     }
 }
@@ -857,6 +1088,22 @@ def initialize() {
     if(settings?.appLbl && app?.getLabel() != "${settings?.appLbl} (Action)") { app?.updateLabel("${settings?.appLbl} (Action)") }
     // TODO: Cleanup unselected trigger types
     runIn(5, "subscribeToEvts")
+    appCleanup()
+}
+
+private appCleanup() {
+    List items = []
+    items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
+    // Settings Cleanup
+    List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest"]
+    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
+    setItems?.each { sI->
+        if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
+    }
+}
+
+public triggerInitialize() {
+    runIn(3, "initialize")
 }
 
 Boolean isPaused() {
@@ -1542,8 +1789,9 @@ private logger(type, msg, traceOnly=false) {
         log."${type}" "${msg}"
     }
 }
-
-// SEQUENCE TEST LOGIC
+/************************************************
+            SEQUENCE TEST LOGIC
+*************************************************/
 
 Map seqItemsAvail() {
     return [
@@ -1568,52 +1816,36 @@ Map seqItemsAvail() {
     ]
 }
 
-def sequencePage() {
-    return dynamicPage(name: "sequencePage", uninstall: false, install: false) {
-        section(sTS("Command Legend:"), hideable: true, hidden: true) {
-            String str1 = "Sequence Options:"
-            seqItemsAvail()?.other?.sort()?.each { k, v->
-                str1 += "${bulletItem(str1, "${k}${v != null ? "::${v}" : ""}")}"
-            }
-            String str4 = "DoNotDisturb Options:"
-            seqItemsAvail()?.dnd?.sort()?.each { k, v->
-                str4 += "${bulletItem(str4, "${k}${v != null ? "::${v}" : ""}")}"
-            }
-            String str2 = "Music Options:"
-            seqItemsAvail()?.music?.sort()?.each { k, v->
-                str2 += "${bulletItem(str2, "${k}${v != null ? "::${v}" : ""}")}"
-            }
-            String str3 = "Canned TTS Options:"
-            seqItemsAvail()?.speech?.sort()?.each { k, v->
-                def newV = v
-                if(v instanceof List) { newV = ""; v?.sort()?.each { newV += "     ${dashItem(newV, "${it}", true)}"; } }
-                str3 += "${bulletItem(str3, "${k}${newV != null ? "::${newV}" : ""}")}"
-            }
-            paragraph str1, state: "complete"
-            // paragraph str4, state: "complete"
-            paragraph str2, state: "complete"
-            paragraph str3, state: "complete"
-            paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
+def searchTuneInResultsPage() {
+    return dynamicPage(name: "searchTuneInResultsPage", uninstall: false, install: false) {
+        def results = executeTuneInSearch()
+        Boolean onST = isST()
+        section(sTS("Search Results: (Query: ${settings?.tuneinSearchQuery})")) {
+            if(results?.browseList && results?.browseList?.size()) {
+                results?.browseList?.eachWithIndex { item, i->
+                    if(i < 25) {
+                        if(item?.browseList != null && item?.browseList?.size()) {
+                            item?.browseList?.eachWithIndex { item2, i2->
+                                String str = ""
+                                str += "ContentType: (${item2?.contentType})"
+                                str += "\nId: (${item2?.id})"
+                                str += "\nDescription: ${item2?.description}"
+                                if(onST) {
+                                    paragraph title: pTS(item2?.name?.take(75), (onST ? null : item2?.image)), str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: item2?.image ?: ""
+                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (onST ? null : item2?.image)), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: onST && item2?.image ? item2?.image : null }
+                            }
+                        } else {
+                            String str = ""
+                            str += "ContentType: (${item?.contentType})"
+                            str += "\nId: (${item?.id})"
+                            str += "\nDescription: ${item?.description}"
+                            if(onST) {
+                                paragraph title: pTS(item?.name?.take(75), (onST ? null : item?.image)), str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: item?.image ?: ""
+                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (onST ? null : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: onST && item?.image ? item?.image : null }
+                        }
+                    }
+                }
+            } else { paragraph "No Results found..." }
         }
-        section(sTS("Sequence Test Config:")) {
-            input "sequenceTestDevice", "device.EchoSpeaksDevice", title: "Select Devices to Test Sequence Command", description: "Tap to select", multiple: false, required: false, submitOnChange: true
-            input "sequenceTestString", "text", title: "Sequence String to Use", defaultValue: "", required: false, submitOnChange: true
-        }
-        if(settings?.sequenceTestDevice && settings?.sequenceTestString) {
-            section() {
-                input "sequenceTestRun", "bool", title: "Perform the Sequence?", description: "", required: false, defaultValue: false, submitOnChange: true
-                if(sequenceTestRun) { executeSequence() }
-            }
-        }
-    }
-}
-
-private executeSequence() {
-    settingUpdate("sequenceTestRun", "false", "bool")
-    String seqStr = settings?.sequenceTestString
-    if(settings?.sequenceTestDevice?.hasCommand("executeSequenceCommand")) {
-        settings?.sequenceTestDevice?.executeSequenceCommand(seqStr as String)
-    } else {
-        log.warn "sequence test device doesn't support the executeSequenceCommand command..."
     }
 }

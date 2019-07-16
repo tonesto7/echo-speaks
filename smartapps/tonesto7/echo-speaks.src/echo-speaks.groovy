@@ -20,7 +20,7 @@ String appModified() { return "2019-07-11" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 270, actionApp: 270, groupApp: 270, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 270, actionApp: 270, server: 222] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -138,11 +138,11 @@ def mainPage() {
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
-            def t1 = getGroupsDesc()
-            def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
-            section(sTS("Broadcast Groups:")) {
-                href "groupsPage", title: "Manage Groups", description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
-            }
+            // def t1 = getGroupsDesc()
+            // def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
+            // section(sTS("Broadcast Groups:")) {
+            //     href "groupsPage", title: "Manage Groups", description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
+            // }
 
             def t2 = getActionsDesc()
             def actDesc = t2 ? "${t2}\n\nTap to modify" : null
@@ -926,7 +926,7 @@ private executeMusicSearchTest() {
 
 def musicSearchTestPage() {
     return dynamicPage(name: "musicSearchTestPage", uninstall: false, install: false) {
-        section(sTS("Test a Music Search on Device:")) {
+        section("Test a Music Search on Device:") {
             paragraph "Use this to test the search you discovered above directly on a device.", state: "complete"
             Map testEnum = ["CLOUDPLAYER": "My Library", "AMAZON_MUSIC": "Amazon Music", "I_HEART_RADIO": "iHeartRadio", "PANDORA": "Pandora", "APPLE_MUSIC": "Apple Music", "TUNEIN": "TuneIn", "SIRIUSXM": "siriusXm", "SPOTIFY": "Spotify"]
             input "musicTestProvider", "enum", title: inTS("Select Music Provider to perform test", getAppImg("music", true)), defaultValue: null, required: false, options: testEnum, submitOnChange: true, image: getAppImg("music")
@@ -990,9 +990,14 @@ private getChildDeviceBySerial(String serial) {
     return childDevs?.find { it?.deviceNetworkId?.tokenize("|")?.contains(serial) } ?: null
 }
 
-private getChildDeviceByCap(String cap) {
+public getChildDeviceByCap(String cap) {
     def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
     return childDevs?.find { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) } ?: null
+}
+
+public getChildDevicesByCap(String cap) {
+    def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    return childDevs?.findAll { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) } ?: null
 }
 
 def donationPage() {
@@ -1040,7 +1045,7 @@ def initialize() {
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         validateCookie(true)
-        runIn(15, "reInitDevices")
+        runIn(15, "reInitChildren")
         getOtherData()
         getEchoDevices()
     }
@@ -1184,8 +1189,9 @@ private resetQueues() {
     (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.resetQueue() }
 }
 
-private reInitDevices() {
+private reInitChildren() {
     (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.triggerInitialize() }
+    updChildAppVer()
 }
 
 private updCodeVerMap(key, val) {
@@ -1440,6 +1446,13 @@ public childInitiatedRefresh() {
     } else {
         log.warn "childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)"
     }
+}
+
+public updChildAppVer() {
+    def actApps = getActionApps()
+    def grpApps = getGroupApps()
+    if(actApps?.size()) { updCodeVerMap("actionApp", actApps[0]?.appVersion()) }
+    if(grpApps?.size()) { updCodeVerMap("groupApp", grpApps[0]?.appVersion()) }
 }
 
 private getEchoDevices() {
@@ -2156,7 +2169,7 @@ private appUpdateNotify() {
     Boolean on = (settings?.sendAppUpdateMsg != false)
     Boolean appUpd = isAppUpdateAvail()
     Boolean actUpd = isActionAppUpdateAvail()
-    Boolean grpUpd = isGroupAppUpdateAvail()
+    Boolean grpUpd = false//isGroupAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
     logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | grpUpd: (${grpUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
