@@ -648,16 +648,17 @@ def conditionsPage() {
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: "Actions to perform...", install: false, uninstall: false) {
         Boolean confOk = actConfOk()
-        section("Group Devices:") {
-            input "act_SendToBrdGrp", "bool", title: "Send to an Echo Speaks Broadcast Group?", description: "This is ONLY for sending a Speech message to all devices in the group", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("es_groups")
-            if(act_SendToBrdGrp) {
-                Map brdCastGrps = parent?.getBroadcastGrps()
-                state?.brdCastGrps = brdCastGrps
-                Map groups = brdCastGrps?.collectEntries { [(it?.key): it?.value?.name] }
-                input "act_BroadcastGrps", "enum", title: "Select the broadcast Group", options: groups, required: true, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
+        if(!settings?.act_EchoDevices) {
+            section("Group Devices:") {
+                input "act_SendToBrdGrp", "bool", title: "Send to an Echo Speaks Broadcast Group?", description: "This is ONLY for sending a Speech message to all devices in the group", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("es_groups")
+                if(act_SendToBrdGrp) {
+                    Map brdCastGrps = parent?.getBroadcastGrps()
+                    state?.brdCastGrps = brdCastGrps
+                    Map groups = brdCastGrps?.collectEntries { [(it?.key): it?.value?.name] }
+                    input "act_BroadcastGrps", "enum", title: "Select the broadcast Group", options: groups, required: true, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
+                }
             }
-        }
-        else {
+        } else {
             input "act_EchoDevices", "device.echoSpeaksDevice", title: "Echo Speaks Device to Use", description: "Select the devices", multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
         }
         if(act_SendToBrdGrp && act_BroadcastGrps) {

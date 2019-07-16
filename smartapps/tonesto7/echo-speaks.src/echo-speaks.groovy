@@ -91,14 +91,15 @@ def appInfoSect()	{
     } else { str += "\nApp: v${appVersion()}" }
     section() {
         href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
-        if(!state?.isInstalled) { paragraph "--NEW Install--", state: "complete" }
-    }
-    section("Developer Notices") {
-        if(!state?.noticeData) { getNoticeData() }
-        if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
-            state?.noticeData?.notices?.each { item-> paragraph bulletItem(str, item), required: true, state: null }
+        if(!state?.isInstalled) {
+            paragraph "--NEW Install--", state: "complete"
         } else {
-            paragraph "No Issues to Report"
+            if(!state?.noticeData) { getNoticeData() }
+            if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
+                state?.noticeData?.notices?.each { item-> paragraph bulletItem(str, item), required: true, state: null }
+            } else {
+                paragraph "No Issues to Report"
+            }
         }
     }
 }
@@ -119,27 +120,6 @@ def mainPage() {
             if(!resumeConfig && state?.authValid != true) {
                 section() { paragraph title: "NOTICE:", "You are not currently logged in to Amazon.  Please complete the Authentication Process on the Server Login Page...", required: true, state: null }
             }
-            section(sTS("Device Management:")) {
-                if(!newInstall) {
-                    List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }
-                    Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
-                    Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
-                    href "deviceManagePage", title: inTS("Device Management:"), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
-                } else { paragraph "Device Management will be displayed after install is complete" }
-            }
-
-            def t1 = getGroupsDesc()
-            def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
-            section(sTS("Manage Groups:")) {
-                href "groupsPage", title: inTS("Broadcast Groups", getAppImg("es_groups", true)), description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
-            }
-
-            def t2 = getActionsDesc()
-            def actDesc = t2 ? "${t2}\n\nTap to modify" : null
-            section(sTS("Manage Actions:")) {
-                href "actionsPage", title: inTS("Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
-            }
-            state?.childInstallOkFlag = true
             section(sTS("Alexa Guard:")) {
                 if(state?.alexaGuardSupported) {
                     String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
@@ -149,18 +129,41 @@ def mainPage() {
                 } else { paragraph "Alexa Guard is not enabled or supported by any of your Echo Devices" }
             }
 
-            section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
-                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
+            section(sTS("Alexa Devices:")) {
+                if(!newInstall) {
+                    List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }
+                    Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
+                    Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+                    href "deviceManagePage", title: inTS("Manage Devices:"), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
+                } else { paragraph "Device Management will be displayed after install is complete" }
             }
+
+            def t1 = getGroupsDesc()
+            def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
+            section(sTS("Broadcast Groups:")) {
+                href "groupsPage", title: "Manage Groups", description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
+            }
+
+            def t2 = getActionsDesc()
+            def actDesc = t2 ? "${t2}\n\nTap to modify" : null
+            section(sTS("Actions:")) {
+                href "actionsPage", title: "Manage Actions", description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
+            }
+            state?.childInstallOkFlag = true
+
             section(sTS("Alexa Login Service:")) {
                 def t0 = getServiceConfDesc()
-                href "servPrefPage", title: inTS("Login Service\nSettings", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
+                href "servPrefPage", title: "Manage Login Service", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
             }
             if(!state?.shownDevSharePage) { showDevSharePrefs() }
             section(sTS("Notifications:")) {
                 def t0 = getAppNotifConfDesc()
-                href "notifPrefPage", title: inTS("App and Device\nNotifications", getAppImg("devices", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+                href "notifPrefPage", title: "Manage Notifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+            }
+
+            section(sTS("Experimental Functions:")) {
+                href "deviceTestPage", title: "Device Testing", description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
+                href "musicSearchTestPage", title: "Music Search Tests", description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
             }
         }
         section(sTS("Documentation & Settings:")) {
@@ -2654,8 +2657,8 @@ String getAppNotifConfDesc() {
         def nd = getNotifSchedDesc()
         str += (settings?.usePush) ? "${str != "" ? "\n" : ""}Sending via: (Push)" : ""
         str += (settings?.pushoverEnabled) ? "${str != "" ? "\n" : ""}Pushover: (Enabled)" : ""
-        str += (settings?.pushoverEnabled && settings?.pushoverPriority) ? bulletItem(str, "Priority: (${settings?.pushoverPriority})") : ""
-        str += (settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : ""
+        // str += (settings?.pushoverEnabled && settings?.pushoverPriority) ? bulletItem(str, "Priority: (${settings?.pushoverPriority})") : ""
+        // str += (settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : ""
         str += (settings?.phone) ? "${str != "" ? "\n" : ""}Sending via: (SMS)" : ""
         str += (ap) ? "${str != "" ? "\n\n" : ""}Enabled Alerts:\n${ap}" : ""
         str += (ap && nd) ? "${str != "" ? "\n" : ""}\nAlert Restrictions:\n${nd}" : ""
