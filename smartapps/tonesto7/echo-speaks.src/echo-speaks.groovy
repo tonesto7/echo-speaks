@@ -2668,11 +2668,11 @@ String getAppNotifConfDesc() {
     if(pushStatus()) {
         def ap = getAppNotifDesc()
         def nd = getNotifSchedDesc()
-        str += (settings?.usePush) ? "${str != "" ? "\n" : ""}Sending via: (Push)" : ""
-        str += (settings?.pushoverEnabled) ? "${str != "" ? "\n" : ""}Pushover: (Enabled)" : ""
+        str += (settings?.usePush) ? bulletItem(str, "Sending via: (Push)") : ""
+        str += (settings?.pushoverEnabled) ? bulletItem(str, "Pushover: (Enabled)") : ""
         // str += (settings?.pushoverEnabled && settings?.pushoverPriority) ? bulletItem(str, "Priority: (${settings?.pushoverPriority})") : ""
         // str += (settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : ""
-        str += (settings?.phone) ? "${str != "" ? "\n" : ""}Sending via: (SMS)" : ""
+        str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : ""
         str += (ap) ? "${str != "" ? "\n\n" : ""}Enabled Alerts:\n${ap}" : ""
         str += (ap && nd) ? "${str != "" ? "\n" : ""}\nAlert Restrictions:\n${nd}" : ""
     }
