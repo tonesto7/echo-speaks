@@ -2333,7 +2333,7 @@ private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||
 /******************************************
 |       Changelog Logic
 ******************************************/
-Boolean showDonationOk() { return (!atomicState?.installData?.shownDonation && getDaysSinceUpdated() >= 30) ? true : false }
+Boolean showDonationOk() { return (state?.isInstalled && !atomicState?.installData?.shownDonation && getDaysSinceUpdated() >= 30) ? true : false }
 
 Integer getDaysSinceUpdated() {
 	def updDt = atomicState?.installData?.updatedDt ?: null
