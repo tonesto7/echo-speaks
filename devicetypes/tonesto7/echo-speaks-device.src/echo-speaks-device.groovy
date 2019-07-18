@@ -442,8 +442,6 @@ metadata {
 
 def installed() {
     log.trace "${device?.displayName} Executing Installed..."
-    setLevel(20)
-    sendEvent(name: "alarmVolume", value: 0)
     sendEvent(name: "mute", value: "unmuted")
     sendEvent(name: "status", value: "stopped")
     sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
@@ -456,6 +454,7 @@ def installed() {
     sendEvent(name: "alexaWakeWord", value: "")
     state?.doNotDisturb = false
     initialize()
+    runIn(20, "postInstall")
 }
 
 def updated() {
@@ -471,6 +470,11 @@ def initialize() {
     stateCleanup()
     schedDataRefresh(true)
     refreshData(true)
+}
+
+def postInstall() {
+    setLevel(30)
+    setAlarmVolume(30)
 }
 
 public triggerInitialize() {
