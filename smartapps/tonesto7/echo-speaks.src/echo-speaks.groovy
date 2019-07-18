@@ -1648,7 +1648,7 @@ private getGuardState() {
         def guardStateData = jsonSlurper.parseText(resp?.deviceStates[0]?.capabilityStates)
         state?.alexaGuardState = guardStateData?.value
         settingUpdate("alexaGuardAwayToggle", (state?.alexaGuardState == "ARMED_AWAY" ? "true" : "false"), "bool")
-        log.debug "Alexa Guard State: (${state?.alexaGuardState})"
+        logger("debug", "Alexa Guard State: (${state?.alexaGuardState})")
     }
     // log.debug "guardState resp: ${resp}"
 }
