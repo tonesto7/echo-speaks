@@ -473,8 +473,8 @@ def initialize() {
 }
 
 def postInstall() {
-    setLevel(30)
-    setAlarmVolume(30)
+    if(device?.currentState('level') == 0) { setLevel(30) }
+    if(device?.currentState('alarmVolume') == 0) { setAlarmVolume(30) }
 }
 
 public triggerInitialize() {
