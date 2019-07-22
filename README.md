@@ -1,5 +1,3 @@
-[![Waffle.io - Columns and their card count](https://badge.waffle.io/tonesto7/echo-speaks.svg?columns=all)](https://waffle.io/tonesto7/echo-speaks)
-
 <p align="center"><img src="https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/EchoSpeaks.png"></p>
 <h2 align="center">
   Welcome to Echo Speaks
