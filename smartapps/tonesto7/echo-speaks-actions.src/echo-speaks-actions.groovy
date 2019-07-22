@@ -692,7 +692,7 @@ def actionsPage() {
                     String ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
                     String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
                     echoDevicesInputByPerm("TTS")
-                    if(settings?.act_EchoDevicesList) {
+                    if(settings?.act_EchoDevices) {
                         section("SSML Info:") {
                             paragraph title: "What is SSML?", "SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", state: "complete"
                             href url: ssmlDocsUrl, style: "external", required: false, title: "Amazon SSML Docs", description: "Tap to open browser", image: getPublicImg("web")
@@ -706,8 +706,8 @@ def actionsPage() {
                             input "act_speak_txt", "text", title: "Enter Text/SSML", description: "If entering SSML make sure to include <speak></speak>", submitOnChange: true, required: false, image: getAppImg("speak")
                         }
                         actionVolumeInputs()
-                        if(act_speak_txt) { done = true }
-                    }
+                        if(act_speak_txt) { done = true } else { done = false }
+                    } else { done = false }
                     break
 
                 case "announcement":
@@ -720,13 +720,13 @@ def actionsPage() {
                             input "act_speak_txt", "text", title: "Enter Text/SSML", description: "If entering SSML make sure to include <speak></speak>", submitOnChange: true, required: false, image: getAppImg("speak")
                         }
                         actionVolumeInputs()
-                        if(act_speak_txt) { done = true }
-                    }
+                        if(act_speak_txt) { done = true } else { done = false }
+                    } else { done = false }
                     break
 
                 case "sequence":
                     echoDevicesInputByPerm("TTS")
-                    if(settings?.act_EchoDevicesList) {
+                    if(settings?.act_EchoDevices) {
                         section("Action Description:") {
                             paragraph "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.", state: "complete"
                         }
@@ -759,24 +759,24 @@ def actionsPage() {
                         section("Action Config:") {
                             input "act_sequence_txt", "text", title: "Enter sequence text", submitOnChange: true, required: false, image: getAppImg("sequence")
                         }
-                        if(settings?.act_sequence_txt) { done = true }
-                    }
+                        if(settings?.act_sequence_txt) { done = true } else { done = false }
+                    } else { done = false }
                     break
 
                 case "weather":
                     echoDevicesInputByPerm("TTS")
-                    if(settings?.act_EchoDevicesList) {
+                    if(settings?.act_EchoDevices) {
                         section("Action Description:") {
                             paragraph "Plays a very basic weather report.", state: "complete"
                         }
                         actionVolumeInputs()
                         done = true
-                    }
+                    } else { done = false }
                     break
 
                 case "playback":
                     echoDevicesInputByPerm("mediaPlayer")
-                    if(settings?.act_EchoDevicesList) {
+                    if(settings?.act_EchoDevices) {
                         Map playbackOpts = [
                             "pause":"Pause", "stop":"Stop", "play": "Play", "next": "Next Track", "prev":"Previous Track",
                             "mute":"Mute"
@@ -787,8 +787,8 @@ def actionsPage() {
                         section("Playback Config:") {
                             input "act_playback_type", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
                         }
-                        if(settings?.act_playback_type) { done = true }
-                    }
+                        if(settings?.act_playback_type) { done = true } else { done = false }
+                    } else { done = false }
                     break
 
                 case "builtin":
@@ -806,8 +806,8 @@ def actionsPage() {
                             input "act_builtin_type", "enum", title: "Select Builtin Speech Type", description: "", options: builtinOpts, required: true, submitOnChange: true, image: getPublicImg("builtin")
                         }
                         actionVolumeInputs()
-                        if(settings?.act_builtin_type && (settings?.act_set_volume || settings?.act_restore_volume)) { done = true }
-                    }
+                        if(settings?.act_builtin_type && (settings?.act_set_volume || settings?.act_restore_volume)) { done = true } else { done = false }
+                    } else { done = false }
                     break
 
                 case "music":
@@ -815,7 +815,7 @@ def actionsPage() {
                     // TODO: Select a music provider
 
                     echoDevicesInputByPerm("mediaPlayer")
-                    if(settings?.act_EchoDevicesList) {
+                    if(settings?.act_EchoDevices) {
                         section("Action Description:") {
                             paragraph "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", state: "complete"
                         }
@@ -830,25 +830,25 @@ def actionsPage() {
                             input "act_music_txt", "text", title: "Enter Music Search text", submitOnChange: true, required: false, image: getAppImg("music")
                         }
                         actionVolumeInputs()
-                        if(settings?.act_sequence_txt) { done = true }
-                    }
+                        if(settings?.act_sequence_txt) { done = true } else { done = false }
+                    } else { done = false }
 
                     break
 
                 case "calendar":
                     echoDevicesInputByPerm("TTS")
-                    if(settings?.act_EchoDevicesList) {
+                    if(settings?.act_EchoDevices) {
                         section("Action Description:") {
                             paragraph "This will allow you to enable/disable Do Not Disturb based on triggers", state: "complete"
                         }
                         actionVolumeInputs()
                         done = true
-                    }
+                    } else { done = false }
                     break
 
                 case "alarm":
                     echoDevicesInputByPerm("alarms")
-                    if(settings?.act_EchoDevicesList) {
+                    if(settings?.act_EchoDevices) {
                         section("Action Description:") {
                             paragraph "This will allow you to alexa alarms based on triggers", state: "complete"
                         }
@@ -858,14 +858,14 @@ def actionsPage() {
                             input "act_alarm_time", "time", title: "Alarm Time", submitOnChange: true, required: true, image: getPublicImg("clock")
                         }
                         actionVolumeInputs(true)
-                        if(act_alarm_label && act_alarm_date && act_alarm_time) { done = true }
-                    }
+                        if(act_alarm_label && act_alarm_date && act_alarm_time) { done = true } else { done = false }
+                    } else { done = false }
 
                     break
 
                 case "reminder":
                     echoDevicesInputByPerm("reminders")
-                    if(settings?.act_EchoDevicesList) {
+                    if(settings?.act_EchoDevices) {
                         section("Action Description:") {
                             paragraph "This will allow you to alexa reminders based on triggers", state: "complete"
                         }
@@ -875,13 +875,13 @@ def actionsPage() {
                             input "act_reminder_time", "time", title: "Reminder Time", submitOnChange: true, required: true, image: getPublicImg("clock")
                         }
                         actionVolumeInputs(true)
-                        if(act_reminder_label && act_reminder_date && act_reminder_time) { done = true }
-                    }
+                        if(act_reminder_label && act_reminder_date && act_reminder_time) { done = true } else { done = false }
+                    } else { done = false }
 
                     break
                 case "dnd":
                     echoDevicesInputByPerm("doNotDisturb")
-                    if(settings?.act_EchoDevicesList) {
+                    if(settings?.act_EchoDevices) {
                         Map dndOpts = ["enable":"Enable", "disable":"Disable"]
                         section("Action Description:") {
                             paragraph title: "What is this?", "This will allow you to enable/disable Do Not Disturb based on triggers", state: "complete"
@@ -889,20 +889,20 @@ def actionsPage() {
                         section("Action Config:") {
                             input "act_dnd_type", "enum", title: "Select Do Not Disturb Action", description: "", options: dndOpts, required: true, submitOnChange: true, image: getPublicImg("donotdisturb")
                         }
-                        if(settings?.act_dnd_type) { done = true }
-                    }
+                        if(settings?.act_dnd_type) { done = true } else { done = false }
+                    } else { done = false }
 
                     break
                 case "bluetooth":
                     echoDevicesInputByPerm("bluetoothControl")
-                    if(settings?.act_EchoDevicesList) {
+                    if(settings?.act_EchoDevices) {
                         section("Action Description:") {
                             paragraph title: "What is this?", "This will allow you to create, connect, disconnect bluetooth based on triggers", state: "complete"
                         }
                         section("Action Config:") {
                             input "act_playback_type", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
                         }
-                    }
+                    } else { done = false }
 
                     break
             }
