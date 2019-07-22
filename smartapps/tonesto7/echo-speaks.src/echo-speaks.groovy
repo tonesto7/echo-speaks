@@ -258,13 +258,14 @@ def alexaGuardAutoPage() {
 }
 
 Boolean guardAutoConfigured() {
-    return ((settings?.guardAwayModes && settings?.guardHomeModes) || settings?.guardAwayPresence)
+    return ((settings?.guardAwayAlarm && settings?.guardHomeAlarm) || (settings?.guardAwayModes && settings?.guardHomeModes) || settings?.guardAwayPresence)
 }
 
 String guardAutoDesc() {
     String str = ""
     if(guardAutoConfigured()) {
         str += "Guard Triggers:"
+        str += (settings?.guardAwayAlarm && settings?.guardHomeAlarm) ? bulletItem(str, "Using ${getAlarmSystemName()}\n") : ""
         str += settings?.guardHomeModes ? bulletItem(str, "Home Modes: (${settings?.guardHomeModes?.size()})\n") : ""
         str += settings?.guardAwayModes ? bulletItem(str, "Away Modes: (${settings?.guardAwayModes?.size()})\n") : ""
         str += settings?.guardAwayPresence ? bulletItem(str, "Presence Home: (${settings?.guardAwayPresence?.size()})") : ""
