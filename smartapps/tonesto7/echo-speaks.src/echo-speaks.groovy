@@ -2985,7 +2985,7 @@ String getAlarmSystemName(abbr=false) {
 }
 
 List getAlarmModeOpts() {
-    return isST() ? ["disarm", "stay", "away"] : ["disarm", "armNight", "armHome", "armAway"]
+    return isST() ? ["off", "stay", "away"] : ["disarm", "armNight", "armHome", "armAway"]
 }
 
 String getAlarmSystemStatus() {
@@ -3000,15 +3000,16 @@ String getAlarmSystemStatus() {
 public setAlarmSystemMode(mode) {
     if(!isST()) {
         switch(mode) {
-            case "stay":
-                mode = "armHome"
-                break
+            case "armAway":
             case "away":
                 mode = "armAway"
                 break
+            case "armHome":
             case "night":
+            case "stay":
                 mode = "armHome"
                 break
+            case "disarm":
             case "off":
                 mode = "disarm"
                 break

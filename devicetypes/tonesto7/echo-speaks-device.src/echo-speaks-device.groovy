@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.7.0"}
-String devModified() { return "2019-07-11" }
+String devVersion()  { return "2.8.0"}
+String devModified() { return "2019-07-22" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -93,7 +93,6 @@ metadata {
         command "sayWelcomeHome", ["number", "number"]
         // command "playCannedRandomTts", ["string", "number", "number"]
         // command "playCannedTts", ["string", "string", "number", "number"]
-        command "playAnnouncement", ["string", "number", "number"]
         command "playAnnouncement", ["string", "string", "number", "number"]
         command "playAnnouncementAll", ["string", "string"]
         command "playCalendarToday", ["number", "number"]
@@ -132,6 +131,7 @@ metadata {
         command "connectBluetooth", ["string"]
         command "disconnectBluetooth"
         command "removeBluetooth", ["string"]
+        command "sendAnnouncementToDevices", ["string", "string", "string", "number", "number"]
     }
 
     tiles (scale: 2) {
@@ -451,7 +451,7 @@ def installed() {
     sendEvent(name: "onlineStatus", value: "online")
     sendEvent(name: "followUpMode", value: false)
     sendEvent(name: "alarmVolume", value: 0)
-    sendEvent(name: "alexaWakeWord", value: "")
+    sendEvent(name: "alexaWakeWord", value: "ALEXA")
     state?.doNotDisturb = false
     initialize()
     runIn(20, "postInstall")
@@ -479,6 +479,14 @@ def postInstall() {
 
 public triggerInitialize() {
     runIn(3, "initialize")
+}
+
+String getDeviceType() {
+    return state?.deviceType ?: null
+}
+
+String getDeviceSerial() {
+    return state?.serialNumber ?: null
 }
 
 String getHealthStatus(lower=false) {
@@ -990,7 +998,8 @@ def getAvailableWakeWordsHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getAvailableWakeWordsHandler", true)) {return}
     try {} catch (ex) { }
     def sData = response?.getJson() ?: null
-    def wakeWords = sData?.wakeWords ?: []
+    log.debug "sData: $sData"
+    def wakeWords = sData?.wakeWords ? sData?.wakeWords?.join(",") : null
     // logger("trace", "getAvailableWakeWords: ${wakeWords}")
     if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
         sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
@@ -1003,13 +1012,13 @@ def getBluetoothDevices() {
     Map btObjs = btData?.btObjs ?: [:]
     // logger("debug", "Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
-    List pairedNames = btData?.pairedNames ?: []
+    String pairedNames = btData?.pairedNames ? btData?.pairedNames?.join(",") : null
     // if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
     //     log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
     // }
 
-    if(!(device.currentValue("btDevicesPaired")?.toString()?.equals(pairedNames?.toString()))) {
+    if(isStateChange(device, "btDevicesPaired", pairedNames?.toString())) {
         log.info "Paired Bluetooth Devices: ${pairedNames}"
         sendEvent(name: "btDevicesPaired", value: pairedNames?.toString(), descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
     }
@@ -1706,8 +1715,9 @@ def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
     incrementCntByKey("use_cnt_playCannedRandomTTS")
 }
 
-def playAnnouncement(String msg, volume=null, restoreVolume=null) {
+def playAnnouncement(String msg, String title=null, volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("announce")) {
+        msg = "${title ? "${title}::" : ""}${msg}"
         if(volume != null) {
             List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
             if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
@@ -1717,15 +1727,15 @@ def playAnnouncement(String msg, volume=null, restoreVolume=null) {
     }
 }
 
-def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
+def sendAnnouncementToDevices(String msg, String title, Map devices, volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("announce")) {
-        msg = "${title ? "${title}::" : ""}${msg}"
+        msg = "${title ? "${title}" : "Echo Speaks"}::${msg}::${devices?.toString()}"
         if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
+            List seqs = [[command: "volume", value: volume], [command: "announcement_devices", value: msg]]
             if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "playAnnouncement")
-        } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
-        incrementCntByKey("use_cnt_announcement")
+            sendMultiSequenceCommand(seqs, "sendAnnouncementToDevices")
+        } else { doSequenceCmd("sendAnnouncementToDevices", "announcement_devices", msg) }
+        incrementCntByKey("use_cnt_announcementDevices")
     }
 }
 
@@ -2819,13 +2829,20 @@ Map createSequenceNode(command, value) {
             case "ssml":
             case "announcement":
             case "announcementall":
+            case "announcement_devices":
                 remDevSpecifics = true
                 seqNode?.type = "AlexaAnnouncement"
                 seqNode?.operationPayload?.expireAfter = "PT5S"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
+
                 seqNode?.operationPayload?.content = [[ locale: (state?.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
                 seqNode?.operationPayload?.target = [ customerId : state?.deviceOwnerCustomerId ]
-                if(command != "announcementall") { seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ] }
+                if(!(command in ["announcementall", "announcement_devices"])) { seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ] }
+                else if(command == "announcement_devices" && valObj?.size() == 3  && valObj[2] != null) {
+                    Map devObjs = stringToMap(valObj[2]?.toString())
+                    log.debug "devObjs: $devObjs"
+                    seqNode?.operationPayload?.target?.devices = devObjs
+                }
                 break
             case "pushnotification":
                 remDevSpecifics = true

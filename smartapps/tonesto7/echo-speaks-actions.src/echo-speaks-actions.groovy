@@ -17,10 +17,10 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()	 { return "2.7.0" }
-String appModified() { return "2019-07-11" }
+String appVersion()	 { return "2.8.0" }
+String appModified() { return "2019-07-22" }
 String appAuthor()	 { return "Anthony S." }
-Boolean isBeta()     { return true }
+Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 definition(
@@ -99,7 +99,7 @@ private List buildTriggerEnum() {
     buildItems["Date/Time"] = ["Scheduled": "Scheduled Time"]?.sort{ it?.key }
     buildItems["Location"] = ["Modes":"Modes", "Routines":"Routines"]?.sort{ it?.key }
     // buildItems["Weather Events"] = ["Weather":"Weather"]
-    buildItems["Safety & Security"] = ["Smart Home Monitor": "Smart Home Monitor", "CO2 & Smoke":"CO\u00B2 & Smoke"]?.sort{ it?.key }
+    buildItems["Safety & Security"] = ["AlarmSystem": "${getAlarmSystemName()}", "CO2 & Smoke":"CO\u00B2 & Smoke"]?.sort{ it?.key }
     buildItems["Actionable Devices"] = ["Locks":"Locks", "Dimmers, Outlets, Switches":"Dimmers, Outlets, Switches", "Garage Door Openers":"Garage Door Openers", "Valves":"Valves", "Window Shades":"Window Shades", "Buttons":"Buttons"]?.sort{ it?.key }
     // buildItems["Sensor Device"] = ["Acceleration":"Acceleration", "Contacts, Doors, Windows":"Contacts, Doors, Windows", "Motion":"Motion", "Presence":"Presence", "Temperature":"Temperature", "Humidity":"Humidity", "Water":"Water", "Power":"Power"]?.sort{ it?.key }
     buildItems["Sensor Device"] = ["Contacts, Doors, Windows":"Contacts, Doors, Windows", "Motion":"Motion", "Presence":"Presence", "Temperature":"Temperature", "Humidity":"Humidity", "Water":"Water", "Power":"Power"]?.sort{ it?.key }
@@ -122,8 +122,9 @@ def mainPage() {
         appInfoSect()
         if(!isPaused()) {
             Boolean trigConf = triggersConfigured()
+            Boolean actConf = actionsConfigured()
             section ("Configuration: Part 1") {
-                href "triggersPage", title: "Action Triggers", description: (trigConf ? "Triggers Configured\n\ntap to modify..." : "tap to configure..."), state: (trigConf ? "complete": ""), image: getPublicImg("trigger")
+                href "triggersPage", title: "Action Triggers", description: getTriggersDesc(), state: (trigConf ? "complete" : ""), image: getPublicImg("trigger")
             }
 
             section("Configuration: Part 2:") {
@@ -134,8 +135,7 @@ def mainPage() {
             }
             section("Configuration: Part 3") {
                 if(trigConf) {
-                    def actDef = settings?.findAll { it?.key?.startsWith("act_") }?.findAll { it?.value }
-                    href "actionsPage", title: "Actions Tasks", description: (actDef?.size() ? "(${actDef?.size()}) Actions Configured\n\ntap to modify..." : "tap to configure..."), state: (actDef?.size() ? "complete": ""), image: getPublicImg("adhoc")
+                    href "actionsPage", title: "Actions Tasks", description: getActionDesc(), state: (actConf ? "complete" : ""), image: getPublicImg("adhoc")
                 } else { paragraph "More Options will be shown once triggers are configured" }
             }
 
@@ -194,11 +194,11 @@ def triggersPage() {
                 }
             }
 
-            if ("Smart Home Monitor" in settings?.triggerEvents) {
-                section ("Smart Home Monitor (SHM) Events", hideable: true) {
-                    input "trig_SHM", "enum", title: "Smart Home Monitor", options:["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed", "alerts": "Alerts"], multiple: true, required: true, submitOnChange: true, image: getPublicImg("alarm_home")
-                    if("alerts" in trig_SHM) {
-                        input "trig_SHMAlertsClear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
+            if ("AlarmSystem" in settings?.triggerEvents) {
+                section ("${getAlarmSystemName()} (${getAlarmSystemName(true)}) Events", hideable: true) {
+                    input "trig_Alarm", "enum", title: "${getAlarmSystemName()} Modes", options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("alarm_home")
+                    if("alerts" in trig_Alarm) {
+                        input "trig_AlarmAlertsClear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
                     }
                 }
             }
@@ -511,7 +511,7 @@ Boolean scheduleTriggers() {
 }
 
 Boolean locationTriggers() {
-	return (settings?.trig_Modes || settings?.trig_SHM || settings?.trig_Routines)
+	return (settings?.trig_Modes || settings?.trig_Alarm || settings?.trig_Routines)
 }
 
 Boolean deviceTriggers() {
@@ -554,7 +554,7 @@ def conditionsPage() {
 
         section ("Location Based Conditions") {
             input "cond_Mode", "mode", title: "Location Mode is...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("mode")
-            input "cond_SHM", "enum", title: "Smart Home Monitor is...", options: ["away":"Armed (Away)","stay":"Armed (Home)","off":"Disarmed"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("alarm_home")
+            input "cond_Alarm", "enum", title: "${getAlarmSystemName()} is...", options: ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("alarm_home")
             input "cond_Days", "enum", title: "Days of the week", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], image: getPublicImg("day_calendar")
         }
 
@@ -672,17 +672,54 @@ def broadcastGroupsSect() {
     }
 }
 
+private executeAction(frc=false, src=null) {
+    def startTime = now()
+    log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
+    Boolean condOk = conditionValid()
+    Boolean actConf = actionsConfigured()
+    String actType = settings?.actionType
+    Integer waitDelay = settings?.act_delay ?: 0
+    if(actConf && actType) {
+        if(!condOk) { log.warn "Skipping Execution because set conditions have not been met"; return; }
+        switch(actType) {
+            case "speak":
+                if(settings?.act_set_volume || settings?.act_restore_volume) {
+                    settings?.act_EchoDevicesList?.setVolumeSpeakAndRestore(settings?.act_set_volume, settings?.act_speak_txt, settings?.act_restore_volume)
+                } else {
+                    settings?.act_EchoDevicesList?.speak(settings?.act_speak_txt)
+                }
+                logger("debug", "Sending Speak Command: (${settings?.act_speak_txt}) to ${settings?.act_EchoDevicesList} | Volume: ${settings?.act_set_volume} | Restore Volume: ${settings?.act_restore_volume}")
+                break
+            case "announcement":
+                if(settings?.act_EchoDevicesList?.size() > 1) {
+                    List devObj = []
+                    devObj << settings?.act_EchoDevicesList?.collectEntries { [deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]] }
+                    log.debug "devObj: $devObj"
+                    settings?.act_EchoDevicesList?.sendAnnouncementToDevices(settings?.act_announcement_txt, null, devObj?.toString(), settings?.act_set_volume ?: null, settings?.act_restore_volume ?: null)
+                    logger("debug", "Sending Announcement Command: (${settings?.act_announcement_txt}) to ${settings?.act_EchoDevicesList} | Volume: ${settings?.act_set_volume} | Restore Volume: ${settings?.act_restore_volume}")
+                } else {
+                    settings?.act_EchoDevicesList?.playAnnouncement(settings?.act_announcement_txt, null, settings?.act_set_volume ?: null, settings?.act_restore_volume ?: null)
+                    logger("debug", "Sending Announcement Command: (${settings?.act_announcement_txt}) to ${settings?.act_EchoDevicesList} | Volume: ${settings?.act_set_volume} | Restore Volume: ${settings?.act_restore_volume}")
+                }
+
+                break
+        }
+    }
+
+
+    log.debug "executeAction finished... | ProcessTime: (${now()-startTime}ms)"
+}
+
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: (settings?.actionType ? "Action | (${settings?.actionType})" : "Actions to perform..."), install: false, uninstall: false) {
-        Boolean confOk = actConfOk()
         Boolean done = false
         Map actionOpts = [
-            "speak":"Speak", "announcement":"Announcement", "sequence":"Execute Sequence", "beeps":"Beep Tones", "weather":"Weather Report", "playback":"Playback Control",
+            "speak":"Speak", "announcement":"Announcement", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
             "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
-            "alarmVolume":"Alarm Volume", "bluetooth":"Bluetooth Control"
+            "bluetooth":"Bluetooth Control", "wakeword":"Wake Word"
         ]
         section("Configure Actions to Take:", hideable: true, hidden: (settings?.act_EchoDevicesList?.size())) {
-            input "actionType", "enum", title: "Actions Type", description: "", options: actionOpts, required: true, submitOnChange: true, image: getPublicImg("adhoc")
+            input "actionType", "enum", title: "Actions Type", description: "", options: actionOpts, multiple: false, required: true, submitOnChange: true, image: getPublicImg("adhoc")
         }
 
         if(actionType) {
@@ -693,6 +730,7 @@ def actionsPage() {
                     String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
+
                         section("SSML Info:") {
                             paragraph title: "What is SSML?", "SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", state: "complete"
                             href url: ssmlDocsUrl, style: "external", required: false, title: "Amazon SSML Docs", description: "Tap to open browser", image: getPublicImg("web")
@@ -711,13 +749,13 @@ def actionsPage() {
                     break
 
                 case "announcement":
+                    section("Action Description:") {
+                        paragraph "Plays a brief tone and speaks the message you define.", state: "complete"
+                    }
                     echoDevicesInputByPerm("announce")
                     if(settings?.act_EchoDevices) {
-                        section("Action Description:") {
-                            paragraph "Plays a very basic weather report.", state: "complete"
-                        }
                         section("Action Config:") {
-                            input "act_speak_txt", "text", title: "Enter Text/SSML", description: "If entering SSML make sure to include <speak></speak>", submitOnChange: true, required: false, image: getAppImg("speak")
+                            input "act_announcement_txt", "text", title: "Enter Text to announce", submitOnChange: true, required: false, image: getAppImg("announcement")
                         }
                         actionVolumeInputs()
                         if(act_speak_txt) { done = true } else { done = false }
@@ -725,12 +763,11 @@ def actionsPage() {
                     break
 
                 case "sequence":
+                    section("Action Description:") {
+                        paragraph "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.", state: "complete"
+                    }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
-                        section("Action Description:") {
-                            paragraph "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.", state: "complete"
-                        }
-
                         section(sTS("Sequence Options Legend:"), hideable: true, hidden: false) {
                             String str1 = "Sequence Options:"
                             seqItemsAvail()?.other?.sort()?.each { k, v->
@@ -764,26 +801,26 @@ def actionsPage() {
                     break
 
                 case "weather":
+                    section("Action Description:") {
+                        paragraph "Plays a very basic weather report.", state: "complete"
+                    }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
-                        section("Action Description:") {
-                            paragraph "Plays a very basic weather report.", state: "complete"
-                        }
                         actionVolumeInputs()
                         done = true
                     } else { done = false }
                     break
 
                 case "playback":
+                    section("Action Description:") {
+                        paragraph "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", state: "complete"
+                    }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
                         Map playbackOpts = [
                             "pause":"Pause", "stop":"Stop", "play": "Play", "next": "Next Track", "prev":"Previous Track",
                             "mute":"Mute"
                         ]
-                        section("Action Description:") {
-                            paragraph "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", state: "complete"
-                        }
                         section("Playback Config:") {
                             input "act_playback_type", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
                         }
@@ -792,6 +829,9 @@ def actionsPage() {
                     break
 
                 case "builtin":
+                    section("Action Description:") {
+                        paragraph "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", state: "complete"
+                    }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevicesList) {
                         Map builtinOpts = [
@@ -799,9 +839,6 @@ def actionsPage() {
                             "story":"Tell Story", "goodbye": "Say Goodbye", "goodnight": "Say Goodnight", "birthday": "Happy Birthday",
                             "compliment": "Give Compliment", "goodmorning": "Good Morning", "welcomehome": "Welcome Home"
                         ]
-                        section("Action Description:") {
-                            paragraph "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", state: "complete"
-                        }
                         section("BuiltIn Speech Config:") {
                             input "act_builtin_type", "enum", title: "Select Builtin Speech Type", description: "", options: builtinOpts, required: true, submitOnChange: true, image: getPublicImg("builtin")
                         }
@@ -811,47 +848,61 @@ def actionsPage() {
                     break
 
                 case "music":
-                    // TODO: Validate Music providers available
-                    // TODO: Select a music provider
-
+                    section("Action Description:") {
+                        paragraph "Allow playback of various Songs/Radio using any connected music provider", state: "complete"
+                    }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
-                        section("Action Description:") {
-                            paragraph "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", state: "complete"
+                        List musicProvs = settings?.act_EchoDevicesList[0]?.hasAttribute("supportedMusic") ? settings?.act_EchoDevicesList[0]?.currentValue("supportedMusic")?.split(",")?.collect { "${it?.toString()?.trim()}"} : []
+                        log.debug "Music Providers: ${musicProvs}"
+                        musicProvs?.each {
+                            log.debug "${it}"
                         }
-                        section(sTS("TuneIn Search Results:")) {
-                            paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: "complete"
-                            input "tuneinSearchQuery", "text", title: inTS("Enter search phrase for TuneIn", getAppImg("tunein", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("tunein")
-                            if(settings?.tuneinSearchQuery) {
-                                href "searchTuneInResultsPage", title: inTS("View search results!", getAppImg("search2", true)), description: "Tap to proceed...", image: getAppImg("search2")
+                        if(musicProvs) {
+                            section("Music Providers:") {
+                                input "act_music_provider", "enum", title: "Select Music Provider", description: "", options: musicProvs, multiple: false, required: true, submitOnChange: true, image: getPublicImg("music")
+                            }
+                            if(settings?.act_music_provider) {
+                                if(settings?.act_music_provider == "TuneIn") {
+                                    section(sTS("TuneIn Search Results:")) {
+                                        paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: "complete"
+                                        input "tuneinSearchQuery", "text", title: inTS("Enter search phrase for TuneIn", getAppImg("tunein", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("tunein")
+                                        if(settings?.tuneinSearchQuery) {
+                                            href "searchTuneInResultsPage", title: inTS("View search results!", getAppImg("search2", true)), description: "Tap to proceed...", image: getAppImg("search2")
+                                        }
+                                    }
+                                }
+                                section("Action Config:") {
+                                    input "act_music_txt", "text", title: "Enter Music Search text", submitOnChange: true, required: false, image: getAppImg("music")
+                                }
+                                actionVolumeInputs()
                             }
                         }
-                        section("Action Config:") {
-                            input "act_music_txt", "text", title: "Enter Music Search text", submitOnChange: true, required: false, image: getAppImg("music")
-                        }
-                        actionVolumeInputs()
-                        if(settings?.act_sequence_txt) { done = true } else { done = false }
+                        if(settings?.act_music_provider && settings?.act_music_txt) { done = true } else { done = false }
                     } else { done = false }
-
                     break
 
                 case "calendar":
+                    section("Action Description:") {
+                        paragraph "This will read out events in your calendar (Requires accounts to be configured in the alexa app. Must not have PIN.)", state: "complete"
+                    }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
-                        section("Action Description:") {
-                            paragraph "This will allow you to enable/disable Do Not Disturb based on triggers", state: "complete"
+                        section("Action Config:") {
+                            input "act_calendar_type", "enum", title: "Select Calendar Action", description: "", options: ["Today", "Tomorrow", "Next Events"], required: true, submitOnChange: true, image: getPublicImg("day_calendar")
                         }
                         actionVolumeInputs()
-                        done = true
+                        if(act_calendar_type) { done = true } else { done = false }
                     } else { done = false }
                     break
 
                 case "alarm":
+                    //TODO: Offer to remove alarm after event.
+                    section("Action Description:") {
+                        paragraph "This will allow you to alexa alarms based on triggers", state: "complete"
+                    }
                     echoDevicesInputByPerm("alarms")
                     if(settings?.act_EchoDevices) {
-                        section("Action Description:") {
-                            paragraph "This will allow you to alexa alarms based on triggers", state: "complete"
-                        }
                         section("Action Config:") {
                             input "act_alarm_label", "text", title: "Alarm Label", submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_alarm_date", "text", title: "Alarm Date\n(yyyy-mm-dd)", submitOnChange: true, required: true, image: getAppImg("day_calendar")
@@ -864,11 +915,12 @@ def actionsPage() {
                     break
 
                 case "reminder":
+                    //TODO: Offer to remove reminder after event.
+                    section("Action Description:") {
+                        paragraph "This will allow you to alexa reminders based on triggers", state: "complete"
+                    }
                     echoDevicesInputByPerm("reminders")
                     if(settings?.act_EchoDevices) {
-                        section("Action Description:") {
-                            paragraph "This will allow you to alexa reminders based on triggers", state: "complete"
-                        }
                         section("Action Config:") {
                             input "act_reminder_label", "text", title: "Reminder Label", submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_reminder_date", "text", title: "Reminder Date\n(yyyy-mm-dd)", submitOnChange: true, required: true, image: getAppImg("day_calendar")
@@ -884,7 +936,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         Map dndOpts = ["enable":"Enable", "disable":"Disable"]
                         section("Action Description:") {
-                            paragraph title: "What is this?", "This will allow you to enable/disable Do Not Disturb based on triggers", state: "complete"
+                            paragraph "This will allow you to enable/disable Do Not Disturb based on triggers", state: "complete"
                         }
                         section("Action Config:") {
                             input "act_dnd_type", "enum", title: "Select Do Not Disturb Action", description: "", options: dndOpts, required: true, submitOnChange: true, image: getPublicImg("donotdisturb")
@@ -893,27 +945,67 @@ def actionsPage() {
                     } else { done = false }
 
                     break
+                case "wakeword":
+                    echoDevicesInputByPerm("wakeWord")
+                    if(settings?.act_EchoDevices) {
+                        Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
+                        section("Action Description:") {
+                            paragraph "This will allow you to the Wake Word based on triggers", state: "complete"
+                        }
+                        if(devsCnt >= 1) {
+                            List wakeWords = settings?.act_EchoDevicesList[0]?.hasAttribute("wakeWords") ? settings?.act_EchoDevicesList[0]?.currentValue("wakeWords")?.replaceAll('"', "")?.split(",") : []
+                            // log.debug "WakeWords: ${wakeWords}"
+                            Integer iCnt = 0
+                            settings?.act_EchoDevicesList?.each { cDev->
+                                section("${cDev?.getLabel()}:") {
+                                    if(wakeWords?.size()) {
+                                        paragraph "Current Wake Word: ${settings?.act_EchoDevicesList[iCnt]?.hasAttribute("alexaWakeWord") ? settings?.act_EchoDevicesList[iCnt]?.currentValue("alexaWakeWord") : "Unknown"}"
+                                        input "act_wakeword_device_${iCnt}", "enum", title: "New Wake Word", description: "", options: wakeWords, required: true, submitOnChange: true, image: getAppImg("wake_words")
+                                    } else { paragraph "Oops...\nNo Wake Words have been found!  Please Remove the device from selection.", state: null, required: true }
+                                }
+                                iCnt++
+                            }
+                        }
+                        if(settings?.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }?.size() == devsCnt) { done = true } else { done = false }
+                    } else { done = false }
+                    break
                 case "bluetooth":
                     echoDevicesInputByPerm("bluetoothControl")
                     if(settings?.act_EchoDevices) {
+                        Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
                         section("Action Description:") {
-                            paragraph title: "What is this?", "This will allow you to create, connect, disconnect bluetooth based on triggers", state: "complete"
+                            paragraph "This will allow you to connect or disconnect bluetooth based on triggers", state: "complete"
                         }
-                        section("Action Config:") {
-                            input "act_playback_type", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
+                        if(devsCnt >= 1) {
+                            Integer iCnt = 0
+                            settings?.act_EchoDevicesList?.each { cDev->
+                                List btDevs = settings?.act_EchoDevicesList[iCnt]?.hasAttribute("btDevicesPaired") ? settings?.act_EchoDevicesList[iCnt]?.currentValue("btDevicesPaired")?.split(",") : []
+                                // log.debug "btDevs: $btDevs"
+                                section("${cDev?.getLabel()}:") {
+                                    if(btDevs?.size()) {
+                                        input "act_bluetooth_device_${iCnt}", "enum", title: "BT device to use", description: "", options: btDevs, required: true, submitOnChange: true, image: getAppImg("bluetooth")
+                                        input "act_bluetooth_action_${iCnt}", "enum", title: "BT action to take", description: "", options: ["connect", "disconnect"], required: true, submitOnChange: true, image: getAppImg("bluetooth")
+                                    } else { paragraph "Oops...\nNo Bluetooth devices are paired to this Echo Device!  Please Remove the device from selection.", state: null, required: true }
+                                }
+                                iCnt++
+                            }
                         }
+                        if(settings?.findAll { it?.key?.startsWith("act_bluetooth_device_") && it?.value }?.size() == devsCnt &&
+                            settings?.findAll { it?.key?.startsWith("act_bluetooth_action_") && it?.value }?.size() == devsCnt) { done = true } else { done = false }
                     } else { done = false }
-
                     break
             }
             if(done) {
                 section("Delay Config:") {
-                    input "act_delay", "number", title: "Delay before performing Action\n(seconds)", defaultValue: 0, required: false, submitOnChange: true, image: getAppImg("delay_time")
+                    input "act_delay", "number", title: "Delay Action in Seconds\n(Optional)", required: false, submitOnChange: true, image: getAppImg("delay_time")
                 }
                 section("Simulate Action") {
                     paragraph "Run the test to see if the action is what you what to occur"
                     input "actTestRun", "bool", title: "Test this action?", description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
                     if(actTestRun) { executeActTest() }
+                }
+                section("") {
+                    paragraph "You're all done with this step.  Press Done", state: "complete"
                 }
             }
         }
@@ -921,8 +1013,16 @@ def actionsPage() {
         //     def t0 = getAppNotifConfDesc()
         //     href "notifPrefPage", title: "Notifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
         // }
-
+        state?.act_configured = done
     }
+}
+
+Boolean actionsConfigured() {
+    Boolean type = (settings?.actionType)
+    Boolean opts = (state?.act_configured == true)
+    Boolean devs = (settings?.act_EchoDevicesList)
+    // log.debug "type: $type | Options: $opts | devs: $devs"
+	return (type || opts || devs)
 }
 
 private echoDevicesInputByPerm(type) {
@@ -945,7 +1045,7 @@ private actionVolumeInputs(showAlrmVol=false) {
             input "act_alarm_volume", "number", title: "Alarm Volume\n(Optional)", range: "0..100", required: false, submitOnChange: true, image: getPublicImg("speed_knob")
         }
     } else {
-        if(settings?.act_EchoDevicesList && settings?.actionType in ["speak", "announcement", "beeps", "weather", "builtin", "music", "calendar"]) {
+        if(settings?.act_EchoDevicesList && settings?.actionType in ["speak", "announcement", "weather", "builtin", "music", "calendar"]) {
             Map volMap = devsSupportVolume(settings?.act_EchoDevicesList)
             section("Volume Options:") {
                 if(volMap?.n?.size() > 0 && volMap?.n?.size() < settings?.act_EchoDevicesList?.size()) { paragraph "Some of the selected devices do not support volume control" }
@@ -955,15 +1055,6 @@ private actionVolumeInputs(showAlrmVol=false) {
             }
         }
     }
-}
-
-Boolean actConfOk() {
-    // TODO: ACTIONs CONFIG TEST LOGIC
-}
-
-private executeActTest() {
-    settingUpdate("actTestRun", "false", "bool")
-    // TODO: ACTION TEST LOGIC
 }
 
 def timePage() {
@@ -1150,7 +1241,10 @@ private subscribeToEvts() {
     // }
 
     // Location Events
-    if(valTrigEvt("Smart Home Monitor") && settings?.trig_SHM) { subscribe(location, "alarmSystemStatus", shmEvtHandler) }
+    if(valTrigEvt("AlarmSystem") && settings?.trig_Alarm) {
+        subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", alarmEvtHandler)
+        if(!isST() && settings?.trig_Alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) }
+    }
     if(valTrigEvt("Modes") && settings?.trig_Modes) { subscribe(location, "mode", modeEvtHandler) }
     if("Routines" in settings?.triggerEvents && settings?.trig_Routines) { subscribe(location, "routineExecuted", routineEvtHandler) }
 
@@ -1230,9 +1324,26 @@ private subscribeToEvts() {
 }
 
 // EVENT HANDLER FUNCTIONS
-def shmEvtHandler(evt) {
+def alarmEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
 	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    Boolean useAlerts = (settings?.trig_Alarm == "Alerts")
+    switch(evt?.name) {
+        case "hsmStatus":
+        case "alarmSystemStatus":
+            if(isST() && useAlerts) {
+                def inc = getShmIncidents()
+                if(inc) {
+
+                }
+            }
+            break
+        case "hsmAlert":
+
+            break
+
+
+    }
 }
 
 def routineEvtHandler(evt) {
@@ -1266,12 +1377,6 @@ def scheduleTrigEvt() {
 /***********************************************************************************************************
    CONDITIONS HANDLER
 ************************************************************************************************************/
-
-Boolean isShmState(String val) {
-    def curState = getShmState()
-    return (curState == val)
-}
-
 Boolean timeCondOk() {
     // *TODO: Add timepage condition logic
     return true
@@ -1279,13 +1384,13 @@ Boolean timeCondOk() {
 
 Boolean locationCondOk() {
     Boolean mOk = settings?.cond_Mode ? (isInMode(settings?.cond_Mode)) : true
-    Boolean sOk = settings?.cond_SHM ? (isShmState(settings?.cond_SHM)) : true
+    Boolean sOk = settings?.cond_Alarm ? (isInAlarmMode(settings?.cond_Alarm)) : true
     Boolean dOk = settings?.cond_Days ? (isDayOfWeek(settings?.cond_Days)) : true
     log.debug "locationCondOk | modeOk: $mOk | shmOk: $sOk | daysOk: $dOk"
     return (mOk && sOk && dOk)
 }
 
-Boolean actionDevCondOk(type) {
+Boolean deviceCondOk(type) {
     def devs = settings?."cond_${type}" ?: null
     def stateVal = settings?."cond_${type}_state" ?: null
     if( !(type && devs && stateVal) ) { return true }
@@ -1303,18 +1408,18 @@ Boolean anyDevEqCapVal(devs, cap, val) {
 }
 
 Boolean deviceCondOk() {
-    Boolean swDevOk = actionDevCondOk("Switch")
-    Boolean motDevOk = actionDevCondOk("Motion")
-    Boolean presDevOk = actionDevCondOk("Presence")
-    Boolean conDevOk = actionDevCondOk("Contact")
-    Boolean lockDevOk = actionDevCondOk("Locks")
-    Boolean garDevOk = actionDevCondOk("Garages")
+    Boolean swDevOk = deviceCondOk("Switch")
+    Boolean motDevOk = deviceCondOk("Motion")
+    Boolean presDevOk = deviceCondOk("Presence")
+    Boolean conDevOk = deviceCondOk("Contact")
+    Boolean lockDevOk = deviceCondOk("Locks")
+    Boolean garDevOk = deviceCondOk("Garages")
     log.debug "deviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk"
     return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk)
 }
 
 def conditionValid() {
-    log.info "Checking that all conditions are ok."
+    log.trace "Checking that all conditions are ok."
     def timeOk = timeCondOk()
     def locOk = locationCondOk()
     def devOk = deviceCondOk()
@@ -1323,22 +1428,28 @@ def conditionValid() {
 }
 
 /***********************************************************************************************************
+    ACTION EXECUTION
+************************************************************************************************************/
+
+private executeActTest() {
+    settingUpdate("actTestRun", "false", "bool")
+    executeAction(true, "executeActTest")
+}
+
+
+
+/***********************************************************************************************************
    HELPER UTILITES
 ************************************************************************************************************/
 
 void settingUpdate(name, value, type=null) {
-    if(name && type) {
-        app?.updateSetting("$name", [type: "$type", value: value])
-    }
+    if(name && type) { app?.updateSetting("$name", [type: "$type", value: value]) }
     else if (name && type == null) { app?.updateSetting(name.toString(), value) }
 }
 
 private stateCleanup() {
-    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", ]
+    List items = []
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
-    state?.pollBlocked = false
-    state?.resumeConfig = false
-    state?.deviceRefreshInProgress = false
 }
 
 Map notifValEnum(allowCust = true) {
@@ -1380,13 +1491,13 @@ Map monthEnum() {
     return ["1": "January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"]
 }
 
+Map getAlarmTrigOpts() {
+    return ["away":"Armed Away","stay":"Armed Home","off":"Disarmed", "alerts": "Alerts"]
+}
+
 def getShmIncidents() {
     def incidentThreshold = now() - 604800000
     return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
-}
-
-String getShmState() {
-    return location.currentState("alarmSystemStatus")?.value ?: null
 }
 
 String getShmStatus() {
@@ -1584,6 +1695,14 @@ Boolean isInMode(modes) {
     return false
 }
 
+Boolean isInAlarmMode(modes) {
+    if(!modes) return false
+    return (getAlarmSystemStatus() in modes)
+}
+
+String getAlarmSystemName(abbr=false) {
+    return isST() ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
+}
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
@@ -1666,6 +1785,14 @@ String unitStr(type) {
         default:
             return ""
     }
+}
+
+String getTriggersDesc() {
+    return triggersConfigured() ? "Triggers:\n${settings?.triggerEvents?.collect { " • ${it}" }?.join("\n")}\n\ntap to modify..." : "tap to configure..."
+}
+
+String getActionDesc() {
+    return actionsConfigured() ? "Actions:\n • ${settings?.actionType}\n\ntap to modify..." : "tap to configure..."
 }
 
 String getAppNotifConfDesc() {
