@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.7.0" }
-String appModified() { return "2019-07-11" }
+String appVersion()	 { return "2.8.0" }
+String appModified() { return "2019-07-22" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 270, actionApp: 270, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 280, actionApp: 280, server: 222] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -134,6 +134,8 @@ def mainPage() {
                     List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }
                     Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
                     Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+                    List remDevs = getRemovableDevs()
+                    if(remDevs?.size()) { paragraph "Removable Devices:\n${remDevs?.sort()?.join("\n")}", required: true, state: null }
                     href "deviceManagePage", title: inTS("Manage Devices:"), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
@@ -231,16 +233,21 @@ def alexaGuardPage() {
 
 def alexaGuardAutoPage() {
     return dynamicPage(name: "alexaGuardAutoPage", uninstall: false, install: false) {
-        section("Alexa Guard Using Modes") {
+        section("Set Guard using ${getAlarmSystemName(true)}") {
+            input "guardHomeAlarm", "enum", title: "Home in ${getAlarmSystemName(true)} modes.", description: "Tap to select...", options: getAlarmModeOpts(), required: (settings?.guardAwayAlarm), multiple: true, submitOnChange: true, image: getPublicImg("alarm_home")
+            input "guardAwayAlarm", "enum", title: "Away in ${getAlarmSystemName(true)} modes.", description: "Tap to select...", options: getAlarmModeOpts(), required: (settings?.guardHomeAlarm), multiple: true, submitOnChange: true, image: getPublicImg("alarm_away")
+        }
+
+        section("Set Guard using Modes") {
             input "guardHomeModes", "mode", title: inTS("Home in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardAwayModes), submitOnChange: true, image: getPublicImg("mode")
             input "guardAwayModes", "mode", title: inTS("Away in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardHomeModes), submitOnChange: true, image: getPublicImg("mode")
         }
-        section("Alexa Guard Using Presence") {
+        section("Set Guard using Presence") {
             input "guardAwayPresence", "capability.presenceSensor", title: "Away when all of these Sensors are away", description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("presence")
         }
         if(guardAutoConfigured()) {
             section("Delay:") {
-                input "guardAwayDelay", "number", title: "Delay before setting Away", description: "Enter number in seconds", required: false, defaultValue: 10, submitOnChange: true, image: getPublicImg("delay")
+                input "guardAwayDelay", "number", title: "Delay before setting Away", description: "Enter number in seconds", required: false, defaultValue: 10, submitOnChange: true, image: getAppImg("delay_time")
             }
         }
         section("Restrict Guard Changes (Optional):") {
@@ -286,6 +293,13 @@ def guardTriggerEvtHandler(evt) {
             break
         case "presence":
             desiredState = isSomebodyHome(settings?.guardAwayPresence) ? "ARMED_STAY" : "ARMED_AWAY"
+            break
+        case "alarmSystemStatus":
+        case "hsmStatus":
+            Boolean inAlarmHome = isInAlarmMode(settings?.guardHomeAlarm)
+            Boolean inAlarmAway = isInAlarmMode(settings?.guardAwayAlarm)
+            if(inAlarmAway && !inAlarmHome) { desiredState = "ARMED_AWAY" }
+            if(!inAlarmAway && inAlarmHome) { desiredState = "ARMED_HOME" }
             break
     }
     if(desiredState && desiredState == "ARMED_STAY" && state?.alexaGuardState != "ARMED_STAY") { setGuardHome() }
@@ -1064,7 +1078,10 @@ def uninstalled() {
 }
 
 def subscribeToEvts() {
-    if(settings?.guardAwayModes || settings?.guardHomeModes) {
+    if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
+        subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", guardTriggerEvtHandler)
+    }
+    if(settings?.guardAwayModes && settings?.guardHomeModes) {
         subscribe(location, "mode", guardTriggerEvtHandler)
     }
     if(settings?.guardAwayPresence) {
@@ -2955,6 +2972,49 @@ Boolean isSomebodyHome(sensors) {
 Boolean isInMode(modes) {
     if(modes) { return (location?.mode?.toString() in mode) }
     return false
+}
+
+Boolean isInAlarmMode(modes) {
+    if(!modes) return false
+    return (getAlarmSystemStatus() in modes)
+}
+
+String getAlarmSystemName(abbr=false) {
+    return isST() ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
+}
+
+List getAlarmModeOpts() {
+    return isST() ? ["disarm", "stay", "away"] : ["disarm", "armNight", "armHome", "armAway"]
+}
+
+String getAlarmSystemStatus() {
+    if(isST()) {
+        def cur = location.currentState("alarmSystemStatus")?.value
+        def inc = getShmIncidents()
+        if(inc != null && inc?.size()) { cur = 'alarm_active' }
+        return cur ?: "disarmed"
+    } else { return location?.hsmStatus ?: "disarmed" }
+}
+
+public setAlarmSystemMode(mode) {
+    if(!isST()) {
+        switch(mode) {
+            case "stay":
+                mode = "armHome"
+                break
+            case "away":
+                mode = "armAway"
+                break
+            case "night":
+                mode = "armHome"
+                break
+            case "off":
+                mode = "disarm"
+                break
+        }
+    }
+    log.info "Setting the ${getAlarmSystemName()} Mode to (${mode})..."
+    sendLocationEvent(name: (isST() ? 'alarmSystemStatus' : 'hsmSetArm'), value: mode.toString())
 }
 
 Integer stateSize() {
