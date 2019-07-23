@@ -713,6 +713,7 @@ private executeAction(frc=false, src=null) {
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: (settings?.actionType ? "Action | (${settings?.actionType})" : "Actions to perform..."), install: false, uninstall: false) {
         Boolean done = false
+        Map actionExecMap = [:]
         Map actionOpts = [
             "speak":"Speak", "announcement":"Announcement", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
             "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
@@ -723,6 +724,7 @@ def actionsPage() {
         }
 
         if(actionType) {
+            actionExecMap?.actionType = actionType
             switch(actionType) {
                 case "speak":
                     String ssmlTestUrl = "https://topvoiceapps.com/ssml"
@@ -744,6 +746,7 @@ def actionsPage() {
                             input "act_speak_txt", "text", title: "Enter Text/SSML", description: "If entering SSML make sure to include <speak></speak>", submitOnChange: true, required: false, image: getAppImg("speak")
                         }
                         actionVolumeInputs()
+                        actionExecMap?.config = [text: settings?.act_speak_txt, volume: [change: settings?.act_set_volume, restore: settings?.act_restore_volume]]
                         if(act_speak_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -754,11 +757,18 @@ def actionsPage() {
                     }
                     echoDevicesInputByPerm("announce")
                     if(settings?.act_EchoDevices) {
+                        if(settings?.act_EchoDevices?.size() > 1) {
+                            List devObj = []
+                            devObj << settings?.act_EchoDevicesList?.collectEntries { [deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]] }
+                            log.debug "devObj: $devObj"
+                            actionType?.config?.deviceObjs = devObj
+                        }
                         section("Action Config:") {
                             input "act_announcement_txt", "text", title: "Enter Text to announce", submitOnChange: true, required: false, image: getAppImg("announcement")
                         }
                         actionVolumeInputs()
-                        if(act_speak_txt) { done = true } else { done = false }
+                        actionExecMap?.config = [text: settings?.act_announcement_txt, volume: [change: settings?.act_set_volume, restore: settings?.act_restore_volume]]
+                        if(act_announcement_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
 
@@ -1007,6 +1017,8 @@ def actionsPage() {
                 section("") {
                     paragraph "You're all done with this step.  Press Done", state: "complete"
                 }
+                actionExecMap?.devices = settings?.act_EchoDevicesList
+                state?.actionExecMap = actionExecMap
             }
         }
         // section(sTS("Notifications:")) {
@@ -1014,6 +1026,7 @@ def actionsPage() {
         //     href "notifPrefPage", title: "Notifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
         // }
         state?.act_configured = done
+        log.debug "actionExecMap: ${state?.actionExecMap}"
     }
 }
 
