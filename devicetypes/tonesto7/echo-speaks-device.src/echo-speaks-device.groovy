@@ -998,7 +998,7 @@ def getAvailableWakeWordsHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getAvailableWakeWordsHandler", true)) {return}
     try {} catch (ex) { }
     def sData = response?.getJson() ?: null
-    log.debug "sData: $sData"
+    // log.debug "sData: $sData"
     def wakeWords = sData?.wakeWords ? sData?.wakeWords?.join(",") : null
     // logger("trace", "getAvailableWakeWords: ${wakeWords}")
     if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
@@ -1727,9 +1727,10 @@ def playAnnouncement(String msg, String title=null, volume=null, restoreVolume=n
     }
 }
 
-def sendAnnouncementToDevices(String msg, String title, Map devices, volume=null, restoreVolume=null) {
+def sendAnnouncementToDevices(String msg, String title=null, Map devices, volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("announce")) {
         msg = "${title ? "${title}" : "Echo Speaks"}::${msg}::${devices?.toString()}"
+        log.debug "sendAnnouncementToDevices | msg: ${msg}"
         if(volume != null) {
             List seqs = [[command: "volume", value: volume], [command: "announcement_devices", value: msg]]
             if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }

@@ -169,6 +169,7 @@ def namePage() {
 def triggersPage() {
     return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
         def stRoutines = isST() ? location.helloHome?.getPhrases()*.label.sort() : []
+        Boolean showSpeakEvtVars = false
         section ("Select Capabilities") {
             if(isST()) {
                 input "triggerEvents", "enum", title: "Select Trigger Event(s)", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("trigger")
@@ -177,6 +178,7 @@ def triggersPage() {
             }
         }
         if (settings?.triggerEvents?.size()) {
+            if(!(settings?.triggerEvents in ["Scheduled", "Weather"])) { showSpeakEvtVars = true }
             if ("Scheduled" in settings?.triggerEvents) {
                 section("Time Based Events", hideable: true) {
                     if(!settings?.trig_ScheduleTime) {
@@ -503,6 +505,7 @@ def triggersPage() {
                 }
             }
         }
+        state?.showSpeakEvtVars = showSpeakEvtVars
     }
 }
 
@@ -673,35 +676,64 @@ def broadcastGroupsSect() {
 }
 
 private executeAction(frc=false, src=null) {
+    // TODO: HANDLE DELAY LOGIC
     def startTime = now()
     log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
     Boolean condOk = conditionValid()
-    Boolean actConf = actionsConfigured()
+    Boolean actOk = actionsConfigured()
+    Map actMap = state?.actionExecMap ?: null
+    List actDevices = settings?.act_EchoDevicesList
     String actType = settings?.actionType
-    Integer waitDelay = settings?.act_delay ?: 0
-    if(actConf && actType) {
+    if(actOk && actType) {
         if(!condOk) { log.warn "Skipping Execution because set conditions have not been met"; return; }
-        switch(actType) {
-            case "speak":
-                if(settings?.act_set_volume || settings?.act_restore_volume) {
-                    settings?.act_EchoDevicesList?.setVolumeSpeakAndRestore(settings?.act_set_volume, settings?.act_speak_txt, settings?.act_restore_volume)
-                } else {
-                    settings?.act_EchoDevicesList?.speak(settings?.act_speak_txt)
-                }
-                logger("debug", "Sending Speak Command: (${settings?.act_speak_txt}) to ${settings?.act_EchoDevicesList} | Volume: ${settings?.act_set_volume} | Restore Volume: ${settings?.act_restore_volume}")
-                break
-            case "announcement":
-                if(settings?.act_EchoDevicesList?.size() > 1) {
-                    List devObj = []
-                    devObj << settings?.act_EchoDevicesList?.collectEntries { [deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]] }
-                    log.debug "devObj: $devObj"
-                    settings?.act_EchoDevicesList?.sendAnnouncementToDevices(settings?.act_announcement_txt, null, devObj?.toString(), settings?.act_set_volume ?: null, settings?.act_restore_volume ?: null)
-                    logger("debug", "Sending Announcement Command: (${settings?.act_announcement_txt}) to ${settings?.act_EchoDevicesList} | Volume: ${settings?.act_set_volume} | Restore Volume: ${settings?.act_restore_volume}")
-                } else {
-                    settings?.act_EchoDevicesList?.playAnnouncement(settings?.act_announcement_txt, null, settings?.act_set_volume ?: null, settings?.act_restore_volume ?: null)
-                    logger("debug", "Sending Announcement Command: (${settings?.act_announcement_txt}) to ${settings?.act_EchoDevicesList} | Volume: ${settings?.act_set_volume} | Restore Volume: ${settings?.act_restore_volume}")
-                }
+        if(!actMap || !actMap?.size()) { log.error "executeAction Error | The ActionExecutionMap is not found or is empty"; return; }
+        if(!actDevices?.size()) { log.error "executeAction Error | No Echo Device List is not found or is empty"; return; }
+        if(!actMap?.actionType) { log.error "executeAction Error | The ActionType is not found or is empty"; return; }
+        Map actConf = actMap?.config
+        Integer actDelay = actMap?.delay ?: 0
+        Integer changeVol = actMap?.volume?.change ?: null
+        Integer restoreVol = actMap?.volume?.restore ?: null
+        Integer alarmVol = actMap?.volume?.alarm ?: null
 
+        switch(actType) {
+            //Speak Command Logic
+            case "speak":
+                if(actConf[actType] && actConf[actType]?.text) {
+                    if((changeVol || restoreVol)) {
+                        actDevices?.setVolumeSpeakAndRestore(changeVol, actConf[actType]?.text, restoreVol)
+                    } else {
+                        actDevices?.speak(actConf[actType]?.text)
+                    }
+                    logger("debug", "Sending Speak Command: (${actConf[actType]?.text}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}")
+                }
+                break
+
+            //Announcement Command Logic
+            case "announcement":
+                if(actConf[actType] && actConf[actType]?.text) {
+                    if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
+                        //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
+                        actDevices[0]?.sendAnnouncementToDevices(actConf[actType]?.text as String, (app?.getLabel() ?: "Echo Speaks Action"), actConf[actType]?.deviceObjs as String, changeVol, restoreVol)
+                        logger("debug", "Sending Announcement Command: (${actConf[actType]?.text}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}")
+                    } else {
+                        settings?.act_EchoDevicesList?.playAnnouncement(actConf[actType]?.text as String, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol)
+                        logger("debug", "Sending Announcement Command: (${actConf[actType]?.text}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}")
+                    }
+                }
+                break
+
+            case "sequence":
+                if(actConf[actType] && actConf[actType]?.text) {
+                    actDevices?.executeSequenceCommand(actConf[actType]?.text as String)
+                    logger("debug", "Sending Sequence Command: (${actConf[actType]?.text}) to ${actDevices}")
+                }
+                break
+
+            case "weather":
+                if(actConf[actType]) {
+                    actDevices?.playWeather(changeVolume, restoreVol)
+                    logger("debug", "Sending Sequence Command: (${actConf[actType]?.text}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}")
+                }
                 break
         }
     }
@@ -713,7 +745,7 @@ private executeAction(frc=false, src=null) {
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: (settings?.actionType ? "Action | (${settings?.actionType})" : "Actions to perform..."), install: false, uninstall: false) {
         Boolean done = false
-        Map actionExecMap = [:]
+        Map actionExecMap = [configured: false]
         Map actionOpts = [
             "speak":"Speak", "announcement":"Announcement", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
             "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
@@ -725,28 +757,38 @@ def actionsPage() {
 
         if(actionType) {
             actionExecMap?.actionType = actionType
+            actionExecMap?.config = [:]
             switch(actionType) {
+
+                /* TODO: Build Out a variable usage system for certain events
+                    %attrValue%
+                    %deviceName%
+                    %time%
+                    %date%
+                */
+
                 case "speak":
                     String ssmlTestUrl = "https://topvoiceapps.com/ssml"
                     String ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
                     String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
+                    String ssmlSpeechConsUrl = "https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-english-us.html"
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
-
                         section("SSML Info:") {
                             paragraph title: "What is SSML?", "SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", state: "complete"
                             href url: ssmlDocsUrl, style: "external", required: false, title: "Amazon SSML Docs", description: "Tap to open browser", image: getPublicImg("web")
                             href url: ssmlSoundsUrl, style: "external", required: false, title: "Amazon Sound Library", description: "Tap to open browser", image: getPublicImg("web")
+                            href url: ssmlSpeechConsUrl, style: "external", required: false, title: "Amazon SpeechCons", description: "Tap to open browser", image: getPublicImg("web")
                             href url: ssmlTestUrl, style: "external", required: false, title: "SSML Designer and Tester", description: "Tap to open browser", image: getPublicImg("web")
                         }
                         section("Speech Tips:") {
-                            paragraph "To make beep tones use: 'wop' (each wop is one beep)"
+                            paragraph "To make beep tones use: 'wop, wop, wop' (equals 3 beeps)"
                         }
                         section("Action Config:") {
                             input "act_speak_txt", "text", title: "Enter Text/SSML", description: "If entering SSML make sure to include <speak></speak>", submitOnChange: true, required: false, image: getAppImg("speak")
                         }
                         actionVolumeInputs()
-                        actionExecMap?.config = [text: settings?.act_speak_txt, volume: [change: settings?.act_set_volume, restore: settings?.act_restore_volume]]
+                        actionExecMap?.config?.speak = [text: settings?.act_speak_txt]
                         if(act_speak_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -757,17 +799,17 @@ def actionsPage() {
                     }
                     echoDevicesInputByPerm("announce")
                     if(settings?.act_EchoDevices) {
-                        if(settings?.act_EchoDevices?.size() > 1) {
-                            List devObj = []
-                            devObj << settings?.act_EchoDevicesList?.collectEntries { [deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]] }
-                            log.debug "devObj: $devObj"
-                            actionType?.config?.deviceObjs = devObj
-                        }
                         section("Action Config:") {
                             input "act_announcement_txt", "text", title: "Enter Text to announce", submitOnChange: true, required: false, image: getAppImg("announcement")
                         }
                         actionVolumeInputs()
-                        actionExecMap?.config = [text: settings?.act_announcement_txt, volume: [change: settings?.act_set_volume, restore: settings?.act_restore_volume]]
+                        actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt]
+                        if(settings?.act_EchoDevices?.size() > 1) {
+                            List devObj = []
+                            settings?.act_EchoDevicesList?.each { devObj?.push([deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]]) }
+                            log.debug "devObj: $devObj"
+                            actionExecMap?.config?.announcement?.deviceObjs = devObj
+                        }
                         if(act_announcement_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -806,6 +848,7 @@ def actionsPage() {
                         section("Action Config:") {
                             input "act_sequence_txt", "text", title: "Enter sequence text", submitOnChange: true, required: false, image: getAppImg("sequence")
                         }
+                        actionExecMap?.config?.sequence = [text: settings?.act_sequence_txt]
                         if(settings?.act_sequence_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -818,6 +861,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         actionVolumeInputs()
                         done = true
+                        actionExecMap?.config?.weather = [type: null]
                     } else { done = false }
                     break
 
@@ -834,6 +878,7 @@ def actionsPage() {
                         section("Playback Config:") {
                             input "act_playback_type", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
                         }
+                        actionExecMap?.config?.playback = [type: settings?.act_playback_type]
                         if(settings?.act_playback_type) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -853,7 +898,8 @@ def actionsPage() {
                             input "act_builtin_type", "enum", title: "Select Builtin Speech Type", description: "", options: builtinOpts, required: true, submitOnChange: true, image: getPublicImg("builtin")
                         }
                         actionVolumeInputs()
-                        if(settings?.act_builtin_type && (settings?.act_set_volume || settings?.act_restore_volume)) { done = true } else { done = false }
+                        actionExecMap?.config?.builtin = [type: settings?.act_builtin_type]
+                        if(settings?.act_builtin_type) { done = true } else { done = false }
                     } else { done = false }
                     break
 
@@ -865,9 +911,6 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         List musicProvs = settings?.act_EchoDevicesList[0]?.hasAttribute("supportedMusic") ? settings?.act_EchoDevicesList[0]?.currentValue("supportedMusic")?.split(",")?.collect { "${it?.toString()?.trim()}"} : []
                         log.debug "Music Providers: ${musicProvs}"
-                        musicProvs?.each {
-                            log.debug "${it}"
-                        }
                         if(musicProvs) {
                             section("Music Providers:") {
                                 input "act_music_provider", "enum", title: "Select Music Provider", description: "", options: musicProvs, multiple: false, required: true, submitOnChange: true, image: getPublicImg("music")
@@ -888,6 +931,7 @@ def actionsPage() {
                                 actionVolumeInputs()
                             }
                         }
+                        actionExecMap?.config?.music = [provider: settings?.act_music_provider, search: settings?.act_music_txt]
                         if(settings?.act_music_provider && settings?.act_music_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -902,6 +946,7 @@ def actionsPage() {
                             input "act_calendar_type", "enum", title: "Select Calendar Action", description: "", options: ["Today", "Tomorrow", "Next Events"], required: true, submitOnChange: true, image: getPublicImg("day_calendar")
                         }
                         actionVolumeInputs()
+                        actionExecMap?.config?.calendar = [type: settings?.act_calendar_type]
                         if(act_calendar_type) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -917,8 +962,10 @@ def actionsPage() {
                             input "act_alarm_label", "text", title: "Alarm Label", submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_alarm_date", "text", title: "Alarm Date\n(yyyy-mm-dd)", submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_alarm_time", "time", title: "Alarm Time", submitOnChange: true, required: true, image: getPublicImg("clock")
+                            input "act_alarm_remove", "bool", title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false, image: getPublicImg("question")
                         }
                         actionVolumeInputs(true)
+                        actionExecMap?.config?.alarm = [label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: settings?.act_alarm_time, remove: settings?.act_alarm_remove]
                         if(act_alarm_label && act_alarm_date && act_alarm_time) { done = true } else { done = false }
                     } else { done = false }
 
@@ -935,8 +982,10 @@ def actionsPage() {
                             input "act_reminder_label", "text", title: "Reminder Label", submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_reminder_date", "text", title: "Reminder Date\n(yyyy-mm-dd)", submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_reminder_time", "time", title: "Reminder Time", submitOnChange: true, required: true, image: getPublicImg("clock")
+                            input "act_reminder_remove", "bool", title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getPublicImg("question")
                         }
                         actionVolumeInputs(true)
+                        actionExecMap?.config?.reminder = [label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: settings?.act_reminder_time, remove: settings?.act_reminder_remove]
                         if(act_reminder_label && act_reminder_date && act_reminder_time) { done = true } else { done = false }
                     } else { done = false }
 
@@ -951,6 +1000,7 @@ def actionsPage() {
                         section("Action Config:") {
                             input "act_dnd_type", "enum", title: "Select Do Not Disturb Action", description: "", options: dndOpts, required: true, submitOnChange: true, image: getPublicImg("donotdisturb")
                         }
+                        actionExecMap?.config?.dnd = [type: settings?.act_dnd_type]
                         if(settings?.act_dnd_type) { done = true } else { done = false }
                     } else { done = false }
 
@@ -959,6 +1009,7 @@ def actionsPage() {
                     echoDevicesInputByPerm("wakeWord")
                     if(settings?.act_EchoDevices) {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
+                        List devsObj = []
                         section("Action Description:") {
                             paragraph "This will allow you to the Wake Word based on triggers", state: "complete"
                         }
@@ -971,11 +1022,13 @@ def actionsPage() {
                                     if(wakeWords?.size()) {
                                         paragraph "Current Wake Word: ${settings?.act_EchoDevicesList[iCnt]?.hasAttribute("alexaWakeWord") ? settings?.act_EchoDevicesList[iCnt]?.currentValue("alexaWakeWord") : "Unknown"}"
                                         input "act_wakeword_device_${iCnt}", "enum", title: "New Wake Word", description: "", options: wakeWords, required: true, submitOnChange: true, image: getAppImg("wake_words")
+                                        devsObj?.push([device: cDev, wakeword: settings?."act_wakeword_device_${iCnt}"])
                                     } else { paragraph "Oops...\nNo Wake Words have been found!  Please Remove the device from selection.", state: null, required: true }
                                 }
                                 iCnt++
                             }
                         }
+                        actionExecMap?.config?.wakeword = [devices: devsObj]
                         if(settings?.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }?.size() == devsCnt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -983,6 +1036,7 @@ def actionsPage() {
                     echoDevicesInputByPerm("bluetoothControl")
                     if(settings?.act_EchoDevices) {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
+                        List devsObj = []
                         section("Action Description:") {
                             paragraph "This will allow you to connect or disconnect bluetooth based on triggers", state: "complete"
                         }
@@ -995,11 +1049,13 @@ def actionsPage() {
                                     if(btDevs?.size()) {
                                         input "act_bluetooth_device_${iCnt}", "enum", title: "BT device to use", description: "", options: btDevs, required: true, submitOnChange: true, image: getAppImg("bluetooth")
                                         input "act_bluetooth_action_${iCnt}", "enum", title: "BT action to take", description: "", options: ["connect", "disconnect"], required: true, submitOnChange: true, image: getAppImg("bluetooth")
+                                        devsObj?.push([device: cDev, btDevice: settings?."act_bluetooth_device_${iCnt}", btAction: settings?."act_bluetooth_action_${iCnt}"])
                                     } else { paragraph "Oops...\nNo Bluetooth devices are paired to this Echo Device!  Please Remove the device from selection.", state: null, required: true }
                                 }
                                 iCnt++
                             }
                         }
+                        actionExecMap?.config?.bluetooth = [devices: devsObj]
                         if(settings?.findAll { it?.key?.startsWith("act_bluetooth_device_") && it?.value }?.size() == devsCnt &&
                             settings?.findAll { it?.key?.startsWith("act_bluetooth_action_") && it?.value }?.size() == devsCnt) { done = true } else { done = false }
                     } else { done = false }
@@ -1017,22 +1073,33 @@ def actionsPage() {
                 section("") {
                     paragraph "You're all done with this step.  Press Done", state: "complete"
                 }
-                actionExecMap?.devices = settings?.act_EchoDevicesList
-                state?.actionExecMap = actionExecMap
-            }
+                actionExecMap?.config?.volume = [change: settings?.act_set_volume, restore: settings?.act_restore_volume, alarm: settings?.act_alarm_volume]
+                actionExecMap?.devices = settings?.act_EchoDevices
+                actionExecMap?.delay = settings?.act_delay
+                actionExecMap?.configured = true
+
+                //TODO: Add Cleanup of non selected inputs
+            } else { actionExecMap = [configured: false] }
         }
         // section(sTS("Notifications:")) {
         //     def t0 = getAppNotifConfDesc()
         //     href "notifPrefPage", title: "Notifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
         // }
-        state?.act_configured = done
-        log.debug "actionExecMap: ${state?.actionExecMap}"
+        // runIn(4, "updateActionExecMap", [data: actionExecMap])
+        atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
+        log.debug "actionExecMap: ${atomicState?.actionExecMap}"
     }
+}
+
+def updateActionExecMap(data) {
+    log.trace "updateActionExecMap..."
+    atomicState?.actionExecMap = (data && data?.configured == true) ? data : [configured: false]
+    log.debug "actionExecMap: ${state?.actionExecMap}"
 }
 
 Boolean actionsConfigured() {
     Boolean type = (settings?.actionType)
-    Boolean opts = (state?.act_configured == true)
+    Boolean opts = (state?.actionExecMap && state?.actionExecMap?.configured == true)
     Boolean devs = (settings?.act_EchoDevicesList)
     // log.debug "type: $type | Options: $opts | devs: $devs"
 	return (type || opts || devs)
