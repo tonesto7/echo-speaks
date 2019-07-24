@@ -1727,10 +1727,10 @@ def playAnnouncement(String msg, String title=null, volume=null, restoreVolume=n
     }
 }
 
-def sendAnnouncementToDevices(String msg, String title=null, Map devices, volume=null, restoreVolume=null) {
-    if(isCommandTypeAllowed("announce")) {
-        msg = "${title ? "${title}" : "Echo Speaks"}::${msg}::${devices?.toString()}"
-        log.debug "sendAnnouncementToDevices | msg: ${msg}"
+def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null, restoreVolume=null) {
+    if(isCommandTypeAllowed("announce") && devObj) {
+        msg = "${title ? "${title}" : "Echo Speaks"}::${msg}::${devObj?.toString()}"
+        // log.debug "sendAnnouncementToDevices | msg: ${msg}"
         if(volume != null) {
             List seqs = [[command: "volume", value: volume], [command: "announcement_devices", value: msg]]
             if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
@@ -2835,13 +2835,13 @@ Map createSequenceNode(command, value) {
                 seqNode?.type = "AlexaAnnouncement"
                 seqNode?.operationPayload?.expireAfter = "PT5S"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
-
+                // log.debug "valObj(size: ${valObj?.size()}): $valObj"
                 seqNode?.operationPayload?.content = [[ locale: (state?.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
                 seqNode?.operationPayload?.target = [ customerId : state?.deviceOwnerCustomerId ]
-                if(!(command in ["announcementall", "announcement_devices"])) { seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ] }
-                else if(command == "announcement_devices" && valObj?.size() == 3  && valObj[2] != null) {
-                    Map devObjs = stringToMap(valObj[2]?.toString())
-                    log.debug "devObjs: $devObjs"
+                if(!(command in ["announcementall", "announcement_devices"])) {
+                    seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ]
+                } else if(command == "announcement_devices" && valObj?.size() && valObj[2] != null) {
+                    List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
                     seqNode?.operationPayload?.target?.devices = devObjs
                 }
                 break

@@ -713,7 +713,8 @@ private executeAction(frc=false, src=null) {
                 if(actConf[actType] && actConf[actType]?.text) {
                     if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
                         //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                        actDevices[0]?.sendAnnouncementToDevices(actConf[actType]?.text as String, (app?.getLabel() ?: "Echo Speaks Action"), actConf[actType]?.deviceObjs as String, changeVol, restoreVol)
+                        def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
+                        actDevices[0]?.sendAnnouncementToDevices(actConf[actType]?.text as String, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol)
                         logger("debug", "Sending Announcement Command: (${actConf[actType]?.text}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}")
                     } else {
                         settings?.act_EchoDevicesList?.playAnnouncement(actConf[actType]?.text as String, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol)
@@ -737,7 +738,6 @@ private executeAction(frc=false, src=null) {
                 break
         }
     }
-
 
     log.debug "executeAction finished... | ProcessTime: (${now()-startTime}ms)"
 }
@@ -774,7 +774,7 @@ def actionsPage() {
                     String ssmlSpeechConsUrl = "https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-english-us.html"
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
-                        section("SSML Info:") {
+                        section("SSML Info:", hideable: true, hidden: true) {
                             paragraph title: "What is SSML?", "SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", state: "complete"
                             href url: ssmlDocsUrl, style: "external", required: false, title: "Amazon SSML Docs", description: "Tap to open browser", image: getPublicImg("web")
                             href url: ssmlSoundsUrl, style: "external", required: false, title: "Amazon Sound Library", description: "Tap to open browser", image: getPublicImg("web")
@@ -795,7 +795,7 @@ def actionsPage() {
 
                 case "announcement":
                     section("Action Description:") {
-                        paragraph "Plays a brief tone and speaks the message you define.", state: "complete"
+                        paragraph "Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.", state: "complete"
                     }
                     echoDevicesInputByPerm("announce")
                     if(settings?.act_EchoDevices) {
