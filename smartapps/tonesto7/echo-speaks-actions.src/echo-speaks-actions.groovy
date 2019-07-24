@@ -675,7 +675,25 @@ def broadcastGroupsSect() {
     }
 }
 
-private executeAction(frc=false, src=null) {
+String decodeVariables(evt, str) {
+    if(evt && str) {
+        str = (str?.contains("%name%") && evt?.name) ? str?.replaceAll("%name%", evt?.name) : str
+        str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value) : str
+        str = (str?.contains("%date%") && evt?.date) ? str?.replaceAll("%date%", evt?.name) : str
+        str = (str?.contains("%time%") && evt?.date) ? str?.replaceAll("%time%", evt?.name) : str
+        str = (str?.contains("%datetime%") && evt?.date) ? str?.replaceAll("%datetime%", evt?.name) : str
+    } else { return str }
+}
+
+String convDateToTime(dt) {
+
+}
+
+String convDateToDate(dt) {
+
+}
+
+private executeAction(evt = null, frc=false, src=null) {
     // TODO: HANDLE DELAY LOGIC
     def startTime = now()
     log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
@@ -761,8 +779,8 @@ def actionsPage() {
             switch(actionType) {
 
                 /* TODO: Build Out a variable usage system for certain events
-                    %attrValue%
-                    %deviceName%
+                    %value%
+                    %name%
                     %time%
                     %date%
                 */
@@ -784,12 +802,14 @@ def actionsPage() {
                         section("Speech Tips:") {
                             paragraph "To make beep tones use: 'wop, wop, wop' (equals 3 beeps)"
                         }
+
                         section("Action Config:") {
+                            variableDesc()
                             input "act_speak_txt", "text", title: "Enter Text/SSML", description: "If entering SSML make sure to include <speak></speak>", submitOnChange: true, required: false, image: getAppImg("speak")
                         }
                         actionVolumeInputs()
-                        actionExecMap?.config?.speak = [text: settings?.act_speak_txt]
-                        if(act_speak_txt) { done = true } else { done = false }
+                        actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: (state?.showSpeakEvtVars && !settings?.act_speak_txt)]
+                        if(state?.showSpeakEvtVars || act_speak_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
 
@@ -800,17 +820,18 @@ def actionsPage() {
                     echoDevicesInputByPerm("announce")
                     if(settings?.act_EchoDevices) {
                         section("Action Config:") {
+                            variableDesc()
                             input "act_announcement_txt", "text", title: "Enter Text to announce", submitOnChange: true, required: false, image: getAppImg("announcement")
                         }
                         actionVolumeInputs()
-                        actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt]
+                        actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt, evtText: (state?.showSpeakEvtVars && !settings?.act_speak_txt)]
                         if(settings?.act_EchoDevices?.size() > 1) {
                             List devObj = []
                             settings?.act_EchoDevicesList?.each { devObj?.push([deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]]) }
                             log.debug "devObj: $devObj"
                             actionExecMap?.config?.announcement?.deviceObjs = devObj
                         }
-                        if(act_announcement_txt) { done = true } else { done = false }
+                        if(state?.showSpeakEvtVars || act_announcement_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
 
@@ -1088,6 +1109,19 @@ def actionsPage() {
         // runIn(4, "updateActionExecMap", [data: actionExecMap])
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
         log.debug "actionExecMap: ${atomicState?.actionExecMap}"
+    }
+}
+
+def variableDesc() {
+    if(state?.showSpeakEvtVars) {
+        paragraph "You are using device/location triggers.\nSo you can choose to leave the text empty and text will be generated for each event."
+        String varStr = "You can also use variables with your text"
+        varStr += "\n • %name% = Event Name"
+        varStr += "\n • %value% = Event Value"
+        varStr += "\n • %date% = Event Date"
+        varStr += "\n • %time% = Event Time"
+        varStr += "\nContact example: %name% has been %open%"
+        paragraph varStr
     }
 }
 
@@ -1416,6 +1450,8 @@ def alarmEvtHandler(evt) {
                 if(inc) {
 
                 }
+            } else {
+                executeAction(evt, false, "alarmEvtHandler")
             }
             break
         case "hsmAlert":
@@ -1429,22 +1465,26 @@ def alarmEvtHandler(evt) {
 def routineEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
 	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    executeAction(evt, false, "routineEvtHandler")
 }
 
 def modeEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
 	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    executeAction(evt, false, "modeEvtHandler")
 }
 
 def locationEvtHandler(evt) {
 	def evtDelay = now() - evt?.date?.getTime()
 	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    executeAction(evt, false, "locationEvtHandler")
 
 }
 
 def triggerEvtHandler(evt) {
 	def evtDelay = now() - evt?.date?.getTime()
 	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    executeAction(evt, false, "triggerEvtHandler")
 }
 
 def scheduleTrigEvt() {
@@ -1513,7 +1553,7 @@ def conditionValid() {
 
 private executeActTest() {
     settingUpdate("actTestRun", "false", "bool")
-    executeAction(true, "executeActTest")
+    executeAction([name: "contact", value, "open", date: now(), time: now().time], true, "executeActTest")
 }
 
 

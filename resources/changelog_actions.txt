@@ -1,0 +1,139 @@
+V3.0.0 (July 19th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+Main App:
+ • ADDED: Ability to remove 'Echo - ' prefix from device names.
+ • FIXED: Other bugs resolved.
+ • UPDATED: Added new speech testing and updated the announcement tests.
+
+Actions App:
+ • ADDED: importUrl param for Hubitat users to quickly import
+ • UPDATED:
+ • ADDED:
+ • Other stuff i'm not remembering
+
+Device:
+ • ADDED: importUrl param for Hubitat users to quickly import
+ • UPDATED:
+ • ADDED:
+ • Other stuff i'm not remembering
+
+V2.6.0 (July 10th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: timeOfDayIsBetween error.
+ • FIXED: Other bugs resolved.
+ • UPDATED: Added new speech testing and updated the announcement tests.
+
+Device:
+ • REMOVED: attributes *Supported attributes
+ • ADDED: New attribute 'permissions' to list features available.
+ • UPDATED: Made adjustments to help eliminate timeouts.
+ • ADDED: Sequence command added 'email' to read your email (Only non passcode protected email)
+ • Other stuff i'm not remembering
+
+V2.5.1 (June 27th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+ Device (v2.5.3):
+ • UPDATED: Device Icons where fixed for echo auto, vobot
+ • ADDED: Support for Echo Show 5
+
+V2.5.1 (June 21st, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+ App:
+ • UPDATED: Set minimum server version requirement to v2.2.2
+ • ADDED: New Developer notices section to top of app so I can share any outages or issues.
+
+V2.5.0 (June 7th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Significantly reduced the number of web requests made to Amazon by centralizing the Bluetooth and DoNotDisturb calls in the App.
+
+Device:
+ • FIXED: getBluetoothDevices() and getDoNotDisturb() handlers
+ • FIXED: Significantly reduced the number of web requests made to Amazon by centralizing the Bluetooth and DoNotDisturb calls in the App.
+ • ADDED: Echo Auto device support.
+ • FIXED: setVolumeSpeakRestore() command not setting current value after execution
+ • ADDED: Device recognition for the Vobot Bunny
+
+V2.4.1 (May 1st, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Bug Fixes.
+
+Device:
+ • FIXED: Various bugs
+ • ADDED: Lenovo SmartTab Support.
+ • ADDED: togglePlayback() command.
+ • ADDED: wifiNetwork and followUpMode attributes
+
+V2.4.0 (January 26th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Echo Device Filter not stopping selected devices from being created.
+ • FIXED: Updated the UI some for devices.  It's easy to distinguish between unsupported and devices ignored by user.
+ • UPDATED: Rewrote the broadcast test logic it works extremely well now.  Devices that are shown to not support TTS are not selectable in the list.
+ • UPDATED: Also rewrote the announcement test logic it works extremely well now.  Devices that are shown to not support TTS are not selectable in the list.
+ • UPDATED: Echo Device Filter not stopping selected devices from being created.
+ • UPDATED: Streamlined the new install flow in the app to reduce page changes. (Update the documentation as well)
+
+Device:
+ • FIXED: Speaking long text on ST would through exception
+ • FIXED: fixed broken attributes `lastVoiceActivity` and `lastSpokenToTime` from last update.
+ • FIXED: wait sequence command was breaking the whole sequence (Multiple waits are having issues).
+ • FIXED: Made changes to address the random exception errors on async responses.
+ • UPDATED: Speak commands now handle long strings but splitting them into multiple sequence commands and playing them 1 by 1
+ • ADDED: Music search available in the sequence commands.
+ • ADDED: Speak command now cleans the strings of unnecessary characters.
+ • ADDED: Speak command will attempt to transform items like temperature `19F` to 19 degrees and directions `SSW` to south southwest. (This can be disabled under each device)
+
+V2.3.2 (January 23rd, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Echo Device Filter not stopping selected devices from being created.
+ • FIXED: Made changes to address the random exception errors on async responses.
+
+Device:
+ • FIXED: Broken sequence commands from v2.3+
+ • FIXED: wait sequence command was breaking the whole sequence.
+ • FIXED: Made changes to address the random exception errors on async responses.
+ • UPDATED: Speak commands now handle long strings but splitting them into multiple sequence commands and playing them 1 by 1
+
+V2.3.1 (January 23rd, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Significantly reduced the icon sizes by 80-90% to speed up image loading
+ • UPDATED: Support for the new required executeSequenceCommand() split character from `,` to `,,`
+ Important Note: I've been seeing more Async Function errors on the Hubitat recently.  I will continue to investigate the issue.
+
+Device:
+ • FIXED: Broken tile buttons fixed
+ • FIXED: Significantly reduced the icon sizes by 80-90% to speed up icon and tile image loading.
+ • ADDED: sayCompliment button
+ • UPDATED: Modified the required executeSequenceCommand() split character from `,` to `,,`
+
+V2.3.0 (January 22nd, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Lot's of little bugs squashed and some minor UI tweaks.
+ • FIXED: Metrics collection was broken in the last release.
+ • FIXED: Broadcast test page should now work correctly again.
+ • UPDATED: Overhauled the device detection logic. You will see more devices shown now.
+ • UPDATED: Modifed the Device Test page to include testing of Broadcasts, Announcements, and Sequence Commands.
+ • ADDED: New Unrecognized devices section in the app.  It will show you which devices are being ignored and why.
+ • ADDED: Ability to override blocked device because they show unsupported.
+ • ADDED: Notification option for successful cookie refreshes.
+ • ADDED: Local server support (Hubitat only).
+
+ Important Note: I've been seeing more Async Function errors on the Hubitat recently.  I will continue to investigate the issue.
+
+Device:
+ • FIXED: TTS Queue has been broken for sometime apparently. Should work as designed now
+ • ADDED: New executeSequenceCommand() see documentation for details
+ • ADDED: last command spoken date/time attribute on the device in the attribute `lastSpokenToTime`.
+ • ADDED: say****() commands for canned tts messages.
+ • ADDED: added trackImgHtml attribute with html <img></img> for dashboards.
+
+Server:
+ • FIXED: Minor bug fixes.
+ • UPDATED: Restored local install support for Hubitat.
+ • UPDATED: AlexaCookie library updated to v2.0.1
