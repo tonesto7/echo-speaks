@@ -663,36 +663,6 @@ private Map devsSupportVolume(devs) {
     return [s:supported, n:noSupport]
 }
 
-def broadcastGroupsSect() {
-    section("Group Devices:") {
-        input "act_SendToBrdGrp", "bool", title: "Send to an Echo Speaks Broadcast Group?", description: "This is ONLY for sending a Speech message to all devices in the group", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("es_groups")
-        if(act_SendToBrdGrp) {
-            Map brdCastGrps = parent?.getBroadcastGrps()
-            state?.brdCastGrps = brdCastGrps
-            Map groups = brdCastGrps?.collectEntries { [(it?.key): it?.value?.name] }
-            input "act_BroadcastGrps", "enum", title: "Select the broadcast Group", options: groups, required: true, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
-        }
-    }
-}
-
-String decodeVariables(evt, str) {
-    if(evt && str) {
-        str = (str?.contains("%name%") && evt?.name) ? str?.replaceAll("%name%", evt?.name) : str
-        str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value) : str
-        str = (str?.contains("%date%") && evt?.date) ? str?.replaceAll("%date%", evt?.name) : str
-        str = (str?.contains("%time%") && evt?.date) ? str?.replaceAll("%time%", evt?.name) : str
-        str = (str?.contains("%datetime%") && evt?.date) ? str?.replaceAll("%datetime%", evt?.name) : str
-    } else { return str }
-}
-
-String convDateToTime(dt) {
-
-}
-
-String convDateToDate(dt) {
-
-}
-
 private executeAction(evt = null, frc=false, src=null) {
     // TODO: HANDLE DELAY LOGIC
     def startTime = now()
@@ -709,6 +679,7 @@ private executeAction(evt = null, frc=false, src=null) {
         if(!actMap?.actionType) { log.error "executeAction Error | The ActionType is not found or is empty"; return; }
         Map actConf = actMap?.config
         Integer actDelay = actMap?.delay ?: 0
+        Integer actDelayMs = actMap?.delay ? (actMap?.delay*1000) : 0
         Integer changeVol = actMap?.volume?.change ?: null
         Integer restoreVol = actMap?.volume?.restore ?: null
         Integer alarmVol = actMap?.volume?.alarm ?: null
@@ -717,41 +688,95 @@ private executeAction(evt = null, frc=false, src=null) {
             //Speak Command Logic
             case "speak":
                 if(actConf[actType] && actConf[actType]?.text) {
+                    String txt = evt ? decodeVariables(evt, actConf[actType]?.text) : actConf[actType]?.text
                     if((changeVol || restoreVol)) {
-                        actDevices?.setVolumeSpeakAndRestore(changeVol, actConf[actType]?.text, restoreVol)
+                        actDevices?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol, [delay: actDelayMs])
                     } else {
-                        actDevices?.speak(actConf[actType]?.text)
+                        actDevices?.speak(txt, [delay: actDelayMs])
                     }
-                    logger("debug", "Sending Speak Command: (${actConf[actType]?.text}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}")
+                    log.debug "Sending Speak Command: (${txt}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}"
                 }
                 break
 
             //Announcement Command Logic
             case "announcement":
                 if(actConf[actType] && actConf[actType]?.text) {
+                    String txt = evt ? decodeVariables(evt, actConf[actType]?.text) : actConf[actType]?.text
                     if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
                         //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                         def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
-                        actDevices[0]?.sendAnnouncementToDevices(actConf[actType]?.text as String, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol)
-                        logger("debug", "Sending Announcement Command: (${actConf[actType]?.text}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}")
+                        actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
+                        log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
                     } else {
-                        settings?.act_EchoDevicesList?.playAnnouncement(actConf[actType]?.text as String, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol)
-                        logger("debug", "Sending Announcement Command: (${actConf[actType]?.text}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}")
+                        settings?.act_EchoDevicesList?.playAnnouncement(txt, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol, [delay: actDelayMs])
+                        log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
                     }
                 }
                 break
 
             case "sequence":
                 if(actConf[actType] && actConf[actType]?.text) {
-                    actDevices?.executeSequenceCommand(actConf[actType]?.text as String)
-                    logger("debug", "Sending Sequence Command: (${actConf[actType]?.text}) to ${actDevices}")
+                    actDevices?.executeSequenceCommand(actConf[actType]?.text as String, [delay: actDelayMs])
+                    log.debug "Sending Sequence Command: (${actConf[actType]?.text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
                 }
                 break
 
+            case "playback":
+            case "dnd":
+                if(actConf[actType] && actConf[actType]?.cmd) {
+                    actDevices?."${actConf[actType]?.cmd}"([delay: actDelayMs])
+                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                }
+                break
+
+            case "builtin":
+            case "calendar":
             case "weather":
-                if(actConf[actType]) {
-                    actDevices?.playWeather(changeVolume, restoreVol)
-                    logger("debug", "Sending Sequence Command: (${actConf[actType]?.text}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}")
+                if(actConf[actType] && actConf[actType]?.cmd) {
+                    if(changeVol || restoreVol) {
+                        actDevices?."${actConf[actType]?.cmd}"(changeVolume, restoreVol, [delay: actDelayMs])
+                        log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                    } else {
+                        actDevices?."${actConf[actType]?.cmd}"([delay: actDelayMs])
+                        log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                    }
+                }
+                break
+
+            case "alarm":
+            case "reminder":
+                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.label && actConf[actType]?.date && actConf[actType]?.time) {
+                    actDevices?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, [delay: actDelayMs])
+                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}"
+                }
+                break
+
+            case "music":
+                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.provider && actConf[actType]?.search) {
+                    actDevices?."${actConf[actType]?.cmd}"(actConf[actType]?.provider, actConf[actType]?.search, changeVol, restoreVol, [delay: actDelayMs])
+                    log.debug "Sending ${actType?.toString()?.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                }
+                break
+
+            case "wakeword":
+                if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
+                    actConf[actType]?.devices?.each { d->
+                        def aDev = actDevices?.find { it?.id == d?.device }
+                        aDev?."${d?.cmd}"(d?.wakeword, [delay: actDelayMs])
+                        log.debug "Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                    }
+                }
+                break
+
+            case "bluetooth":
+                if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
+                    actConf[actType]?.devices?.each { d->
+                        def aDev = actDevices?.find { it?.id == d?.device }
+                        if(it?.cmd == "disconnectBluetooth") {
+                            aDev?."${d?.cmd}"([delay: actDelayMs])
+                        } else { aDev?."${d?.cmd}"(it?.btDevice, [delay: actDelayMs]) }
+                        log.debug "Sending ${actType?.toString()?.capitalize()} | Bluetooth Device: ${d?.btDevice} | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                    }
                 }
                 break
         }
@@ -882,7 +907,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         actionVolumeInputs()
                         done = true
-                        actionExecMap?.config?.weather = [type: null]
+                        actionExecMap?.config?.weather = [cmd: "playWeather"]
                     } else { done = false }
                     break
 
@@ -893,14 +918,14 @@ def actionsPage() {
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
                         Map playbackOpts = [
-                            "pause":"Pause", "stop":"Stop", "play": "Play", "next": "Next Track", "prev":"Previous Track",
+                            "pause":"Pause", "stop":"Stop", "play": "Play", "nextTrack": "Next Track", "previousTrack":"Previous Track",
                             "mute":"Mute"
                         ]
                         section("Playback Config:") {
-                            input "act_playback_type", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
+                            input "act_playback_cmd", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
                         }
-                        actionExecMap?.config?.playback = [type: settings?.act_playback_type]
-                        if(settings?.act_playback_type) { done = true } else { done = false }
+                        actionExecMap?.config?.playback = [cmd: settings?.act_playback_cmd]
+                        if(settings?.act_playback_cmd) { done = true } else { done = false }
                     } else { done = false }
                     break
 
@@ -911,16 +936,16 @@ def actionsPage() {
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevicesList) {
                         Map builtinOpts = [
-                            "sing":"Sing a Song", "flashbrief":"Flash Briefing", "funfact": "Fun Fact", "traffic": "Traffic", "joke":"Joke",
-                            "story":"Tell Story", "goodbye": "Say Goodbye", "goodnight": "Say Goodnight", "birthday": "Happy Birthday",
-                            "compliment": "Give Compliment", "goodmorning": "Good Morning", "welcomehome": "Welcome Home"
+                            "playSingASong":"Sing a Song", "playFlashBrief":"Flash Briefing", "playFunFact": "Fun Fact", "playTraffic": "Traffic", "playJoke":"Joke",
+                            "playTellStory":"Tell Story", "sayGoodbye": "Say Goodbye", "sayGoodNight": "Say Goodnight", "sayBirthday": "Happy Birthday",
+                            "sayCompliment": "Give Compliment", "sayGoodMorning": "Good Morning", "sayWelcomeHome": "Welcome Home"
                         ]
                         section("BuiltIn Speech Config:") {
-                            input "act_builtin_type", "enum", title: "Select Builtin Speech Type", description: "", options: builtinOpts, required: true, submitOnChange: true, image: getPublicImg("builtin")
+                            input "act_builtin_cmd", "enum", title: "Select Builtin Speech Type", description: "", options: builtinOpts, required: true, submitOnChange: true, image: getPublicImg("builtin")
                         }
                         actionVolumeInputs()
-                        actionExecMap?.config?.builtin = [type: settings?.act_builtin_type]
-                        if(settings?.act_builtin_type) { done = true } else { done = false }
+                        actionExecMap?.config?.builtin = [cmd: settings?.act_builtin_cmd]
+                        if(settings?.act_builtin_cmd) { done = true } else { done = false }
                     } else { done = false }
                     break
 
@@ -952,7 +977,7 @@ def actionsPage() {
                                 actionVolumeInputs()
                             }
                         }
-                        actionExecMap?.config?.music = [provider: settings?.act_music_provider, search: settings?.act_music_txt]
+                        actionExecMap?.config?.music = [cmd: "searchMusic", provider: settings?.act_music_provider, search: settings?.act_music_txt]
                         if(settings?.act_music_provider && settings?.act_music_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -964,11 +989,11 @@ def actionsPage() {
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         section("Action Config:") {
-                            input "act_calendar_type", "enum", title: "Select Calendar Action", description: "", options: ["Today", "Tomorrow", "Next Events"], required: true, submitOnChange: true, image: getPublicImg("day_calendar")
+                            input "act_calendar_cmd", "enum", title: "Select Calendar Action", description: "", options: ["playCalendarToday":"Today", "playCalendarTomorrow":"Tomorrow", "playCalendarNext":"Next Events"], required: true, submitOnChange: true, image: getPublicImg("day_calendar")
                         }
                         actionVolumeInputs()
-                        actionExecMap?.config?.calendar = [type: settings?.act_calendar_type]
-                        if(act_calendar_type) { done = true } else { done = false }
+                        actionExecMap?.config?.calendar = [cmd: settings?.act_calendar_cmd]
+                        if(act_calendar_cmd) { done = true } else { done = false }
                     } else { done = false }
                     break
 
@@ -983,10 +1008,10 @@ def actionsPage() {
                             input "act_alarm_label", "text", title: "Alarm Label", submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_alarm_date", "text", title: "Alarm Date\n(yyyy-mm-dd)", submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_alarm_time", "time", title: "Alarm Time", submitOnChange: true, required: true, image: getPublicImg("clock")
-                            input "act_alarm_remove", "bool", title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false, image: getPublicImg("question")
+                            // input "act_alarm_remove", "bool", title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false, image: getPublicImg("question")
                         }
                         actionVolumeInputs(true)
-                        actionExecMap?.config?.alarm = [label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: settings?.act_alarm_time, remove: settings?.act_alarm_remove]
+                        actionExecMap?.config?.alarm = [cmd: "createAlarm", label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: settings?.act_alarm_time, remove: settings?.act_alarm_remove]
                         if(act_alarm_label && act_alarm_date && act_alarm_time) { done = true } else { done = false }
                     } else { done = false }
 
@@ -1003,10 +1028,10 @@ def actionsPage() {
                             input "act_reminder_label", "text", title: "Reminder Label", submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_reminder_date", "text", title: "Reminder Date\n(yyyy-mm-dd)", submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_reminder_time", "time", title: "Reminder Time", submitOnChange: true, required: true, image: getPublicImg("clock")
-                            input "act_reminder_remove", "bool", title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getPublicImg("question")
+                            // input "act_reminder_remove", "bool", title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getPublicImg("question")
                         }
                         actionVolumeInputs(true)
-                        actionExecMap?.config?.reminder = [label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: settings?.act_reminder_time, remove: settings?.act_reminder_remove]
+                        actionExecMap?.config?.reminder = [cmd: "createReminder", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: settings?.act_reminder_time, remove: settings?.act_reminder_remove]
                         if(act_reminder_label && act_reminder_date && act_reminder_time) { done = true } else { done = false }
                     } else { done = false }
 
@@ -1014,15 +1039,15 @@ def actionsPage() {
                 case "dnd":
                     echoDevicesInputByPerm("doNotDisturb")
                     if(settings?.act_EchoDevices) {
-                        Map dndOpts = ["enable":"Enable", "disable":"Disable"]
+                        Map dndOpts = ["doNotDisturbOn":"Enable", "doNotDisturbOff":"Disable"]
                         section("Action Description:") {
                             paragraph "This will allow you to enable/disable Do Not Disturb based on triggers", state: "complete"
                         }
                         section("Action Config:") {
-                            input "act_dnd_type", "enum", title: "Select Do Not Disturb Action", description: "", options: dndOpts, required: true, submitOnChange: true, image: getPublicImg("donotdisturb")
+                            input "act_dnd_cmd", "enum", title: "Select Do Not Disturb Action", description: "", options: dndOpts, required: true, submitOnChange: true, image: getPublicImg("donotdisturb")
                         }
-                        actionExecMap?.config?.dnd = [type: settings?.act_dnd_type]
-                        if(settings?.act_dnd_type) { done = true } else { done = false }
+                        actionExecMap?.config?.dnd = [cmd: settings?.act_dnd_cmd]
+                        if(settings?.act_dnd_cmd) { done = true } else { done = false }
                     } else { done = false }
 
                     break
@@ -1032,24 +1057,24 @@ def actionsPage() {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
                         List devsObj = []
                         section("Action Description:") {
-                            paragraph "This will allow you to the Wake Word based on triggers", state: "complete"
+                            paragraph "This will allow you to change the Wake Word of your Echo's based on triggers", state: "complete"
                         }
                         if(devsCnt >= 1) {
                             List wakeWords = settings?.act_EchoDevicesList[0]?.hasAttribute("wakeWords") ? settings?.act_EchoDevicesList[0]?.currentValue("wakeWords")?.replaceAll('"', "")?.split(",") : []
                             // log.debug "WakeWords: ${wakeWords}"
-                            Integer iCnt = 0
                             settings?.act_EchoDevicesList?.each { cDev->
                                 section("${cDev?.getLabel()}:") {
                                     if(wakeWords?.size()) {
-                                        paragraph "Current Wake Word: ${settings?.act_EchoDevicesList[iCnt]?.hasAttribute("alexaWakeWord") ? settings?.act_EchoDevicesList[iCnt]?.currentValue("alexaWakeWord") : "Unknown"}"
-                                        input "act_wakeword_device_${iCnt}", "enum", title: "New Wake Word", description: "", options: wakeWords, required: true, submitOnChange: true, image: getAppImg("wake_words")
-                                        devsObj?.push([device: cDev, wakeword: settings?."act_wakeword_device_${iCnt}"])
+                                        paragraph "Current Wake Word: ${cDev?.hasAttribute("alexaWakeWord") ? cDev?.currentValue("alexaWakeWord") : "Unknown"}"
+                                        input "act_wakeword_device_${cDev?.id}", "enum", title: "New Wake Word", description: "", options: wakeWords, required: true, submitOnChange: true, image: getAppImg("wake_words")
+                                        devsObj?.push([device: cDev?.id, wakeword: settings?."act_wakeword_device_${cDev?.id}", cmd: "setWakeWord"])
                                     } else { paragraph "Oops...\nNo Wake Words have been found!  Please Remove the device from selection.", state: null, required: true }
                                 }
-                                iCnt++
                             }
                         }
-                        actionExecMap?.config?.wakeword = [devices: devsObj]
+                        actionExecMap?.config?.wakeword = [ devices: devsObj]
+                        def aCnt = settings?.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }
+                        log.debug "aCnt: ${aCnt} | devsCnt: ${devsCnt}"
                         if(settings?.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }?.size() == devsCnt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -1062,18 +1087,16 @@ def actionsPage() {
                             paragraph "This will allow you to connect or disconnect bluetooth based on triggers", state: "complete"
                         }
                         if(devsCnt >= 1) {
-                            Integer iCnt = 0
                             settings?.act_EchoDevicesList?.each { cDev->
-                                List btDevs = settings?.act_EchoDevicesList[iCnt]?.hasAttribute("btDevicesPaired") ? settings?.act_EchoDevicesList[iCnt]?.currentValue("btDevicesPaired")?.split(",") : []
+                                List btDevs = cDev?.hasAttribute("btDevicesPaired") ? cDev?.currentValue("btDevicesPaired")?.split(",") : []
                                 // log.debug "btDevs: $btDevs"
                                 section("${cDev?.getLabel()}:") {
                                     if(btDevs?.size()) {
-                                        input "act_bluetooth_device_${iCnt}", "enum", title: "BT device to use", description: "", options: btDevs, required: true, submitOnChange: true, image: getAppImg("bluetooth")
-                                        input "act_bluetooth_action_${iCnt}", "enum", title: "BT action to take", description: "", options: ["connect", "disconnect"], required: true, submitOnChange: true, image: getAppImg("bluetooth")
-                                        devsObj?.push([device: cDev, btDevice: settings?."act_bluetooth_device_${iCnt}", btAction: settings?."act_bluetooth_action_${iCnt}"])
+                                        input "act_bluetooth_device_${cDev?.id}", "enum", title: "BT device to use", description: "", options: btDevs, required: true, submitOnChange: true, image: getAppImg("bluetooth")
+                                        input "act_bluetooth_action_${cDev?.id}", "enum", title: "BT action to take", description: "", options: ["connectBluetooth":"connect", "disconnectBluetooth":"disconnect"], required: true, submitOnChange: true, image: getAppImg("bluetooth")
+                                        devsObj?.push([device: cDev?.id, btDevice: settings?."act_bluetooth_device_${cDev?.id}", cmd: settings?."act_bluetooth_action_${cDev?.id}"])
                                     } else { paragraph "Oops...\nNo Bluetooth devices are paired to this Echo Device!  Please Remove the device from selection.", state: null, required: true }
                                 }
-                                iCnt++
                             }
                         }
                         actionExecMap?.config?.bluetooth = [devices: devsObj]
@@ -1106,20 +1129,40 @@ def actionsPage() {
         //     def t0 = getAppNotifConfDesc()
         //     href "notifPrefPage", title: "Notifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
         // }
-        // runIn(4, "updateActionExecMap", [data: actionExecMap])
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
         log.debug "actionExecMap: ${atomicState?.actionExecMap}"
+
     }
+}
+
+def cleanupDevSettings(prefix) {
+    List cDevs = settings?.act_EchoDevices
+    List sets = settings?.findAll { it?.key?.startsWith(prefix) }?.collect { it?.key as String }
+    log.debug "cDevs: $cDevs | sets: $sets"
+    List rem = []
+    if(sets?.size()) {
+        if(cDevs?.size()) {
+            cDevs?.each {
+                if(!sets?.contains("${prefix}${it}")) {
+                    rem?.push("${prefix}${it}")
+                }
+            }
+        } else { rem = rem + sets }
+    }
+    log.debug "rem: $rem"
+    // rem?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
 def variableDesc() {
     if(state?.showSpeakEvtVars) {
         paragraph "You are using device/location triggers.\nSo you can choose to leave the text empty and text will be generated for each event."
         String varStr = "You can also use variables with your text"
-        varStr += "\n • %name% = Event Name"
+        varStr += "\n • %type% = Event Type"
         varStr += "\n • %value% = Event Value"
+        varStr += "\n • %name% = Event Name"
         varStr += "\n • %date% = Event Date"
         varStr += "\n • %time% = Event Time"
+        varStr += "\n • %datetime% = Event Date/Time"
         varStr += "\nContact example: %name% has been %open%"
         paragraph varStr
     }
@@ -1313,20 +1356,31 @@ def initialize() {
     state?.isInstalled = true
     state?.setupComplete = true
     if(settings?.appLbl && app?.getLabel() != "${settings?.appLbl} (Action)") { app?.updateLabel("${settings?.appLbl} (Action)") }
-    // TODO: Cleanup unselected trigger types
-    runIn(5, "subscribeToEvts")
+    runIn(3, "actionCleanup")
+    runIn(7, "subscribeToEvts")
     appCleanup()
 }
 
 private appCleanup() {
+    // State Cleanup
     List items = []
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     // Settings Cleanup
     List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest"]
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
-    setItems?.each { sI->
-        if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
-    }
+    // Performs the Setting Removal
+    setItems?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
+}
+
+private actionCleanup() {
+    //Cleans up unused action setting items
+    List setItems = []
+    List setIgn = ["act_delay", "act_set_volume", "act_restore_volume", "act_EchoDevices", "act_EchoDevicesList"]
+    if(settings?.actionType) { settings?.each { si-> if(si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && !(si?.key in setIgn)) { setItems?.push(si?.key as String) } } }
+    // if(settings?.actionType in ["bluetooth", "wakeword"]) { cleanupDevSettings("act_${settings?.actionType}_device_") }
+    // TODO: Cleanup unselected trigger types
+    // Performs the Setting Removal
+    setItems?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
 public triggerInitialize() {
@@ -1344,90 +1398,72 @@ private valTrigEvt(key) {
 private subscribeToEvts() {
     //SCHEDULING
     if (valTrigEvt("Scheduled") && settings?.trig_ScheduleTime) { schedule(settings?.trig_ScheduleTime, "scheduleTrigEvt") }
-    // TODO: Add sunset evts
-    // if (settings?.trig_SunState == "Sunset") {
-    //     subscribe(location, "sunsetTime", sunsetTimeHandler)
-    //     sunsetTimeHandler(location.currentValue("sunsetTime"))
-    // }
-    // if (settings?.trig_SunState == "Sunrise") {
-    //     subscribe(location, "sunriseTime", sunriseTimeHandler)
-    //     sunriseTimeHandler(location.currentValue("sunriseTime"))
-    // }
+
+    if (settings?.trig_SunState == "Sunset") { subscribe(location, "sunsetTime", sunsetTimeHandler) }
+    if (settings?.trig_SunState == "Sunrise") { subscribe(location, "sunriseTime", sunriseTimeHandler) }
 
     // Location Events
-    if(valTrigEvt("AlarmSystem") && settings?.trig_Alarm) {
-        subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", alarmEvtHandler)
+    if(valTrigEvt("AlarmSystem")) {
+        if(settings?.trig_Alarm) { subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", alarmEvtHandler) }
         if(!isST() && settings?.trig_Alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) }
     }
+
     if(valTrigEvt("Modes") && settings?.trig_Modes) { subscribe(location, "mode", modeEvtHandler) }
-    if("Routines" in settings?.triggerEvents && settings?.trig_Routines) { subscribe(location, "routineExecuted", routineEvtHandler) }
+
+    // Routines
+    if(valTrigEvt("Routines") && settings?.trig_Routines) { subscribe(location, "routineExecuted", routineEvtHandler) }
 
     // ENVIRONMENTAL Sensors
-    if("Presence" in settings?.triggerEvents) {
-        if(settings?.trig_Presence)         { subscribe(trig_Presence, "presence", triggerEvtHandler) }
-    }
-    if("Motion" in settings?.triggerEvents) {
-        if(settings?.trig_Motion)           { subscribe(trig_Motion, "motion", triggerEvtHandler) }
-    }
+    if(valTrigEvt("Presence") && settings?.trig_Presence) { subscribe(trig_Presence, "presence", triggerEvtHandler) }
 
-    if("Water" in settings?.triggerEvents) {
-        if(settings?.trig_Water)            { subscribe(settings?.trig_Water, "water", triggerEvtHandler) }
-    }
+    // Motion Sensors
+    if(valTrigEvt("Motion") && settings?.trig_Motion) { subscribe(trig_Motion, "motion", triggerEvtHandler) }
 
-    if("Humidity" in settings?.triggerEvents) {
-        if(settings?.trig_Humidity)         { subscribe(settings?.trig_Humidity, "humidity", triggerEvtHandler) }
-    }
+    // Water Sensors
+    if(valTrigEvt("Water") && settings?.trig_Water) { subscribe(settings?.trig_Water, "water", triggerEvtHandler) }
 
-    if("Temperature" in settings?.triggerEvents) {
-        if(settings?.trig_Temperature)      { subscribe(settings?.trig_Temperature, "temperature", triggerEvtHandler) }
-    }
+    // Humidity Sensors
+    if(valTrigEvt("Humidity") && settings?.trig_Humidity) { subscribe(settings?.trig_Humidity, "humidity", triggerEvtHandler) }
 
-    if("Illuminance" in settings?.triggerEvents) {
-        if(settings?.trig_Illuminance)      { subscribe(settings?.trig_Illuminance, "illuminance", triggerEvtHandler) }
-    }
+    // Temperature Sensors
+    if(valTrigEvt("Temperature") && settings?.trig_Temperature) { subscribe(settings?.trig_Temperature, "temperature", triggerEvtHandler) }
 
-    //Power
-    if("Power" in settings?.triggerEvents) {
-        if(settings?.trig_Power) { subscribe(trig_Power, "power", triggerEvtHandler) }
-    }
+    // Illuminance Sensors
+    if(valTrigEvt("Illuminance") && settings?.trig_Illuminance) { subscribe(settings?.trig_Illuminance, "illuminance", triggerEvtHandler) }
+
+    // Power Meters
+    if(valTrigEvt("Power") && settings?.trig_Power) { subscribe(trig_Power, "power", triggerEvtHandler) }
 
     // Locks
-    if("Locks" in settings?.triggerEvents) {
-        if(settings?.trig_Locks) { subscribe(settings?.trig_Locks, "lock", triggerEvtHandler) }
-    }
+    if(valTrigEvt("Locks") && settings?.trig_Locks) { subscribe(settings?.trig_Locks, "lock", triggerEvtHandler) }
 
-    if("Window Shades" in settings?.triggerEvents) {
-        if(settings?.trig_Shades) { subscribe(settings?.trig_Shades, "windowShade", triggerEvtHandler) }
-    }
+    // Window Shades
+    if(valTrigEvt("Window Shades") && settings?.trig_Shades) { subscribe(settings?.trig_Shades, "windowShade", triggerEvtHandler) }
 
-    if("Valves" in settings?.triggerEvents) {
-        if(settings?.trig_Valves) { subscribe(settings?.trig_Valves, "valve", triggerEvtHandler) }
-    }
+    // Valves
+    if(valTrigEvt("Valves") && settings?.trig_Valves) { subscribe(settings?.trig_Valves, "valve", triggerEvtHandler) }
 
-    if("CO2 & Smoke" in settings?.triggerEvents) {
-        if(settings?.trig_CO2)          { subscribe(settings?.trig_CO2, "carbonDioxide", triggerEvtHandler) }
-        if(settings?.trig_Smoke)        { subscribe(settings?.trig_Smoke, "smoke", triggerEvtHandler) }
+    // Smoke/CO2
+    if(valTrigEvt("CO2 & Smoke")) {
+        if(settings?.trig_CO2)   { subscribe(settings?.trig_CO2, "carbonDioxide", triggerEvtHandler) }
+        if(settings?.trig_Smoke) { subscribe(settings?.trig_Smoke, "smoke", triggerEvtHandler) }
     }
 
     // Garage Door Openers
-    if("Garage Door Openers" in settings?.triggerEvents) {
-        if(settings?.trig_Garages)       { subscribe(settings?.trig_Garages, "garageDoorControl", triggerEvtHandler) }
-    }
+    if(valTrigEvt("Garage Door Openers") && settings?.trig_Garages) { subscribe(settings?.trig_Garages, "garageDoorControl", triggerEvtHandler) }
 
     //Keypads
-    if("Keypads" in settings?.triggerEvents) {
-        if(settings?.trig_Keypads)       { subscribe(settings?.trig_Keypads, "codeEntered", triggerEvtHandler) }
-    }
+    if(valTrigEvt("Keypads") && settings?.trig_Keypads) { subscribe(settings?.trig_Keypads, "codeEntered", triggerEvtHandler) }
 
-    //Contacts
-    if ("Contacts, Doors, Windows" in settings?.triggerEvents) {
+    //Contact Sensors
+    if (valTrigEvt("Contacts, Doors, Windows")) {
         if(settings?.trig_ContactDoor)   { subscribe(trig_ContactDoor, "contact", triggerEvtHandler) }
         if(settings?.trig_ContactWindow) { subscribe(trig_ContactWindow, "contact", triggerEvtHandler) }
         if(settings?.trig_Contact)       { subscribe(trig_Contact, "contact", triggerEvtHandler) }
     }
 
     // Dimmers, Outlets, Switches
-    if ("Dimmers, Outlets, Switches" in settings?.triggerEvents) {
+    if (valTrigEvt("Dimmers, Outlets, Switches")) {
         if(settings?.trig_Switch)        { subscribe(trig_Switch, "switch", triggerEvtHandler) }
         if(settings?.trig_Outlet)        { subscribe(trig_Outlet, "outlet", triggerEvtHandler) }
         if(settings?.trig_Dimmer) {
@@ -1437,7 +1473,20 @@ private subscribeToEvts() {
     }
 }
 
+
 // EVENT HANDLER FUNCTIONS
+def sunriseTimeHandler(evt) {
+    def evtDelay = now() - evt?.date?.getTime()
+    logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    executeAction(evt, false, "sunriseTimeHandler")
+}
+
+def sunsetTimeHandler(evt) {
+    def evtDelay = now() - evt?.date?.getTime()
+    logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    executeAction(evt, false, "sunsetTimeHandler")
+}
+
 def alarmEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
 	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
@@ -1445,17 +1494,11 @@ def alarmEvtHandler(evt) {
     switch(evt?.name) {
         case "hsmStatus":
         case "alarmSystemStatus":
-            if(isST() && useAlerts) {
-                def inc = getShmIncidents()
-                if(inc) {
-
-                }
-            } else {
-                executeAction(evt, false, "alarmEvtHandler")
-            }
+            def inc = (isST() && useAlerts) ? getShmIncidents() : null
+            executeAction(evt, false, "alarmEvtHandler")
             break
         case "hsmAlert":
-
+            executeAction(evt, false, "alarmEvtHandler")
             break
 
 
@@ -1488,6 +1531,7 @@ def triggerEvtHandler(evt) {
 }
 
 def scheduleTrigEvt() {
+    // TODO: Add support for scheduled triggers
     if(isDayOfWeek()) {
         // Execute Action Plan
     }
@@ -1553,10 +1597,29 @@ def conditionValid() {
 
 private executeActTest() {
     settingUpdate("actTestRun", "false", "bool")
-    executeAction([name: "contact", value, "open", date: now(), time: now().time], true, "executeActTest")
+    executeAction([name: "contact", displayName: "Front Door", value: "open", date: new Date()], true, "executeActTest")
 }
 
+String convEvtType(type) {
+    Map typeConv = [
+        "routineExecuted": "Routine",
+        "alarmSystemStatus": "Alarm system",
+        "hsmStatus": "Alarm system"
+    ]
+    return (type && typeConv?.containsKey(type)) ? typeConv[type] : type
+}
 
+String decodeVariables(evt, str) {
+    if(evt && str) {
+        str = (str?.contains("%type%") && evt?.name) ? str?.replaceAll("%type%", convEvtType(evt?.name)) : str
+        str = (str?.contains("%name%") && evt?.displayName) ? str?.replaceAll("%name%", evt?.displayName) : str
+        str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value) : str
+        str = (str?.contains("%date%") && evt?.date) ? str?.replaceAll("%date%", convToDate(evt?.date)) : str
+        str = (str?.contains("%time%") && evt?.date) ? str?.replaceAll("%time%", convToTime(evt?.date)) : str
+        str = (str?.contains("%datetime%") && evt?.date) ? str?.replaceAll("%datetime%", convToDateTime(evt?.date)) : str
+    }
+    return str
+}
 
 /***********************************************************************************************************
    HELPER UTILITES
@@ -1567,9 +1630,9 @@ void settingUpdate(name, value, type=null) {
     else if (name && type == null) { app?.updateSetting(name.toString(), value) }
 }
 
-private stateCleanup() {
-    List items = []
-    items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
+void settingRemove(String name) {
+    logger("trace", "settingRemove($name)...")
+    if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
 }
 
 Map notifValEnum(allowCust = true) {
@@ -1612,7 +1675,8 @@ Map monthEnum() {
 }
 
 Map getAlarmTrigOpts() {
-    return ["away":"Armed Away","stay":"Armed Home","off":"Disarmed", "alerts": "Alerts"]
+    if(isST()) { return ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] }
+    return ["armAway":"Armed Away","armHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
 }
 
 def getShmIncidents() {
@@ -1830,6 +1894,29 @@ def formatDt(dt, tzChg=true) {
     def tf = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
     return tf?.format(dt)
+}
+
+def dateTimeFmt(dt, fmt) {
+    def tf = new SimpleDateFormat(fmt)
+    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf?.format(dt)
+}
+
+def convToTime(dt) {
+    def newDt = dateTimeFmt(dt, "h:mm a")
+    if(newDt?.toString()?.contains(":00 ")) { newDt?.toString()?.replaceAll(":00 ", " ") }
+    return newDt
+}
+
+def convToDate(dt) {
+    def newDt = dateTimeFmt(dt, "EEE, MMM d")
+    return newDt
+}
+
+def convToDateTime(dt) {
+    def t = dateTimeFmt(dt, "h:mm a")
+    def d = dateTimeFmt(dt, "EEE, MMM d")
+    return "$d, $t"
 }
 
 String strCapitalize(str) { return str ? str?.toString().capitalize() : null }

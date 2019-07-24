@@ -140,12 +140,6 @@ def mainPage() {
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
-            // def t1 = getGroupsDesc()
-            // def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
-            // section(sTS("Broadcast Groups:")) {
-            //     href "groupsPage", title: "Manage Groups", description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
-            // }
-
             def t2 = getActionsDesc()
             def actDesc = t2 ? "${t2}\n\nTap to modify" : null
             section(sTS("Actions:")) {
@@ -314,22 +308,6 @@ Boolean guardRestrictOk() {
     Boolean onSwOk = settings?.guardRestrictOnSwitch ? isSwitchOn(settings?.guardRestrictOnSwitch) : true
     Boolean offSwOk = settings?.guardRestrictOffSwitch ? !isSwitchOn(settings?.guardRestrictOffSwitch) : true
     return (onSwOk && offSwOk)
-}
-
-
-def groupsPage() {
-    return dynamicPage(name: "groupsPage", uninstall: false, install: false) {
-        def groupApp = getChildApps()?.findAll { it?.name == grpChildName() }
-        if(groupApp) { /*Nothing to add here yet*/ }
-        else {
-            section("") {
-                paragraph "You haven't created any Broadcast Groups yet!\nTap Create New Group to get Started"
-            }
-        }
-        section("") {
-            app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Group", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
-        }
-    }
 }
 
 def actionsPage() {
@@ -1090,21 +1068,8 @@ def subscribeToEvts() {
     }
 }
 
-def getGroupApps() {
-    return getChildApps()?.findAll { it?.name == grpChildName() }
-}
-
 def getActionApps() {
     return getChildApps()?.findAll { it?.name == actChildName() }
-}
-
-public getBroadcastGrps() {
-    Map grps = [:]
-    def groupApps = getChildApps()?.findAll { it?.name == grpChildName() }
-    groupApps?.each { grp->
-        grps[grp?.getId() as String] = grp?.getBroadcastGroupData(true)
-    }
-    return grps
 }
 
 def onAppTouch(evt) {
@@ -1468,9 +1433,7 @@ public childInitiatedRefresh() {
 
 public updChildAppVer() {
     def actApps = getActionApps()
-    def grpApps = getGroupApps()
     if(actApps?.size()) { updCodeVerMap("actionApp", actApps[0]?.appVersion()) }
-    if(grpApps?.size()) { updCodeVerMap("groupApp", grpApps[0]?.appVersion()) }
 }
 
 private getEchoDevices() {
@@ -2187,17 +2150,15 @@ private appUpdateNotify() {
     Boolean on = (settings?.sendAppUpdateMsg != false)
     Boolean appUpd = isAppUpdateAvail()
     Boolean actUpd = isActionAppUpdateAvail()
-    Boolean grpUpd = false//isGroupAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
-    logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | grpUpd: (${grpUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
+    logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
-        if(on && (appUpd || actUpd || grpUpd || echoDevUpd || servUpd)) {
+        if(on && (appUpd || actUpd || echoDevUpd || servUpd)) {
             state?.updateAvailable = true
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
-            str += !grpUpd ? "" : "\nEcho Speaks - Groups: v${state?.appData?.versions?.groupApp?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
             str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
@@ -2326,7 +2287,6 @@ String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img sr
 String pTS(String t, String i = null) { return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>""" }
 
 String actChildName(){ return "Echo Speaks - Actions" }
-String grpChildName(){ return "Echo Speaks - Groups" }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
@@ -2731,11 +2691,6 @@ String getAppNotifDesc() {
     str += settings?.sendAppUpdateMsg != false ? bulletItem(str, "Code Updates") : ""
     str += settings?.sendCookieRefreshMsg == true ? bulletItem(str, "Cookie Refresh") : ""
     return str != "" ? str : null
-}
-
-String getGroupsDesc() {
-    def grps = getGroupApps()
-    return grps?.size() ? " • (${grps?.size()}) Groups Configured" : null
 }
 
 String getActionsDesc() {
