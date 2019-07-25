@@ -96,13 +96,13 @@ String selTriggerTypes(type) {
 private List buildTriggerEnum() {
     List enumOpts = []
     Map buildItems = [:]
-    buildItems["Date/Time"] = ["Scheduled": "Scheduled Time"]?.sort{ it?.key }
-    buildItems["Location"] = ["Modes":"Modes", "Routines":"Routines"]?.sort{ it?.key }
+    buildItems["Date/Time"] = ["scheduled": "Scheduled Time"]?.sort{ it?.key }
+    buildItems["Location"] = ["mode":"Modes", "routine":"Routines"]?.sort{ it?.key }
     // buildItems["Weather Events"] = ["Weather":"Weather"]
-    buildItems["Safety & Security"] = ["AlarmSystem": "${getAlarmSystemName()}", "CO2 & Smoke":"CO\u00B2 & Smoke"]?.sort{ it?.key }
-    buildItems["Actionable Devices"] = ["Locks":"Locks", "Dimmers, Outlets, Switches":"Dimmers, Outlets, Switches", "Garage Door Openers":"Garage Door Openers", "Valves":"Valves", "Window Shades":"Window Shades", "Buttons":"Buttons"]?.sort{ it?.key }
+    buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "fire":"Carbon Monoxide & Smoke"]?.sort{ it?.key }
+    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "button":"Buttons"]?.sort{ it?.key }
     // buildItems["Sensor Device"] = ["Acceleration":"Acceleration", "Contacts, Doors, Windows":"Contacts, Doors, Windows", "Motion":"Motion", "Presence":"Presence", "Temperature":"Temperature", "Humidity":"Humidity", "Water":"Water", "Power":"Power"]?.sort{ it?.key }
-    buildItems["Sensor Device"] = ["Contacts, Doors, Windows":"Contacts, Doors, Windows", "Motion":"Motion", "Presence":"Presence", "Temperature":"Temperature", "Humidity":"Humidity", "Water":"Water", "Power":"Power"]?.sort{ it?.key }
+    buildItems["Sensor Device"] = ["contact":"Contacts, Doors, Windows", "motion":"Motion", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
     if(isST()) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
         // log.debug "enumOpts: $enumOpts"
@@ -166,6 +166,103 @@ def namePage() {
     }
 }
 
+String evtTextBuilder(evt) {
+    String resp = ""
+    String trigName = evt?.displayName
+    Date evtDate = evt?.date
+    String evtType = evt?.name
+    String evtValue = evt?.value
+    Boolean incName = true
+    Boolean incValue = true
+
+    switch(evtType) {
+        case "alarmSystemStatus":
+        case "hsmStatus":
+        case "hsmAlert":
+            /*
+            -active
+            -inactive
+            */
+            break
+
+        case "mode":
+            /*
+            -mode name
+            */
+            break
+        case "routineExecuted":
+            /*
+            -routine name
+            */
+            break
+
+        case "switch":
+        case "outlet":
+            /*
+            -on
+            -off
+            */
+            break
+
+        case "level":
+        case "humidity":
+
+            break
+        case "temperature":
+
+            break
+        case "smoke":
+            /*
+            - clear
+            - detected
+            - tested
+            */
+            break
+        case "lock":
+            /*
+            - locked
+            - unlocked
+            */
+            break
+        case "motion":
+            /*
+            -active
+            -inactive
+            */
+            break
+
+        case "presence":
+            /*
+            - not present
+            - present
+            */
+            break
+
+        case "door":
+        case "contact":
+        case "valve":
+        case "windowShade":
+            /*
+            - closed
+            - closing
+            - open
+            - opening
+            - partially open
+            - unknown
+            */
+            break
+        case "water":
+            /*
+            - wet
+            - dry
+            */
+            break
+
+    }
+}
+
+
+
 def triggersPage() {
     return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
         def stRoutines = isST() ? location.helloHome?.getPhrases()*.label.sort() : []
@@ -179,48 +276,46 @@ def triggersPage() {
         }
         if (settings?.triggerEvents?.size()) {
             if(!(settings?.triggerEvents in ["Scheduled", "Weather"])) { showSpeakEvtVars = true }
-            if ("Scheduled" in settings?.triggerEvents) {
+            if (valTrigEvt("scheduled")) {
                 section("Time Based Events", hideable: true) {
-                    if(!settings?.trig_ScheduleTime) {
-                        input "trig_SunState", "enum", title: "Sunrise or Sunset...", options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("sun")
-                        if(settings?.trigSunState) {
-                            input "offset", "number", range: "*..*", title: "Offset event this number of minutes (+/-)", required: true, image: getPublicImg(settings?.trig_SunState?.toString()?.toLowerCase() + "")
+                    if(!settings?.trig_scheduled_time) {
+                        input "trig_scheduled_sunState", "enum", title: "Sunrise or Sunset...", options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("sun")
+                        if(settings?.trig_scheduled_sunState) {
+                            input "trig_scheduled_sunState_offset", "number", range: "*..*", title: "Offset event this number of minutes (+/-)", required: true, image: getPublicImg(settings?.trig_scheduled_sunState?.toString()?.toLowerCase() + "")
                         }
                     }
-                    if(!settings?.trig_SunState) {
-                        input "trig_ScheduleTime", "time", title: "Time of Day?", required: false, submitOnChange: true, image: getPublicImg("clock")
-                        if(settings?.trig_ScheduleTime) {
-                            input "trig_ScheduleDays", "enum", title: "Days of the week", description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], image: getPublicImg("day_calendar2")
+                    if(!settings?.trig_scheduled_sunState) {
+                        input "trig_scheduled_time", "time", title: "Time of Day?", required: false, submitOnChange: true, image: getPublicImg("clock")
+                        if(settings?.trig_scheduled_time) {
+                            input "trig_scheduled_days", "enum", title: "Days of the week", description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], image: getPublicImg("day_calendar2")
                         }
                     }
                 }
             }
 
-            if ("AlarmSystem" in settings?.triggerEvents) {
+            if (valTrigEvt("alarm")) {
                 section ("${getAlarmSystemName()} (${getAlarmSystemName(true)}) Events", hideable: true) {
-                    input "trig_Alarm", "enum", title: "${getAlarmSystemName()} Modes", options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("alarm_home")
-                    if("alerts" in trig_Alarm) {
-                        input "trig_AlarmAlertsClear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_alarm", "enum", title: "${getAlarmSystemName()} Modes", options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("alarm_home")
+                    if("alerts" in trig_alarm) {
+                        input "trig_alarm_alerts_clear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
                     }
                 }
             }
 
-            if ("Modes" in settings?.triggerEvents) {
+            if (valTrigEvt("mode")) {
                 section ("Mode Events", hideable: true) {
                     def actions = location.helloHome?.getPhrases()*.label.sort()
-                    input "trig_Modes", "mode", title: "Location Modes", multiple: true, required: true, submitOnChange: true, image: getPublicImg("mode")
+                    input "trig_mode", "mode", title: "Location Modes", multiple: true, required: true, submitOnChange: true, image: getPublicImg("mode")
                 }
             }
 
-            if("Routines" in settings?.triggerEvents) {
-                if ("Routines" in settings?.triggerEvents) {
-                    section("Routine Events", hideable: true) {
-                        input "trig_Routines", "enum", title: "Routines", options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getPublicImg("routine")
-                    }
+            if(valTrigEvt("routine")) {
+                section("Routine Events", hideable: true) {
+                    input "trig_routineExecuted", "enum", title: "Routines", options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getPublicImg("routine")
                 }
             }
 
-            if ("Weather" in settings?.triggerEvents) {
+            if (valTrigEvt("weather")) {
                 section ("Weather Events", hideable: true) {
                     paragraph "Weather Events are not configured to take actions yet.", state: null, image: getPublicImg("weather")
                     // input "trig_WeatherAlert", "enum", title: "Weather Alerts", required: false, multiple: true, submitOnChange: true, image: getAppImg("weather"),
@@ -261,103 +356,85 @@ def triggersPage() {
                 }
             }
 
-            if ("Dimmers, Outlets, Switches" in settings?.triggerEvents) {
-                section ("Dimmers, Outlets, Switches", hideable: true) {
-                    input "trig_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required: !(settings?.trig_Dimmer?.size() || settings?.trig_Outlet?.size()), image: getPublicImg("switch")
-                    if (settings?.trig_Switch) {
-                        input "trig_SwitchCmd", "enum", title: "are turned...", options:["on", "off", "any"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Switch?.size() > 1 && settings?.trig_SwitchCmd && settings?.trig_SwitchCmd != "any") {
-                            input "trig_SwitchAll", "bool", title: "Require ALL Switches to be (${settings?.trig_SwitchCmd})?", required: false, defaultValue: false, submitOnChange: true
-                        }
-                    }
-                    input "trig_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: !(settings?.trig_Switch?.size() || settings?.trig_Outlet?.size()), image: getPublicImg("speed_knob")
-                    if (settings?.trig_Dimmer) {
-                        input "trig_DimmersCmd", "enum", title: "turn...", options:["on": "on", "off": "off", "gt": "to greater than", "lt": "to less than", "gte": "to greater than or equal to", "lte": "to less than or equal to", "eq": "to being equal to"], multiple: false, required: false, submitOnChange: true
-                        if (settings?.trig_DimmerCmd in ["greater", "lessThan", "equal"]) {
-                            input "trig_DimmerLvl", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
-                        }
-                    }
-                    input "trig_Outlet", "capability.outlet", title: "Outlets", multiple: true, submitOnChange: true, required: !(settings?.trig_Switch?.size() || settings?.trig_Dimmer?.size()), image: getPublicImg("outlet")
-                    if (settings?.trig_Outlet) {
-                        input "trig_OutletCmd", "enum", title: "are turned...", options:["on", "off", "any"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Outlet?.size() > 1 && settings?.trig_OutletCmd && settings?.trig_OutletCmd != "any") {
-                            input "trig_OutletAll", "bool", title: "Require ALL Outlets to be (${settings?.trig_OutletCmd})?", required: false, defaultValue: false, submitOnChange: true
+            if (valTrigEvt("switch")) {
+                section ("Outlets, Switches", hideable: true) {
+                    input "trig_switch", "capability.switch", title: "Outlets/Switches", multiple: true, submitOnChange: true, required: true, image: getPublicImg("switch")
+                    if (settings?.trig_switch) {
+                        input "trig_switch_cmd", "enum", title: "are turned...", options:["on", "off", "any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_switch?.size() > 1 && settings?.trig_switch_cmd && settings?.trig_switch_cmd != "any") {
+                            input "trig_switch_all", "bool", title: "Require ALL Switches to be (${settings?.trig_switch_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
             }
 
-            if ("Motion" in settings?.triggerEvents) {
+            if (valTrigEvt("level")) {
+                section ("Dimmers/Levels", hideable: true) {
+                    input "trig_level", "capability.switchLevel", title: "Dimmers/Level", multiple: true, submitOnChange: true, required: true, image: getPublicImg("speed_knob")
+                    if (settings?.trig_level) {
+                        input "trig_level_cmd", "enum", title: "turn...", options:["on": "on", "off": "off", "gt": "to greater than", "lt": "to less than", "gte": "to greater than or equal to", "lte": "to less than or equal to", "eq": "to being equal to"], multiple: false, required: false, submitOnChange: true
+                        if (settings?.trig_level_cmd in ["greater", "lessThan", "equal"]) {
+                            input "trig_level_val", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
+                        }
+                    }
+                }
+            }
+
+            if (valTrigEvt("motion")) {
                 section ("Motion Sensors", hideable: true) {
-                    input "trig_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("motion")
-                    if (settings?.trig_Motion) {
-                        input "trig_MotionCmd", "enum", title: "become...", options: ["active", "inactive", "any"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Motion?.size() > 1 && settings?.trig_MotionCmd && settings?.trig_MotionCmd != "any") {
-                            input "trig_MotionAll", "bool", title: "Require ALL Motion Sensors to be (${settings?.trig_MotionCmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("motion")
+                    if (settings?.trig_motion) {
+                        input "trig_motion_cmd", "enum", title: "become...", options: ["active", "inactive", "any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_motion?.size() > 1 && settings?.trig_motion_cmd && settings?.trig_motion_cmd != "any") {
+                            input "trig_motion_all", "bool", title: "Require ALL Motion Sensors to be (${settings?.trig_motion_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
             }
 
-            if ("Presence" in settings?.triggerEvents) {
+            if (valTrigEvt("presence")) {
                 section ("Presence Events", hideable: true) {
-                    input "trig_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("presence")
-                    if (settings?.trig_Presence) {
-                        input "trig_PresenceCmd", "enum", title: "have...", options: ["present":"Arrived", "not present":"Departed", "any":"any"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Presence?.size() > 1 && settings?.trig_PresenceCmd && settings?.trig_PresenceCmd != "any") {
-                            input "trig_PresenceAll", "bool", title: "Require ALL Presence Sensors to be (${settings?.trig_PresenceCmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("presence")
+                    if (settings?.trig_presence) {
+                        input "trig_presence_cmd", "enum", title: "changes to?", options: ["present", "not present", "any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_presence?.size() > 1 && settings?.trig_presence_cmd && settings?.trig_presence_cmd != "any") {
+                            input "trig_presence_all", "bool", title: "Require ALL Presence Sensors to be (${settings?.trig_presence_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
             }
 
-            if ("Contacts, Doors, Windows" in settings?.triggerEvents) {
+            if (valTrigEvt("contact")) {
                 section ("Contacts, Doors, Windows", hideable: true) {
-                    input "trig_ContactDoor", "capability.contactSensor", title: "Doors", multiple: true, required: !(settings?.trig_ContactWindow?.size() || settings?.trig_Contact?.size()), submitOnChange: true, image: getPublicImg("door_open")
-                    if (settings?.trig_ContactDoor) {
-                        input "trig_ContactDoorCmd", "enum", title: "changes to?", options: ["open":"opened", "closed":"closed", "any":"any"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_ContactDoor?.size() > 1 && settings?.trig_ContactDoorCmd && settings?.trig_ContactDoorCmd != "any") {
-                            input "trig_ContactDoorAll", "bool", title: "Require ALL Doors to be (${settings?.trig_ContactDoorCmd})?", required: false, defaultValue: false, submitOnChange: true
-                        }
-                    }
-
-                    input "trig_ContactWindow", "capability.contactSensor", title: "Windows", multiple: true, required: !(settings?.trig_ContactDoor?.size() || settings?.trig_Contact?.size()), submitOnChange: true, image: getPublicImg("window")
-                    if (settings?.trig_ContactWindow) {
-                        input "trig_ContactWindowCmd", "enum", title: "changes to?", options: ["open":"opened", "closed":"closed", "any":"any"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_ContactWindow?.size() > 1 && settings?.trig_ContactWindowCmd && settings?.trig_ContactWindowCmd != "any") {
-                            input "trig_ContactWindowAll", "bool", title: "Require ALL Windows to be (${settings?.trig_ContactWindowCmd})?", required: false, defaultValue: false, submitOnChange: true
-                        }
-                    }
-
-                    input "trig_Contact", "capability.contactSensor", title: "All Other Contact Sensors", multiple: true, required: !(settings?.trig_ContactDoor?.size() || settings?.trig_ContactWindow?.size()), submitOnChange: true, image: getPublicImg("contact")
-                    if (settings?.trig_Contact) {
-                        input "trig_ContactCmd", "enum", title: "changes to?", options: ["open":"opened", "closed":"closed", "any":"any"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Contact?.size() > 1 && settings?.trig_ContactCmd && settings?.trig_ContactCmd != "any") {
-                            input "trig_ContactAll", "bool", title: "Require ALL Contact to be (${settings?.trig_ContactCmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_contact", "capability.contactSensor", title: "Contacts, Doors, Windows", multiple: true, required: true, submitOnChange: true, image: getPublicImg("contact")
+                    if (settings?.trig_contact) {
+                        input "trig_contact_cmd", "enum", title: "changes to?", options: ["open", "closed", "any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_contact?.size() > 1 && settings?.trig_contact_cmd && settings?.trig_contact_cmd != "any") {
+                            input "trig_contact_all", "bool", title: "Require ALL Contact to be (${settings?.trig_contact_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
             }
 
-            if ("Garage Door Openers" in settings?.triggerEvents) {
+            if (valTrigEvt("door")) {
                 section ("Garage Door Openers", hideable: true) {
-                    input "trig_Garages", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("garage_door_open")
-                    if (settings?.trig_Garages) {
-                        input "trig_GaragesCmd", "enum", title: "change to?", options: ["open":"opened", "close":"closed", "opening":"opening", "closing":"closing", "any":"any"], multiple: false, required: true, submitOnChange: true
-                        if (settings?.trig_Garages?.size() > 1 && trig_GaragesCmd && (trig_GaragesCmd == "open" || trig_GaragesCmd == "close")) {
-                            input "trig_GaragesAll", "bool", title: "Require ALL Garages to be (${settings?.trig_GaragesCmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_door", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("garage_door_open")
+                    if (settings?.trig_door) {
+                        input "trig_door_cmd", "enum", title: "changes to?", options: ["open", "closed", "opening", "closing", "any"], multiple: false, required: true, submitOnChange: true
+                        if (settings?.trig_door?.size() > 1 && trig_door_cmd && (trig_door_cmd == "open" || trig_door_cmd == "close")) {
+                            input "trig_door_all", "bool", title: "Require ALL Garages to be (${settings?.trig_door_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
             }
 
-            if ("Locks" in settings?.triggerEvents) {
+            if (valTrigEvt("lock")) {
                 section ("Locks", hideable: true) {
-                    input "trig_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: true, submitOnChange: true, image: getPublicImg("lock")
-                    if (settings?.trig_Locks) {
-                        input "trig_LocksCmd", "enum", title: "changes to?", options: ["locked", "unlocked", "any"], multiple: false, required: true, submitOnChange:true
-                        if (settings?.trig_Locks?.size() > 1 && settings?.trig_LocksCmd && settings?.trig_LocksCmd != "any") {
-                            input "trig_LocksAll", "bool", title: "Require ALL Locks to be (${settings?.trig_LocksCmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_lock", "capability.lock", title: "Smart Locks", multiple: true, required: true, submitOnChange: true, image: getPublicImg("lock")
+                    if (settings?.trig_lock) {
+                        input "trig_lock_cmd", "enum", title: "changes to?", options: ["locked", "unlocked", "any"], multiple: false, required: true, submitOnChange:true
+                        if (settings?.trig_lock?.size() > 1 && settings?.trig_lock_cmd && settings?.trig_lock_cmd != "any") {
+                            input "trig_lock_all", "bool", title: "Require ALL Locks to be (${settings?.trig_lock_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
@@ -373,33 +450,43 @@ def triggersPage() {
             //     }
             // }
 
-            if ("Temperature" in settings?.triggerEvents) {
+            if (valTrigEvt("temperature")) {
                 section ("Temperature Sensor Events", hideable: true) {
-                    input "trig_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: true, multiple: true, submitOnChange: true, image: getPublicImg("temperature")
-                    input "trig_TempCond", "enum", title: "Temperature is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
-                    if (settings?.trig_TempCond) {
-                        if (settings?.trig_TempCond in ["between", "below"]) {
-                            input "trig_tempLow", "number", title: "a ${trig_TempCond == "between" ? "Low " : ""}Temperature of...", required: true, submitOnChange: true
+                    input "trig_temperature", "capability.temperatureMeasurement", title: "Temperature", required: true, multiple: true, submitOnChange: true, image: getPublicImg("temperature")
+                    input "trig_temperature_cmd", "enum", title: "Temperature is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
+                    if (settings?.trig_temperature_cmd) {
+                        if (settings?.trig_temperature_cmd in ["between", "below"]) {
+                            input "trig_temperature_low", "number", title: "a ${trig_temperature_cmd == "between" ? "Low " : ""}Temperature of...", required: true, submitOnChange: true
                         }
-                        if (settings?.trig_TempCond in ["between", "above"]) {
-                            input "trig_tempHigh", "number", title: "${trig_TempCond == "between" ? "and a high " : "a "}Temperature of...", required: true, submitOnChange: true
+                        if (settings?.trig_temperature_cmd in ["between", "above"]) {
+                            input "trig_temperature_high", "number", title: "${trig_temperature_cmd == "between" ? "and a high " : "a "}Temperature of...", required: true, submitOnChange: true
                         }
-                        if (settings?.trig_TempCond == "equals") {
-                            input "trig_tempEquals", "number", title: "a Temperature of...", required: true, submitOnChange: true
+                        if (settings?.trig_temperature_cmd == "equals") {
+                            input "trig_temperature_equal", "number", title: "a Temperature of...", required: true, submitOnChange: true
                         }
-                        input "trig_TempOnce", "bool", title: "Perform actions only once when true", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_temperature_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_temperature_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true
                     }
                 }
             }
 
-            if ("Humidity" in settings?.triggerEvents) {
+            if (valTrigEvt("humidity")) {
                 section ("Humidity Sensor Events", hideable: true) {
-                    input "trig_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: true, multiple: true, submitOnChange: true, image: getPublicImg("humidity")
-                    if (settings?.trig_Humidity) {
-                        input "trig_HumidityCond", "enum", title: "Relative Humidity (%) is...", options: ["above", "below", "equals"], required: false, submitOnChange: true
-                        if(settings?.trig_HumidityCond) {
-                            input "trig_HumidityLevel", "number", title: "Relative Humidity (%)", required: true, description: "percent", submitOnChange: true
-                            input "trig_HumidityOnce", "bool", title: "Perform this check only once", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: true, multiple: true, submitOnChange: true, image: getPublicImg("humidity")
+                    if (settings?.trig_humidity) {
+                        input "trig_humidity_cmd", "enum", title: "Relative Humidity (%) is...", options: ["between", "above", "below", "equals"], required: false, submitOnChange: true
+                        if(settings?.trig_humidity_cmd) {
+                            if (settings?.trig_humidity_cmd in ["between", "below"]) {
+                                input "trig_humidity_low", "number", title: "a ${trig_power_cmd == "between" ? "Low " : ""}Relative Humidity (%) of...", required: true, submitOnChange: true
+                            }
+                            if (settings?.trig_humidity_cmd in ["between", "above"]) {
+                                input "trig_humidity_high", "number", title: "${trig_power_cmd == "between" ? "and a high " : "a "}Relative Humidity (%) of...", required: true, submitOnChange: true
+                            }
+                            if (settings?.trig_humidity_cmd == "equals") {
+                                input "trig_humidity_equal", "number", title: "a Relative Humidity (%) of...", required: true, submitOnChange: true
+                            }
+                            input "trig_humidity_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_humidity_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true
                         }
                     }
                 }
@@ -417,89 +504,104 @@ def triggersPage() {
             //     }
             // }
 
-            if ("Water" in settings?.triggerEvents) {
+            if (valTrigEvt("water") in settings?.triggerEvents) {
                 section ("Water Sensor Events", hideable: true) {
-                    input "trig_Water", "capability.waterSensor", title: "Water/Moisture Sensors", required: true, multiple: true, submitOnChange: true, image: getPublicImg("water")
-                    if (settings?.trig_Water) {
-                        input "trig_WaterCmd", "enum", title: "changes to?", options: ["wet", "dry", "any"], required: false, submitOnChange: true
-                        if (settings?.trig_Water?.size() > 1 && settings?.trig_WaterCmd && settings?.trig_WaterCmd != "any") {
-                            input "trig_WaterAll", "bool", title: "Require ALL Water Sensors to be (${settings?.trig_WaterCmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_water", "capability.waterSensor", title: "Water/Moisture Sensors", required: true, multiple: true, submitOnChange: true, image: getPublicImg("water")
+                    if (settings?.trig_water) {
+                        input "trig_water_cmd", "enum", title: "changes to?", options: ["wet", "dry", "any"], required: false, submitOnChange: true
+                        if (settings?.trig_water?.size() > 1 && settings?.trig_water_cmd && settings?.trig_water_cmd != "any") {
+                            input "trig_water_all", "bool", title: "Require ALL Sensors to be (${settings?.trig_water_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
             }
 
-            if ("Power" in settings?.triggerEvents) {
+            if (valTrigEvt("power")) {
                 section ("Power Events", hideable: true) {
-                    input "trig_Power", "capability.powerMeter", title: "Power Meters", required: true, multiple: true, submitOnChange: true, image: getPublicImg("power")
-                    input "trig_PowerCond", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
-                    if (settings?.trig_PowerCond) {
-                        if (settings?.trig_PowerCond in ["between", "below"]) {
-                            input "trig_PowerLow", "number", title: "a ${trig_PowerCond == "between" ? "Low " : ""}Power Level (W) of...", required: true, submitOnChange: true
+                    input "trig_power", "capability.powerMeter", title: "Power Meters", required: true, multiple: true, submitOnChange: true, image: getPublicImg("power")
+                    if (settings?.trig_power) {
+                        input "trig_power_cmd", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
+                        if (settings?.trig_power_cmd) {
+                            if (settings?.trig_power_cmd in ["between", "below"]) {
+                                input "trig_power_low", "number", title: "a ${trig_power_cmd == "between" ? "Low " : ""}Power Level (W) of...", required: true, submitOnChange: true
+                            }
+                            if (settings?.trig_power_cmd in ["between", "above"]) {
+                                input "trig_power_high", "number", title: "${trig_power_cmd == "between" ? "and a high " : "a "}Power Level (W) of...", required: true, submitOnChange: true
+                            }
+                            if (settings?.trig_power_cmd == "equals") {
+                                input "trig_power_equal", "number", title: "a Power Level (W) of...", required: true, submitOnChange: true
+                            }
+                            input "trig_power_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_power_wait", "number", title: "Wait between each alert", required: false, defaultValue: 120, submitOnChange: true
                         }
-                        if (settings?.trig_PowerCond in ["between", "above"]) {
-                            input "trig_PowerHigh", "number", title: "${trig_PowerCond == "between" ? "and a high " : "a "}Power Level (W) of...", required: true, submitOnChange: true
-                        }
-                        if (settings?.trig_PowerCond == "equals") {
-                            input "trig_PowerEquals", "number", title: "a Power Level (W) of...", required: true, submitOnChange: true
-                        }
-                        input "trig_PowerOnce", "bool", title: "Perform actions only once when true", required: false, defaultValue: false, submitOnChange: true
                     }
                 }
             }
 
-            if ("CO2 & Smoke" in settings?.triggerEvents) {
-                section ("CO\u00B2 Events", hideable: true) {
-                    input "trig_CO2", "capability.carbonDioxideMeasurement", title: "Carbon Dioxide (CO\u00B2)", required: !(settings?.trig_Smoke), multiple: true, submitOnChange: true, image: getPublicImg("co2_warn_status")
-                    if (settings?.trig_CO2) {
-                        input "trig_CO2Cmd", "enum", title: "changes to?", options: ["above", "below", "equals"], required: false, submitOnChange: true
-                        if (settings?.trig_CO2Cmd) {
-                            input "trig_CO2Level", "number", title: "CO\u00B2 Level...", required: true, description: "number", submitOnChange: true
-                            input "trig_CO2Once", "bool", title: "Perform this check only once", required: false, defaultValue: false, submitOnChange: true
+            if (valTrigEvt("fire")) {
+                // section ("CO\u00B2 Events", hideable: true) {
+                //     input "trig_CO2", "capability.carbonMonoxideDetector", title: "Carbon Dioxide (CO\u00B2)", required: !(settings?.trig_smoke), multiple: true, submitOnChange: true, image: getPublicImg("co2_warn_status")
+                //     if (settings?.trig_CO2) {
+                //         input "trig_CO2Cmd", "enum", title: "changes to?", options: ["above", "below", "equals"], required: false, submitOnChange: true
+                //         if (settings?.trig_CO2Cmd) {
+                //             input "trig_CO2Level", "number", title: "CO\u00B2 Level...", required: true, description: "number", submitOnChange: true
+                //             input "trig_CO2Once", "bool", title: "Perform this check only once", required: false, defaultValue: false, submitOnChange: true
+                //         }
+                //     }
+                // }
+                section ("Carbon Monoxide Events", hideable: true) {
+                    input "trig_carbonMonoxide", "capability.smokeDetector", title: "Smoke Detectors", required: !(settings?.trig_smoke), multiple: true, submitOnChange: true
+                    if (settings?.trig_carbonMonoxide) {
+                        input "trig_carbonMonoxide_cmd", "enum", title: "changes to?", options: ["detected", "clear", "any"], required: false, submitOnChange: true
+                        if (settings?.trig_carbonMonoxide?.size() > 1 && settings?.trig_carbonMonoxide_cmd && settings?.trig_carbonMonoxide_cmd != "any") {
+                            input "trig_carbonMonoxide_all", "bool", title: "Require ALL Smoke Detectors to be (${settings?.trig_carbonMonoxide_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
+
                 section ("Smoke Events", hideable: true) {
-                    input "trig_Smoke", "capability.smokeDetector", title: "Smoke Detectors", required: !(settings?.trig_CO2), multiple: true, submitOnChange: true
-                    if (settings?.trig_Smoke) {
-                        input "trig_SmokeCmd", "enum", title: "changes to?", options: ["detected", "clear", "any"], required: false, submitOnChange: true
-                        if (settings?.trig_Smoke?.size() > 1 && settings?.trig_SmokeCmd && settings?.trig_SmokeCmd != "any") {
-                            input "trig_SmokeAll", "bool", title: "Require ALL Smoke Detectors to be (${settings?.trig_SmokeCmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_smoke", "capability.smokeDetector", title: "Smoke Detectors", required: !(settings?.trig_carbonMonoxide), multiple: true, submitOnChange: true
+                    if (settings?.trig_smoke) {
+                        input "trig_smoke_cmd", "enum", title: "changes to?", options: ["detected", "clear", "any"], required: false, submitOnChange: true
+                        if (settings?.trig_smoke?.size() > 1 && settings?.trig_smoke_cmd && settings?.trig_smoke_cmd != "any") {
+                            input "trig_smoke_all", "bool", title: "Require ALL Smoke Detectors to be (${settings?.trig_smoke_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
             }
 
-            if ("Illuminance" in settings?.triggerEvents) {
+            if (valTrigEvt("illuminance")) {
                 section ("Illuminance Events", hideable: true) {
-                    input "trig_Illuminance", "capability.illuminanceMeasurement", title: "Lux Level", required: true, submitOnChange: true
-                    if (settings?.trig_Illuminance) {
-                        input "trig_IlluminanceLow", "number", title: "A low lux level of...", required: true, submitOnChange: true
-                        input "trig_IlluminanceHigh", "number", title: "and a high lux level of...", required: true, submitOnChange: true
-                        input "trig_IlluminanceOnce", "bool", title: "Perform this check only once", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_illuminance", "capability.illuminanceMeasurement", title: "Lux Level", required: true, submitOnChange: true
+                    if (settings?.trig_illuminance) {
+                        input "trig_illuminance_low", "number", title: "A low lux level of...", required: true, submitOnChange: true
+                        input "trig_illuminance_high", "number", title: "and a high lux level of...", required: true, submitOnChange: true
+                        input "trig_illuminance_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
+                        input "trig_illuminance_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true
+
                     }
                 }
             }
 
-            if ("Window Shades" in settings?.triggerEvents) {
+            if (valTrigEvt("shade")) {
                 section ("Window Shades", hideable: true) {
-                    input "trig_Shades", "capability.windowShades", title: "Window Shades", multiple: true, required: true, submitOnChange: true, image: getPublicImg("window_shade")
-                    if (settings?.trig_Shades) {
-                        input "trig_ShadesCmd", "enum", title: "changes to?", options:["open":"opened", "close":"closed", "any":"any"], multiple: false, required: true, submitOnChange:true
-                        if (settings?.trig_Shades?.size() > 1 && settings?.trig_ShadesCmd && settings?.trig_ShadesCmd != "any") {
-                            input "trig_ShadesAll", "bool", title: "Require ALL Window Shades to be (${settings?.trig_ShadesCmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_shade", "capability.windowShades", title: "Window Shades", multiple: true, required: true, submitOnChange: true, image: getPublicImg("window_shade")
+                    if (settings?.trig_shade) {
+                        input "trig_shade_cmd", "enum", title: "changes to?", options:["open", "closed", "any"], multiple: false, required: true, submitOnChange:true
+                        if (settings?.trig_shade?.size() > 1 && settings?.trig_shade_cmd && settings?.trig_shade_cmd != "any") {
+                            input "trig_shade_all", "bool", title: "Require ALL Window Shades to be (${settings?.trig_shade_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
             }
 
-            if ("Valves" in settings?.triggerEvents) {
+            if (valTrigEvt("valve")) {
                 section ("Valves", hideable: true) {
-                    input "trig_Valves", "capability.valve", title: "Valves", multiple: true, required: true, submitOnChange: true, image: getPublicImg("valve")
-                    if (settings?.trig_Valves) {
-                        input "trig_ValvesCmd", "enum", title: "changes to?", options:["open":"opened", "close":"closed", "any":"any"], multiple: false, required: true, submitOnChange:true
-                        if (settings?.trig_Valves?.size() > 1 && settings?.trig_ValvesCmd && settings?.trig_ValvesCmd != "any") {
-                            input "trig_ValvesAll", "bool", title: "Require ALL Valves to be (${settings?.trig_ValvesCmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "trig_valve", "capability.valve", title: "Valves", multiple: true, required: true, submitOnChange: true, image: getPublicImg("valve")
+                    if (settings?.trig_valve) {
+                        input "trig_valve_cmd", "enum", title: "changes to?", options:["open", "closed", "any"], multiple: false, required: true, submitOnChange:true
+                        if (settings?.trig_valve?.size() > 1 && settings?.trig_valve_cmd && settings?.trig_valve_cmd != "any") {
+                            input "trig_valve_all", "bool", title: "Require ALL Valves to be (${settings?.trig_valve_cmd})?", required: false, defaultValue: false, submitOnChange: true
                         }
                     }
                 }
@@ -509,25 +611,43 @@ def triggersPage() {
     }
 }
 
+def triggerEvtHandler(evt) {
+	def evtDelay = now() - evt?.date?.getTime()
+	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    Boolean ok2Run = false
+    switch(evt?.name) {
+        case "valve":
+        case "shade":
+
+            break
+        case "illuminance":
+
+            break
+    }
+    if(ok2Run) {
+        executeAction(evt, false, "triggerEvtHandler")
+    }
+}
+
 Boolean scheduleTriggers() {
-	return (settings?.trig_ScheduleTime || settings?.trig_SunState)
+	return (settings?.trig_scheduled_time || settings?.trig_scheduled_sunState)
 }
 
 Boolean locationTriggers() {
-	return (settings?.trig_Modes || settings?.trig_Alarm || settings?.trig_Routines)
+	return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted)
 }
 
 Boolean deviceTriggers() {
-	return (settings?.trig_Buttons || (settings?.trig_Shades && settings?.trig_ShadesCmd) || (settings?.trig_Garages && settings?.trig_GaragesCmd) || (settings?.trig_Valves && settings?.trig_ValvesCmd) ||
-            (settings?.trig_Switch && settings?.trig_SwitchCmd) || (settings?.trig_Dimmer && settings?.trig_DimmerCmd) || (settings?.trig_Outlet && settings?.trig_OutletCmd) || (settings?.trig_Locks && settings?.trig_LocksCmd))
+	return (settings?.trig_Buttons || (settings?.trig_shade && settings?.trig_shade_cmd) || (settings?.trig_door && settings?.trig_door_cmd) || (settings?.trig_valve && settings?.trig_valve_cmd) ||
+            (settings?.trig_switch && settings?.trig_switch_cmd) || (settings?.trig_level && settings?.trig_level_cmd) || (settings?.trig_lock && settings?.trig_lock_cmd))
 }
 
 Boolean sensorTriggers() {
     return (
-        (settings?.trig_Temperature && settings?.trig_TempCond) || (settings?.trig_CO2 && settings?.trig_CO2Cmd) || (settings?.trig_Humidity && settings?.trig_HumidityCond) ||
-        (settings?.trig_ContactWindow && settings?.trig_ContactWindowCmd) || (settings?.trig_ContactDoor && settings?.trig_ContactDoorCmd) || (settings?.trig_Water && settings?.trig_WaterCmd) ||
-        (settings?.trig_Smoke && settings?.trig_SmokeCmd) || (settings?.trig_Presence && settings?.trig_PresenceCmd) || (settings?.trig_Motion && settings?.trig_MotionCmd) ||
-        (settings?.trig_Contact && settings?.trig_ContactCmd) || (settings?.trig_Power && settings?.trig_PowerCond) || (settings?.trig_Illuminance && settings?.trig_IlluminanceLow && settings?.trig_IlluminanceHigh)
+        (settings?.trig_temperature && settings?.trig_temperature_cmd) || (settings?.trig_carbonMonoxide && settings?.trig_carbonMonoxide_cmd) || (settings?.trig_humidity && settings?.trig_humidity_cmd) ||
+        (settings?.trig_ContactWindow && settings?.trig_ContactWindowCmd) || (settings?.trig_ContactDoor && settings?.trig_ContactDoorCmd) || (settings?.trig_water && settings?.trig_water_cmd) ||
+        (settings?.trig_smoke && settings?.trig_smoke_cmd) || (settings?.trig_presence && settings?.trig_presence_cmd) || (settings?.trig_motion && settings?.trig_motion_cmd) ||
+        (settings?.trig_contact && settings?.trig_contact_cmd) || (settings?.trig_power && settings?.trig_power_cmd) || (settings?.trig_illuminance && settings?.trig_illuminance_low && settings?.trig_illuminance_high)
     )
 }
 
@@ -664,7 +784,6 @@ private Map devsSupportVolume(devs) {
 }
 
 private executeAction(evt = null, frc=false, src=null) {
-    // TODO: HANDLE DELAY LOGIC
     def startTime = now()
     log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
     Boolean condOk = conditionValid()
@@ -687,12 +806,18 @@ private executeAction(evt = null, frc=false, src=null) {
         switch(actType) {
             //Speak Command Logic
             case "speak":
-                if(actConf[actType] && actConf[actType]?.text) {
-                    String txt = evt ? decodeVariables(evt, actConf[actType]?.text) : actConf[actType]?.text
-                    if((changeVol || restoreVol)) {
-                        actDevices?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol, [delay: actDelayMs])
+                if(actConf[actType]) {
+                    String txt = null
+                    if(actConf[actType]?.text) {
+                        txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
                     } else {
-                        actDevices?.speak(txt, [delay: actDelayMs])
+                        if(evt && actConf[actType]?.evtText) { txt = evtTextBuilder(evt) }
+                        else { txt = "Invalid Text Received... Please verify Action configuration..." }
+                    }
+                    if((changeVol || restoreVol)) {
+                        actDevices?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol)
+                    } else {
+                        actDevices?.speak(txt)
                     }
                     log.debug "Sending Speak Command: (${txt}) to ${actDevices} | Volume: ${changeVol} | Restore Volume: ${restoreVol}"
                 }
@@ -701,7 +826,13 @@ private executeAction(evt = null, frc=false, src=null) {
             //Announcement Command Logic
             case "announcement":
                 if(actConf[actType] && actConf[actType]?.text) {
-                    String txt = evt ? decodeVariables(evt, actConf[actType]?.text) : actConf[actType]?.text
+                    String txt = null
+                    if(actConf[actType]?.text) {
+                        txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
+                    } else {
+                        if(evt && actConf[actType]?.evtText) { txt = evtTextBuilder(evt) }
+                        else { txt = "Invalid Text Received... Please verify Action configuration..." }
+                    }
                     if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
                         //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                         def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
@@ -753,7 +884,7 @@ private executeAction(evt = null, frc=false, src=null) {
 
             case "music":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.provider && actConf[actType]?.search) {
-                    actDevices?."${actConf[actType]?.cmd}"(actConf[actType]?.provider, actConf[actType]?.search, changeVol, restoreVol, [delay: actDelayMs])
+                    actDevices?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol, [delay: actDelayMs])
                     log.debug "Sending ${actType?.toString()?.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
                 }
                 break
@@ -772,10 +903,10 @@ private executeAction(evt = null, frc=false, src=null) {
                 if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
                     actConf[actType]?.devices?.each { d->
                         def aDev = actDevices?.find { it?.id == d?.device }
-                        if(it?.cmd == "disconnectBluetooth") {
+                        if(d?.cmd == "disconnectBluetooth") {
                             aDev?."${d?.cmd}"([delay: actDelayMs])
-                        } else { aDev?."${d?.cmd}"(it?.btDevice, [delay: actDelayMs]) }
-                        log.debug "Sending ${actType?.toString()?.capitalize()} | Bluetooth Device: ${d?.btDevice} | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                        } else { aDev?."${d?.cmd}"(d?.btDevice, [delay: actDelayMs]) }
+                        log.debug "Sending ${d?.cmd} | Bluetooth Device: ${d?.btDevice} to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}"
                     }
                 }
                 break
@@ -802,14 +933,6 @@ def actionsPage() {
             actionExecMap?.actionType = actionType
             actionExecMap?.config = [:]
             switch(actionType) {
-
-                /* TODO: Build Out a variable usage system for certain events
-                    %value%
-                    %name%
-                    %time%
-                    %date%
-                */
-
                 case "speak":
                     String ssmlTestUrl = "https://topvoiceapps.com/ssml"
                     String ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
@@ -1169,9 +1292,9 @@ def variableDesc() {
 }
 
 def updateActionExecMap(data) {
-    log.trace "updateActionExecMap..."
+    // log.trace "updateActionExecMap..."
     atomicState?.actionExecMap = (data && data?.configured == true) ? data : [configured: false]
-    log.debug "actionExecMap: ${state?.actionExecMap}"
+    // log.debug "actionExecMap: ${state?.actionExecMap}"
 }
 
 Boolean actionsConfigured() {
@@ -1397,79 +1520,76 @@ private valTrigEvt(key) {
 
 private subscribeToEvts() {
     //SCHEDULING
-    if (valTrigEvt("Scheduled") && settings?.trig_ScheduleTime) { schedule(settings?.trig_ScheduleTime, "scheduleTrigEvt") }
-
-    if (settings?.trig_SunState == "Sunset") { subscribe(location, "sunsetTime", sunsetTimeHandler) }
-    if (settings?.trig_SunState == "Sunrise") { subscribe(location, "sunriseTime", sunriseTimeHandler) }
+    if (valTrigEvt("scheduled") && settings?.trig_scheduled_time) { schedule(settings?.trig_scheduled_time, "scheduleTrigEvt") }
+    if (settings?.trig_scheduled_sunState == "Sunset") { subscribe(location, "sunsetTime", sunsetTimeHandler) }
+    if (settings?.trig_scheduled_sunState == "Sunrise") { subscribe(location, "sunriseTime", sunriseTimeHandler) }
 
     // Location Events
-    if(valTrigEvt("AlarmSystem")) {
-        if(settings?.trig_Alarm) { subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", alarmEvtHandler) }
-        if(!isST() && settings?.trig_Alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) }
+    if(valTrigEvt("alarm")) {
+        if(settings?.trig_alarm) { subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", alarmEvtHandler) }
+        if(!isST() && settings?.trig_alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) }
     }
 
-    if(valTrigEvt("Modes") && settings?.trig_Modes) { subscribe(location, "mode", modeEvtHandler) }
+    if(valTrigEvt("mode") && settings?.trig_mode) { subscribe(location, "mode", modeEvtHandler) }
 
     // Routines
-    if(valTrigEvt("Routines") && settings?.trig_Routines) { subscribe(location, "routineExecuted", routineEvtHandler) }
+    if(valTrigEvt("routine") && settings?.trig_routineExecuted) { subscribe(location, "routineExecuted", routineEvtHandler) }
 
     // ENVIRONMENTAL Sensors
-    if(valTrigEvt("Presence") && settings?.trig_Presence) { subscribe(trig_Presence, "presence", triggerEvtHandler) }
+    if(valTrigEvt("presence") && settings?.trig_presence) { subscribe(trig_presence, "presence", triggerEvtHandler) }
 
     // Motion Sensors
-    if(valTrigEvt("Motion") && settings?.trig_Motion) { subscribe(trig_Motion, "motion", triggerEvtHandler) }
+    if(valTrigEvt("motion") && settings?.trig_motion) { subscribe(trig_motion, "motion", triggerEvtHandler) }
 
     // Water Sensors
-    if(valTrigEvt("Water") && settings?.trig_Water) { subscribe(settings?.trig_Water, "water", triggerEvtHandler) }
+    if(valTrigEvt("water") && settings?.trig_water) { subscribe(settings?.trig_water, "water", triggerEvtHandler) }
 
     // Humidity Sensors
-    if(valTrigEvt("Humidity") && settings?.trig_Humidity) { subscribe(settings?.trig_Humidity, "humidity", triggerEvtHandler) }
+    if(valTrigEvt("humidity") && settings?.trig_humidity) { subscribe(settings?.trig_humidity, "humidity", triggerEvtHandler) }
 
     // Temperature Sensors
-    if(valTrigEvt("Temperature") && settings?.trig_Temperature) { subscribe(settings?.trig_Temperature, "temperature", triggerEvtHandler) }
+    if(valTrigEvt("temperature") && settings?.trig_temperature) { subscribe(settings?.trig_temperature, "temperature", triggerEvtHandler) }
 
     // Illuminance Sensors
-    if(valTrigEvt("Illuminance") && settings?.trig_Illuminance) { subscribe(settings?.trig_Illuminance, "illuminance", triggerEvtHandler) }
+    if(valTrigEvt("illuminance") && settings?.trig_illuminance) { subscribe(settings?.trig_illuminance, "illuminance", triggerEvtHandler) }
 
     // Power Meters
-    if(valTrigEvt("Power") && settings?.trig_Power) { subscribe(trig_Power, "power", triggerEvtHandler) }
+    if(valTrigEvt("power") && settings?.trig_power) { subscribe(trig_power, "power", triggerEvtHandler) }
 
     // Locks
-    if(valTrigEvt("Locks") && settings?.trig_Locks) { subscribe(settings?.trig_Locks, "lock", triggerEvtHandler) }
+    if(valTrigEvt("lock") && settings?.trig_lock) { subscribe(settings?.trig_lock, "lock", triggerEvtHandler) }
 
     // Window Shades
-    if(valTrigEvt("Window Shades") && settings?.trig_Shades) { subscribe(settings?.trig_Shades, "windowShade", triggerEvtHandler) }
+    if(valTrigEvt("shade") && settings?.trig_shade) { subscribe(settings?.trig_shade, "windowShade", triggerEvtHandler) }
 
     // Valves
-    if(valTrigEvt("Valves") && settings?.trig_Valves) { subscribe(settings?.trig_Valves, "valve", triggerEvtHandler) }
+    if(valTrigEvt("valve") && settings?.trig_valve) { subscribe(settings?.trig_valve, "valve", triggerEvtHandler) }
 
     // Smoke/CO2
-    if(valTrigEvt("CO2 & Smoke")) {
-        if(settings?.trig_CO2)   { subscribe(settings?.trig_CO2, "carbonDioxide", triggerEvtHandler) }
-        if(settings?.trig_Smoke) { subscribe(settings?.trig_Smoke, "smoke", triggerEvtHandler) }
+    if(valTrigEvt("fire")) {
+        if(settings?.trig_carbonMonoxide)   { subscribe(settings?.trig_carbonMonoxide, "carbonMonoxide", triggerEvtHandler) }
+        if(settings?.trig_smoke)            { subscribe(settings?.trig_smoke, "smoke", triggerEvtHandler) }
     }
 
     // Garage Door Openers
-    if(valTrigEvt("Garage Door Openers") && settings?.trig_Garages) { subscribe(settings?.trig_Garages, "garageDoorControl", triggerEvtHandler) }
+    if(valTrigEvt("door") && settings?.trig_door) { subscribe(settings?.trig_door, "garageDoorControl", triggerEvtHandler) }
 
     //Keypads
-    if(valTrigEvt("Keypads") && settings?.trig_Keypads) { subscribe(settings?.trig_Keypads, "codeEntered", triggerEvtHandler) }
+    if(valTrigEvt("keypad") && settings?.trig_Keypads) { subscribe(settings?.trig_Keypads, "codeEntered", triggerEvtHandler) }
 
     //Contact Sensors
-    if (valTrigEvt("Contacts, Doors, Windows")) {
-        if(settings?.trig_ContactDoor)   { subscribe(trig_ContactDoor, "contact", triggerEvtHandler) }
-        if(settings?.trig_ContactWindow) { subscribe(trig_ContactWindow, "contact", triggerEvtHandler) }
-        if(settings?.trig_Contact)       { subscribe(trig_Contact, "contact", triggerEvtHandler) }
+    if (valTrigEvt("contact")) {
+        if(settings?.trig_contact)       { subscribe(settings?.trig_contact, "contact", triggerEvtHandler) }
     }
 
-    // Dimmers, Outlets, Switches
-    if (valTrigEvt("Dimmers, Outlets, Switches")) {
-        if(settings?.trig_Switch)        { subscribe(trig_Switch, "switch", triggerEvtHandler) }
-        if(settings?.trig_Outlet)        { subscribe(trig_Outlet, "outlet", triggerEvtHandler) }
-        if(settings?.trig_Dimmer) {
-            subscribe(settings?.trig_Dimmer, "switch", triggerEvtHandler)
-            subscribe(settings?.trig_Dimmer, "level", triggerEvtHandler)
-        }
+    // Outlets, Switches
+    if (valTrigEvt("switch")) {
+        if(settings?.trig_switch)   { subscribe(trig_switch, "switch", triggerEvtHandler) }
+    }
+
+    // Dimmers/Level
+    if (valTrigEvt("level")) {
+        if(settings?.trig_level)    { subscribe(settings?.trig_level, "level", triggerEvtHandler) }
     }
 }
 
@@ -1477,20 +1597,20 @@ private subscribeToEvts() {
 // EVENT HANDLER FUNCTIONS
 def sunriseTimeHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-    logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     executeAction(evt, false, "sunriseTimeHandler")
 }
 
 def sunsetTimeHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-    logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     executeAction(evt, false, "sunsetTimeHandler")
 }
 
 def alarmEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
-    Boolean useAlerts = (settings?.trig_Alarm == "Alerts")
+	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    Boolean useAlerts = (settings?.trig_alarm == "Alerts")
     switch(evt?.name) {
         case "hsmStatus":
         case "alarmSystemStatus":
@@ -1507,28 +1627,24 @@ def alarmEvtHandler(evt) {
 
 def routineEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     executeAction(evt, false, "routineEvtHandler")
 }
 
 def modeEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     executeAction(evt, false, "modeEvtHandler")
 }
 
 def locationEvtHandler(evt) {
 	def evtDelay = now() - evt?.date?.getTime()
-	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     executeAction(evt, false, "locationEvtHandler")
 
 }
 
-def triggerEvtHandler(evt) {
-	def evtDelay = now() - evt?.date?.getTime()
-	logger("trace", "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
-    executeAction(evt, false, "triggerEvtHandler")
-}
+
 
 def scheduleTrigEvt() {
     // TODO: Add support for scheduled triggers
@@ -1536,7 +1652,6 @@ def scheduleTrigEvt() {
         // Execute Action Plan
     }
 }
-
 
 /***********************************************************************************************************
    CONDITIONS HANDLER
@@ -2143,6 +2258,27 @@ private logger(type, msg, traceOnly=false) {
     if (traceOnly && !settings?.appTrace) { return }
     if(type && msg && settings?.appDebug) {
         log."${type}" "${msg}"
+    }
+}
+
+String convMusicProvider(String prov) {
+    switch (prov) {
+        case "Amazon Music":
+            return "AMAZON_MUSIC"
+        case "Apple Music":
+            return "APPLE_MUSIC"
+        case "TuneIn":
+            return "TUNEIN"
+        case "Pandora":
+            return "PANDORA"
+        case "Sirius Xm":
+            return "SIRIUSXM"
+        case "Spotify":
+            return "SPOTIFY"
+        case "Tidal":
+            return "TIDAL"
+        case "iHeartRadio":
+            return "I_HEART_RADIO"
     }
 }
 /************************************************

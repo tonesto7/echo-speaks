@@ -301,7 +301,6 @@ def guardTriggerEvtHandler(evt) {
     else if(desiredState && desiredState == "ARMED_AWAY" && state?.alexaGuardState != "ARMED_AWAY") {
         settings?.guardAwayDelay ? runIn(settings?.guardAwayDelay, "setGuardAway") : setGuardAway()
     }
-
 }
 
 Boolean guardRestrictOk() {
@@ -311,7 +310,7 @@ Boolean guardRestrictOk() {
 }
 
 def actionsPage() {
-    return dynamicPage(name: "actionsPage", uninstall: false, install: false) {
+    return dynamicPage(name: "actionsPage", nextPage: "mainPage", uninstall: false, install: false) {
         def actionApp = getChildApps()?.findAll { it?.name == actChildName() }
         if(actionApp) { /*Nothing to add here yet*/ }
         else {

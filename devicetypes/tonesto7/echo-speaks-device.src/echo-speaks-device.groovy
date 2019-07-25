@@ -1034,7 +1034,7 @@ def updGuardStatus(val=null) {
 
 private String getBtAddrByAddrOrName(String btNameOrAddr) {
     Map btObj = state?.bluetoothObjs
-    String curBtAddr = btObj?.find { it?.value?.friendlyName == btNameOrAddr || it?.value?.address == btNameOrAddr }?.value?.address ?: null
+    String curBtAddr = btObj?.find { it?.value?.friendlyName == btNameOrAddr || it?.value?.address == btNameOrAddr }?.key ?: null
     // logger("debug", "curBtAddr: ${curBtAddr}")
     return curBtAddr
 }
