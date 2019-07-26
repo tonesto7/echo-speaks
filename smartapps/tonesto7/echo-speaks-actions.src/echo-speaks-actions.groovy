@@ -575,11 +575,20 @@ def triggersPage() {
                 section ("Illuminance Events", hideable: true) {
                     input "trig_illuminance", "capability.illuminanceMeasurement", title: "Lux Level", required: true, submitOnChange: true
                     if (settings?.trig_illuminance) {
-                        input "trig_illuminance_low", "number", title: "A low lux level of...", required: true, submitOnChange: true
-                        input "trig_illuminance_high", "number", title: "and a high lux level of...", required: true, submitOnChange: true
-                        input "trig_illuminance_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
-                        input "trig_illuminance_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true
-
+                        input "trig_illuminance_cmd", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
+                        if (settings?.trig_illuminance_cmd) {
+                            if (settings?.trig_illuminance_cmd in ["between", "below"]) {
+                                input "trig_illuminance_low", "number", title: "a ${trig_power_cmd == "between" ? "Low " : ""}Power Level (W) of...", required: true, submitOnChange: true
+                            }
+                            if (settings?.trig_illuminance_cmd in ["between", "above"]) {
+                                input "trig_illuminance_high", "number", title: "${trig_power_cmd == "between" ? "and a high " : "a "}Power Level (W) of...", required: true, submitOnChange: true
+                            }
+                            if (settings?.trig_illuminance_cmd == "equals") {
+                                input "trig_illuminance_equal", "number", title: "a Power Level (W) of...", required: true, submitOnChange: true
+                            }
+                            input "trig_illuminance_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_illuminance_wait", "number", title: "Wait between each alert", required: false, defaultValue: 120, submitOnChange: true
+                        }
                     }
                 }
             }
