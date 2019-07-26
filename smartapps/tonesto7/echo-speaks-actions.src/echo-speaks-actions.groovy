@@ -17,8 +17,8 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()	 { return "2.8.0" }
-String appModified() { return "2019-07-22" }
+String appVersion()	 { return "2.9.0" }
+String appModified()  { return "2019-07-25" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -212,6 +212,7 @@ String evtTextBuilder(evt) {
 
             break
         case "smoke":
+        case "carbonMonoxide":
             /*
             - clear
             - detected
@@ -616,12 +617,67 @@ def triggerEvtHandler(evt) {
 	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     Boolean ok2Run = false
     switch(evt?.name) {
-        case "valve":
-        case "shade":
+        case "switch":
+        case "outlet":
+            /*
+            -on
+            -off
+            */
+            break
+
+        case "level":
+        case "humidity":
 
             break
-        case "illuminance":
+        case "temperature":
 
+            break
+        case "smoke":
+        case "carbonMonoxide":
+            /*
+            - clear
+            - detected
+            - tested
+            */
+            break
+        case "lock":
+            /*
+            - locked
+            - unlocked
+            */
+            break
+        case "motion":
+            /*
+            -active
+            -inactive
+            */
+            break
+
+        case "presence":
+            /*
+            - not present
+            - present
+            */
+            break
+
+        case "door":
+        case "contact":
+        case "valve":
+        case "windowShade":
+            /*
+            - closed
+            - closing
+            - open
+            - opening
+            - partially open
+            - unknown
+            */
+            break
+        case "water":
+            /*
+            - wet
+            - dry
+            */
             break
     }
     if(ok2Run) {
