@@ -656,7 +656,8 @@ def deviceEvtHandler(evt) {
                 } else {
 
                     if(all && (allDevEqCapVal(d, dc, evt?.value))) {
-                    Boolean allOk = (allDevEqCapVal(d, dc, evt?.value))
+                        Boolean allOk = (allDevEqCapVal(d, dc, evt?.value))
+                    }
                 }
             }
 
