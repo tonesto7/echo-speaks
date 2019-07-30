@@ -165,104 +165,6 @@ def namePage() {
     }
 }
 
-String evtTextBuilder(evt) {
-    String resp = ""
-    String trigName = evt?.displayName
-    Date evtDate = evt?.date
-    String evtType = evt?.name
-    String evtValue = evt?.value
-    Boolean incName = true
-    Boolean incValue = true
-
-    switch(evtType) {
-        case "alarmSystemStatus":
-        case "hsmStatus":
-        case "hsmAlert":
-            /*
-            -active
-            -inactive
-            */
-            break
-
-        case "mode":
-            /*
-            -mode name
-            */
-            break
-        case "routineExecuted":
-            /*
-            -routine name
-            */
-            break
-
-        case "switch":
-        case "outlet":
-            /*
-            -on
-            -off
-            */
-            break
-
-        case "level":
-        case "humidity":
-
-            break
-        case "temperature":
-
-            break
-        case "smoke":
-        case "carbonMonoxide":
-            /*
-            - clear
-            - detected
-            - tested
-            */
-            break
-        case "lock":
-            /*
-            - locked
-            - unlocked
-            */
-            break
-        case "motion":
-            /*
-            -active
-            -inactive
-            */
-            break
-
-        case "presence":
-            /*
-            - not present
-            - present
-            */
-            break
-
-        case "door":
-        case "contact":
-        case "valve":
-        case "windowShade":
-            /*
-            - closed
-            - closing
-            - open
-            - opening
-            - partially open
-            - unknown
-            */
-            break
-        case "water":
-            /*
-            - wet
-            - dry
-            */
-            break
-
-    }
-}
-
-
-
 def triggersPage() {
     return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
         def stRoutines = isST() ? location.helloHome?.getPhrases()*.label.sort() : []
@@ -318,6 +220,7 @@ def triggersPage() {
             if (valTrigEvt("weather")) {
                 section ("Weather Events", hideable: true) {
                     paragraph "Weather Events are not configured to take actions yet.", state: null, image: getAppImg("weather")
+                    //TODO: Buildout weather alerts
                     // input "trig_WeatherAlert", "enum", title: "Weather Alerts", required: false, multiple: true, submitOnChange: true, image: getAppImg("weather"),
                     //         options: [
                     //             "TOR":	"Tornado Warning",
@@ -371,11 +274,20 @@ def triggersPage() {
             if (valTrigEvt("level")) {
                 section ("Dimmers/Levels", hideable: true) {
                     input "trig_level", "capability.switchLevel", title: "Dimmers/Level", multiple: true, submitOnChange: true, required: true, image: getPublicImg("speed_knob")
-                    if (settings?.trig_level) {
-                        input "trig_level_cmd", "enum", title: "turn...", options:["on": "on", "off": "off", "gt": "to greater than", "lt": "to less than", "gte": "to greater than or equal to", "lte": "to less than or equal to", "eq": "to being equal to"],
-                            multiple: false, required: false, submitOnChange: true, image: getAppImg("command")
-                        if (settings?.trig_level_cmd in ["greater", "lessThan", "equal"]) {
-                            input "trig_level_val", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
+                    if(settings?.trig_level) {
+                        input "trig_level_cmd", "enum", title: "Level is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+                        if (settings?.trig_level_cmd) {
+                            if (settings?.trig_level_cmd in ["between", "below"]) {
+                                input "trig_level_low", "number", title: "a ${trig_level_cmd == "between" ? "Low " : ""}Level of...", required: true, submitOnChange: true
+                            }
+                            if (settings?.trig_level_cmd in ["between", "above"]) {
+                                input "trig_level_high", "number", title: "${trig_level_cmd == "between" ? "and a high " : "a "}Level of...", required: true, submitOnChange: true
+                            }
+                            if (settings?.trig_level_cmd == "equals") {
+                                input "trig_level_equal", "number", title: "a Level of...", required: true, submitOnChange: true
+                            }
+                            input "trig_level_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_level_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true
                         }
                     }
                 }
@@ -624,16 +536,10 @@ def triggersPage() {
 }
 
 def deviceEvtHandler(evt) {
-	def evtDelay = now() - evt?.date?.getTime()
-    String resp = ""
-    String trigName = evt?.displayName
-    Date evtDate = evt?.date
-    String evtType = evt?.name
-    String evtValue = evt?.value
-    Boolean incName = true
-    Boolean incValue = true
+    def evtDelay = now() - evt?.date?.getTime()
+    String custText = null
     Boolean ok2run = false
-	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     switch(evt?.name) {
         case "switch":
         case "lock":
@@ -648,45 +554,84 @@ def deviceEvtHandler(evt) {
         case "valve":
             def d = settings?."trig_${evt?.name}"
             def dc = settings?."trig_${evt?.name}_cmd"
-            def all = (settings?."trig_${evt?.name}_all" == true)
             // TODO: Finish this logic
             if(d?.size() && dc) {
                 if(dc == "any") {
                     ok2run = true
+                    custText = "${evt?.displayName} ${evt?.name} is ${evt?.value}"
                 } else {
-
-                    if(all && (allDevEqCapVal(d, dc, evt?.value))) {
-                        Boolean allOk = (allDevEqCapVal(d, dc, evt?.value))
+                    if((settings?."trig_${evt?.name}_all" == true) && (allDevEqCapVal(d, dc, evt?.value))) {
+                        ok2run = true
+                        if(d?.size() > 1) {
+                            custText = "All ${d?.size()} ${evt?.name} devices are ${evt?.value}"
+                        } else {
+                            custText = "${evt?.displayName} ${evt?.name} is ${evt?.value}"
+                        }
+                    } else {
+                        if(evt?.value == dc) {
+                            ok2run=true
+                            custText = "${evt?.displayName} ${evt?.name} is ${evt?.value}"
+                        }
                     }
                 }
             }
-
             break
+        /*
+        input "trig_illuminance_cmd", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+        if (settings?.trig_illuminance_cmd) {
+            if (settings?.trig_illuminance_cmd in ["between", "below"]) {
+                input "trig_illuminance_low", "number", title: "a ${trig_power_cmd == "between" ? "Low " : ""}Power Level (W) of...", required: true, submitOnChange: true
+            }
+            if (settings?.trig_illuminance_cmd in ["between", "above"]) {
+                input "trig_illuminance_high", "number", title: "${trig_power_cmd == "between" ? "and a high " : "a "}Power Level (W) of...", required: true, submitOnChange: true
+            }
+            if (settings?.trig_illuminance_cmd == "equals") {
+                input "trig_illuminance_equal", "number", title: "a Power Level (W) of...", required: true, submitOnChange: true
+            }
+            input "trig_illuminance_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
+            input "trig_illuminance_wait", "number", title: "Wait between each alert", required: false, defaultValue: 120, submitOnChange: true
+        }
+        */
         case "humidity":
         case "temperature":
         case "power":
         case "illuminance":
-
-            break
         case "level":
-
+            def d = settings?."trig_${evt?.name}"
+            def dc = settings?."trig_${evt?.name}_cmd"
             break
     }
     if(ok2run) {
-        executeAction(evt, false, "deviceEvtHandler")
+        executeAction(evt, false, custText, "deviceEvtHandler")
+    }
+}
+
+String getAttrPostfix(attr) {
+    switch(attr) {
+        case "humidity":
+        case "level":
+            return " percent"
+        case "temperature":
+            return " degrees"
+        case "illuminance":
+            return " lux"
+        case "power":
+            return " watts"
+        default:
+            return ""
     }
 }
 
 Boolean scheduleTriggers() {
-	return (settings?.trig_scheduled_time || settings?.trig_scheduled_sunState)
+    return (settings?.trig_scheduled_time || settings?.trig_scheduled_sunState)
 }
 
 Boolean locationTriggers() {
-	return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted)
+    return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted)
 }
 
 Boolean deviceTriggers() {
-	return (settings?.trig_Buttons || (settings?.trig_shade && settings?.trig_shade_cmd) || (settings?.trig_door && settings?.trig_door_cmd) || (settings?.trig_valve && settings?.trig_valve_cmd) ||
+    return (settings?.trig_Buttons || (settings?.trig_shade && settings?.trig_shade_cmd) || (settings?.trig_door && settings?.trig_door_cmd) || (settings?.trig_valve && settings?.trig_valve_cmd) ||
             (settings?.trig_switch && settings?.trig_switch_cmd) || (settings?.trig_level && settings?.trig_level_cmd) || (settings?.trig_lock && settings?.trig_lock_cmd))
 }
 
@@ -700,7 +645,7 @@ Boolean sensorTriggers() {
 }
 
 Boolean weatherTriggers() {
-	return (settings?.trig_Weather || settings?.myWeather || settings?.myWeatherAlert)
+    return (settings?.trig_Weather || settings?.myWeather || settings?.myWeatherAlert)
 }
 
 Boolean triggersConfigured() {
@@ -710,7 +655,7 @@ Boolean triggersConfigured() {
     Boolean sen = sensorTriggers()
     Boolean weath = weatherTriggers()
     // log.debug "sched: $sched | loc: $loc | dev: $dev | sen: $sen | weath: $weath"
-	return (sched || loc || dev || sen || weath)
+    return (sched || loc || dev || sen || weath)
 }
 
 /******************************************************************************
@@ -820,7 +765,7 @@ private Map devsSupportVolume(devs) {
     return [s:supported, n:noSupport]
 }
 
-private executeAction(evt = null, frc=false, src=null) {
+private executeAction(evt = null, frc=false, custText=null, src=null) {
     def startTime = now()
     log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
     Boolean condOk = conditionValid()
@@ -848,7 +793,7 @@ private executeAction(evt = null, frc=false, src=null) {
                     if(actConf[actType]?.text) {
                         txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
                     } else {
-                        if(evt && actConf[actType]?.evtText) { txt = evtTextBuilder(evt) }
+                        if(evt && custText && actConf[actType]?.evtText) { txt = custText }
                         else { txt = "Invalid Text Received... Please verify Action configuration..." }
                     }
                     if((changeVol || restoreVol)) {
@@ -867,7 +812,7 @@ private executeAction(evt = null, frc=false, src=null) {
                     if(actConf[actType]?.text) {
                         txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
                     } else {
-                        if(evt && actConf[actType]?.evtText) { txt = evtTextBuilder(evt) }
+                        if(evt && custText && actConf[actType]?.evtText) { txt = custText }
                         else { txt = "Invalid Text Received... Please verify Action configuration..." }
                     }
                     if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
@@ -1340,7 +1285,7 @@ Boolean actionsConfigured() {
     Boolean opts = (state?.actionExecMap && state?.actionExecMap?.configured == true)
     Boolean devs = (settings?.act_EchoDevicesList)
     // log.debug "type: $type | Options: $opts | devs: $devs"
-	return (type || opts || devs)
+    return (type || opts || devs)
 }
 
 private echoDevicesInputByPerm(type) {
@@ -1636,50 +1581,56 @@ private subscribeToEvts() {
 def sunriseTimeHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-    executeAction(evt, false, "sunriseTimeHandler")
+    String custText = null
+    executeAction(evt, false, custText, "sunriseTimeHandler")
 }
 
 def sunsetTimeHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-    executeAction(evt, false, "sunsetTimeHandler")
+    String custText = null
+    executeAction(evt, false, custText, "sunsetTimeHandler")
 }
 
 def alarmEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    String custText = null
+    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     Boolean useAlerts = (settings?.trig_alarm == "Alerts")
     switch(evt?.name) {
         case "hsmStatus":
         case "alarmSystemStatus":
             def inc = (isST() && useAlerts) ? getShmIncidents() : null
-            executeAction(evt, false, "alarmEvtHandler")
+            custText = "The ${getAlarmSystemName()} is now set to ${evt?.value}"
+            executeAction(evt, false, custText, "alarmEvtHandler")
             break
         case "hsmAlert":
-            executeAction(evt, false, "alarmEvtHandler")
+            custText = "A ${getAlarmSystemName()} ${evt?.displayName} alert with ${evt?.value} has occurred."
+            executeAction(evt, false, custText, "alarmEvtHandler")
             break
-
 
     }
 }
 
 def routineEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-    executeAction(evt, false, "routineEvtHandler")
+    String custText = "The ${evt?.displayName} routine was just executed!."
+    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    executeAction(evt, false, custText, "routineEvtHandler")
 }
 
 def modeEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-    executeAction(evt, false, "modeEvtHandler")
+    String custText = "The location mode is now set to ${evt?.value}"
+    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    executeAction(evt, false, "The location mode is now set to ${evt?.value}", "modeEvtHandler")
 }
 
 def locationEvtHandler(evt) {
-	def evtDelay = now() - evt?.date?.getTime()
-	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-    executeAction(evt, false, "locationEvtHandler")
-
+    def evtDelay = now() - evt?.date?.getTime()
+    String custText = null
+    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    executeAction(evt, false, custText, "locationEvtHandler")
 }
 
 
@@ -1750,7 +1701,7 @@ def conditionValid() {
 
 private executeActTest() {
     settingUpdate("actTestRun", "false", "bool")
-    executeAction([name: "contact", displayName: "Front Door", value: "open", date: new Date()], true, "executeActTest")
+    executeAction([name: "contact", displayName: "Front Door", value: "open", date: new Date()], true, null, "executeActTest")
 }
 
 String convEvtType(type) {
