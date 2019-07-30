@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "2.8.0" }
-String appModified() { return "2019-07-22" }
+String appModified() { return "2019-07-30" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -123,8 +123,8 @@ def mainPage() {
             section(sTS("Alexa Guard:")) {
                 if(state?.alexaGuardSupported) {
                     String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
-                    String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_home" : "alarm_away")
-                    href "alexaGuardPage", title: inTS("Alexa Guard Control", getPublicImg(gStateIcon, true)), image: getPublicImg(gStateIcon), state: guardAutoConfigured() ? "complete" : null,
+                    String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
+                    href "alexaGuardPage", title: inTS("Alexa Guard Control", getAppImg(gStateIcon, true)), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? "complete" : null,
                             description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : ""}\n\nTap to proceed..."
                 } else { paragraph "Alexa Guard is not enabled or supported by any of your Echo Devices" }
             }
@@ -210,10 +210,10 @@ def deviceManagePage() {
 def alexaGuardPage() {
     return dynamicPage(name: "alexaGuardPage", uninstall: false, install: false) {
         String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
-        String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_home" : "alarm_away")
+        String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
         String gStateTitle = (gState == "Unknown" || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
         section("Alexa Guard Control") {
-            input "alexaGuardAwayToggle", "bool", title: inTS(gStateTitle, getPublicImg(gStateIcon, true)), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getPublicImg(gStateIcon)
+            input "alexaGuardAwayToggle", "bool", title: inTS(gStateTitle, getAppImg(gStateIcon, true)), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getAppImg(gStateIcon)
         }
         if(settings?.alexaGuardAwayToggle != state?.alexaGuardAwayToggle) {
             setGuardState(settings?.alexaGuardAwayToggle == true ? "ARMED_AWAY" : "ARMED_STAY")

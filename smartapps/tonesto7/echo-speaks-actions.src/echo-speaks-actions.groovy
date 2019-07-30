@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()	 { return "2.9.0" }
-String appModified()  { return "2019-07-25" }
+String appModified()  { return "2019-07-30" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -113,7 +113,6 @@ private List buildTriggerEnum() {
         log.debug "newOpts: $newOpts"
         return newOpts as Map
     }
-
 }
 
 def mainPage() {
@@ -124,18 +123,18 @@ def mainPage() {
             Boolean trigConf = triggersConfigured()
             Boolean actConf = actionsConfigured()
             section ("Configuration: Part 1") {
-                href "triggersPage", title: "Action Triggers", description: getTriggersDesc(), state: (trigConf ? "complete" : ""), image: getPublicImg("trigger")
+                href "triggersPage", title: "Action Triggers", description: getTriggersDesc(), state: (trigConf ? "complete" : ""), image: getAppImg("trigger")
             }
 
             section("Configuration: Part 2:") {
                 if(trigConf) {
                     def condDef = settings?.findAll { it?.key?.startsWith("cond_") }?.findAll { it?.value }
-                    href "conditionsPage", title: "Condition/Restrictions\n(Optional)", description: (condDef?.size() ? "(${condDef?.size()}) Conditions Configured\n\ntap to modify..." : "tap to configure..."), state: (condDef?.size() ? "complete": ""), image: getPublicImg("evaluate")
+                    href "conditionsPage", title: "Condition/Restrictions\n(Optional)", description: (condDef?.size() ? "(${condDef?.size()}) Conditions Configured\n\ntap to modify..." : "tap to configure..."), state: (condDef?.size() ? "complete": ""), image: getAppImg("conditions")
                 } else { paragraph "More Options will be shown once triggers are configured" }
             }
             section("Configuration: Part 3") {
                 if(trigConf) {
-                    href "actionsPage", title: "Actions Tasks", description: getActionDesc(), state: (actConf ? "complete" : ""), image: getPublicImg("adhoc")
+                    href "actionsPage", title: "Actions Tasks", description: getActionDesc(), state: (actConf ? "complete" : ""), image: getAppImg("es_actions")
                 } else { paragraph "More Options will be shown once triggers are configured" }
             }
 
@@ -143,7 +142,7 @@ def mainPage() {
                 input (name: "appDebug", type: "bool", title: "Show Debug Logs in the IDE?", description: "Only enable when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug"))
             }
         } else {
-            paragraph "This Action is currently in a paused state...  To edit the configuration please un-pause", required: true, state: null, image: getPublicImg("issue")
+            paragraph "This Action is currently in a paused state...  To edit the configuration please un-pause", required: true, state: null, image: getAppImg("pause_orange")
         }
 
 
@@ -270,9 +269,9 @@ def triggersPage() {
         Boolean showSpeakEvtVars = false
         section ("Select Capabilities") {
             if(isST()) {
-                input "triggerEvents", "enum", title: "Select Trigger Event(s)", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("trigger")
+                input "triggerEvents", "enum", title: "Select Trigger Event(s)", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("trigger")
             } else {
-                input "triggerEvents", "enum", title: "Select Trigger Event(s)", options: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("trigger")
+                input "triggerEvents", "enum", title: "Select Trigger Event(s)", options: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("trigger")
             }
         }
         if (settings?.triggerEvents?.size()) {
@@ -296,7 +295,7 @@ def triggersPage() {
 
             if (valTrigEvt("alarm")) {
                 section ("${getAlarmSystemName()} (${getAlarmSystemName(true)}) Events", hideable: true) {
-                    input "trig_alarm", "enum", title: "${getAlarmSystemName()} Modes", options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getPublicImg("alarm_home")
+                    input "trig_alarm", "enum", title: "${getAlarmSystemName()} Modes", options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
                     if("alerts" in trig_alarm) {
                         input "trig_alarm_alerts_clear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
                     }
@@ -306,19 +305,19 @@ def triggersPage() {
             if (valTrigEvt("mode")) {
                 section ("Mode Events", hideable: true) {
                     def actions = location.helloHome?.getPhrases()*.label.sort()
-                    input "trig_mode", "mode", title: "Location Modes", multiple: true, required: true, submitOnChange: true, image: getPublicImg("mode")
+                    input "trig_mode", "mode", title: "Location Modes", multiple: true, required: true, submitOnChange: true, image: getAppImg("mode")
                 }
             }
 
             if(valTrigEvt("routine")) {
                 section("Routine Events", hideable: true) {
-                    input "trig_routineExecuted", "enum", title: "Routines", options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getPublicImg("routine")
+                    input "trig_routineExecuted", "enum", title: "Routines", options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                 }
             }
 
             if (valTrigEvt("weather")) {
                 section ("Weather Events", hideable: true) {
-                    paragraph "Weather Events are not configured to take actions yet.", state: null, image: getPublicImg("weather")
+                    paragraph "Weather Events are not configured to take actions yet.", state: null, image: getAppImg("weather")
                     // input "trig_WeatherAlert", "enum", title: "Weather Alerts", required: false, multiple: true, submitOnChange: true, image: getAppImg("weather"),
                     //         options: [
                     //             "TOR":	"Tornado Warning",
@@ -361,9 +360,9 @@ def triggersPage() {
                 section ("Outlets, Switches", hideable: true) {
                     input "trig_switch", "capability.switch", title: "Outlets/Switches", multiple: true, submitOnChange: true, required: true, image: getPublicImg("switch")
                     if (settings?.trig_switch) {
-                        input "trig_switch_cmd", "enum", title: "are turned...", options:["on", "off", "any"], multiple: false, required: true, submitOnChange: true
+                        input "trig_switch_cmd", "enum", title: "are turned...", options:["on", "off", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_switch?.size() > 1 && settings?.trig_switch_cmd && settings?.trig_switch_cmd != "any") {
-                            input "trig_switch_all", "bool", title: "Require ALL Switches to be (${settings?.trig_switch_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_switch_all", "bool", title: "Require ALL Switches to be (${settings?.trig_switch_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -373,7 +372,8 @@ def triggersPage() {
                 section ("Dimmers/Levels", hideable: true) {
                     input "trig_level", "capability.switchLevel", title: "Dimmers/Level", multiple: true, submitOnChange: true, required: true, image: getPublicImg("speed_knob")
                     if (settings?.trig_level) {
-                        input "trig_level_cmd", "enum", title: "turn...", options:["on": "on", "off": "off", "gt": "to greater than", "lt": "to less than", "gte": "to greater than or equal to", "lte": "to less than or equal to", "eq": "to being equal to"], multiple: false, required: false, submitOnChange: true
+                        input "trig_level_cmd", "enum", title: "turn...", options:["on": "on", "off": "off", "gt": "to greater than", "lt": "to less than", "gte": "to greater than or equal to", "lte": "to less than or equal to", "eq": "to being equal to"],
+                            multiple: false, required: false, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_level_cmd in ["greater", "lessThan", "equal"]) {
                             input "trig_level_val", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
                         }
@@ -385,9 +385,9 @@ def triggersPage() {
                 section ("Motion Sensors", hideable: true) {
                     input "trig_motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("motion")
                     if (settings?.trig_motion) {
-                        input "trig_motion_cmd", "enum", title: "become...", options: ["active", "inactive", "any"], multiple: false, required: true, submitOnChange: true
+                        input "trig_motion_cmd", "enum", title: "become...", options: ["active", "inactive", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_motion?.size() > 1 && settings?.trig_motion_cmd && settings?.trig_motion_cmd != "any") {
-                            input "trig_motion_all", "bool", title: "Require ALL Motion Sensors to be (${settings?.trig_motion_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_motion_all", "bool", title: "Require ALL Motion Sensors to be (${settings?.trig_motion_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -397,9 +397,9 @@ def triggersPage() {
                 section ("Presence Events", hideable: true) {
                     input "trig_presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("presence")
                     if (settings?.trig_presence) {
-                        input "trig_presence_cmd", "enum", title: "changes to?", options: ["present", "not present", "any"], multiple: false, required: true, submitOnChange: true
+                        input "trig_presence_cmd", "enum", title: "changes to?", options: ["present", "not present", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_presence?.size() > 1 && settings?.trig_presence_cmd && settings?.trig_presence_cmd != "any") {
-                            input "trig_presence_all", "bool", title: "Require ALL Presence Sensors to be (${settings?.trig_presence_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_presence_all", "bool", title: "Require ALL Presence Sensors to be (${settings?.trig_presence_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -409,9 +409,9 @@ def triggersPage() {
                 section ("Contacts, Doors, Windows", hideable: true) {
                     input "trig_contact", "capability.contactSensor", title: "Contacts, Doors, Windows", multiple: true, required: true, submitOnChange: true, image: getPublicImg("contact")
                     if (settings?.trig_contact) {
-                        input "trig_contact_cmd", "enum", title: "changes to?", options: ["open", "closed", "any"], multiple: false, required: true, submitOnChange: true
+                        input "trig_contact_cmd", "enum", title: "changes to?", options: ["open", "closed", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_contact?.size() > 1 && settings?.trig_contact_cmd && settings?.trig_contact_cmd != "any") {
-                            input "trig_contact_all", "bool", title: "Require ALL Contact to be (${settings?.trig_contact_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_contact_all", "bool", title: "Require ALL Contact to be (${settings?.trig_contact_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -421,9 +421,9 @@ def triggersPage() {
                 section ("Garage Door Openers", hideable: true) {
                     input "trig_door", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("garage_door_open")
                     if (settings?.trig_door) {
-                        input "trig_door_cmd", "enum", title: "changes to?", options: ["open", "closed", "opening", "closing", "any"], multiple: false, required: true, submitOnChange: true
+                        input "trig_door_cmd", "enum", title: "changes to?", options: ["open", "closed", "opening", "closing", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_door?.size() > 1 && trig_door_cmd && (trig_door_cmd == "open" || trig_door_cmd == "close")) {
-                            input "trig_door_all", "bool", title: "Require ALL Garages to be (${settings?.trig_door_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_door_all", "bool", title: "Require ALL Garage Doors to be (${settings?.trig_door_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -433,9 +433,9 @@ def triggersPage() {
                 section ("Locks", hideable: true) {
                     input "trig_lock", "capability.lock", title: "Smart Locks", multiple: true, required: true, submitOnChange: true, image: getPublicImg("lock")
                     if (settings?.trig_lock) {
-                        input "trig_lock_cmd", "enum", title: "changes to?", options: ["locked", "unlocked", "any"], multiple: false, required: true, submitOnChange:true
+                        input "trig_lock_cmd", "enum", title: "changes to?", options: ["locked", "unlocked", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_lock?.size() > 1 && settings?.trig_lock_cmd && settings?.trig_lock_cmd != "any") {
-                            input "trig_lock_all", "bool", title: "Require ALL Locks to be (${settings?.trig_lock_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_lock_all", "bool", title: "Require ALL Locks to be (${settings?.trig_lock_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -454,19 +454,21 @@ def triggersPage() {
             if (valTrigEvt("temperature")) {
                 section ("Temperature Sensor Events", hideable: true) {
                     input "trig_temperature", "capability.temperatureMeasurement", title: "Temperature", required: true, multiple: true, submitOnChange: true, image: getPublicImg("temperature")
-                    input "trig_temperature_cmd", "enum", title: "Temperature is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
-                    if (settings?.trig_temperature_cmd) {
-                        if (settings?.trig_temperature_cmd in ["between", "below"]) {
-                            input "trig_temperature_low", "number", title: "a ${trig_temperature_cmd == "between" ? "Low " : ""}Temperature of...", required: true, submitOnChange: true
+                    if(trig_temperature) {
+                        input "trig_temperature_cmd", "enum", title: "Temperature is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+                        if (settings?.trig_temperature_cmd) {
+                            if (settings?.trig_temperature_cmd in ["between", "below"]) {
+                                input "trig_temperature_low", "number", title: "a ${trig_temperature_cmd == "between" ? "Low " : ""}Temperature of...", required: true, submitOnChange: true
+                            }
+                            if (settings?.trig_temperature_cmd in ["between", "above"]) {
+                                input "trig_temperature_high", "number", title: "${trig_temperature_cmd == "between" ? "and a high " : "a "}Temperature of...", required: true, submitOnChange: true
+                            }
+                            if (settings?.trig_temperature_cmd == "equals") {
+                                input "trig_temperature_equal", "number", title: "a Temperature of...", required: true, submitOnChange: true
+                            }
+                            input "trig_temperature_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_temperature_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true
                         }
-                        if (settings?.trig_temperature_cmd in ["between", "above"]) {
-                            input "trig_temperature_high", "number", title: "${trig_temperature_cmd == "between" ? "and a high " : "a "}Temperature of...", required: true, submitOnChange: true
-                        }
-                        if (settings?.trig_temperature_cmd == "equals") {
-                            input "trig_temperature_equal", "number", title: "a Temperature of...", required: true, submitOnChange: true
-                        }
-                        input "trig_temperature_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
-                        input "trig_temperature_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true
                     }
                 }
             }
@@ -475,7 +477,7 @@ def triggersPage() {
                 section ("Humidity Sensor Events", hideable: true) {
                     input "trig_humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: true, multiple: true, submitOnChange: true, image: getPublicImg("humidity")
                     if (settings?.trig_humidity) {
-                        input "trig_humidity_cmd", "enum", title: "Relative Humidity (%) is...", options: ["between", "above", "below", "equals"], required: false, submitOnChange: true
+                        input "trig_humidity_cmd", "enum", title: "Relative Humidity (%) is...", options: ["between", "above", "below", "equals"], required: false, submitOnChange: true, image: getAppImg("command")
                         if(settings?.trig_humidity_cmd) {
                             if (settings?.trig_humidity_cmd in ["between", "below"]) {
                                 input "trig_humidity_low", "number", title: "a ${trig_power_cmd == "between" ? "Low " : ""}Relative Humidity (%) of...", required: true, submitOnChange: true
@@ -497,7 +499,7 @@ def triggersPage() {
             //     section ("Acceleration Sensor Events", hideable: true) {
             //         input "trig_Acceleration", "capability.accelerationSensor", title: "Acceleration Sensors", required: true, multiple: true, submitOnChange: true, image: getPublicImg("humidity")
             //         if (settings?.trig_Acceleration) {
-            //             input "trig_AccelerationCond", "enum", title: "Relative Humidity (%) is...", options: ["active", "inactive", "any"], required: false, submitOnChange: true
+            //             input "trig_AccelerationCond", "enum", title: "Relative Humidity (%) is...", options: ["active", "inactive", "any"], required: false, submitOnChange: true, image: getAppImg("command")
             //             if (settings?.trig_Acceleration?.size() > 1 && settings?.trig_AccelerationCmd && settings?.trig_AccelerationCmd != "any") {
             //                 input "trig_AccelerationAll", "bool", title: "Require ALL Acceleration Sensors to be (${settings?.trig_AccelerationCmd})?", required: false, defaultValue: false, submitOnChange: true
             //             }
@@ -509,9 +511,9 @@ def triggersPage() {
                 section ("Water Sensor Events", hideable: true) {
                     input "trig_water", "capability.waterSensor", title: "Water/Moisture Sensors", required: true, multiple: true, submitOnChange: true, image: getPublicImg("water")
                     if (settings?.trig_water) {
-                        input "trig_water_cmd", "enum", title: "changes to?", options: ["wet", "dry", "any"], required: false, submitOnChange: true
+                        input "trig_water_cmd", "enum", title: "changes to?", options: ["wet", "dry", "any"], required: false, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_water?.size() > 1 && settings?.trig_water_cmd && settings?.trig_water_cmd != "any") {
-                            input "trig_water_all", "bool", title: "Require ALL Sensors to be (${settings?.trig_water_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_water_all", "bool", title: "Require ALL Sensors to be (${settings?.trig_water_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -521,7 +523,7 @@ def triggersPage() {
                 section ("Power Events", hideable: true) {
                     input "trig_power", "capability.powerMeter", title: "Power Meters", required: true, multiple: true, submitOnChange: true, image: getPublicImg("power")
                     if (settings?.trig_power) {
-                        input "trig_power_cmd", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
+                        input "trig_power_cmd", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_power_cmd) {
                             if (settings?.trig_power_cmd in ["between", "below"]) {
                                 input "trig_power_low", "number", title: "a ${trig_power_cmd == "between" ? "Low " : ""}Power Level (W) of...", required: true, submitOnChange: true
@@ -543,7 +545,7 @@ def triggersPage() {
                 // section ("CO\u00B2 Events", hideable: true) {
                 //     input "trig_CO2", "capability.carbonMonoxideDetector", title: "Carbon Dioxide (CO\u00B2)", required: !(settings?.trig_smoke), multiple: true, submitOnChange: true, image: getPublicImg("co2_warn_status")
                 //     if (settings?.trig_CO2) {
-                //         input "trig_CO2Cmd", "enum", title: "changes to?", options: ["above", "below", "equals"], required: false, submitOnChange: true
+                //         input "trig_CO2Cmd", "enum", title: "changes to?", options: ["above", "below", "equals"], required: false, submitOnChange: true, image: getAppImg("command")
                 //         if (settings?.trig_CO2Cmd) {
                 //             input "trig_CO2Level", "number", title: "CO\u00B2 Level...", required: true, description: "number", submitOnChange: true
                 //             input "trig_CO2Once", "bool", title: "Perform this check only once", required: false, defaultValue: false, submitOnChange: true
@@ -551,11 +553,11 @@ def triggersPage() {
                 //     }
                 // }
                 section ("Carbon Monoxide Events", hideable: true) {
-                    input "trig_carbonMonoxide", "capability.smokeDetector", title: "Smoke Detectors", required: !(settings?.trig_smoke), multiple: true, submitOnChange: true
+                    input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: "Carbon Monoxide Detectors", required: !(settings?.trig_smoke), multiple: true, submitOnChange: true
                     if (settings?.trig_carbonMonoxide) {
-                        input "trig_carbonMonoxide_cmd", "enum", title: "changes to?", options: ["detected", "clear", "any"], required: false, submitOnChange: true
+                        input "trig_carbonMonoxide_cmd", "enum", title: "changes to?", options: ["detected", "clear", "any"], required: false, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_carbonMonoxide?.size() > 1 && settings?.trig_carbonMonoxide_cmd && settings?.trig_carbonMonoxide_cmd != "any") {
-                            input "trig_carbonMonoxide_all", "bool", title: "Require ALL Smoke Detectors to be (${settings?.trig_carbonMonoxide_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_carbonMonoxide_all", "bool", title: "Require ALL Smoke Detectors to be (${settings?.trig_carbonMonoxide_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -563,9 +565,9 @@ def triggersPage() {
                 section ("Smoke Events", hideable: true) {
                     input "trig_smoke", "capability.smokeDetector", title: "Smoke Detectors", required: !(settings?.trig_carbonMonoxide), multiple: true, submitOnChange: true
                     if (settings?.trig_smoke) {
-                        input "trig_smoke_cmd", "enum", title: "changes to?", options: ["detected", "clear", "any"], required: false, submitOnChange: true
+                        input "trig_smoke_cmd", "enum", title: "changes to?", options: ["detected", "clear", "any"], required: false, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_smoke?.size() > 1 && settings?.trig_smoke_cmd && settings?.trig_smoke_cmd != "any") {
-                            input "trig_smoke_all", "bool", title: "Require ALL Smoke Detectors to be (${settings?.trig_smoke_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_smoke_all", "bool", title: "Require ALL Smoke Detectors to be (${settings?.trig_smoke_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -575,7 +577,7 @@ def triggersPage() {
                 section ("Illuminance Events", hideable: true) {
                     input "trig_illuminance", "capability.illuminanceMeasurement", title: "Lux Level", required: true, submitOnChange: true
                     if (settings?.trig_illuminance) {
-                        input "trig_illuminance_cmd", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
+                        input "trig_illuminance_cmd", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_illuminance_cmd) {
                             if (settings?.trig_illuminance_cmd in ["between", "below"]) {
                                 input "trig_illuminance_low", "number", title: "a ${trig_power_cmd == "between" ? "Low " : ""}Power Level (W) of...", required: true, submitOnChange: true
@@ -597,9 +599,9 @@ def triggersPage() {
                 section ("Window Shades", hideable: true) {
                     input "trig_shade", "capability.windowShades", title: "Window Shades", multiple: true, required: true, submitOnChange: true, image: getPublicImg("window_shade")
                     if (settings?.trig_shade) {
-                        input "trig_shade_cmd", "enum", title: "changes to?", options:["open", "closed", "any"], multiple: false, required: true, submitOnChange:true
+                        input "trig_shade_cmd", "enum", title: "changes to?", options:["open", "closed", "any"], multiple: false, required: true, submitOnChange:true, image: getAppImg("command")
                         if (settings?.trig_shade?.size() > 1 && settings?.trig_shade_cmd && settings?.trig_shade_cmd != "any") {
-                            input "trig_shade_all", "bool", title: "Require ALL Window Shades to be (${settings?.trig_shade_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_shade_all", "bool", title: "Require ALL Window Shades to be (${settings?.trig_shade_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -609,9 +611,9 @@ def triggersPage() {
                 section ("Valves", hideable: true) {
                     input "trig_valve", "capability.valve", title: "Valves", multiple: true, required: true, submitOnChange: true, image: getPublicImg("valve")
                     if (settings?.trig_valve) {
-                        input "trig_valve_cmd", "enum", title: "changes to?", options:["open", "closed", "any"], multiple: false, required: true, submitOnChange:true
+                        input "trig_valve_cmd", "enum", title: "changes to?", options:["open", "closed", "any"], multiple: false, required: true, submitOnChange:true, image: getAppImg("command")
                         if (settings?.trig_valve?.size() > 1 && settings?.trig_valve_cmd && settings?.trig_valve_cmd != "any") {
-                            input "trig_valve_all", "bool", title: "Require ALL Valves to be (${settings?.trig_valve_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                            input "trig_valve_all", "bool", title: "Require ALL Valves to be (${settings?.trig_valve_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
                     }
                 }
@@ -621,76 +623,56 @@ def triggersPage() {
     }
 }
 
-def triggerEvtHandler(evt) {
+def deviceEvtHandler(evt) {
 	def evtDelay = now() - evt?.date?.getTime()
+    String resp = ""
+    String trigName = evt?.displayName
+    Date evtDate = evt?.date
+    String evtType = evt?.name
+    String evtValue = evt?.value
+    Boolean incName = true
+    Boolean incValue = true
+    Boolean ok2run = false
 	log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-    Boolean ok2Run = false
     switch(evt?.name) {
         case "switch":
-        case "outlet":
-            /*
-            -on
-            -off
-            */
-            break
-
-        case "level":
-        case "humidity":
-
-            break
-        case "temperature":
-
-            break
+        case "lock":
+        case "door":
         case "smoke":
         case "carbonMonoxide":
-            /*
-            - clear
-            - detected
-            - tested
-            */
-            break
-        case "lock":
-            /*
-            - locked
-            - unlocked
-            */
-            break
-        case "motion":
-            /*
-            -active
-            -inactive
-            */
-            break
-
-        case "presence":
-            /*
-            - not present
-            - present
-            */
-            break
-
-        case "door":
-        case "contact":
-        case "valve":
         case "windowShade":
-            /*
-            - closed
-            - closing
-            - open
-            - opening
-            - partially open
-            - unknown
-            */
-            break
+        case "presence":
+        case "contact":
+        case "motion":
         case "water":
-            /*
-            - wet
-            - dry
-            */
+        case "valve":
+            def d = settings?."trig_${evt?.name}"
+            def dc = settings?."trig_${evt?.name}_cmd"
+            def all = (settings?."trig_${evt?.name}_all" == true)
+            // TODO: Finish this logic
+            if(d?.size() && dc) {
+                if(dc == "any") {
+                    ok2run = true
+                } else {
+
+                    if(all && (allDevEqCapVal(d, dc, evt?.value))) {
+                    Boolean allOk = (allDevEqCapVal(d, dc, evt?.value))
+                }
+            }
+
+            break
+        case "humidity":
+        case "temperature":
+        case "power":
+        case "illuminance":
+
+            break
+        case "level":
+
             break
     }
-    if(ok2Run) {
-        executeAction(evt, false, "triggerEvtHandler")
+    if(ok2run) {
+        executeAction(evt, false, "deviceEvtHandler")
     }
 }
 
@@ -741,71 +723,60 @@ def conditionsPage() {
         }
 
         section ("Location Based Conditions") {
-            input "cond_Mode", "mode", title: "Location Mode is...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("mode")
-            input "cond_Alarm", "enum", title: "${getAlarmSystemName()} is...", options: ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("alarm_home")
-            input "cond_Days", "enum", title: "Days of the week", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], image: getPublicImg("day_calendar")
+            input "cond_mode", "mode", title: "Location Mode is...", multiple: true, required: false, submitOnChange: true, image: getAppImg("mode")
+            input "cond_alarm", "enum", title: "${getAlarmSystemName()} is...", options: ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"], multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
+            input "cond_days", "enum", title: "Days of the week", multiple: true, required: false, submitOnChange: true, options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], image: getPublicImg("day_calendar")
         }
 
-        section ("Switch and Dimmer Conditions") {
-            input "cond_Switch", "capability.switch", title: "Switches", multiple: true, submitOnChange: true, required:false, image: getPublicImg("switch")
-            if (settings?.cond_Switch) {
-                input "cond_Switch_state", "enum", title: "are...", options:["on":"On","off":"Off"], multiple: false, required: true, submitOnChange: true
-                if (settings?.cond_Switch?.size() > 1 && settings?.cond_Switch_state) {
-                    input "cond_Switch_allreq", "bool", title: "ALL Switches must be (${settings?.cond_Switch_state})?", required: false, defaultValue: false, submitOnChange: true
+        section ("Switch/Outlet Conditions") {
+            input "cond_switch", "capability.switch", title: "Switches/Outlets", multiple: true, submitOnChange: true, required:false, image: getPublicImg("switch")
+            if (settings?.cond_switch) {
+                input "cond_switch_cmd", "enum", title: "are...", options:["on":"On","off":"Off"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
+                if (settings?.cond_switch?.size() > 1 && settings?.cond_switch_cmd) {
+                    input "cond_switch_all", "bool", title: "ALL Switches must be (${settings?.cond_switch_cmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
-
-            // input "cond_Dimmer", "capability.switchLevel", title: "Dimmers", multiple: true, submitOnChange: true, required: false, image: getPublicImg("speed_knob")
-            // if (settings?.cond_Dimmer) {
-            //     input "cond_Dimmer_state", "enum", title: "is...", options:["greater":"greater than","lessThan":"less than","equal":"equal to"], multiple: false, required: false, submitOnChange: true
-            //     if (settings?.cond_Dimmer_state in ["greater", "lessThan", "equal"]) {
-            //         input "cond_Dimmer_level", "number", title: "...this level", range: "0..100", multiple: false, required: false, submitOnChange: true
-            //         if (settings?.cond_Dimmer?.size() > 1 && settings?.cond_Dimmer_state && settings?.cond_Dimmer_level) {
-            //             input "cond_Dimmmer_allreq", "bool", title: "ALL Dimmers must be (${settings?.cond_Dimmer_state} ${settings?.cond_Dimmer_level}%)?", required: false, defaultValue: false, submitOnChange: true
-            //         }
-            //     }
-            // }
         }
         section ("Motion and Presence Conditions") {
-            input "cond_Motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("motion")
-            if (settings?.cond_Motion) {
-                input "cond_Motion_state", "enum", title: "are...", options: ["active":"active", "inactive":"inactive"], multiple: false, required: true, submitOnChange: true
-                if (settings?.cond_Motion?.size() > 1 && settings?.cond_Motion_state) {
-                    input "cond_Motion_allreq", "bool", title: "ALL Motion Sensors must be (${settings?.cond_Motion_state})?"
+            input "cond_motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("motion")
+            if (settings?.cond_motion) {
+                input "cond_motion_cmd", "enum", title: "are...", options: ["active":"active", "inactive":"inactive"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
+                if (settings?.cond_motion?.size() > 1 && settings?.cond_motion_cmd) {
+                    input "cond_motion_all", "bool", title: "ALL Motion Sensors must be (${settings?.cond_motion_cmd})?"
                 }
             }
 
-            input "cond_Presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("presence")
-            if (settings?.cond_Presence) {
-                input "cond_Presence_state", "enum", title: "are...", options: ["present":"Present","not present":"Not Present"], multiple: false, required: true, submitOnChange: true
-                if (settings?.cond_Presence?.size() > 1 && settings?.cond_Presence_state) {
-                    input "cond_Presence_allreq", "bool", title: "Presence Sensors must be (${settings?.cond_Presence_state})?", required: false, defaultValue: false, submitOnChange: true
+            input "cond_presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("presence")
+            if (settings?.cond_presence) {
+                input "cond_presence_cmd", "enum", title: "are...", options: ["present":"Present","not present":"Not Present"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
+                if (settings?.cond_presence?.size() > 1 && settings?.cond_presence_cmd) {
+                    input "cond_presence_all", "bool", title: "Presence Sensors must be (${settings?.cond_presence_cmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
         }
         section ("Door, Window, Contact Sensors Conditions") {
-            input "cond_Contact", "capability.contactSensor", title: "Contact Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("contact")
-            if (settings?.cond_Contact) {
-                input "cond_Contact_state", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-                if (settings?.cond_Contact?.size() > 1 && settings?.cond_Contact_state) {
-                    input "cond_Contact_allreq", "bool", title: "ALL Contacts must be (${settings?.cond_Contact_state})?", required: false, defaultValue: false, submitOnChange: true
+            input "cond_contact", "capability.contactSensor", title: "Contact Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("contact")
+            if (settings?.cond_contact) {
+                input "cond_contact_cmd", "enum", title: "that are...", options: ["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
+                if (settings?.cond_contact?.size() > 1 && settings?.cond_contact_cmd) {
+                    input "cond_contact_all", "bool", title: "ALL Contacts must be (${settings?.cond_contact_cmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
         }
 
         section ("Garage Door and Lock Conditions") {
-            input "cond_Locks", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true, image: getPublicImg("lock")
-            if (settings?.cond_Locks) {
-                input "cond_Locks_state", "enum", title: "are...", options:["locked":"locked", "unlocked":"unlocked"], multiple: false, required: true, submitOnChange:true
-                if (settings?.cond_Locks?.size() > 1 && settings?.cond_Locks_state) {
-                    input "cond_Locks_allreq", "bool", title: "ALL Locks must be (${settings?.cond_Locks_state})?", required: false, defaultValue: false, submitOnChange: true
+            input "cond_lock", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true, image: getPublicImg("lock")
+            if (settings?.cond_lock) {
+                input "cond_lock_cmd", "enum", title: "are...", options:["locked":"locked", "unlocked":"unlocked"], multiple: false, required: true, submitOnChange:true, image: getAppImg("command")
+                if (settings?.cond_lock?.size() > 1 && settings?.cond_lock_cmd) {
+                    input "cond_lock_all", "bool", title: "ALL Locks must be (${settings?.cond_lock_cmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
-            input "cond_Garages", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("garage_door_open")
-            if (settings?.cond_Garages) {
-                input "cond_Garages_state", "enum", title: "are...", options:["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true
-                if (settings?.cond_Garages?.size() > 1 && settings?.cond_Garages_state) {
-                    input "cond_Garages_allreq", "bool", title: "ALL Garages must be (${settings?.cond_Garages_state})?", required: false, defaultValue: false, submitOnChange: true
+            input "cond_door", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("garage_door_open")
+            if (settings?.cond_door) {
+                input "cond_door_cmd", "enum", title: "are...", options:["open":"open", "closed":"closed"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
+                if (settings?.cond_door?.size() > 1 && settings?.cond_door_cmd) {
+                    input "cond_door_all", "bool", title: "ALL Garages must be (${settings?.cond_door_cmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
         }
@@ -813,7 +784,7 @@ def conditionsPage() {
         // section ("Environmental Conditions") {
         //     input "cond_Humidity", "capability.relativeHumidityMeasurement", title: "Relative Humidity", required: false, submitOnChange: true, image: getPublicImg("humidity")
         //     if (settings?.cond_Humidity) {
-        //         input "cond_Humidity_level", "enum", title: "Only when the Humidity is...", options: ["above", "below", "equal"], required: false, submitOnChange: true
+        //         input "cond_Humidity_level", "enum", title: "Only when the Humidity is...", options: ["above", "below", "equal"], required: false, submitOnChange: true, image: getAppImg("command")
         //         if (settings?.cond_Humidity_level) {
         //             input "cond_Humidity_percent", "number", title: "this level...", required: true, description: "percent", submitOnChange: true
         //         }
@@ -823,7 +794,7 @@ def conditionsPage() {
         //     }
         //     input "cond_Temperature", "capability.temperatureMeasurement", title: "Temperature", required: false, multiple: true, submitOnChange: true, image: getPublicImg("temperature")
         //     if (settings?.cond_Temperature) {
-        //         input "cond_Temperature_level", "enum", title: "When the temperature is...", options: ["above", "below", "equal"], required: false, submitOnChange: true
+        //         input "cond_Temperature_level", "enum", title: "When the temperature is...", options: ["above", "below", "equal"], required: false, submitOnChange: true, image: getAppImg("command")
         //         if (settings?.cond_Temperature_level) {
         //             input "cond_Temperature_degrees", "number", title: "Temperature...", required: true, description: "degrees", submitOnChange: true
         //         }
@@ -991,7 +962,7 @@ def actionsPage() {
             "bluetooth":"Bluetooth Control", "wakeword":"Wake Word"
         ]
         section("Configure Actions to Take:", hideable: true, hidden: (settings?.act_EchoDevicesList?.size())) {
-            input "actionType", "enum", title: "Actions Type", description: "", options: actionOpts, multiple: false, required: true, submitOnChange: true, image: getPublicImg("adhoc")
+            input "actionType", "enum", title: "Actions Type", description: "", options: actionOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
         }
 
         if(actionType) {
@@ -1006,7 +977,7 @@ def actionsPage() {
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         section("SSML Info:", hideable: true, hidden: true) {
-                            paragraph title: "What is SSML?", "SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", state: "complete"
+                            paragraph title: "What is SSML?", "SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", state: "complete", image: getAppImg("info")
                             href url: ssmlDocsUrl, style: "external", required: false, title: "Amazon SSML Docs", description: "Tap to open browser", image: getPublicImg("web")
                             href url: ssmlSoundsUrl, style: "external", required: false, title: "Amazon Sound Library", description: "Tap to open browser", image: getPublicImg("web")
                             href url: ssmlSpeechConsUrl, style: "external", required: false, title: "Amazon SpeechCons", description: "Tap to open browser", image: getPublicImg("web")
@@ -1018,7 +989,7 @@ def actionsPage() {
 
                         section("Action Config:") {
                             variableDesc()
-                            input "act_speak_txt", "text", title: "Enter Text/SSML", description: "If entering SSML make sure to include <speak></speak>", submitOnChange: true, required: false, image: getAppImg("speak")
+                            input "act_speak_txt", "text", title: "Enter Text/SSML", description: "If entering SSML make sure to include <speak></speak>", submitOnChange: true, required: false, image: getAppImg("text")
                         }
                         actionVolumeInputs()
                         actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: (state?.showSpeakEvtVars && !settings?.act_speak_txt)]
@@ -1028,13 +999,13 @@ def actionsPage() {
 
                 case "announcement":
                     section("Action Description:") {
-                        paragraph "Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.", state: "complete"
+                        paragraph "Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.", state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("announce")
                     if(settings?.act_EchoDevices) {
                         section("Action Config:") {
                             variableDesc()
-                            input "act_announcement_txt", "text", title: "Enter Text to announce", submitOnChange: true, required: false, image: getAppImg("announcement")
+                            input "act_announcement_txt", "text", title: "Enter Text to announce", submitOnChange: true, required: false, image: getAppImg("text")
                         }
                         actionVolumeInputs()
                         actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt, evtText: (state?.showSpeakEvtVars && !settings?.act_speak_txt)]
@@ -1050,7 +1021,7 @@ def actionsPage() {
 
                 case "sequence":
                     section("Action Description:") {
-                        paragraph "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.", state: "complete"
+                        paragraph "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.", state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
@@ -1080,7 +1051,7 @@ def actionsPage() {
                             paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
                         }
                         section("Action Config:") {
-                            input "act_sequence_txt", "text", title: "Enter sequence text", submitOnChange: true, required: false, image: getAppImg("sequence")
+                            input "act_sequence_txt", "text", title: "Enter sequence text", submitOnChange: true, required: false, image: getAppImg("text")
                         }
                         actionExecMap?.config?.sequence = [text: settings?.act_sequence_txt]
                         if(settings?.act_sequence_txt) { done = true } else { done = false }
@@ -1089,7 +1060,7 @@ def actionsPage() {
 
                 case "weather":
                     section("Action Description:") {
-                        paragraph "Plays a very basic weather report.", state: "complete"
+                        paragraph "Plays a very basic weather report.", state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
@@ -1101,7 +1072,7 @@ def actionsPage() {
 
                 case "playback":
                     section("Action Description:") {
-                        paragraph "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", state: "complete"
+                        paragraph "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
@@ -1110,7 +1081,7 @@ def actionsPage() {
                             "mute":"Mute"
                         ]
                         section("Playback Config:") {
-                            input "act_playback_cmd", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getPublicImg("playback")
+                            input "act_playback_cmd", "enum", title: "Select Playback Action", description: "", options: playbackOpts, required: true, submitOnChange: true, image: getAppImg("command")
                         }
                         actionExecMap?.config?.playback = [cmd: settings?.act_playback_cmd]
                         if(settings?.act_playback_cmd) { done = true } else { done = false }
@@ -1119,7 +1090,7 @@ def actionsPage() {
 
                 case "builtin":
                     section("Action Description:") {
-                        paragraph "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", state: "complete"
+                        paragraph "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevicesList) {
@@ -1129,7 +1100,7 @@ def actionsPage() {
                             "sayCompliment": "Give Compliment", "sayGoodMorning": "Good Morning", "sayWelcomeHome": "Welcome Home"
                         ]
                         section("BuiltIn Speech Config:") {
-                            input "act_builtin_cmd", "enum", title: "Select Builtin Speech Type", description: "", options: builtinOpts, required: true, submitOnChange: true, image: getPublicImg("builtin")
+                            input "act_builtin_cmd", "enum", title: "Select Builtin Speech Type", description: "", options: builtinOpts, required: true, submitOnChange: true, image: getAppImg("command")
                         }
                         actionVolumeInputs()
                         actionExecMap?.config?.builtin = [cmd: settings?.act_builtin_cmd]
@@ -1139,7 +1110,7 @@ def actionsPage() {
 
                 case "music":
                     section("Action Description:") {
-                        paragraph "Allow playback of various Songs/Radio using any connected music provider", state: "complete"
+                        paragraph "Allow playback of various Songs/Radio using any connected music provider", state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
@@ -1147,7 +1118,7 @@ def actionsPage() {
                         log.debug "Music Providers: ${musicProvs}"
                         if(musicProvs) {
                             section("Music Providers:") {
-                                input "act_music_provider", "enum", title: "Select Music Provider", description: "", options: musicProvs, multiple: false, required: true, submitOnChange: true, image: getPublicImg("music")
+                                input "act_music_provider", "enum", title: "Select Music Provider", description: "", options: musicProvs, multiple: false, required: true, submitOnChange: true, image: getAppImg("music")
                             }
                             if(settings?.act_music_provider) {
                                 if(settings?.act_music_provider == "TuneIn") {
@@ -1155,12 +1126,12 @@ def actionsPage() {
                                         paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: "complete"
                                         input "tuneinSearchQuery", "text", title: inTS("Enter search phrase for TuneIn", getAppImg("tunein", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("tunein")
                                         if(settings?.tuneinSearchQuery) {
-                                            href "searchTuneInResultsPage", title: inTS("View search results!", getAppImg("search2", true)), description: "Tap to proceed...", image: getAppImg("search2")
+                                            href "searchTuneInResultsPage", title: inTS("View search results!", getAppImg("search", true)), description: "Tap to proceed...", image: getAppImg("search")
                                         }
                                     }
                                 }
                                 section("Action Config:") {
-                                    input "act_music_txt", "text", title: "Enter Music Search text", submitOnChange: true, required: false, image: getAppImg("music")
+                                    input "act_music_txt", "text", title: "Enter Music Search text", submitOnChange: true, required: false, image: getAppImg("text")
                                 }
                                 actionVolumeInputs()
                             }
@@ -1172,12 +1143,13 @@ def actionsPage() {
 
                 case "calendar":
                     section("Action Description:") {
-                        paragraph "This will read out events in your calendar (Requires accounts to be configured in the alexa app. Must not have PIN.)", state: "complete"
+                        paragraph "This will read out events in your calendar (Requires accounts to be configured in the alexa app. Must not have PIN.)", state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         section("Action Config:") {
-                            input "act_calendar_cmd", "enum", title: "Select Calendar Action", description: "", options: ["playCalendarToday":"Today", "playCalendarTomorrow":"Tomorrow", "playCalendarNext":"Next Events"], required: true, submitOnChange: true, image: getPublicImg("day_calendar")
+                            input "act_calendar_cmd", "enum", title: "Select Calendar Action", description: "", options: ["playCalendarToday":"Today", "playCalendarTomorrow":"Tomorrow", "playCalendarNext":"Next Events"],
+                                    required: true, submitOnChange: true, image: getAppImg("command")
                         }
                         actionVolumeInputs()
                         actionExecMap?.config?.calendar = [cmd: settings?.act_calendar_cmd]
@@ -1188,7 +1160,7 @@ def actionsPage() {
                 case "alarm":
                     //TODO: Offer to remove alarm after event.
                     section("Action Description:") {
-                        paragraph "This will allow you to alexa alarms based on triggers", state: "complete"
+                        paragraph "This will allow you to alexa alarms based on triggers", state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("alarms")
                     if(settings?.act_EchoDevices) {
@@ -1208,7 +1180,7 @@ def actionsPage() {
                 case "reminder":
                     //TODO: Offer to remove reminder after event.
                     section("Action Description:") {
-                        paragraph "This will allow you to alexa reminders based on triggers", state: "complete"
+                        paragraph "This will allow you to alexa reminders based on triggers", state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("reminders")
                     if(settings?.act_EchoDevices) {
@@ -1232,7 +1204,7 @@ def actionsPage() {
                             paragraph "This will allow you to enable/disable Do Not Disturb based on triggers", state: "complete"
                         }
                         section("Action Config:") {
-                            input "act_dnd_cmd", "enum", title: "Select Do Not Disturb Action", description: "", options: dndOpts, required: true, submitOnChange: true, image: getPublicImg("donotdisturb")
+                            input "act_dnd_cmd", "enum", title: "Select Do Not Disturb Action", description: "", options: dndOpts, required: true, submitOnChange: true, image: getAppImg("command")
                         }
                         actionExecMap?.config?.dnd = [cmd: settings?.act_dnd_cmd]
                         if(settings?.act_dnd_cmd) { done = true } else { done = false }
@@ -1245,7 +1217,7 @@ def actionsPage() {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
                         List devsObj = []
                         section("Action Description:") {
-                            paragraph "This will allow you to change the Wake Word of your Echo's based on triggers", state: "complete"
+                            paragraph "This will allow you to change the Wake Word of your Echo's based on triggers", state: "complete", image: getAppImg("info")
                         }
                         if(devsCnt >= 1) {
                             List wakeWords = settings?.act_EchoDevicesList[0]?.hasAttribute("wakeWords") ? settings?.act_EchoDevicesList[0]?.currentValue("wakeWords")?.replaceAll('"', "")?.split(",") : []
@@ -1254,7 +1226,7 @@ def actionsPage() {
                                 section("${cDev?.getLabel()}:") {
                                     if(wakeWords?.size()) {
                                         paragraph "Current Wake Word: ${cDev?.hasAttribute("alexaWakeWord") ? cDev?.currentValue("alexaWakeWord") : "Unknown"}"
-                                        input "act_wakeword_device_${cDev?.id}", "enum", title: "New Wake Word", description: "", options: wakeWords, required: true, submitOnChange: true, image: getAppImg("wake_words")
+                                        input "act_wakeword_device_${cDev?.id}", "enum", title: "New Wake Word", description: "", options: wakeWords, required: true, submitOnChange: true, image: getAppImg("list")
                                         devsObj?.push([device: cDev?.id, wakeword: settings?."act_wakeword_device_${cDev?.id}", cmd: "setWakeWord"])
                                     } else { paragraph "Oops...\nNo Wake Words have been found!  Please Remove the device from selection.", state: null, required: true }
                                 }
@@ -1272,7 +1244,7 @@ def actionsPage() {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
                         List devsObj = []
                         section("Action Description:") {
-                            paragraph "This will allow you to connect or disconnect bluetooth based on triggers", state: "complete"
+                            paragraph "This will allow you to connect or disconnect bluetooth based on triggers", state: "complete", image: getAppImg("info")
                         }
                         if(devsCnt >= 1) {
                             settings?.act_EchoDevicesList?.each { cDev->
@@ -1281,7 +1253,7 @@ def actionsPage() {
                                 section("${cDev?.getLabel()}:") {
                                     if(btDevs?.size()) {
                                         input "act_bluetooth_device_${cDev?.id}", "enum", title: "BT device to use", description: "", options: btDevs, required: true, submitOnChange: true, image: getAppImg("bluetooth")
-                                        input "act_bluetooth_action_${cDev?.id}", "enum", title: "BT action to take", description: "", options: ["connectBluetooth":"connect", "disconnectBluetooth":"disconnect"], required: true, submitOnChange: true, image: getAppImg("bluetooth")
+                                        input "act_bluetooth_action_${cDev?.id}", "enum", title: "BT action to take", description: "", options: ["connectBluetooth":"connect", "disconnectBluetooth":"disconnect"], required: true, submitOnChange: true, image: getAppImg("command")
                                         devsObj?.push([device: cDev?.id, btDevice: settings?."act_bluetooth_device_${cDev?.id}", cmd: settings?."act_bluetooth_action_${cDev?.id}"])
                                     } else { paragraph "Oops...\nNo Bluetooth devices are paired to this Echo Device!  Please Remove the device from selection.", state: null, required: true }
                                 }
@@ -1303,7 +1275,7 @@ def actionsPage() {
                     if(actTestRun) { executeActTest() }
                 }
                 section("") {
-                    paragraph "You're all done with this step.  Press Done", state: "complete"
+                    paragraph "You're all done with this step.  Press Done", state: "complete", image: getAppImg("info")
                 }
                 actionExecMap?.config?.volume = [change: settings?.act_set_volume, restore: settings?.act_restore_volume, alarm: settings?.act_alarm_volume]
                 actionExecMap?.devices = settings?.act_EchoDevices
@@ -1601,60 +1573,60 @@ private subscribeToEvts() {
     if(valTrigEvt("routine") && settings?.trig_routineExecuted) { subscribe(location, "routineExecuted", routineEvtHandler) }
 
     // ENVIRONMENTAL Sensors
-    if(valTrigEvt("presence") && settings?.trig_presence) { subscribe(trig_presence, "presence", triggerEvtHandler) }
+    if(valTrigEvt("presence") && settings?.trig_presence) { subscribe(trig_presence, "presence", deviceEvtHandler) }
 
     // Motion Sensors
-    if(valTrigEvt("motion") && settings?.trig_motion) { subscribe(trig_motion, "motion", triggerEvtHandler) }
+    if(valTrigEvt("motion") && settings?.trig_motion) { subscribe(trig_motion, "motion", deviceEvtHandler) }
 
     // Water Sensors
-    if(valTrigEvt("water") && settings?.trig_water) { subscribe(settings?.trig_water, "water", triggerEvtHandler) }
+    if(valTrigEvt("water") && settings?.trig_water) { subscribe(settings?.trig_water, "water", deviceEvtHandler) }
 
     // Humidity Sensors
-    if(valTrigEvt("humidity") && settings?.trig_humidity) { subscribe(settings?.trig_humidity, "humidity", triggerEvtHandler) }
+    if(valTrigEvt("humidity") && settings?.trig_humidity) { subscribe(settings?.trig_humidity, "humidity", deviceEvtHandler) }
 
     // Temperature Sensors
-    if(valTrigEvt("temperature") && settings?.trig_temperature) { subscribe(settings?.trig_temperature, "temperature", triggerEvtHandler) }
+    if(valTrigEvt("temperature") && settings?.trig_temperature) { subscribe(settings?.trig_temperature, "temperature", deviceEvtHandler) }
 
     // Illuminance Sensors
-    if(valTrigEvt("illuminance") && settings?.trig_illuminance) { subscribe(settings?.trig_illuminance, "illuminance", triggerEvtHandler) }
+    if(valTrigEvt("illuminance") && settings?.trig_illuminance) { subscribe(settings?.trig_illuminance, "illuminance", deviceEvtHandler) }
 
     // Power Meters
-    if(valTrigEvt("power") && settings?.trig_power) { subscribe(trig_power, "power", triggerEvtHandler) }
+    if(valTrigEvt("power") && settings?.trig_power) { subscribe(trig_power, "power", deviceEvtHandler) }
 
     // Locks
-    if(valTrigEvt("lock") && settings?.trig_lock) { subscribe(settings?.trig_lock, "lock", triggerEvtHandler) }
+    if(valTrigEvt("lock") && settings?.trig_lock) { subscribe(settings?.trig_lock, "lock", deviceEvtHandler) }
 
     // Window Shades
-    if(valTrigEvt("shade") && settings?.trig_shade) { subscribe(settings?.trig_shade, "windowShade", triggerEvtHandler) }
+    if(valTrigEvt("shade") && settings?.trig_shade) { subscribe(settings?.trig_shade, "windowShade", deviceEvtHandler) }
 
     // Valves
-    if(valTrigEvt("valve") && settings?.trig_valve) { subscribe(settings?.trig_valve, "valve", triggerEvtHandler) }
+    if(valTrigEvt("valve") && settings?.trig_valve) { subscribe(settings?.trig_valve, "valve", deviceEvtHandler) }
 
     // Smoke/CO2
     if(valTrigEvt("fire")) {
-        if(settings?.trig_carbonMonoxide)   { subscribe(settings?.trig_carbonMonoxide, "carbonMonoxide", triggerEvtHandler) }
-        if(settings?.trig_smoke)            { subscribe(settings?.trig_smoke, "smoke", triggerEvtHandler) }
+        if(settings?.trig_carbonMonoxide)   { subscribe(settings?.trig_carbonMonoxide, "carbonMonoxide", deviceEvtHandler) }
+        if(settings?.trig_smoke)            { subscribe(settings?.trig_smoke, "smoke", deviceEvtHandler) }
     }
 
     // Garage Door Openers
-    if(valTrigEvt("door") && settings?.trig_door) { subscribe(settings?.trig_door, "garageDoorControl", triggerEvtHandler) }
+    if(valTrigEvt("door") && settings?.trig_door) { subscribe(settings?.trig_door, "garageDoorControl", deviceEvtHandler) }
 
     //Keypads
-    if(valTrigEvt("keypad") && settings?.trig_Keypads) { subscribe(settings?.trig_Keypads, "codeEntered", triggerEvtHandler) }
+    if(valTrigEvt("keypad") && settings?.trig_Keypads) { subscribe(settings?.trig_Keypads, "codeEntered", deviceEvtHandler) }
 
     //Contact Sensors
     if (valTrigEvt("contact")) {
-        if(settings?.trig_contact)       { subscribe(settings?.trig_contact, "contact", triggerEvtHandler) }
+        if(settings?.trig_contact)       { subscribe(settings?.trig_contact, "contact", deviceEvtHandler) }
     }
 
     // Outlets, Switches
     if (valTrigEvt("switch")) {
-        if(settings?.trig_switch)   { subscribe(trig_switch, "switch", triggerEvtHandler) }
+        if(settings?.trig_switch)   { subscribe(trig_switch, "switch", deviceEvtHandler) }
     }
 
     // Dimmers/Level
     if (valTrigEvt("level")) {
-        if(settings?.trig_level)    { subscribe(settings?.trig_level, "level", triggerEvtHandler) }
+        if(settings?.trig_level)    { subscribe(settings?.trig_level, "level", deviceEvtHandler) }
     }
 }
 
@@ -1727,37 +1699,37 @@ Boolean timeCondOk() {
 }
 
 Boolean locationCondOk() {
-    Boolean mOk = settings?.cond_Mode ? (isInMode(settings?.cond_Mode)) : true
-    Boolean sOk = settings?.cond_Alarm ? (isInAlarmMode(settings?.cond_Alarm)) : true
-    Boolean dOk = settings?.cond_Days ? (isDayOfWeek(settings?.cond_Days)) : true
+    Boolean mOk = settings?.cond_mode ? (isInMode(settings?.cond_mode)) : true
+    Boolean sOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
+    Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : true
     log.debug "locationCondOk | modeOk: $mOk | shmOk: $sOk | daysOk: $dOk"
     return (mOk && sOk && dOk)
 }
 
 Boolean deviceCondOk(type) {
     def devs = settings?."cond_${type}" ?: null
-    def stateVal = settings?."cond_${type}_state" ?: null
+    def stateVal = settings?."cond_${type}_cmd" ?: null
     if( !(type && devs && stateVal) ) { return true }
-    return settings?."cond_${type}_allreq" ? allDevEqCapVal(devs, type, stateVal) : anyDevEqCapVal(devs, type, stateVal)
+    return settings?."cond_${type}_all" ? allDevEqCapVal(devs, type, stateVal) : anyDevEqCapVal(devs, type, stateVal)
 }
 
-Boolean allDevEqCapVal(devs, cap, val) {
-    if(devs) { return (devs?.findAll { it?."current${cap}" == val }?.size() > devs?.size()) }
+Boolean allDevEqCapVal(List devs, String cap, val) {
+    if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size()) }
     return false
 }
 
-Boolean anyDevEqCapVal(devs, cap, val) {
-    if(devs) { return (devs?.findAll { it?."current${cap}" == val }?.size() > 0) }
+Boolean anyDevEqCapVal(List devs, String cap, val) {
+    if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() > 0) }
     return false
 }
 
 Boolean deviceCondOk() {
-    Boolean swDevOk = deviceCondOk("Switch")
-    Boolean motDevOk = deviceCondOk("Motion")
-    Boolean presDevOk = deviceCondOk("Presence")
-    Boolean conDevOk = deviceCondOk("Contact")
-    Boolean lockDevOk = deviceCondOk("Locks")
-    Boolean garDevOk = deviceCondOk("Garages")
+    Boolean swDevOk = deviceCondOk("switch")
+    Boolean motDevOk = deviceCondOk("motion")
+    Boolean presDevOk = deviceCondOk("presence")
+    Boolean conDevOk = deviceCondOk("contact")
+    Boolean lockDevOk = deviceCondOk("lock")
+    Boolean garDevOk = deviceCondOk("door")
     log.debug "deviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk"
     return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk)
 }
@@ -2062,6 +2034,11 @@ Boolean isInMode(modes) {
 Boolean isInAlarmMode(modes) {
     if(!modes) return false
     return (getAlarmSystemStatus() in modes)
+}
+
+Boolean areAllDevsSame(List devs, String attr, val) {
+    if(devs && attr && val) { return (devs?.findAll { it?.currentValue(attr) == val as String }?.size() == devs?.size()) }
+    return false
 }
 
 String getAlarmSystemName(abbr=false) {
