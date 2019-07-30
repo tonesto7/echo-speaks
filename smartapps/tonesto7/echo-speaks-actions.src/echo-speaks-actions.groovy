@@ -1360,7 +1360,7 @@ private updMainEchoDeviceInput(devs) {
 private actionVolumeInputs(showAlrmVol=false) {
     if(showAlrmVol) {
         section("Volume Options:") {
-            input "act_alarm_volume", "number", title: "Alarm Volume\n(Optional)", range: "0..100", required: false, submitOnChange: true, image: getPublicImg("speed_knob")
+            input "act_alarm_volume", "number", title: "Alarm Volume\n(Optional)", range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
         }
     } else {
         if(settings?.act_EchoDevicesList && settings?.actionType in ["speak", "announcement", "weather", "builtin", "music", "calendar"]) {
@@ -1368,8 +1368,8 @@ private actionVolumeInputs(showAlrmVol=false) {
             section("Volume Options:") {
                 if(volMap?.n?.size() > 0 && volMap?.n?.size() < settings?.act_EchoDevicesList?.size()) { paragraph "Some of the selected devices do not support volume control" }
                 else if(settings?.act_EchoDevicesList?.size() == volMap?.n?.size()) { paragraph "Some of the selected devices do not support volume control"; return; }
-                input "act_set_volume", "number", title: "Volume Level\n(Optional)", range: "0..100", required: false, submitOnChange: true, image: getPublicImg("speed_knob")
-                input "act_restore_volume", "number", title: "Restore Volume\n(Optional)", range: "0..100", required: false, submitOnChange: true, image: getPublicImg("speed_knob")
+                input "act_set_volume", "number", title: "Volume Level\n(Optional)", range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
+                input "act_restore_volume", "number", title: "Restore Volume\n(Optional)", range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
             }
         }
     }
