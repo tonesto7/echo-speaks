@@ -1562,12 +1562,12 @@ private subscribeToEvts() {
 
     //Contact Sensors
     if (valTrigEvt("contact")) {
-        if(settings?.trig_contact)       { subscribe(settings?.trig_contact, "contact", deviceEvtHandler) }
+        if(settings?.trig_contact) { subscribe(settings?.trig_contact, "contact", deviceEvtHandler) }
     }
 
     // Outlets, Switches
     if (valTrigEvt("switch")) {
-        if(settings?.trig_switch)   { subscribe(trig_switch, "switch", deviceEvtHandler) }
+        if(settings?.trig_switch) { subscribe(trig_switch, "switch", deviceEvtHandler) }
     }
 
     // Dimmers/Level
