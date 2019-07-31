@@ -15,8 +15,8 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.8.0" }
-String appModified() { return "2019-07-30" }
+String appVersion()	 { return "2.8.1" }
+String appModified() { return "2019-07-31" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -561,7 +561,7 @@ def servPrefPage() {
 def srvcPrefOpts(pre=false) {
     section(sTS("${pre ? "Required " : ""}Amazon Region Settings${state?.serviceConfigured ? " (Tap to view)" : ""}"), hideable: state?.serviceConfigured, hidden: state?.serviceConfigured) {
         input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
-        input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("web", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("web")
+        input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("www", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
     }
 }
 
@@ -1023,6 +1023,7 @@ def updated() {
     log.debug "Updated with settings: ${settings}"
     if(!state?.isInstalled) { state?.isInstalled = true }
     if(!state?.installData) { state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: getDtNow().toString(), shownDonation: false, sentMetrics: false] }
+    unsubscribe()
     unschedule()
     initialize()
 }
@@ -1030,7 +1031,6 @@ def updated() {
 def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
-    subscribe(app, onAppTouch)
     if(!state?.resumeConfig) {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
         appCleanup()
@@ -1056,6 +1056,7 @@ def uninstalled() {
 }
 
 def subscribeToEvts() {
+    subscribe(app, onAppTouch)
     if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
         subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", guardTriggerEvtHandler)
     }

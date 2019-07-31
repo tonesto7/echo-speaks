@@ -17,8 +17,8 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()	 { return "2.9.0" }
-String appModified()  { return "2019-07-30" }
+String appVersion()	 { return "2.9.1" }
+String appModified()  { return "2019-07-31" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -465,7 +465,7 @@ def triggersPage() {
                 //     }
                 // }
                 section ("Carbon Monoxide Events", hideable: true) {
-                    input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: "Carbon Monoxide Detectors", required: !(settings?.trig_smoke), multiple: true, submitOnChange: true
+                    input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: "Carbon Monoxide Sensors", required: !(settings?.trig_smoke), multiple: true, submitOnChange: true
                     if (settings?.trig_carbonMonoxide) {
                         input "trig_carbonMonoxide_cmd", "enum", title: "changes to?", options: ["detected", "clear", "any"], required: false, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_carbonMonoxide?.size() > 1 && settings?.trig_carbonMonoxide_cmd && settings?.trig_carbonMonoxide_cmd != "any") {
@@ -539,7 +539,8 @@ def deviceEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     String custText = null
     Boolean ok2run = false
-    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    Boolean validateWait = false
+    log.trace "Device Event | ${evt?.name} | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     switch(evt?.name) {
         case "switch":
         case "lock":
@@ -554,7 +555,7 @@ def deviceEvtHandler(evt) {
         case "valve":
             def d = settings?."trig_${evt?.name}"
             def dc = settings?."trig_${evt?.name}_cmd"
-            // TODO: Finish this logic
+
             if(d?.size() && dc) {
                 if(dc == "any") {
                     ok2run = true
@@ -597,13 +598,57 @@ def deviceEvtHandler(evt) {
         case "power":
         case "illuminance":
         case "level":
-            def d = settings?."trig_${evt?.name}"
-            def dc = settings?."trig_${evt?.name}_cmd"
+            validateWait = true
+            List d = settings?."trig_${evt?.name}"
+            String dc = settings?."trig_${evt?.name}_cmd"
+            Double dcl = settings?."trig_${evt?.name}_low"
+            Double dch = settings?."trig_${evt?.name}_high"
+            Double dce = settings?."trig_${evt?.name}_equal"
+            Boolean dco = (settings?."trig_${evt?.name}_once" == true)
+            Integer dcw = settings?."trig_${evt?.name}_wait"
+            if(d && dc) {
+                switch(dc) {
+                    case "equals":
+                        if(dce && dc == "equals" && (dce?.toInteger() == evt?.value?.toInteger())) {
+                            custText = "${evt?.displayName} ${evt?.name} is now ${evt?.value} ${getAttrPostfix(evt?.name)}"
+                        }
+                        break
+                    case "between":
+                        if(dcl && dch && (evt?.value in (dcl..dch))) {
+                            custText = "${evt?.displayName} ${evt?.name} is now ${evt?.value} ${getAttrPostfix(evt?.name)}"
+                        }
+                        break
+                    case "above":
+                        if(dch && (evt?.value > dch)) {
+                            custText = "${evt?.displayName} ${evt?.name} of ${evt?.value} ${getAttrPostfix(evt?.name)} which is above the ${dch} ${getAttrPostfix(evt?.name)} threshold you set."
+                        }
+                        break
+                    case "below":
+                        if(dch && (evt?.value < dch)) {
+                            custText = "${evt?.displayName} ${evt?.name} of ${evt?.value} ${getAttrPostfix(evt?.name)} which is below the ${dcl} ${getAttrPostfix(evt?.name)} threshold you set."
+                        }
+                        break
+                }
+            }
             break
     }
-    if(ok2run) {
-        executeAction(evt, false, custText, "deviceEvtHandler")
+    if(validateWait) { ok2run = validateEvtWait(evt) }
+    if(ok2run) { executeAction(evt, false, custText, "deviceEvtHandler") }
+}
+
+Boolean validateEvtWait(evt) {
+    Boolean ok = true
+    Map evtHistMap = atomicState?.valEvtHistory ?: [:]
+    if(evtHistMap?.containsKey(evt?.deviceId)) {
+        if(evt?.date) {
+            def duration = groovy.time.TimeCategory.minus(new Date(), new Date(evt?.date));
+            log.debug "duration: ${duration?.seconds}"
+            ok = false
+        }
+    } else {
+        evtHistMap[evt?.deviceId] = evt
     }
+    atomicState?.valEvtHistory = evtHistMap
 }
 
 String getAttrPostfix(attr) {
@@ -916,6 +961,9 @@ def actionsPage() {
             actionExecMap?.config = [:]
             switch(actionType) {
                 case "speak":
+
+                    // TODO: Maybe add a custom text input for every trigger type?!?!?
+                    // TODO: Make new Web Link URL icon
                     String ssmlTestUrl = "https://topvoiceapps.com/ssml"
                     String ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
                     String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
@@ -924,10 +972,10 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         section("SSML Info:", hideable: true, hidden: true) {
                             paragraph title: "What is SSML?", "SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", state: "complete", image: getAppImg("info")
-                            href url: ssmlDocsUrl, style: "external", required: false, title: "Amazon SSML Docs", description: "Tap to open browser", image: getPublicImg("web")
-                            href url: ssmlSoundsUrl, style: "external", required: false, title: "Amazon Sound Library", description: "Tap to open browser", image: getPublicImg("web")
-                            href url: ssmlSpeechConsUrl, style: "external", required: false, title: "Amazon SpeechCons", description: "Tap to open browser", image: getPublicImg("web")
-                            href url: ssmlTestUrl, style: "external", required: false, title: "SSML Designer and Tester", description: "Tap to open browser", image: getPublicImg("web")
+                            href url: ssmlDocsUrl, style: "external", required: false, title: "Amazon SSML Docs", description: "Tap to open browser", image: getPublicImg("www")
+                            href url: ssmlSoundsUrl, style: "external", required: false, title: "Amazon Sound Library", description: "Tap to open browser", image: getPublicImg("www")
+                            href url: ssmlSpeechConsUrl, style: "external", required: false, title: "Amazon SpeechCons", description: "Tap to open browser", image: getPublicImg("www")
+                            href url: ssmlTestUrl, style: "external", required: false, title: "SSML Designer and Tester", description: "Tap to open browser", image: getPublicImg("www")
                         }
                         section("Speech Tips:") {
                             paragraph "To make beep tones use: 'wop, wop, wop' (equals 3 beeps)"
