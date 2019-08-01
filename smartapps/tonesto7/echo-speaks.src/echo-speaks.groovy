@@ -1207,6 +1207,7 @@ def processData() {
 def getCookieData() {
     log.trace "getCookieData() Request Received..."
     Map resp = state?.cookieData ?: [:]
+    resp["refreshDt"] = state?.lastCookieRefresh ?: null
     def json = new groovy.json.JsonOutput().toJson(resp)
     incrementCntByKey("getCookieCnt")
     render contentType: "application/json", data: json
