@@ -1,3 +1,6 @@
 {
+    "versions": {
+        "server": "2.2.2"
+    },
     "notices": []
 }
