@@ -208,12 +208,18 @@ def triggersPage() {
                 section ("Mode Events", hideable: true) {
                     def actions = location.helloHome?.getPhrases()*.label.sort()
                     input "trig_mode", "mode", title: "Location Modes", multiple: true, required: true, submitOnChange: true, image: getAppImg("mode")
+                    if(settings?.trig_mode) {
+                        input "trig_mode", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                    }
                 }
             }
 
             if(valTrigEvt("routine")) {
                 section("Routine Events", hideable: true) {
                     input "trig_routineExecuted", "enum", title: "Routines", options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
+                    if(settings?.trig_routineExecuted) {
+                        input "trig_routineExecuted_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                    }
                 }
             }
 
@@ -559,7 +565,7 @@ def deviceEvtHandler(evt) {
     String custText = null
     Boolean ok2run = false
     Boolean dco = (settings?."trig_${evt?.name}_once" == true)
-    Integer dcm = settings?."trig_${evt?.name}_wait" ?: null
+    Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
     Boolean validateEvt = (dco || dcw)
     log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
 
@@ -598,22 +604,7 @@ def deviceEvtHandler(evt) {
                 }
             }
             break
-        /*
-        input "trig_illuminance_cmd", "enum", title: "Power Level (W) is...", options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
-        if (settings?.trig_illuminance_cmd) {
-            if (settings?.trig_illuminance_cmd in ["between", "below"]) {
-                input "trig_illuminance_low", "number", title: "a ${trig_power_cmd == "between" ? "Low " : ""}Power Level (W) of...", required: true, submitOnChange: true
-            }
-            if (settings?.trig_illuminance_cmd in ["between", "above"]) {
-                input "trig_illuminance_high", "number", title: "${trig_power_cmd == "between" ? "and a high " : "a "}Power Level (W) of...", required: true, submitOnChange: true
-            }
-            if (settings?.trig_illuminance_cmd == "equals") {
-                input "trig_illuminance_equal", "number", title: "a Power Level (W) of...", required: true, submitOnChange: true
-            }
-            input "trig_illuminance_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true
-            input "trig_illuminance_wait", "number", title: "Wait between each alert", required: false, defaultValue: 120, submitOnChange: true
-        }
-        */
+
         case "humidity":
         case "temperature":
         case "power":
@@ -659,17 +650,22 @@ def deviceEvtHandler(evt) {
 Boolean validateEvtWait(evt, Boolean once, Integer wait) {
     Boolean ok = true
     Map evtHistMap = atomicState?.valEvtHistory ?: [:]
-    if(evtHistMap?.containsKey(evt?.deviceId)) {
-        if(evt?.date) {
-            def duration = groovy.time.TimeCategory.minus(new Date(), new Date(evt?.date));
-            log.debug "duration: ${duration?.seconds}"
-            ok = false
+    def evtDt = parseIsoDate(evt?.isoDate)
+    // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate ? parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate) : null} | evtDt: ${evtDt}"
+    if(evtHistMap?.containsKey("${evt?.deviceId}_${evt?.name}")) {
+        def prevDt = parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate)
+        if(prevDt && evtDt) {
+            def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
+            def waitOk = ( (wait && dur) && (wait < dur));
+            def dayOk = (once && !isDateToday(prevDt))
+            log.debug "duration: ${dur} | waitOk: ${waitOk} | dayOk: ${dayOk}"
+            ok = (waitOk && dayOk)
         }
-    } else {
-        evtHistMap[evt?.deviceId] = evt
     }
-    log.debug "evtHistMap: $evtHistMap"
+    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [isoDate: evt?.isoDate, value: evt?.value, name: evt?.name, displayName: evt?.displayName] }
+    // log.debug "evtHistMap: $evtHistMap"
     atomicState?.valEvtHistory = evtHistMap
+    return false
 }
 
 String getAttrPostfix(attr) {
@@ -704,8 +700,7 @@ Boolean deviceTriggers() {
 Boolean sensorTriggers() {
     return (
         (settings?.trig_temperature && settings?.trig_temperature_cmd) || (settings?.trig_carbonMonoxide && settings?.trig_carbonMonoxide_cmd) || (settings?.trig_humidity && settings?.trig_humidity_cmd) ||
-        (settings?.trig_ContactWindow && settings?.trig_ContactWindowCmd) || (settings?.trig_ContactDoor && settings?.trig_ContactDoorCmd) || (settings?.trig_water && settings?.trig_water_cmd) ||
-        (settings?.trig_smoke && settings?.trig_smoke_cmd) || (settings?.trig_presence && settings?.trig_presence_cmd) || (settings?.trig_motion && settings?.trig_motion_cmd) ||
+        (settings?.trig_water && settings?.trig_water_cmd) || (settings?.trig_smoke && settings?.trig_smoke_cmd) || (settings?.trig_presence && settings?.trig_presence_cmd) || (settings?.trig_motion && settings?.trig_motion_cmd) ||
         (settings?.trig_contact && settings?.trig_contact_cmd) || (settings?.trig_power && settings?.trig_power_cmd) || (settings?.trig_illuminance && settings?.trig_illuminance_low && settings?.trig_illuminance_high)
     )
 }
@@ -2097,6 +2092,8 @@ def convToDateTime(dt) {
     return "$d, $t"
 }
 
+Date parseIsoDate(dt) { return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", dt) }
+Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
 String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
 String isPluralString(obj) { return (obj?.size() > 1) ? "(s)" : "" }
 
