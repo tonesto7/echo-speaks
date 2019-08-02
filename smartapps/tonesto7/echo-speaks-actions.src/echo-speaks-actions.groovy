@@ -67,10 +67,10 @@ def startPage() {
 def uhOhPage () {
     return dynamicPage(name: "uhOhPage", title: "This install Method is Not Allowed", install: false, uninstall: true) {
         section() {
-            paragraph "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Groups can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them.", required: true,
+            paragraph "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Actions can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them.", required: true,
             state: null, image: getAppImg("exclude")
         }
-        if(isST()) { remove("Remove this bad Group", "WARNING!!!", "BAD Group SHOULD be removed") }
+        if(isST()) { remove("Remove this invalid Action", "WARNING!!!", "This is a BAD install of an Action SHOULD be removed") }
     }
 }
 
@@ -150,8 +150,8 @@ def mainPage() {
             section ("Place this action on hold:") {
                 input "actionPause", "bool", title: "Pause this Actions from Running?", defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
             }
-            section("Remove Broadcast Group:") {
-                href "uninstallPage", title: "Remove this Group", description: "Tap to Remove...", image: getAppImg("uninstall")
+            section("Remove Action:") {
+                href "uninstallPage", title: "Remove this Action", description: "Tap to Remove...", image: getAppImg("uninstall")
             }
         }
     }
@@ -160,7 +160,7 @@ def mainPage() {
 def namePage() {
     return dynamicPage(name: "namePage", install: true, uninstall: true) {
         section("Name this Automation:") {
-            input "appLbl", "text", title:"Group Name", description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
+            input "appLbl", "text", title:"Label this Action", description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
         }
     }
 }
@@ -209,7 +209,7 @@ def triggersPage() {
                     def actions = location.helloHome?.getPhrases()*.label.sort()
                     input "trig_mode", "mode", title: "Location Modes", multiple: true, required: true, submitOnChange: true, image: getAppImg("mode")
                     if(settings?.trig_mode) {
-                        input "trig_mode", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_mode", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                     }
                 }
             }
@@ -218,7 +218,7 @@ def triggersPage() {
                 section("Routine Events", hideable: true) {
                     input "trig_routineExecuted", "enum", title: "Routines", options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_routineExecuted) {
-                        input "trig_routineExecuted_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_routineExecuted_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                     }
                 }
             }
@@ -273,7 +273,7 @@ def triggersPage() {
                         if (settings?.trig_switch?.size() > 1 && settings?.trig_switch_cmd && settings?.trig_switch_cmd != "any") {
                             input "trig_switch_all", "bool", title: "Require ALL Switches to be (${settings?.trig_switch_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_switch_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_switch_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_switch_wait", "number", title: "Wait between each report", required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -294,7 +294,7 @@ def triggersPage() {
                             if (settings?.trig_level_cmd == "equals") {
                                 input "trig_level_equal", "number", title: "a Level of...", required: true, submitOnChange: true
                             }
-                            input "trig_level_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_level_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_level_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -309,7 +309,7 @@ def triggersPage() {
                         if (settings?.trig_motion?.size() > 1 && settings?.trig_motion_cmd && settings?.trig_motion_cmd != "any") {
                             input "trig_motion_all", "bool", title: "Require ALL Motion Sensors to be (${settings?.trig_motion_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_motion_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_motion_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_motion_wait", "number", title: "Wait between each report", required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -323,7 +323,7 @@ def triggersPage() {
                         if (settings?.trig_presence?.size() > 1 && settings?.trig_presence_cmd && settings?.trig_presence_cmd != "any") {
                             input "trig_presence_all", "bool", title: "Require ALL Presence Sensors to be (${settings?.trig_presence_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_presence_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_presence_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_presence_wait", "number", title: "Wait between each report", required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -337,7 +337,7 @@ def triggersPage() {
                         if (settings?.trig_contact?.size() > 1 && settings?.trig_contact_cmd && settings?.trig_contact_cmd != "any") {
                             input "trig_contact_all", "bool", title: "Require ALL Contact to be (${settings?.trig_contact_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_contact_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_contact_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_contact_wait", "number", title: "Wait between each report", required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -351,7 +351,7 @@ def triggersPage() {
                         if (settings?.trig_door?.size() > 1 && trig_door_cmd && (trig_door_cmd == "open" || trig_door_cmd == "close")) {
                             input "trig_door_all", "bool", title: "Require ALL Garage Doors to be (${settings?.trig_door_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_door_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_door_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_door_wait", "number", title: "Wait between each report", required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -365,7 +365,7 @@ def triggersPage() {
                         if (settings?.trig_lock?.size() > 1 && settings?.trig_lock_cmd && settings?.trig_lock_cmd != "any") {
                             input "trig_lock_all", "bool", title: "Require ALL Locks to be (${settings?.trig_lock_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_lock_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_lock_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_lock_wait", "number", title: "Wait between each report", required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
 
                     }
@@ -397,7 +397,7 @@ def triggersPage() {
                             if (settings?.trig_temperature_cmd == "equals") {
                                 input "trig_temperature_equal", "number", title: "a Temperature of...", required: true, submitOnChange: true
                             }
-                            input "trig_temperature_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_temperature_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_temperature_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -419,7 +419,7 @@ def triggersPage() {
                             if (settings?.trig_humidity_cmd == "equals") {
                                 input "trig_humidity_equal", "number", title: "a Relative Humidity (%) of...", required: true, submitOnChange: true
                             }
-                            input "trig_humidity_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_humidity_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_humidity_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -446,7 +446,7 @@ def triggersPage() {
                         if (settings?.trig_water?.size() > 1 && settings?.trig_water_cmd && settings?.trig_water_cmd != "any") {
                             input "trig_water_all", "bool", title: "Require ALL Sensors to be (${settings?.trig_water_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_water_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_water_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_water_wait", "number", title: "Wait between each report", required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -467,7 +467,7 @@ def triggersPage() {
                             if (settings?.trig_power_cmd == "equals") {
                                 input "trig_power_equal", "number", title: "a Power Level (W) of...", required: true, submitOnChange: true
                             }
-                            input "trig_power_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_power_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_power_wait", "number", title: "Wait between each alert", required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -521,7 +521,7 @@ def triggersPage() {
                             if (settings?.trig_illuminance_cmd == "equals") {
                                 input "trig_illuminance_equal", "number", title: "a Power Level (W) of...", required: true, submitOnChange: true
                             }
-                            input "trig_illuminance_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_illuminance_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_illuminance_wait", "number", title: "Wait between each alert", required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -536,7 +536,7 @@ def triggersPage() {
                         if (settings?.trig_shade?.size() > 1 && settings?.trig_shade_cmd && settings?.trig_shade_cmd != "any") {
                             input "trig_shade_all", "bool", title: "Require ALL Window Shades to be (${settings?.trig_shade_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_shade_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_shade_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_shade_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -550,137 +550,13 @@ def triggersPage() {
                         if (settings?.trig_valve?.size() > 1 && settings?.trig_valve_cmd && settings?.trig_valve_cmd != "any") {
                             input "trig_valve_all", "bool", title: "Require ALL Valves to be (${settings?.trig_valve_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_valve_once", "bool", title: "only alert once a day?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_valve_once", "bool", title: "only alert once a day?\n(per device)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_valve_wait", "number", title: "Wait between each report", required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
             }
         }
         state?.showSpeakEvtVars = showSpeakEvtVars
-    }
-}
-
-def deviceEvtHandler(evt) {
-    def evtDelay = now() - evt?.date?.getTime()
-    String custText = null
-    Boolean ok2run = false
-    Boolean dco = (settings?."trig_${evt?.name}_once" == true)
-    Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
-    Boolean validateEvt = (dco || dcw)
-    log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-
-    switch(evt?.name) {
-        case "switch":
-        case "lock":
-        case "door":
-        case "smoke":
-        case "carbonMonoxide":
-        case "windowShade":
-        case "presence":
-        case "contact":
-        case "motion":
-        case "water":
-        case "valve":
-            List d = settings?."trig_${evt?.name}"
-            String dc = settings?."trig_${evt?.name}_cmd"
-            if(d?.size() && dc) {
-                if(dc == "any") {
-                    ok2run = true
-                    custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
-                } else {
-                    if((settings?."trig_${evt?.name}_all" == true) && (allDevEqCapVal(d, dc, evt?.value))) {
-                        ok2run = true
-                        if(d?.size() > 1) {
-                            custText = "All ${d?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
-                        } else {
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
-                        }
-                    } else {
-                        if(evt?.value == dc) {
-                            ok2run=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
-                        }
-                    }
-                }
-            }
-            break
-
-        case "humidity":
-        case "temperature":
-        case "power":
-        case "illuminance":
-        case "level":
-            List d = settings?."trig_${evt?.name}"
-            String dc = settings?."trig_${evt?.name}_cmd"
-            Double dcl = settings?."trig_${evt?.name}_low"
-            Double dch = settings?."trig_${evt?.name}_high"
-            Double dce = settings?."trig_${evt?.name}_equal"
-
-            log.debug "deviceEvtHandler | cmd: ${dc} | low: ${dcl} | high: ${dch} | equal: ${dce} | ValEvt: ${validateEvt}"
-            if(d?.size() && dc) {
-                switch(dc) {
-                    case "equals":
-                        if(dce && dc == "equals" && (dce?.toInteger() == evt?.value?.toInteger())) {
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is now ${evt?.value} ${getAttrPostfix(evt?.name)}"
-                        }
-                        break
-                    case "between":
-                        if(dcl && dch && (evt?.value in (dcl..dch))) {
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is now ${evt?.value} ${getAttrPostfix(evt?.name)}"
-                        }
-                        break
-                    case "above":
-                        if(dch && (evt?.value > dch)) {
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evt?.value} ${getAttrPostfix(evt?.name)} which is above the ${dch} ${getAttrPostfix(evt?.name)} threshold you set."
-                        }
-                        break
-                    case "below":
-                        if(dcl && (evt?.value < dcl)) {
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evt?.value} ${getAttrPostfix(evt?.name)} which is below the ${dcl} ${getAttrPostfix(evt?.name)} threshold you set."
-                        }
-                        break
-                }
-            }
-            break
-    }
-    if(validateEvt) { ok2run = validateEvtWait(evt, dco, dcw) }
-    if(ok2run) { executeAction(evt, false, custText, "deviceEvtHandler") }
-}
-
-Boolean validateEvtWait(evt, Boolean once, Integer wait) {
-    Boolean ok = true
-    Map evtHistMap = atomicState?.valEvtHistory ?: [:]
-    def evtDt = parseIsoDate(evt?.isoDate)
-    // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate ? parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate) : null} | evtDt: ${evtDt}"
-    if(evtHistMap?.containsKey("${evt?.deviceId}_${evt?.name}")) {
-        def prevDt = parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate)
-        if(prevDt && evtDt) {
-            def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
-            def waitOk = ( (wait && dur) && (wait < dur));
-            def dayOk = (once && !isDateToday(prevDt))
-            log.debug "duration: ${dur} | waitOk: ${waitOk} | dayOk: ${dayOk}"
-            ok = (waitOk && dayOk)
-        }
-    }
-    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [isoDate: evt?.isoDate, value: evt?.value, name: evt?.name, displayName: evt?.displayName] }
-    // log.debug "evtHistMap: $evtHistMap"
-    atomicState?.valEvtHistory = evtHistMap
-    return false
-}
-
-String getAttrPostfix(attr) {
-    switch(attr) {
-        case "humidity":
-        case "level":
-            return " percent"
-        case "temperature":
-            return " degrees"
-        case "illuminance":
-            return " lux"
-        case "power":
-            return " watts"
-        default:
-            return ""
     }
 }
 
@@ -956,7 +832,7 @@ private executeAction(evt = null, frc=false, custText=null, src=null) {
         }
     }
 
-    log.debug "executeAction finished... | ProcessTime: (${now()-startTime}ms)"
+    log.trace "ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)"
 }
 
 def actionsPage() {
@@ -1415,7 +1291,7 @@ def timePage() {
 
 def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
-        remove("Remove this Group!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis group will be removed")
+        remove("Remove this Action!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Automation will be removed")
     }
 }
 
@@ -1673,6 +1549,131 @@ def alarmEvtHandler(evt) {
             executeAction(evt, false, custText, "alarmEvtHandler")
             break
 
+    }
+}
+
+def deviceEvtHandler(evt) {
+    def evtDelay = now() - evt?.date?.getTime()
+    String custText = null
+    Boolean evtOk = false
+    List d = settings?."trig_${evt?.name}"
+    String dc = settings?."trig_${evt?.name}_cmd"
+    Boolean dco = (settings?."trig_${evt?.name}_once" == true)
+    Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
+    log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+
+    switch(evt?.name) {
+        case "switch":
+        case "lock":
+        case "door":
+        case "smoke":
+        case "carbonMonoxide":
+        case "windowShade":
+        case "presence":
+        case "contact":
+        case "motion":
+        case "water":
+        case "valve":
+            if(d?.size() && dc) {
+                if(dc == "any") {
+                    evtOk = true
+                    custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                } else {
+                    if((settings?."trig_${evt?.name}_all" == true) && (allDevEqCapVal(d, dc, evt?.value))) {
+                        evtOk = true
+                        if(d?.size() > 1) {
+                            custText = "All ${d?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
+                        } else {
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                        }
+                    } else {
+                        if(evt?.value == dc) {
+                            evtOk=true
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                        }
+                    }
+                }
+            }
+            break
+
+        case "humidity":
+        case "temperature":
+        case "power":
+        case "illuminance":
+        case "level":
+            Double dcl = settings?."trig_${evt?.name}_low"
+            Double dch = settings?."trig_${evt?.name}_high"
+            Double dce = settings?."trig_${evt?.name}_equal"
+            log.debug "deviceEvtHandler | cmd: ${dc} | low: ${dcl} | high: ${dch} | equal: ${dce}"
+            if(d?.size() && dc && evt?.value?.isNumber()) {
+                switch(dc) {
+                    case "equals":
+                        if(dce && (dc == "equals") && (dce?.toDouble() == evt?.value?.toDouble())) {
+                            evtOk=true
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is now ${evt?.value} ${getAttrPostfix(evt?.name)}"
+                        }
+                        break
+                    case "between":
+                        if(dcl && dch && (evt?.value?.toDouble() in (dcl..dch))) {
+                            evtOk=true
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is now ${evt?.value} ${getAttrPostfix(evt?.name)}"
+                        }
+                        break
+                    case "above":
+                        if(dch && (evt?.value?.toDouble() > dch)) {
+                            evtOk=true
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evt?.value} ${getAttrPostfix(evt?.name)} which is above the ${dch} ${getAttrPostfix(evt?.name)} threshold you set."
+                        }
+                        break
+                    case "below":
+                        if(dcl && (evt?.value?.toDouble() < dcl)) {
+                            evtOk=true
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evt?.value} ${getAttrPostfix(evt?.name)} which is below the ${dcl} ${getAttrPostfix(evt?.name)} threshold you set."
+                        }
+                        break
+                }
+            }
+            break
+    }
+    if(evtOk ? ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : evtOk) : false) {
+        executeAction(evt, false, custText, "deviceEvtHandler(${evt?.name})")
+    }
+}
+
+Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
+    Boolean ok = true
+    Map evtHistMap = atomicState?.valEvtHistory ?: [:]
+    def evtDt = parseIsoDate(evt?.isoDate)
+    // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate ? parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate) : null} | evtDt: ${evtDt}"
+    if(evtHistMap?.containsKey("${evt?.deviceId}_${evt?.name}")) {
+        def prevDt = parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate)
+        if(prevDt && evtDt) {
+            def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
+            def waitOk = ( (wait && dur) && (wait < dur));
+            def dayOk = !once || (once && !isDateToday(prevDt))
+            log.debug "Last Occurred: (${dur} sec.) - Wait: (${wait}) - Once: (${once}) || waitOk: ${waitOk} | dayOk: ${dayOk}"
+            ok = (waitOk && dayOk)
+        }
+    }
+    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [isoDate: evt?.isoDate, value: evt?.value, name: evt?.name, displayName: evt?.displayName] }
+    log.debug "evtWaitRestrictionOk: $ok"
+    atomicState?.valEvtHistory = evtHistMap
+    return ok
+}
+
+String getAttrPostfix(attr) {
+    switch(attr) {
+        case "humidity":
+        case "level":
+            return " percent"
+        case "temperature":
+            return " degrees"
+        case "illuminance":
+            return " lux"
+        case "power":
+            return " watts"
+        default:
+            return ""
     }
 }
 
