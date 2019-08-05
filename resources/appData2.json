@@ -140,6 +140,11 @@
             "image": "echo_dot_gen3",
             "caps": ["a", "t"]
         },
+        "A1RABVCI4QCIKC": {
+            "name": "Echo Dot (Gen3)",
+            "image": "echo_dot_gen3",
+            "caps": ["a", "t"]
+        },
         "A10A33FOX2NUBK": {
             "name": "Echo Spot",
             "image": "echo_spot_gen1",
