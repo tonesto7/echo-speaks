@@ -1582,11 +1582,12 @@ def checkGuardSupport() {
 }
 
 def checkGuardSupportResponse(response, data) {
-    def resp = response?.json
-    def jsonSlurper = new JsonSlurper()
+    // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
+    //TODO: This will fail on ST platform if the json size returned is greater than 500kb
+    def resp = parseJson(response?.data?.toString())
     Boolean guardSupported = false
     if(resp && resp?.networkDetail) {
-        def details = jsonSlurper.parseText(resp?.networkDetail as String)
+        def details = parseJson(resp?.networkDetail as String)
         def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
         if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
             def guardKey = locDetails?.applianceDetails?.applianceDetails?.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
