@@ -17,8 +17,8 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()	 { return "2.9.2" }
-String appModified()  { return "2019-08-02" }
+String appVersion()	 { return "3.0.0" }
+String appModified()  { return "2019-08-06" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -111,7 +111,7 @@ private List buildTriggerEnum() {
         //TODO: FIX HUBITAT TRIGGER Loading Section
         def newOpts = buildItems?.collectEntries { it?.value }
         log.debug "newOpts: $newOpts"
-        return newOpts as Map
+        return newOpts
     }
 }
 
@@ -173,7 +173,7 @@ def triggersPage() {
             if(isST()) {
                 input "triggerEvents", "enum", title: "Select Trigger Event(s)", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("trigger")
             } else {
-                input "triggerEvents", "enum", title: "Select Trigger Event(s)", options: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("trigger")
+                input "triggerEvents", "enum", title: "Select Trigger Event(s)", options: ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "button":"Buttons"], multiple: true, required: true, submitOnChange: true, image: getAppImg("trigger")
             }
         }
         if (settings?.triggerEvents?.size()) {
@@ -1610,25 +1610,25 @@ def deviceEvtHandler(evt) {
                     case "equals":
                         if(dce && (dc == "equals") && (dce?.toDouble() == evt?.value?.toDouble())) {
                             evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is now ${evt?.value} ${getAttrPostfix(evt?.name)}"
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is now ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)}"
                         }
                         break
                     case "between":
                         if(dcl && dch && (evt?.value?.toDouble() in (dcl..dch))) {
                             evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is now ${evt?.value} ${getAttrPostfix(evt?.name)}"
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is now ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)}"
                         }
                         break
                     case "above":
                         if(dch && (evt?.value?.toDouble() > dch)) {
                             evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evt?.value} ${getAttrPostfix(evt?.name)} which is above the ${dch} ${getAttrPostfix(evt?.name)} threshold you set."
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} which is above the ${dch} ${getAttrPostfix(evt?.name)} threshold you set."
                         }
                         break
                     case "below":
                         if(dcl && (evt?.value?.toDouble() < dcl)) {
                             evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evt?.value} ${getAttrPostfix(evt?.name)} which is below the ${dcl} ${getAttrPostfix(evt?.name)} threshold you set."
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} which is below the ${dcl} ${getAttrPostfix(evt?.name)} threshold you set."
                         }
                         break
                 }
@@ -1638,6 +1638,11 @@ def deviceEvtHandler(evt) {
     if(evtOk ? ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : evtOk) : false) {
         executeAction(evt, false, custText, "deviceEvtHandler(${evt?.name})")
     }
+}
+
+String evtValueCleanup(val) {
+    if(val?.endsWith(".0")) { val = val?.toString()?.replaceAll(".0", "") }
+    return val
 }
 
 Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {

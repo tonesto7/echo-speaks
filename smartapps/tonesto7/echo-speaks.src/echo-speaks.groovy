@@ -15,12 +15,12 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.9.1" }
-String appModified() { return "2019-08-02" }
+String appVersion()	 { return "3.0.0" }
+String appModified() { return "2019-08-06" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 280, actionApp: 280, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()    { return [echoDevice: 300, actionApp: 300, server: 222] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name       : "Echo Speaks",
@@ -81,8 +81,7 @@ def startPage() {
 
 def appInfoSect()	{
     Map codeVer = state?.codeVersions ?: null
-    def str = ""//"Author: ${appAuthor()}"
-    // if(isST() && state?.customerName) { str += "User: ${state?.customerName}" }
+    String str = ""
     if(codeVer && (codeVer?.server || codeVer?.echoDevice)) {
         str += bulletItem(str, "App: (v${appVersion()})")
         str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
@@ -105,7 +104,7 @@ def appInfoSect()	{
 }
 
 def mainPage() {
-    def tokenOk = getAccessToken()
+    Boolean tokenOk = getAccessToken()
     Boolean newInstall = (state?.isInstalled != true)
     Boolean resumeConf = (state?.resumeConfig == true)
     if(state?.refreshDeviceData == true) { getEchoDevices() }
@@ -2751,13 +2750,11 @@ String randomString(Integer len) {
     return randChars.join()
 }
 
-def getAccessToken() {
+Boolean getAccessToken() {
     try {
         if(!state?.accessToken) { state?.accessToken = createAccessToken() }
         else { return true }
-    }
-    catch (ex) {
-        // sendPush("Error: OAuth is not Enabled for ${appName()}!. Please click remove and Enable Oauth under the SmartApp App Settings in the IDE")
+    } catch (ex) {
         log.error "getAccessToken Exception", ex
         return false
     }

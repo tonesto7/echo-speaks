@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.8.1"}
-String devModified() { return "2019-08-02" }
+String devVersion()  { return "3.0.0"}
+String devModified() { return "2019-08-06" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -772,7 +772,15 @@ private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, 
     if(statusCode == 401) {
         setAuthState(false)
         return false
-    } else { if(statusCode > 401 && statusCode < 500) { log.error "${methodName} Error: ${errMsg ?: null}" } }
+    } else {
+        if(statusCode > 401 && statusCode < 500) {
+            log.error "${methodName} Error: ${errMsg ?: null}"
+            if(errMsg == "Forbidden") {
+                setAuthState(false)
+                return false
+            }
+        }
+    }
     if(hasErr && falseOnErr) { return false }
     return true
 }
