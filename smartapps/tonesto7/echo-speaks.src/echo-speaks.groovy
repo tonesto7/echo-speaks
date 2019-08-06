@@ -346,7 +346,7 @@ private deviceDetectOpts() {
         input "createWHA", "bool", title: inTS("Create Multiroom Devices?", getAppImg("echo_wha", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
         input "createOtherDevices", "bool", title: inTS("Create Other Alexa Enabled Devices?", getAppImg("devices", true)), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices")
         input "autoRenameDevices", "bool", title: inTS("Rename Devices to Match Amazon Echo Name?", getAppImg("name_tag", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
-        input "addEchoNamePrefix", "bool", title: "Add 'Echo - ' Name Prefix?", description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
+        input "addEchoNamePrefix", "bool", title: inTS("Add 'Echo - ' Name Prefix?", getAppImg("name_tag")), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
         Map devs = getAllDevices(true)
         if(devs?.size()) {
             input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
@@ -901,7 +901,7 @@ private executeTuneInSearch() {
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-    Map results = makeSyncronousReq(params, "get", "tuneInSearch") ?: [:]
+    Map results = makeSyncHttpReq(params, "get", "tuneInSearch") ?: [:]
     return results
 }
 
@@ -1286,7 +1286,7 @@ private validateCookie(frc=false) {
         execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
     } catch(ex) {
         incrementCntByKey("err_app_cookieValidCnt")
-        log.error "validateCookie() Exception:", ex
+        log.error "validateCookie() Exception: ${ex.message}"
     }
 }
 
@@ -1364,7 +1364,7 @@ private apiHealthCheck(frc=false) {
         }
     } catch(ex) {
         incrementCntByKey("err_app_apiHealthCnt")
-        log.error "apiHealthCheck() Exception:", ex
+        log.error "apiHealthCheck() Exception: ${ex.message}"
     }
 }
 
@@ -1401,20 +1401,16 @@ private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, 
 
 private noAuthReminder() { log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..." }
 
-private makeSyncronousReq(params, method="get", src, showLogs=false) {
+def makeSyncHttpReq(Map params, String method="get", String src, Boolean strInJsonResp=false, Boolean showLogs=false) {
     try {
         "http${method?.toString()?.toLowerCase()?.capitalize()}"(params) { resp ->
-            if(resp?.data) {
-                // log.debug "status: ${resp?.status}"
-                if(showLogs) { log.debug "makeSyncronousReq(Src: $src) | Status: ${resp?.status}: ${resp?.data}" }
-                return resp?.data
-            }
-            return null
+            if(showLogs) { log.debug "makeSyncHttpReq(Src: $src) | Status: ${resp?.status}: ${resp?.data}" }
+            return resp?.data ?: null
         }
     } catch (ex) {
         if(ex instanceof  groovyx.net.http.ResponseParseException) {
-            log.error "There was an errow while parsing the response: ", ex
-        } else { log.error "makeSyncronousReq(Method: ${method}, Src: ${src}) exception", ex }
+            log.error "There was an error while parsing the response: ${ex.message}"
+        } else { log.error "makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}" }
         return null
     }
 }
@@ -1461,13 +1457,13 @@ private getMusicProviders() {
         contentType: "application/json"
     ]
     Map items = [:]
-    List musicResp = makeSyncronousReq(params, "get", "getMusicProviders") ?: [:]
+    List musicResp = makeSyncHttpReq(params, "get", "getMusicProviders") ?: []
     if(musicResp?.size()) {
         musicResp?.findAll { it?.availability == "AVAILABLE" }?.each { item->
             items[item?.id] = item?.displayName
         }
     }
-    // log.debug "items: $items"
+    // log.debug "Music Providers: ${items}"
     return items
 }
 
@@ -1487,7 +1483,7 @@ private getBluetoothDevices() {
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-    def btResp = makeSyncronousReq(params, "get", "getBluetoothDevices") ?: null
+    def btResp = makeSyncHttpReq(params, "get", "getBluetoothDevices") ?: null
     state?.bluetoothData = btResp ?: [:]
 }
 
@@ -1516,7 +1512,7 @@ private getDoNotDisturb() {
         requestContentType: "application/json",
         contentType: "application/json",
     ]
-    def dndResp = makeSyncronousReq(params, "get", "getDoNotDisturb") ?: null
+    def dndResp = makeSyncHttpReq(params, "get", "getDoNotDisturb") ?: null
     state?.dndData = dndResp ?: [:]
 }
 
@@ -1527,7 +1523,7 @@ def getDndEnabled(serialNumber) {
     return (dndData && dndData?.enabled == true)
 }
 
-private getRoutines(autoId=null, limit=2000) {
+private getAlexaRoutines(autoId=null, limit=2000) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
@@ -1537,7 +1533,7 @@ private getRoutines(autoId=null, limit=2000) {
         contentType: "application/json"
     ]
     Map items = [:]
-    def routineResp = makeSyncronousReq(params, "get", "getRoutinesHandler") ?: [:]
+    def routineResp = makeSyncHttpReq(params, "get", "getAlexaRoutines") ?: [:]
     // log.debug "routineResp: $routineResp"
     if(routineResp) {
         if(autoId) {
@@ -1556,7 +1552,7 @@ private getRoutines(autoId=null, limit=2000) {
 
 def executeRoutineById(String routineId) {
     def execDt = now()
-    Map routineData = getRoutines(routineId)
+    Map routineData = getAlexaRoutines(routineId)
     if(routineData && routineData?.sequence) {
         sendSequenceCommand("ExecuteRoutine", routineData, null)
         // log.debug "Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${routineId}"
@@ -1582,7 +1578,7 @@ def checkGuardSupport() {
 
 def checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
-    //TODO: This will fail on ST platform if the json size returned is greater than 500kb
+    //TODO: This will fail on ST platform if the json file size returned is greater than 500Kb
     def resp = parseJson(response?.data?.toString())
     Boolean guardSupported = false
     if(resp && resp?.networkDetail) {
@@ -1608,36 +1604,36 @@ def checkGuardSupportResponse(response, data) {
 
 private getGuardState() {
     if(!isAuthValid("getGuardState")) { return }
-    if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return }
+    if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return; }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json",
-        body: [
-            stateRequests: [
-                [
-                    entityId: state?.guardData?.applianceId,
-                    entityType: "APPLIANCE"
-                ]
-            ]
-        ]
+        body: [ stateRequests: [ [entityId: state?.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
-    def resp = makeSyncronousReq(params, "post", "getGuardState") ?: [:]
-    if(resp && resp?.deviceStates && resp?.deviceStates[0] && resp?.deviceStates[0]?.capabilityStates) {
-        def jsonSlurper = new JsonSlurper()
-        def guardStateData = jsonSlurper.parseText(resp?.deviceStates[0]?.capabilityStates)
-        state?.alexaGuardState = guardStateData?.value
-        settingUpdate("alexaGuardAwayToggle", (state?.alexaGuardState == "ARMED_AWAY" ? "true" : "false"), "bool")
-        logger("debug", "Alexa Guard State: (${state?.alexaGuardState})")
+    try {
+        httpPost(params) { resp ->
+            def respData = resp?.data ?: null
+            if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
+                def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
+                state?.alexaGuardState = guardStateData?.value
+                settingUpdate("alexaGuardAwayToggle", ((state?.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
+                logger("debug", "Alexa Guard State: (${state?.alexaGuardState})")
+            }
+            // log.debug "GuardState resp: ${respData}"
+        }
+    } catch (ex) {
+        if(ex instanceof  groovyx.net.http.ResponseParseException) {
+            log.error "There was an error while parsing the response: ${ex.message}"
+        } else { log.error "makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}" }
     }
-    // log.debug "guardState resp: ${resp}"
 }
 
 private setGuardState(guardState) {
     if(!isAuthValid("setGuardState")) { return }
-    if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return }
+    if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return; }
     guardState = guardStateConv(guardState)
     log.trace "setAlexaGuard($guardState)"
     Map params = [
@@ -1735,7 +1731,7 @@ def echoDevicesResponse(response, data) {
         // log.debug "echoDevices: ${echoDevices}"
         receiveEventData([echoDevices: echoDevices, musicProviders: getMusicProviders(), execDt: data?.execDt], "Groovy")
     } catch (ex) {
-        log.error "echoDevicesResponse Exception", ex
+        log.error "echoDevicesResponse Exception: ${ex.message}"
     }
 }
 
@@ -1869,7 +1865,7 @@ def receiveEventData(Map evtData, String src) {
                                 log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)${(settings?.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : "" }"
                                 childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
                             } catch(ex) {
-                                log.error "AddDevice Error! ", ex
+                                log.error "AddDevice Error! | ${ex.message}"
                             }
                         }
                     } else {
@@ -1902,7 +1898,7 @@ def receiveEventData(Map evtData, String src) {
             if(state?.installData?.sentMetrics != true) { runIn(900, "sendInstallData", [overwrite: false]) }
         }
     } catch(ex) {
-        log.error "receiveEventData Error:", ex
+        log.error "receiveEventData Error: ${ex.message}"
         incrementCntByKey("appErrorCnt")
     }
 }
@@ -1969,7 +1965,7 @@ private removeDevices(all=false) {
             Boolean isST = isST()
             items?.each {  isST ? deleteChildDevice(it as String, true) : deleteChildDevice(it as String) }
         }
-    } catch (ex) { log.error "Device Removal Failed: ", ex }
+    } catch (ex) { log.error "Device Removal Failed: ${ex.message}" }
 }
 
 Map sequenceBuilder(cmd, val) {
@@ -2275,7 +2271,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
         }
     } catch (ex) {
         incrementCntByKey("appErrorCnt")
-        log.error "sendMsg $sentstr Exception:", ex
+        log.error "sendMsg $sentstr Exception: ${ex.message}"
     }
     return sent
 }
@@ -2372,7 +2368,7 @@ def queueFirebaseData(url, path, data, cmdType=null, type=null) {
             result = true
         } else { log.debug "queueFirebaseData UNKNOWN cmdType: ${cmdType}" }
 
-    } catch(ex) { log.error "queueFirebaseData (type: $typeDesc) Exception:", ex }
+    } catch(ex) { log.error "queueFirebaseData (type: $typeDesc) Exception: ${ex.message}" }
     return result
 }
 
@@ -2411,7 +2407,7 @@ def processFirebaseResponse(resp, data) {
         } else { log.warn "processFirebaseResponse: 'Unexpected' Response: ${resp?.status}" }
         if (isST() && resp?.hasError()) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
     } catch(ex) {
-        log.error "processFirebaseResponse (type: $typeDesc) Exception:", ex
+        log.error "processFirebaseResponse (type: $typeDesc) Exception: ${ex.message}"
     }
 }
 
@@ -2419,7 +2415,7 @@ def renderMetricData() {
     try {
         def json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
         render contentType: "application/json", data: json
-    } catch (ex) { log.error "renderMetricData Exception:", ex }
+    } catch (ex) { log.error "renderMetricData Exception: ${ex.message}" }
 }
 
 private Map getSkippedDevsAnon() {
@@ -2465,7 +2461,7 @@ private createMetricsDataJson(rendAsMap=false) {
         def json = new groovy.json.JsonOutput().toJson(dataObj)
         return json
     } catch (ex) {
-        log.error "createMetricsDataJson: Exception:", ex
+        log.error "createMetricsDataJson: Exception: ${ex.message}"
     }
 }
 
@@ -2578,7 +2574,7 @@ private getWebData(params, desc, text=true) {
         incrementCntByKey("appErrorCnt")
         if(ex instanceof groovyx.net.http.HttpResponseException) {
             log.warn("${desc} file not found")
-        } else { log.error "getWebData(params: $params, desc: $desc, text: $text) Exception:", ex }
+        } else { log.error "getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex.message}" }
         return "${label} info not found"
     }
 }
@@ -2634,7 +2630,7 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         return diff
     }
     catch (ex) {
-        log.error "GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate):", ex
+        log.error "GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex.message}"
         return 10000
     }
 }
@@ -2755,7 +2751,7 @@ Boolean getAccessToken() {
         if(!state?.accessToken) { state?.accessToken = createAccessToken() }
         else { return true }
     } catch (ex) {
-        log.error "getAccessToken Exception", ex
+        log.error "getAccessToken Exception: ${ex.message}"
         return false
     }
 }
@@ -2971,6 +2967,26 @@ public setAlarmSystemMode(mode) {
     }
     log.info "Setting the ${getAlarmSystemName()} Mode to (${mode})..."
     sendLocationEvent(name: (isST() ? 'alarmSystemStatus' : 'hsmSetArm'), value: mode.toString())
+}
+
+public JsonElementsParser(root) {
+    if (root instanceof List) {
+        root.collect {
+            if (it instanceof Map) { JsonElementsParser(it) }
+            else if (it instanceof List) { JsonElementsParser(it) }
+            else if (it == null) { null }
+            else {
+                if(it?.toString()?.startsWith("{") && it?.toString()?.endsWith("}")) { it = JsonElementsParser(parseJson(it?.toString())) }
+                else { it }
+            }
+        }
+    } else if (root instanceof Map) {
+        root.each {
+            if (it.value instanceof Map) { JsonElementsParser(it.value) }
+            else if (it.value instanceof List) { it.value = JsonElementsParser(it.value) }
+            else if (it.value == null) { it.value }
+        }
+    }
 }
 
 Integer stateSize() {
