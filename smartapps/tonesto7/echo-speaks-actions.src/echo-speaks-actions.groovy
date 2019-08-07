@@ -702,7 +702,7 @@ def conditionsPage() {
 private Map devsSupportVolume(devs) {
     List noSupport = []
     List supported = []
-    if(devs) {
+    if(devs instanceof List && devs?.size()) {
         devs?.each { dev->
             if(dev?.hasAttribute("permissions") && dev?.currentPermissions?.toString()?.contains("volumeControl")) {
                 supported?.push(dev?.label)
@@ -1244,12 +1244,17 @@ private echoDevicesInputByPerm(type) {
         if(echoDevs?.size()) {
             input "act_EchoDevices", "enum", title: "Echo Speaks Device(s) to Use", description: "Select the devices", options: echoDevs?.collectEntries { [(it?.getId()): it?.getLabel()] }?.sort { it?.value }, multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
         } else { paragraph "No devices were found with support for ($type)"}
-        updMainEchoDeviceInput(settings?.act_EchoDevices?.collect { it as Integer } ?: [])
+        updMainEchoDeviceInput(settings?.act_EchoDevices?.collect { it } ?: [])
     }
 }
 
 private updMainEchoDeviceInput(devs) {
     log.debug "devs: ${devs}"
+    if(!isST()) {
+        devs = parent?.getDevicesFromList(devs)
+        devs?.collectEntries { [(it?.getId()): it?.getLabel()] }?.sort { it?.value }
+    }
+    log.debug "devs new: ${devs}"
     settingUpdate("act_EchoDevices_Main", devs, "device.EchoSpeaksDevice")
 }
 

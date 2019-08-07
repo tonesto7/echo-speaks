@@ -986,6 +986,14 @@ public getChildDeviceByCap(String cap) {
     return childDevs?.find { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) } ?: null
 }
 
+public getDevicesFromList(List ids) {
+    log.debug "ids: $ids"
+    def cDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    def res = cDevs?.findAll { it?.id in ids }
+    log.debug "res: $res"
+    return res ?: null
+}
+
 public getChildDevicesByCap(String cap) {
     def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
     return childDevs?.findAll { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) } ?: null
@@ -1579,6 +1587,7 @@ def checkGuardSupport() {
 def checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
     //TODO: This will fail on ST platform if the json file size returned is greater than 500Kb
+    //TODO: Maybe we can use the server to get the required ID needed to make guard requests
     def resp = parseJson(response?.data?.toString())
     Boolean guardSupported = false
     if(resp && resp?.networkDetail) {
