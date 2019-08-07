@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.0"}
-String devModified() { return "2019-08-06" }
+String devModified() { return "2019-08-07" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -470,6 +470,8 @@ def initialize() {
     stateCleanup()
     schedDataRefresh(true)
     refreshData(true)
+    //TODO: Add Queue cleanup task to schedule.  If speakingNow != true
+    //TODO: Have the queue validated based on the last time it was processed and have it cleanup if it's been too long
 }
 
 def postInstall() {
@@ -2316,9 +2318,9 @@ Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     def random = new Random()
     Integer randomInt = random?.nextInt(5) //Was using 7
     if(!msgLen) { return 30 }
-    def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
+    def v = (msgLen <= 14 ? 2 : (msgLen / 14)) as Integer
     // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
-    return addRandom ? (v + randomInt) : v
+    return addRandom ? (v + randomInt) : v+2
 }
 
 Integer getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 1000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
@@ -2474,6 +2476,8 @@ def testMultiCmd() {
 }
 
 private speakVolumeCmd(headers=[:], isQueueCmd=false) {
+    //TODO: Look into adding an expiration timestamp for automatic removal from the queue
+    state?.speakingNow = true
     log.debug "speakVolumeCmd($headers)..."
     // if(!isQueueCmd) { log.trace "speakVolumeCmd(${headers?.cmdDesc}, $isQueueCmd)" }
     def random = new Random()
@@ -2512,7 +2516,6 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
         }
     }
     try {
-        state?.speakingNow = true
         Map headerMap = [cookie: getCookieVal(), csrf: getCsrfVal()]
         headers?.each { k,v-> headerMap[k] = v }
         Integer qSize = getQueueSize()

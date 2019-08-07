@@ -2883,6 +2883,7 @@ String getObjType(obj) {
     else if(obj instanceof BigDecimal) {return "BigDecimal"}
     else if(obj instanceof Float) {return "Float"}
     else if(obj instanceof Byte) {return "Byte"}
+    else if(obj instanceof Date) {return "Date"}
     else { return "unknown"}
 }
 
