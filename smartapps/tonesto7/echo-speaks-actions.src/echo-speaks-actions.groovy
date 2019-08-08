@@ -282,7 +282,7 @@ def triggersPage() {
 
             if (valTrigEvt("switch")) {
                 section ("Outlets, Switches", hideable: true) {
-                    input "trig_switch", "capability.switch", title: "Outlets/Switches", multiple: true, submitOnChange: true, required: true, image: getPublicImg("switch")
+                    input "trig_switch", "capability.switch", title: "Outlets/Switches", multiple: true, submitOnChange: true, required: true, image: getAppImg("switch")
                     if (settings?.trig_switch) {
                         input "trig_switch_cmd", "enum", title: "are turned...", options:["on", "off", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_switch?.size() > 1 && settings?.trig_switch_cmd && settings?.trig_switch_cmd != "any") {
@@ -321,7 +321,7 @@ def triggersPage() {
 
             if (valTrigEvt("motion")) {
                 section ("Motion Sensors", hideable: true) {
-                    input "trig_motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("motion")
+                    input "trig_motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: true, submitOnChange: true, image: getAppImg("motion")
                     if (settings?.trig_motion) {
                         input "trig_motion_cmd", "enum", title: "become...", options: ["active", "inactive", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_motion?.size() > 1 && settings?.trig_motion_cmd && settings?.trig_motion_cmd != "any") {
@@ -335,7 +335,7 @@ def triggersPage() {
 
             if (valTrigEvt("presence")) {
                 section ("Presence Events", hideable: true) {
-                    input "trig_presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("presence")
+                    input "trig_presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: true, submitOnChange: true, image: getAppImg("presence")
                     if (settings?.trig_presence) {
                         input "trig_presence_cmd", "enum", title: "changes to?", options: ["present", "not present", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_presence?.size() > 1 && settings?.trig_presence_cmd && settings?.trig_presence_cmd != "any") {
@@ -349,7 +349,7 @@ def triggersPage() {
 
             if (valTrigEvt("contact")) {
                 section ("Contacts, Doors, Windows", hideable: true) {
-                    input "trig_contact", "capability.contactSensor", title: "Contacts, Doors, Windows", multiple: true, required: true, submitOnChange: true, image: getPublicImg("contact")
+                    input "trig_contact", "capability.contactSensor", title: "Contacts, Doors, Windows", multiple: true, required: true, submitOnChange: true, image: getAppImg("contact")
                     if (settings?.trig_contact) {
                         input "trig_contact_cmd", "enum", title: "changes to?", options: ["open", "closed", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_contact?.size() > 1 && settings?.trig_contact_cmd && settings?.trig_contact_cmd != "any") {
@@ -363,7 +363,7 @@ def triggersPage() {
 
             if (valTrigEvt("door")) {
                 section ("Garage Door Openers", hideable: true) {
-                    input "trig_door", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: true, submitOnChange: true, image: getPublicImg("garage_door_open")
+                    input "trig_door", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: true, submitOnChange: true, image: getAppImg("garage_door")
                     if (settings?.trig_door) {
                         input "trig_door_cmd", "enum", title: "changes to?", options: ["open", "closed", "opening", "closing", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_door?.size() > 1 && trig_door_cmd && (trig_door_cmd == "open" || trig_door_cmd == "close")) {
@@ -377,7 +377,7 @@ def triggersPage() {
 
             if (valTrigEvt("lock")) {
                 section ("Locks", hideable: true) {
-                    input "trig_lock", "capability.lock", title: "Smart Locks", multiple: true, required: true, submitOnChange: true, image: getPublicImg("lock")
+                    input "trig_lock", "capability.lock", title: "Smart Locks", multiple: true, required: true, submitOnChange: true, image: getAppImg("lock")
                     if (settings?.trig_lock) {
                         input "trig_lock_cmd", "enum", title: "changes to?", options: ["locked", "unlocked", "any"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_lock?.size() > 1 && settings?.trig_lock_cmd && settings?.trig_lock_cmd != "any") {
@@ -643,54 +643,54 @@ def conditionsPage() {
         }
 
         section ("Switches/Outlets Conditions") {
-            input "cond_switch", "capability.switch", title: "Switches/Outlets", multiple: true, submitOnChange: true, required:false, image: getPublicImg("switch")
+            input "cond_switch", "capability.switch", title: "Switches/Outlets", multiple: true, submitOnChange: true, required:false, image: getAppImg("switch")
             if (settings?.cond_switch) {
                 input "cond_switch_cmd", "enum", title: "are...", options:["on","off"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                 if (settings?.cond_switch?.size() > 1 && settings?.cond_switch_cmd) {
-                    input "cond_switch_all", "bool", title: "ALL Switches must be (${settings?.cond_switch_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "cond_switch_all", "bool", title: "ALL Switches must be (${settings?.cond_switch_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                 }
             }
         }
         section ("Motion and Presence Conditions") {
-            input "cond_motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("motion")
+            input "cond_motion", "capability.motionSensor", title: "Motion Sensors", multiple: true, required: false, submitOnChange: true, image: getAppImg("motion")
             if (settings?.cond_motion) {
                 input "cond_motion_cmd", "enum", title: "are...", options: ["active", "inactive"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                 if (settings?.cond_motion?.size() > 1 && settings?.cond_motion_cmd) {
-                    input "cond_motion_all", "bool", title: "ALL Motion Sensors must be (${settings?.cond_motion_cmd})?"
+                    input "cond_motion_all", "bool", title: "ALL Motion Sensors must be (${settings?.cond_motion_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                 }
             }
 
-            input "cond_presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("presence")
+            input "cond_presence", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
             if (settings?.cond_presence) {
                 input "cond_presence_cmd", "enum", title: "are...", options: ["present", "not present"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                 if (settings?.cond_presence?.size() > 1 && settings?.cond_presence_cmd) {
-                    input "cond_presence_all", "bool", title: "Presence Sensors must be (${settings?.cond_presence_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "cond_presence_all", "bool", title: "Presence Sensors must be (${settings?.cond_presence_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                 }
             }
         }
         section ("Door, Window, Contact Sensors Conditions") {
-            input "cond_contact", "capability.contactSensor", title: "Contact Sensors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("contact")
+            input "cond_contact", "capability.contactSensor", title: "Contact Sensors", multiple: true, required: false, submitOnChange: true, image: getAppImg("contact")
             if (settings?.cond_contact) {
                 input "cond_contact_cmd", "enum", title: "that are...", options: ["open","closed"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                 if (settings?.cond_contact?.size() > 1 && settings?.cond_contact_cmd) {
-                    input "cond_contact_all", "bool", title: "ALL Contacts must be (${settings?.cond_contact_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "cond_contact_all", "bool", title: "ALL Contacts must be (${settings?.cond_contact_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                 }
             }
         }
 
         section ("Garage Door and Lock Conditions") {
-            input "cond_lock", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true, image: getPublicImg("lock")
+            input "cond_lock", "capability.lock", title: "Smart Locks", multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
             if (settings?.cond_lock) {
                 input "cond_lock_cmd", "enum", title: "are...", options:["locked", "unlocked"], multiple: false, required: true, submitOnChange:true, image: getAppImg("command")
                 if (settings?.cond_lock?.size() > 1 && settings?.cond_lock_cmd) {
                     input "cond_lock_all", "bool", title: "ALL Locks must be (${settings?.cond_lock_cmd})?", required: false, defaultValue: false, submitOnChange: true
                 }
             }
-            input "cond_door", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true, image: getPublicImg("garage_door_open")
+            input "cond_door", "capability.garageDoorControl", title: "Garage Doors", multiple: true, required: false, submitOnChange: true, image: getAppImg("garage_door")
             if (settings?.cond_door) {
                 input "cond_door_cmd", "enum", title: "are...", options:["open", "closed"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                 if (settings?.cond_door?.size() > 1 && settings?.cond_door_cmd) {
-                    input "cond_door_all", "bool", title: "ALL Garages must be (${settings?.cond_door_cmd})?", required: false, defaultValue: false, submitOnChange: true
+                    input "cond_door_all", "bool", title: "ALL Garages must be (${settings?.cond_door_cmd})?", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                 }
             }
         }
