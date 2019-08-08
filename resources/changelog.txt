@@ -1,14 +1,17 @@
-V3.0.0 (July 19th, 2019):
+V3.0.0 (August 8th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 Main App:
  • ADDED: Added support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).
  • ADDED: Ability to remove 'Echo - ' prefix from device names.
+ • ADDED: New Issues section at top of the app UI.  It will show any authentication, code updates/version issues.
+ • ADDED: Child App and Devices now verify that they meet the minimum version required and stop processing if they don't.
  • FIXED: Other bugs resolved.
  • UPDATED: Added new speech testing and updated the announcement tests.
+ • ADDED: importUrl param for Hubitat users to quickly import code
 
 Device:
- • ADDED: importUrl param for Hubitat users to quickly import
- • UPDATED:
+ • ADDED: importUrl param for Hubitat users to quickly import code
+ • UPDATED: Tweaked and optimized the Queue system in the device.
  • ADDED:
  • Other stuff i'm not remembering
 

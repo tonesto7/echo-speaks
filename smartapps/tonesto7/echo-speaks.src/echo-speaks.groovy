@@ -98,7 +98,7 @@ def mainPage() {
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
                     href "alexaGuardPage", title: inTS("Alexa Guard Control", getAppImg(gStateIcon, true)), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? "complete" : null,
                             description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : ""}\n\nTap to proceed..."
-                } else { paragraph "Alexa Guard is not enabled or supported by any of your Echo Devices" }
+                } else { paragraph "Alexa Guard is not enabled or supported by any of your Echo Devices", image: getAppImg(gStateIcon) }
             }
 
             section(sTS("Alexa Devices:")) {
@@ -108,30 +108,30 @@ def mainPage() {
                     Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
                     List remDevs = getRemovableDevs()
                     if(remDevs?.size()) { paragraph "Removable Devices:\n${remDevs?.sort()?.join("\n")}", required: true, state: null }
-                    href "deviceManagePage", title: inTS("Manage Devices:"), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
+                    href "deviceManagePage", title: inTS("Manage Devices:", getAppImg("devices", true)), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
             def t2 = getActionsDesc()
             def actDesc = t2 ? "${t2}\n\nTap to modify" : null
             section(sTS("Actions:")) {
-                href "actionsPage", title: "Manage Actions", description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
+                href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
             }
             state?.childInstallOkFlag = true
 
             section(sTS("Alexa Login Service:")) {
                 def t0 = getServiceConfDesc()
-                href "servPrefPage", title: "Manage Login Service", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
+                href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
             }
             if(!state?.shownDevSharePage) { showDevSharePrefs() }
             section(sTS("Notifications:")) {
                 def t0 = getAppNotifConfDesc()
-                href "notifPrefPage", title: "Manage Notifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+                href "notifPrefPage", title: inTS("Manage Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
             }
 
             section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: "Device Testing", description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
-                href "musicSearchTestPage", title: "Music Search Tests", description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
+                href "deviceTestPage", title: inTS("Device Testing", getAppImg("testing", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
+                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
             }
         }
         section(sTS("Documentation & Settings:")) {
@@ -184,41 +184,41 @@ def alexaGuardPage() {
         String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
         String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
         String gStateTitle = (gState == "Unknown" || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
-        section("Alexa Guard Control") {
+        section(sTS("Alexa Guard Control")) {
             input "alexaGuardAwayToggle", "bool", title: inTS(gStateTitle, getAppImg(gStateIcon, true)), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getAppImg(gStateIcon)
         }
         if(settings?.alexaGuardAwayToggle != state?.alexaGuardAwayToggle) {
             setGuardState(settings?.alexaGuardAwayToggle == true ? "ARMED_AWAY" : "ARMED_STAY")
         }
         state?.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
-        section("Automate Guard Control") {
-            href "alexaGuardAutoPage", title: inTS("Automate Guard Changes", getPublicImg("es5_security", true)), description: guardAutoDesc(), image: getPublicImg("es5_security"), state: (guardAutoDesc() =="Tap to configure..." ? null : "complete")
+        section(sTS("Automate Guard Control")) {
+            href "alexaGuardAutoPage", title: inTS("Automate Guard Changes", getAppImg("alarm_disarm", true)), description: guardAutoDesc(), image: getAppImg("alarm_disarm"), state: (guardAutoDesc() =="Tap to configure..." ? null : "complete")
         }
     }
 }
 
 def alexaGuardAutoPage() {
     return dynamicPage(name: "alexaGuardAutoPage", uninstall: false, install: false) {
-        section("Set Guard using ${getAlarmSystemName(true)}") {
-            input "guardHomeAlarm", "enum", title: "Home in ${getAlarmSystemName(true)} modes.", description: "Tap to select...", options: getAlarmModeOpts(), required: (settings?.guardAwayAlarm), multiple: true, submitOnChange: true, image: getPublicImg("alarm_home")
-            input "guardAwayAlarm", "enum", title: "Away in ${getAlarmSystemName(true)} modes.", description: "Tap to select...", options: getAlarmModeOpts(), required: (settings?.guardHomeAlarm), multiple: true, submitOnChange: true, image: getPublicImg("alarm_away")
+        section(sTS("Set Guard using ${getAlarmSystemName(true)}")) {
+            input "guardHomeAlarm", "enum", title: inTS("Home in ${getAlarmSystemName(true)} modes.", getAppImg("alarm_home", true)), description: "Tap to select...", options: getAlarmModeOpts(), required: (settings?.guardAwayAlarm), multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
+            input "guardAwayAlarm", "enum", title: inTS("Away in ${getAlarmSystemName(true)} modes.", getAppImg("alarm_away", true)), description: "Tap to select...", options: getAlarmModeOpts(), required: (settings?.guardHomeAlarm), multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
         }
 
-        section("Set Guard using Modes") {
-            input "guardHomeModes", "mode", title: inTS("Home in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardAwayModes), submitOnChange: true, image: getPublicImg("mode")
-            input "guardAwayModes", "mode", title: inTS("Away in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardHomeModes), submitOnChange: true, image: getPublicImg("mode")
+        section(sTS("Set Guard using Modes")) {
+            input "guardHomeModes", "mode", title: inTS("Home in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardAwayModes), submitOnChange: true, image: getAppImg("mode")
+            input "guardAwayModes", "mode", title: inTS("Away in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardHomeModes), submitOnChange: true, image: getAppImg("mode")
         }
-        section("Set Guard using Presence") {
-            input "guardAwayPresence", "capability.presenceSensor", title: "Away when all of these Sensors are away", description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("presence")
+        section(sTS("Set Guard using Presence")) {
+            input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when all of these Sensors are away", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
         }
         if(guardAutoConfigured()) {
-            section("Delay:") {
-                input "guardAwayDelay", "number", title: "Delay before setting Away", description: "Enter number in seconds", required: false, defaultValue: 10, submitOnChange: true, image: getAppImg("delay_time")
+            section(sTS("Delay:")) {
+                input "guardAwayDelay", "number", title: inTS("Delay before setting Away", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 10, submitOnChange: true, image: getAppImg("delay_time")
             }
         }
-        section("Restrict Guard Changes (Optional):") {
-            input "guardRestrictOnSwitch", "capability.switch", title: "Only when these switch(es) are On", description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("switch")
-            input "guardRestrictOffSwitch", "capability.switch", title: "Only when these switch(es) are Off", description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getPublicImg("switch")
+        section(sTS("Restrict Guard Changes (Optional):")) {
+            input "guardRestrictOnSwitch", "capability.switch", title: inTS("Only when these switch(es) are On", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardRestrictOffSwitch", "capability.switch", title: inTS("Only when these switch(es) are Off", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
         }
     }
 }
@@ -2695,7 +2695,7 @@ String getAppNotifDesc() {
 
 String getActionsDesc() {
     def acts = getActionApps()
-    return acts?.size() ? "(${acts?.size()}) Actions Configured" : null
+    return acts?.size() ? "(${acts?.size()}) Actions Configured\n\nTap to modify" : "Tap to configure"
 }
 
 String getServInfoDesc() {
