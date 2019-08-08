@@ -2358,6 +2358,7 @@ def resetQueue(showLog=true) {
         state?.remove(cmdKey)
     }
     unschedule("checkQueue")
+    state?.qBlocked = false
     state?.qCmdCycleCnt = null
     state?.useThisVolume = null
     state?.loopChkCnt = null
@@ -2389,6 +2390,10 @@ private schedQueueCheck(Integer delay, overwrite=true, data=null, src) {
 }
 
 public queueEchoCmd(type, headers, body=null, firstRun=false) {
+    if(state?.qBlocked == true) {
+        log.warn "│ Queue Temporarily Blocked (${getQueueSize()} Items): | Working: (${state?.cmdQueueWorking}) | Recheck: (${state?.recheckScheduled}) "
+        return
+    }
     List logItems = []
     Map cmdItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
     logItems?.push("│ Queue Active: (${state?.cmdQueueWorking}) | Recheck: (${state?.recheckScheduled}) ")
@@ -2420,7 +2425,12 @@ public queueEchoCmd(type, headers, body=null, firstRun=false) {
 private checkQueue(data) {
     // log.debug "checkQueue | ${data}"
     if(state?.qCmdCycleCnt && state?.qCmdCycleCnt?.toInteger() >= 10) {
+        log.warn "checkQueue | Queue Cycle Count (${state?.qCmdCycleCnt}) is filling... Blocking Queue Until Items are Gone"
+        state?.qBlocked = true
+    }
+    if(state?.qCmdCycleCnt && state?.qCmdCycleCnt?.toInteger() >= 20) {
         log.warn "checkQueue | Queue Cycle Count (${state?.qCmdCycleCnt}) is abnormally high... Resetting Queue"
+        state?.qBlocked = false
         resetQueue(false)
         return
     }
@@ -2432,7 +2442,7 @@ private checkQueue(data) {
     }
     if(data && data?.rateLimited == true) {
         Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.curMsgLen)
-        // schedQueueCheck(delay, true, null, "checkQueue(rate-limit)")
+        schedQueueCheck(delay, true, null, "checkQueue(rate-limit)")
         log.debug "checkQueue | Scheduling Queue Check for (${delay} sec) ${(data && data?.rateLimited == true) ? " | Recheck for RateLimiting: true" : ""}"
     }
     processCmdQueue()
@@ -2624,7 +2634,7 @@ private postCmdProcess(resp, statusCode, data) {
 ******************************************************/
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
-Boolean checkMinVersion() { return (versionStr2Int(appVersion()) < parent?.minVersions()["actionApp"]) }
+Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVersions()["actionApp"]) }
 def getDtNow() {
 	def now = new Date()
 	return formatDt(now, false)

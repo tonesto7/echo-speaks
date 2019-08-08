@@ -2595,6 +2595,13 @@ def parseDt(pFormat, dt, tzFmt=true) {
     return result
 }
 
+def parseFmtDt(parseFmt, newFmt, dt) {
+    def newDt = Date.parse(parseFmt, dt?.toString())
+    def tf = new SimpleDateFormat(newFmt)
+    if(location.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf?.format(newDt)
+}
+
 def getDtNow() {
     def now = new Date()
     return formatDt(now)
@@ -2671,10 +2678,10 @@ String getNotifSchedDesc() {
 
 String getServiceConfDesc() {
     String str = ""
-    str += (state?.generatedHerokuName && state?.onHeroku) ? bulletItem(str, "Heroku: (Configured)") : ""
-    str += (state?.serviceConfigured && state?.isLocal) ? bulletItem(str, "Local Server: (Configured)") : ""
-    str += (settings?.amazonDomain) ? bulletItem(str, "Domain: (${settings?.amazonDomain})") : ""
-    str += (state?.lastCookieRefresh) ? bulletItem(str, "Cookie Date: (${state?.lastCookieRefresh})") : ""
+    str += (state?.generatedHerokuName && state?.onHeroku) ? "Heroku: (Configured)\n" : ""
+    str += (state?.serviceConfigured && state?.isLocal) ? "Local Server: (Configured)\n" : ""
+    str += (settings?.amazonDomain) ? "Domain: (${settings?.amazonDomain})\n" : ""
+    str += (state?.lastCookieRefresh) ? "Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})\n" : ""
     return str != "" ? str : null
 }
 
@@ -2688,7 +2695,7 @@ String getAppNotifDesc() {
 
 String getActionsDesc() {
     def acts = getActionApps()
-    return acts?.size() ? " • (${acts?.size()}) Actions Configured" : null
+    return acts?.size() ? "(${acts?.size()}) Actions Configured" : null
 }
 
 String getServInfoDesc() {
@@ -2746,6 +2753,7 @@ def appInfoSect()	{
             if(!state?.noticeData) { getNoticeData() }
             Map minUpdMap = getMinVerUpdsRequired()
             List codeUpdItems = codeUpdateItems()
+            List remDevs = getRemovableDevs()
             if(codeUpdItems?.size()) {
                 isNote=true
                 String str2 = "Code Updates Available for:"
@@ -2762,6 +2770,9 @@ def appInfoSect()	{
             if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
                 isNote = true
                 state?.noticeData?.notices?.each { item-> paragraph bulletItem(str, item), required: true, state: null }
+            }
+            if(remDevs?.size()) {
+                paragraph "Devices to Remove:\n(${remDevs?.size()}) Devices to be Removed", required: true, state: null
             }
             if(!isNote) { paragraph "No Issues to Report" }
         }

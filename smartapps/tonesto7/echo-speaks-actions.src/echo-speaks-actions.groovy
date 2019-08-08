@@ -47,9 +47,7 @@ preferences {
     page(name: "notifPrefPage")
     page(name: "actionsPage")
     page(name: "searchTuneInResultsPage")
-    page(name: "timePage")
-    page(name: "dateTimePage")
-    page(name: "quietRestrictPage")
+    page(name: "condTimePage")
     page(name: "uninstallPage")
     page(name: "sequencePage")
 }
@@ -84,10 +82,7 @@ def uhOhPage () {
 }
 
 def appInfoSect(sect=true)	{
-    def str = "(V${appVersion()})"
-    section() {
-        href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: str, image: getAppImg("es_actions")
-    }
+    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: "(V${appVersion()})", image: getAppImg("es_actions") }
 }
 
 List cleanedTriggerList() {
@@ -157,6 +152,9 @@ def mainPage() {
         if(state?.isInstalled) {
             section ("Place this action on hold:") {
                 input "actionPause", "bool", title: "Pause this Actions from Running?", defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+            }
+            section("Name this Automation:") {
+                input "appLbl", "text", title:"Label this Action", description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
             }
             section("Remove Action:") {
                 href "uninstallPage", title: "Remove this Action", description: "Tap to Remove...", image: getAppImg("uninstall")
@@ -641,7 +639,7 @@ Boolean triggersConfigured() {
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: "Only when these device, location conditions are True...", install: false, uninstall: false) {
         section("Time/Date") {
-            href "timePage", title: "Time Schedule", description: "", state: "", image: getPublicImg("clock")
+            href "condTimePage", title: "Time Schedule", description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getPublicImg("clock")
             input "cond_days", "enum", title: "Days of the week", multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getPublicImg("day_calendar")
             input "cond_months", "enum", title: "Months of the year", multiple: true, required: false, submitOnChange: true, options: monthEnum(), image: getPublicImg("day_calendar")
         }
@@ -1211,10 +1209,6 @@ def actionsPage() {
                 //TODO: Add Cleanup of non selected inputs
             } else { actionExecMap = [configured: false] }
         }
-        // section(sTS("Notifications:")) {
-        //     def t0 = getAppNotifConfDesc()
-        //     href "notifPrefPage", title: "Notifications", description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
-        // }
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
         log.debug "actionExecMap: ${atomicState?.actionExecMap}"
 
@@ -1295,30 +1289,23 @@ private actionVolumeInputs(devices, showAlrmVol=false) {
     }
 }
 
-def timePage() {
-    return dynamicPage(name:"timePage", title: "", uninstall: false) {
-        section("Start...") {
-            input "startingX", "enum", title: "Starting at...", options: ["A specific time", "Sunrise", "Sunset"], required: false , submitOnChange: true
-            if(startingX in [null, "A specific time"]) {
-                input "starting", "time", title: "Start time", required: false, submitOnChange: true
-            } else {
-                if(startingX == "Sunrise") {
-                    input "startSunriseOffset", "number", range: "*..*", title: "Offset in minutes (+/-)", required: false, submitOnChange: true
-                } else if(startingX == "Sunset") {
-                    input "startSunsetOffset", "number", range: "*..*", title: "Offset in minutes (+/-)", required: false, submitOnChange: true
-                }
+def condTimePage() {
+    return dynamicPage(name:"condTimePage", title: "", uninstall: false) {
+        Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
+        section("Start Time: ") {
+            input "cond_time_start_type", "enum", title: "Starting at...", options: ["A specific time", "Sunrise", "Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            if(cond_time_start_type in ["A specific time"]) {
+                input "cond_time_start", "time", title: "Start time", required: timeReq, submitOnChange: true, image: getAppImg("start_time")
+            } else if(cond_time_start_type in ["Sunrise", "Sunrise"]) {
+                input "cond_time_start_offset", "number", range: "*..*", title: "Offset in minutes (+/-)", required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
-        section("Stop...") {
-            input "endingX", "enum", title: "Ending at...", options: ["A specific time", "Sunrise", "Sunset"], required: false, submitOnChange: true
-            if(endingX in [null, "A specific time"]) {
-                input "ending", "time", title: "End time", required: false, submitOnChange: true
-            } else {
-                if(endingX == "Sunrise") {
-                    input "endSunriseOffset", "number", range: "*..*", title: "Offset in minutes (+/-)", required: false, submitOnChange: true
-                } else if(endingX == "Sunset") {
-                    input "endSunsetOffset", "number", range: "*..*", title: "Offset in minutes (+/-)", required: false, submitOnChange: true
-                }
+        section("Stop Time:") {
+            input "cond_time_stop_type", "enum", title: "Stopping at...", options: ["A specific time", "Sunrise", "Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            if(cond_time_stop_type in ["A specific time"]) {
+                input "cond_time_stop", "time", title: "Stop time", required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
+            } else if(cond_time_stop_type in ["Sunrise", "Sunrise"]) {
+                input "cond_time_stop_offset", "number", range: "*..*", title: "Offset in minutes (+/-)", required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
     }
@@ -1333,44 +1320,6 @@ def uninstallPage() {
 Boolean wordInString(String findStr, String fullStr) {
     List parts = fullStr?.split(" ")?.collect { it?.toString()?.toLowerCase() }
     return (findStr in parts)
-}
-
-def dateTimePage() {
-    return dynamicPage(name: "dateTimePage", title: "Configure Date/Time Triggers", uninstall: false) {
-        Boolean timeReq = (settings["qTrigStartTime"] || settings["qTrigStopTime"]) ? true : false
-        section() {
-            input "qTrigStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
-            if(settings["qTrigStartInput"] == "A specific time") {
-                input "qTrigStartTime", "time", title: "Start time", required: timeReq, image: getAppImg("start_time")
-            }
-            input "qTrigStopInput", "enum", title: "Stopping at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
-            if(settings?."qTrigStopInput" == "A specific time") {
-                input "qTrigStopTime", "time", title: "Stop time", required: timeReq, image: getAppImg("stop_time")
-            }
-            input "triggerOnlyDays", "enum", title: "Only on these days of the week", multiple: true, required: false, image: getAppImg("day_calendar"),
-                    options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            // input "quietModes", "mode", title: "When these Modes are Active", multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
-        }
-    }
-}
-
-def quietRestrictPage() {
-    return dynamicPage(name: "quietRestrictPage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
-        Boolean timeReq = (settings["qStartTime"] || settings["qStopTime"]) ? true : false
-        section() {
-            input "qStartInput", "enum", title: "Starting at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
-            if(settings["qStartInput"] == "A specific time") {
-                input "qStartTime", "time", title: "Start time", required: timeReq, image: getAppImg("start_time")
-            }
-            input "qStopInput", "enum", title: "Stopping at", options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
-            if(settings?."qStopInput" == "A specific time") {
-                input "qStopTime", "time", title: "Stop time", required: timeReq, image: getAppImg("stop_time")
-            }
-            input "quietDays", "enum", title: "Only on these days of the week", multiple: true, required: false, image: getAppImg("day_calendar"),
-                    options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            input "quietModes", "mode", title: "When these Modes are Active", multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
-        }
-    }
 }
 
 def notifPrefPage() {
@@ -1418,7 +1367,6 @@ def notifPrefPage() {
         } else { state.pushTested = false }
     }
 }
-
 
 def installed() {
     log.debug "Installed with settings: ${settings}"
@@ -1617,7 +1565,6 @@ def alarmEvtHandler(evt) {
             custText = "A ${getAlarmSystemName()} ${evt?.displayName} alert with ${evt?.value} has occurred."
             executeAction(evt, false, custText, "alarmEvtHandler")
             break
-
     }
 }
 
@@ -1689,10 +1636,10 @@ def deviceEvtHandler(evt) {
                     case "between":
                         if(!dca && dcl && dch && (evt?.value?.toDouble() in (dcl..dch))) {
                             evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} is now ${dc} the ${evtValueCleanup(dcl)} ${getAttrPostfix(evt?.name)} and ${evtValueCleanup(dch)} ${getAttrPostfix(evt?.name)} threshold you set."
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} is now ${dc} the ${evtValueCleanup(dcl as String)} ${getAttrPostfix(evt?.name)} and ${evtValueCleanup(dch as String)} ${getAttrPostfix(evt?.name)} threshold you set."
                         } else if(dca && dcl && dch && allDevCapValsBetween(d, evt?.name, dcl, dch)) {
                             evtOk=true
-                            custText = "All ${d?.size()} ${evt?.name} devices are now ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} which are now ${dc} the ${evtValueCleanup(dcl)} ${getAttrPostfix(evt?.name)} and ${evtValueCleanup(dch)} ${getAttrPostfix(evt?.name)} threshold you set."
+                            custText = "All ${d?.size()} ${evt?.name} devices are now ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} are now ${dc} the ${evtValueCleanup(dcl as String)} ${getAttrPostfix(evt?.name)} and ${evtValueCleanup(dch as String)} ${getAttrPostfix(evt?.name)} threshold you set."
                         }
                         break
                     case "above":
@@ -1723,8 +1670,7 @@ def deviceEvtHandler(evt) {
 }
 
 String evtValueCleanup(val) {
-    if(val?.toString()?.endsWith(".0")) { val = val?.toString()?.replaceAll(".0", "") }
-    return val
+    return val?.toString()?.replaceAll(".0", "")
 }
 
 Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
@@ -1738,12 +1684,12 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
             def dayOk = !once || (once && !isDateToday(prevDt))
-            log.debug "Last Occurred: (${dur} sec.) - Wait: (${wait}) - Once: (${once}) || waitOk: ${waitOk} | dayOk: ${dayOk}"
+            log.info "Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "OK" : "Block"}) | OnceDaily: (${once}) - Status: (${dayOk ? "OK" : "Block"})"
             ok = (waitOk && dayOk)
         }
     }
     if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [isoDate: evt?.isoDate, value: evt?.value, name: evt?.name, displayName: evt?.displayName] }
-    log.debug "evtWaitRestrictionOk: $ok"
+    // log.debug "evtWaitRestrictionOk: $ok"
     atomicState?.valEvtHistory = evtHistMap
     return ok
 }
@@ -1792,17 +1738,37 @@ def locationEvtHandler(evt) {
     executeAction(evt, false, custText, "locationEvtHandler")
 }
 
-
-
 /***********************************************************************************************************
    CONDITIONS HANDLER
 ************************************************************************************************************/
 Boolean timeCondOk() {
-    // *TODO: Add timepage condition logic
-    Boolean tOk = true
+    def strtTime = null
+    def stopTime = null
+    def now = new Date()
+    def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
+    if(settings?.cond_time_start_type && settings?.cond_time_stop_type) {
+        if(settings?.cond_time_start_type == "sunset") { strtTime = sun?.sunset }
+        else if(settings?.cond_time_start_type == "sunrise") { strtTime = sun?.sunrise }
+        else if(settings?.cond_time_start_type == "A specific time" && settings?.cond_time_start) { strtTime = settings?.cond_time_start }
+
+        if(settings?.cond_time_stop_type == "sunset") { stopTime = sun?.sunset }
+        else if(settings?.cond_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
+        else if(settings?.cond_time_stop_type == "A specific time" && settings?.cond_time_stop) { stopTime = settings?.cond_time_stop }
+    } else { return true }
+    if(strtTime && stopTime) {
+        // log.debug "timeCondOk | Start: ${strtTime} | Stop: ${stopTime}"
+        if(!isST()) {
+            strtTime = toDateTime(strtTime)
+            stopTime = toDateTime(stopTime)
+        }
+        return timeOfDayIsBetween(strtTime, stopTime, new Date(), location?.timeZone) ? false : true
+    } else { return true }
+}
+
+Boolean dateCondOk() {
     Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : true
     Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : true
-    return (tOk && dOk && mOk)
+    return (dOk && mOk)
 }
 
 Boolean locationCondOk() {
@@ -1855,9 +1821,10 @@ Boolean deviceCondOk() {
 
 def conditionsOk() {
     def timeOk = timeCondOk()
+    def dateOk = dateCondOk()
     def locOk = locationCondOk()
     def devOk = deviceCondOk()
-    log.debug "conditionsOk | timeOk: $timeOk | locationOk: $locOk | deviceOk: $devOk"
+    log.debug "Action Conditions Check | Time: ($timeOk) | Date: ($dateOk) | Location: ($locOk) | Devices: ($devOk)"
     return (timeOk && locOk && devOk)
 }
 
@@ -1866,10 +1833,15 @@ Boolean devCondConfigured(type) {
 }
 
 Boolean timeCondConfigured() {
-    Boolean time = false
+    Boolean startTime = (settings?.cond_time_start_type in ["Sunrise", "Sunset"] || (settings?.cond_time_start_type && settings?.cond_time_start))
+    Boolean stopTime = (settings?.cond_time_stop_type in ["Sunrise", "Sunset"] || (settings?.cond_time_stop_type && settings?.cond_time_stop))
+    return (startTime && stopTime)
+}
+
+Boolean dateCondConfigured() {
     Boolean days = (settings?.cond_days)
     Boolean months = (settings?.cond_months)
-    return (time || days || months)
+    return (days || months)
 }
 
 Boolean locationCondConfigured() {
@@ -1889,7 +1861,7 @@ Boolean deviceCondConfigured() {
 }
 
 Boolean conditionsConfigured() {
-    return (timeCondConfigured() || locationCondConfigured() || deviceCondConfigured())
+    return (timeCondConfigured() || dateCondConfigured() || locationCondConfigured() || deviceCondConfigured())
 }
 
 
@@ -2272,14 +2244,14 @@ def time2Str(time) {
     if(time) {
         def t = timeToday(time as String, location?.timeZone)
         def f = new java.text.SimpleDateFormat("h:mm a")
-        if(tz && location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
+        if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
         return f?.format(t)
     }
 }
 
 def fmtTime(t) {
     if(!t) return null
-    def dt = new Date().parse("yyy-MM-dd'T'HH:mm:ss.SSSZ", t)
+    def dt = new Date().parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", t)
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
     return tf?.format(dt)
@@ -2427,22 +2399,25 @@ String getConditionsDesc() {
     def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${conditionsOk() ? " OK" : "Block"})\n"
+        String str = "Conditions: (${conditionsOk() ? "OK" : "Block"})\n"
         if(timeCondConfigured()) {
-            str += " • Date/Time: (Status: ${timeCondOk() ? " OK" : "Block"})\n"
-            str += time                     ? "    - Time: (${fmtTime(settings?.cond_time)})\n"      : ""
-            str += settings?.cond_days      ? "    - (${settings?.cond_days?.size()}) Days\n"      : ""
-            str += settings?.cond_months    ? "    - (${settings?.cond_months?.size()}) Months\n"  : ""
+            str += " • Time:\n"
+            str += "    - (${getTimeCondDesc()})\n"
+        }
+        if(dateCondConfigured()) {
+            str += " • Date:\n"
+            str += settings?.cond_days      ? "    - Days: (${(isDayOfWeek(settings?.cond_days)) ? "OK" : "Block"})\n" : ""
+            str += settings?.cond_months    ? "    - Months: (${(isMonthOfYear(settings?.cond_months)) ? "OK" : "Block"})\n"  : ""
         }
         if(settings?.cond_alarm || settings?.cond_mode) {
-            str += " • Location: (${locationCondOk() ? " OK" : "Block"})\n"
-            str += settings?.cond_alarm ? "    - Alarm Modes: (${settings?.cond_alarm})\n" : ""
+            str += " • Location: (${locationCondOk() ? "OK" : "Block"})\n"
+            str += settings?.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings?.cond_alarm)) ? "OK" : "Block"})\n" : ""
             str += settings?.cond_alarm ? "    - Current Alarm: (${getAlarmSystemStatus()})\n" : ""
-            str += settings?.cond_mode ? "    - Modes Selected: (${settings?.cond_mode?.size()})\n" : ""
+            str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode)) ? "OK" : "Block"})\n" : ""
             str += settings?.cond_mode ? "    - Current Mode: (${location?.mode})\n" : ""
         }
         if(deviceCondConfigured()) {
-            // str += " • Devices: (${deviceCondOk() ? " OK" : "Block"})\n"
+            // str += " • Devices: (${deviceCondOk() ? "OK" : "Block"})\n"
             ["switch", "motion", "presence", "contact", "lock", "door"]?.each { evt->
                 if(devCondConfigured(evt)) {
                     str += settings?."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${checkDeviceCondOk(evt) ? "OK" : "Block"})\n" : ""
@@ -2463,8 +2438,11 @@ String getActionDesc() {
     def time = null
     String sPre = "act_"
     if(confd) {
-        String str = "Actions:\n"
-        str += " • ${settings?.actionType}\n"
+        String str = "Actions:${settings?.act_EchoDevices ? " (${settings?.act_EchoDevices?.size()} Device${settings?.act_EchoDevices?.size() > 1 ? "s" : ""})" : ""}\n"
+        str += " • ${settings?.actionType?.capitalize()}\n"
+        str += settings?.act_set_volume ? " • Set Volume: (${settings?.act_set_volume})\n" : ""
+        str += settings?.act_restore_volume ? " • Restore Volume: (${settings?.act_restore_volume})\n" : ""
+        str += settings?.act_delay ? " • Delay: (${settings?.act_delay})\n" : ""
         str += "\ntap to modify..."
         return str
     } else {
@@ -2473,83 +2451,27 @@ String getActionDesc() {
     return actionsConfigured() ? "Actions:\n • ${settings?.actionType}\n\ntap to modify..." : "tap to configure..."
 }
 
-String getAppNotifConfDesc() {
-    String str = ""
-    if(pushStatus()) {
-        def ap = getAppNotifDesc()
-        def nd = getNotifSchedDesc()
-        str += (settings?.usePush) ? "${str != "" ? "\n" : ""}Sending via: (Push)" : ""
-        str += (settings?.pushoverEnabled) ? "${str != "" ? "\n" : ""}Pushover: (Enabled)" : ""
-        str += (settings?.pushoverEnabled && settings?.pushoverPriority) ? "${str != "" ? "\n" : ""} • Priority: (${settings?.pushoverPriority})" : ""
-        str += (settings?.pushoverEnabled && settings?.pushoverSound) ? "${str != "" ? "\n" : ""} • Sound: (${settings?.pushoverSound})" : ""
-        str += (settings?.phone) ? "${str != "" ? "\n" : ""}Sending via: (SMS)" : ""
-        str += (ap) ? "${str != "" ? "\n\n" : ""}Enabled Alerts:\n${ap}" : ""
-        str += (ap && nd) ? "${str != "" ? "\n" : ""}\nAlert Restrictions:\n${nd}" : ""
-    }
-    return str != "" ? str : null
-}
-
-String getNotifSchedDesc() {
+String getTimeCondDesc(addPre=true) {
     def sun = getSunriseAndSunset()
-    def startInput = settings?.qStartInput
-    def startTime = settings?.qStartTime
-    def stopInput = settings?.qStopInput
-    def stopTime = settings?.qStopTime
-    def dayInput = settings?.quietDays
-    def modeInput = settings?.quietModes
-    def notifDesc = ""
-    def getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
-    def getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
-    notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Silent Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl}" : ""
-    def days = getInputToStringDesc(dayInput)
-    def modes = getInputToStringDesc(modeInput)
-    notifDesc += days ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl) ? "\n" : ""} • Silent Day${isPluralString(dayInput)}: ${days}" : ""
-    notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || days) ? "\n" : ""} • Silent Mode${isPluralString(modeInput)}: ${modes}" : ""
-    return (notifDesc != "") ? "${notifDesc}" : null
-}
-
-String getServiceConfDesc() {
-    String str = ""
-    str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""}Heroku Info:" : ""
-    str += (state?.generatedHerokuName) ? "${str != "" ? "\n" : ""} • Name: ${state?.generatedHerokuName}" : ""
-    str += (settings?.amazonDomain) ? "${str != "" ? "\n" : ""} • Domain : (${settings?.amazonDomain})" : ""
-    // str += (settings?.refreshSeconds) ? "${str != "" ? "\n" : ""} • Refresh Seconds : (${settings?.refreshSeconds}sec)" : ""
-    // str += (settings?.stHub) ? "${str != "" ? "\n\n" : ""}Hub Info:" : ""
-    // str += (settings?.stHub) ? "${str != "" ? "\n" : ""} • IP: ${settings?.stHub?.getLocalIP()}" : ""
-    // str += (settings?.refreshSeconds) ? "\n\nServer Push Settings:" : ""
-    // str += (settings?.refreshSeconds) ? "${str != "" ? "\n" : ""} • Refresh Seconds : (${settings?.refreshSeconds}sec)" : ""
-    return str != "" ? str : null
-}
-
-String getAppNotifDesc() {
-    def str = ""
-    str += settings?.sendMissedPollMsg != false ? "${str != "" ? "\n" : ""} • Missed Poll Alerts" : ""
-    str += settings?.sendAppUpdateMsg != false ? "${str != "" ? "\n" : ""} • Code Updates" : ""
-    return str != "" ? str : null
-}
-
-String getServInfoDesc() {
-    Map rData = state?.nodeServiceInfo
-    String str = ""
-    String dtstr = ""
-    if(rData?.startupDt) {
-        def dt = rData?.startupDt
-        dtstr += dt?.y ? "${dt?.y}yr${dt?.y > 1 ? "s" : ""}, " : ""
-        dtstr += dt?.mn ? "${dt?.mn}mon${dt?.mn > 1 ? "s" : ""}, " : ""
-        dtstr += dt?.d ? "${dt?.d}day${dt?.d > 1 ? "s" : ""}, " : ""
-        dtstr += dt?.h ? "${dt?.h}hr${dt?.h > 1 ? "s" : ""} " : ""
-        dtstr += dt?.m ? "${dt?.m}min${dt?.m > 1 ? "s" : ""} " : ""
-        dtstr += dt?.s ? "${dt?.s}sec" : ""
-    }
-    if(settings?.useHeroku && state?.onHeroku) {
-        str += " ├ App Name: (${state?.generatedHerokuName})\n"
-    }
-    str += " ├ IP: (${rData?.ip})"
-    str += "\n ├ Port: (${rData?.port})"
-    str += "\n ├ Version: (v${rData?.version})"
-    str += "\n ${dtstr != "" ? "├" : "└"} Session Events: (${rData?.sessionEvts})"
-    str += dtstr != "" ? "\n └ Uptime: ${dtstr.length() > 20 ? "\n     └ ${dtstr}" : "${dtstr}"}" : ""
-    return str != "" ? str : null
+    def sunsetTime = epochToTime(sun?.sunset?.time)
+    def sunriseTime = epochToTime(sun?.sunrise?.time)
+    def startType = settings?.cond_time_start_type
+    def startTime = settings?.cond_time_start ? fmtTime(settings?.cond_time_start) : null
+    log.debug "startTime: ${startTime}"
+    def stopType = settings?.cond_time_stop_type
+    def stopTime = settings?.cond_time_stop ? fmtTime(settings?.cond_time_stop) : null
+    log.debug "stopTime: ${stopTime}"
+    String startLbl = (
+        (startType in ["Sunset", "Sunrise"]) ?
+        ((startType == "Sunset") ? sunsetTime : sunriseTime) :
+        startTime
+    )
+    def stopLbl = (
+        (stopType in ["Sunrise", "Sunset"]) ?
+        ((stopType == "Sunset") ? sunsetTime : sunriseTime) :
+        stopTime
+    )
+    return ((startLbl && startLbl != "") && (stopLbl && stopLbl != "")) ? "${addPre ? "Time Condition:\n" : ""}(${startLbl} - ${stopLbl})" : "tap to configure..."
 }
 
 String getInputToStringDesc(inpt, addSpace = null) {
