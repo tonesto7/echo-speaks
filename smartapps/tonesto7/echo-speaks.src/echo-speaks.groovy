@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "3.0.0" }
-String appModified() { return "2019-08-06" }
+String appModified() { return "2019-08-08" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -70,37 +70,10 @@ def startPage() {
     checkVersionData(true)
     state?.childInstallOkFlag = false
     if(!state?.resumeConfig && state?.isInstalled) { checkGuardSupport() }
-    if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) {
-        log.debug "resumeConfig: true"
-        return servPrefPage()
-    }
+    if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) { return servPrefPage() }
     else if(showChgLogOk()) { return changeLogPage() }
     else if(showDonationOk()) { return donationPage() }
     else { return mainPage() }
-}
-
-def appInfoSect()	{
-    Map codeVer = state?.codeVersions ?: null
-    String str = ""
-    if(codeVer && (codeVer?.server || codeVer?.echoDevice)) {
-        str += bulletItem(str, "App: (v${appVersion()})")
-        str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
-        str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
-        str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
-    } else { str += "\nApp: v${appVersion()}" }
-    section() {
-        href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
-        if(!state?.isInstalled) {
-            paragraph "--NEW Install--", state: "complete"
-        } else {
-            if(!state?.noticeData) { getNoticeData() }
-            if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
-                state?.noticeData?.notices?.each { item-> paragraph bulletItem(str, item), required: true, state: null }
-            } else {
-                paragraph "No Issues to Report"
-            }
-        }
-    }
 }
 
 def mainPage() {
@@ -987,11 +960,8 @@ public getChildDeviceByCap(String cap) {
 }
 
 public getDevicesFromList(List ids) {
-    log.debug "ids: $ids"
     def cDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
-    def res = cDevs?.findAll { it?.id in ids }
-    log.debug "res: $res"
-    return res ?: null
+    return cDevs?.findAll { it?.id in ids } ?: null
 }
 
 public getChildDevicesByCap(String cap) {
@@ -1757,15 +1727,9 @@ def receiveEventData(Map evtData, String src) {
             Boolean onHeroku = (state?.onHeroku == true && state?.isLocal == true)
 
             //Check for minimum versions before processing
-            Boolean updRequired = false
-            List updRequiredItems = []
-            ["server":"Echo Speaks Server", "echoDevice":"Echo Speaks Device"]?.each { k,v->
-                Map codeVers = state?.codeVersions
-                if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) {
-                    updRequired = true
-                    updRequiredItems?.push("$v")
-                }
-            }
+            Map updReqMap = getMinVerUpdsRequired()
+            Boolean updRequired = updReqMap?.updRequired
+            List updRequiredItems = updReqMap?.updItems
 
             if (evtData?.echoDevices?.size()) {
                 def execTime = evtData?.execDt ? (now()-evtData?.execDt) : 0
@@ -1910,6 +1874,19 @@ def receiveEventData(Map evtData, String src) {
         log.error "receiveEventData Error: ${ex.message}"
         incrementCntByKey("appErrorCnt")
     }
+}
+
+private Map getMinVerUpdsRequired() {
+    Boolean updRequired = false
+    List updItems = []
+    ["server":"Echo Speaks Server", "echoDevice":"Echo Speaks Device", "actionApp":"Echo Speaks Actions"]?.each { k,v->
+        Map codeVers = state?.codeVersions
+        if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) {
+            updRequired = true
+            updItems?.push("$v")
+        }
+    }
+    return [updRequired: updRequired, updItems: updItems]
 }
 
 public getDeviceStyle(String family, String type) {
@@ -2173,6 +2150,21 @@ private appUpdateNotify() {
         }
         state?.updateAvailable = false
     }
+}
+
+private List codeUpdateItems() {
+    Boolean appUpd = isAppUpdateAvail()
+    Boolean actUpd = isActionAppUpdateAvail()
+    Boolean devUpd = isEchoDevUpdateAvail()
+    Boolean servUpd = isServerUpdateAvail()
+    List updItems = []
+    if(appUpd || actUpd || devUpd || servUpd) {
+        if(appUpd) updItems.push("\nEcho Speaks App: (v${state?.appData?.versions?.mainApp?.ver?.toString()})")
+        if(actUpd) updItems.push("\nEcho Speaks - Actions: (v${state?.appData?.versions?.actionApp?.ver?.toString()})")
+        if(devUpd) updItems.push("\nEcho Speaks Device: (v${state?.appData?.versions?.echoDevice?.ver?.toString()})")
+        if(servUpd) updItems.push("\nServer: (v${state?.appData?.versions?.server?.ver?.toString()})")
+    }
+    return updItems
 }
 
 Boolean pushStatus() { return (settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || settings?.pushoverEnabled) ? ((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
@@ -2520,11 +2512,6 @@ Boolean isActionAppUpdateAvail() {
     return false
 }
 
-Boolean isGroupAppUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.groupApp && isCodeUpdateAvailable(state?.appData?.versions?.groupApp?.ver, state?.codeVersions?.groupApp, "group_app")) { return true }
-    return false
-}
-
 Boolean isEchoDevUpdateAvail() {
     if(state?.appData?.versions && state?.codeVersions?.echoDevice && isCodeUpdateAvailable(state?.appData?.versions?.echoDevice?.ver, state?.codeVersions?.echoDevice, "dev")) { return true }
     return false
@@ -2739,6 +2726,46 @@ String getInputToStringDesc(inpt, addSpace = null) {
     }
     //log.debug "str: $str"
     return (str != "") ? "${str}" : null
+}
+
+def appInfoSect()	{
+    Map codeVer = state?.codeVersions ?: null
+    String str = ""
+    Boolean isNote = false
+    if(codeVer && (codeVer?.server || codeVer?.echoDevice)) {
+        str += bulletItem(str, "App: (v${appVersion()})")
+        str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
+        str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
+        str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
+    } else { str += "\nApp: v${appVersion()}" }
+    section() {
+        href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
+        if(!state?.isInstalled) {
+            paragraph "--NEW Install--", state: "complete"
+        } else {
+            if(!state?.noticeData) { getNoticeData() }
+            Map minUpdMap = getMinVerUpdsRequired()
+            List codeUpdItems = codeUpdateItems()
+            if(codeUpdItems?.size()) {
+                isNote=true
+                String str2 = "Code Updates Available for:"
+                codeUpdItems?.each { item-> str2 += bulletItem(str2, item) }
+                paragraph str2, required: true, state: null
+            }
+            if(minUpdMap?.updRequired) {
+                isNote=true
+                String str3 = "Updates Required for:"
+                minUpdMap?.updItems?.each { item-> str3 += bulletItem(str3, item)  }
+                paragraph str3, required: true, state: null
+            }
+            if(!state?.authValid) { paragraph "Amazon Authention:\n \u2022 Login No Longer Valid!", required: true, state: null }
+            if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
+                isNote = true
+                state?.noticeData?.notices?.each { item-> paragraph bulletItem(str, item), required: true, state: null }
+            }
+            if(!isNote) { paragraph "No Issues to Report" }
+        }
+    }
 }
 
 def getRandomItem(items) {

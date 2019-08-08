@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()	 { return "3.0.0" }
-String appModified()  { return "2019-08-07" }
+String appModified()  { return "2019-08-08" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -38,6 +38,7 @@ definition(
 
 preferences {
     page(name: "startPage")
+    page(name: "codeUpdatePage")
     page(name: "mainPage")
     page(name: "uhOhPage")
     page(name: "namePage")
@@ -59,9 +60,17 @@ def startPage() {
             uhOhPage()
         } else {
             state?.isParent = false
-            mainPage()
+            if(checkMinVersion()) {
+                codeUpdatePage()
+            } else { mainPage() }
         }
     } else { uhOhPage() }
+}
+
+def codeUpdatePage () {
+    return dynamicPage(name: "codeUpdatePage", title: "Update is Required", install: false, uninstall: false) {
+        section() { paragraph "Looks like your Action App needs an update\n\nPlease make sure all app and device code is updated to the most current version\n\nOnce updated your actions will resume normal operation.", required: true, state: null, image: getAppImg("exclude") }
+    }
 }
 
 def uhOhPage () {
@@ -1488,6 +1497,7 @@ def scheduleTrigEvt() {
 }
 
 private subscribeToEvts() {
+    if(checkMinVersion()) { log.error "CODE UPDATE required to RESUME operation.  No events will be monitored."; return; }
     //SCHEDULING
     if (valTrigEvt("scheduled") && (settings?.trig_scheduled_time || settings?.trig_scheduled_sunState)) {
         if(settings?.trig_scheduled_sunState) {
@@ -2107,7 +2117,8 @@ public pushover_msg(List devs,Map data){if(devs&&data){sendLocationEvent(name:"p
 public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.value){case"refresh":def ed = evt?.jsonData;String id = ed?.appId;Map pA = pmd?.apps?.size() ? pmd?.apps : [:];if(id){pA[id]=pA?."${id}"instanceof Map?pA[id]:[:];pA[id]?.devices=ed?.devices?:[];pA[id]?.appName=ed?.appName;pA[id]?.appId=id;pmd?.apps = pA;};pmd?.sounds=ed?.sounds;break;case "reset":pmd=[:];break;};state?.pushoverManager=pmd;}
 //Builds Map Message object to send to Pushover Manager
 private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
-
+Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
+Boolean checkMinVersion() { return (versionStr2Int(appVersion()) < parent?.minVersions()["actionApp"]) }
 /******************************************
 |   Restriction validators
 *******************************************/

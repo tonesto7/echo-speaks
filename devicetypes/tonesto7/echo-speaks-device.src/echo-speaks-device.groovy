@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.0"}
-String devModified() { return "2019-08-07" }
+String devModified() { return "2019-08-08" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -468,6 +468,7 @@ def initialize() {
     sendEvent(name: "DeviceWatch-Enroll", value: new JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), displayed: false)
     resetQueue()
     stateCleanup()
+    if(checkMinVersion()) { log.error "CODE UPDATE required to RESUME operation.  No Device Events will updated."; return; }
     schedDataRefresh(true)
     refreshData(true)
     //TODO: Add Queue cleanup task to schedule.  If speakingNow != true
@@ -730,6 +731,7 @@ private refreshData(full=false) {
         return
     }
     if(!isAuthOk()) {return}
+    if(checkMinVersion()) { log.error "CODE UPDATE required to RESUME operation.  No Device Events will updated."; return; }
     // logger("trace", "permissions: ${state?.permissions}")
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
@@ -2621,7 +2623,8 @@ private postCmdProcess(resp, statusCode, data) {
                 HELPER FUNCTIONS
 ******************************************************/
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
-
+Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
+Boolean checkMinVersion() { return (versionStr2Int(appVersion()) < parent?.minVersions()["actionApp"]) }
 def getDtNow() {
 	def now = new Date()
 	return formatDt(now, false)
