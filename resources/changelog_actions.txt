@@ -2,5 +2,3 @@ V3.0.0 (July 19th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
  • ADDED: importUrl param for Hubitat users to quickly import
  • UPDATED:
- • ADDED:
- • Other stuff i'm not remembering

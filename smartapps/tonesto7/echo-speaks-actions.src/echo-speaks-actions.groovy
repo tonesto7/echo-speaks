@@ -1411,10 +1411,15 @@ def updated() {
 def initialize() {
     state?.isInstalled = true
     state?.setupComplete = true
-    if(settings?.appLbl && app?.getLabel() != "${settings?.appLbl} (Action)") { app?.updateLabel("${settings?.appLbl} (Action)") }
+    updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
     appCleanup()
+}
+
+private updAppLabel() {
+    String newLbl = "${settings?.appLbl} (Action)${(settings?.actionPause == true) ? " | (Paused)" : ""}"
+    if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
 private appCleanup() {
@@ -1441,6 +1446,14 @@ private actionCleanup() {
 
 public triggerInitialize() {
     runIn(3, "initialize")
+}
+
+public updatePauseState(Boolean pause) {
+    if(settings?.actionPause != pause) {
+        log.debug "Received Request to Update Pause State to (${pause})"
+        settingUpdate("actionPause", "${pause}", "bool")
+        runIn(4, updated())
+    }
 }
 
 Boolean isPaused() {

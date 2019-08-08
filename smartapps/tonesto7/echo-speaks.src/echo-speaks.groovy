@@ -112,10 +112,9 @@ def mainPage() {
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
-            def t2 = getActionsDesc()
-            def actDesc = t2 ? "${t2}\n\nTap to modify" : null
+            def acts = getActionApps()
             section(sTS("Actions:")) {
-                href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
+                href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: getActionsDesc(), state: (acts?.size() ? "complete" : null), image: getAppImg("es_actions")
             }
             state?.childInstallOkFlag = true
 
@@ -287,12 +286,25 @@ def actionsPage() {
         if(actionApp) { /*Nothing to add here yet*/ }
         else {
             section("") {
-                paragraph "You haven't created any Actions yet!\nTap Create New Action to get Started"
+                paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started")
             }
         }
         section("") {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
         }
+
+        if(actionApp) {
+            section (sTS("Pause All Actions:"), hideable: true, hidden: true) {
+                input "pauseChildActions", "bool", title: inTS("Pause All Actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                // executeActionPause()
+            }
+        }
+    }
+}
+
+private executeActionPause() {
+    getActionApps()?.each {
+        if(it?.isPaused() != settings?.pauseChildActions) { it?.updatePauseState(settings?.pauseChildActions) }
     }
 }
 
@@ -319,7 +331,7 @@ private deviceDetectOpts() {
         input "createWHA", "bool", title: inTS("Create Multiroom Devices?", getAppImg("echo_wha", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
         input "createOtherDevices", "bool", title: inTS("Create Other Alexa Enabled Devices?", getAppImg("devices", true)), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices")
         input "autoRenameDevices", "bool", title: inTS("Rename Devices to Match Amazon Echo Name?", getAppImg("name_tag", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
-        input "addEchoNamePrefix", "bool", title: inTS("Add 'Echo - ' Name Prefix?", getAppImg("name_tag")), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
+        input "addEchoNamePrefix", "bool", title: inTS("Add 'Echo - ' Prefix to label?", getAppImg("name_tag")), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
         Map devs = getAllDevices(true)
         if(devs?.size()) {
             input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
@@ -333,7 +345,7 @@ private devCleanupSect() {
         section(sTS("Device Cleanup Options:")) {
             List remDevs = getRemovableDevs()
             if(remDevs?.size()) { paragraph "Removable Devices:\n${remDevs?.sort()?.join("\n")}", required: true, state: null }
-            paragraph title:"Notice:", "Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations"
+            paragraph title:"Notice:", pTS("Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations")
             input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: "", required: false, defaultValue: false, submitOnChange: true
             if(cleanUpDevices) { removeDevices() }
         }
