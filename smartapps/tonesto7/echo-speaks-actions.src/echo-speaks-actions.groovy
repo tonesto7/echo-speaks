@@ -146,7 +146,9 @@ def mainPage() {
                 input (name: "appDebug", type: "bool", title: inTS("Show Debug Logs in the IDE?", getAppImg("debug", true)), description: "Only enable when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug"))
             }
         } else {
-            paragraph pTS("This Action is currently in a paused state...  To edit the configuration please un-pause", getAppImg("pause_orange", true)), required: true, state: null, image: getAppImg("pause_orange")
+            section() {
+                paragraph pTS("This Action is currently in a paused state...  To edit the configuration please un-pause", getAppImg("pause_orange", true)), required: true, state: null, image: getAppImg("pause_orange")
+            }
         }
 
         if(state?.isInstalled) {
@@ -770,6 +772,7 @@ private Map devsSupportVolume(devs) {
 private executeAction(evt = null, frc=false, custText=null, src=null) {
     def startTime = now()
     log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
+    if(isPaused()) { log.warn "Action is PAUSED... Skipping Action Execution..."; return; }
     Boolean condOk = conditionsOk()
     Boolean actOk = actionsConfigured()
     Map actMap = state?.actionExecMap ?: null
@@ -1402,13 +1405,13 @@ def installed() {
 
 def updated() {
     log.debug "Updated with settings: ${settings}"
-
     unsubscribe()
     unschedule()
     initialize()
 }
 
 def initialize() {
+    unsubscribe()
     state?.isInstalled = true
     state?.setupComplete = true
     updAppLabel()
@@ -1485,6 +1488,7 @@ def scheduleTrigEvt() {
 
 private subscribeToEvts() {
     if(checkMinVersion()) { log.error "CODE UPDATE required to RESUME operation.  No events will be monitored."; return; }
+    if(isPaused()) { log.warn "Action is PAUSED... No Events will be subscribed to or scheduled...." }
     //SCHEDULING
     if (valTrigEvt("scheduled") && (settings?.trig_scheduled_time || settings?.trig_scheduled_sunState)) {
         if(settings?.trig_scheduled_sunState) {
