@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "3.0.0" }
-String appModified() { return "2019-08-08" }
+String appModified() { return "2019-08-09" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1513,7 +1513,7 @@ def getDndEnabled(serialNumber) {
     return (dndData && dndData?.enabled == true)
 }
 
-private getAlexaRoutines(autoId=null, limit=2000) {
+public def getAlexaRoutines(autoId=null, utterOnly=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
@@ -1522,22 +1522,33 @@ private getAlexaRoutines(autoId=null, limit=2000) {
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-    Map items = [:]
+
     def routineResp = makeSyncHttpReq(params, "get", "getAlexaRoutines") ?: [:]
     // log.debug "routineResp: $routineResp"
     if(routineResp) {
         if(autoId) {
             return routineResp
         } else {
+            Map items = [:]
             if(routineResp?.size()) {
                 routineResp?.findAll { it?.status == "ENABLED" }?.each { item->
-                    items[item?.automationId] = item?.name
+                    if(utterOnly) {
+                        if(item?.triggers?.size()) {
+                            item?.triggers?.each { trg->
+                                if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
+                                    items[item?.automationId] = trg?.payload?.utterance as String
+                                }
+                            }
+                        }
+                    } else {
+                        items[item?.automationId] = item?.name
+                    }
                 }
             }
+            // log.debug "routine items: $items"
+            return items
         }
     }
-    // log.debug "routine items: $items"
-    return items
 }
 
 def executeRoutineById(String routineId) {

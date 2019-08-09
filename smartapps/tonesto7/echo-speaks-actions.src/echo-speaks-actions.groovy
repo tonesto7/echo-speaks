@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()	 { return "3.0.0" }
-String appModified()  { return "2019-08-08" }
+String appModified()  { return "2019-08-09" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -773,7 +773,7 @@ private executeAction(evt = null, frc=false, custText=null, src=null) {
     def startTime = now()
     log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
     if(isPaused()) { log.warn "Action is PAUSED... Skipping Action Execution..."; return; }
-    Boolean condOk = conditionsOk()
+    Boolean condOk = allConditionsOk()
     Boolean actOk = actionsConfigured()
     Map actMap = state?.actionExecMap ?: null
     def actDevices = parent?.getDevicesFromList(settings?.act_EchoDevices)
@@ -876,6 +876,13 @@ private executeAction(evt = null, frc=false, custText=null, src=null) {
                 }
                 break
 
+            case "alexaroutine":
+                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.routineId) {
+                    actDevices[0]?."${actConf[actType]?.cmd}"(actConf[actType]?.routineId as String)
+                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) | RoutineId: ${actConf[actType]?.routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                }
+                break
+
             case "wakeword":
                 if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
                     actConf[actType]?.devices?.each { d->
@@ -910,7 +917,7 @@ def actionsPage() {
         Map actionOpts = [
             "speak":"Speak", "announcement":"Announcement", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
             "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
-            "bluetooth":"Bluetooth Control", "wakeword":"Wake Word"
+            "bluetooth":"Bluetooth Control", "wakeword":"Wake Word", "alexaroutine": "Execute Alexa Routine(s)"
         ]
         section(sTS("Configure Actions to Take:"), hideable: true, hidden: (settings?.act_EchoDevices?.size())) {
             input "actionType", "enum", title: inTS("Actions Type", getAppImg("list", true)), description: "", options: actionOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
@@ -1128,7 +1135,6 @@ def actionsPage() {
                         actionExecMap?.config?.alarm = [cmd: "createAlarm", label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: settings?.act_alarm_time, remove: settings?.act_alarm_remove]
                         if(act_alarm_label && act_alarm_date && act_alarm_time) { done = true } else { done = false }
                     } else { done = false }
-
                     break
 
                 case "reminder":
@@ -1148,8 +1154,8 @@ def actionsPage() {
                         actionExecMap?.config?.reminder = [cmd: "createReminder", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: settings?.act_reminder_time, remove: settings?.act_reminder_remove]
                         if(act_reminder_label && act_reminder_date && act_reminder_time) { done = true } else { done = false }
                     } else { done = false }
-
                     break
+
                 case "dnd":
                     echoDevicesInputByPerm("doNotDisturb")
                     if(settings?.act_EchoDevices) {
@@ -1163,8 +1169,24 @@ def actionsPage() {
                         actionExecMap?.config?.dnd = [cmd: settings?.act_dnd_cmd]
                         if(settings?.act_dnd_cmd) { done = true } else { done = false }
                     } else { done = false }
-
                     break
+
+                case "alexaroutine":
+                    echoDevicesInputByPerm("wakeWord")
+                    if(settings?.act_EchoDevices) {
+                        section(sTS("Action Description:")) {
+                            paragraph pTS("This will Allow you trigger any Alexa Routines (Those with voice triggers only)", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                        }
+                        def routinesAvail = parent?.getAlexaRoutines(null, true) ?: [:]
+                        log.debug "routinesAvail: $routinesAvail"
+                        section(sTS("Action Config:")) {
+                            input "act_alexaroutine_cmd", "enum", title: inTS("Select Alexa Routine", getAppImg("command", true)), description: "", options: routinesAvail, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
+                        }
+                        actionExecMap?.config?.alexaroutine = [cmd: "executeRoutineId", routineId: settings?.act_alexaroutine_cmd]
+                        if(settings?.act_alexaroutine_cmd) { done = true } else { done = false }
+                    } else { done = false }
+                    break
+
                 case "wakeword":
                     echoDevicesInputByPerm("wakeWord")
                     if(settings?.act_EchoDevices) {
@@ -1192,6 +1214,7 @@ def actionsPage() {
                         if(settings?.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }?.size() == devsCnt) { done = true } else { done = false }
                     } else { done = false }
                     break
+
                 case "bluetooth":
                     echoDevicesInputByPerm("bluetoothControl")
                     if(settings?.act_EchoDevices) {
@@ -1323,18 +1346,18 @@ def condTimePage() {
     return dynamicPage(name:"condTimePage", title: "", uninstall: false) {
         Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
         section(sTS("Start Time:")) {
-            input "cond_time_start_type", "enum", title: inTS("Starting at...", getAppImg("start_time", true)), options: ["A specific time", "Sunrise", "Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
-            if(cond_time_start_type in ["A specific time"]) {
+            input "cond_time_start_type", "enum", title: inTS("Starting at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            if(cond_time_start_type  == "time") {
                 input "cond_time_start", "time", title: inTS("Start time", getAppImg("start_time", true)), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
-            } else if(cond_time_start_type in ["Sunrise", "Sunrise"]) {
+            } else if(cond_time_start_type in ["sunrise", "sunrise"]) {
                 input "cond_time_start_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
         section(sTS("Stop Time:")) {
-            input "cond_time_stop_type", "enum", title: inTS("Stopping at...", getAppImg("start_time", true)), options: ["A specific time", "Sunrise", "Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
-            if(cond_time_stop_type in ["A specific time"]) {
+            input "cond_time_stop_type", "enum", title: inTS("Stopping at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            if(cond_time_stop_type == "time") {
                 input "cond_time_stop", "time", title: inTS("Stop time", getAppImg("start_time", true)), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
-            } else if(cond_time_stop_type in ["Sunrise", "Sunrise"]) {
+            } else if(cond_time_stop_type in ["sunrise", "sunrise"]) {
                 input "cond_time_stop_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -1626,7 +1649,7 @@ def deviceEvtHandler(evt) {
     Boolean dca = (settings?."trig_${evt?.name}_all" == true)
     Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
     log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-
+    Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     switch(evt?.name) {
         case "switch":
         case "lock":
@@ -1671,54 +1694,56 @@ def deviceEvtHandler(evt) {
             Double dce = settings?."trig_${evt?.name}_equal"
             // log.debug "deviceEvtHandler | cmd: ${dc} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}"
             if(d?.size() && dc && evt?.value?.isNumber()) {
+                String postfix = getAttrPostfix(evt?.name)
+                def v = evtValueCleanup(evt?.value)
                 switch(dc) {
                     case "equals":
                         if(!dca && dce && dce?.toDouble() == evt?.value?.toDouble()) {
                             evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is now ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)}"
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix}"
                         } else if(dca && dce && allDevCapValsEqual(d, evt?.name, dce)) {
                             evtOk=true
-                            custText = "All ${d?.size()} ${evt?.name} devices now ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)}"
+                            custText = "All ${d?.size()} ${evt?.name} devices now ${v} ${postfix}"
                         }
                         break
                     case "between":
                         if(!dca && dcl && dch && (evt?.value?.toDouble() in (dcl..dch))) {
                             evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} is now ${dc} the ${evtValueCleanup(dcl as String)} ${getAttrPostfix(evt?.name)} and ${evtValueCleanup(dch as String)} ${getAttrPostfix(evt?.name)} threshold you set."
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix}"//" is now ${dc} the ${evtValueCleanup(dcl)} and ${evtValueCleanup(dch)} ${postfix} threshold you set."
                         } else if(dca && dcl && dch && allDevCapValsBetween(d, evt?.name, dcl, dch)) {
                             evtOk=true
-                            custText = "All ${d?.size()} ${evt?.name} devices are now ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} are now ${dc} the ${evtValueCleanup(dcl as String)} ${getAttrPostfix(evt?.name)} and ${evtValueCleanup(dch as String)} ${getAttrPostfix(evt?.name)} threshold you set."
+                            custText = "All ${d?.size()} ${evt?.name} devices are now ${v} ${postfix}"//" are now ${dc} the ${evtValueCleanup(dcl)} and ${evtValueCleanup(dch)} ${postfix} threshold you set."
                         }
                         break
                     case "above":
                         if(!dca && dch && (evt?.value?.toDouble() > dch)) {
                             evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} is now ${dc} the ${evtValueCleanup(dch)} ${getAttrPostfix(evt?.name)} threshold you set."
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix}" //" is now ${dc} the ${evtValueCleanup(dch)} ${postfix} threshold you set."
                         } else if(dca && dch && allDevCapValsAbove(d, evt?.name, dch)) {
                             evtOk=true
-                            custText = "All ${d?.size()} ${evt?.name} devices are now ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} are now ${dc} the ${evtValueCleanup(dch)} ${getAttrPostfix(evt?.name)} threshold you set."
+                            custText = "All ${d?.size()} ${evt?.name} devices are now ${v} ${postfix}"//" are now ${dc} the ${evtValueCleanup(dch)} ${postfix} threshold you set."
                         }
                         break
                     case "below":
                         if(dcl && (evt?.value?.toDouble() < dcl)) {
                             evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} of ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} is now ${dc} the ${evtValueCleanup(dcl)} ${getAttrPostfix(evt?.name)} threshold you set."
+                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix} "//"is now ${dc} the ${evtValueCleanup(dcl)} ${postfix} threshold you set."
                         } else if(dca && dcl && allDevCapValsBelow(d, evt?.name, dcl)) {
                             evtOk=true
-                            custText = "All ${d?.size()} ${evt?.name} devices are now ${evtValueCleanup(evt?.value)} ${getAttrPostfix(evt?.name)} are now ${dc} the ${evtValueCleanup(dcl)} ${getAttrPostfix(evt?.name)} threshold you set."
+                            custText = "All ${d?.size()} ${evt?.name} devices are now ${v} ${postfix}"//" are now ${dc} the ${evtValueCleanup(dcl)} ${postfix} threshold you set."
                         }
                         break
                 }
             }
             break
     }
-    if(evtOk ? ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : evtOk) : false) {
+    if(evtOk && devEvtWaitOk) {
         executeAction(evt, false, custText, "deviceEvtHandler(${evt?.name})")
     }
 }
 
 String evtValueCleanup(val) {
-    return val?.toString()?.replaceAll(".0", "")
+    return (val?.toString()?.endsWith(".0")) ? val?.toString()?.substring(0, val?.toString()?.length() - 2) : val
 }
 
 Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
@@ -1790,26 +1815,25 @@ def locationEvtHandler(evt) {
    CONDITIONS HANDLER
 ************************************************************************************************************/
 Boolean timeCondOk() {
-    def strtTime = null
+    def startTime = null
     def stopTime = null
     def now = new Date()
     def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
     if(settings?.cond_time_start_type && settings?.cond_time_stop_type) {
-        if(settings?.cond_time_start_type == "sunset") { strtTime = sun?.sunset }
-        else if(settings?.cond_time_start_type == "sunrise") { strtTime = sun?.sunrise }
-        else if(settings?.cond_time_start_type == "A specific time" && settings?.cond_time_start) { strtTime = settings?.cond_time_start }
+        if(settings?.cond_time_start_type == "sunset") { startTime = sun?.sunset }
+        else if(settings?.cond_time_start_type == "sunrise") { startTime = sun?.sunrise }
+        else if(settings?.cond_time_start_type == "time" && settings?.cond_time_start) { startTime = settings?.cond_time_start }
 
         if(settings?.cond_time_stop_type == "sunset") { stopTime = sun?.sunset }
         else if(settings?.cond_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
-        else if(settings?.cond_time_stop_type == "A specific time" && settings?.cond_time_stop) { stopTime = settings?.cond_time_stop }
+        else if(settings?.cond_time_stop_type == "time" && settings?.cond_time_stop) { stopTime = settings?.cond_time_stop }
     } else { return true }
-    if(strtTime && stopTime) {
-        // log.debug "timeCondOk | Start: ${strtTime} | Stop: ${stopTime}"
+    if(startTime && stopTime) {
         if(!isST()) {
-            strtTime = toDateTime(strtTime)
+            startTime = toDateTime(startTime)
             stopTime = toDateTime(stopTime)
         }
-        return timeOfDayIsBetween(strtTime, stopTime, new Date(), location?.timeZone) ? false : true
+        return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
     } else { return true }
 }
 
@@ -1833,29 +1857,6 @@ Boolean checkDeviceCondOk(type) {
     return settings?."cond_${type}_all" ? allDevEqCapVal(devs, type, stateVal) : anyDevEqCapVal(devs, type, stateVal)
 }
 
-Boolean allDevEqCapVal(List devs, String cap, val) {
-    if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size()) }
-    return false
-}
-
-Boolean allDevCapValsAbove(List devs, String cap, val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() > val?.toDouble() }?.size() == devs?.size()) : false
-}
-Boolean allDevCapValsBelow(List devs, String cap, val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() < val?.toDouble() }?.size() == devs?.size()) : false
-}
-Boolean allDevCapValsBetween(List devs, String cap, low, high) {
-    return (devs && cap && low && high) ? (devs?.findAll { ( (it?."current${cap?.capitalize()}"?.toDouble() > low?.toDouble()) && (it?."current${cap?.capitalize()}"?.toDouble() < high?.toDouble()) ) }?.size() == devs?.size()) : false
-}
-Boolean allDevCapValsEqual(List devs, String cap, val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() == val?.toDouble() }?.size() == devs?.size()) : false
-}
-
-Boolean anyDevEqCapVal(List devs, String cap, val) {
-    if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() > 0) }
-    return false
-}
-
 Boolean deviceCondOk() {
     Boolean swDevOk = checkDeviceCondOk("switch")
     Boolean motDevOk = checkDeviceCondOk("motion")
@@ -1867,13 +1868,13 @@ Boolean deviceCondOk() {
     return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk)
 }
 
-def conditionsOk() {
+def allConditionsOk() {
     def timeOk = timeCondOk()
     def dateOk = dateCondOk()
     def locOk = locationCondOk()
     def devOk = deviceCondOk()
     log.debug "Action Conditions Check | Time: ($timeOk) | Date: ($dateOk) | Location: ($locOk) | Devices: ($devOk)"
-    return (timeOk && locOk && devOk)
+    return (timeOk && dateOk && locOk && devOk)
 }
 
 Boolean devCondConfigured(type) {
@@ -1881,8 +1882,8 @@ Boolean devCondConfigured(type) {
 }
 
 Boolean timeCondConfigured() {
-    Boolean startTime = (settings?.cond_time_start_type in ["Sunrise", "Sunset"] || (settings?.cond_time_start_type && settings?.cond_time_start))
-    Boolean stopTime = (settings?.cond_time_stop_type in ["Sunrise", "Sunset"] || (settings?.cond_time_stop_type && settings?.cond_time_stop))
+    Boolean startTime = (settings?.cond_time_start_type in ["sunrise", "sunset"] || (settings?.cond_time_start_type == "time" && settings?.cond_time_start))
+    Boolean stopTime = (settings?.cond_time_stop_type in ["sunrise", "sunset"] || (settings?.cond_time_stop_type == "time" && settings?.cond_time_stop))
     return (startTime && stopTime)
 }
 
@@ -2139,6 +2140,8 @@ public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.val
 private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 Boolean checkMinVersion() { return (versionStr2Int(appVersion()) < parent?.minVersions()["actionApp"]) }
+
+
 /******************************************
 |   Restriction validators
 *******************************************/
@@ -2229,6 +2232,29 @@ Boolean areAllDevsSame(List devs, String attr, val) {
     return false
 }
 
+Boolean allDevEqCapVal(List devs, String cap, val) {
+    if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size()) }
+    return false
+}
+
+Boolean allDevCapValsAbove(List devs, String cap, val) {
+    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() > val?.toDouble() }?.size() == devs?.size()) : false
+}
+Boolean allDevCapValsBelow(List devs, String cap, val) {
+    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() < val?.toDouble() }?.size() == devs?.size()) : false
+}
+Boolean allDevCapValsBetween(List devs, String cap, low, high) {
+    return (devs && cap && low && high) ? (devs?.findAll { ( (it?."current${cap?.capitalize()}"?.toDouble() > low?.toDouble()) && (it?."current${cap?.capitalize()}"?.toDouble() < high?.toDouble()) ) }?.size() == devs?.size()) : false
+}
+Boolean allDevCapValsEqual(List devs, String cap, val) {
+    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() == val?.toDouble() }?.size() == devs?.size()) : false
+}
+
+Boolean anyDevEqCapVal(List devs, String cap, val) {
+    if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() > 0) }
+    return false
+}
+
 String getAlarmSystemName(abbr=false) {
     return isST() ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
@@ -2297,9 +2323,9 @@ def time2Str(time) {
     }
 }
 
-def fmtTime(t) {
+def fmtTime(t, altFmt=false) {
     if(!t) return null
-    def dt = new Date().parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", t)
+    def dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t?.toString())
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
     return tf?.format(dt)
@@ -2447,10 +2473,10 @@ String getConditionsDesc() {
     def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${conditionsOk() ? "OK" : "Block"})\n"
+        String str = "Conditions: (${allConditionsOk() ? "OK" : "Block"})\n"
         if(timeCondConfigured()) {
-            str += " • Time:\n"
-            str += "    - (${getTimeCondDesc()})\n"
+            str += " • Time Between: (${timeCondOk() ? "OK" : "Block"})\n"
+            str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
             str += " • Date:\n"
@@ -2460,9 +2486,9 @@ String getConditionsDesc() {
         if(settings?.cond_alarm || settings?.cond_mode) {
             str += " • Location: (${locationCondOk() ? "OK" : "Block"})\n"
             str += settings?.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings?.cond_alarm)) ? "OK" : "Block"})\n" : ""
-            str += settings?.cond_alarm ? "    - Current Alarm: (${getAlarmSystemStatus()})\n" : ""
+            // str += settings?.cond_alarm ? "    - Current Alarm: (${getAlarmSystemStatus()})\n" : ""
             str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode)) ? "OK" : "Block"})\n" : ""
-            str += settings?.cond_mode ? "    - Current Mode: (${location?.mode})\n" : ""
+            // str += settings?.cond_mode ? "    - Current Mode: (${location?.mode})\n" : ""
         }
         if(deviceCondConfigured()) {
             // str += " • Devices: (${deviceCondOk() ? "OK" : "Block"})\n"
@@ -2488,6 +2514,7 @@ String getActionDesc() {
     if(confd) {
         String str = "Actions:${settings?.act_EchoDevices ? " (${settings?.act_EchoDevices?.size()} Device${settings?.act_EchoDevices?.size() > 1 ? "s" : ""})" : ""}\n"
         str += " • ${settings?.actionType?.capitalize()}\n"
+        // str += settings?."act_${settings?.actionType}_cmd" ? " • Cmd: (${settings?."act_${settings?.actionType}_cmd"})\n" : ""
         str += settings?.act_set_volume ? " • Set Volume: (${settings?.act_set_volume})\n" : ""
         str += settings?.act_restore_volume ? " • Restore Volume: (${settings?.act_restore_volume})\n" : ""
         str += settings?.act_delay ? " • Delay: (${settings?.act_delay})\n" : ""
