@@ -46,6 +46,7 @@ preferences {
     page(name: "conditionsPage")
     page(name: "notifPrefPage")
     page(name: "actionsPage")
+    page(name: "prefsPage")
     page(name: "searchTuneInResultsPage")
     page(name: "condTimePage")
     page(name: "uninstallPage")
@@ -141,9 +142,8 @@ def mainPage() {
                     href "actionsPage", title: inTS("Actions Tasks", getAppImg("es_actions", true)), description: getActionDesc(), state: (actConf ? "complete" : ""), image: getAppImg("es_actions")
                 } else { paragraph pTS("More Options will be shown once triggers are configured", getAppImg("info", true)) }
             }
-
             section(sTS("Preferences")) {
-                input (name: "appDebug", type: "bool", title: inTS("Show Debug Logs in the IDE?", getAppImg("debug", true)), description: "Only enable when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug"))
+                href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
             }
         } else {
             section() {
@@ -152,7 +152,7 @@ def mainPage() {
         }
 
         if(state?.isInstalled) {
-            section (sTS("Place this action on hold:")) {
+            section(sTS("Place this action on hold:")) {
                 input "actionPause", "bool", title: inTS("Pause this Actions from Running?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
             }
             section(sTS("Name this Automation:")) {
@@ -161,6 +161,16 @@ def mainPage() {
             section(sTS("Remove Action:")) {
                 href "uninstallPage", title: inTS("Remove this Action", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
             }
+        }
+    }
+}
+
+def prefsPage() {
+    return dynamicPage(name: "prefsPage", install: false, uninstall: false) {
+        section(sTS("Debug")) {
+            input "appDebug", "bool", title: inTS("Show Debug Logs in the IDE?", getAppImg("debug", true)), description: "Only enable when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "clrEvtHistory", "bool", title: inTS("Clear Device Event History?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+            if(clrEvtHistory) { clearEvtHistory() }
         }
     }
 }
@@ -1465,7 +1475,7 @@ private appCleanup() {
 
 private actionCleanup() {
     //Cleans up unused action setting items
-    List setItems = []
+    List setItems = ["act_set_volume", "act_restore_volume"]
     List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_EchoDevices"]
     if(settings?.actionType) { settings?.each { si-> if(si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && !(si?.key in setIgn)) { setItems?.push(si?.key as String) } } }
     // if(settings?.actionType in ["bluetooth", "wakeword"]) { cleanupDevSettings("act_${settings?.actionType}_device_") }
@@ -1750,13 +1760,19 @@ String evtValueCleanup(val) {
     return (val?.toString()?.endsWith(".0")) ? val?.toString()?.substring(0, val?.toString()?.length() - 2) : val
 }
 
+private clearEvtHistory() {
+    settingUpdate("clrEvtHistory", "false", "bool")
+    atomicState?.valEvtHistory = null
+}
+
 Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     Boolean ok = true
     Map evtHistMap = atomicState?.valEvtHistory ?: [:]
-    def evtDt = parseIsoDate(evt?.date)
-    // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date ? parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date) : null} | evtDt: ${evtDt}"
-    if(evtHistMap?.containsKey("${evt?.deviceId}_${evt?.name}") && evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date) {
-        def prevDt = parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date)
+    def evtDt = parseDate(evt?.date?.toString())
+    // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date ? parseDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt as String) : null} | evtDt: ${evtDt}"
+    if(evtHistMap?.containsKey("${evt?.deviceId}_${evt?.name}") && evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt) {
+        // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt as String}"
+        def prevDt = parseDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt?.toString())
         if(prevDt && evtDt) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
@@ -1765,7 +1781,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             ok = (waitOk && dayOk)
         }
     }
-    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [date: evt?.date, value: evt?.value, name: evt?.name, displayName: evt?.displayName] }
+    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name, displayName: evt?.displayName] }
     // log.debug "evtWaitRestrictionOk: $ok"
     atomicState?.valEvtHistory = evtHistMap
     return ok
@@ -2294,7 +2310,7 @@ def convToDateTime(dt) {
     return "$d, $t"
 }
 
-Date parseIsoDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
+Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
 String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
 String isPluralString(obj) { return (obj?.size() > 1) ? "(s)" : "" }
