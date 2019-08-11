@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.0"}
-String devModified() { return "2019-08-09" }
+String devModified() { return "2019-08-11" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -806,9 +806,8 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getPlaybackStateHandler", true)) {return}
     try {} catch (ex) { }
     // log.debug "response: ${response?.getJson()}"
-    def sData = [:]
     def isPlayStateChange = false
-    sData = response?.getJson() ?: null
+    def sData = response?.data ? response?.json ?: [:] : [:]
     sData = sData?.playerInfo ?: [:]
     if (state?.isGroupPlaying && !isGroupResponse) {
         log.debug "ignoring getPlaybackState because group is playing here"
@@ -894,9 +893,9 @@ def getAlarmVolumeHandler(response, data) {
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getAlarmVolumeHandler")) {return}
     try {} catch (ex) { }
-    def sData = response?.getJson() ?: null
+    def sData = response?.data ? response?.json ?: null : null
     // logger("trace", "getAlarmVolume: $sData")
-    if(isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
+    if(sData && isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
         log.trace "Alarm Volume Changed to ${(sData?.volumeLevel ?: 0)}"
         sendEvent(name: "alarmVolume", value: (sData?.volumeLevel ?: 0), display: false, displayed: false)
     }
@@ -918,13 +917,15 @@ def getWakeWordHandler(response, data) {
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getWakeWordHandler", true)) {return}
     try {} catch (ex) { }
-    def sData = response?.getJson() ?: null
+    def sData = response?.data ? response?.json ?: null : null
     // log.debug "sData: $sData"
-    def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
-    // logger("trace", "getWakeWord: ${wakeWord?.wakeWord}")
-    if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
-        log.trace "Wake Word Changed to ${(wakeWord?.wakeWord)}"
-        sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
+    if(sData) {
+        def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
+        // logger("trace", "getWakeWord: ${wakeWord?.wakeWord}")
+        if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
+            log.trace "Wake Word Changed to ${(wakeWord?.wakeWord)}"
+            sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
+        }
     }
 }
 
@@ -949,7 +950,7 @@ def getWifiDetailsHandler(response, data) {
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getWifiDetailsHandler", true)) {return}
     try {} catch (ex) { }
-    def sData = response?.json ? response?.getJson() : null
+    def sData = response?.data ? response?.json ?: null : null
     // log.debug "sData: $sData"
     def wifiSsid = sData?.essid
     // logger("trace", "getWifiDetails: ${wifiSsid}")
@@ -975,7 +976,7 @@ def getDeviceSettingsHandler(response, data) {
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getDeviceSettingsHandler", true)) {return}
     try {} catch (ex) { }
-    def sData = response?.json ? response?.getJson() : null
+    def sData = response?.data ? response?.json ?: null : null
     def devData = sData?.devicePreferences?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
     state?.devicePreferences = devData ?: [:]
     // log.debug "devData: $devData"
@@ -1009,7 +1010,7 @@ def getAvailableWakeWordsHandler(response, data) {
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getAvailableWakeWordsHandler", true)) {return}
     try {} catch (ex) { }
-    def sData = response?.getJson() ?: null
+    def sData = response?.data ? response?.json ?: null : null
     // log.debug "sData: $sData"
     def wakeWords = sData?.wakeWords ? sData?.wakeWords?.join(",") : null
     // logger("trace", "getAvailableWakeWords: ${wakeWords}")
@@ -1082,7 +1083,7 @@ def getPlaylistsHandler(response, data) {
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getPlaylistsHandler")) {return}
     try {} catch (ex) { }
-    def sData = response?.getJson() ?: null
+    def sData = response?.data ? response?.json ?: null : null
     // logger("trace", "getPlaylists: ${sData}")
     Map playlists = sData ? sData?.playlists : "{}"
     if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
@@ -1109,7 +1110,7 @@ def getNotificationsHandler(response, data) {
     try {} catch (ex) { }
     List newList = []
     if(response?.status == 200) {
-        def sData = response?.getJson() ?: null
+        def sData = response?.data ? response?.json ?: null : null
         if(sData) {
             List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
             items?.each { item->
@@ -1145,7 +1146,7 @@ def deviceActivityHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "deviceActivityHandler")) {return}
-    def sData = response?.getJson() ?: null
+    def sData = response?.data ? response?.json ?: null : null
     Boolean wasLastDevice = false
     def actTS = null
     if (sData && sData?.activities != null) {
@@ -1221,7 +1222,7 @@ def amazonCommandResp(response, data) {
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
     try {} catch (ex) { }
-    def resp = response?.data ? response?.getJson() : null
+    def sData = response?.data ? response?.json ?: null : null
     if(response?.status == 200) {
         if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
             triggerDataRrsh()

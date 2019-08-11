@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()	 { return "3.0.0" }
-String appModified()  { return "2019-08-09" }
+String appModified()  { return "2019-08-11" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -620,6 +620,10 @@ def triggersPage() {
                     }
                 }
             }
+            section(sTS("Development TODO:")) {
+                def tdo = "Triggers to add\n\nThermostat\nKeypads\naccelleration sensors\nWeather Alerts"
+                paragraph tdo
+            }
         }
         state?.showSpeakEvtVars = showSpeakEvtVars
     }
@@ -786,9 +790,9 @@ private executeAction(evt = null, frc=false, custText=null, src=null) {
         Map actConf = actMap?.config
         Integer actDelay = actMap?.delay ?: 0
         Integer actDelayMs = actMap?.delay ? (actMap?.delay*1000) : 0
-        Integer changeVol = actMap?.volume?.change ?: null
-        Integer restoreVol = actMap?.volume?.restore ?: null
-        Integer alarmVol = actMap?.volume?.alarm ?: null
+        Integer changeVol = actMap?.config?.volume?.change as Integer ?: null
+        Integer restoreVol = actMap?.config?.volume?.restore as Integer ?: null
+        Integer alarmVol = actMap?.config?.volume?.alarm ?: null
 
         switch(actType) {
             //Speak Command Logic
@@ -801,7 +805,7 @@ private executeAction(evt = null, frc=false, custText=null, src=null) {
                         if(evt && custText && actConf[actType]?.evtText) { txt = custText }
                         else { txt = "Invalid Text Received... Please verify Action configuration..." }
                     }
-                    if((changeVol || restoreVol)) {
+                    if(changeVol || restoreVol) {
                         actDevices?.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) }
                     } else {
                         actDevices?.each { dev-> dev?.speak(txt) }
@@ -915,7 +919,7 @@ def actionsPage() {
         Boolean done = false
         Map actionExecMap = [configured: false]
         Map actionOpts = [
-            "speak":"Speak", "announcement":"Announcement", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
+            "speak":"Speak (SSML Supported)", "announcement":"Announcement (SSML Supported)", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
             "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
             "bluetooth":"Bluetooth Control", "wakeword":"Wake Word", "alexaroutine": "Execute Alexa Routine(s)"
         ]
@@ -930,7 +934,6 @@ def actionsPage() {
             switch(actionType) {
                 case "speak":
                     // TODO: Maybe add a custom text input for every trigger type?!?!?
-                    // TODO: Make new Web Link URL icon
                     String ssmlTestUrl = "https://topvoiceapps.com/ssml"
                     String ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
                     String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
@@ -950,7 +953,8 @@ def actionsPage() {
 
                         section(sTS("Action Config:")) {
                             variableDesc()
-                            input "act_speak_txt", "text", title: inTS("Enter Text/SSML", getAppImg("text", true)), description: "If entering SSML make sure to include <speak></speak>", submitOnChange: true, required: false, image: getAppImg("text")
+                            input "act_speak_txt", "text", title: inTS("Enter Text/SSML", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
+                            paragraph pTS("Reminder\nIf entering SSML be sure to wrap the text in <speak></speak>", getAppImg("info", true))
                         }
                         actionVolumeInputs(devices)
                         actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: (state?.showSpeakEvtVars && !settings?.act_speak_txt)]
@@ -1254,7 +1258,7 @@ def actionsPage() {
                 section("") {
                     paragraph pTS("You're all done with this step.  Press Done"), state: "complete"
                 }
-                actionExecMap?.config?.volume = [change: settings?.act_set_volume, restore: settings?.act_restore_volume, alarm: settings?.act_alarm_volume]
+                actionExecMap?.config?.volume = [change: settings?.act_volume_change, restore: settings?.act_volume_restore, alarm: settings?.act_alarm_volume]
                 // devices = parent?.getDevicesFromList(settings?.act_EchoDevices)
                 actionExecMap?.delay = settings?.act_delay
                 actionExecMap?.configured = true
@@ -1335,8 +1339,8 @@ private actionVolumeInputs(devices, showAlrmVol=false) {
             section(sTS("Volume Options:")) {
                 if(volMap?.n?.size() > 0 && volMap?.n?.size() < devices?.size()) { paragraph "Some of the selected devices do not support volume control" }
                 else if(devices?.size() == volMap?.n?.size()) { paragraph "Some of the selected devices do not support volume control"; return; }
-                input "act_set_volume", "number", title: inTS("Volume Level\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
-                input "act_restore_volume", "number", title: inTS("Restore Volume\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
+                input "act_volume_change", "number", title: inTS("Volume Level\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
+                input "act_volume_restore", "number", title: inTS("Restore Volume\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
             }
         }
     }
@@ -1462,7 +1466,7 @@ private appCleanup() {
 private actionCleanup() {
     //Cleans up unused action setting items
     List setItems = []
-    List setIgn = ["act_delay", "act_set_volume", "act_restore_volume", "act_EchoDevices"]
+    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_EchoDevices"]
     if(settings?.actionType) { settings?.each { si-> if(si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && !(si?.key in setIgn)) { setItems?.push(si?.key as String) } } }
     // if(settings?.actionType in ["bluetooth", "wakeword"]) { cleanupDevSettings("act_${settings?.actionType}_device_") }
     // TODO: Cleanup unselected trigger types
@@ -1749,10 +1753,10 @@ String evtValueCleanup(val) {
 Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     Boolean ok = true
     Map evtHistMap = atomicState?.valEvtHistory ?: [:]
-    def evtDt = parseIsoDate(evt?.isoDate)
-    // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate ? parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate) : null} | evtDt: ${evtDt}"
-    if(evtHistMap?.containsKey("${evt?.deviceId}_${evt?.name}")) {
-        def prevDt = parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.isoDate)
+    def evtDt = parseIsoDate(evt?.date)
+    // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date ? parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date) : null} | evtDt: ${evtDt}"
+    if(evtHistMap?.containsKey("${evt?.deviceId}_${evt?.name}") && evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date) {
+        def prevDt = parseIsoDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date)
         if(prevDt && evtDt) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
@@ -1761,7 +1765,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             ok = (waitOk && dayOk)
         }
     }
-    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [isoDate: evt?.isoDate, value: evt?.value, name: evt?.name, displayName: evt?.displayName] }
+    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [date: evt?.date, value: evt?.value, name: evt?.name, displayName: evt?.displayName] }
     // log.debug "evtWaitRestrictionOk: $ok"
     atomicState?.valEvtHistory = evtHistMap
     return ok
@@ -2290,7 +2294,7 @@ def convToDateTime(dt) {
     return "$d, $t"
 }
 
-Date parseIsoDate(dt) { return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", dt?.toString()) }
+Date parseIsoDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
 String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
 String isPluralString(obj) { return (obj?.size() > 1) ? "(s)" : "" }
@@ -2515,8 +2519,8 @@ String getActionDesc() {
         String str = "Actions:${settings?.act_EchoDevices ? " (${settings?.act_EchoDevices?.size()} Device${settings?.act_EchoDevices?.size() > 1 ? "s" : ""})" : ""}\n"
         str += " • ${settings?.actionType?.capitalize()}\n"
         // str += settings?."act_${settings?.actionType}_cmd" ? " • Cmd: (${settings?."act_${settings?.actionType}_cmd"})\n" : ""
-        str += settings?.act_set_volume ? " • Set Volume: (${settings?.act_set_volume})\n" : ""
-        str += settings?.act_restore_volume ? " • Restore Volume: (${settings?.act_restore_volume})\n" : ""
+        str += settings?.act_volume_change ? " • Set Volume: (${settings?.act_volume_change})\n" : ""
+        str += settings?.act_volume_restore ? " • Restore Volume: (${settings?.act_volume_restore})\n" : ""
         str += settings?.act_delay ? " • Delay: (${settings?.act_delay})\n" : ""
         str += "\ntap to modify..."
         return str

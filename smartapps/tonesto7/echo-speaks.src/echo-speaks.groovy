@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "3.0.0" }
-String appModified() { return "2019-08-09" }
+String appModified() { return "2019-08-11" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1530,6 +1530,7 @@ public def getAlexaRoutines(autoId=null, utterOnly=false) {
             return routineResp
         } else {
             Map items = [:]
+            Integer cnt = 1
             if(routineResp?.size()) {
                 routineResp?.findAll { it?.status == "ENABLED" }?.each { item->
                     if(utterOnly) {
@@ -1537,6 +1538,9 @@ public def getAlexaRoutines(autoId=null, utterOnly=false) {
                             item?.triggers?.each { trg->
                                 if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
                                     items[item?.automationId] = trg?.payload?.utterance as String
+                                } else {
+                                    items[item?.automationId] = "Unlabeled Routine ($cnt)"
+                                    cnt++
                                 }
                             }
                         }
