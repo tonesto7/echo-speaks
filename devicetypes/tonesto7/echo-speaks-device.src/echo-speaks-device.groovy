@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.0"}
-String devModified() { return "2019-08-11" }
+String devModified() { return "2019-08-12" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 

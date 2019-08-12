@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "3.0.0" }
-String appModified() { return "2019-08-11" }
+String appModified() { return "2019-08-12" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -289,7 +289,7 @@ def actionsPage() {
                 paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started")
             }
         }
-        section("") {
+        section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
         }
 

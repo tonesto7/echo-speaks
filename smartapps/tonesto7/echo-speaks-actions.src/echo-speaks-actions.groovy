@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()	 { return "3.0.0" }
-String appModified()  { return "2019-08-11" }
+String appModified()  { return "2019-08-12" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1380,7 +1380,8 @@ def condTimePage() {
 
 def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
-        remove("Remove this Action!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Automation will be removed")
+        section("") { paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
+        if(isST()) { remove("Remove ${app?.label} and Devices!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis App and Devices will be removed") }
     }
 }
 
