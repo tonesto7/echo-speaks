@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "3.0.0" }
-String appModified() { return "2019-08-12" }
+String appModified() { return "2019-08-13" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -524,7 +524,7 @@ def servPrefPage() {
             }
             if(state?.authValid) {
                 section(sTS("Cookie Info:")) {
-                    if(state?.lastCookieRefresh) { paragraph "Cookie Date: (${state?.lastCookieRefresh})", state: "complete" }
+                    if(state?.lastCookieRefresh) { paragraph "Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})", state: "complete" }
                     input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                     if(refreshCookie) { runCookieRefresh() }
                 }
@@ -2771,7 +2771,7 @@ def appInfoSect()	{
         str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
         str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
-    } else { str += "\nApp: v${appVersion()}" }
+    } else { str += "App: v${appVersion()}" }
     section() {
         href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
         if(!state?.isInstalled) {
