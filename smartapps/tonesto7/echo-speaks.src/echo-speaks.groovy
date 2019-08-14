@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "3.0.0" }
-String appModified() { return "2019-08-13" }
+String appModified() { return "2019-08-14" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -114,6 +114,7 @@ def mainPage() {
 
             def acts = getActionApps()
             section(sTS("Actions:")) {
+                paragraph "Actions allows you to create automation triggers from device/location events and can perform advanced functions using your Alexa device."
                 href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: getActionsDesc(), state: (acts?.size() ? "complete" : null), image: getAppImg("es_actions")
             }
             state?.childInstallOkFlag = true
