@@ -117,7 +117,6 @@ def mainPage() {
                 paragraph "Actions allows you to create automation triggers from device/location events and can perform advanced functions using your Alexa device."
                 href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: getActionsDesc(), state: (acts?.size() ? "complete" : null), image: getAppImg("es_actions")
             }
-            state?.childInstallOkFlag = true
 
             section(sTS("Alexa Login Service:")) {
                 def t0 = getServiceConfDesc()
@@ -152,6 +151,7 @@ def mainPage() {
                 state?.resumeConfig = true
             }
         }
+        state.ok2InstallActionFlag = false
     }
 }
 
@@ -300,6 +300,7 @@ def actionsPage() {
                 // executeActionPause()
             }
         }
+        state.childInstallOkFlag = true
     }
 }
 
@@ -975,6 +976,11 @@ public getChildDeviceByCap(String cap) {
 public getDevicesFromList(List ids) {
     def cDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
     return cDevs?.findAll { it?.id in ids } ?: null
+}
+
+public getDeviceFromId(String id) {
+    def cDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    return cDevs?.find { it?.id == id } ?: null
 }
 
 public getChildDevicesByCap(String cap) {
@@ -1842,7 +1848,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     permissions["bluetoothControl"] = (echoValue?.capabilities.contains("PAIR_BT_SOURCE") || echoValue?.capabilities.contains("PAIR_BT_SINK"))
                     permissions["guardSupported"] = (echoValue?.capabilities?.contains("TUPLE"))
-                    // echoValue["guardStatus"] = (state?.alexaGuardSupported && state?.alexaGuardState) ? state?.alexaGuardState as String : (permissions?.guardSupported ? "Unknown" : "Not Supported")
+                    echoValue["guardStatus"] = (state?.alexaGuardSupported && state?.alexaGuardState) ? state?.alexaGuardState as String : (permissions?.guardSupported ? "Unknown" : "Not Supported")
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
@@ -1859,6 +1865,7 @@ def receiveEventData(Map evtData, String src) {
                     def childDevice = getChildDevice(dni)
                     String devLabel = "${settings?.addEchoNamePrefix != false ? "Echo - " : ""}${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
                     String childHandlerName = "Echo Speaks Device"
+                    Boolean autoRename = (settings?.autoRenameDevices != false)
                     if (!childDevice) {
                         // log.debug "childDevice not found | autoCreateDevices: ${settings?.autoCreateDevices}"
                         if(settings?.autoCreateDevices != false) {
@@ -1871,14 +1878,15 @@ def receiveEventData(Map evtData, String src) {
                         }
                     } else {
                         //Check and see if name needs a refresh
-                        if (settings?.autoRenameDevices != false && (childDevice?.name != childHandlerName || childDevice?.label != devLabel)) {
-                            log.debug ("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${childDevice?.label})")
-                            childDevice?.name = childHandlerName as String
+                        String curLbl = childDevice?.getLabel()
+                        if(autoRename && childDevice?.name as String != childHandlerName) { childDevice?.name = childHandlerName as String }
+                        // log.debug "curLbl: ${curLbl} | newLbl: ${devLabel} | autoRename: ${autoRename}"
+                        if(autoRename && (curLbl != devLabel)) {
+                            log.debug ("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${curLbl})")
                             childDevice?.setLabel(devLabel as String)
                         }
                         // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
-                        // childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
                         updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
                     curDevFamily.push(echoValue?.deviceStyle?.name)
@@ -2305,7 +2313,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
     return sent
 }
 
-Boolean childInstallOk() { return (state?.childInstallOkFlag != false) }
+Boolean childInstallOk() { return (state?.childInstallOkFlag == true) }
 String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
 String getPublicImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
 String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>""" }

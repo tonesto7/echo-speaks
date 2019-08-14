@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()	 { return "3.0.0" }
-String appModified()  { return "2019-08-12" }
+String appModified()  { return "2019-08-14" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -108,10 +108,9 @@ private def buildTriggerEnum() {
         //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
         // buildItems?.Location?.scene = "Scenes"
     }
-    // buildItems["Weather Events"] = ["Weather":"Weather"]
+    buildItems["Weather Events"] = ["Weather":"Weather"]
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "fire":"Carbon Monoxide & Smoke"]?.sort{ it?.key }
-    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "button":"Buttons"]?.sort{ it?.key }
-    // buildItems["Sensor Device"] = ["Acceleration":"Acceleration", "Contacts, Doors, Windows":"Contacts, Doors, Windows", "Motion":"Motion", "Presence":"Presence", "Temperature":"Temperature", "Humidity":"Humidity", "Water":"Water", "Power":"Power"]?.sort{ it?.key }
+    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "button":"Buttons", "thermostat":"Thermostat"]?.sort{ it?.key }
     buildItems["Sensor Device"] = ["contact":"Contacts, Doors, Windows", "battery":"Battery Level", "motion":"Motion", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
     if(isST()) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
@@ -195,6 +194,7 @@ def triggersPage() {
             }
         }
         if (settings?.triggerEvents?.size()) {
+            Integer trigEvtCnt = settings?.triggerEvents?.size()
             if(!(settings?.triggerEvents in ["Scheduled", "Weather"])) { showSpeakEvtVars = true }
             if (valTrigEvt("scheduled")) {
                 section(sTS("Time Based Events"), hideable: true) {
@@ -235,7 +235,7 @@ def triggersPage() {
                 section (sTS("Mode Events"), hideable: true) {
                     input "trig_mode", "mode", title: inTS("Location Modes", getAppImg("mode", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("mode")
                     if(settings?.trig_mode) {
-                        input "trig_mode_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_mode_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                     }
                 }
             }
@@ -244,7 +244,7 @@ def triggersPage() {
                 section(sTS("Routine Events"), hideable: true) {
                     input "trig_routineExecuted", "enum", title: inTS("Routines", getAppImg("routine", true)), options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_routineExecuted) {
-                        input "trig_routineExecuted_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_routineExecuted_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                     }
                 }
             }
@@ -253,7 +253,7 @@ def triggersPage() {
                 section(sTS("Scene Events"), hideable: true) {
                     input "trig_scene", "device.sceneActivator", title: inTS("Scene Devices", getAppImg("routine", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_scene) {
-                        input "trig_scene_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_scene_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                     }
                 }
             }
@@ -262,39 +262,44 @@ def triggersPage() {
                 section(sTS("Weather Events"), hideable: true) {
                     paragraph pTS("Weather Events are not configured to take actions yet.", getAppImg("weather")), state: null, image: getAppImg("weather")
                     //TODO: Buildout weather alerts
-                    // input "trig_WeatherAlert", "enum", title: "Weather Alerts", required: false, multiple: true, submitOnChange: true, image: getAppImg("weather"),
-                    //         options: [
-                    //             "TOR":	"Tornado Warning",
-                    //             "TOW":	"Tornado Watch",
-                    //             "WRN":	"Severe Thunderstorm Warning",
-                    //             "SEW":	"Severe Thunderstorm Watch",
-                    //             "WIN":	"Winter Weather Advisory",
-                    //             "FLO":	"Flood Warning",
-                    //             "WND":	"High Wind Advisoryt",
-                    //             "HEA":	"Heat Advisory",
-                    //             "FOG":	"Dense Fog Advisory",
-                    //             "FIR":	"Fire Weather Advisory",
-                    //             "VOL":	"Volcanic Activity Statement",
-                    //             "HWW":	"Hurricane Wind Warning"
-                    //         ]
-                    // input "trig_WeatherHourly", "enum", title: "Hourly Weather Forecast Updates", required: false, multiple: false, submitOnChange: true, options: ["Weather Condition Changes", "Chance of Precipitation Changes", "Wind Speed Changes", "Humidity Changes", "Any Weather Updates"], image: "blank"
-                    // input "trig_WeatherEvents", "enum", title: "Weather Elements", required: false, multiple: false, submitOnChange: true, options: ["Chance of Precipitation (in/mm)", "Wind Gust (MPH/kPH)", "Humidity (%)", "Temperature (F/C)"], image: "blank"
-                    // if (settings?.trig_WeatherEvents) {
-                    //     input "trig_WeatherEventsCond", "enum", title: "Notify when Weather Element changes...", options: ["above", "below"], required: false, submitOnChange: true, image: getAppImg("trigger")
-                    // }
-                    // if (settings?.trig_WeatherEventsCond) {
-                    //     input "trig_WeatherThreshold", "decimal", title: "Weather Variable Threshold...", required: false, submitOnChange: true, image: getAppImg("trigger")
-                    //     if (settings?.trig_WeatherThreshold) {
-                    //         input "trig_WeatherCheckSched", "enum", title: "How Often to Check for Weather Changes...", required: true, multiple: false, submitOnChange: true, image: getPublicImg("day_calendar2"),
-                    //             options: [
-                    //                 "runEvery1Minute": "Every Minute",
-                    //                 "runEvery5Minutes": "Every 5 Minutes",
-                    //                 "runEvery10Minutes": "Every 10 Minutes",
-                    //                 "runEvery15Minutes": "Every 15 Minutes",
-                    //                 "runEvery30Minutes": "Every 30 Minutes",
-                    //                 "runEvery1Hour": "Every Hour",
-                    //                 "runEvery3Hours": "Every 3 Hours"
-                    //             ]
+                    input "trig_weather_cmd", "enum", title: inTS("Weather Alerts", getAppImg("weather", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("weather"),
+                            options: [
+                                "TOR":	"Tornado Warning",
+                                "TOW":	"Tornado Watch",
+                                "WRN":	"Severe Thunderstorm Warning",
+                                "SEW":	"Severe Thunderstorm Watch",
+                                "WIN":	"Winter Weather Advisory",
+                                "FLO":	"Flood Warning",
+                                "WND":	"High Wind Advisoryt",
+                                "HEA":	"Heat Advisory",
+                                "FOG":	"Dense Fog Advisory",
+                                "FIR":	"Fire Weather Advisory",
+                                "VOL":	"Volcanic Activity Statement",
+                                "HWW":	"Hurricane Wind Warning"
+                            ]
+                    // if(trig_weather_cmd) {
+                    //     input "trig_weather_hourly", "enum", title: inTS("Hourly Forecast Updates", getAppImg("command", true)), required: false, multiple: false, submitOnChange: true, image: getAppImg("command"),
+                    //             options: ["conditions":"Weather Condition Changes", "rain":"Chance of Precipitation Changes", "wind":"Wind Speed Changes", "humidit":"Humidity Changes", "any":"Any Weather Updates"]
+                    //     if(!settings?.trig_weather_hourly) {
+                    //         input "trig_weather_events", "enum", title: inTS("Weather Elements", getAppImg("command", true)), required: false, multiple: false, submitOnChange: true, options: ["Chance of Precipitation (in/mm)", "Wind Gust (MPH/kPH)", "Humidity (%)", "Temperature (F/C)"], image: getAppImg("command")
+                    //         if (settings?.trig_WeatherEvents) {
+                    //             input "trig_weather_events_cmd", "enum", title: inTS("Notify when Weather Element changes...", getAppImg("command", true)), options: ["above", "below"], required: false, submitOnChange: true, image: getAppImg("command")
+                    //         }
+                    //         if (settings?.trig_WeatherEventsCond) {
+                    //             input "trig_WeatherThreshold", "decimal", title: inTS("Weather Variable Threshold...", getAppImg("command", true)), required: false, submitOnChange: true, image: getAppImg("command")
+                    //             if (settings?.trig_WeatherThreshold) {
+                    //                 input "trig_WeatherCheckSched", "enum", title: inTS("How Often to Check for Weather Changes...", getAppImg("command", true)), required: true, multiple: false, submitOnChange: true, image: getAppImg("command"),
+                    //                     options: [
+                    //                         "runEvery1Minute": "Every Minute",
+                    //                         "runEvery5Minutes": "Every 5 Minutes",
+                    //                         "runEvery10Minutes": "Every 10 Minutes",
+                    //                         "runEvery15Minutes": "Every 15 Minutes",
+                    //                         "runEvery30Minutes": "Every 30 Minutes",
+                    //                         "runEvery1Hour": "Every Hour",
+                    //                         "runEvery3Hours": "Every 3 Hours"
+                    //                     ]
+                    //             }
+                    //         }
                     //     }
                     // }
                 }
@@ -308,7 +313,13 @@ def triggersPage() {
                         if (settings?.trig_switch?.size() > 1 && settings?.trig_switch_cmd && settings?.trig_switch_cmd != "any") {
                             input "trig_switch_all", "bool", title: inTS("Require ALL Switches to be (${settings?.trig_switch_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_switch_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        if(trig_switch_cmd in ["on", "off"]) {
+                            input "trig_switch_after", "number", title: inTS("Only alert after ${trig_switch_cmd} for (x) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            if(trig_switch_after) {
+                                input "trig_switch_after_repeat", "number", title: inTS("Rerun trigger every (x) minutes until ${trig_switch_cmd}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            }
+                        }
+                        input "trig_switch_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_switch_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -332,7 +343,7 @@ def triggersPage() {
                             if (settings?.trig_level?.size() > 1) {
                                 input "trig_level_all", "bool", title: inTS("Require ALL devices to be (${settings?.trig_level_cmd}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                             }
-                            input "trig_level_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_level_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_level_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -357,7 +368,7 @@ def triggersPage() {
                             if (settings?.trig_battery?.size() > 1) {
                                 input "trig_battery_all", "bool", title: inTS("Require ALL devices to be (${settings?.trig_battery_cmd}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                             }
-                            input "trig_battery_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_battery_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_battery_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -372,7 +383,13 @@ def triggersPage() {
                         if (settings?.trig_motion?.size() > 1 && settings?.trig_motion_cmd && settings?.trig_motion_cmd != "any") {
                             input "trig_motion_all", "bool", title: inTS("Require ALL Motion Sensors to be (${settings?.trig_motion_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_motion_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        if(trig_motion_cmd in ["active", "inactive"]) {
+                            input "trig_motion_after", "number", title: inTS("Only alert after ${trig_motion_cmd} for (x) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            if(trig_motion_after) {
+                                input "trig_motion_after_repeat", "number", title: inTS("Rerun trigger every (x) minutes until ${trig_motion_cmd}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            }
+                        }
+                        input "trig_motion_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_motion_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -386,7 +403,13 @@ def triggersPage() {
                         if (settings?.trig_presence?.size() > 1 && settings?.trig_presence_cmd && settings?.trig_presence_cmd != "any") {
                             input "trig_presence_all", "bool", title: inTS("Require ALL Presence Sensors to be (${settings?.trig_presence_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_presence_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        if(trig_presence_cmd in ["present", "not present"]) {
+                            input "trig_presence_after", "number", title: inTS("Only alert after ${trig_presence_cmd} for (x) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            if(trig_presence_after) {
+                                input "trig_presence_after_repeat", "number", title: inTS("Rerun trigger every (x) minutes until ${trig_presence_cmd}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            }
+                        }
+                        input "trig_presence_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_presence_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -400,7 +423,13 @@ def triggersPage() {
                         if (settings?.trig_contact?.size() > 1 && settings?.trig_contact_cmd && settings?.trig_contact_cmd != "any") {
                             input "trig_contact_all", "bool", title: inTS("Require ALL Contact to be (${settings?.trig_contact_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_contact_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        if(trig_contact_cmd in ["open", "closed"]) {
+                            input "trig_contact_after", "number", title: inTS("Only alert after ${trig_contact_cmd} for (x) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            if(trig_contact_after) {
+                                input "trig_contact_after_repeat", "number", title: inTS("Rerun trigger every (x) minutes until ${trig_contact_cmd}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            }
+                        }
+                        input "trig_contact_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_contact_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -414,7 +443,13 @@ def triggersPage() {
                         if (settings?.trig_door?.size() > 1 && trig_door_cmd && (trig_door_cmd == "open" || trig_door_cmd == "close")) {
                             input "trig_door_all", "bool", title: inTS("Require ALL Garage Doors to be (${settings?.trig_door_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_door_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        if(trig_door_cmd in ["open", "closed"]) {
+                            input "trig_door_after", "number", title: inTS("Only alert after ${trig_door_cmd} for (x) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            if(trig_door_after) {
+                                input "trig_door_after_repeat", "number", title: inTS("Rerun trigger every (x) minutes until ${trig_door_cmd}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            }
+                        }
+                        input "trig_door_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_door_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -428,7 +463,13 @@ def triggersPage() {
                         if (settings?.trig_lock?.size() > 1 && settings?.trig_lock_cmd && settings?.trig_lock_cmd != "any") {
                             input "trig_lock_all", "bool", title: inTS("Require ALL Locks to be (${settings?.trig_lock_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_lock_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        if(trig_lock_cmd in ["locked", "unlocked"]) {
+                            input "trig_lock_after", "number", title: inTS("Only alert after ${trig_lock_cmd} for (x) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            if(trig_lock_after) {
+                                input "trig_lock_after_repeat", "number", title: inTS("Rerun trigger every (x) minutes until ${trig_lock_cmd}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            }
+                        }
+                        input "trig_lock_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_lock_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
 
                     }
@@ -463,7 +504,7 @@ def triggersPage() {
                             if (settings?.trig_temperature?.size() > 1) {
                                 input "trig_temperature_all", "bool", title: inTS("Require ALL devices to be (${settings?.trig_temperature_cmd}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                             }
-                            input "trig_temperature_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_temperature_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_temperature_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -488,7 +529,7 @@ def triggersPage() {
                             if (settings?.trig_humidity?.size() > 1) {
                                 input "trig_humidity_all", "bool", title: inTS("Require ALL devices to be (${settings?.trig_humidity_cmd}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                             }
-                            input "trig_humidity_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_humidity_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_humidity_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -515,7 +556,10 @@ def triggersPage() {
                         if (settings?.trig_water?.size() > 1 && settings?.trig_water_cmd && settings?.trig_water_cmd != "any") {
                             input "trig_water_all", "bool", title: inTS("Require ALL Sensors to be (${settings?.trig_water_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_water_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        if(trig_water_cmd in ["wet", "dry"]) {
+                            input "trig_water_after", "number", title: inTS("Only alert after ${trig_water_cmd} for (x) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                        }
+                        input "trig_water_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_water_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
@@ -539,7 +583,7 @@ def triggersPage() {
                             if (settings?.trig_power?.size() > 1) {
                                 input "trig_power_all", "bool", title: inTS("Require ALL devices to be (${settings?.trig_power_cmd}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                             }
-                            input "trig_power_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_power_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_power_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -585,18 +629,18 @@ def triggersPage() {
                         input "trig_illuminance_cmd", "enum", title: inTS("Power Level (W) is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
                         if (settings?.trig_illuminance_cmd) {
                             if (settings?.trig_illuminance_cmd in ["between", "below"]) {
-                                input "trig_illuminance_low", "number", title: inTS("a ${trig_power_cmd == "between" ? "Low " : ""}Power Level (W) of..."), required: true, submitOnChange: true
+                                input "trig_illuminance_low", "number", title: inTS("a ${trig_illuminance_cmd == "between" ? "Low " : ""}Illuminance Level (lux) of..."), required: true, submitOnChange: true
                             }
                             if (settings?.trig_illuminance_cmd in ["between", "above"]) {
-                                input "trig_illuminance_high", "number", title: inTS("${trig_power_cmd == "between" ? "and a high " : "a "}Power Level (W) of..."), required: true, submitOnChange: true
+                                input "trig_illuminance_high", "number", title: inTS("${trig_illuminance_cmd == "between" ? "and a high " : "a "}Illuminance Level (lux) of..."), required: true, submitOnChange: true
                             }
                             if (settings?.trig_illuminance_cmd == "equals") {
-                                input "trig_illuminance_equal", "number", title: inTS("a Power Level (W) of..."), required: true, submitOnChange: true
+                                input "trig_illuminance_equal", "number", title: inTS("an Illuminance Level (lux) of..."), required: true, submitOnChange: true
                             }
                             if (settings?.trig_illuminance?.size() > 1) {
                                 input "trig_illuminance_all", "bool", title: inTS("Require ALL devices to be (${settings?.trig_illuminance_cmd}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                             }
-                            input "trig_illuminance_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_illuminance_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_illuminance_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         }
                     }
@@ -604,35 +648,99 @@ def triggersPage() {
             }
 
             if (valTrigEvt("shade")) {
-                section (sTS("Window Shades"), hideable: true) {
+                section (sTS("Window Shade Events"), hideable: true) {
                     input "trig_shade", "capability.windowShades", title: inTS("Window Shades", getAppImg("window_shade", true)), multiple: true, required: true, submitOnChange: true, image: getPublicImg("window_shade")
                     if (settings?.trig_shade) {
                         input "trig_shade_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options:["open", "closed", "any"], multiple: false, required: true, submitOnChange:true, image: getAppImg("command")
                         if (settings?.trig_shade?.size() > 1 && settings?.trig_shade_cmd && settings?.trig_shade_cmd != "any") {
                             input "trig_shade_all", "bool", title: inTS("Require ALL Window Shades to be (${settings?.trig_shade_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_shade_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        if(trig_shade_cmd in ["open", "closed"]) {
+                            input "trig_shade_after", "number", title: inTS("Only alert after ${trig_shade_cmd} for (x) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            if(trig_shade_after) {
+                                input "trig_shade_after_repeat", "number", title: inTS("Rerun trigger every (x) minutes until ${trig_shade_cmd}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            }
+                        }
+                        input "trig_shade_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_shade_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
             }
 
             if (valTrigEvt("valve")) {
-                section (sTS("Valves"), hideable: true) {
+                section (sTS("Valve Events"), hideable: true) {
                     input "trig_valve", "capability.valve", title: inTS("Valves", getAppImg("valve", true)), multiple: true, required: true, submitOnChange: true, image: getPublicImg("valve")
                     if (settings?.trig_valve) {
                         input "trig_valve_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options:["open", "closed", "any"], multiple: false, required: true, submitOnChange:true, image: getAppImg("command")
                         if (settings?.trig_valve?.size() > 1 && settings?.trig_valve_cmd && settings?.trig_valve_cmd != "any") {
                             input "trig_valve_all", "bool", title: inTS("Require ALL Valves to be (${settings?.trig_valve_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                         }
-                        input "trig_valve_once", "bool", title: inTS("only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        if(trig_valve_cmd in ["open", "closed"]) {
+                            input "trig_valve_after", "number", title: inTS("Only alert after ${trig_valve_cmd} for (x) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            if(trig_valve_after) {
+                                input "trig_valve_after_repeat", "number", title: inTS("Rerun trigger every (x) minutes until ${trig_valve_cmd}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            }
+                        }
+                        input "trig_valve_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_valve_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
             }
-            section(sTS("Development TODO:")) {
-                def tdo = "Triggers to add\n\nThermostat\nKeypads\naccelleration sensors\nWeather Alerts"
-                paragraph tdo
+
+            if (valTrigEvt("thermostat")) {
+                section (sTS("Thermostat Events"), hideable: true) {
+                    input "trig_thermostat", "capability.thermostat", title: inTS("Thermostat", getAppImg("thermostat", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("thermostat")
+                    if (settings?.trig_thermostat) {
+                        input "trig_thermostat_cmd", "enum", title: inTS("Thermostat Event is...", getAppImg("command", true)), options: ["ambient":"Ambient Change", "setpoint":"Setpoint Change", "mode":"Mode Change", "operatingstate":"Operating State Change"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+                        if (settings?.trig_thermostat_cmd) {
+                            if (settings?.trig_thermostat_cmd == "setpoint") {
+                                input "trig_thermostat_setpoint_type", "enum", title: inTS("SetPoint type is...", getAppImg("command", true)), options: ["cooling", "heating", "any"], required: false, submitOnChange: true, image: getAppImg("command")
+                                if(settings?.trig_thermostat_setpoint_type) {
+                                    input "trig_thermostat_setpoint_cmd", "enum", title: inTS("Setpoint temp is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+                                    if (settings?.trig_thermostat_setpoint_cmd) {
+                                        if (settings?.trig_thermostat_setpoint_cmd in ["between", "below"]) {
+                                            input "trig_thermostat_setpoint_low", "number", title: inTS("a ${trig_thermostat_setpoint_cmd == "between" ? "Low " : ""}Setpoint temp of..."), required: true, submitOnChange: true
+                                        }
+                                        if (settings?.trig_thermostat_setpoint_cmd in ["between", "above"]) {
+                                            input "trig_thermostat_setpoint_high", "number", title: inTS("${trig_thermostat_setpoint_cmd == "between" ? "and a high " : "a "}Setpoint temp of..."), required: true, submitOnChange: true
+                                        }
+                                        if (settings?.trig_thermostat_setpoint_cmd == "equals") {
+                                            input "trig_thermostat_setpoint_equal", "number", title: inTS("a Setpoint temp of..."), required: true, submitOnChange: true
+                                        }
+                                    }
+                                }
+                            }
+                            if(settings?.trig_thermostat_cmd == "ambient") {
+                                input "trig_thermostat_ambient_cmd", "enum", title: inTS("Ambient Temp is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+                                if (settings?.trig_thermostat_ambient_cmd) {
+                                    if (settings?.trig_thermostat_ambient_cmd in ["between", "below"]) {
+                                        input "trig_thermostat_ambient_low", "number", title: inTS("a ${trig_thermostat_ambient_cmd == "between" ? "Low " : ""}Ambient Temp of..."), required: true, submitOnChange: true
+                                    }
+                                    if (settings?.trig_thermostat_ambient_cmd in ["between", "above"]) {
+                                        input "trig_thermostat_ambient_high", "number", title: inTS("${trig_thermostat_ambient_cmd == "between" ? "and a high " : "a "}Ambient Temp of..."), required: true, submitOnChange: true
+                                    }
+                                    if (settings?.trig_thermostat_ambient_cmd == "equals") {
+                                        input "trig_thermostat_ambient_equal", "number", title: inTS("a Ambient Temp of..."), required: true, submitOnChange: true
+                                    }
+                                }
+                            }
+                            if (settings?.trig_thermostat_cmd == "mode") {
+                                input "trig_thermostat_mode_cmd", "enum", title: inTS("Hvac Mode changes to?", getAppImg("command", true)), options: ["auto", "cool", " heat", "emergency heat", "off", "every mode"], required: true, submitOnChange: true, image: getAppImg("command")
+                            }
+                            if (settings?.trig_thermostat_cmd == "operatingstate") {
+                                input "trig_thermostat_state_cmd", "enum", title: inTS("Operating State changes to?", getAppImg("command", true)), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true, image: getAppImg("command")
+                            }
+                            input "trig_thermostat_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_thermostat_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
+                        }
+                    }
+                }
+            }
+
+            if(triggersConfigured()) {
+                section("") {
+                    paragraph pTS("You're all done with this step.  Press Done/Save", getAppImg("done", true)), state: "complete", image: getAppImg("done")
+                }
             }
         }
         state?.showSpeakEvtVars = showSpeakEvtVars
@@ -649,8 +757,25 @@ Boolean locationTriggers() {
 
 Boolean deviceTriggers() {
     return (settings?.trig_Buttons || (settings?.trig_shade && settings?.trig_shade_cmd) || (settings?.trig_door && settings?.trig_door_cmd) || (settings?.trig_valve && settings?.trig_valve_cmd) ||
-            (settings?.trig_switch && settings?.trig_switch_cmd) || (settings?.trig_level && settings?.trig_level_cmd) || (settings?.trig_lock && settings?.trig_lock_cmd) || (settings?.trig_battery && settings?.trig_battery_cmd)
+            (settings?.trig_switch && settings?.trig_switch_cmd) || (settings?.trig_level && settings?.trig_level_cmd) || (settings?.trig_lock && settings?.trig_lock_cmd) ||
+            (settings?.trig_battery && settings?.trig_battery_cmd) || (thermostatTriggers())
     )
+}
+
+Boolean thermostatTriggers() {
+    if (settings?.trig_thermostat && settings?.trig_thermostat_cmd) {
+        switch(settings?.trig_thermostat_cmd) {
+            case "setpoint":
+                return (settings?.trig_thermostat_setpoint_cmd && (trig_thermostat_setpoint_low || trig_thermostat_setpoint_high || trig_thermostat_setpoint_equal))
+            case "mode":
+                return (settings?.trig_thermostat_mode_cmd)
+            case "operatingstate":
+                return (settings?.trig_thermostat_state_cmd)
+            case "ambient":
+                return (settings?.trig_thermostat_ambient_cmd && (trig_thermostat_ambient_low || trig_thermostat_ambient_high || trig_thermostat_ambient_equal))
+        }
+    }
+    return false
 }
 
 Boolean sensorTriggers() {
@@ -781,147 +906,6 @@ private Map devsSupportVolume(devs) {
         }
     }
     return [s:supported, n:noSupport]
-}
-
-private executeAction(evt = null, frc=false, custText=null, src=null) {
-    def startTime = now()
-    log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
-    if(isPaused()) { log.warn "Action is PAUSED... Skipping Action Execution..."; return; }
-    Boolean condOk = allConditionsOk()
-    Boolean actOk = actionsConfigured()
-    Map actMap = state?.actionExecMap ?: null
-    def actDevices = parent?.getDevicesFromList(settings?.act_EchoDevices)
-    String actType = settings?.actionType
-    if(actOk && actType) {
-        if(!condOk) { log.warn "Skipping Execution because set conditions have not been met"; return; }
-        if(!actMap || !actMap?.size()) { log.error "executeAction Error | The ActionExecutionMap is not found or is empty"; return; }
-        if(!actDevices?.size()) { log.error "executeAction Error | No Echo Device List is not found or is empty"; return; }
-        if(!actMap?.actionType) { log.error "executeAction Error | The ActionType is not found or is empty"; return; }
-        Map actConf = actMap?.config
-        Integer actDelay = actMap?.delay ?: 0
-        Integer actDelayMs = actMap?.delay ? (actMap?.delay*1000) : 0
-        Integer changeVol = actMap?.config?.volume?.change as Integer ?: null
-        Integer restoreVol = actMap?.config?.volume?.restore as Integer ?: null
-        Integer alarmVol = actMap?.config?.volume?.alarm ?: null
-
-        switch(actType) {
-            //Speak Command Logic
-            case "speak":
-                if(actConf[actType]) {
-                    String txt = null
-                    if(actConf[actType]?.text) {
-                        txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
-                    } else {
-                        if(evt && custText && actConf[actType]?.evtText) { txt = custText }
-                        else { txt = "Invalid Text Received... Please verify Action configuration..." }
-                    }
-                    if(changeVol || restoreVol) {
-                        actDevices?.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) }
-                    } else {
-                        actDevices?.each { dev-> dev?.speak(txt) }
-                    }
-                    log.debug "Sending Speak Command: (${txt}) to ${actDevices}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
-                }
-                break
-
-            //Announcement Command Logic
-            case "announcement":
-                if(actConf[actType] && actConf[actType]?.text) {
-                    String txt = null
-                    if(actConf[actType]?.text) {
-                        txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
-                    } else {
-                        if(evt && custText && actConf[actType]?.evtText) { txt = custText }
-                        else { txt = "Invalid Text Received... Please verify Action configuration..." }
-                    }
-                    if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
-                        //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                        def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
-                        actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
-                        log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
-                    } else {
-                        actDevices?.each { dev-> dev?.playAnnouncement(txt, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol, [delay: actDelayMs]) }
-                        log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
-                    }
-                }
-                break
-
-            case "sequence":
-                if(actConf[actType] && actConf[actType]?.text) {
-                    actDevices?.each { dev-> dev?.executeSequenceCommand(actConf[actType]?.text as String, [delay: actDelayMs]) }
-                    log.debug "Sending Sequence Command: (${actConf[actType]?.text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
-                }
-                break
-
-            case "playback":
-            case "dnd":
-                if(actConf[actType] && actConf[actType]?.cmd) {
-                    actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
-                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
-                }
-                break
-
-            case "builtin":
-            case "calendar":
-            case "weather":
-                if(actConf[actType] && actConf[actType]?.cmd) {
-                    if(changeVol || restoreVol) {
-                        actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol, [delay: actDelayMs]) }
-                        log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
-                    } else {
-                        actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
-                        log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
-                    }
-                }
-                break
-
-            case "alarm":
-            case "reminder":
-                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.label && actConf[actType]?.date && actConf[actType]?.time) {
-                    actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, [delay: actDelayMs]) }
-                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}"
-                }
-                break
-
-            case "music":
-                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.provider && actConf[actType]?.search) {
-                    actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol, [delay: actDelayMs]) }
-                    log.debug "Sending ${actType?.toString()?.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
-                }
-                break
-
-            case "alexaroutine":
-                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.routineId) {
-                    actDevices[0]?."${actConf[actType]?.cmd}"(actConf[actType]?.routineId as String)
-                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) | RoutineId: ${actConf[actType]?.routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
-                }
-                break
-
-            case "wakeword":
-                if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
-                    actConf[actType]?.devices?.each { d->
-                        def aDev = actDevices?.find { it?.id == d?.device }
-                        aDev?."${d?.cmd}"(d?.wakeword, [delay: actDelayMs])
-                        log.debug "Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}"
-                    }
-                }
-                break
-
-            case "bluetooth":
-                if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
-                    actConf[actType]?.devices?.each { d->
-                        def aDev = actDevices?.find { it?.id == d?.device }
-                        if(d?.cmd == "disconnectBluetooth") {
-                            aDev?."${d?.cmd}"([delay: actDelayMs])
-                        } else { aDev?."${d?.cmd}"(d?.btDevice, [delay: actDelayMs]) }
-                        log.debug "Sending ${d?.cmd} | Bluetooth Device: ${d?.btDevice} to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}"
-                    }
-                }
-                break
-        }
-    }
-
-    log.trace "ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)"
 }
 
 def actionsPage() {
@@ -1266,7 +1250,7 @@ def actionsPage() {
                     if(actTestRun) { executeActTest() }
                 }
                 section("") {
-                    paragraph pTS("You're all done with this step.  Press Done"), state: "complete"
+                    paragraph pTS("You're all done with this step.  Press Done/Save", getAppImg("done", true)), state: "complete", image: getAppImg("done")
                 }
                 actionExecMap?.config?.volume = [change: settings?.act_volume_change, restore: settings?.act_volume_restore, alarm: settings?.act_alarm_volume]
                 // devices = parent?.getDevicesFromList(settings?.act_EchoDevices)
@@ -1455,12 +1439,25 @@ def initialize() {
     updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
+    updConfigStatusMap()
     appCleanup()
 }
 
 private updAppLabel() {
     String newLbl = "${settings?.appLbl} (Action)${(settings?.actionPause == true) ? " | (Paused)" : ""}"
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
+}
+
+private updConfigStatusMap() {
+    Map sMap = atomicState?.configStatusMap ?: [:]
+    sMap?.triggers = triggersConfigured()
+    sMap?.conditions = conditionsConfigured()
+    sMap?.actions = actionsConfigured()
+    atomicState?.configStatusMap = sMap
+}
+
+private getConfStatusItem(item) {
+    return (state?.configStatusMap?.containsKey(item) && state?.configStatusMap[item] == true)
 }
 
 private appCleanup() {
@@ -1617,6 +1614,11 @@ private subscribeToEvts() {
     if (valTrigEvt("level")) {
         if(settings?.trig_level)    { subscribe(settings?.trig_level, "level", deviceEvtHandler) }
     }
+
+    // Thermostats
+    if (valTrigEvt("thermostat")) {
+        if(settings?.trig_thermostat) { subscribe(settings?.trig_thermostat, "thermostat", deviceEvtHandler) }
+    }
 }
 
 
@@ -1654,16 +1656,44 @@ def alarmEvtHandler(evt) {
     }
 }
 
+Boolean evtAfterHandler(evt) {
+    Boolean ok = true
+    Map afterEvtMap = atomicState?.afterEvtMap ?: [:]
+    def evtDt = parseDate(evt?.date?.toString())
+
+    if(afterEvtMap?.containsKey("${evt?.deviceId}_${evt?.name}") && afterEvtMap["${evt?.deviceId}_${evt?.name}"]?.dt) {
+        // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt as String}"
+        def prevDt = parseDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt?.toString())
+        if(prevDt && evtDt) {
+            def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
+            def waitOk = ( (wait && dur) && (wait < dur));
+            def dayOk = !once || (once && !isDateToday(prevDt))
+            log.info "Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "OK" : "Block"}) | OnceDaily: (${once}) - Status: (${dayOk ? "OK" : "Block"})"
+            ok = (waitOk && dayOk)
+        }
+    }
+    if(ok) { afterEvtMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name as String] }
+    // log.debug "evtWaitRestrictionOk: $ok"
+    atomicState?.afterEvtMap = afterEvtMap
+    return ok
+}
+
 def deviceEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     String custText = null
     Boolean evtOk = false
     List d = settings?."trig_${evt?.name}"
     String dc = settings?."trig_${evt?.name}_cmd"
+    Integer dcaf = settings?."trig_${evt?.name}_after" ?: null
+    Integer dcafr = settings?."trig_${evt?.name}_after_repeat" ?: null
     Boolean dco = (settings?."trig_${evt?.name}_once" == true)
     Boolean dca = (settings?."trig_${evt?.name}_all" == true)
     Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
     log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    // if(dcaf) {
+    //     Boolean aftResp = evtAfterHandler(evt)
+
+    // }
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     switch(evt?.name) {
         case "switch":
@@ -1707,53 +1737,157 @@ def deviceEvtHandler(evt) {
             Double dcl = settings?."trig_${evt?.name}_low"
             Double dch = settings?."trig_${evt?.name}_high"
             Double dce = settings?."trig_${evt?.name}_equal"
-            // log.debug "deviceEvtHandler | cmd: ${dc} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}"
-            if(d?.size() && dc && evt?.value?.isNumber()) {
-                String postfix = getAttrPostfix(evt?.name)
-                def v = evtValueCleanup(evt?.value)
-                switch(dc) {
-                    case "equals":
-                        if(!dca && dce && dce?.toDouble() == evt?.value?.toDouble()) {
-                            evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix}"
-                        } else if(dca && dce && allDevCapValsEqual(d, evt?.name, dce)) {
-                            evtOk=true
-                            custText = "All ${d?.size()} ${evt?.name} devices now ${v} ${postfix}"
-                        }
-                        break
-                    case "between":
-                        if(!dca && dcl && dch && (evt?.value?.toDouble() in (dcl..dch))) {
-                            evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix}"//" is now ${dc} the ${evtValueCleanup(dcl)} and ${evtValueCleanup(dch)} ${postfix} threshold you set."
-                        } else if(dca && dcl && dch && allDevCapValsBetween(d, evt?.name, dcl, dch)) {
-                            evtOk=true
-                            custText = "All ${d?.size()} ${evt?.name} devices are now ${v} ${postfix}"//" are now ${dc} the ${evtValueCleanup(dcl)} and ${evtValueCleanup(dch)} ${postfix} threshold you set."
-                        }
-                        break
-                    case "above":
-                        if(!dca && dch && (evt?.value?.toDouble() > dch)) {
-                            evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix}" //" is now ${dc} the ${evtValueCleanup(dch)} ${postfix} threshold you set."
-                        } else if(dca && dch && allDevCapValsAbove(d, evt?.name, dch)) {
-                            evtOk=true
-                            custText = "All ${d?.size()} ${evt?.name} devices are now ${v} ${postfix}"//" are now ${dc} the ${evtValueCleanup(dch)} ${postfix} threshold you set."
-                        }
-                        break
-                    case "below":
-                        if(dcl && (evt?.value?.toDouble() < dcl)) {
-                            evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix} "//"is now ${dc} the ${evtValueCleanup(dcl)} ${postfix} threshold you set."
-                        } else if(dca && dcl && allDevCapValsBelow(d, evt?.name, dcl)) {
-                            evtOk=true
-                            custText = "All ${d?.size()} ${evt?.name} devices are now ${v} ${postfix}"//" are now ${dc} the ${evtValueCleanup(dcl)} ${postfix} threshold you set."
-                        }
-                        break
-                }
-            }
+            Map valChk = deviceEvtProcNumValue(evt, d, dc, dcl, dch, dce, dca)
+            evtOk = valChk?.evtOk
+            custText = valChk?.custText
             break
     }
     if(evtOk && devEvtWaitOk) {
         executeAction(evt, false, custText, "deviceEvtHandler(${evt?.name})")
+    }
+}
+
+Map deviceEvtProcNumValue(evt, List devs = null, String cmd = null, Double dcl = null, Double dch = null, Double dce = null, Boolean dca = false) {
+    String custText = null
+    Boolean evtOk = false
+    // log.debug "deviceEvtProcNumValue | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}"
+    if(devs?.size() && cmd && evt?.value?.isNumber()) {
+        String postfix = getAttrPostfix(evt?.name)
+        def v = evtValueCleanup(evt?.value)
+        switch(cmd) {
+            case "equals":
+                if(!dca && dce && dce?.toDouble() == evt?.value?.toDouble()) {
+                    evtOk=true
+                } else if(dca && dce && allDevCapValsEqual(devs, evt?.name, dce)) { evtOk=true }
+                break
+            case "between":
+                if(!dca && dcl && dch && (evt?.value?.toDouble() in (dcl..dch))) {
+                    evtOk=true
+                } else if(dca && dcl && dch && allDevCapValsBetween(devs, evt?.name, dcl, dch)) { evtOk=true }
+                break
+            case "above":
+                if(!dca && dch && (evt?.value?.toDouble() > dch)) {
+                    evtOk=true
+                } else if(dca && dch && allDevCapValsAbove(devs, evt?.name, dch)) { evtOk=true }
+                break
+            case "below":
+                if(dcl && (evt?.value?.toDouble() < dcl)) {
+                    evtOk=true
+                } else if(dca && dcl && allDevCapValsBelow(devs, evt?.name, dcl)) { evtOk=true }
+                break
+        }
+        if(evtOk) {
+            if(dca) {
+                custText = "All ${devs?.size()} ${evt?.name} devices are now ${v} ${postfix}"
+            } else {
+                switch(evt?.name) {
+                    case "thermostatFanMode":
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Fan Mode is ${v} ${postfix}"
+                        break
+                    case "thermostatMode":
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Mode is ${v} ${postfix}"
+                        break
+                    case "coolSetpoint":
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Cool Setpoint is ${v} ${postfix}"
+                        break
+                    case "heatSetpoint":
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Heat Setpoint is ${v} ${postfix}"
+                        break
+                    case "thermostatOperatingState":
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Operating State is ${v} ${postfix}"
+                        break
+                    default:
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix}"
+                        break
+                }
+            }
+        }
+    }
+    return [evtOk: evtOk, custText: custText]
+}
+
+def thermostatEvtHandler(evt) {
+    def evtDelay = now() - evt?.date?.getTime()
+    String custText = null
+    Boolean evtOk = false
+    List d = settings?."trig_${evt?.name}"
+    String dc = settings?."trig_${evt?.name}_cmd"
+    Boolean dco = (settings?."trig_${evt?.name}_once" == true)
+    Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
+    log.trace "Thermostat Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
+
+    if(d?.size() && dc) {
+        switch(dc) {
+            case "setpoint":
+                switch(evt?.name) {
+                    case "coolSetpoint":
+                    case "heatSetpoint":
+                        if(dsc == "any" || (dsc == "cooling" && evt?.name == "coolSetpoint") || (dsc == "heating" && evt?.name == "heatSetpoint")) {
+                            String dsc = settings?.trig_thermostat_setpoint_cmd ?: null
+                            Double dcl = settings?.trig_thermostat_setpoint_low
+                            Double dch = settings?.trig_thermostat_setpoint_high
+                            Double dce = settings?.trig_thermostat_setpoint_equal
+                            Map valChk = deviceEvtProcNumValue(evt, d, dsc, dcl, dch, dce, null)
+                            evtOk = valChk?.evtOk
+                            custText = valChk?.custText
+                        }
+                        break
+                }
+                break
+
+            case "ambient":
+                if(evt?.name == "temperature") {
+                    String dac = settings?.trig_thermostat_ambient_cmd ?: null
+                    Double dcl = settings?.trig_thermostat_ambient_low
+                    Double dch = settings?.trig_thermostat_ambient_high
+                    Double dce = settings?.trig_thermostat_ambient_equal
+                    Map valChk = deviceEvtProcNumValue(evt, d, dac, dcl, dch, dce, null)
+                    evtOk = valChk?.evtOk
+                    custText = valChk?.custText
+                }
+                break
+
+            case "mode":
+            case "operatingstate":
+            case "fanmode":
+                if(evt?.name == "thermostatMode") {
+                    String dmc = settings?.trig_thermostat_fanmode_cmd ?: null
+                    if(dmc == "any") {
+                        evtOk = true
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Mode is ${evt?.value}"
+                    } else if(evt?.value == dmc) {
+                        evtOk=true
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Mode is ${evt?.value}"
+                    }
+                }
+
+                if(evt?.name == "thermostatOperatingState") {
+                    String doc = settings?.trig_thermostat_state_cmd ?: null
+                    if(doc == "any") {
+                        evtOk = true
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Operating State is ${evt?.value}"
+                    } else if(evt?.value == doc) {
+                        evtOk=true
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Operating State is ${evt?.value}"
+                    }
+                }
+
+                if(evt?.name == "thermostatFanMode") {
+                    String dfc = settings?.trig_thermostat_mode_cmd ?: null
+                    if(dfc == "any") {
+                        evtOk = true
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Fan Mode is ${evt?.value}"
+                    } else if(evt?.value == dfc) {
+                        evtOk=true
+                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Fan Mode is ${evt?.value}"
+                    }
+                }
+                break
+        }
+    }
+    if(evtOk && devEvtWaitOk) {
+        executeAction(evt, false, custText, "thermostatEvtHandler(${evt?.name})")
     }
 }
 
@@ -1770,6 +1904,13 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     Boolean ok = true
     Map evtHistMap = atomicState?.valEvtHistory ?: [:]
     def evtDt = parseDate(evt?.date?.toString())
+    // TODO: Look into moving away from the histMap and use statesSince()
+    // def evtDev = settings?."trig_${evt?.name}"?.find { it?.id == evt?.deviceId }
+    // List sts = evtDev.statesBetween(evt?.name, new Date() - 1, new Date())
+    // sts?.each {
+    //     log.debug "${it?.date} | ${it?.name} | ${it?.value}"
+    // }
+
     // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date ? parseDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt as String) : null} | evtDt: ${evtDt}"
     if(evtHistMap?.containsKey("${evt?.deviceId}_${evt?.name}") && evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt) {
         // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt as String}"
@@ -1782,7 +1923,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             ok = (waitOk && dayOk)
         }
     }
-    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name, displayName: evt?.displayName] }
+    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name as String] }
     // log.debug "evtWaitRestrictionOk: $ok"
     atomicState?.valEvtHistory = evtHistMap
     return ok
@@ -1830,6 +1971,157 @@ def locationEvtHandler(evt) {
     String custText = null
     log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     executeAction(evt, false, custText, "locationEvtHandler")
+}
+
+private executeAction(evt = null, frc=false, custText=null, src=null) {
+    def startTime = now()
+    log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
+    if(isPaused()) { log.warn "Action is PAUSED... Skipping Action Execution..."; return; }
+    Boolean condOk = allConditionsOk()
+    Boolean actOk = getConfStatusItem("actions")
+    Map actMap = state?.actionExecMap ?: null
+    def actDevices = parent?.getDevicesFromList(settings?.act_EchoDevices)
+    String actType = settings?.actionType
+    if(actOk && actType) {
+        if(!condOk) { log.warn "Skipping Execution because set conditions have not been met"; return; }
+        if(!actMap || !actMap?.size()) { log.error "executeAction Error | The ActionExecutionMap is not found or is empty"; return; }
+        if(!actDevices?.size()) { log.error "executeAction Error | No Echo Device List is not found or is empty"; return; }
+        if(!actMap?.actionType) { log.error "executeAction Error | The ActionType is not found or is empty"; return; }
+        Map actConf = actMap?.config
+        Integer actDelay = actMap?.delay ?: 0
+        Integer actDelayMs = actMap?.delay ? (actMap?.delay*1000) : 0
+        Integer changeVol = actMap?.config?.volume?.change as Integer ?: null
+        Integer restoreVol = actMap?.config?.volume?.restore as Integer ?: null
+        Integer alarmVol = actMap?.config?.volume?.alarm ?: null
+
+        switch(actType) {
+            //Speak Command Logic
+            case "speak":
+                if(actConf[actType]) {
+                    String txt = null
+                    if(actConf[actType]?.text) {
+                        txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
+                    } else {
+                        if(evt && custText && actConf[actType]?.evtText) { txt = custText }
+                        else { txt = "Invalid Text Received... Please verify Action configuration..." }
+                    }
+                    if(changeVol || restoreVol) {
+                        actDevices?.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) }
+                    } else {
+                        actDevices?.each { dev-> dev?.speak(txt) }
+                    }
+                    log.debug "Sending Speak Command: (${txt}) to ${actDevices}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                }
+                break
+
+            //Announcement Command Logic
+            case "announcement":
+                if(actConf[actType] && actConf[actType]?.text) {
+                    String txt = null
+                    if(actConf[actType]?.text) {
+                        txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
+                    } else {
+                        if(evt && custText && actConf[actType]?.evtText) { txt = custText }
+                        else { txt = "Invalid Text Received... Please verify Action configuration..." }
+                    }
+                    if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
+                        //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
+                        def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
+                        actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
+                        log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                    } else {
+                        actDevices?.each { dev-> dev?.playAnnouncement(txt, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol, [delay: actDelayMs]) }
+                        log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                    }
+                }
+                break
+
+            case "sequence":
+                if(actConf[actType] && actConf[actType]?.text) {
+                    actDevices?.each { dev-> dev?.executeSequenceCommand(actConf[actType]?.text as String, [delay: actDelayMs]) }
+                    log.debug "Sending Sequence Command: (${actConf[actType]?.text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                }
+                break
+
+            case "playback":
+            case "dnd":
+                if(actConf[actType] && actConf[actType]?.cmd) {
+                    actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
+                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                }
+                break
+
+            case "builtin":
+            case "calendar":
+            case "weather":
+                if(actConf[actType] && actConf[actType]?.cmd) {
+                    if(changeVol || restoreVol) {
+                        actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol, [delay: actDelayMs]) }
+                        log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                    } else {
+                        actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
+                        log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                    }
+                }
+                break
+
+            case "alarm":
+            case "reminder":
+                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.label && actConf[actType]?.date && actConf[actType]?.time) {
+                    actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, [delay: actDelayMs]) }
+                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}"
+                }
+                break
+
+            case "music":
+                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.provider && actConf[actType]?.search) {
+                    actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol, [delay: actDelayMs]) }
+                    log.debug "Sending ${actType?.toString()?.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                }
+                break
+
+            case "alexaroutine":
+                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.routineId) {
+                    actDevices[0]?."${actConf[actType]?.cmd}"(actConf[actType]?.routineId as String)
+                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) | RoutineId: ${actConf[actType]?.routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                }
+                break
+
+            case "wakeword":
+                if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
+                    actConf[actType]?.devices?.each { d->
+                        def aDev = actDevices?.find { it?.id == d?.device }
+                        aDev?."${d?.cmd}"(d?.wakeword, [delay: actDelayMs])
+                        log.debug "Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                    }
+                }
+                break
+
+            case "bluetooth":
+                if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
+                    actConf[actType]?.devices?.each { d->
+                        def aDev = actDevices?.find { it?.id == d?.device }
+                        if(d?.cmd == "disconnectBluetooth") {
+                            aDev?."${d?.cmd}"([delay: actDelayMs])
+                        } else { aDev?."${d?.cmd}"(d?.btDevice, [delay: actDelayMs]) }
+                        log.debug "Sending ${d?.cmd} | Bluetooth Device: ${d?.btDevice} to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                    }
+                }
+                break
+        }
+    }
+
+    log.trace "ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)"
+}
+
+private scheduleAfterCheck(Integer val) {
+    log.debug "Scheduling Event After Check for every 1 minute"
+    schedule(60, "afterCheckHandler")
+}
+
+private clearAfterCheckSchedule() {
+    log.debug "Cancelling After Event Check"
+    unschedule("afterCheckHandler")
 }
 
 /***********************************************************************************************************
@@ -2544,7 +2836,7 @@ String getActionDesc() {
     } else {
         return "tap to configure..."
     }
-    return actionsConfigured() ? "Actions:\n • ${settings?.actionType}\n\ntap to modify..." : "tap to configure..."
+    return confd ? "Actions:\n • ${settings?.actionType}\n\ntap to modify..." : "tap to configure..."
 }
 
 String getTimeCondDesc(addPre=true) {
