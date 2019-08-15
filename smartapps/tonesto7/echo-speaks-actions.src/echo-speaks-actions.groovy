@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()	 { return "3.0.0" }
-String appModified()  { return "2019-08-14" }
+String appModified()  { return "2019-08-15" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -108,7 +108,7 @@ private def buildTriggerEnum() {
         //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
         // buildItems?.Location?.scene = "Scenes"
     }
-    buildItems["Weather Events"] = ["Weather":"Weather"]
+    // buildItems["Weather Events"] = ["Weather":"Weather"]
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide"]?.sort{ it?.key }
     buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "button":"Buttons", "thermostat":"Thermostat"]?.sort{ it?.key }
     buildItems["Sensor Device"] = ["contact":"Contacts, Doors, Windows", "battery":"Battery Level", "motion":"Motion", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
@@ -472,9 +472,9 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     input "trig_${inType}_all", "bool", title: inTS("Require ALL ${devTitle} to be (${settings?."trig_${inType}_cmd"})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                 }
                 if(settings?."trig_${inType}_cmd" in cmdAfterOpts) {
-                    input "trig_${inType}_after", "number", title: inTS("Only alert after ${settings?."trig_${inType}_cmd"} for (x) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                    input "trig_${inType}_after", "number", title: inTS("Only trigger after ${settings?."trig_${inType}_cmd"} for (xx) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     if(settings?."trig_${inType}_after") {
-                        input "trig_${inType}_after_repeat", "number", title: inTS("Rerun trigger every (x) minutes until ${settings?."trig_${inType}_cmd"}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                        input "trig_${inType}_after_repeat", "number", title: inTS("Rerun trigger every (xx) minutes until ${settings?."trig_${inType}_cmd"}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
                 input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
@@ -597,28 +597,13 @@ def conditionsPage() {
 
         condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", ["open", "closed"], "are", "garage_door")
 
-        // section (sTS("Environmental Conditions")) {
-        //     input "cond_Humidity", "capability.relativeHumidityMeasurement", title: inTS("Relative Humidity", getAppImg("humidity", true)), required: false, submitOnChange: true, image: getAppImg("humidity")
-        //     if (settings?.cond_Humidity) {
-        //         input "cond_Humidity_level", "enum", title: inTS("Only when the Humidity is...", getAppImg("command", true)), options: ["above", "below", "equal"], required: false, submitOnChange: true, image: getAppImg("command")
-        //         if (settings?.cond_Humidity_level) {
-        //             input "cond_Humidity_percent", "number", title: inTS("this level..."), required: true, description: "percent", submitOnChange: true
-        //         }
-        //         if (settings?.cond_Humidity_percent && settings?.cond_Humidity_level != "equal") {
-        //             input "cond_Humidity_stop", "number", title: inTS("...but not ${settings?.cond_Humidity_level} this percentage"), required: false, description: "humidity"
-        //         }
-        //     }
-        //     input "cond_Temperature", "capability.temperatureMeasurement", title: inTS("Temperature", getAppImg("temperature", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("temperature")
-        //     if (settings?.cond_Temperature) {
-        //         input "cond_Temperature_level", "enum", title: inTS("When the temperature is...", getAppImg("command", true)), options: ["above", "below", "equal"], required: false, submitOnChange: true, image: getAppImg("command")
-        //         if (settings?.cond_Temperature_level) {
-        //             input "cond_Temperature_degrees", "number", title: inTS("Temperature..."), required: true, description: "degrees", submitOnChange: true
-        //         }
-        //         if (settings?.cond_Temperature_degrees && settings?.cond_Temperature_level != "equal") {
-        //             input "cond_Temperature_stop", "number", title: inTS("...but not ${settings?.cond_Temperature_level} this temperature"), required: false, description: "degrees"
-        //         }
-        //     }
-        // }
+        condNumValSect("temperature", "temperatureMeasurement", "Temperature Conditions", "Temperature Sensors", "Temperature", "temperature", true)
+
+        condNumValSect("humidity", "relativeHumidityMeasurement", "Humidity Conditions", "Relative Humidity Sensors", "Relative Humidity (%)", "humidity", true)
+
+        condNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Conditions", "Illuminance Sensors", "Lux Level (%)", "illuminance", true)
+
+        condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery", true)
     }
 }
 
@@ -629,6 +614,29 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle}...", getAppImg("command", true)), options: cmdOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
             if (settings?."cond_${inType}_cmd" && settings?."cond_${inType}"?.size() > 1) {
                 input "cond_${inType}_all", "bool", title: inTS("ALL ${devTitle} must be (${settings?."cond_${inType}_cmd"})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+            }
+        }
+    }
+}
+
+def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, hideable= false) {
+    section (sTS(sectStr), hideable: hideable) {
+        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: false, image: getAppImg(image)
+        if(settings?."cond_${inType}") {
+            input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+            if (settings?."cond_${inType}_cmd") {
+                if (settings?."cond_${inType}_cmd" in ["between", "below"]) {
+                    input "cond_${inType}_low", "number", title: inTS("a ${settings?."cond_${inType}_cmd" == "between" ? "Low " : ""}${cmdTitle} of..."), required: true, submitOnChange: true
+                }
+                if (settings?."cond_${inType}_cmd" in ["between", "above"]) {
+                    input "cond_${inType}_high", "number", title: inTS("${settings?."cond_${inType}_cmd" == "between" ? "and a high " : "a "}${cmdTitle} of..."), required: true, submitOnChange: true
+                }
+                if (settings?."cond_${inType}_cmd" == "equals") {
+                    input "cond_${inType}_equal", "number", title: inTS("a ${cmdTitle} of..."), required: true, submitOnChange: true
+                }
+                if (settings?.cond_level?.size() > 1) {
+                    input "cond_${inType}_all", "bool", title: inTS("Require ALL devices to be (${settings?."cond_${inType}_cmd"}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+                }
             }
         }
     }
@@ -1278,12 +1286,13 @@ private subscribeToEvts() {
         }
     }
 
-    // Location Events
+    // Location Alarm Events
     if(valTrigEvt("alarm")) {
         if(settings?.trig_alarm) { subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", alarmEvtHandler) }
-        if(!isST() && settings?.trig_alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) }
+        if(!isST() && settings?.trig_alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
     }
 
+    // Location Mode Events
     if(valTrigEvt("mode") && settings?.trig_mode) { subscribe(location, "mode", modeEvtHandler) }
 
     // Routines (ST Only)
@@ -1293,13 +1302,13 @@ private subscribeToEvts() {
     if(valTrigEvt("scene") && settings?.trig_scene) { subscribe(settings?.trig_scene, "switch", sceneEvtHandler) }
 
     // ENVIRONMENTAL Sensors
-    if(valTrigEvt("presence") && settings?.trig_presence) { subscribe(trig_presence, "presence", deviceEvtHandler) }
+    if(valTrigEvt("presence") && settings?.trig_presence) { subscribe(trig_presence, "presence", getDevEvtHandlerName("presence")) }
 
     // Motion Sensors
-    if(valTrigEvt("motion") && settings?.trig_motion) { subscribe(trig_motion, "motion", deviceEvtHandler) }
+    if(valTrigEvt("motion") && settings?.trig_motion) { subscribe(trig_motion, "motion", getDevEvtHandlerName("motion")) }
 
     // Water Sensors
-    if(valTrigEvt("water") && settings?.trig_water) { subscribe(settings?.trig_water, "water", deviceEvtHandler) }
+    if(valTrigEvt("water") && settings?.trig_water) { subscribe(settings?.trig_water, "water", getDevEvtHandlerName("water")) }
 
     // Humidity Sensors
     if(valTrigEvt("humidity") && settings?.trig_humidity) { subscribe(settings?.trig_humidity, "humidity", deviceEvtHandler) }
@@ -1314,13 +1323,13 @@ private subscribeToEvts() {
     if(valTrigEvt("power") && settings?.trig_power) { subscribe(trig_power, "power", deviceEvtHandler) }
 
     // Locks
-    if(valTrigEvt("lock") && settings?.trig_lock) { subscribe(settings?.trig_lock, "lock", deviceEvtHandler) }
+    if(valTrigEvt("lock") && settings?.trig_lock) { subscribe(settings?.trig_lock, "lock", getDevEvtHandlerName("lock")) }
 
     // Window Shades
-    if(valTrigEvt("shade") && settings?.trig_shade) { subscribe(settings?.trig_shade, "windowShade", deviceEvtHandler) }
+    if(valTrigEvt("shade") && settings?.trig_shade) { subscribe(settings?.trig_shade, "windowShade", getDevEvtHandlerName("shade")) }
 
     // Valves
-    if(valTrigEvt("valve") && settings?.trig_valve) { subscribe(settings?.trig_valve, "valve", deviceEvtHandler) }
+    if(valTrigEvt("valve") && settings?.trig_valve) { subscribe(settings?.trig_valve, "valve", getDevEvtHandlerName("valve")) }
 
     // Smoke/CO2
     if(valTrigEvt("carbon") || valTrigEvt("smoke")) {
@@ -1329,19 +1338,19 @@ private subscribeToEvts() {
     }
 
     // Garage Door Openers
-    if(valTrigEvt("door") && settings?.trig_door) { subscribe(settings?.trig_door, "garageDoorControl", deviceEvtHandler) }
+    if(valTrigEvt("door") && settings?.trig_door) { subscribe(settings?.trig_door, "garageDoorControl", getDevEvtHandlerName("door")) }
 
     //Keypads
     if(valTrigEvt("keypad") && settings?.trig_Keypads) { subscribe(settings?.trig_Keypads, "codeEntered", deviceEvtHandler) }
 
     //Contact Sensors
     if (valTrigEvt("contact")) {
-        if(settings?.trig_contact) { subscribe(settings?.trig_contact, "contact", deviceEvtHandler) }
+        if(settings?.trig_contact) { subscribe(settings?.trig_contact, "contact", getDevEvtHandlerName("contact")) }
     }
 
     // Outlets, Switches
     if (valTrigEvt("switch")) {
-        if(settings?.trig_switch) { subscribe(trig_switch, "switch", deviceEvtHandler) }
+        if(settings?.trig_switch) { subscribe(trig_switch, "switch", getDevEvtHandlerName("switch")) }
     }
 
     // Batteries
@@ -1358,6 +1367,15 @@ private subscribeToEvts() {
     if (valTrigEvt("thermostat")) {
         if(settings?.trig_thermostat) { subscribe(settings?.trig_thermostat, "thermostat", deviceEvtHandler) }
     }
+}
+
+private attributeConvert(String attr) {
+    Map atts = ["door":"garageDoorControl", "carbon":"carbonMonoxide", "shade":"windowShade"]
+    return (atts?.containsKey(attr)) ? atts[attr] : attr
+}
+
+private getDevEvtHandlerName(String type) {
+    return (type && settings?."trig_${type}_after") ? "devAfterEvtHandler" : "deviceEvtHandler"
 }
 
 
@@ -1394,27 +1412,64 @@ def alarmEvtHandler(evt) {
             break
     }
 }
+Integer getLastAfterEvtCheck() { return !state?.lastAfterEvtCheck ? 100000 : GetTimeDiffSeconds(state?.lastAfterEvtCheck, "getLastAfterEvtCheck").toInteger() }
 
-Boolean evtAfterHandler(evt) {
+
+def devAfterEvtHandler(evt) {
+    def evtDelay = now() - evt?.date?.getTime()
     Boolean ok = true
     Map afterEvtMap = atomicState?.afterEvtMap ?: [:]
     def evtDt = parseDate(evt?.date?.toString())
-
-    if(afterEvtMap?.containsKey("${evt?.deviceId}_${evt?.name}") && afterEvtMap["${evt?.deviceId}_${evt?.name}"]?.dt) {
-        // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt as String}"
-        def prevDt = parseDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt?.toString())
-        if(prevDt && evtDt) {
-            def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
-            def waitOk = ( (wait && dur) && (wait < dur));
-            def dayOk = !once || (once && !isDateToday(prevDt))
-            log.info "Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "OK" : "Block"}) | OnceDaily: (${once}) - Status: (${dayOk ? "OK" : "Block"})"
-            ok = (waitOk && dayOk)
+    String dc = settings?."trig_${evt?.name}_cmd" ?: null
+    Integer dcaf = settings?."trig_${evt?.name}_after" ?: null
+    log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    if(afterEvtMap?.containsKey("${evt?.deviceId}_${evt?.name}")) {
+        if(dcaf == null || (dc != null && evt?.value != null && dc != evt?.value)) {
+            ok = false
+            afterEvtMap?.remove("${evt?.deviceId}_${evt?.name}")
         }
     }
-    if(ok) { afterEvtMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name as String] }
+
+    if(ok) { afterEvtMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), deviceId: evt?.deviceId, displayName: evt?.displayName, name: evt?.name, wantedState: dc, currentState: evt?.value, wait: dcaf ? (dcaf*60) : null ] }
     // log.debug "evtWaitRestrictionOk: $ok"
     atomicState?.afterEvtMap = afterEvtMap
-    return ok
+    runIn(2, "afterCheckHandler")
+}
+
+def afterCheckHandler() {
+    Map aEvtMap = atomicState?.afterEvtMap ?: [:]
+    String activeSched = state?.afterCheckActiveScheduleId ?: null
+    if(aEvtMap?.size()) {
+        Integer lowWait = aEvtMap?.findAll { it?.value?.wait != null }?.collect { it?.value?.wait }?.min()
+        def nextItem = aEvtMap?.find { it?.value?.wait == lowWait }
+        def nextVal = nextItem?.value ?: null
+        log.debug "nextVal: $nextVal"
+        if(nextVal) {
+            def nextId = "${nextVal?.deviceId}_${nextVal?.name}"
+            def prevDt = parseDate(nextVal?.dt?.toString())
+            if(prevDt) {
+                def evtElap = (int) ((long)(new Date()?.getTime() - prevDt?.getTime())/1000)
+                def reqDur = nextVal?.wait ?: null
+                def timeLeft = (reqDur - evtElap)
+                Boolean ok2Sched = false
+                log.info "Last ${nextVal?.name?.toString()?.capitalize()} Event for Device Occurred: (${evtElap} sec ago) | TimeLeft: ${timeLeft}"
+                if(timeLeft) {
+                    if(timeLeft < reqDur && nextVal?.deviceId && nextVal?.name) {
+                        afterEvtMap?.remove(nextId)
+                        // TODO: Send the evt to executeAction process text
+                        log.debug "${nextVal?.name?.toString()?.capitalize()} Event has reached the threshold for ${nextVal?.displayName} | Duration: ${evtElap} | Required: ${reqDur}"
+                        // deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name])
+                    } else {
+                        ok2Sched = true
+                    }
+                }
+                if(ok2Sched) { scheduleAfterCheck(reqDur, nextId) }
+
+            }
+        }
+        atomicState?.afterEvtMap = aEvtMap
+    }
+    state?.lastAfterEvtCheck = getDtNow()
 }
 
 def deviceEvtHandler(evt) {
@@ -1423,16 +1478,12 @@ def deviceEvtHandler(evt) {
     Boolean evtOk = false
     List d = settings?."trig_${evt?.name}"
     String dc = settings?."trig_${evt?.name}_cmd"
-    Integer dcaf = settings?."trig_${evt?.name}_after" ?: null
-    Integer dcafr = settings?."trig_${evt?.name}_after_repeat" ?: null
     Boolean dco = (settings?."trig_${evt?.name}_once" == true)
     Boolean dca = (settings?."trig_${evt?.name}_all" == true)
     Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
     log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-    // if(dcaf) {
-    //     Boolean aftResp = evtAfterHandler(evt)
 
-    // }
+
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     switch(evt?.name) {
         case "switch":
@@ -1712,6 +1763,210 @@ def locationEvtHandler(evt) {
     executeAction(evt, false, custText, "locationEvtHandler")
 }
 
+
+private scheduleAfterCheck(Integer val=60, nextId=null) {
+    Map activeSched = state?.afterCheckActiveScheduleId ?: null
+    if(activeSched && activeSched?.id && nextId && activeSched?.id != nextId) {
+        log.debug "Active Schedule Id is the same as the requested schedule."
+        return
+    } else {
+        schedule(val, "afterCheckHandler")
+        state?.afterCheckActiveScheduleId = [id: nextId, dur: val, dt: getDtNow()]
+        log.debug "Schedule After Event Check for (${val} seconds) | Id: ${nextId}"
+    }
+}
+
+private clearAfterCheckSchedule() {
+    log.debug "Cancelling After Event Check"
+    unschedule("afterCheckHandler")
+    state?.afterCheckActiveScheduleId = null
+}
+
+/***********************************************************************************************************
+   CONDITIONS HANDLER
+************************************************************************************************************/
+Boolean timeCondOk() {
+    def startTime = null
+    def stopTime = null
+    def now = new Date()
+    def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
+    if(settings?.cond_time_start_type && settings?.cond_time_stop_type) {
+        if(settings?.cond_time_start_type == "sunset") { startTime = sun?.sunset }
+        else if(settings?.cond_time_start_type == "sunrise") { startTime = sun?.sunrise }
+        else if(settings?.cond_time_start_type == "time" && settings?.cond_time_start) { startTime = settings?.cond_time_start }
+
+        if(settings?.cond_time_stop_type == "sunset") { stopTime = sun?.sunset }
+        else if(settings?.cond_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
+        else if(settings?.cond_time_stop_type == "time" && settings?.cond_time_stop) { stopTime = settings?.cond_time_stop }
+    } else { return true }
+    if(startTime && stopTime) {
+        if(!isST()) {
+            startTime = toDateTime(startTime)
+            stopTime = toDateTime(stopTime)
+        }
+        return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
+    } else { return true }
+}
+
+Boolean dateCondOk() {
+    Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : true
+    Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : true
+    return (dOk && mOk)
+}
+
+Boolean locationCondOk() {
+    Boolean mOk = settings?.cond_mode ? (isInMode(settings?.cond_mode)) : true
+    Boolean aOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
+    // log.debug "locationCondOk | modeOk: $mOk | alarmOk: $aOk"
+    return (mOk && aOk)
+}
+
+Boolean checkDeviceCondOk(type) {
+    def devs = settings?."cond_${type}" ?: null
+    def cmdVal = settings?."cond_${type}_cmd" ?: null
+    if( !(type && devs && cmdVal) ) { return true }
+    return settings?."cond_${type}_all" ? allDevEqCapVal(devs, type, cmdVal) : anyDevEqCapVal(devs, type, cmdVal)
+}
+
+Boolean checkDeviceNumCondOk(type) {
+    List devs = settings?."cond_${type}" ?: null
+    String cmd = settings?."cond_${type}_cmd" ?: null
+    Double cdv = settings?."cond_${type}"
+    Double dcl = settings?."cond_${type}_low"
+    Double dch = settings?."cond_${type}_high"
+    Double dce = settings?."cond_${type}_equal"
+    Double dca = settings?."cond_${type}_all"
+    if( !(type && devs && cmd) ) { return true }
+
+    switch(cmd) {
+        case "equals":
+            if(dce) {
+                if(dca) { return allDevCapValsEqual(devs, type, dce) }
+                else { return anyDevCapValEqual(devs, type, dce) }
+            }
+            return true
+            break
+        case "between":
+            if(dcl && dch) {
+                if(dca) { return allDevCapValsBetween(devs, type, dcl, dch) }
+                else { return anyDevCapValBetween(devs, type, dcl, dch) }
+            }
+            return true
+            break
+        case "above":
+            if(dch) {
+                if(dca) { return allDevCapValsAbove(devs, type, dch) }
+                else { return anyDevCapValAbove(devs, type, dch) }
+            }
+            return true
+            break
+        case "below":
+            if(dcl) {
+                if(dca) { return allDevCapValsBelow(devs, type, dcl) }
+                else { return anyDevCapValBelow(devs, type, dcl) }
+            }
+            return true
+            break
+    }
+}
+
+Boolean deviceCondOk() {
+    Boolean swDevOk = checkDeviceCondOk("switch")
+    Boolean motDevOk = checkDeviceCondOk("motion")
+    Boolean presDevOk = checkDeviceCondOk("presence")
+    Boolean conDevOk = checkDeviceCondOk("contact")
+    Boolean lockDevOk = checkDeviceCondOk("lock")
+    Boolean garDevOk = checkDeviceCondOk("door")
+    Boolean tempDevOk = checkDeviceNumCondOk("temperature")
+    Boolean humDevOk = checkDeviceNumCondOk("humidity")
+    // log.debug "checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk"
+    return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk && tempDevOk && humDevOk)
+}
+
+def allConditionsOk() {
+    def timeOk = timeCondOk()
+    def dateOk = dateCondOk()
+    def locOk = locationCondOk()
+    def devOk = deviceCondOk()
+    log.debug "Action Conditions Check | Time: ($timeOk) | Date: ($dateOk) | Location: ($locOk) | Devices: ($devOk)"
+    return (timeOk && dateOk && locOk && devOk)
+}
+
+Boolean devCondConfigured(type) {
+    return (settings?."cond_${type}" && settings?."cond_${type}_cmd")
+}
+
+Boolean devNumCondConfigured(type) {
+    return (settings?."cond_${type}_cmd" && (settings?."cond_${type}_low" || settings?."cond_${type}_low" || settings?."trig_${type}_equal"))
+}
+
+Boolean timeCondConfigured() {
+    Boolean startTime = (settings?.cond_time_start_type in ["sunrise", "sunset"] || (settings?.cond_time_start_type == "time" && settings?.cond_time_start))
+    Boolean stopTime = (settings?.cond_time_stop_type in ["sunrise", "sunset"] || (settings?.cond_time_stop_type == "time" && settings?.cond_time_stop))
+    return (startTime && stopTime)
+}
+
+Boolean dateCondConfigured() {
+    Boolean days = (settings?.cond_days)
+    Boolean months = (settings?.cond_months)
+    return (days || months)
+}
+
+Boolean locationCondConfigured() {
+    Boolean mode = (settings?.cond_mode)
+    Boolean alarm = (settings?.cond_alarm)
+    return (mode || alarm)
+}
+
+Boolean deviceCondConfigured() {
+    Boolean swDev = devCondConfigured("switch")
+    Boolean motDev = devCondConfigured("motion")
+    Boolean presDev = devCondConfigured("presence")
+    Boolean conDev = devCondConfigured("contact")
+    Boolean lockDev = devCondConfigured("lock")
+    Boolean garDev = devCondConfigured("door")
+    Boolean tempDev = devCondConfigured("temperature")
+    Boolean humDev = devCondConfigured("humidity")
+    Boolean illDev = devCondConfigured("illuminance")
+    Boolean battDev = devCondConfigured("battery")
+    return (swDev || motDev || presDev || conDev || lockDev || garDev || tempDev || humDev || illDev || battDev)
+}
+
+Boolean conditionsConfigured() {
+    return (timeCondConfigured() || dateCondConfigured() || locationCondConfigured() || deviceCondConfigured())
+}
+
+
+/***********************************************************************************************************
+    ACTION EXECUTION
+************************************************************************************************************/
+
+private executeActTest() {
+    settingUpdate("actTestRun", "false", "bool")
+    executeAction([name: "contact", displayName: "Front Door", value: "open", date: new Date()], true, null, "executeActTest")
+}
+
+String convEvtType(type) {
+    Map typeConv = [
+        "routineExecuted": "Routine",
+        "alarmSystemStatus": "Alarm system",
+        "hsmStatus": "Alarm system"
+    ]
+    return (type && typeConv?.containsKey(type)) ? typeConv[type] : type
+}
+
+String decodeVariables(evt, str) {
+    if(evt && str) {
+        str = (str?.contains("%type%") && evt?.name) ? str?.replaceAll("%type%", convEvtType(evt?.name)) : str
+        str = (str?.contains("%name%") && evt?.displayName) ? str?.replaceAll("%name%", evt?.displayName) : str
+        str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value) : str
+        str = (str?.contains("%date%") && evt?.date) ? str?.replaceAll("%date%", convToDate(evt?.date)) : str
+        str = (str?.contains("%time%") && evt?.date) ? str?.replaceAll("%time%", convToTime(evt?.date)) : str
+        str = (str?.contains("%datetime%") && evt?.date) ? str?.replaceAll("%datetime%", convToDateTime(evt?.date)) : str
+    }
+    return str
+}
+
 private executeAction(evt = null, frc=false, custText=null, src=null) {
     def startTime = now()
     log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
@@ -1853,148 +2108,51 @@ private executeAction(evt = null, frc=false, custText=null, src=null) {
     log.trace "ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)"
 }
 
-private scheduleAfterCheck(Integer val) {
-    log.debug "Scheduling Event After Check for every 1 minute"
-    schedule(60, "afterCheckHandler")
-}
 
-private clearAfterCheckSchedule() {
-    log.debug "Cancelling After Event Check"
-    unschedule("afterCheckHandler")
-}
-
-/***********************************************************************************************************
-   CONDITIONS HANDLER
-************************************************************************************************************/
-Boolean timeCondOk() {
-    def startTime = null
-    def stopTime = null
-    def now = new Date()
-    def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
-    if(settings?.cond_time_start_type && settings?.cond_time_stop_type) {
-        if(settings?.cond_time_start_type == "sunset") { startTime = sun?.sunset }
-        else if(settings?.cond_time_start_type == "sunrise") { startTime = sun?.sunrise }
-        else if(settings?.cond_time_start_type == "time" && settings?.cond_time_start) { startTime = settings?.cond_time_start }
-
-        if(settings?.cond_time_stop_type == "sunset") { stopTime = sun?.sunset }
-        else if(settings?.cond_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
-        else if(settings?.cond_time_stop_type == "time" && settings?.cond_time_stop) { stopTime = settings?.cond_time_stop }
-    } else { return true }
-    if(startTime && stopTime) {
-        if(!isST()) {
-            startTime = toDateTime(startTime)
-            stopTime = toDateTime(stopTime)
-        }
-        return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
-    } else { return true }
-}
-
-Boolean dateCondOk() {
-    Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : true
-    Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : true
-    return (dOk && mOk)
-}
-
-Boolean locationCondOk() {
-    Boolean mOk = settings?.cond_mode ? (isInMode(settings?.cond_mode)) : true
-    Boolean aOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
-    // log.debug "locationCondOk | modeOk: $mOk | alarmOk: $aOk"
-    return (mOk && aOk)
-}
-
-Boolean checkDeviceCondOk(type) {
-    def devs = settings?."cond_${type}" ?: null
-    def stateVal = settings?."cond_${type}_cmd" ?: null
-    if( !(type && devs && stateVal) ) { return true }
-    return settings?."cond_${type}_all" ? allDevEqCapVal(devs, type, stateVal) : anyDevEqCapVal(devs, type, stateVal)
-}
-
-Boolean deviceCondOk() {
-    Boolean swDevOk = checkDeviceCondOk("switch")
-    Boolean motDevOk = checkDeviceCondOk("motion")
-    Boolean presDevOk = checkDeviceCondOk("presence")
-    Boolean conDevOk = checkDeviceCondOk("contact")
-    Boolean lockDevOk = checkDeviceCondOk("lock")
-    Boolean garDevOk = checkDeviceCondOk("door")
-    // log.debug "checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk"
-    return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk)
-}
-
-def allConditionsOk() {
-    def timeOk = timeCondOk()
-    def dateOk = dateCondOk()
-    def locOk = locationCondOk()
-    def devOk = deviceCondOk()
-    log.debug "Action Conditions Check | Time: ($timeOk) | Date: ($dateOk) | Location: ($locOk) | Devices: ($devOk)"
-    return (timeOk && dateOk && locOk && devOk)
-}
-
-Boolean devCondConfigured(type) {
-    return (settings?."cond_${type}" && settings?."cond_${type}_cmd")
-}
-
-Boolean timeCondConfigured() {
-    Boolean startTime = (settings?.cond_time_start_type in ["sunrise", "sunset"] || (settings?.cond_time_start_type == "time" && settings?.cond_time_start))
-    Boolean stopTime = (settings?.cond_time_stop_type in ["sunrise", "sunset"] || (settings?.cond_time_stop_type == "time" && settings?.cond_time_stop))
-    return (startTime && stopTime)
-}
-
-Boolean dateCondConfigured() {
-    Boolean days = (settings?.cond_days)
-    Boolean months = (settings?.cond_months)
-    return (days || months)
-}
-
-Boolean locationCondConfigured() {
-    Boolean mode = (settings?.cond_mode)
-    Boolean alarm = (settings?.cond_alarm)
-    return (mode || alarm)
-}
-
-Boolean deviceCondConfigured() {
-    Boolean swDev = devCondConfigured("switch")
-    Boolean motDev = devCondConfigured("motion")
-    Boolean presDev = devCondConfigured("presence")
-    Boolean conDev = devCondConfigured("contact")
-    Boolean lockDev = devCondConfigured("lock")
-    Boolean garDev = devCondConfigured("door")
-    return (swDev || motDev || presDev || conDev || lockDev || garDev)
-}
-
-Boolean conditionsConfigured() {
-    return (timeCondConfigured() || dateCondConfigured() || locationCondConfigured() || deviceCondConfigured())
+/***********************************************************************************************************************
+	WEATHER ALERTS
+***********************************************************************************************************************/
+def mGetWeatherAlerts() {
+	def data = [:]
+	try {
+		def weather = getTwcAlerts()
+		def type = weather?.alerts?.type[0]
+		def alert = weather?.alerts?.description[0]
+		def expire = weather?.alerts?.expires[0]
+		def typeOk = settings?.myWeatherAlert?.find {a -> a == type}
+		if (typeOk) {
+			if (expire != null) { expire = expire?.replaceAll(~/ EST /, " ")?.replaceAll(~/ CST /, " ")?.replaceAll(~/ MST /, " ")?.replaceAll(~/ PST /, " ") }
+			if (alert != null) {
+				result = alert  + " is in effect for your area, that expires at " + expire
+				if (state?.weatherAlert == null) {
+					state?.weatherAlert = result
+					state?.lastAlert = new Date(now()).format("h:mm aa", location.timeZone)
+					data = [value: result, name: "weather alert", device:"weather"]
+					alertsHandler(data)
+				} else {
+					if (state?.showDebug) { log.debug "new weather alert = ${alert}, expire = ${expire}" }
+					def newAlert = result != state?.weatherAlert ? true : false
+					if (newAlert == true) {
+						state?.weatherAlert = result
+						state?.lastAlert = new Date(now()).format("h:mm aa", location.timeZone)
+						data = [value: result, name: "weather alert", device:"weather"]
+						alertsHandler(data)
+					}
+				}
+			}
+		} else if (firstTime == true) {
+			data = [value: result, name: "weather alert", device:"weather"]
+			alertsHandler(data)
+		}
+	} catch (Throwable t) {
+		log.error t
+		return result
+	}
 }
 
 
-/***********************************************************************************************************
-    ACTION EXECUTION
-************************************************************************************************************/
 
-private executeActTest() {
-    settingUpdate("actTestRun", "false", "bool")
-    executeAction([name: "contact", displayName: "Front Door", value: "open", date: new Date()], true, null, "executeActTest")
-}
 
-String convEvtType(type) {
-    Map typeConv = [
-        "routineExecuted": "Routine",
-        "alarmSystemStatus": "Alarm system",
-        "hsmStatus": "Alarm system"
-    ]
-    return (type && typeConv?.containsKey(type)) ? typeConv[type] : type
-}
-
-String decodeVariables(evt, str) {
-    if(evt && str) {
-        str = (str?.contains("%type%") && evt?.name) ? str?.replaceAll("%type%", convEvtType(evt?.name)) : str
-        str = (str?.contains("%name%") && evt?.displayName) ? str?.replaceAll("%name%", evt?.displayName) : str
-        str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value) : str
-        str = (str?.contains("%date%") && evt?.date) ? str?.replaceAll("%date%", convToDate(evt?.date)) : str
-        str = (str?.contains("%time%") && evt?.date) ? str?.replaceAll("%time%", convToTime(evt?.date)) : str
-        str = (str?.contains("%datetime%") && evt?.date) ? str?.replaceAll("%datetime%", convToDateTime(evt?.date)) : str
-    }
-    return str
-}
 
 /***********************************************************************************************************
    HELPER UTILITES
@@ -2287,6 +2445,19 @@ Boolean areAllDevsSame(List devs, String attr, val) {
 Boolean allDevEqCapVal(List devs, String cap, val) {
     if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size()) }
     return false
+}
+
+Boolean anyDevCapValAbove(List devs, String cap, val) {
+    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() > val?.toDouble() }?.size() >= 1) : false
+}
+Boolean anyDevCapValBelow(List devs, String cap, val) {
+    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() < val?.toDouble() }?.size() >= 1) : false
+}
+Boolean anyDevCapValBetween(List devs, String cap, low, high) {
+    return (devs && cap && low && high) ? (devs?.findAll { ( (it?."current${cap?.capitalize()}"?.toDouble() > low?.toDouble()) && (it?."current${cap?.capitalize()}"?.toDouble() < high?.toDouble()) ) }?.size() >= 1) : false
+}
+Boolean anyDevCapValsEqual(List devs, String cap, val) {
+    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() == val?.toDouble() }?.size() >= 1) : false
 }
 
 Boolean allDevCapValsAbove(List devs, String cap, val) {
@@ -2760,4 +2931,304 @@ def searchTuneInResultsPage() {
             } else { paragraph "No Results found..." }
         }
     }
+}
+
+
+/***********************************************************************************************************************
+	CUSTOM WEATHER VARIABLES
+***********************************************************************************************************************/
+private getWeatherVar(eTxt) {
+	def result
+	// weather variables
+	def weatherToday = mGetWeatherVar("today")
+	def weatherTonight = mGetWeatherVar("tonight")
+	def weatherTomorrow = mGetWeatherVar("tomorrow")
+	def tHigh = mGetWeatherVar("high")
+	def tLow = mGetWeatherVar("low")
+	def tUV = mGetWeatherElements("uv")
+	def tPrecip = mGetWeatherElements("precip")
+	def tHum = mGetWeatherElements("hum")
+	def tCond = mGetWeatherElements("cond")
+	def tWind = mGetWeatherElements("wind")
+	def tSunset = mGetWeatherElements("set")
+	def tSunrise = mGetWeatherElements("rise")
+	def tTemp = mGetWeatherElements("current")
+	//def tWind = mGetWeatherElements("moonphase")
+
+	result = eTxt.replace("&today", "${weatherToday}")?.replace("&tonight", "${weatherTonight}")?.replace("&tomorrow", "${weatherTomorrow}")
+	if (result) { result = result.replace("&high", "${tHigh}")?.replace("&low", "${tLow}")?.replace("&wind", "${tWind}")?.replace("&uv", "${tUV}")?.replace("&precipitation", "${tPrecip}") }
+	if (result) { result = result.replace("&humidity", "${tHum}")?.replace("&conditions", "${tCond}")?.replace("&set", "${tSunset}")?.replace("&rise", "${tSunrise}")?.replace("&current", "${tTemp}") }
+
+	return result
+}
+/***********************************************************************************************************************
+	WEATHER TRIGGERS
+***********************************************************************************************************************/
+def mGetWeatherTrigger() {
+	def data = [:]
+	def myTrigger
+	def process = false
+	try {
+		if (getMetric() == false) {
+			def cWeather = getWeatherFeature("conditions", state?.wZipCode)
+			def cTempF = cWeather?.current_observation?.temp_f.toDouble()
+			int tempF = cTempF as Integer
+			def cRelativeHum = cWeather?.current_observation?.relative_humidity
+			cRelativeHum = cRelativeHum?.replaceAll("%", "")
+			int humid = cRelativeHum as Integer
+			def cWindGustM = cWeather?.current_observation?.wind_gust_mph?.toDouble()
+			int wind = cWindGustM as Integer
+			def cPrecipIn = cWeather?.current_observation?.precip_1hr_in?.toDouble()
+			double precip = cPrecipIn //as double
+				precip = 1 + precip //precip
+			if (state?.showDebug) { log.debug "current triggers: precipitation = $precip, humidity = $humid, wind = $wind, temp = $tempF" }
+			myTrigger = settings?.myWeatherTriggers == "Chance of Precipitation (in/mm)" ? precip : settings?.myWeatherTriggers == "Wind Gust (MPH/kPH)" ? wind : settings?.myWeatherTriggers == "Humidity (%)" ? humid : settings?.myWeatherTriggers == "Temperature (F/C)" ? tempF : null
+		} else {
+			def cWeather = getWeatherFeature("conditions", state?.wZipCode)
+			def cTempC = cWeather?.current_observation?.temp_c?.toDouble()
+				int tempC = cTempC as Integer
+			def cRelativeHum = cWeather?.current_observation?.relative_humidity
+				cRelativeHum = cRelativeHum?.replaceAll("%", "")
+				int humid = cRelativeHum as Integer
+			def cWindGustK = cWeather?.current_observation?.wind_gust_kph?.toDouble()
+				int windC = cWindGustK as Integer
+			def cPrecipM = cWeather?.current_observation?.precip_1hr_metric?.toDouble()
+				double  precipC = cPrecipM as double
+
+			myTrigger = settings?.myWeatherTriggers == "Chance of Precipitation (in/mm)" ? precipC : settings?.myWeatherTriggers == "Wind Gust (MPH/kPH)" ? windC : settings?.myWeatherTriggers == "Humidity (%)" ? humid : settings?.myWeatherTriggers == "Temperature (F/C)" ? tempC : null
+		}
+		def myTriggerName = settings?.myWeatherTriggers == "Chance of Precipitation (in/mm)" ? "Precipitation" : settings?.myWeatherTriggers == "Wind Gust (MPH/kPH)" ? "Wind Gusts" : settings?.myWeatherTriggers == "Humidity (%)" ? "Humidity" : settings?.myWeatherTriggers == "Temperature (F/C)" ? "Temperature" : null
+		if (settings?.myWeatherTriggersS == "above" && state.cycleOnA == false) {
+			def var = myTrigger > settings?.myWeatherThreshold
+			if (state?.showDebug) { log.debug  " myTrigger = $myTrigger, myWeatherThreshold = ${settings?.myWeatherThreshold}, myWeatherTriggersS = ${settings?.myWeatherTriggersS}, var = $var" }
+			if (myTrigger > settings?.myWeatherThreshold) {
+				process = true
+				state.cycleOnA = process
+				state.cycleOnB = false
+			}
+		}
+		if (settings?.myWeatherTriggersS == "below" && state.cycleOnB == false) {
+			def var = myTrigger <= settings?.myWeatherThreshold
+			if (state?.showDebug) { log.debug  " myTrigger = $myTrigger, myWeatherThreshold = ${settings?.myWeatherThreshold} myWeatherTriggersS = ${settings?.myWeatherTriggersS}, var = $var" }
+			if (myTrigger <= settings?.myWeatherThreshold) {
+				process = true
+				state.cycleOnA = false
+				state.cycleOnB = process
+			}
+		}
+		if (process == true) {
+			//data = [value:"${myTrigger}", name:"${settings?.myWeatherTriggers}", device:"${settings?.myWeatherTriggers}"] 4/5/17 Bobby
+			data = [value:"${myTrigger}", name:"weather", device:"${myTriggerName}"]
+			alertsHandler(data)
+		}
+	} catch (Throwable t) {
+		log.error t
+		return result
+	}
+}
+
+/***********************************************************************************************************************
+	HOURLY FORECAST
+***********************************************************************************************************************/
+def mGetCurrentWeather() {
+	def weatherData = [:]
+	def data = [:]
+   	def result
+	try {
+		//hourly updates
+		def cWeather = getWeatherFeature("hourly", state?.wZipCode)
+		def cWeatherCondition = cWeather?.hourly_forecast[0]?.condition
+		def cWeatherPrecipitation = cWeather?.hourly_forecast[0]?.pop + " percent"
+		def cWeatherWind = cWeather?.hourly_forecast[0]?.wspd?.english + " miles per hour"
+		def cWeatherWindC = cWeather?.hourly_forecast[0]?.wspd?.metric + " kilometers per hour"
+		if (getMetric() == true) { cWeatherWind = cWeatherWindC }
+		def cWeatherHum = cWeather?.hourly_forecast[0]?.humidity + " percent"
+		def cWeatherUpdate = cWeather?.hourly_forecast[0]?.FCTTIME?.civil
+		//past hour's data
+		def pastWeather = state.lastWeather
+		//current forecast
+			weatherData.wCond = cWeatherCondition
+			weatherData.wWind = cWeatherWind
+			weatherData.wHum = cWeatherHum
+			weatherData.wPrecip = cWeatherPrecipitation
+		//last weather update
+		def lastUpdated = new Date(now()).format("h:mm aa", location.timeZone)
+		if (settings?.myWeather) {
+			if (pastWeather == null) {
+				state.lastWeather = weatherData
+				state.lastWeatherCheck = lastUpdated
+				result = "hourly weather forcast notification has been activated at " + lastUpdated + " You will now receive hourly weather updates, only if the forecast data changes"
+				data = [value: result, name: "weather alert", device: "weather"]
+				alertsHandler(data)
+			} else {
+				def wUpdate = pastWeather.wCond != cWeatherCondition ? "current weather condition" : pastWeather.wWind != cWeatherWind ? "wind intensity" : pastWeather.wHum != cWeatherHum ? "humidity" : pastWeather.wPrecip != cWeatherPrecipitation ? "chance of precipitation" : null
+				def wChange = wUpdate == "current weather condition" ? cWeatherCondition : wUpdate == "wind intensity" ? cWeatherWind  : wUpdate == "humidity" ? cWeatherHum : wUpdate == "chance of precipitation" ? cWeatherPrecipitation : null
+				//something has changed
+				if (wUpdate != null) {
+					// saving update to state
+					state.lastWeather = weatherData
+					state.lastWeatherCheck = lastUpdated
+					if (settings?.myWeather == "Any Weather Updates") {
+						def condChanged = pastWeather.wCond != cWeatherCondition
+						def windChanged = pastWeather.wWind != cWeatherWind
+						def humChanged = pastWeather.wHum != cWeatherHum
+						def precChanged = pastWeather.wPrecip != cWeatherPrecipitation
+						if (condChanged) {
+							result = "The hourly weather forecast has been updated. The weather condition has been changed to "  + cWeatherCondition
+						}
+						if (windChanged) {
+							if (result) { result = result +  ", the wind intensity to "  + cWeatherWind }
+							else { result = "The hourly weather forecast has been updated. The wind intensity has been changed to "  + cWeatherWind }
+						}
+						if (humChanged) {
+							if (result) {result = result +  ", the humidity to "  + cWeatherHum }
+							else { result = "The hourly weather forecast has been updated. The humidity has been changed to "  + cWeatherHum }
+						}
+						if (precChanged) {
+							if (result) {result = result + ", the chance of rain to "  + cWeatherPrecipitation }
+							else { result = "The hourly weather forecast has been updated. The chance of rain has been changed to "  + cWeatherPrecipitation }
+						}
+						data = [value: result, name: "weather alert", device: "weather"]
+						alertsHandler(data)
+					}
+					else {
+						if (settings?.myWeather == "Weather Condition Changes" && wUpdate ==  "current weather condition") {
+							result = "The " + wUpdate + " has been updated to " + wChange
+							data = [value: result, name: "weather alert", device: "weather"]
+							alertsHandler(data)
+						}
+						else if (settings?.myWeather == "Chance of Precipitation Changes" && wUpdate ==  "chance of precipitation") {
+							result = "The " + wUpdate + " has been updated to " + wChange
+							data = [value: result, name: "weather alert", device: "weather"]
+							alertsHandler(data)
+						}
+						else if (settings?.myWeather == "Wind Speed Changes" && wUpdate == "wind intensity") {
+							result = "The " + wUpdate + " has been updated to " + wChange
+							data = [value: result, name: "weather alert", device: "weather"]
+							alertsHandler(data)
+						}
+						else if (settings?.myWeather == "Humidity Changes" && wUpdate == "humidity") {
+							result = "The " + wUpdate + " has been updated to " + wChange
+							data = [value: result, name: "weather alert", device: "weather"]
+							alertsHandler(data)
+						}
+					}
+				}
+			}
+		}
+	} catch (Throwable t) {
+		log.error t
+		return result
+	}
+}
+
+
+/***********************************************************************************************************************
+	WEATHER ELEMENTS
+***********************************************************************************************************************/
+def mGetWeatherElements(element) {
+	state.pTryAgain = false
+	def result ="Current weather is not available at the moment, please try again later"
+   	try {
+		//hourly updates
+		def cWeather = getWeatherFeature("hourly", state?.wZipCode)
+		def cWeatherCondition = cWeather?.hourly_forecast[0]?.condition
+		def cWeatherPrecipitation = cWeather?.hourly_forecast[0]?.pop + " percent"
+		def cWeatherWind = cWeather?.hourly_forecast[0]?.wspd?.english + " miles per hour"
+		def cWeatherHum = cWeather?.hourly_forecast[0]?.humidity + " percent"
+		def cWeatherUpdate = cWeather?.hourly_forecast[0]?.FCTTIME?.civil //forecast last updated time E.G "11:00 AM",
+		//current conditions
+		def condWeather = getWeatherFeature("conditions", state?.wZipCode)
+		def condTodayUV = condWeather?.current_observation?.UV
+  		def currentT = condWeather?.current_observation?.temp_f
+			int currentNow = currentT
+		//forecast
+		def forecastT = getWeatherFeature("forecast", state?.wZipCode)
+		def fToday = forecastT?.forecast?.simpleforecast?.forecastday[0]
+		def high = fToday?.high?.fahrenheit?.toInteger()
+	   		int highNow = high
+		def low = fToday?.low?.fahrenheit?.toInteger()
+			int lowNow = low
+		//sunset, sunrise, moon, tide
+		def s = getWeatherFeature("astronomy", state?.wZipCode)
+		def sunriseHour = s?.moon_phase?.sunrise?.hour
+		def sunriseTime = s?.moon_phase?.sunrise?.minute
+		def sunrise = sunriseHour + ":" + sunriseTime
+			Date date = Date.parse("HH:mm",sunrise)
+			def sunriseNow = date.format( "h:mm aa" )
+		def sunsetHour = s?.moon_phase?.sunset?.hour
+		def sunsetTime = s?.moon_phase?.sunset?.minute
+		def sunset = sunsetHour + ":" + sunsetTime
+			date = Date.parse("HH:mm", sunset)
+			def sunsetNow = date.format( "h:mm aa" )
+			if (getMetric() == true) {
+				def cWeatherWindC = cWeather?.hourly_forecast[0]?.wspd?.metric + " kilometers per hour"
+					cWeatherWind = cWeatherWindC
+				def currentTc = condWeather?.current_observation?.temp_c
+					currentNow = currentTc
+				def highC = fToday?.high?.celsius
+					highNow = currentTc
+				def lowC = fToday?.low?.celsius
+					lowNow = currentTc
+			}
+		if (state?.showDebug) { log.debug "cWeatherUpdate = ${cWeatherUpdate}, cWeatherCondition = ${cWeatherCondition}, cWeatherPrecipitation = ${cWeatherPrecipitation}, cWeatherWind = ${cWeatherWind},  cWeatherHum = ${cWeatherHum}, cWeatherHum = ${condTodayUV}" }
+			if		(element == "precip" ) { result = cWeatherPrecipitation }
+			else if	(element == "wind") { result = cWeatherWind }
+			else if	(element == "uv") { result = condTodayUV }
+			else if	(element == "hum") { result = cWeatherHum }
+			else if	(element == "cond") { result = cWeatherCondition }
+			else if	(element == "current") { result = currentNow }
+			else if	(element == "rise") { result = sunriseNow }
+			else if	(element == "set") { result = sunsetNow }
+ 			else if	(element == "high") { result = highNow }
+			else if	(element == "low") { result = lowNow }
+
+			return result
+	} catch (Throwable t) {
+		log.error t
+		state.pTryAgain = true
+		return result
+	}
+}
+/***********************************************************************************************************************
+	WEATHER TEMPS
+***********************************************************************************************************************/
+def private mGetWeatherVar(var) {
+	state.pTryAgain = false
+	def result
+	try {
+		def weather = getWeatherFeature("forecast", state?.wZipCode)
+		def sTodayWeather = weather?.forecast?.simpleforecast?.forecastday[0]
+		if (var =="high") { result = sTodayWeather?.high?.fahrenheit }
+		if (var == "low") { result = sTodayWeather?.low?.fahrenheit }
+		if (var =="today") { result = 	weather?.forecast?.txt_forecast?.forecastday[0]?.fcttext }
+		if (var =="tonight") { result = weather?.forecast?.txt_forecast?.forecastday[1]?.fcttext }
+		if (var =="tomorrow") { result = weather?.forecast?.txt_forecast?.forecastday[2]?.fcttext }
+
+		if (getMetric() == true) {
+			if (var =="high") { result = weather?.forecast?.simpleforecast?.forecastday[0]?.high?.celsius }
+			if (var == "low") { result = weather?.forecast?.simpleforecast?.forecastday[0]?.low?.celsius }
+			if (var =="today") { result = 	weather?.forecast?.txt_forecast?.forecastday[0]?.fcttext_metric }
+			if (var =="tonight") { result = weather?.forecast?.txt_forecast?.forecastday[1]?.fcttext_metric }
+			if (var =="tomorrow") { result = weather?.forecast?.txt_forecast?.forecastday[2]?.fcttext_metric }
+			result = result?.toString()
+			result = result?.replaceAll(/([0-9]+)C/,'$1 degrees')
+		}
+		result = result?.toString()
+		result = result?.replaceAll(/([0-9]+)F/,'$1 degrees')?.replaceAll(~/mph/, " miles per hour")
+		// clean up wind direction (South)
+		result = result?.replaceAll(~/ SSW /, " South-southwest ")?.replaceAll(~/ SSE /, " South-southeast ")?.replaceAll(~/ SE /, " Southeast ")?.replaceAll(~/ SW /, " Southwest ")
+		// clean up wind direction (North)
+		result = result?.replaceAll(~/ NNW /, " North-northwest ")?.replaceAll(~/ NNE /, " North-northeast ")?.replaceAll(~/ NE /, " Northeast ")?.replaceAll(~/ NW /, " Northwest ")
+		// clean up wind direction (West)
+		result = result?.replaceAll(~/ WNW /, " West-northwest ")?.replaceAll(~/ WSW /, " West-southwest ")
+		// clean up wind direction (East)
+		result = result?.replaceAll(~/ ENE /, " East-northeast ")?.replaceAll(~/ ESE /, " East-southeast ")
+
+		return result
+	} catch (Throwable t) {
+		log.error t
+		state.pTryAgain = true
+		return result
+	}
 }
