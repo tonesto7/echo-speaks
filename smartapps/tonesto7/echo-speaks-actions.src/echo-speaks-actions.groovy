@@ -1031,6 +1031,12 @@ def cleanupDevSettings(prefix) {
     // rem?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
+Boolean customTxtConfigured() {
+    def trigs = settings?.triggerEvents
+    trigs?.each { if( settings?."trig_${it}_txt" ) return true }
+    return false
+}
+
 def variableDesc() {
     if(state?.showSpeakEvtVars) {
         paragraph pTS("You are using device/location triggers.\nYou can choose to leave the text empty and text will be generated for each event.")
@@ -1044,6 +1050,7 @@ def variableDesc() {
         varStr += "\nContact example: %name% has been %open%"
         paragraph varStr
     }
+    if(customTxtConfigured())
 }
 
 def updateActionExecMap(data) {
@@ -1209,7 +1216,7 @@ private getConfStatusItem(item) {
 
 private appCleanup() {
     // State Cleanup
-    List items = []
+    List items = ["afterEvtMap"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     // Settings Cleanup
     List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest"]
@@ -1427,6 +1434,7 @@ def devAfterEvtHandler(evt) {
         if(dcaf == null || (dc != null && evt?.value != null && dc != evt?.value)) {
             ok = false
             afterEvtMap?.remove("${evt?.deviceId}_${evt?.name}")
+            log.trace "Removing ${evt?.displayName} | ${evt?.name?.toUpperCase()} from AfterEvtMap | Remaining Items: (${afterEvtMap?.size()})"
         }
     }
 
@@ -1440,34 +1448,37 @@ def afterCheckHandler() {
     Map aEvtMap = atomicState?.afterEvtMap ?: [:]
     String activeSched = state?.afterCheckActiveScheduleId ?: null
     if(aEvtMap?.size()) {
-        Integer lowWait = aEvtMap?.findAll { it?.value?.wait != null }?.collect { it?.value?.wait }?.min()
-        def nextItem = aEvtMap?.find { it?.value?.wait == lowWait }
-        def nextVal = nextItem?.value ?: null
-        log.debug "nextVal: $nextVal"
-        if(nextVal) {
-            def nextId = "${nextVal?.deviceId}_${nextVal?.name}"
-            def prevDt = parseDate(nextVal?.dt?.toString())
-            if(prevDt) {
-                def evtElap = (int) ((long)(new Date()?.getTime() - prevDt?.getTime())/1000)
-                def reqDur = nextVal?.wait ?: null
-                def timeLeft = (reqDur - evtElap)
-                Boolean ok2Sched = false
-                log.info "Last ${nextVal?.name?.toString()?.capitalize()} Event for Device Occurred: (${evtElap} sec ago) | TimeLeft: ${timeLeft}"
-                if(timeLeft) {
-                    if(timeLeft < reqDur && nextVal?.deviceId && nextVal?.name) {
-                        afterEvtMap?.remove(nextId)
-                        // TODO: Send the evt to executeAction process text
-                        log.debug "${nextVal?.name?.toString()?.capitalize()} Event has reached the threshold for ${nextVal?.displayName} | Duration: ${evtElap} | Required: ${reqDur}"
-                        // deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name])
-                    } else {
-                        ok2Sched = true
+        // aEvtMap?.each { ae->
+            Integer lowWait = aEvtMap?.findAll { it?.value?.wait != null }?.collect { it?.value?.wait }?.min()
+            def nextItem = aEvtMap?.find { it?.value?.wait == lowWait }
+            def nextVal = nextItem?.value ?: null
+            log.debug "nextVal: $nextVal"
+            if(nextVal) {
+                def nextId = "${nextVal?.deviceId}_${nextVal?.name}"
+                def prevDt = parseDate(nextVal?.dt?.toString())
+                if(prevDt) {
+                    def evtElap = (int) ((long)(new Date()?.getTime() - prevDt?.getTime())/1000)
+                    def reqDur = nextVal?.wait ?: null
+                    def timeLeft = (reqDur - evtElap)
+                    Boolean ok2Sched = false
+                    log.info "Last ${nextVal?.name?.toString()?.capitalize()} Event for Device Occurred: (${evtElap} sec ago) | TimeLeft: ${timeLeft}"
+                    if(timeLeft) {
+                        if(timeLeft < reqDur && nextVal?.deviceId && nextVal?.name) {
+                            aEvtMap?.remove(nextId)
+                            // TODO: Send the evt to executeAction process text
+                            log.debug "${nextVal?.name?.toString()?.capitalize()} Event has reached the threshold for ${nextVal?.displayName} | Duration: ${evtElap} | Required: ${reqDur}"
+                            // deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name])
+                        } else {
+                            ok2Sched = true
+                        }
                     }
-                }
-                if(ok2Sched) { scheduleAfterCheck(reqDur, nextId) }
+                    if(ok2Sched) { scheduleAfterCheck(reqDur, nextId) }
 
+                }
             }
-        }
+        // }
         atomicState?.afterEvtMap = aEvtMap
+        log.trace "afterCheckHandler Remaining Items: (${aEvtMap?.size()}) | ${aEvtMap}"
     }
     state?.lastAfterEvtCheck = getDtNow()
 }
@@ -1482,8 +1493,6 @@ def deviceEvtHandler(evt) {
     Boolean dca = (settings?."trig_${evt?.name}_all" == true)
     Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
     log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-
-
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     switch(evt?.name) {
         case "switch":
