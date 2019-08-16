@@ -16,24 +16,24 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "3.0.0" }
-String appModified() { return "2019-08-15" }
+String appModified() { return "2019-08-16" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Map minVersions()    { return [echoDevice: 300, actionApp: 300, server: 222] } //These values define the minimum versions of code this app will work with.
 
 definition(
-    name       : "Echo Speaks",
-    namespace  : "tonesto7",
-    author     : "Anthony Santilli",
-    description: "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
-    category   : "My Apps",
-    iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x${state?.updateAvailable ? "_update" : ""}.png",
-    iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x${state?.updateAvailable ? "_update" : ""}.png",
-    iconX3Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x${state?.updateAvailable ? "_update" : ""}.png",
-    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
-    pausable   : true,
-    oauth      : true
+    name        : "Echo Speaks",
+    namespace   : "tonesto7",
+    author      : "Anthony Santilli",
+    description : "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
+    category    : "My Apps",
+    iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x${state?.updateAvailable ? "_update" : ""}.png",
+    iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x${state?.updateAvailable ? "_update" : ""}.png",
+    iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x${state?.updateAvailable ? "_update" : ""}.png",
+    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
+    oauth       : true,
+    pausable    : true
 )
 
 preferences {
@@ -114,7 +114,7 @@ def mainPage() {
 
             def acts = getActionApps()
             section(sTS("Actions:")) {
-                paragraph "Actions allows you to create automation triggers from device/location events and can perform advanced functions using your Alexa device."
+                paragraph "Create automation triggers from device/location events and perform advanced functions using your Alexa device."
                 href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: getActionsDesc(), state: (acts?.size() ? "complete" : null), image: getAppImg("es_actions")
             }
 
@@ -1052,7 +1052,7 @@ def uninstalled() {
 }
 
 def subscribeToEvts() {
-    subscribe(app, onAppTouch)
+    if(isST()) { subscribe(app, onAppTouch) }
     if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
         subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", guardTriggerEvtHandler)
     }

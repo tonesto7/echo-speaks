@@ -316,7 +316,7 @@ def triggersPage() {
                                 input "trig_carbonMonoxide_all", "bool", title: inTS("Require ALL Smoke Detectors to be (${settings?.trig_carbonMonoxide_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                             }
                             //Custom Text Options
-                            paragraph "You can set custom responses for this event here. \nCreate a list of randomly selectable resps by separating each item with a ;"
+                            paragraph "Description:\nYou can set custom responses for each carbon monoxide event.\nNotice: These are only used if Speech or Announcement action are selected.\nFYI: To allow multiple random responses just separate each response with a ;"
                             input "trig_carbon_txt", "text", title: inTS("Custom Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
                         }
                     }
@@ -333,7 +333,7 @@ def triggersPage() {
                                 input "trig_smoke_all", "bool", title: inTS("Require ALL Smoke Detectors to be (${settings?.trig_smoke_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                             }
                             //Custom Text Options
-                            paragraph "You can set custom responses for this event here. \nCreate a list of randomly selectable resps by separating each item with a ;"
+                            paragraph "Description:\nYou can set custom responses for each smoke event.\nNotice: These are only used if Speech or Announcement action are selected.\nFYI: To allow multiple random responses just separate each response with a ;"
                             input "trig_smoke_txt", "text", title: inTS("Custom Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
                         }
                     }
@@ -398,7 +398,7 @@ def triggersPage() {
                             input "trig_thermostat_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_thermostat_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                             //Custom Text Options
-                            paragraph "You can set custom responses for this event here. \nCreate a list of randomly selectable resps by separating each item with a ;"
+                            paragraph "Description:\nYou can set custom responses for each thermostat event.\nNotice: These are only used if Speech or Announcement action are selected.\nFYI: To allow multiple random responses just separate each response with a ;"
                             input "trig_thermostat_txt", "text", title: inTS("Custom Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
                         }
                     }
@@ -480,8 +480,13 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                 input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                 input "trig_${inType}_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                 //Custom Text Options
-                paragraph "You can set custom responses for this event here. \nCreate a list of randomly selectable resps by separating each item with a ;"
-                input "trig_${inType}_txt", "text", title: inTS("Custom Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
+                paragraph "Description:\nYou can set custom responses for each ${inType} event.\nNotice: These are only used if Speech or Announcement action are selected.\nFYI: To allow multiple random responses just separate each response with a ;"
+                input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
+                if(settings?."trig_${inType}_after_repeat") {
+                    //Custom Repeat Text Options
+                    paragraph "Description:\nAdd custom responses for the ${inType} events that are repeated.\nTo allow multiple random responses just separate each response with a ;"
+                    input "trig_${inType}_after_repeat_txt", "text", title: inTS("Custom ${inType?.capitalize()} Repeat Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
+                }
             }
         }
     }
@@ -508,8 +513,8 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                 input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                 input "trig_${inType}_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                 //Custom Text Options
-                paragraph "You can set custom responses for this event here. \nCreate a list of randomly selectable resps by separating each item with a ;"
-                input "trig_${inType}_txt", "text", title: inTS("Custom Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
+                paragraph "Description:\nYou can set custom responses for each ${inType} event.\nNotice: These are only used if Speech or Announcement action are selected.\nFYI: To allow multiple random responses just separate each response with a ;"
+                input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
             }
         }
     }
@@ -674,7 +679,6 @@ def actionsPage() {
             List devices = parent?.getDevicesFromList(settings?.act_EchoDevices)
             switch(actionType) {
                 case "speak":
-                    // TODO: Maybe add a custom text input for every trigger type?!?!?
                     String ssmlTestUrl = "https://topvoiceapps.com/ssml"
                     String ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
                     String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
@@ -698,7 +702,7 @@ def actionsPage() {
                             paragraph pTS("Reminder\nIf entering SSML be sure to wrap the text in <speak></speak>", getAppImg("info", true))
                         }
                         actionVolumeInputs(devices)
-                        actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: (state?.showSpeakEvtVars && !settings?.act_speak_txt)]
+                        actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
                         if(state?.showSpeakEvtVars || act_speak_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -714,7 +718,7 @@ def actionsPage() {
                             input "act_announcement_txt", "text", title: inTS("Enter Text to announce", getAppImg("text", true)), submitOnChange: true, required: false, image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
-                        actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt, evtText: (state?.showSpeakEvtVars && !settings?.act_speak_txt)]
+                        actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
                         if(settings?.act_EchoDevices?.size() > 1) {
                             List devObj = []
                             devices?.each { devObj?.push([deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]]) }
@@ -1031,26 +1035,52 @@ def cleanupDevSettings(prefix) {
     // rem?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
-Boolean customTxtConfigured() {
-    def trigs = settings?.triggerEvents
-    trigs?.each { if( settings?."trig_${it}_txt" ) return true }
+Map customTxtItems() {
+    Map items = [:]
+    settings?.triggerEvents?.each { tr->
+        if(settings?."trig_${tr}_txt") { if(!items[tr]) { items[tr] = [:]; }; items[tr]?.event = settings?."trig_${tr}_txt"?.toString()?.tokenize(";"); }
+        if(settings?."trig_${tr}_after_repeat_txt") { if(!items[tr]) { items[tr] = [:]; };  items[tr]?.repeat = settings?."trig_${tr}_after_repeat_txt"?.toString()?.tokenize(";"); }
+    }
+    return items
+}
+
+Boolean hasUserDefinedTxt() {
+    List items = []
+    settings?.triggerEvents?.each {
+        if(settings?."trig_${it}_txt") { return true }
+        if(settings?."trig_${it}_after_repeat_txt") { return true }
+    }
     return false
 }
 
-def variableDesc() {
+def variableDesc(hideUserTxt=false) {
     if(state?.showSpeakEvtVars) {
         paragraph pTS("You are using device/location triggers.\nYou can choose to leave the text empty and text will be generated for each event.")
-        String varStr = "You can also use variables with your text"
-        varStr += "\n • %type% = Event Type"
-        varStr += "\n • %value% = Event Value"
-        varStr += "\n • %name% = Event Name"
-        varStr += "\n • %date% = Event Date"
-        varStr += "\n • %time% = Event Time"
-        varStr += "\n • %datetime% = Event Date/Time"
-        varStr += "\nContact example: %name% has been %open%"
-        paragraph varStr
+        String str = "You can also use variables with your text"
+        str += "\n • %type% = Event Type"
+        str += "\n • %value% = Event Value"
+        str += "\n • %name% = Event Device"
+        str += "\n • %date% = Event Date"
+        str += "\n • %time% = Event Time"
+        str += "\n • %datetime% = Event Date/Time"
+        str += "\nContact example: %name% has been %open%"
+        paragraph str, state: "complete"
     }
-    if(customTxtConfigured())
+    if(!hideUserTxt) {
+        Map txtItems = customTxtItems()
+        if(txtItems?.size()) {
+            String str = "< User Defined Event Text >"
+            txtItems?.each { i->
+                i?.value?.each { i2->
+                    str += "\n \u2022 ${i?.key?.toString()?.capitalize()} ${i2?.key?.toString()?.capitalize()} Items:"
+                    if(i2?.value?.size()) { i2?.value?.each { i3-> str += "\n   - ${i3}" } }
+                }
+                str += "\n"
+            }
+            paragraph str
+            paragraph pTS("Notice:\nEntering text on the Actions Page will override the user defined text for each trigger type.", getAppImg("info", true)), image: getAppImg("info"), state: "complete"
+        }
+    }
 }
 
 def updateActionExecMap(data) {
@@ -1216,7 +1246,7 @@ private getConfStatusItem(item) {
 
 private appCleanup() {
     // State Cleanup
-    List items = ["afterEvtMap"]
+    List items = ["afterEvtMap", "afterEvtChkSchedMap", "afterCheckActiveScheduleId", "afterEvtChkSchedId"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     // Settings Cleanup
     List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest"]
@@ -1374,6 +1404,13 @@ private subscribeToEvts() {
     if (valTrigEvt("thermostat")) {
         if(settings?.trig_thermostat) { subscribe(settings?.trig_thermostat, "thermostat", deviceEvtHandler) }
     }
+
+    settings?.triggerEvents?.each {
+        if(settings?."trig_${it}_after") {
+            runEvery1Minute("afterEvtCheckWatcher")
+            return
+        }
+    }
 }
 
 private attributeConvert(String attr) {
@@ -1419,71 +1456,96 @@ def alarmEvtHandler(evt) {
             break
     }
 }
-Integer getLastAfterEvtCheck() { return !state?.lastAfterEvtCheck ? 100000 : GetTimeDiffSeconds(state?.lastAfterEvtCheck, "getLastAfterEvtCheck").toInteger() }
+Integer getLastAfterEvtCheck() { return !state?.lastAfterEvtCheck ? 10000000 : GetTimeDiffSeconds(state?.lastAfterEvtCheck, "getLastAfterEvtCheck").toInteger() }
 
+
+def afterEvtCheckWatcher() {
+    Map aEvtMap = atomicState?.afterEvtMap ?: [:]
+    Map aSchedMap = atomicState?.afterEvtChkSchedMap ?: null
+    if((aEvtMap?.size() == 0 && aSchedMap && aSchedMap?.id) || (aEvtMap?.size() && getLastAfterEvtCheck() > 240000)) {
+        runIn(2, "afterEvtCheckHandler")
+    }
+}
 
 def devAfterEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     Boolean ok = true
-    Map afterEvtMap = atomicState?.afterEvtMap ?: [:]
+    Map aEvtMap = atomicState?.afterEvtMap ?: [:]
     def evtDt = parseDate(evt?.date?.toString())
     String dc = settings?."trig_${evt?.name}_cmd" ?: null
     Integer dcaf = settings?."trig_${evt?.name}_after" ?: null
-    log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
-    if(afterEvtMap?.containsKey("${evt?.deviceId}_${evt?.name}")) {
-        if(dcaf == null || (dc != null && evt?.value != null && dc != evt?.value)) {
-            ok = false
-            afterEvtMap?.remove("${evt?.deviceId}_${evt?.name}")
-            log.trace "Removing ${evt?.displayName} | ${evt?.name?.toUpperCase()} from AfterEvtMap | Remaining Items: (${afterEvtMap?.size()})"
+    String eid = "${evt?.deviceId}_${evt?.name}"
+    Boolean schedChk = (dc && dcaf && evt?.value == dc)
+    log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})"
+    if(aEvtMap?.containsKey(eid)) {
+        if(dcaf && !schedChk) {
+            aEvtMap?.remove(eid)
+            log.warn "Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${evt?.name?.toUpperCase()}) has the Desired State of (${dc}) | Remaining Items: (${aEvtMap?.size()})"
         }
     }
-
-    if(ok) { afterEvtMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), deviceId: evt?.deviceId, displayName: evt?.displayName, name: evt?.name, wantedState: dc, currentState: evt?.value, wait: dcaf ? (dcaf*60) : null ] }
-    // log.debug "evtWaitRestrictionOk: $ok"
-    atomicState?.afterEvtMap = afterEvtMap
-    runIn(2, "afterCheckHandler")
+    ok = schedChk
+    if(ok) { aEvtMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), deviceId: evt?.deviceId, displayName: evt?.displayName, name: evt?.name, value: evt?.value, triggerState: dc, wait: dcaf ? (dcaf*60) : null, repeat: false] }
+    atomicState?.afterEvtMap = aEvtMap
+    if(ok) { runIn(2, "afterEvtCheckHandler") }
 }
 
-def afterCheckHandler() {
+def afterEvtCheckHandler() {
     Map aEvtMap = atomicState?.afterEvtMap ?: [:]
-    String activeSched = state?.afterCheckActiveScheduleId ?: null
     if(aEvtMap?.size()) {
-        // aEvtMap?.each { ae->
-            Integer lowWait = aEvtMap?.findAll { it?.value?.wait != null }?.collect { it?.value?.wait }?.min()
-            def nextItem = aEvtMap?.find { it?.value?.wait == lowWait }
-            def nextVal = nextItem?.value ?: null
-            log.debug "nextVal: $nextVal"
-            if(nextVal) {
-                def nextId = "${nextVal?.deviceId}_${nextVal?.name}"
-                def prevDt = parseDate(nextVal?.dt?.toString())
-                if(prevDt) {
-                    def evtElap = (int) ((long)(new Date()?.getTime() - prevDt?.getTime())/1000)
-                    def reqDur = nextVal?.wait ?: null
-                    def timeLeft = (reqDur - evtElap)
-                    Boolean ok2Sched = false
-                    log.info "Last ${nextVal?.name?.toString()?.capitalize()} Event for Device Occurred: (${evtElap} sec ago) | TimeLeft: ${timeLeft}"
-                    if(timeLeft) {
-                        if(timeLeft < reqDur && nextVal?.deviceId && nextVal?.name) {
-                            aEvtMap?.remove(nextId)
-                            // TODO: Send the evt to executeAction process text
-                            log.debug "${nextVal?.name?.toString()?.capitalize()} Event has reached the threshold for ${nextVal?.displayName} | Duration: ${evtElap} | Required: ${reqDur}"
-                            // deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name])
+        // Collects all of the evt items and stores there wait values as a list
+        Integer timeLeft = null
+        Boolean ok2Sched = true
+        Integer lowWait = aEvtMap?.findAll { it?.value?.wait != null }?.collect { it?.value?.wait }?.min()
+        Integer lowLeft = aEvtMap?.findAll { it?.value?.wait == lowWait }?.collect { it?.value?.timeLeft} ?.min()
+        def nextItem = aEvtMap?.find { it?.value?.wait == lowWait && it?.value?.timeLeft == lowLeft }
+        def nextVal = nextItem?.value ?: null
+        def nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal?.deviceId}_${nextVal?.name}" : null
+        // log.debug "nextVal: $nextVal"
+        if(nextVal) {
+            def prevDt = nextVal?.repeat && nextVal?.repeatDt ? parseDate(nextVal?.repeatDt?.toString()) : parseDate(nextVal?.dt?.toString())
+            def devs = settings?."trig_${nextVal?.name}" ?: null
+            Boolean repeat = (settings?."trig_${nextVal?.name}_after_repeat" != null)
+            if(prevDt) {
+                def evtElap = (int) ((long)(new Date()?.getTime() - prevDt?.getTime())/1000)
+                def reqDur = nextVal?.wait ?: null
+                timeLeft = (reqDur - evtElap)
+
+                aEvtMap[nextItem?.key]?.timeLeft = timeLeft
+                aEvtMap[nextItem?.key]?.repeat = repeat
+                // log.info "Last ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | Duration: ${evtElap} | Required: ${reqDur}"
+                if(timeLeft) {
+                    if(timeLeft <= 0 && nextVal?.deviceId && nextVal?.name) {
+                        Boolean skipEvt = (nextVal?.triggerState && nextVal?.deviceId && nextVal?.name && devs) ? !devCapValEqual(devs, nextVal?.deviceId, nextVal?.name, nextVal?.triggerState) : true
+                        if(!skipEvt) {
+                            if(repeat) {
+                                log.info "Last ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | Duration: ${evtElap} | Required: ${reqDur}"
+                                aEvtMap[nextItem?.key]?.repeatDt = formatDt(new Date())
+                                deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value], true, true)
+                            } else {
+                                aEvtMap?.remove(nextId)
+                                log.warn "${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) Reached the (${nextVal?.triggerState}) Threshold for (${reqDur} seconds)"
+                                deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value], true)
+                            }
                         } else {
-                            ok2Sched = true
+                            aEvtMap?.remove(nextId)
+                            log.info "${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) state is already ${nextVal?.triggerState} | Skipping Actions..."
                         }
                     }
-                    if(ok2Sched) { scheduleAfterCheck(reqDur, nextId) }
-
                 }
+
             }
-        // }
+        }
+        if(ok2Sched) {
+            log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
+            runIn(2, "scheduleAfterCheck", [data: [val:timeLeft, id:nextId]])
+        }
         atomicState?.afterEvtMap = aEvtMap
-        log.trace "afterCheckHandler Remaining Items: (${aEvtMap?.size()}) | ${aEvtMap}"
-    }
+        log.trace "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})"
+    } else { clearAfterCheckSchedule() }
     state?.lastAfterEvtCheck = getDtNow()
 }
 
-def deviceEvtHandler(evt) {
+def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     def evtDelay = now() - evt?.date?.getTime()
     String custText = null
     Boolean evtOk = false
@@ -1492,7 +1554,11 @@ def deviceEvtHandler(evt) {
     Boolean dco = (settings?."trig_${evt?.name}_once" == true)
     Boolean dca = (settings?."trig_${evt?.name}_all" == true)
     Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
-    log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    String dct = settings?."trig_${evt?.name}_txt" ?: null
+    String dcart = isAfterEvt ? settings?."trig_${evt?.name}_after_repeat_txt" : null
+    List evtTxtItems = dct ? dct?.toString()?.tokenize(";") : null
+    List repeatTxtItems = dcart ? dcart?.toString()?.tokenize(";") : null
+    log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (AfterEvt)" : ""}"
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     switch(evt?.name) {
         case "switch":
@@ -1509,19 +1575,35 @@ def deviceEvtHandler(evt) {
             if(d?.size() && dc) {
                 if(dc == "any") {
                     evtOk = true
-                    custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                    if(aftRepEvt) {
+                        custText = (repeatTxtItems?.size()) ? decodeVariables(evt, getRandomItem(repeatTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                    } else {
+                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                    }
                 } else {
                     if(dca && (allDevEqCapVal(d, dc, evt?.value))) {
                         evtOk = true
                         if(d?.size() > 1) {
-                            custText = "All ${d?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
+                            if(aftRepEvt) {
+                                custText = (repeatTxtItems?.size()) ? decodeVariables(evt, getRandomItem(repeatTxtItems)) : "All ${d?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
+                            } else {
+                                custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "All ${d?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
+                            }
                         } else {
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                            if(aftRepEvt) {
+                                custText = (repeatTxtItems?.size()) ? decodeVariables(evt, getRandomItem(repeatTxtItems)) : "All ${d?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
+                            } else {
+                                custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                            }
                         }
                     } else {
                         if(evt?.value == dc) {
                             evtOk=true
-                            custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                            if(aftRepEvt) {
+                                custText = (repeatTxtItems?.size()) ? decodeVariables(evt, getRandomItem(repeatTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                            } else {
+                                custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
+                            }
                         }
                     }
                 }
@@ -1553,6 +1635,8 @@ Map deviceEvtProcNumValue(evt, List devs = null, String cmd = null, Double dcl =
     if(devs?.size() && cmd && evt?.value?.isNumber()) {
         String postfix = getAttrPostfix(evt?.name)
         def v = evtValueCleanup(evt?.value)
+        String dct = settings?."trig_${evt?.name}_txt" ?: null
+        List evtTxtItems = dct ? dct?.toString()?.tokenize(";") : null
         switch(cmd) {
             case "equals":
                 if(!dca && dce && dce?.toDouble() == evt?.value?.toDouble()) {
@@ -1581,22 +1665,22 @@ Map deviceEvtProcNumValue(evt, List devs = null, String cmd = null, Double dcl =
             } else {
                 switch(evt?.name) {
                     case "thermostatFanMode":
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Fan Mode is ${v} ${postfix}"
+                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Fan Mode is ${v} ${postfix}"
                         break
                     case "thermostatMode":
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Mode is ${v} ${postfix}"
+                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Mode is ${v} ${postfix}"
                         break
                     case "coolSetpoint":
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Cool Setpoint is ${v} ${postfix}"
+                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Cool Setpoint is ${v} ${postfix}"
                         break
                     case "heatSetpoint":
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Heat Setpoint is ${v} ${postfix}"
+                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Heat Setpoint is ${v} ${postfix}"
                         break
                     case "thermostatOperatingState":
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Operating State is ${v} ${postfix}"
+                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Operating State is ${v} ${postfix}"
                         break
                     default:
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix}"
+                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix}"
                         break
                 }
             }
@@ -1615,6 +1699,8 @@ def thermostatEvtHandler(evt) {
     Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
     log.trace "Thermostat Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
+    String dct = settings?."trig_${evt?.name}_txt" ?: null
+    List evtTxtItems = dct ? dct?.toString()?.tokenize(";") : null
 
     if(d?.size() && dc) {
         switch(dc) {
@@ -1652,34 +1738,25 @@ def thermostatEvtHandler(evt) {
             case "fanmode":
                 if(evt?.name == "thermostatMode") {
                     String dmc = settings?.trig_thermostat_fanmode_cmd ?: null
-                    if(dmc == "any") {
-                        evtOk = true
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Mode is ${evt?.value}"
-                    } else if(evt?.value == dmc) {
+                    if(dmc == "any" || evt?.value == dmc) {
                         evtOk=true
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Mode is ${evt?.value}"
+                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Mode is ${evt?.value}"
                     }
                 }
 
                 if(evt?.name == "thermostatOperatingState") {
                     String doc = settings?.trig_thermostat_state_cmd ?: null
-                    if(doc == "any") {
-                        evtOk = true
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Operating State is ${evt?.value}"
-                    } else if(evt?.value == doc) {
+                    if(doc == "any" || evt?.value == doc) {
                         evtOk=true
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Operating State is ${evt?.value}"
+                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Operating State is ${evt?.value}"
                     }
                 }
 
                 if(evt?.name == "thermostatFanMode") {
                     String dfc = settings?.trig_thermostat_mode_cmd ?: null
-                    if(dfc == "any") {
-                        evtOk = true
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Fan Mode is ${evt?.value}"
-                    } else if(evt?.value == dfc) {
+                    if(dfc == "any" || evt?.value == dfc) {
                         evtOk=true
-                        custText = "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Fan Mode is ${evt?.value}"
+                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Fan Mode is ${evt?.value}"
                     }
                 }
                 break
@@ -1772,23 +1849,23 @@ def locationEvtHandler(evt) {
     executeAction(evt, false, custText, "locationEvtHandler")
 }
 
-
-private scheduleAfterCheck(Integer val=60, nextId=null) {
-    Map activeSched = state?.afterCheckActiveScheduleId ?: null
-    if(activeSched && activeSched?.id && nextId && activeSched?.id != nextId) {
-        log.debug "Active Schedule Id is the same as the requested schedule."
-        return
-    } else {
-        schedule(val, "afterCheckHandler")
-        state?.afterCheckActiveScheduleId = [id: nextId, dur: val, dt: getDtNow()]
-        log.debug "Schedule After Event Check for (${val} seconds) | Id: ${nextId}"
+def scheduleAfterCheck(data) {
+    Integer val = data?.val ?: 60
+    String id = data?.id ?: null
+    Map aSchedMap = atomicState?.afterEvtChkSchedMap ?: null
+    if(aSchedMap && aSchedMap?.id && id && aSchedMap?.id == id) {
+        log.debug "Active Schedule Id (${aSchedMap?.id}) is the same as the requested schedule ${id}."
     }
+    runIn(val, "afterEvtCheckHandler")
+    atomicState?.afterEvtChkSchedMap = [id: id, dur: val, dt: getDtNow()]
+    log.debug "Schedule After Event Check for (${val} seconds) | Id: ${id}"
 }
 
 private clearAfterCheckSchedule() {
-    log.debug "Cancelling After Event Check"
-    unschedule("afterCheckHandler")
-    state?.afterCheckActiveScheduleId = null
+    log.error "Clearing After Event Check Schedule..."
+    atomicState?.afterEvtChkSchedMap = null
+    unschedule("afterEvtCheckHandler")
+    // unschedule("afterEvtCheckWatcher")
 }
 
 /***********************************************************************************************************
@@ -1834,7 +1911,7 @@ Boolean checkDeviceCondOk(type) {
     def devs = settings?."cond_${type}" ?: null
     def cmdVal = settings?."cond_${type}_cmd" ?: null
     if( !(type && devs && cmdVal) ) { return true }
-    return settings?."cond_${type}_all" ? allDevEqCapVal(devs, type, cmdVal) : anyDevEqCapVal(devs, type, cmdVal)
+    return settings?."cond_${type}_all" ? allDevEqCapVal(devs, type, cmdVal) : anyDevCapValEqual(devs, type, cmdVal)
 }
 
 Boolean checkDeviceNumCondOk(type) {
@@ -1966,8 +2043,13 @@ String convEvtType(type) {
 
 String decodeVariables(evt, str) {
     if(evt && str) {
-        str = (str?.contains("%type%") && evt?.name) ? str?.replaceAll("%type%", convEvtType(evt?.name)) : str
-        str = (str?.contains("%name%") && evt?.displayName) ? str?.replaceAll("%name%", evt?.displayName) : str
+        if(str?.contains("%type%") && str?.contains("%name%")) {
+            str = (str?.contains("%type%") && evt?.name) ? str?.replaceAll("%type%", !evt?.displayName?.toLowerCase()?.contains(evt?.name) ? convEvtType(evt?.name) : "") : str
+            str = (str?.contains("%name%") && evt?.displayName) ? str?.replaceAll("%name%", evt?.displayName) : str
+        } else {
+            str = (str?.contains("%type%") && evt?.name) ? str?.replaceAll("%type%", convEvtType(evt?.name)) : str
+            str = (str?.contains("%name%") && evt?.displayName) ? str?.replaceAll("%name%", evt?.displayName) : str
+        }
         str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value) : str
         str = (str?.contains("%date%") && evt?.date) ? str?.replaceAll("%date%", convToDate(evt?.date)) : str
         str = (str?.contains("%time%") && evt?.date) ? str?.replaceAll("%time%", convToTime(evt?.date)) : str
@@ -2465,7 +2547,7 @@ Boolean anyDevCapValBelow(List devs, String cap, val) {
 Boolean anyDevCapValBetween(List devs, String cap, low, high) {
     return (devs && cap && low && high) ? (devs?.findAll { ( (it?."current${cap?.capitalize()}"?.toDouble() > low?.toDouble()) && (it?."current${cap?.capitalize()}"?.toDouble() < high?.toDouble()) ) }?.size() >= 1) : false
 }
-Boolean anyDevCapValsEqual(List devs, String cap, val) {
+Boolean anyDevCapValEqual(List devs, String cap, val) {
     return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() == val?.toDouble() }?.size() >= 1) : false
 }
 
@@ -2482,8 +2564,8 @@ Boolean allDevCapValsEqual(List devs, String cap, val) {
     return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() == val?.toDouble() }?.size() == devs?.size()) : false
 }
 
-Boolean anyDevEqCapVal(List devs, String cap, val) {
-    if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() > 0) }
+Boolean devCapValEqual(List devs, String devId, String cap, val) {
+    if(devs) { return (devs?.find { it?."current${cap?.capitalize()}" == val }) }
     return false
 }
 
@@ -2798,6 +2880,12 @@ String randomString(Integer len) {
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
     log.debug "randomString: ${randChars?.join()}"
     return randChars.join()
+}
+
+def getRandomItem(items) {
+    def list = new ArrayList<String>();
+    items?.each { list?.add(it) }
+    return list?.get(new Random().nextInt(list?.size()));
 }
 
 private getPlatform() {
