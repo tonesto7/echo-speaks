@@ -286,6 +286,11 @@
             "name": "Vobot Bunny",
             "image": "vobot_bunny",
             "caps": ["a", "t"]
+        },
+        "A37CFAHI1O0CXT": {
+            "name": "Logitech Blast",
+            "image": "logitech_blast",
+            "caps": []
         }
     }
 }
