@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.0"}
-String devModified() { return "2019-08-15" }
+String devModified() { return "2019-08-18" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -287,6 +287,10 @@ metadata {
             state("paused_vobot_bunny", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/vobot_bunny.png", backgroundColor: "#cccccc")
             state("playing_vobot_bunny", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/vobot_bunny.png", backgroundColor: "#00a0dc")
             state("stopped_vobot_bunny", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/vobot_bunny.png")
+
+            state("paused_logitect_blast", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/logitect_blast.png", backgroundColor: "#cccccc")
+            state("playing_logitect_blast", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/logitect_blast.png", backgroundColor: "#00a0dc")
+            state("stopped_logitect_blast", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/logitect_blast.png")
         }
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state("default", label:'')
@@ -1395,7 +1399,7 @@ def setMute(muteState) {
     if(muteState) { (muteState == "muted") ? mute() : unmute() }
 }
 
-def setLevel(Integer level) {
+def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
     if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
         if(level != device?.currentValue('level')) {

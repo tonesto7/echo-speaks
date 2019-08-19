@@ -17,9 +17,9 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()	 { return "3.0.0" }
-String appModified()  { return "2019-08-15" }
-String appAuthor()	 { return "Anthony S." }
+String appVersion()  { return "3.0.0" }
+String appModified()  { return "2019-08-18" }
+String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -123,7 +123,8 @@ def mainPage() {
     Boolean newInstall = !state?.isInstalled
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
         appInfoSect()
-        if(!isPaused()) {
+        Boolean paused = isPaused()
+        if(!paused) {
             Boolean trigConf = triggersConfigured()
             Boolean condConf = conditionsConfigured()
             Boolean actConf = actionsConfigured()
@@ -152,10 +153,10 @@ def mainPage() {
 
         if(state?.isInstalled) {
             section(sTS("Place this action on hold:")) {
-                input "actionPause", "bool", title: inTS("Pause this Actions from Running?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                input "actionPause", "bool", title: inTS("Pause Action?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
             }
-            section(sTS("Name this Automation:")) {
-                input "appLbl", "text", title: inTS("Label this Action", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
+            section(sTS("Name this Action:")) {
+                input "appLbl", "text", title: inTS("Action Name", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
             }
             section(sTS("Remove Action:")) {
                 href "uninstallPage", title: inTS("Remove this Action", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
@@ -409,21 +410,21 @@ def triggersPage() {
                 section(sTS("Weather Events"), hideable: true) {
                     paragraph pTS("Weather Events are not configured to take actions yet.", getAppImg("weather")), state: null, image: getAppImg("weather")
                     //TODO: Buildout weather alerts
-                    input "trig_weather_cmd", "enum", title: inTS("Weather Alerts", getAppImg("weather", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("weather"),
-                            options: [
-                                "TOR":	"Tornado Warning",
-                                "TOW":	"Tornado Watch",
-                                "WRN":	"Severe Thunderstorm Warning",
-                                "SEW":	"Severe Thunderstorm Watch",
-                                "WIN":	"Winter Weather Advisory",
-                                "FLO":	"Flood Warning",
-                                "WND":	"High Wind Advisoryt",
-                                "HEA":	"Heat Advisory",
-                                "FOG":	"Dense Fog Advisory",
-                                "FIR":	"Fire Weather Advisory",
-                                "VOL":	"Volcanic Activity Statement",
-                                "HWW":	"Hurricane Wind Warning"
-                            ]
+                    input "trig_weather_cmd", "enum", title: inTS("Weather Alerts", getAppImg("command", true)), required: true, multiple: true, submitOnChange: true, image: getAppImg("command"),
+                        options: [
+                            "TOR":	"Tornado Warning",
+                            "TOW":	"Tornado Watch",
+                            "WRN":	"Severe Thunderstorm Warning",
+                            "SEW":	"Severe Thunderstorm Watch",
+                            "WIN":	"Winter Weather Advisory",
+                            "FLO":	"Flood Warning",
+                            "WND":	"High Wind Advisoryt",
+                            "HEA":	"Heat Advisory",
+                            "FOG":	"Dense Fog Advisory",
+                            "FIR":	"Fire Weather Advisory",
+                            "VOL":	"Volcanic Activity Statement",
+                            "HWW":	"Hurricane Wind Warning"
+                        ]
                     // if(trig_weather_cmd) {
                     //     input "trig_weather_hourly", "enum", title: inTS("Hourly Forecast Updates", getAppImg("command", true)), required: false, multiple: false, submitOnChange: true, image: getAppImg("command"),
                     //             options: ["conditions":"Weather Condition Changes", "rain":"Chance of Precipitation Changes", "wind":"Wind Speed Changes", "humidit":"Humidity Changes", "any":"Any Weather Updates"]
@@ -472,15 +473,15 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     input "trig_${inType}_all", "bool", title: inTS("Require ALL ${devTitle} to be (${settings?."trig_${inType}_cmd"})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                 }
                 if(settings?."trig_${inType}_cmd" in cmdAfterOpts) {
-                    input "trig_${inType}_after", "number", title: inTS("Only trigger after ${settings?."trig_${inType}_cmd"} for (xx) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                    input "trig_${inType}_after", "number", title: inTS("Only trigger after (${settings?."trig_${inType}_cmd"}) for (xx) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     if(settings?."trig_${inType}_after") {
-                        input "trig_${inType}_after_repeat", "number", title: inTS("Rerun trigger every (xx) minutes until ${settings?."trig_${inType}_cmd"}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                        input "trig_${inType}_after_repeat", "number", title: inTS("Repeat trigger every (xx) seconds until not ${settings?."trig_${inType}_cmd"}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
                 input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                input "trig_${inType}_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                input "trig_${inType}_wait", "number", title: inTS("Wait between each report (xx) seconds\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: 0, submitOnChange: true, image: getAppImg("delay_time")
                 //Custom Text Options
-                paragraph "Description:\nYou can set custom responses for each ${inType} event.\nNotice: These are only used if Speech or Announcement action are selected.\nFYI: To allow multiple random responses just separate each response with a ;"
+                paragraph "Description:\nYou can set custom responses for each ${inType} event.\n\nNotice:\nThese are only used if Speech or Announcement action are selected.\n\nFYI:\nTo allow multiple random responses just separate each response with a ;"
                 input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
                 if(settings?."trig_${inType}_after_repeat") {
                     //Custom Repeat Text Options
@@ -513,7 +514,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                 input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                 input "trig_${inType}_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                 //Custom Text Options
-                paragraph "Description:\nYou can set custom responses for each ${inType} event.\nNotice: These are only used if Speech or Announcement action are selected.\nFYI: To allow multiple random responses just separate each response with a ;"
+                paragraph "Description:\nYou can set custom responses for each ${inType} event.\n\nNotice:\nThese are only used if Speech or Announcement action are selected.\n\nFYI:\nTo allow multiple random responses just separate each response with a ;"
                 input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
             }
         }
@@ -996,6 +997,8 @@ def actionsPage() {
                     input "act_delay", "number", title: inTS("Delay Action in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                 }
                 section(sTS("Simulate Action")) {
+                    //TODO: Add event generator based on trigger items selected.
+                    //TODO: Use custom text for test
                     paragraph pTS("Perform a test of this action to see the results", getAppImg("info", true)), image: getAppImg("info")
                     input "actTestRun", "bool", title: inTS("Test this action?", getAppImg("testing", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
                     if(actTestRun) { executeActTest() }
@@ -1054,6 +1057,7 @@ Boolean hasUserDefinedTxt() {
 }
 
 def variableDesc(hideUserTxt=false) {
+    Map txtItems = customTxtItems()
     if(state?.showSpeakEvtVars) {
         paragraph pTS("You are using device/location triggers.\nYou can choose to leave the text empty and text will be generated for each event.")
         String str = "You can also use variables with your text"
@@ -1069,7 +1073,7 @@ def variableDesc(hideUserTxt=false) {
     if(!hideUserTxt) {
         Map txtItems = customTxtItems()
         if(txtItems?.size()) {
-            String str = "< User Defined Event Text >"
+            String str = "<Custom Trigger Text Defined>"
             txtItems?.each { i->
                 i?.value?.each { i2->
                     str += "\n \u2022 ${i?.key?.toString()?.capitalize()} ${i2?.key?.toString()?.capitalize()} Items:"
@@ -1405,6 +1409,11 @@ private subscribeToEvts() {
         if(settings?.trig_thermostat) { subscribe(settings?.trig_thermostat, "thermostat", deviceEvtHandler) }
     }
 
+    // Weather
+    if (valTrigEvt("weather")) {
+        if(settings?.trig_weather && settings?.trig_weather_cmd) { runEvery1Minute("weatherCheckHandler") }
+    }
+
     settings?.triggerEvents?.each {
         if(settings?."trig_${it}_after") {
             runEvery1Minute("afterEvtCheckWatcher")
@@ -1474,6 +1483,7 @@ def devAfterEvtHandler(evt) {
     def evtDt = parseDate(evt?.date?.toString())
     String dc = settings?."trig_${evt?.name}_cmd" ?: null
     Integer dcaf = settings?."trig_${evt?.name}_after" ?: null
+    Integer dcafr = settings?."trig_${evt?.name}_after_repeat" ?: null
     String eid = "${evt?.deviceId}_${evt?.name}"
     Boolean schedChk = (dc && dcaf && evt?.value == dc)
     log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})"
@@ -1484,7 +1494,12 @@ def devAfterEvtHandler(evt) {
         }
     }
     ok = schedChk
-    if(ok) { aEvtMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), deviceId: evt?.deviceId, displayName: evt?.displayName, name: evt?.name, value: evt?.value, triggerState: dc, wait: dcaf ? (dcaf*60) : null, repeat: false] }
+    if(ok) { aEvtMap["${evt?.deviceId}_${evt?.name}"] =
+        [
+            dt: evt?.date?.toString(), deviceId: evt?.deviceId, displayName: evt?.displayName, name: evt?.name, value: evt?.value, triggerState: dc,
+            wait: dcaf ?: null, repeat: false, repeatWait: dcafr ?: null
+        ]
+    }
     atomicState?.afterEvtMap = aEvtMap
     if(ok) { runIn(2, "afterEvtCheckHandler") }
 }
@@ -1495,6 +1510,7 @@ def afterEvtCheckHandler() {
         // Collects all of the evt items and stores there wait values as a list
         Integer timeLeft = null
         Boolean ok2Sched = true
+        Boolean isRepeat = false
         Integer lowWait = aEvtMap?.findAll { it?.value?.wait != null }?.collect { it?.value?.wait }?.min()
         Integer lowLeft = aEvtMap?.findAll { it?.value?.wait == lowWait }?.collect { it?.value?.timeLeft} ?.min()
         def nextItem = aEvtMap?.find { it?.value?.wait == lowWait && it?.value?.timeLeft == lowLeft }
@@ -1507,11 +1523,10 @@ def afterEvtCheckHandler() {
             Boolean repeat = (settings?."trig_${nextVal?.name}_after_repeat" != null)
             if(prevDt) {
                 def evtElap = (int) ((long)(new Date()?.getTime() - prevDt?.getTime())/1000)
-                def reqDur = nextVal?.wait ?: null
+                def reqDur = (nextVal?.repeat && nextVal?.repeatWait) ? nextVal?.repeatWait : nextVal?.wait ?: null
                 timeLeft = (reqDur - evtElap)
 
                 aEvtMap[nextItem?.key]?.timeLeft = timeLeft
-                aEvtMap[nextItem?.key]?.repeat = repeat
                 // log.info "Last ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | Duration: ${evtElap} | Required: ${reqDur}"
                 if(timeLeft) {
                     if(timeLeft <= 0 && nextVal?.deviceId && nextVal?.name) {
@@ -1520,6 +1535,8 @@ def afterEvtCheckHandler() {
                             if(repeat) {
                                 log.info "Last ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | Duration: ${evtElap} | Required: ${reqDur}"
                                 aEvtMap[nextItem?.key]?.repeatDt = formatDt(new Date())
+                                aEvtMap[nextItem?.key]?.repeat = repeat
+                                isRepeat = true
                                 deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value], true, true)
                             } else {
                                 aEvtMap?.remove(nextId)
@@ -1537,7 +1554,7 @@ def afterEvtCheckHandler() {
         }
         if(ok2Sched) {
             log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
-            runIn(2, "scheduleAfterCheck", [data: [val:timeLeft, id:nextId]])
+            runIn(2, "scheduleAfterCheck", [data: [val:timeLeft, id:nextId, repeat: isRepeat]])
         }
         atomicState?.afterEvtMap = aEvtMap
         log.trace "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})"
@@ -1555,7 +1572,7 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     Boolean dca = (settings?."trig_${evt?.name}_all" == true)
     Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
     String dct = settings?."trig_${evt?.name}_txt" ?: null
-    String dcart = isAfterEvt ? settings?."trig_${evt?.name}_after_repeat_txt" : null
+    String dcart = settings?."trig_${evt?.name}_after_repeat_txt" ?: null
     List evtTxtItems = dct ? dct?.toString()?.tokenize(";") : null
     List repeatTxtItems = dcart ? dcart?.toString()?.tokenize(";") : null
     log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (AfterEvt)" : ""}"
@@ -1849,16 +1866,27 @@ def locationEvtHandler(evt) {
     executeAction(evt, false, custText, "locationEvtHandler")
 }
 
+def weatherCheckHandler() {
+    // def alerts = getTwcAlerts()
+    // log.debug "alerts: ${alerts}"
+
+    // def alerts = getTwcAlerts()
+    // log.debug "alerts: ${alerts}"
+
+    // executeAction(evt, false, custText, "locationEvtHandler")
+}
+
 def scheduleAfterCheck(data) {
-    Integer val = data?.val ?: 60
+    Integer val = data?.val ? (data?.val < 2 ? 2 : data?.val) : 60
     String id = data?.id ?: null
+    Boolean rep = (data?.repeat == true)
     Map aSchedMap = atomicState?.afterEvtChkSchedMap ?: null
     if(aSchedMap && aSchedMap?.id && id && aSchedMap?.id == id) {
         log.debug "Active Schedule Id (${aSchedMap?.id}) is the same as the requested schedule ${id}."
     }
     runIn(val, "afterEvtCheckHandler")
     atomicState?.afterEvtChkSchedMap = [id: id, dur: val, dt: getDtNow()]
-    log.debug "Schedule After Event Check for (${val} seconds) | Id: ${id}"
+    log.debug "Schedule After Event Check${rep ? " (Repeat)" : ""} for (${val} seconds) | Id: ${id}"
 }
 
 private clearAfterCheckSchedule() {
@@ -2201,44 +2229,44 @@ private executeAction(evt = null, frc=false, custText=null, src=null) {
 
 
 /***********************************************************************************************************************
-	WEATHER ALERTS
+    WEATHER ALERTS
 ***********************************************************************************************************************/
 def mGetWeatherAlerts() {
-	def data = [:]
-	try {
-		def weather = getTwcAlerts()
-		def type = weather?.alerts?.type[0]
-		def alert = weather?.alerts?.description[0]
-		def expire = weather?.alerts?.expires[0]
-		def typeOk = settings?.myWeatherAlert?.find {a -> a == type}
-		if (typeOk) {
-			if (expire != null) { expire = expire?.replaceAll(~/ EST /, " ")?.replaceAll(~/ CST /, " ")?.replaceAll(~/ MST /, " ")?.replaceAll(~/ PST /, " ") }
-			if (alert != null) {
-				result = alert  + " is in effect for your area, that expires at " + expire
-				if (state?.weatherAlert == null) {
-					state?.weatherAlert = result
-					state?.lastAlert = new Date(now()).format("h:mm aa", location.timeZone)
-					data = [value: result, name: "weather alert", device:"weather"]
-					alertsHandler(data)
-				} else {
-					if (state?.showDebug) { log.debug "new weather alert = ${alert}, expire = ${expire}" }
-					def newAlert = result != state?.weatherAlert ? true : false
-					if (newAlert == true) {
-						state?.weatherAlert = result
-						state?.lastAlert = new Date(now()).format("h:mm aa", location.timeZone)
-						data = [value: result, name: "weather alert", device:"weather"]
-						alertsHandler(data)
-					}
-				}
-			}
-		} else if (firstTime == true) {
-			data = [value: result, name: "weather alert", device:"weather"]
-			alertsHandler(data)
-		}
-	} catch (Throwable t) {
-		log.error t
-		return result
-	}
+    def data = [:]
+    try {
+        def weather = getTwcAlerts()
+        def type = weather?.alerts?.type[0]
+        def alert = weather?.alerts?.description[0]
+        def expire = weather?.alerts?.expires[0]
+        def typeOk = settings?.myWeatherAlert?.find {a -> a == type}
+        if (typeOk) {
+            if (expire != null) { expire = expire?.replaceAll(~/ EST /, " ")?.replaceAll(~/ CST /, " ")?.replaceAll(~/ MST /, " ")?.replaceAll(~/ PST /, " ") }
+            if (alert != null) {
+                result = alert  + " is in effect for your area, that expires at " + expire
+                if (state?.weatherAlert == null) {
+                    state?.weatherAlert = result
+                    state?.lastAlert = new Date(now()).format("h:mm aa", location.timeZone)
+                    data = [value: result, name: "weather alert", device:"weather"]
+                    alertsHandler(data)
+                } else {
+                    if (state?.showDebug) { log.debug "new weather alert = ${alert}, expire = ${expire}" }
+                    def newAlert = result != state?.weatherAlert ? true : false
+                    if (newAlert == true) {
+                        state?.weatherAlert = result
+                        state?.lastAlert = new Date(now()).format("h:mm aa", location.timeZone)
+                        data = [value: result, name: "weather alert", device:"weather"]
+                        alertsHandler(data)
+                    }
+                }
+            }
+        } else if (firstTime == true) {
+            data = [value: result, name: "weather alert", device:"weather"]
+            alertsHandler(data)
+        }
+    } catch (Throwable t) {
+        log.error t
+        return result
+    }
 }
 
 
@@ -2729,54 +2757,61 @@ String unitStr(type) {
     }
 }
 
-String getTriggersDesc() {
+String getTriggersDesc(hideDesc=false) {
     Boolean confd = triggersConfigured()
     List setItem = settings?.triggerEvents
     String sPre = "trig_"
     if(confd && setItem?.size()) {
-        String str = "Triggers:\n"
-        setItem?.each { evt->
-            switch(evt as String) {
-                case "scheduled":
-                    str += " • ${evt?.capitalize()}${settings?."${sPre}${evt}_recurrence" ? " (${settings?."${sPre}${evt}_recurrence"})" : ""}\n"
-                    str += settings?."${sPre}${evt}_time"     ? "    - Time: (${fmtTime(settings?."${sPre}${evt}_time")})\n"      : ""
-                    str += settings?."${sPre}${evt}_sunState" ? "    - SunState: (${settings?."${sPre}${evt}_sunState"})\n"       : ""
-                    str += settings?."${sPre}${evt}_days"     ? "    - (${settings?."${sPre}${evt}_days"?.size()}) Days\n"      : ""
-                    str += settings?."${sPre}${evt}_weeks"    ? "    - (${settings?."${sPre}${evt}_weeks"?.size()}) Weeks\n"    : ""
-                    str += settings?."${sPre}${evt}_months"   ? "    - (${settings?."${sPre}${evt}_months"?.size()}) Months\n"  : ""
-                    break
-                case "alarm":
-                    str += " • ${evt?.capitalize()} (${getAlarmSystemName(true)})${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
-                    str += settings?."${sPre}${evt}_once" ? "    - Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
-                    break
-                case "routineExecuted":
-                case "mode":
-                case "scene":
-                    str += " • ${evt == "routineExecuted" ? "Routines" : evt?.capitalize()}${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
-                    str += settings?."${sPre}${evt}_once" ? "    - Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
-                    break
-                default:
-                    str += " • ${evt?.capitalize()}${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
-                    def subStr = ""
-                    if(settings?."${sPre}${evt}_cmd" in ["above", "below", "equal", "between"]) {
-                        if (settings?."${sPre}${evt}_cmd" == "between") {
-                            str += settings?."${sPre}${evt}_cmd"  ? "    - ${settings?."${sPre}${evt}_cmd"}: (${settings?."${sPre}${evt}_low"} - ${settings?."${sPre}${evt}_high"})\n" : ""
+        if(!hideDesc) {
+            String str = "Triggers:\n"
+            setItem?.each { evt->
+                switch(evt as String) {
+                    case "scheduled":
+                        str += " \u2022 ${evt?.capitalize()}${settings?."${sPre}${evt}_recurrence" ? " (${settings?."${sPre}${evt}_recurrence"})" : ""}\n"
+                        str += settings?."${sPre}${evt}_time"     ? "   \u25E6 Time: (${fmtTime(settings?."${sPre}${evt}_time")})\n"      : ""
+                        str += settings?."${sPre}${evt}_sunState" ? "   \u25E6 SunState: (${settings?."${sPre}${evt}_sunState"})\n"       : ""
+                        str += settings?."${sPre}${evt}_days"     ? "   \u25E6 (${settings?."${sPre}${evt}_days"?.size()}) Days\n"      : ""
+                        str += settings?."${sPre}${evt}_weeks"    ? "   \u25E6 (${settings?."${sPre}${evt}_weeks"?.size()}) Weeks\n"    : ""
+                        str += settings?."${sPre}${evt}_months"   ? "   \u25E6 (${settings?."${sPre}${evt}_months"?.size()}) Months\n"  : ""
+                        break
+                    case "alarm":
+                        str += " \u2022 ${evt?.capitalize()} (${getAlarmSystemName(true)})${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
+                        str += settings?."${sPre}${evt}_once" ? "   \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
+                        break
+                    case "routineExecuted":
+                    case "mode":
+                    case "scene":
+                        str += " \u2022 ${evt == "routineExecuted" ? "Routines" : evt?.capitalize()}${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
+                        str += settings?."${sPre}${evt}_once" ? "   \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
+                        break
+                    default:
+                        str += " \u2022 ${evt?.capitalize()}${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
+                        def subStr = ""
+                        if(settings?."${sPre}${evt}_cmd" in ["above", "below", "equal", "between"]) {
+                            if (settings?."${sPre}${evt}_cmd" == "between") {
+                                str += settings?."${sPre}${evt}_cmd"  ? "   \u25E6 ${settings?."${sPre}${evt}_cmd"}: (${settings?."${sPre}${evt}_low"} - ${settings?."${sPre}${evt}_high"})\n" : ""
+                            } else {
+                                str += (settings?."${sPre}${evt}_cmd" == "above" && settings?."${sPre}${evt}_high")     ? "   \u25E6 Above: (${settings?."${sPre}${evt}_high"})\n" : ""
+                                str += (settings?."${sPre}${evt}_cmd" == "below" && settings?."${sPre}${evt}_low")      ? "   \u25E6 Below: (${settings?."${sPre}${evt}_low"})\n" : ""
+                                str += (settings?."${sPre}${evt}_cmd" == "equal" && settings?."${sPre}${evt}_equal")    ? "   \u25E6 Equals: (${settings?."${sPre}${evt}_equal"})\n" : ""
+                            }
                         } else {
-                            str += (settings?."${sPre}${evt}_cmd" == "above" && settings?."${sPre}${evt}_high")     ? "    - Above: (${settings?."${sPre}${evt}_high"})\n" : ""
-                            str += (settings?."${sPre}${evt}_cmd" == "below" && settings?."${sPre}${evt}_low")      ? "    - Below: (${settings?."${sPre}${evt}_low"})\n" : ""
-                            str += (settings?."${sPre}${evt}_cmd" == "equal" && settings?."${sPre}${evt}_equal")    ? "    - Equals: (${settings?."${sPre}${evt}_equal"})\n" : ""
+                            str += settings?."${sPre}${evt}_cmd"  ? "    \u25E6 Trigger State: (${settings?."${sPre}${evt}_cmd"})\n" : ""
                         }
-                    } else {
-                        str += settings?."${sPre}${evt}_cmd"  ? "    - Value: (${settings?."${sPre}${evt}_cmd"})\n" : ""
-                    }
-                    str += settings?."${sPre}${evt}_all"  ? "    - Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
-                    str += settings?."${sPre}${evt}_once" ? "    - Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
-                    str += settings?."${sPre}${evt}_wait" ? "    - Wait: (${settings?."${sPre}${evt}_wait"})\n" : ""
-                    break
+                        str += settings?."${sPre}${evt}_after"              ? "    \u25E6 Only After: (${settings?."${sPre}${evt}_after"} min)\n" : ""
+                        str += settings?."${sPre}${evt}_after_repeat"       ? "    \u25E6 Repeat Every: (${settings?."${sPre}${evt}_after_repeat"} min)\n" : ""
+                        str += settings?."${sPre}${evt}_all"                ? "    \u25E6 Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
+                        str += settings?."${sPre}${evt}_once"               ? "    \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
+                        str += settings?."${sPre}${evt}_wait"               ? "    \u25E6 Wait: (${settings?."${sPre}${evt}_wait"})\n" : ""
+                        str += (settings?."${sPre}${evt}_txt" || settings?."${sPre}${evt}_after_repeat_txt") ? "    \u25E6 Custom Responses:\n" : ""
+                        str += settings?."${sPre}${evt}_txt"                ? "       \u02C3 Events: (${settings?."${sPre}${evt}_txt"?.toString()?.tokenize(";")?.size()} Items)\n" : ""
+                        str += settings?."${sPre}${evt}_after_repeat_txt"   ? "       \u02C3 Repeats: (${settings?."${sPre}${evt}_after_repeat_txt"?.toString()?.tokenize(";")?.size()} Items)\n" : ""
+                        break
+                }
             }
-        }
-        str += "\ntap to modify..."
-        return str
+            str += "\ntap to modify..."
+            return str
+        } else { return "tap to modify..." }
     } else {
         return "tap to configure..."
     }
@@ -3032,300 +3067,300 @@ def searchTuneInResultsPage() {
 
 
 /***********************************************************************************************************************
-	CUSTOM WEATHER VARIABLES
+    CUSTOM WEATHER VARIABLES
 ***********************************************************************************************************************/
 private getWeatherVar(eTxt) {
-	def result
-	// weather variables
-	def weatherToday = mGetWeatherVar("today")
-	def weatherTonight = mGetWeatherVar("tonight")
-	def weatherTomorrow = mGetWeatherVar("tomorrow")
-	def tHigh = mGetWeatherVar("high")
-	def tLow = mGetWeatherVar("low")
-	def tUV = mGetWeatherElements("uv")
-	def tPrecip = mGetWeatherElements("precip")
-	def tHum = mGetWeatherElements("hum")
-	def tCond = mGetWeatherElements("cond")
-	def tWind = mGetWeatherElements("wind")
-	def tSunset = mGetWeatherElements("set")
-	def tSunrise = mGetWeatherElements("rise")
-	def tTemp = mGetWeatherElements("current")
-	//def tWind = mGetWeatherElements("moonphase")
+    def result
+    // weather variables
+    def weatherToday = mGetWeatherVar("today")
+    def weatherTonight = mGetWeatherVar("tonight")
+    def weatherTomorrow = mGetWeatherVar("tomorrow")
+    def tHigh = mGetWeatherVar("high")
+    def tLow = mGetWeatherVar("low")
+    def tUV = mGetWeatherElements("uv")
+    def tPrecip = mGetWeatherElements("precip")
+    def tHum = mGetWeatherElements("hum")
+    def tCond = mGetWeatherElements("cond")
+    def tWind = mGetWeatherElements("wind")
+    def tSunset = mGetWeatherElements("set")
+    def tSunrise = mGetWeatherElements("rise")
+    def tTemp = mGetWeatherElements("current")
+    //def tWind = mGetWeatherElements("moonphase")
 
-	result = eTxt.replace("&today", "${weatherToday}")?.replace("&tonight", "${weatherTonight}")?.replace("&tomorrow", "${weatherTomorrow}")
-	if (result) { result = result.replace("&high", "${tHigh}")?.replace("&low", "${tLow}")?.replace("&wind", "${tWind}")?.replace("&uv", "${tUV}")?.replace("&precipitation", "${tPrecip}") }
-	if (result) { result = result.replace("&humidity", "${tHum}")?.replace("&conditions", "${tCond}")?.replace("&set", "${tSunset}")?.replace("&rise", "${tSunrise}")?.replace("&current", "${tTemp}") }
+    result = eTxt.replace("&today", "${weatherToday}")?.replace("&tonight", "${weatherTonight}")?.replace("&tomorrow", "${weatherTomorrow}")
+    if (result) { result = result.replace("&high", "${tHigh}")?.replace("&low", "${tLow}")?.replace("&wind", "${tWind}")?.replace("&uv", "${tUV}")?.replace("&precipitation", "${tPrecip}") }
+    if (result) { result = result.replace("&humidity", "${tHum}")?.replace("&conditions", "${tCond}")?.replace("&set", "${tSunset}")?.replace("&rise", "${tSunrise}")?.replace("&current", "${tTemp}") }
 
-	return result
+    return result
 }
 /***********************************************************************************************************************
-	WEATHER TRIGGERS
+    WEATHER TRIGGERS
 ***********************************************************************************************************************/
 def mGetWeatherTrigger() {
-	def data = [:]
-	def myTrigger
-	def process = false
-	try {
-		if (getMetric() == false) {
-			def cWeather = getWeatherFeature("conditions", state?.wZipCode)
-			def cTempF = cWeather?.current_observation?.temp_f.toDouble()
-			int tempF = cTempF as Integer
-			def cRelativeHum = cWeather?.current_observation?.relative_humidity
-			cRelativeHum = cRelativeHum?.replaceAll("%", "")
-			int humid = cRelativeHum as Integer
-			def cWindGustM = cWeather?.current_observation?.wind_gust_mph?.toDouble()
-			int wind = cWindGustM as Integer
-			def cPrecipIn = cWeather?.current_observation?.precip_1hr_in?.toDouble()
-			double precip = cPrecipIn //as double
-				precip = 1 + precip //precip
-			if (state?.showDebug) { log.debug "current triggers: precipitation = $precip, humidity = $humid, wind = $wind, temp = $tempF" }
-			myTrigger = settings?.myWeatherTriggers == "Chance of Precipitation (in/mm)" ? precip : settings?.myWeatherTriggers == "Wind Gust (MPH/kPH)" ? wind : settings?.myWeatherTriggers == "Humidity (%)" ? humid : settings?.myWeatherTriggers == "Temperature (F/C)" ? tempF : null
-		} else {
-			def cWeather = getWeatherFeature("conditions", state?.wZipCode)
-			def cTempC = cWeather?.current_observation?.temp_c?.toDouble()
-				int tempC = cTempC as Integer
-			def cRelativeHum = cWeather?.current_observation?.relative_humidity
-				cRelativeHum = cRelativeHum?.replaceAll("%", "")
-				int humid = cRelativeHum as Integer
-			def cWindGustK = cWeather?.current_observation?.wind_gust_kph?.toDouble()
-				int windC = cWindGustK as Integer
-			def cPrecipM = cWeather?.current_observation?.precip_1hr_metric?.toDouble()
-				double  precipC = cPrecipM as double
+    def data = [:]
+    def myTrigger
+    def process = false
+    try {
+        if (getMetric() == false) {
+            def cWeather = getWeatherFeature("conditions", state?.wZipCode)
+            def cTempF = cWeather?.current_observation?.temp_f.toDouble()
+            int tempF = cTempF as Integer
+            def cRelativeHum = cWeather?.current_observation?.relative_humidity
+            cRelativeHum = cRelativeHum?.replaceAll("%", "")
+            int humid = cRelativeHum as Integer
+            def cWindGustM = cWeather?.current_observation?.wind_gust_mph?.toDouble()
+            int wind = cWindGustM as Integer
+            def cPrecipIn = cWeather?.current_observation?.precip_1hr_in?.toDouble()
+            double precip = cPrecipIn //as double
+                precip = 1 + precip //precip
+            if (state?.showDebug) { log.debug "current triggers: precipitation = $precip, humidity = $humid, wind = $wind, temp = $tempF" }
+            myTrigger = settings?.myWeatherTriggers == "Chance of Precipitation (in/mm)" ? precip : settings?.myWeatherTriggers == "Wind Gust (MPH/kPH)" ? wind : settings?.myWeatherTriggers == "Humidity (%)" ? humid : settings?.myWeatherTriggers == "Temperature (F/C)" ? tempF : null
+        } else {
+            def cWeather = getWeatherFeature("conditions", state?.wZipCode)
+            def cTempC = cWeather?.current_observation?.temp_c?.toDouble()
+                int tempC = cTempC as Integer
+            def cRelativeHum = cWeather?.current_observation?.relative_humidity
+                cRelativeHum = cRelativeHum?.replaceAll("%", "")
+                int humid = cRelativeHum as Integer
+            def cWindGustK = cWeather?.current_observation?.wind_gust_kph?.toDouble()
+                int windC = cWindGustK as Integer
+            def cPrecipM = cWeather?.current_observation?.precip_1hr_metric?.toDouble()
+                double  precipC = cPrecipM as double
 
-			myTrigger = settings?.myWeatherTriggers == "Chance of Precipitation (in/mm)" ? precipC : settings?.myWeatherTriggers == "Wind Gust (MPH/kPH)" ? windC : settings?.myWeatherTriggers == "Humidity (%)" ? humid : settings?.myWeatherTriggers == "Temperature (F/C)" ? tempC : null
-		}
-		def myTriggerName = settings?.myWeatherTriggers == "Chance of Precipitation (in/mm)" ? "Precipitation" : settings?.myWeatherTriggers == "Wind Gust (MPH/kPH)" ? "Wind Gusts" : settings?.myWeatherTriggers == "Humidity (%)" ? "Humidity" : settings?.myWeatherTriggers == "Temperature (F/C)" ? "Temperature" : null
-		if (settings?.myWeatherTriggersS == "above" && state.cycleOnA == false) {
-			def var = myTrigger > settings?.myWeatherThreshold
-			if (state?.showDebug) { log.debug  " myTrigger = $myTrigger, myWeatherThreshold = ${settings?.myWeatherThreshold}, myWeatherTriggersS = ${settings?.myWeatherTriggersS}, var = $var" }
-			if (myTrigger > settings?.myWeatherThreshold) {
-				process = true
-				state.cycleOnA = process
-				state.cycleOnB = false
-			}
-		}
-		if (settings?.myWeatherTriggersS == "below" && state.cycleOnB == false) {
-			def var = myTrigger <= settings?.myWeatherThreshold
-			if (state?.showDebug) { log.debug  " myTrigger = $myTrigger, myWeatherThreshold = ${settings?.myWeatherThreshold} myWeatherTriggersS = ${settings?.myWeatherTriggersS}, var = $var" }
-			if (myTrigger <= settings?.myWeatherThreshold) {
-				process = true
-				state.cycleOnA = false
-				state.cycleOnB = process
-			}
-		}
-		if (process == true) {
-			//data = [value:"${myTrigger}", name:"${settings?.myWeatherTriggers}", device:"${settings?.myWeatherTriggers}"] 4/5/17 Bobby
-			data = [value:"${myTrigger}", name:"weather", device:"${myTriggerName}"]
-			alertsHandler(data)
-		}
-	} catch (Throwable t) {
-		log.error t
-		return result
-	}
+            myTrigger = settings?.myWeatherTriggers == "Chance of Precipitation (in/mm)" ? precipC : settings?.myWeatherTriggers == "Wind Gust (MPH/kPH)" ? windC : settings?.myWeatherTriggers == "Humidity (%)" ? humid : settings?.myWeatherTriggers == "Temperature (F/C)" ? tempC : null
+        }
+        def myTriggerName = settings?.myWeatherTriggers == "Chance of Precipitation (in/mm)" ? "Precipitation" : settings?.myWeatherTriggers == "Wind Gust (MPH/kPH)" ? "Wind Gusts" : settings?.myWeatherTriggers == "Humidity (%)" ? "Humidity" : settings?.myWeatherTriggers == "Temperature (F/C)" ? "Temperature" : null
+        if (settings?.myWeatherTriggersS == "above" && state.cycleOnA == false) {
+            def var = myTrigger > settings?.myWeatherThreshold
+            if (state?.showDebug) { log.debug  " myTrigger = $myTrigger, myWeatherThreshold = ${settings?.myWeatherThreshold}, myWeatherTriggersS = ${settings?.myWeatherTriggersS}, var = $var" }
+            if (myTrigger > settings?.myWeatherThreshold) {
+                process = true
+                state.cycleOnA = process
+                state.cycleOnB = false
+            }
+        }
+        if (settings?.myWeatherTriggersS == "below" && state.cycleOnB == false) {
+            def var = myTrigger <= settings?.myWeatherThreshold
+            if (state?.showDebug) { log.debug  " myTrigger = $myTrigger, myWeatherThreshold = ${settings?.myWeatherThreshold} myWeatherTriggersS = ${settings?.myWeatherTriggersS}, var = $var" }
+            if (myTrigger <= settings?.myWeatherThreshold) {
+                process = true
+                state.cycleOnA = false
+                state.cycleOnB = process
+            }
+        }
+        if (process == true) {
+            //data = [value:"${myTrigger}", name:"${settings?.myWeatherTriggers}", device:"${settings?.myWeatherTriggers}"] 4/5/17 Bobby
+            data = [value:"${myTrigger}", name:"weather", device:"${myTriggerName}"]
+            alertsHandler(data)
+        }
+    } catch (Throwable t) {
+        log.error t
+        return result
+    }
 }
 
 /***********************************************************************************************************************
-	HOURLY FORECAST
+    HOURLY FORECAST
 ***********************************************************************************************************************/
 def mGetCurrentWeather() {
-	def weatherData = [:]
-	def data = [:]
-   	def result
-	try {
-		//hourly updates
-		def cWeather = getWeatherFeature("hourly", state?.wZipCode)
-		def cWeatherCondition = cWeather?.hourly_forecast[0]?.condition
-		def cWeatherPrecipitation = cWeather?.hourly_forecast[0]?.pop + " percent"
-		def cWeatherWind = cWeather?.hourly_forecast[0]?.wspd?.english + " miles per hour"
-		def cWeatherWindC = cWeather?.hourly_forecast[0]?.wspd?.metric + " kilometers per hour"
-		if (getMetric() == true) { cWeatherWind = cWeatherWindC }
-		def cWeatherHum = cWeather?.hourly_forecast[0]?.humidity + " percent"
-		def cWeatherUpdate = cWeather?.hourly_forecast[0]?.FCTTIME?.civil
-		//past hour's data
-		def pastWeather = state.lastWeather
-		//current forecast
-			weatherData.wCond = cWeatherCondition
-			weatherData.wWind = cWeatherWind
-			weatherData.wHum = cWeatherHum
-			weatherData.wPrecip = cWeatherPrecipitation
-		//last weather update
-		def lastUpdated = new Date(now()).format("h:mm aa", location.timeZone)
-		if (settings?.myWeather) {
-			if (pastWeather == null) {
-				state.lastWeather = weatherData
-				state.lastWeatherCheck = lastUpdated
-				result = "hourly weather forcast notification has been activated at " + lastUpdated + " You will now receive hourly weather updates, only if the forecast data changes"
-				data = [value: result, name: "weather alert", device: "weather"]
-				alertsHandler(data)
-			} else {
-				def wUpdate = pastWeather.wCond != cWeatherCondition ? "current weather condition" : pastWeather.wWind != cWeatherWind ? "wind intensity" : pastWeather.wHum != cWeatherHum ? "humidity" : pastWeather.wPrecip != cWeatherPrecipitation ? "chance of precipitation" : null
-				def wChange = wUpdate == "current weather condition" ? cWeatherCondition : wUpdate == "wind intensity" ? cWeatherWind  : wUpdate == "humidity" ? cWeatherHum : wUpdate == "chance of precipitation" ? cWeatherPrecipitation : null
-				//something has changed
-				if (wUpdate != null) {
-					// saving update to state
-					state.lastWeather = weatherData
-					state.lastWeatherCheck = lastUpdated
-					if (settings?.myWeather == "Any Weather Updates") {
-						def condChanged = pastWeather.wCond != cWeatherCondition
-						def windChanged = pastWeather.wWind != cWeatherWind
-						def humChanged = pastWeather.wHum != cWeatherHum
-						def precChanged = pastWeather.wPrecip != cWeatherPrecipitation
-						if (condChanged) {
-							result = "The hourly weather forecast has been updated. The weather condition has been changed to "  + cWeatherCondition
-						}
-						if (windChanged) {
-							if (result) { result = result +  ", the wind intensity to "  + cWeatherWind }
-							else { result = "The hourly weather forecast has been updated. The wind intensity has been changed to "  + cWeatherWind }
-						}
-						if (humChanged) {
-							if (result) {result = result +  ", the humidity to "  + cWeatherHum }
-							else { result = "The hourly weather forecast has been updated. The humidity has been changed to "  + cWeatherHum }
-						}
-						if (precChanged) {
-							if (result) {result = result + ", the chance of rain to "  + cWeatherPrecipitation }
-							else { result = "The hourly weather forecast has been updated. The chance of rain has been changed to "  + cWeatherPrecipitation }
-						}
-						data = [value: result, name: "weather alert", device: "weather"]
-						alertsHandler(data)
-					}
-					else {
-						if (settings?.myWeather == "Weather Condition Changes" && wUpdate ==  "current weather condition") {
-							result = "The " + wUpdate + " has been updated to " + wChange
-							data = [value: result, name: "weather alert", device: "weather"]
-							alertsHandler(data)
-						}
-						else if (settings?.myWeather == "Chance of Precipitation Changes" && wUpdate ==  "chance of precipitation") {
-							result = "The " + wUpdate + " has been updated to " + wChange
-							data = [value: result, name: "weather alert", device: "weather"]
-							alertsHandler(data)
-						}
-						else if (settings?.myWeather == "Wind Speed Changes" && wUpdate == "wind intensity") {
-							result = "The " + wUpdate + " has been updated to " + wChange
-							data = [value: result, name: "weather alert", device: "weather"]
-							alertsHandler(data)
-						}
-						else if (settings?.myWeather == "Humidity Changes" && wUpdate == "humidity") {
-							result = "The " + wUpdate + " has been updated to " + wChange
-							data = [value: result, name: "weather alert", device: "weather"]
-							alertsHandler(data)
-						}
-					}
-				}
-			}
-		}
-	} catch (Throwable t) {
-		log.error t
-		return result
-	}
+    def weatherData = [:]
+    def data = [:]
+       def result
+    try {
+        //hourly updates
+        def cWeather = getWeatherFeature("hourly", state?.wZipCode)
+        def cWeatherCondition = cWeather?.hourly_forecast[0]?.condition
+        def cWeatherPrecipitation = cWeather?.hourly_forecast[0]?.pop + " percent"
+        def cWeatherWind = cWeather?.hourly_forecast[0]?.wspd?.english + " miles per hour"
+        def cWeatherWindC = cWeather?.hourly_forecast[0]?.wspd?.metric + " kilometers per hour"
+        if (getMetric() == true) { cWeatherWind = cWeatherWindC }
+        def cWeatherHum = cWeather?.hourly_forecast[0]?.humidity + " percent"
+        def cWeatherUpdate = cWeather?.hourly_forecast[0]?.FCTTIME?.civil
+        //past hour's data
+        def pastWeather = state.lastWeather
+        //current forecast
+            weatherData.wCond = cWeatherCondition
+            weatherData.wWind = cWeatherWind
+            weatherData.wHum = cWeatherHum
+            weatherData.wPrecip = cWeatherPrecipitation
+        //last weather update
+        def lastUpdated = new Date(now()).format("h:mm aa", location.timeZone)
+        if (settings?.myWeather) {
+            if (pastWeather == null) {
+                state.lastWeather = weatherData
+                state.lastWeatherCheck = lastUpdated
+                result = "hourly weather forcast notification has been activated at " + lastUpdated + " You will now receive hourly weather updates, only if the forecast data changes"
+                data = [value: result, name: "weather alert", device: "weather"]
+                alertsHandler(data)
+            } else {
+                def wUpdate = pastWeather.wCond != cWeatherCondition ? "current weather condition" : pastWeather.wWind != cWeatherWind ? "wind intensity" : pastWeather.wHum != cWeatherHum ? "humidity" : pastWeather.wPrecip != cWeatherPrecipitation ? "chance of precipitation" : null
+                def wChange = wUpdate == "current weather condition" ? cWeatherCondition : wUpdate == "wind intensity" ? cWeatherWind  : wUpdate == "humidity" ? cWeatherHum : wUpdate == "chance of precipitation" ? cWeatherPrecipitation : null
+                //something has changed
+                if (wUpdate != null) {
+                    // saving update to state
+                    state.lastWeather = weatherData
+                    state.lastWeatherCheck = lastUpdated
+                    if (settings?.myWeather == "Any Weather Updates") {
+                        def condChanged = pastWeather.wCond != cWeatherCondition
+                        def windChanged = pastWeather.wWind != cWeatherWind
+                        def humChanged = pastWeather.wHum != cWeatherHum
+                        def precChanged = pastWeather.wPrecip != cWeatherPrecipitation
+                        if (condChanged) {
+                            result = "The hourly weather forecast has been updated. The weather condition has been changed to "  + cWeatherCondition
+                        }
+                        if (windChanged) {
+                            if (result) { result = result +  ", the wind intensity to "  + cWeatherWind }
+                            else { result = "The hourly weather forecast has been updated. The wind intensity has been changed to "  + cWeatherWind }
+                        }
+                        if (humChanged) {
+                            if (result) {result = result +  ", the humidity to "  + cWeatherHum }
+                            else { result = "The hourly weather forecast has been updated. The humidity has been changed to "  + cWeatherHum }
+                        }
+                        if (precChanged) {
+                            if (result) {result = result + ", the chance of rain to "  + cWeatherPrecipitation }
+                            else { result = "The hourly weather forecast has been updated. The chance of rain has been changed to "  + cWeatherPrecipitation }
+                        }
+                        data = [value: result, name: "weather alert", device: "weather"]
+                        alertsHandler(data)
+                    }
+                    else {
+                        if (settings?.myWeather == "Weather Condition Changes" && wUpdate ==  "current weather condition") {
+                            result = "The " + wUpdate + " has been updated to " + wChange
+                            data = [value: result, name: "weather alert", device: "weather"]
+                            alertsHandler(data)
+                        }
+                        else if (settings?.myWeather == "Chance of Precipitation Changes" && wUpdate ==  "chance of precipitation") {
+                            result = "The " + wUpdate + " has been updated to " + wChange
+                            data = [value: result, name: "weather alert", device: "weather"]
+                            alertsHandler(data)
+                        }
+                        else if (settings?.myWeather == "Wind Speed Changes" && wUpdate == "wind intensity") {
+                            result = "The " + wUpdate + " has been updated to " + wChange
+                            data = [value: result, name: "weather alert", device: "weather"]
+                            alertsHandler(data)
+                        }
+                        else if (settings?.myWeather == "Humidity Changes" && wUpdate == "humidity") {
+                            result = "The " + wUpdate + " has been updated to " + wChange
+                            data = [value: result, name: "weather alert", device: "weather"]
+                            alertsHandler(data)
+                        }
+                    }
+                }
+            }
+        }
+    } catch (Throwable t) {
+        log.error t
+        return result
+    }
 }
 
 
 /***********************************************************************************************************************
-	WEATHER ELEMENTS
+    WEATHER ELEMENTS
 ***********************************************************************************************************************/
 def mGetWeatherElements(element) {
-	state.pTryAgain = false
-	def result ="Current weather is not available at the moment, please try again later"
-   	try {
-		//hourly updates
-		def cWeather = getWeatherFeature("hourly", state?.wZipCode)
-		def cWeatherCondition = cWeather?.hourly_forecast[0]?.condition
-		def cWeatherPrecipitation = cWeather?.hourly_forecast[0]?.pop + " percent"
-		def cWeatherWind = cWeather?.hourly_forecast[0]?.wspd?.english + " miles per hour"
-		def cWeatherHum = cWeather?.hourly_forecast[0]?.humidity + " percent"
-		def cWeatherUpdate = cWeather?.hourly_forecast[0]?.FCTTIME?.civil //forecast last updated time E.G "11:00 AM",
-		//current conditions
-		def condWeather = getWeatherFeature("conditions", state?.wZipCode)
-		def condTodayUV = condWeather?.current_observation?.UV
-  		def currentT = condWeather?.current_observation?.temp_f
-			int currentNow = currentT
-		//forecast
-		def forecastT = getWeatherFeature("forecast", state?.wZipCode)
-		def fToday = forecastT?.forecast?.simpleforecast?.forecastday[0]
-		def high = fToday?.high?.fahrenheit?.toInteger()
-	   		int highNow = high
-		def low = fToday?.low?.fahrenheit?.toInteger()
-			int lowNow = low
-		//sunset, sunrise, moon, tide
-		def s = getWeatherFeature("astronomy", state?.wZipCode)
-		def sunriseHour = s?.moon_phase?.sunrise?.hour
-		def sunriseTime = s?.moon_phase?.sunrise?.minute
-		def sunrise = sunriseHour + ":" + sunriseTime
-			Date date = Date.parse("HH:mm",sunrise)
-			def sunriseNow = date.format( "h:mm aa" )
-		def sunsetHour = s?.moon_phase?.sunset?.hour
-		def sunsetTime = s?.moon_phase?.sunset?.minute
-		def sunset = sunsetHour + ":" + sunsetTime
-			date = Date.parse("HH:mm", sunset)
-			def sunsetNow = date.format( "h:mm aa" )
-			if (getMetric() == true) {
-				def cWeatherWindC = cWeather?.hourly_forecast[0]?.wspd?.metric + " kilometers per hour"
-					cWeatherWind = cWeatherWindC
-				def currentTc = condWeather?.current_observation?.temp_c
-					currentNow = currentTc
-				def highC = fToday?.high?.celsius
-					highNow = currentTc
-				def lowC = fToday?.low?.celsius
-					lowNow = currentTc
-			}
-		if (state?.showDebug) { log.debug "cWeatherUpdate = ${cWeatherUpdate}, cWeatherCondition = ${cWeatherCondition}, cWeatherPrecipitation = ${cWeatherPrecipitation}, cWeatherWind = ${cWeatherWind},  cWeatherHum = ${cWeatherHum}, cWeatherHum = ${condTodayUV}" }
-			if		(element == "precip" ) { result = cWeatherPrecipitation }
-			else if	(element == "wind") { result = cWeatherWind }
-			else if	(element == "uv") { result = condTodayUV }
-			else if	(element == "hum") { result = cWeatherHum }
-			else if	(element == "cond") { result = cWeatherCondition }
-			else if	(element == "current") { result = currentNow }
-			else if	(element == "rise") { result = sunriseNow }
-			else if	(element == "set") { result = sunsetNow }
- 			else if	(element == "high") { result = highNow }
-			else if	(element == "low") { result = lowNow }
+    state.pTryAgain = false
+    def result ="Current weather is not available at the moment, please try again later"
+       try {
+        //hourly updates
+        def cWeather = getWeatherFeature("hourly", state?.wZipCode)
+        def cWeatherCondition = cWeather?.hourly_forecast[0]?.condition
+        def cWeatherPrecipitation = cWeather?.hourly_forecast[0]?.pop + " percent"
+        def cWeatherWind = cWeather?.hourly_forecast[0]?.wspd?.english + " miles per hour"
+        def cWeatherHum = cWeather?.hourly_forecast[0]?.humidity + " percent"
+        def cWeatherUpdate = cWeather?.hourly_forecast[0]?.FCTTIME?.civil //forecast last updated time E.G "11:00 AM",
+        //current conditions
+        def condWeather = getWeatherFeature("conditions", state?.wZipCode)
+        def condTodayUV = condWeather?.current_observation?.UV
+          def currentT = condWeather?.current_observation?.temp_f
+            int currentNow = currentT
+        //forecast
+        def forecastT = getWeatherFeature("forecast", state?.wZipCode)
+        def fToday = forecastT?.forecast?.simpleforecast?.forecastday[0]
+        def high = fToday?.high?.fahrenheit?.toInteger()
+               int highNow = high
+        def low = fToday?.low?.fahrenheit?.toInteger()
+            int lowNow = low
+        //sunset, sunrise, moon, tide
+        def s = getWeatherFeature("astronomy", state?.wZipCode)
+        def sunriseHour = s?.moon_phase?.sunrise?.hour
+        def sunriseTime = s?.moon_phase?.sunrise?.minute
+        def sunrise = sunriseHour + ":" + sunriseTime
+            Date date = Date.parse("HH:mm",sunrise)
+            def sunriseNow = date.format( "h:mm aa" )
+        def sunsetHour = s?.moon_phase?.sunset?.hour
+        def sunsetTime = s?.moon_phase?.sunset?.minute
+        def sunset = sunsetHour + ":" + sunsetTime
+            date = Date.parse("HH:mm", sunset)
+            def sunsetNow = date.format( "h:mm aa" )
+            if (getMetric() == true) {
+                def cWeatherWindC = cWeather?.hourly_forecast[0]?.wspd?.metric + " kilometers per hour"
+                    cWeatherWind = cWeatherWindC
+                def currentTc = condWeather?.current_observation?.temp_c
+                    currentNow = currentTc
+                def highC = fToday?.high?.celsius
+                    highNow = currentTc
+                def lowC = fToday?.low?.celsius
+                    lowNow = currentTc
+            }
+        if (state?.showDebug) { log.debug "cWeatherUpdate = ${cWeatherUpdate}, cWeatherCondition = ${cWeatherCondition}, cWeatherPrecipitation = ${cWeatherPrecipitation}, cWeatherWind = ${cWeatherWind},  cWeatherHum = ${cWeatherHum}, cWeatherHum = ${condTodayUV}" }
+            if		(element == "precip" ) { result = cWeatherPrecipitation }
+            else if	(element == "wind") { result = cWeatherWind }
+            else if	(element == "uv") { result = condTodayUV }
+            else if	(element == "hum") { result = cWeatherHum }
+            else if	(element == "cond") { result = cWeatherCondition }
+            else if	(element == "current") { result = currentNow }
+            else if	(element == "rise") { result = sunriseNow }
+            else if	(element == "set") { result = sunsetNow }
+             else if	(element == "high") { result = highNow }
+            else if	(element == "low") { result = lowNow }
 
-			return result
-	} catch (Throwable t) {
-		log.error t
-		state.pTryAgain = true
-		return result
-	}
+            return result
+    } catch (Throwable t) {
+        log.error t
+        state.pTryAgain = true
+        return result
+    }
 }
 /***********************************************************************************************************************
-	WEATHER TEMPS
+    WEATHER TEMPS
 ***********************************************************************************************************************/
 def private mGetWeatherVar(var) {
-	state.pTryAgain = false
-	def result
-	try {
-		def weather = getWeatherFeature("forecast", state?.wZipCode)
-		def sTodayWeather = weather?.forecast?.simpleforecast?.forecastday[0]
-		if (var =="high") { result = sTodayWeather?.high?.fahrenheit }
-		if (var == "low") { result = sTodayWeather?.low?.fahrenheit }
-		if (var =="today") { result = 	weather?.forecast?.txt_forecast?.forecastday[0]?.fcttext }
-		if (var =="tonight") { result = weather?.forecast?.txt_forecast?.forecastday[1]?.fcttext }
-		if (var =="tomorrow") { result = weather?.forecast?.txt_forecast?.forecastday[2]?.fcttext }
+    state.pTryAgain = false
+    def result
+    try {
+        def weather = getWeatherFeature("forecast", state?.wZipCode)
+        def sTodayWeather = weather?.forecast?.simpleforecast?.forecastday[0]
+        if (var =="high") { result = sTodayWeather?.high?.fahrenheit }
+        if (var == "low") { result = sTodayWeather?.low?.fahrenheit }
+        if (var =="today") { result = 	weather?.forecast?.txt_forecast?.forecastday[0]?.fcttext }
+        if (var =="tonight") { result = weather?.forecast?.txt_forecast?.forecastday[1]?.fcttext }
+        if (var =="tomorrow") { result = weather?.forecast?.txt_forecast?.forecastday[2]?.fcttext }
 
-		if (getMetric() == true) {
-			if (var =="high") { result = weather?.forecast?.simpleforecast?.forecastday[0]?.high?.celsius }
-			if (var == "low") { result = weather?.forecast?.simpleforecast?.forecastday[0]?.low?.celsius }
-			if (var =="today") { result = 	weather?.forecast?.txt_forecast?.forecastday[0]?.fcttext_metric }
-			if (var =="tonight") { result = weather?.forecast?.txt_forecast?.forecastday[1]?.fcttext_metric }
-			if (var =="tomorrow") { result = weather?.forecast?.txt_forecast?.forecastday[2]?.fcttext_metric }
-			result = result?.toString()
-			result = result?.replaceAll(/([0-9]+)C/,'$1 degrees')
-		}
-		result = result?.toString()
-		result = result?.replaceAll(/([0-9]+)F/,'$1 degrees')?.replaceAll(~/mph/, " miles per hour")
-		// clean up wind direction (South)
-		result = result?.replaceAll(~/ SSW /, " South-southwest ")?.replaceAll(~/ SSE /, " South-southeast ")?.replaceAll(~/ SE /, " Southeast ")?.replaceAll(~/ SW /, " Southwest ")
-		// clean up wind direction (North)
-		result = result?.replaceAll(~/ NNW /, " North-northwest ")?.replaceAll(~/ NNE /, " North-northeast ")?.replaceAll(~/ NE /, " Northeast ")?.replaceAll(~/ NW /, " Northwest ")
-		// clean up wind direction (West)
-		result = result?.replaceAll(~/ WNW /, " West-northwest ")?.replaceAll(~/ WSW /, " West-southwest ")
-		// clean up wind direction (East)
-		result = result?.replaceAll(~/ ENE /, " East-northeast ")?.replaceAll(~/ ESE /, " East-southeast ")
+        if (getMetric() == true) {
+            if (var =="high") { result = weather?.forecast?.simpleforecast?.forecastday[0]?.high?.celsius }
+            if (var == "low") { result = weather?.forecast?.simpleforecast?.forecastday[0]?.low?.celsius }
+            if (var =="today") { result = 	weather?.forecast?.txt_forecast?.forecastday[0]?.fcttext_metric }
+            if (var =="tonight") { result = weather?.forecast?.txt_forecast?.forecastday[1]?.fcttext_metric }
+            if (var =="tomorrow") { result = weather?.forecast?.txt_forecast?.forecastday[2]?.fcttext_metric }
+            result = result?.toString()
+            result = result?.replaceAll(/([0-9]+)C/,'$1 degrees')
+        }
+        result = result?.toString()
+        result = result?.replaceAll(/([0-9]+)F/,'$1 degrees')?.replaceAll(~/mph/, " miles per hour")
+        // clean up wind direction (South)
+        result = result?.replaceAll(~/ SSW /, " South-southwest ")?.replaceAll(~/ SSE /, " South-southeast ")?.replaceAll(~/ SE /, " Southeast ")?.replaceAll(~/ SW /, " Southwest ")
+        // clean up wind direction (North)
+        result = result?.replaceAll(~/ NNW /, " North-northwest ")?.replaceAll(~/ NNE /, " North-northeast ")?.replaceAll(~/ NE /, " Northeast ")?.replaceAll(~/ NW /, " Northwest ")
+        // clean up wind direction (West)
+        result = result?.replaceAll(~/ WNW /, " West-northwest ")?.replaceAll(~/ WSW /, " West-southwest ")
+        // clean up wind direction (East)
+        result = result?.replaceAll(~/ ENE /, " East-northeast ")?.replaceAll(~/ ESE /, " East-southeast ")
 
-		return result
-	} catch (Throwable t) {
-		log.error t
-		state.pTryAgain = true
-		return result
-	}
+        return result
+    } catch (Throwable t) {
+        log.error t
+        state.pTryAgain = true
+        return result
+    }
 }
