@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.0"}
-String devModified() { return "2019-08-18" }
+String devModified() { return "2019-08-19" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -1405,8 +1405,8 @@ def setLevel(level) {
         if(level != device?.currentValue('level')) {
             sendSequenceCommand("VolumeCommand", "volume", level)
             incrementCntByKey("use_cnt_volumeCmd")
-            sendEvent(name: "level", value: level, display: false, displayed: false)
-            sendEvent(name: "volume", value: level, display: false, displayed: false)
+            sendEvent(name: "level", value: level?.toInteger(), display: false, displayed: false)
+            sendEvent(name: "volume", value: level?.toInteger(), display: false, displayed: false)
         }
     }
 }
@@ -2193,7 +2193,7 @@ def speak(String msg) {
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { log.warn "No Message sent with speak($msg) command" }
         // msg = cleanString(msg, true)
-        speakVolumeCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state?.newVolume ?: null), oldVolume: (state?.oldVolume ?: null), cmdDt: now()])
+        speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state?.newVolume ?: null), oldVolume: (state?.oldVolume ?: null), cmdDt: now()])
         incrementCntByKey("use_cnt_speak")
     }
 }
@@ -2396,8 +2396,10 @@ Map getQueueItems() { return state?.findAll { it?.key?.toString()?.startsWith("q
 
 private queueCheckSchedHealth() {
     Integer cmdCnt = state?.q_cmdCycleCnt
+    Integer lastChk = getLastQueueCheckSec()
     Integer qSize = getQueueSize()
-    if(cmdCnt > 1 && qSize > 1 && getLastQueueCheckSec() > 60) {
+    log.info "queueCheckSchedHealth | Qsize: ${qSize} | LastChk: ${lastChk}"
+    if(qSize >= 2 && lastChk > 120) {
         schedQueueCheck(4, true, null, "queueCheck(missed schedule)")
         log.debug "queueCheck | Scheduling Queue Check for (4 sec) | Possible Lost Recheck Schedule"
     }
@@ -2414,7 +2416,7 @@ private schedQueueCheck(Integer delay=30, overwrite=true, data=null, src) {
 
 public queueEchoCmd(type, msgLen, headers, body=null, firstRun=false) {
     Integer qSize = getQueueSize()
-    if(state?.q_blocked == true) { log.warn "│ Queue Temporarily Blocked (${getQueueSize()} Items): | Working: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled})"; return; }
+    if(state?.q_blocked == true) { log.warn "│ Queue Temporarily Blocked (${qSize} Items): | Working: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled})"; return; }
     List logItems = []
     Map dupItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
     logItems?.push("│ Queue Active: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled}) ")
@@ -2436,7 +2438,7 @@ public queueEchoCmd(type, msgLen, headers, body=null, firstRun=false) {
     if(headers?.message) {  logItems?.push("│ Message(Len: ${headers?.message?.toString()?.length()}): ${headers?.message?.take(200)?.trim()}${headers?.message?.toString()?.length() > 200 ? "..." : ""}") }
     if(headers?.cmdType) {  logItems?.push("│ CmdType: (${headers?.cmdType})") }
                             logItems?.push("┌───── Added Echo Queue Item (${state?.q_cmdIndexNum}) ─────")
-    queueCheckSchedHealth()
+    // queueCheckSchedHealth()
     if(!firstRun) {
         processLogItems("trace", logItems, false, true)
     }
@@ -2444,32 +2446,33 @@ public queueEchoCmd(type, msgLen, headers, body=null, firstRun=false) {
 
 private queueCheck(data) {
     // log.debug "queueCheck | ${data}"
-    Integer q_cmdCycleCnt = state?.q_cmdCycleCnt
+    Integer qSize = getQueueSize()
+    Boolean qEmpty = (qSize == 0)
     state?.q_lastCheckDt = getDtNow()
-    if(q_cmdCycleCnt && q_cmdCycleCnt >= 10) {
-        log.warn "queueCheck | Queue Cycle Count (${q_cmdCycleCnt}) is filling up... Blocking Queue Additions Until Queue Size Drops below 10!!!"
-        schedQueueCheck(delay, true, null, "queueCheck(filling)")
-        state?.q_blocked = true
-    }
-    if(q_cmdCycleCnt && q_cmdCycleCnt >= 20) {
-        log.warn "queueCheck | Queue Cycle Count (${q_cmdCycleCnt}) is abnormally high... Resetting Queue"
-        state?.q_blocked = true
-        resetQueue(false)
+    if(!qEmpty) {
+        if(qSize && qSize >= 10) {
+            state?.q_blocked = true
+            if (qSize < 20) {
+                log.warn "queueCheck | Queue Item Count (${qSize}) is filling up... Blocking Queue Additions Until Queue Size Drops below 10!!!"
+                schedQueueCheck(delay, true, null, "queueCheck(filling)")
+            } else {
+                log.warn "queueCheck | Queue Item Count (${qSize}) is abnormally high... Resetting Queue"
+                resetQueue(false)
+                return
+            }
+        } else { state?.q_blocked = false }
+        if(data && data?.rateLimited == true) {
+            Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.q_curMsgLen)
+            schedQueueCheck(delay, true, null, "queueCheck(rate-limit)")
+            log.debug "queueCheck | Scheduling Queue Check for (${delay} sec) | Recheck for RateLimiting"
+        }
+        processCmdQueue()
         return
-    }
-    Boolean qEmpty = (getQueueSize() == 0)
-    if(qEmpty) {
+    } else {
         log.trace "queueCheck | Nothing in the Queue | Performing Queue Reset..."
         resetQueue(false)
         return
     }
-    if(data && data?.rateLimited == true) {
-        Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.q_curMsgLen)
-        schedQueueCheck(delay, true, null, "queueCheck(rate-limit)")
-        log.debug "queueCheck | Scheduling Queue Check for (${delay} sec) | Recheck for RateLimiting"
-    }
-    processCmdQueue()
-    return
 }
 
 void processCmdQueue() {
@@ -2493,7 +2496,7 @@ void processCmdQueue() {
             state?.q_cmdWorking = false
         } else {
             state?.q_lastMsg = cmdData?.headers?.message
-            speakVolumeCmd(cmdData?.headers, true)
+            speechCmd(cmdData?.headers, true)
         }
     } else { state?.q_cmdWorking = false }
 }
@@ -2511,10 +2514,11 @@ def testMultiCmd() {
     sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]], "testMultiCmd")
 }
 
-private speakVolumeCmd(headers=[:], isQueueCmd=false) {
+private speechCmd(headers=[:], isQueueCmd=false) {
     //TODO: Look into adding an expiration timestamp for automatic removal from the queue
+    // if(isQueueCmd) log.warn "Blocked: ${state?.q_blocked} | cycleCnt: ${state?.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
     state?.q_speakingNow = true
-    def tr = "speakVolumeCmd (${headers?.cmdDesc}) | Message: ${headers?.message}"
+    def tr = "speechCmd (${headers?.cmdDesc}) | Message: ${headers?.message}"
     tr += headers?.newVolume ? " | SetVolume: (${headers?.newVolume})" : ""
     tr += headers?.oldVolume ? " | Restore Volume: (${headers?.oldVolume})" : ""
     tr += headers?.msgDelay  ? " | RecheckSeconds: (${headers?.msgDelay})" : ""
@@ -2522,7 +2526,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
     tr += headers?.cmdDt     ? " | CmdDt: (${headers?.cmdDt})" : ""
     log.trace "${tr}"
 
-    // if(!isQueueCmd) { log.trace "speakVolumeCmd(${headers?.cmdDesc}, $isQueueCmd)" }
+    // if(!isQueueCmd) { log.trace "speechCmd(${headers?.cmdDesc}, $isQueueCmd)" }
     def random = new Random()
     def randCmdId = random?.nextInt(300)
 
@@ -2530,7 +2534,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
     List logItems = []
     String healthStatus = getHealthStatus()
     if(!headers || !(healthStatus in ["ACTIVE", "ONLINE"])) {
-        if(!headers) { log.error "speakVolumeCmd | Error${!headers ? " | headers are missing" : ""} " }
+        if(!headers) { log.error "speechCmd | Error${!headers ? " | headers are missing" : ""} " }
         if(!(healthStatus in ["ACTIVE", "ONLINE"])) { log.warn "Command Ignored... Device is current in OFFLINE State" }
         return
     }
@@ -2552,7 +2556,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
         }
         Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state?.q_speakingNow == true))
         if(!isQueueCmd) { logItems?.push("│ SentToQueue: (${sendToQueue})") }
-        // log.warn "speakVolumeCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
+        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
             queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
             if(!isFirstCmd) { return }
@@ -2567,7 +2571,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
         if(headers?.message) {
             state?.q_curMsgLen = msgLen
             state?.q_lastTtsCmdDelay = recheckDelay
-            schedQueueCheck(recheckDelay, true, null, "speakVolumeCmd(sendCloudCommand)")
+            schedQueueCheck(recheckDelay, true, null, "speechCmd(sendCloudCommand)")
             logItems?.push("│ Rechecking: (${recheckDelay} seconds)")
             logItems?.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : ""}")
             state?.q_lastTtsMsg = headers?.message
@@ -2607,7 +2611,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
         logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
         processLogItems("debug", logItems)
     } catch (ex) {
-        log.error "speakVolumeCmd Exception:", ex
+        log.error "speechCmd Exception:", ex
         incrementCntByKey("err_cloud_command")
     }
 }

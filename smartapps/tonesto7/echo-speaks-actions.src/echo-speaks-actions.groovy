@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()  { return "3.0.0" }
-String appModified()  { return "2019-08-18" }
+String appModified() { return "2019-08-19" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -139,22 +139,29 @@ def mainPage() {
             }
             section(sTS("Configuration: Part 3")) {
                 if(trigConf) {
-                    href "actionsPage", title: inTS("Actions Tasks", getAppImg("es_actions", true)), description: getActionDesc(), state: (actConf ? "complete" : ""), image: getAppImg("es_actions")
+                    href "actionsPage", title: inTS("Action Execution", getAppImg("es_actions", true)), description: getActionDesc(), state: (actConf ? "complete" : ""), image: getAppImg("es_actions")
                 } else { paragraph pTS("More Options will be shown once triggers are configured", getAppImg("info", true)) }
             }
-            section(sTS("Preferences")) {
-                href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
-            }
+            // section(sTS("Preferences")) {
+            //     href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
+            // }
         } else {
             section() {
                 paragraph pTS("This Action is currently in a paused state...  To edit the configuration please un-pause", getAppImg("pause_orange", true)), required: true, state: null, image: getAppImg("pause_orange")
             }
         }
 
-        if(state?.isInstalled) {
-            section(sTS("Place this action on hold:")) {
-                input "actionPause", "bool", title: inTS("Pause Action?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+
+        section(sTS("Preferences")) {
+            if(!paused) {
+                href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
             }
+            if(state?.isInstalled) {
+                input "actionPause", "bool", title: inTS("Pause Action?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                if(actionPause) { unsubscribe() }
+            }
+        }
+        if(state?.isInstalled) {
             section(sTS("Name this Action:")) {
                 input "appLbl", "text", title: inTS("Action Name", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
             }
@@ -195,12 +202,13 @@ def triggersPage() {
             }
         }
         if (settings?.triggerEvents?.size()) {
+            Integer trigItemCnt = 0
             Integer trigEvtCnt = settings?.triggerEvents?.size()
             if(!(settings?.triggerEvents in ["Scheduled", "Weather"])) { showSpeakEvtVars = true }
             if (valTrigEvt("scheduled")) {
                 section(sTS("Time Based Events"), hideable: true) {
                     if(!settings?.trig_scheduled_time) {
-                        input "trig_scheduled_sunState", "enum", title: inTS("Sunrise or Sunset...", getAppImg("sun", true)), options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true, image: getPublicImg("sun")
+                        input "trig_scheduled_sunState", "enum", title: inTS("Sunrise or Sunset...", getAppImg("sunrise", true)), options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true, image: getAppImg("sunrise")
                         if(settings?.trig_scheduled_sunState) {
                             input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset event this number of minutes (+/-)", getAppImg(settings?.trig_scheduled_sunState?.toString()?.toLowerCase(), true)),
                                     required: true, image: getPublicImg(settings?.trig_scheduled_sunState?.toString()?.toLowerCase() + "")
@@ -209,14 +217,14 @@ def triggersPage() {
                     if(!settings?.trig_scheduled_sunState) {
                         input "trig_scheduled_time", "time", title: inTS("Time of Day?", getAppImg("clock", true)), required: false, submitOnChange: true, image: getPublicImg("clock")
                         if(settings?.trig_scheduled_time || settings?.trig_scheduled_sunState) {
-                            input "trig_scheduled_recurrence", "enum", title: inTS("Recurrence?", getAppImg("day_calendar2", true)), description: "(Optional)", multiple: false, required: false, submitOnChange: true, options: ["Once", "Daily", "Weekly", "Monthly"], defaultValue: "Once", image: getPublicImg("day_calendar2")
+                            input "trig_scheduled_recurrence", "enum", title: inTS("Recurrence?", getAppImg("day_calendar", true)), description: "(Optional)", multiple: false, required: false, submitOnChange: true, options: ["Once", "Daily", "Weekly", "Monthly"], defaultValue: "Once", image: getAppImg("day_calendar")
                             Boolean dayReq = (settings?.trig_scheduled_recurrence in ["Weekly", "Monthly"])
                             Boolean weekReq = (settings?.trig_scheduled_recurrence in ["Weekly", "Monthly"])
                             Boolean monReq = (settings?.trig_scheduled_recurrence in ["Monthly"])
                             if(settings?.trig_scheduled_recurrence) {
-                                input "trig_scheduled_days", "enum", title: inTS("Day(s) of the week", getAppImg("day_calendar2", true)), description: (!dayReq ? "(Optional)" : ""), multiple: true, required: dayReq, submitOnChange: true, options: weekDaysEnum(), image: getPublicImg("day_calendar2")
-                                input "trig_scheduled_weeks", "enum", title: inTS("Weeks(s) of the month", getAppImg("day_calendar2", true)), description: (!weekReq ? "(Optional)" : ""), multiple: true, required: weekReq, submitOnChange: true, options: ["1", "2", "3", "4", "5"], image: getPublicImg("day_calendar2")
-                                input "trig_scheduled_months", "enum", title: inTS("Month(s) of the year", getAppImg("day_calendar2", true)), description: (!monReq ? "(Optional)" : ""), multiple: true, required: monReq, submitOnChange: true, options: monthEnum(), image: getPublicImg("day_calendar2")
+                                input "trig_scheduled_days", "enum", title: inTS("Day(s) of the week", getAppImg("day_calendar", true)), description: (!dayReq ? "(Optional)" : ""), multiple: true, required: dayReq, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
+                                input "trig_scheduled_weeks", "enum", title: inTS("Weeks(s) of the month", getAppImg("day_calendar", true)), description: (!weekReq ? "(Optional)" : ""), multiple: true, required: weekReq, submitOnChange: true, options: ["1", "2", "3", "4", "5"], image: getAppImg("day_calendar")
+                                input "trig_scheduled_months", "enum", title: inTS("Month(s) of the year", getAppImg("day_calendar", true)), description: (!monReq ? "(Optional)" : ""), multiple: true, required: monReq, submitOnChange: true, options: monthEnum(), image: getAppImg("day_calendar")
                             }
                         }
                     }
@@ -226,6 +234,9 @@ def triggersPage() {
             if (valTrigEvt("alarm")) {
                 section (sTS("${getAlarmSystemName()} (${getAlarmSystemName(true)}) Events"), hideable: true) {
                     input "trig_alarm", "enum", title: inTS("${getAlarmSystemName()} Modes", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
+                    if(trig_alarm) {
+                        triggerVariableDesc("alarm", false, trigItemCnt++)
+                    }
                     // if("alerts" in trig_alarm) {
                     //     input "trig_alarm_alerts_clear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
                     // }
@@ -237,6 +248,7 @@ def triggersPage() {
                     input "trig_mode", "mode", title: inTS("Location Modes", getAppImg("mode", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("mode")
                     if(settings?.trig_mode) {
                         input "trig_mode_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        triggerVariableDesc("mode", false, trigItemCnt++)
                     }
                 }
             }
@@ -246,6 +258,7 @@ def triggersPage() {
                     input "trig_routineExecuted", "enum", title: inTS("Routines", getAppImg("routine", true)), options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_routineExecuted) {
                         input "trig_routineExecuted_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        triggerVariableDesc("routineExecuted", false, trigItemCnt++)
                     }
                 }
             }
@@ -255,56 +268,57 @@ def triggersPage() {
                     input "trig_scene", "device.sceneActivator", title: inTS("Scene Devices", getAppImg("routine", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_scene) {
                         input "trig_scene_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        triggerVariableDesc("scene", false, trigItemCnt++)
                     }
                 }
             }
 
             if (valTrigEvt("switch")) {
-                trigNonNumSect("switch", "switch", "Switches", "Switches", ["on", "off", "any"], "are turned", ["on", "off"], "switch")
+                trigNonNumSect("switch", "switch", "Switches", "Switches", ["on", "off", "any"], "are turned", ["on", "off"], "switch", trigItemCnt++)
             }
 
             if (valTrigEvt("level")) {
-                trigNumValSect("level", "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level is", "speed_knob")
+                trigNumValSect("level", "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level is", "speed_knob", trigItemCnt++)
             }
 
             if (valTrigEvt("battery")) {
-                trigNumValSect("battery", "battery", "Battery Level", "Batteries", "Level is", "speed_knob")
+                trigNumValSect("battery", "battery", "Battery Level", "Batteries", "Level is", "speed_knob", trigItemCnt++)
             }
 
             if (valTrigEvt("motion")) {
-                trigNonNumSect("motion", "motionSensor", "Motion Sensors", "Motion Sensors", ["active", "inactive", "any"], "become", ["active", "inactive"], "motion")
+                trigNonNumSect("motion", "motionSensor", "Motion Sensors", "Motion Sensors", ["active", "inactive", "any"], "become", ["active", "inactive"], "motion", trigItemCnt++)
             }
 
             if (valTrigEvt("presence")) {
-                trigNonNumSect("presence", "presenceSensor", "Presence Sensors", "Presence Sensors", ["present", "not present", "any"], "changes to", ["present", "not present"], "presence")
+                trigNonNumSect("presence", "presenceSensor", "Presence Sensors", "Presence Sensors", ["present", "not present", "any"], "changes to", ["present", "not present"], "presence", trigItemCnt++)
             }
 
             if (valTrigEvt("contact")) {
-                trigNonNumSect("contact", "contactSensor", "Contacts, Doors, Windows", "Contacts, Doors, Windows", ["open", "closed", "any"], "changes to", ["open", "closed"], "contact")
+                trigNonNumSect("contact", "contactSensor", "Contacts, Doors, Windows", "Contacts, Doors, Windows", ["open", "closed", "any"], "changes to", ["open", "closed"], "contact", trigItemCnt++)
             }
 
             if (valTrigEvt("door")) {
-                trigNonNumSect("door", "garageDoorControl", "Garage Door Openers", "Garage Doors", ["open", "closed", "opening", "closing", "any"], "changes to", ["open", "closed"], "garage_door")
+                trigNonNumSect("door", "garageDoorControl", "Garage Door Openers", "Garage Doors", ["open", "closed", "opening", "closing", "any"], "changes to", ["open", "closed"], "garage_door", trigItemCnt++)
             }
 
             if (valTrigEvt("lock")) {
-                trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", "any"], "changes to", ["locked", "unlocked"], "lock")
+                trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", "any"], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++)
             }
 
             if (valTrigEvt("temperature")) {
-                trigNumValSect("temperature", "temperatureMeasurement", "Temperature Sensor", "Temperature Sensors", "Temperature", "temperature")
+                trigNumValSect("temperature", "temperatureMeasurement", "Temperature Sensor", "Temperature Sensors", "Temperature", "temperature", trigItemCnt++)
             }
 
             if (valTrigEvt("humidity")) {
-                trigNumValSect("humidity", "relativeHumidityMeasurement", "Humidity Sensors", "Relative Humidity Sensors", "Relative Humidity (%)", "humidity")
+                trigNumValSect("humidity", "relativeHumidityMeasurement", "Humidity Sensors", "Relative Humidity Sensors", "Relative Humidity (%)", "humidity", trigItemCnt++)
             }
 
             if (valTrigEvt("water") in settings?.triggerEvents) {
-                trigNonNumSect("water", "waterSensor", "Water Sensors", "Water/Moisture Sensors", ["wet", "dry", "any"], "changes to", ["wet", "dry"], "water")
+                trigNonNumSect("water", "waterSensor", "Water Sensors", "Water/Moisture Sensors", ["wet", "dry", "any"], "changes to", ["wet", "dry"], "water", trigItemCnt++)
             }
 
             if (valTrigEvt("power")) {
-                trigNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power")
+                trigNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power", trigItemCnt++)
             }
 
             if (valTrigEvt("carbon")) {
@@ -316,9 +330,7 @@ def triggersPage() {
                             if (settings?.trig_carbonMonoxide?.size() > 1 && settings?.trig_carbonMonoxide_cmd != "any") {
                                 input "trig_carbonMonoxide_all", "bool", title: inTS("Require ALL Smoke Detectors to be (${settings?.trig_carbonMonoxide_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                             }
-                            //Custom Text Options
-                            paragraph "Description:\nYou can set custom responses for each carbon monoxide event.\nNotice: These are only used if Speech or Announcement action are selected.\nFYI: To allow multiple random responses just separate each response with a ;"
-                            input "trig_carbon_txt", "text", title: inTS("Custom Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
+                            triggerVariableDesc("carbonMonoxide", false, trigItemCnt++)
                         }
                     }
                 }
@@ -333,24 +345,22 @@ def triggersPage() {
                             if (settings?.trig_smoke?.size() > 1 && settings?.trig_smoke_cmd != "any") {
                                 input "trig_smoke_all", "bool", title: inTS("Require ALL Smoke Detectors to be (${settings?.trig_smoke_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                             }
-                            //Custom Text Options
-                            paragraph "Description:\nYou can set custom responses for each smoke event.\nNotice: These are only used if Speech or Announcement action are selected.\nFYI: To allow multiple random responses just separate each response with a ;"
-                            input "trig_smoke_txt", "text", title: inTS("Custom Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
+                            triggerVariableDesc("smoke", false, trigItemCnt++)
                         }
                     }
                 }
             }
 
             if (valTrigEvt("illuminance")) {
-                trigNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Events", "Illuminance Sensors", "Lux Level (%)", "illuminance")
+                trigNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Events", "Illuminance Sensors", "Lux Level (%)", "illuminance", trigItemCnt++)
             }
 
             if (valTrigEvt("shade")) {
-                trigNonNumSect("shade", "windowShades", "Window Shades", "Window Shades", ["open", "closed", "opening", "closing", "any"], "changes to", ["open", "closed"], "window_shade")
+                trigNonNumSect("shade", "windowShades", "Window Shades", "Window Shades", ["open", "closed", "opening", "closing", "any"], "changes to", ["open", "closed"], "window_shade", trigItemCnt++)
             }
 
             if (valTrigEvt("valve")) {
-                trigNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed", "any"], "changes to", ["open", "closed"], "valve")
+                trigNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed", "any"], "changes to", ["open", "closed"], "valve", trigItemCnt++)
             }
 
             if (valTrigEvt("thermostat")) {
@@ -398,9 +408,7 @@ def triggersPage() {
                             }
                             input "trig_thermostat_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_thermostat_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
-                            //Custom Text Options
-                            paragraph "Description:\nYou can set custom responses for each thermostat event.\nNotice: These are only used if Speech or Announcement action are selected.\nFYI: To allow multiple random responses just separate each response with a ;"
-                            input "trig_thermostat_txt", "text", title: inTS("Custom Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
+                            triggerVariableDesc("thermostat", false, trigItemCnt++)
                         }
                     }
                 }
@@ -463,7 +471,7 @@ def triggersPage() {
     }
 }
 
-def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image) {
+def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt) {
     section (sTS(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, required: true, submitOnChange: true, image: getAppImg(image)
         if (settings?."trig_${inType}") {
@@ -479,23 +487,16 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     }
                 }
                 input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                input "trig_${inType}_wait", "number", title: inTS("Wait between each report (xx) seconds\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: 0, submitOnChange: true, image: getAppImg("delay_time")
-                //Custom Text Options
-                paragraph "Description:\nYou can set custom responses for each ${inType} event.\n\nNotice:\nThese are only used if Speech or Announcement action are selected.\n\nFYI:\nTo allow multiple random responses just separate each response with a ;"
-                input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
-                if(settings?."trig_${inType}_after_repeat") {
-                    //Custom Repeat Text Options
-                    paragraph "Description:\nAdd custom responses for the ${inType} events that are repeated.\nTo allow multiple random responses just separate each response with a ;"
-                    input "trig_${inType}_after_repeat_txt", "text", title: inTS("Custom ${inType?.capitalize()} Repeat Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
-                }
+                input "trig_${inType}_wait", "number", title: inTS("Wait between each report (xx) seconds\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                triggerVariableDesc(inType, true, trigItemCnt)
             }
         }
     }
 }
 
-def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image) {
+def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Integer trigItemCnt) {
     section (sTS(sectStr), hideable: true) {
-        input "trig_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: true, image: getAppImg(image)
+        input "trig_${inType}", "capability.${capType}", tite: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: true, image: getAppImg(image)
         if(settings?."trig_${inType}") {
             input "trig_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
             if (settings?."trig_${inType}_cmd") {
@@ -513,9 +514,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                 }
                 input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                 input "trig_${inType}_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
-                //Custom Text Options
-                paragraph "Description:\nYou can set custom responses for each ${inType} event.\n\nNotice:\nThese are only used if Speech or Announcement action are selected.\n\nFYI:\nTo allow multiple random responses just separate each response with a ;"
-                input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Text/SSML Response\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
+                triggerVariableDesc(inType, false, trigItemCnt)
             }
         }
     }
@@ -661,6 +660,70 @@ private Map devsSupportVolume(devs) {
     return [s:supported, n:noSupport]
 }
 
+def actionVariableDesc(actType, hideUserTxt=false) {
+    Map txtItems = customTxtItems()
+    if(!txtItems?.size() && state?.showSpeakEvtVars && !settings?."act_${actType}_txt") {
+        String str = "NOTICE:\nYou can choose to leave the text field empty and generic text will be generated for each event type or define responses for each trigger under Step 1.\n\nVariables can alse be used in your text:"
+        str += "\n • %type% = Event Type"
+        str += "\n • %value% = Event Value"
+        str += "\n • %name% = Event Device"
+        str += "\n • %date% = Event Date"
+        str += "\n • %time% = Event Time"
+        str += "\n • %datetime% = Event Date/Time"
+        str += "\n\nExample: %name% %type% is now %value%"
+        paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
+        paragraph pTS("TIPS:\n \u2022 For beep sounds use: 'wop, wop, wop' (equals 3 beeps)\n \u2022 When entering SSML be sure to wrap the text in ${!isST() ? "&lt;speak&gt;&lt;/speak&gt;" : "<speak></speak>"}", null, false, "violet")
+    }
+    if(!hideUserTxt) {
+        if(txtItems?.size()) {
+            String str = "NOTICE: (Custom Text Defined)"
+            txtItems?.each { i->
+                i?.value?.each { i2-> str += "\n \u2022 ${i?.key?.toString()?.capitalize()} ${i2?.key?.toString()?.capitalize()}: (${i2?.value?.size()} Items)" }
+                str += "\n"
+            }
+            paragraph pTS(str, null, true, "#2784D9"), state: "complete"
+            paragraph pTS("NOTICE:\nEntering text in the input below will override the user defined text for each trigger type.", null, true, "red"), required: true, state: null
+        }
+    }
+}
+
+def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
+    if(itemCnt>=1) {
+        paragraph pTS("NOTICE:\nTo reduce scrolling please refer to the text options available on the trigger at the top.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
+    } else {
+        String str = "NOTICE:\nYou can choose to leave the text field empty and generic text will be generated for each trigger type or define a single response for all triggers under Step 3.\n\nVariables can alse be used in your text:"
+        str += "\n • %type% = Event Type"
+        str += "\n • %value% = Event Value"
+        str += "\n • %name% = Event Device"
+        str += "\n • %date% = Event Date"
+        str += "\n • %time% = Event Time"
+        str += "\n • %datetime% = Event Date/Time"
+        if(showRepInputs) {
+            str += "\n • %duration% = Repeat Duration"
+        }
+        str += "\n\nExample: %name% %type% is now %value%"
+
+        paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
+        paragraph pTS("TIPS:\n \u2022 For beep sounds use: 'wop, wop, wop' (equals 3 beeps)\n \u2022 When entering SSML be sure to wrap the text in ${!isST() ? "&lt;speak&gt;&lt;/speak&gt;" : "<speak></speak>"}", null, false, "violet")
+    }
+    String textEntryUrl = parent?.getTextEntryPath(app?.id, "trig_${inType}_txt")
+    log.debug textEntryUrl
+    //Custom Text Options
+    paragraph pTS("Description:\nSet custom responses for each ${inType} event.\n\nFYI:\n \u2022 These are only used if Speech or Announcement actions are selected in Step 3.\n \u2022 To allow multiple random responses for this trigger just separate each response with a ;", null, false, "#2784D9")
+    input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Response(s)\n(Optional)", getAppImg("text", true)), description: "Enter Text/SSML Here", submitOnChange: true, required: false, image: getAppImg("text")
+
+    href url: textEntryUrl, style: "embedded", required: false, title: "Custom ${inType?.capitalize()} Response(s)\n(Optional)(WEB)", description: "Enter Text/SSML Here", image: getAppImg("text")
+
+    input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Response(s)\n(Optional)", getAppImg("text", true)), description: "Enter Text/SSML Here", submitOnChange: true, required: false, image: getAppImg("text")
+    if(showRepInputs) {
+        if(settings?."trig_${inType}_after_repeat") {
+            //Custom Repeat Text Options
+            paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.\nTo allow multiple random responses just separate each response with a ;", getAppImg("info", true), false, "#2784D9"), state: "complete"
+            input "trig_${inType}_after_repeat_txt", "text", title: inTS("Custom ${inType?.capitalize()} Repeat Response(s)\n(Optional)", getAppImg("text", true)), description: "Enter Text/SSML Here", submitOnChange: true, required: false, image: getAppImg("text")
+        }
+    }
+}
+
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: (settings?.actionType ? "Action | (${settings?.actionType})" : "Actions to perform..."), install: false, uninstall: false) {
         Boolean done = false
@@ -680,27 +743,12 @@ def actionsPage() {
             List devices = parent?.getDevicesFromList(settings?.act_EchoDevices)
             switch(actionType) {
                 case "speak":
-                    String ssmlTestUrl = "https://topvoiceapps.com/ssml"
-                    String ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
-                    String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
-                    String ssmlSpeechConsUrl = "https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-english-us.html"
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
-                        section(sTS("SSML Info:"), hideable: true, hidden: true) {
-                            paragraph title: "What is SSML?", pTS("SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", getAppImg("info", true)), state: "complete", image: getAppImg("info")
-                            href url: ssmlDocsUrl, style: "external", required: false, title: inTS("Amazon SSML Docs", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
-                            href url: ssmlSoundsUrl, style: "external", required: false, title: inTS("Amazon Sound Library", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
-                            href url: ssmlSpeechConsUrl, style: "external", required: false, title: inTS("Amazon SpeechCons", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
-                            href url: ssmlTestUrl, style: "external", required: false, title: inTS("SSML Designer and Tester", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
-                        }
-                        section(sTS("Speech Tips:")) {
-                            paragraph pTS("To make beep tones use: 'wop, wop, wop' (equals 3 beeps)", getAppImg("info", true)), image: getAppImg("info")
-                        }
-
-                        section(sTS("Action Config:")) {
-                            variableDesc()
-                            input "act_speak_txt", "text", title: inTS("Enter Text/SSML", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
-                            paragraph pTS("Reminder\nIf entering SSML be sure to wrap the text in <speak></speak>", getAppImg("info", true))
+                        ssmlInfoSection()
+                        section(sTS("Action Config:"), hideable: true) {
+                            actionVariableDesc(actionType)
+                            input "act_speak_txt", "text", title: inTS("Enter Action Text/SSML\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
                         actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
@@ -710,13 +758,14 @@ def actionsPage() {
 
                 case "announcement":
                     section(sTS("Action Description:")) {
-                        paragraph pTS("Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                        paragraph pTS("Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("announce")
                     if(settings?.act_EchoDevices) {
+                        ssmlInfoSection()
                         section(sTS("Action Config:")) {
-                            variableDesc()
-                            input "act_announcement_txt", "text", title: inTS("Enter Text to announce", getAppImg("text", true)), submitOnChange: true, required: false, image: getAppImg("text")
+                            actionVariableDesc(actionType)
+                            input "act_announcement_txt", "text", title: inTS("Enter Action Text/SSML\n(Optional)", getAppImg("text", true)), description: "Enter Text to Announce", submitOnChange: true, required: false, image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
                         actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
@@ -732,7 +781,7 @@ def actionsPage() {
 
                 case "sequence":
                     section(sTS("Action Description:")) {
-                        paragraph pTS("Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                        paragraph pTS("Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
@@ -759,7 +808,7 @@ def actionsPage() {
                             // paragraph str4, state: "complete"
                             paragraph str2, state: "complete"
                             paragraph str3, state: "complete"
-                            paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
+                            paragraph pTS("Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", null, false, , false, "violet"), state: "complete"
                         }
                         section(sTS("Action Config:")) {
                             input "act_sequence_txt", "text", title: inTS("Enter sequence text", getAppImg("text", true)), submitOnChange: true, required: false, image: getAppImg("text")
@@ -771,7 +820,7 @@ def actionsPage() {
 
                 case "weather":
                     section(sTS("Action Description:")) {
-                        paragraph pTS("Plays a very basic weather report.", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                        paragraph pTS("Plays a very basic weather report.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
@@ -783,7 +832,7 @@ def actionsPage() {
 
                 case "playback":
                     section(sTS("Action Description:")) {
-                        paragraph pTS("Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                        paragraph pTS("Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
@@ -801,7 +850,7 @@ def actionsPage() {
 
                 case "builtin":
                     section(sTS("Action Description:")) {
-                        paragraph pTS("Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                        paragraph pTS("Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
@@ -821,7 +870,7 @@ def actionsPage() {
 
                 case "music":
                     section(sTS("Action Description:")) {
-                        paragraph pTS("Allow playback of various Songs/Radio using any connected music provider", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                        paragraph pTS("Allow playback of various Songs/Radio using any connected music provider", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
@@ -854,7 +903,7 @@ def actionsPage() {
 
                 case "calendar":
                     section(sTS("Action Description:")) {
-                        paragraph pTS("This will read out events in your calendar (Requires accounts to be configured in the alexa app. Must not have PIN.)", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                        paragraph pTS("This will read out events in your calendar (Requires accounts to be configured in the alexa app. Must not have PIN.)", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
@@ -871,7 +920,7 @@ def actionsPage() {
                 case "alarm":
                     //TODO: Offer to remove alarm after event.
                     section(sTS("Action Description:")) {
-                        paragraph pTS("This will allow you to alexa alarms based on triggers", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                        paragraph pTS("This will allow you to alexa alarms based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("alarms")
                     if(settings?.act_EchoDevices) {
@@ -890,7 +939,7 @@ def actionsPage() {
                 case "reminder":
                     //TODO: Offer to remove reminder after event.
                     section(sTS("Action Description:")) {
-                        paragraph pTS("This will allow you to alexa reminders based on triggers", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                        paragraph pTS("This will allow you to alexa reminders based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                     }
                     echoDevicesInputByPerm("reminders")
                     if(settings?.act_EchoDevices) {
@@ -911,7 +960,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         Map dndOpts = ["doNotDisturbOn":"Enable", "doNotDisturbOff":"Disable"]
                         section(sTS("Action Description:")) {
-                            paragraph pTS("This will allow you to enable/disable Do Not Disturb based on triggers", getAppImg("info", true)), state: "complete"
+                            paragraph pTS("This will allow you to enable/disable Do Not Disturb based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete"
                         }
                         section(sTS("Action Config:")) {
                             input "act_dnd_cmd", "enum", title: inTS("Select Do Not Disturb Action", getAppImg("command", true)), description: "", options: dndOpts, required: true, submitOnChange: true, image: getAppImg("command")
@@ -925,7 +974,7 @@ def actionsPage() {
                     echoDevicesInputByPerm("wakeWord")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Description:")) {
-                            paragraph pTS("This will Allow you trigger any Alexa Routines (Those with voice triggers only)", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                            paragraph pTS("This will Allow you trigger any Alexa Routines (Those with voice triggers only)", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                         }
                         def routinesAvail = parent?.getAlexaRoutines(null, true) ?: [:]
                         log.debug "routinesAvail: $routinesAvail"
@@ -943,7 +992,7 @@ def actionsPage() {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
                         List devsObj = []
                         section(sTS("Action Description:")) {
-                            paragraph pTS("This will allow you to change the Wake Word of your Echo's based on triggers", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                            paragraph pTS("This will allow you to change the Wake Word of your Echo's based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                         }
                         if(devsCnt >= 1) {
                             List wakeWords = devices[0]?.hasAttribute("wakeWords") ? devices[0]?.currentValue("wakeWords")?.replaceAll('"', "")?.split(",") : []
@@ -971,7 +1020,7 @@ def actionsPage() {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
                         List devsObj = []
                         section(sTS("Action Description:")) {
-                            paragraph pTS("This will allow you to connect or disconnect bluetooth based on triggers", getAppImg("info", true)), state: "complete", image: getAppImg("info")
+                            paragraph pTS("This will allow you to connect or disconnect bluetooth based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                         }
                         if(devsCnt >= 1) {
                             devices?.each { cDev->
@@ -997,9 +1046,7 @@ def actionsPage() {
                     input "act_delay", "number", title: inTS("Delay Action in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                 }
                 section(sTS("Simulate Action")) {
-                    //TODO: Add event generator based on trigger items selected.
-                    //TODO: Use custom text for test
-                    paragraph pTS("Perform a test of this action to see the results", getAppImg("info", true)), image: getAppImg("info")
+                    paragraph pTS("Perform a test of this action to see the results", getAppImg("info", true), false, "#2784D9"), image: getAppImg("info")
                     input "actTestRun", "bool", title: inTS("Test this action?", getAppImg("testing", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
                     if(actTestRun) { executeActTest() }
                 }
@@ -1017,6 +1064,20 @@ def actionsPage() {
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
         log.debug "actionExecMap: ${atomicState?.actionExecMap}"
 
+    }
+}
+
+def ssmlInfoSection() {
+    String ssmlTestUrl = "https://topvoiceapps.com/ssml"
+    String ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
+    String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
+    String ssmlSpeechConsUrl = "https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-english-us.html"
+    section(sTS("SSML Documentation:"), hideable: true, hidden: true) {
+        paragraph title: "What is SSML?", pTS("SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", null, false, "#2784D9"), state: "complete", image: getAppImg("info")
+        href url: ssmlDocsUrl, style: "external", required: false, title: inTS("Amazon SSML Docs", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
+        href url: ssmlSoundsUrl, style: "external", required: false, title: inTS("Amazon Sound Library", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
+        href url: ssmlSpeechConsUrl, style: "external", required: false, title: inTS("Amazon SpeechCons", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
+        href url: ssmlTestUrl, style: "external", required: false, title: inTS("SSML Designer and Tester", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
     }
 }
 
@@ -1056,36 +1117,7 @@ Boolean hasUserDefinedTxt() {
     return false
 }
 
-def variableDesc(hideUserTxt=false) {
-    Map txtItems = customTxtItems()
-    if(state?.showSpeakEvtVars) {
-        paragraph pTS("You are using device/location triggers.\nYou can choose to leave the text empty and text will be generated for each event.")
-        String str = "You can also use variables with your text"
-        str += "\n • %type% = Event Type"
-        str += "\n • %value% = Event Value"
-        str += "\n • %name% = Event Device"
-        str += "\n • %date% = Event Date"
-        str += "\n • %time% = Event Time"
-        str += "\n • %datetime% = Event Date/Time"
-        str += "\nContact example: %name% has been %open%"
-        paragraph str, state: "complete"
-    }
-    if(!hideUserTxt) {
-        Map txtItems = customTxtItems()
-        if(txtItems?.size()) {
-            String str = "<Custom Trigger Text Defined>"
-            txtItems?.each { i->
-                i?.value?.each { i2->
-                    str += "\n \u2022 ${i?.key?.toString()?.capitalize()} ${i2?.key?.toString()?.capitalize()} Items:"
-                    if(i2?.value?.size()) { i2?.value?.each { i3-> str += "\n   - ${i3}" } }
-                }
-                str += "\n"
-            }
-            paragraph str
-            paragraph pTS("Notice:\nEntering text on the Actions Page will override the user defined text for each trigger type.", getAppImg("info", true)), image: getAppImg("info"), state: "complete"
-        }
-    }
-}
+
 
 def updateActionExecMap(data) {
     // log.trace "updateActionExecMap..."
@@ -1311,7 +1343,7 @@ def scheduleTrigEvt() {
 
 private subscribeToEvts() {
     if(checkMinVersion()) { log.error "CODE UPDATE required to RESUME operation.  No events will be monitored."; return; }
-    if(isPaused()) { log.warn "Action is PAUSED... No Events will be subscribed to or scheduled...." }
+    if(isPaused()) { log.warn "Action is PAUSED... No Events will be subscribed to or scheduled...."; return; }
     //SCHEDULING
     if (valTrigEvt("scheduled") && (settings?.trig_scheduled_time || settings?.trig_scheduled_sunState)) {
         if(settings?.trig_scheduled_sunState) {
@@ -1519,10 +1551,12 @@ def afterEvtCheckHandler() {
         // log.debug "nextVal: $nextVal"
         if(nextVal) {
             def prevDt = nextVal?.repeat && nextVal?.repeatDt ? parseDate(nextVal?.repeatDt?.toString()) : parseDate(nextVal?.dt?.toString())
+            def fullDt = parseDate(nextVal?.dt?.toString())
             def devs = settings?."trig_${nextVal?.name}" ?: null
             Boolean repeat = (settings?."trig_${nextVal?.name}_after_repeat" != null)
             if(prevDt) {
                 def evtElap = (int) ((long)(new Date()?.getTime() - prevDt?.getTime())/1000)
+                def fullElap = (int) ((long)(new Date()?.getTime() - fullDt?.getTime())/1000)
                 def reqDur = (nextVal?.repeat && nextVal?.repeatWait) ? nextVal?.repeatWait : nextVal?.wait ?: null
                 timeLeft = (reqDur - evtElap)
 
@@ -1537,7 +1571,7 @@ def afterEvtCheckHandler() {
                                 aEvtMap[nextItem?.key]?.repeatDt = formatDt(new Date())
                                 aEvtMap[nextItem?.key]?.repeat = repeat
                                 isRepeat = true
-                                deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value], true, true)
+                                deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, totalDur: fullElap], true, true)
                             } else {
                                 aEvtMap?.remove(nextId)
                                 log.warn "${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) Reached the (${nextVal?.triggerState}) Threshold for (${reqDur} seconds)"
@@ -1598,7 +1632,7 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
                         custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
                     }
                 } else {
-                    if(dca && (allDevEqCapVal(d, dc, evt?.value))) {
+                    if(dca && (allDevCapValsEqual(d, dc, evt?.value))) {
                         evtOk = true
                         if(d?.size() > 1) {
                             if(aftRepEvt) {
@@ -1632,6 +1666,7 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
         case "power":
         case "illuminance":
         case "level":
+        case "battery":
             Double dcl = settings?."trig_${evt?.name}_low"
             Double dch = settings?."trig_${evt?.name}_high"
             Double dce = settings?."trig_${evt?.name}_equal"
@@ -1641,7 +1676,7 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
             break
     }
     if(evtOk && devEvtWaitOk) {
-        executeAction(evt, false, custText, "deviceEvtHandler(${evt?.name})")
+        executeAction(evt, false, custText, "deviceEvtHandler(${evt?.name})", aftRepEvt)
     }
 }
 
@@ -1658,22 +1693,22 @@ Map deviceEvtProcNumValue(evt, List devs = null, String cmd = null, Double dcl =
             case "equals":
                 if(!dca && dce && dce?.toDouble() == evt?.value?.toDouble()) {
                     evtOk=true
-                } else if(dca && dce && allDevCapValsEqual(devs, evt?.name, dce)) { evtOk=true }
+                } else if(dca && dce && allDevCapNumValsEqual(devs, evt?.name, dce)) { evtOk=true }
                 break
             case "between":
                 if(!dca && dcl && dch && (evt?.value?.toDouble() in (dcl..dch))) {
                     evtOk=true
-                } else if(dca && dcl && dch && allDevCapValsBetween(devs, evt?.name, dcl, dch)) { evtOk=true }
+                } else if(dca && dcl && dch && allDevCapNumValsBetween(devs, evt?.name, dcl, dch)) { evtOk=true }
                 break
             case "above":
                 if(!dca && dch && (evt?.value?.toDouble() > dch)) {
                     evtOk=true
-                } else if(dca && dch && allDevCapValsAbove(devs, evt?.name, dch)) { evtOk=true }
+                } else if(dca && dch && allDevCapNumValsAbove(devs, evt?.name, dch)) { evtOk=true }
                 break
             case "below":
                 if(dcl && (evt?.value?.toDouble() < dcl)) {
                     evtOk=true
-                } else if(dca && dcl && allDevCapValsBelow(devs, evt?.name, dcl)) { evtOk=true }
+                } else if(dca && dcl && allDevCapNumValsBelow(devs, evt?.name, dcl)) { evtOk=true }
                 break
         }
         if(evtOk) {
@@ -1826,6 +1861,7 @@ String getAttrPostfix(attr) {
     switch(attr) {
         case "humidity":
         case "level":
+        case "battery":
             return " percent"
         case "temperature":
             return " degrees"
@@ -1936,10 +1972,11 @@ Boolean locationCondOk() {
 }
 
 Boolean checkDeviceCondOk(type) {
-    def devs = settings?."cond_${type}" ?: null
-    def cmdVal = settings?."cond_${type}_cmd" ?: null
+    List devs = settings?."cond_${type}" ?: null
+    String cmdVal = settings?."cond_${type}_cmd" ?: null
+    Boolean all = settings?."cond_${type}_all"
     if( !(type && devs && cmdVal) ) { return true }
-    return settings?."cond_${type}_all" ? allDevEqCapVal(devs, type, cmdVal) : anyDevCapValEqual(devs, type, cmdVal)
+    return all ? allDevCapValsEqual(devs, type, cmdVal) : anyDevCapValsEqual(devs, type, cmdVal)
 }
 
 Boolean checkDeviceNumCondOk(type) {
@@ -1955,29 +1992,29 @@ Boolean checkDeviceNumCondOk(type) {
     switch(cmd) {
         case "equals":
             if(dce) {
-                if(dca) { return allDevCapValsEqual(devs, type, dce) }
-                else { return anyDevCapValEqual(devs, type, dce) }
+                if(dca) { return allDevCapNumValsEqual(devs, type, dce) }
+                else { return anyDevCapNumValEqual(devs, type, dce) }
             }
             return true
             break
         case "between":
             if(dcl && dch) {
-                if(dca) { return allDevCapValsBetween(devs, type, dcl, dch) }
-                else { return anyDevCapValBetween(devs, type, dcl, dch) }
+                if(dca) { return allDevCapNumValsBetween(devs, type, dcl, dch) }
+                else { return anyDevCapNumValBetween(devs, type, dcl, dch) }
             }
             return true
             break
         case "above":
             if(dch) {
-                if(dca) { return allDevCapValsAbove(devs, type, dch) }
-                else { return anyDevCapValAbove(devs, type, dch) }
+                if(dca) { return allDevCapNumValsAbove(devs, type, dch) }
+                else { return anyDevCapNumValAbove(devs, type, dch) }
             }
             return true
             break
         case "below":
             if(dcl) {
-                if(dca) { return allDevCapValsBelow(devs, type, dcl) }
-                else { return anyDevCapValBelow(devs, type, dcl) }
+                if(dca) { return allDevCapNumValsBelow(devs, type, dcl) }
+                else { return anyDevCapNumValBelow(devs, type, dcl) }
             }
             return true
             break
@@ -1993,8 +2030,10 @@ Boolean deviceCondOk() {
     Boolean garDevOk = checkDeviceCondOk("door")
     Boolean tempDevOk = checkDeviceNumCondOk("temperature")
     Boolean humDevOk = checkDeviceNumCondOk("humidity")
+    Boolean illDevOk = checkDeviceNumCondOk("illuminance")
+    Boolean battDevOk = checkDeviceNumCondOk("battery")
     // log.debug "checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk"
-    return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk && tempDevOk && humDevOk)
+    return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk && tempDevOk && humDevOk && battDevOk && illDevOk)
 }
 
 def allConditionsOk() {
@@ -2057,7 +2096,95 @@ Boolean conditionsConfigured() {
 
 private executeActTest() {
     settingUpdate("actTestRun", "false", "bool")
-    executeAction([name: "contact", displayName: "Front Door", value: "open", date: new Date()], true, null, "executeActTest")
+    String actType = settings?.actionType
+    Map testData = [:]
+    testData?.evt = [name: "contact", displayName: "some test device", value: "open", date: new Date()]
+    testData?.custText = null
+    if(actType in ["speak", "announce"]) {
+        if(settings?."act_${actType}_txt") {
+            testData?.custText = settings?."act_${actType}_txt"
+            testData?.evt = null
+        } else {
+            Map evtData = getRandomTrigEvt()
+            testData?.evt = evtData?.evt
+            testData?.custText = evtData?.custText
+        }
+    }
+    executeAction(testData?.evt, true, testData?.custText, "executeActTest")
+}
+
+Map getRandomTrigEvt() {
+    Map evt = [:]
+    String actType = settings?.actionType
+    String trig = getRandomItem(settings?.triggerEvents?.collect { it as String })
+    List trigDevs = settings?."trig_${trig}"
+    def randDev = getRandomItem(trigDevs)
+    def trigDev = trigDevs?.find { it?.id == randDev?.id }
+    String devId = trigDev?.id
+    Boolean hasGblTxt = (actType in ["speak", "announce"] && settings?."act_${actionType}_txt")
+
+    Boolean dca = settings?."trig_${trig}_all"
+    String dc = settings?."trig_${trig}_cmd" ?: null
+    String dct = settings?."trig_${trig}_txt" ?: null
+    String dcart = settings?."trig_${trig}_after_repeat" && settings?."trig_${trig}_after_repeat_txt" ? settings?."trig_${trig}_after_repeat_txt" : null
+    List eTxtItems = dct ? dct?.toString()?.tokenize(";") : []
+    List rTxtItems = dcart ? dcart?.toString()?.tokenize(";") : []
+
+    Map attVal = [
+        "switch": getRandomItem(["on", "off"]),
+        door: getRandomItem(["open", "closed", "opening", "closing"]),
+        contact: getRandomItem(["open", "closed"]),
+        lock: getRandomItem(["locked", "unlocked"]),
+        water: getRandomItem(["wet", "dry"]),
+        presence: getRandomItem(["present", "not present"]),
+        motion: getRandomItem(["active", "inactive"]),
+        valve: getRandomItem(["open", "closed"]),
+        shade: getRandomItem(["open", "closed"]),
+        temperature: getRandomItem(30..80),
+        illuminance: getRandomItem(1..100),
+        humidity: getRandomItem(1..100),
+        battery: getRandomItem(1..100),
+        power: getRandomItem(100..3000),
+        thermostat: getRandomItem(["cooling is "]),
+        mode: getRandomItem(location?.modes),
+        alarm: getRandomItem(getAlarmTrigOpts()),
+        routine: getRandomItem(getLocationRoutines()),
+    ]
+    if(attVal?.containsKey(trig)) {
+        evt?.evt = [name: trig, displayName: randDev?.displayName, value: attVal[trig], date: new Date(), deviceId: devId]
+    }
+    if(!hasGblTxt) {
+        List txtItems = eTxtItems + rTxtItems
+        if(txtItems?.size()) {
+            evt?.custText = decodeVariables(evt?.evt, getRandomItem(txtItems))
+        } else {
+            switch(trig) {
+                case "mode":
+                    evt?.custText = "The location mode is now set to ${attVal[trig]}"
+                    break
+                case "routine":
+                    evt?.custText = "The ${attVal[trig]} routine was just executed!."
+                    break
+                case "hsmStatus":
+                case "alarmSystemStatus":
+                    evt?.custText = "The ${getAlarmSystemName()} is now set to ${attVal[trig]}"
+                    break
+                case "humidity":
+                case "temperature":
+                case "power":
+                case "illuminance":
+                case "level":
+                case "battery":
+                    evt?.custText = "${trigDev?.displayName}${!trigDev?.displayName?.toLowerCase()?.contains(trig) ? " ${trig}" : ""} is ${attVal[trig]} ${getAttrPostfix(trig)}"
+                    break
+                default:
+                    evt?.custText = "${trigDev?.displayName}${!trigDev?.displayName?.toLowerCase()?.contains(trig) ? " ${trig}" : ""} is ${attVal[trig]}"
+                    break
+            }
+        }
+    } else { evt?.custText = settings?."act_${actionType}_txt" }
+    // log.debug "evt: ${evt}"
+    return [evt: evt?.evt ?: null, custText: evt?.custText ?: null]
 }
 
 String convEvtType(type) {
@@ -2082,13 +2209,14 @@ String decodeVariables(evt, str) {
         str = (str?.contains("%date%") && evt?.date) ? str?.replaceAll("%date%", convToDate(evt?.date)) : str
         str = (str?.contains("%time%") && evt?.date) ? str?.replaceAll("%time%", convToTime(evt?.date)) : str
         str = (str?.contains("%datetime%") && evt?.date) ? str?.replaceAll("%datetime%", convToDateTime(evt?.date)) : str
+        str = (str?.contains("%duration%") && evt?.totalDur) ? str?.replaceAll("%duration%", "${evt?.totalDur} seconds ago") : str
     }
     return str
 }
 
-private executeAction(evt = null, frc=false, custText=null, src=null) {
+private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=false) {
     def startTime = now()
-    log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}..."
+    log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}"
     if(isPaused()) { log.warn "Action is PAUSED... Skipping Action Execution..."; return; }
     Boolean condOk = allConditionsOk()
     Boolean actOk = getConfStatusItem("actions")
@@ -2115,7 +2243,7 @@ private executeAction(evt = null, frc=false, custText=null, src=null) {
                     if(actConf[actType]?.text) {
                         txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
                     } else {
-                        if(evt && custText && actConf[actType]?.evtText) { txt = custText }
+                        if(custText && actConf[actType]?.evtText) { txt = custText }
                         else { txt = "Invalid Text Received... Please verify Action configuration..." }
                     }
                     if(changeVol || restoreVol) {
@@ -2134,7 +2262,7 @@ private executeAction(evt = null, frc=false, custText=null, src=null) {
                     if(actConf[actType]?.text) {
                         txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
                     } else {
-                        if(evt && custText && actConf[actType]?.evtText) { txt = custText }
+                        if(custText && actConf[actType]?.evtText) { txt = custText }
                         else { txt = "Invalid Text Received... Please verify Action configuration..." }
                     }
                     if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
@@ -2223,10 +2351,21 @@ private executeAction(evt = null, frc=false, custText=null, src=null) {
                 break
         }
     }
-
     log.trace "ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)"
 }
 
+def updateTxtEntry(obj) {
+    log.debug "updateTxtEntry | Obj: $obj"
+    if(obj?.inName && obj?.value && settings?.containsKey(inName)) {
+        settingUpdate(obj?.inName, "text", obj?.value as String)
+        return true
+    }
+    return false
+}
+
+String getTextInputValue(inName) {
+    return settings?."${inName}" ?: null
+}
 
 /***********************************************************************************************************************
     WEATHER ALERTS
@@ -2561,34 +2700,38 @@ Boolean areAllDevsSame(List devs, String attr, val) {
     return false
 }
 
-Boolean allDevEqCapVal(List devs, String cap, val) {
+Boolean allDevCapValsEqual(List devs, String cap, val) {
     if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size()) }
     return false
 }
 
-Boolean anyDevCapValAbove(List devs, String cap, val) {
+Boolean anyDevCapValsEqual(List devs, String cap, val) {
+    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() >= 1) : false
+}
+
+Boolean anyDevCapNumValAbove(List devs, String cap, val) {
     return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() > val?.toDouble() }?.size() >= 1) : false
 }
-Boolean anyDevCapValBelow(List devs, String cap, val) {
+Boolean anyDevCapNumValBelow(List devs, String cap, val) {
     return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() < val?.toDouble() }?.size() >= 1) : false
 }
-Boolean anyDevCapValBetween(List devs, String cap, low, high) {
+Boolean anyDevCapNumValBetween(List devs, String cap, low, high) {
     return (devs && cap && low && high) ? (devs?.findAll { ( (it?."current${cap?.capitalize()}"?.toDouble() > low?.toDouble()) && (it?."current${cap?.capitalize()}"?.toDouble() < high?.toDouble()) ) }?.size() >= 1) : false
 }
-Boolean anyDevCapValEqual(List devs, String cap, val) {
+Boolean anyDevCapNumValEqual(List devs, String cap, val) {
     return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() == val?.toDouble() }?.size() >= 1) : false
 }
 
-Boolean allDevCapValsAbove(List devs, String cap, val) {
+Boolean allDevCapNumValsAbove(List devs, String cap, val) {
     return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() > val?.toDouble() }?.size() == devs?.size()) : false
 }
-Boolean allDevCapValsBelow(List devs, String cap, val) {
+Boolean allDevCapNumValsBelow(List devs, String cap, val) {
     return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() < val?.toDouble() }?.size() == devs?.size()) : false
 }
-Boolean allDevCapValsBetween(List devs, String cap, low, high) {
+Boolean allDevCapNumValsBetween(List devs, String cap, low, high) {
     return (devs && cap && low && high) ? (devs?.findAll { ( (it?."current${cap?.capitalize()}"?.toDouble() > low?.toDouble()) && (it?."current${cap?.capitalize()}"?.toDouble() < high?.toDouble()) ) }?.size() == devs?.size()) : false
 }
-Boolean allDevCapValsEqual(List devs, String cap, val) {
+Boolean allDevCapNumValsEqual(List devs, String cap, val) {
     return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() == val?.toDouble() }?.size() == devs?.size()) : false
 }
 
@@ -2768,32 +2911,32 @@ String getTriggersDesc(hideDesc=false) {
                 switch(evt as String) {
                     case "scheduled":
                         str += " \u2022 ${evt?.capitalize()}${settings?."${sPre}${evt}_recurrence" ? " (${settings?."${sPre}${evt}_recurrence"})" : ""}\n"
-                        str += settings?."${sPre}${evt}_time"     ? "   \u25E6 Time: (${fmtTime(settings?."${sPre}${evt}_time")})\n"      : ""
-                        str += settings?."${sPre}${evt}_sunState" ? "   \u25E6 SunState: (${settings?."${sPre}${evt}_sunState"})\n"       : ""
-                        str += settings?."${sPre}${evt}_days"     ? "   \u25E6 (${settings?."${sPre}${evt}_days"?.size()}) Days\n"      : ""
-                        str += settings?."${sPre}${evt}_weeks"    ? "   \u25E6 (${settings?."${sPre}${evt}_weeks"?.size()}) Weeks\n"    : ""
-                        str += settings?."${sPre}${evt}_months"   ? "   \u25E6 (${settings?."${sPre}${evt}_months"?.size()}) Months\n"  : ""
+                        str += settings?."${sPre}${evt}_time"     ? "    \u25E6 Time: (${fmtTime(settings?."${sPre}${evt}_time")})\n"      : ""
+                        str += settings?."${sPre}${evt}_sunState" ? "    \u25E6 SunState: (${settings?."${sPre}${evt}_sunState"})\n"       : ""
+                        str += settings?."${sPre}${evt}_days"     ? "    \u25E6 (${settings?."${sPre}${evt}_days"?.size()}) Days\n"      : ""
+                        str += settings?."${sPre}${evt}_weeks"    ? "    \u25E6 (${settings?."${sPre}${evt}_weeks"?.size()}) Weeks\n"    : ""
+                        str += settings?."${sPre}${evt}_months"   ? "    \u25E6 (${settings?."${sPre}${evt}_months"?.size()}) Months\n"  : ""
                         break
                     case "alarm":
                         str += " \u2022 ${evt?.capitalize()} (${getAlarmSystemName(true)})${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
-                        str += settings?."${sPre}${evt}_once" ? "   \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
+                        str += settings?."${sPre}${evt}_once" ? "    \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
                         break
                     case "routineExecuted":
                     case "mode":
                     case "scene":
                         str += " \u2022 ${evt == "routineExecuted" ? "Routines" : evt?.capitalize()}${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
-                        str += settings?."${sPre}${evt}_once" ? "   \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
+                        str += settings?."${sPre}${evt}_once" ? "    \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
                         break
                     default:
                         str += " \u2022 ${evt?.capitalize()}${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
                         def subStr = ""
                         if(settings?."${sPre}${evt}_cmd" in ["above", "below", "equal", "between"]) {
                             if (settings?."${sPre}${evt}_cmd" == "between") {
-                                str += settings?."${sPre}${evt}_cmd"  ? "   \u25E6 ${settings?."${sPre}${evt}_cmd"}: (${settings?."${sPre}${evt}_low"} - ${settings?."${sPre}${evt}_high"})\n" : ""
+                                str += settings?."${sPre}${evt}_cmd"  ? "    \u25E6 ${settings?."${sPre}${evt}_cmd"}: (${settings?."${sPre}${evt}_low"} - ${settings?."${sPre}${evt}_high"})\n" : ""
                             } else {
-                                str += (settings?."${sPre}${evt}_cmd" == "above" && settings?."${sPre}${evt}_high")     ? "   \u25E6 Above: (${settings?."${sPre}${evt}_high"})\n" : ""
-                                str += (settings?."${sPre}${evt}_cmd" == "below" && settings?."${sPre}${evt}_low")      ? "   \u25E6 Below: (${settings?."${sPre}${evt}_low"})\n" : ""
-                                str += (settings?."${sPre}${evt}_cmd" == "equal" && settings?."${sPre}${evt}_equal")    ? "   \u25E6 Equals: (${settings?."${sPre}${evt}_equal"})\n" : ""
+                                str += (settings?."${sPre}${evt}_cmd" == "above" && settings?."${sPre}${evt}_high")     ? "    \u25E6 Above: (${settings?."${sPre}${evt}_high"})\n" : ""
+                                str += (settings?."${sPre}${evt}_cmd" == "below" && settings?."${sPre}${evt}_low")      ? "    \u25E6 Below: (${settings?."${sPre}${evt}_low"})\n" : ""
+                                str += (settings?."${sPre}${evt}_cmd" == "equal" && settings?."${sPre}${evt}_equal")    ? "    \u25E6 Equals: (${settings?."${sPre}${evt}_equal"})\n" : ""
                             }
                         } else {
                             str += settings?."${sPre}${evt}_cmd"  ? "    \u25E6 Trigger State: (${settings?."${sPre}${evt}_cmd"})\n" : ""
@@ -2936,9 +3079,10 @@ private getPlatform() {
 
 String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
 String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
-String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br> ")}</h3>""" }
-String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>""" }
-String pTS(String t, String i = null) { return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br> ")}</b>""" }
+String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
+String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+String inTS(String t, String i = null, color=null) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : ""}""" }
+
 String bulletItem(String inStr, String strVal) { return "${inStr == "" ? "" : "\n"} \u2022 ${strVal}" }
 String dashItem(String inStr, String strVal, newLine=false) { return "${(inStr == "" && !newLine) ? "" : "\n"} - ${strVal}" }
 
