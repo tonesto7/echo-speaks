@@ -3086,7 +3086,7 @@ String getTextEntryValue() {
     def actApp = getActionApps()?.find { it?.id == actionId }
     String textVal = null
     if(actApp) { textVal = actApp?.getTextInputValue(inName) }
-    def json = new groovy.json.JsonOutput().toJson([message: "success", value: textVal])
+    def json = new groovy.json.JsonOutput().toJson([message: "success", value: textVal]?.toString())
     render contentType: "application/json", data: json, status: 200
 }
 
@@ -3130,7 +3130,7 @@ private getPlatform() {
         // p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
         state?.hubPlatform = p
     }
-    log.debug "hubPlatform: (${state?.hubPlatform})"
+    // log.debug "hubPlatform: (${state?.hubPlatform})"
     return state?.hubPlatform
 }
 

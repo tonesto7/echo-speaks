@@ -1063,7 +1063,6 @@ def actionsPage() {
         }
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
         log.debug "actionExecMap: ${atomicState?.actionExecMap}"
-
     }
 }
 
