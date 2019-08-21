@@ -1091,7 +1091,7 @@ mappings {
     path("/config")            { action: [GET: "renderConfig"] }
     if(isST()) {
         path("/textEntryPage/:cId/:inName") { action: [GET: "renderTextEntryPage", POST: "textEntryProcessing"] }
-        path("/textEntryVal/:cId/:inName")  { action: [GET: "getTextEntryValue"] }
+        path("/getSettingVals/:cId")  { action: [GET: "getSettingVals"] }
     }
     path("/cookie")            { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
 }
@@ -2954,112 +2954,149 @@ def renderTextEntryPage() {
     log.debug "actionId: $actionId | inName: $inName"
     String html = """
         <!DOCTYPE html>
-        <html lang="en">
+            <html lang="en">
 
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta http-equiv="x-ua-compatible" content="ie=edge">
-            <title>Echo Speaks</title>
-            <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
-            <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
-            <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet">
-            <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.5.13/css/mdb.min.css" rel="stylesheet">
-            <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" rel="stylesheet">
-            <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-            <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
-            <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/js/bootstrap.min.js"></script>
-            <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
-            <style>
-                form div { margin-bottom: 0.5em; margin: 0 auto; }
-                .form-control { font-size: 0.7rem; }
-                button.btn.btn-info.btn-block.my-4 { max-width: 200px; text-align: center; }
-                .dark-gray { background-color: slategray; }
-                .btn-rounded { border-radius: 50px !important; }
-                form div label, form div input { display: block; margin-bottom: 0.3em; }
-            </style>
-            <script>
-                let inName = '${inName}';
-                let actId = '${actionId}'
-                let rootUrl = '${getAppEndpointUrl("textEntryPage/${actionId}/${inName}")}'
-                let rootTxtVal = '${getAppEndpointUrl("textEntryVal/${actionId}/${inName}")}'
-            </script>
-        </head>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta http-equiv="x-ua-compatible" content="ie=edge">
+                <title>Echo Speaks</title>
+                <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/css/mdb.min.css" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.css" rel="stylesheet">
 
-        <body>
-            <!-- Settings Form -->
-            <div style="margin: 0 auto; max-width: 500px;">
-                <form class="p-5">
-                    <p class="h4 mb-0 text-center">Text Field Entry</p>
-
-                    <!-- Material input -->
-                    <div class="md-form my-2">
-                        <i class="fa fa-info prefix"></i>
-                        <input type="text" id="textEntry" name="textEntry" class="form-control" aria-describedby="textEntryHelpBlockMD">
-                        <label for="textEntry" data-error="wrong" data-success="right">${inName}</label>
-                        <small id="textEntryHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
-                            Enter the text values to use for responses
-                        </small>
-                    </div>
-                    <div id="submitBtnDiv" class="text-center">
-                        <button class="btn btn-success btn-rounded my-2" type="submit"><i class="fa fa-save mr-1"></i>Save Settings</button>
-                    </div>
-                </form>
-            </div>
-            <!-- MDB core JavaScript -->
-            <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.5.13/js/mdb.min.js"></script>
-            <!-- Settings Form -->
-            <script>
-                let rootOrigin = window.location.origin;
-                let rootHost = window.location.hostname;
-                console.log('rootOrigin: ' + rootOrigin);
-                console.log('rootHost: ' + rootHost);
-
-                \$(document).ready(function() {
-                    \$.getJSON(rootTxtVal, function(data) {
-                        console.log('Text Value: ', data);
-                    });
-                });
-
-                \$('form').submit(function(e) {
-                    e.preventDefault();
-                    let config = { value: \$('#textEntry').val(), inName: inName }
-                    if (Object.keys(config).length) {
-                        var xmlhttp = new XMLHttpRequest();
-                        xmlhttp.open("POST", rootUrl);
-                        xmlhttp.onreadystatechange = function() {
-                            if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-                                // console.log(xmlhttp.responseText);
-                                // Command: toastr["success"]("Settings Saved", "Success")
-                                toastr.options = {
-                                    "closeButton": false,
-                                    "debug": false,
-                                    "newestOnTop": false,
-                                    "progressBar": false,
-                                    "positionClass": "toast-bottom-center",
-                                    "preventDuplicates": true,
-                                    "onclick": null,
-                                    "showDuration": 300,
-                                    "hideDuration": 1000,
-                                    "timeOut": 5000,
-                                    "extendedTimeOut": 1000,
-                                    "showEasing": "swing",
-                                    "hideEasing": "linear",
-                                    "showMethod": "fadeIn",
-                                    "hideMethod": "fadeOut"
-                                }
-                                toastr.success('Success!', "Setting Saved..")
-                            }
-                        }
-                        xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-
-                        xmlhttp.send(JSON.stringify(config));
+                <!-- Theme included stylesheets -->
+                <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+                <link href="https://cdn.quilljs.com/1.3.6/quill.bubble.css" rel="stylesheet">
+                <!-- JQuery -->
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.js"></script>
+                <style>
+                    form div {
+                        margin-bottom: 0.5em;
+                        margin: 0 auto;
                     }
-                });
-            </script>
-        </body>
 
-        </html>
+                    .form-control {
+                        font-size: 0.7rem;
+                    }
+
+                    button.btn.btn-info.btn-block.my-4 {
+                        max-width: 200px;
+                        text-align: center;
+                    }
+
+                    .dark-gray {
+                        background-color: slategray;
+                    }
+
+                    .btn-rounded {
+                        border-radius: 50px !important;
+                    }
+
+                    form div label,
+                    form div input {
+                        display: block;
+                        margin-bottom: 0.3em;
+                    }
+                </style>
+                <script>
+                    let inName = '${inName}';
+                    let actId = '${actionId}'
+                    let rootUrl = '${getAppEndpointUrl("textEntryPage/${actionId}/${inName}")}'
+                    let rootTxtVal = '${getAppEndpointUrl("getSettingVals/${actionId}")}'
+                </script>
+            </head>
+
+            <body>
+                <!-- Settings Form -->
+                <div style="margin: 0 auto; max-width: 500px;">
+                    <form class="p-5">
+                        <p class="h4 mb-0 text-center">Text Field Entry</p>
+
+                        <!-- Material input -->
+                        <div class="md-form my-2">
+                            <i class="fa fa-info prefix"></i>
+                            <input type="text" id="textEntry" name="textEntry" class="form-control" aria-describedby="textEntryHelpBlockMD">
+                            <label for="textEntry" data-error="wrong" data-success="right">trig_contact_txt</label>
+                            <small id="textEntryHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
+                                        Enter the text values to use for responses
+                                    </small>
+                        </div>
+                        <div id="editor"></div>
+                        <div id="submitBtnDiv" class="text-center">
+                            <button class="btn btn-success btn-rounded my-2" type="submit"><i class="fa fa-save mr-1"></i>Save Settings</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- MDB core JavaScript -->
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
+                <script type="text/javascript" src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+                <!-- Settings Form -->
+                <script>
+                    let rootOrigin = window.location.origin;
+                    let rootHost = window.location.hostname;
+                    console.log('rootOrigin: ' + rootOrigin);
+                    console.log('rootHost: ' + rootHost);
+
+                    \$(document).ready(function() {
+                        \$.getJSON(rootTxtVal, function(data) {
+                            console.log('Text Value: ', data);
+                        });
+                        var options = {
+                            placeholder: 'Compose an epic...',
+
+                            theme: 'snow'
+                        };
+                        var editor = new Quill('#editor', options);
+                        \$('form').submit(function(e) {
+                            console.log('form submit...')
+                            e.preventDefault();
+                            let config = {
+                                value: \$('#textEntry').val(),
+                                inName: inName
+                            }
+                            if (Object.keys(config).length) {
+                                var xmlhttp = new XMLHttpRequest();
+                                xmlhttp.open("POST", rootUrl);
+                                xmlhttp.onreadystatechange = function() {
+                                    if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                                        // console.log(xmlhttp.responseText);
+                                        // Command: toastr["success"]("Settings Saved", "Success")
+                                        toastr.options = {
+                                            "closeButton": false,
+                                            "debug": false,
+                                            "newestOnTop": false,
+                                            "progressBar": false,
+                                            "positionClass": "toast-bottom-center",
+                                            "preventDuplicates": true,
+                                            "onclick": null,
+                                            "showDuration": 300,
+                                            "hideDuration": 1000,
+                                            "timeOut": 5000,
+                                            "extendedTimeOut": 1000,
+                                            "showEasing": "swing",
+                                            "hideEasing": "linear",
+                                            "showMethod": "fadeIn",
+                                            "hideMethod": "fadeOut"
+                                        }
+                                        toastr.success('Success!', "Setting Saved..")
+                                    }
+                                }
+                                xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+                                xmlhttp.send(JSON.stringify(config));
+                            }
+                        });
+                    });
+                </script>
+            </body>
+
+            </html>
 
     """
     render contentType: "text/html", data: html
@@ -3079,14 +3116,15 @@ def textEntryProcessing() {
     render contentType: "application/json", data: json, status: 200
 }
 
-String getTextEntryValue() {
+String getSettingVals() {
     String actionId = params?.cId
     String inName = params?.inName
-    log.debug "POST | actionId: $actionId | inName: $inName"
+    log.debug "GetSettingVals | actionId: $actionId | inName: $inName"
     def actApp = getActionApps()?.find { it?.id == actionId }
-    String textVal = null
-    if(actApp) { textVal = actApp?.getTextInputValue(inName) }
-    def json = new groovy.json.JsonOutput().toJson([message: "success", value: textVal]?.toString())
+    def sets = null
+    if(actApp) { sets = actApp?.getAllSettings() }
+    log.debug "sets: $sets"
+    def json = new groovy.json.JsonOutput().toJson([message: "success", settings: sets])
     render contentType: "application/json", data: json, status: 200
 }
 

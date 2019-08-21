@@ -2363,7 +2363,11 @@ def updateTxtEntry(obj) {
 }
 
 String getTextInputValue(inName) {
-    return settings?."${inName}" ?: null
+    return settings?."${inName}"?.toString()  ?: null
+}
+
+Map getAllSettings() {
+    return settings
 }
 
 /***********************************************************************************************************************
