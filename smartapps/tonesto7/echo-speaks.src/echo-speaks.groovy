@@ -16,7 +16,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "3.0.0" }
-String appModified() { return "2019-08-19" }
+String appModified() { return "2019-08-21" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1496,12 +1496,12 @@ def getBluetoothData(serialNumber) {
     Map bluData = btData && btData?.bluetoothStates?.size() ? btData?.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
     if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
         def bData = bluData?.pairedDeviceList?.findAll { (it?.deviceClass != "GADGET") }
-        bData?.each {
+        bData?.findAll { it?.address != null }?.each {
             btObjs[it?.address as String] = it
             if(it?.connected == true) { curConnName = it?.friendlyName as String }
         }
     }
-    return [btObjs: btObjs, pairedNames: btObjs?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
+    return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
 }
 
 private getDoNotDisturb() {
@@ -2949,183 +2949,153 @@ def renderConfig() {
 }
 
 def renderTextEntryPage() {
-    String actionId = params?.cId
+    String actId = params?.cId
     String inName = params?.inName
-    log.debug "actionId: $actionId | inName: $inName"
+    Map inData = [:]
+    // log.debug "actId: $actId | inName: $inName"
+    if(actId && inName) {
+        def actApp = getActionApps()?.find { it?.id == actId }
+        if(actApp) { inData = actApp?.getInputData(inName) }
+    }
     String html = """
         <!DOCTYPE html>
             <html lang="en">
-
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <meta http-equiv="x-ua-compatible" content="ie=edge">
-                <title>Echo Speaks</title>
+                <title>Echo Speak Text Entry</title>
                 <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
                 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
                 <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
                 <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/css/mdb.min.css" rel="stylesheet">
                 <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.css" rel="stylesheet">
-
-                <!-- Theme included stylesheets -->
-                <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-                <link href="https://cdn.quilljs.com/1.3.6/quill.bubble.css" rel="stylesheet">
-                <!-- JQuery -->
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/theme/material.min.css" rel="stylesheet">
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/mode/simple.min.js"></script>
                 <style>
-                    form div {
-                        margin-bottom: 0.5em;
-                        margin: 0 auto;
-                    }
-
-                    .form-control {
-                        font-size: 0.7rem;
-                    }
-
-                    button.btn.btn-info.btn-block.my-4 {
-                        max-width: 200px;
-                        text-align: center;
-                    }
-
-                    .dark-gray {
-                        background-color: slategray;
-                    }
-
-                    .btn-rounded {
-                        border-radius: 50px !important;
-                    }
-
-                    form div label,
-                    form div input {
-                        display: block;
-                        margin-bottom: 0.3em;
-                    }
+                    form div { margin-bottom: 0.5em; margin: 0 auto; }
+                    .form-control { font-size: 0.7rem; }
+                    button.btn.btn-info.btn-block.my-4 { max-width: 200px; text-align: center; }
+                    .btn-rounded { border-radius: 50px !important; }
                 </style>
-                <script>
-                    let inName = '${inName}';
-                    let actId = '${actionId}'
-                    let rootUrl = '${getAppEndpointUrl("textEntryPage/${actionId}/${inName}")}'
-                    let rootTxtVal = '${getAppEndpointUrl("getSettingVals/${actionId}")}'
-                </script>
             </head>
-
-            <body>
-                <!-- Settings Form -->
-                <div style="margin: 0 auto; max-width: 500px;">
-                    <form class="p-5">
-                        <p class="h4 mb-0 text-center">Text Field Entry</p>
-
-                        <!-- Material input -->
-                        <div class="md-form my-2">
-                            <i class="fa fa-info prefix"></i>
-                            <input type="text" id="textEntry" name="textEntry" class="form-control" aria-describedby="textEntryHelpBlockMD">
-                            <label for="textEntry" data-error="wrong" data-success="right">trig_contact_txt</label>
-                            <small id="textEntryHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
-                                        Enter the text values to use for responses
-                                    </small>
-                        </div>
-                        <div id="editor"></div>
+            <body class="m-2">
+                <div class="p-3"><button type="button" class="close" aria-label="Close" onclick="window.open('','_parent',''); window.close();"><span aria-hidden="true">×</span></button></div>
+                <div class="w-100 pt-4">
+                    <form>
+                        <p id="inputTitle" class="h5 mb-2 text-center">Text Field Entry</p>
+                        <textarea id="editor"></textarea>
+                        <p class="mb-0">Description:</p>
+                        <small id="inputDesc">Description goes here.</small>
                         <div id="submitBtnDiv" class="text-center">
-                            <button class="btn btn-success btn-rounded my-2" type="submit"><i class="fa fa-save mr-1"></i>Save Settings</button>
+                            <button class="btn btn-info btn-rounded my-2" type="submit"><i class="fa fa-save mr-1"></i>Submit</button>
                         </div>
                     </form>
                 </div>
-                <!-- MDB core JavaScript -->
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
-                <script type="text/javascript" src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-                <!-- Settings Form -->
                 <script>
-                    let rootOrigin = window.location.origin;
-                    let rootHost = window.location.hostname;
-                    console.log('rootOrigin: ' + rootOrigin);
-                    console.log('rootHost: ' + rootHost);
+                    let inName = '${inName}';
+                    let actId = '${actId}'
+                    let rootUrl = '${getAppEndpointUrl("textEntryPage/${actId}/${inName}")}';
+                    let curText = '${inData?.val}';
+                    let curTitle = '${inData?.title}';
+                    let curDesc = '${inData?.desc}';
+                    toastr.options = {
+                        "closeButton": false,
+                        "debug": false,
+                        "newestOnTop": false,
+                        "progressBar": false,
+                        "positionClass": "toast-bottom-center",
+                        "preventDuplicates": true,
+                        "onclick": null,
+                        "showDuration": 300,
+                        "hideDuration": 1000,
+                        "timeOut": 5000,
+                        "extendedTimeOut": 1000,
+                        "showEasing": "swing",
+                        "hideEasing": "linear",
+                        "showMethod": "fadeIn",
+                        "hideMethod": "fadeOut"
+                    }
+                    function cleanTxt(txt) {
+                        txt = txt.split(';').map(t => t.trim()).join(';')
+                        return txt.endsWith(';') ? txt.replace(/;([^;]*)\$/, '\$1') : txt
+                    }
 
                     \$(document).ready(function() {
-                        \$.getJSON(rootTxtVal, function(data) {
-                            console.log('Text Value: ', data);
+                        \$('#inputTitle').text(curTitle);
+                        \$('#inputDesc').html(curDesc);
+                        \$('#editor').val(cleanTxt(curText));
+                        CodeMirror.defineSimpleMode("simplemode", {
+                            start: [{
+                                regex: /%[a-z]+%/, token: "variable"
+                            }, {
+                                regex: /<[^>]+>/, token: 'ssml'
+                            }]
                         });
-                        var options = {
-                            placeholder: 'Compose an epic...',
+                        let editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+                            theme: 'material',
+                            mode: 'simplemode',
+                            lineNumbers: true,
+                            lineSeparator: ';',
+                            lineWrapping: false,
+                            autocorrect: false,
+                            autocapitalize: false,
+                            spellcheck: true
+                        });
 
-                            theme: 'snow'
-                        };
-                        var editor = new Quill('#editor', options);
                         \$('form').submit(function(e) {
                             console.log('form submit...')
                             e.preventDefault();
-                            let config = {
-                                value: \$('#textEntry').val(),
-                                inName: inName
-                            }
-                            if (Object.keys(config).length) {
-                                var xmlhttp = new XMLHttpRequest();
-                                xmlhttp.open("POST", rootUrl);
-                                xmlhttp.onreadystatechange = function() {
-                                    if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-                                        // console.log(xmlhttp.responseText);
-                                        // Command: toastr["success"]("Settings Saved", "Success")
-                                        toastr.options = {
-                                            "closeButton": false,
-                                            "debug": false,
-                                            "newestOnTop": false,
-                                            "progressBar": false,
-                                            "positionClass": "toast-bottom-center",
-                                            "preventDuplicates": true,
-                                            "onclick": null,
-                                            "showDuration": 300,
-                                            "hideDuration": 1000,
-                                            "timeOut": 5000,
-                                            "extendedTimeOut": 1000,
-                                            "showEasing": "swing",
-                                            "hideEasing": "linear",
-                                            "showMethod": "fadeIn",
-                                            "hideMethod": "fadeOut"
-                                        }
-                                        toastr.success('Success!', "Setting Saved..")
-                                    }
+                            let xmlhttp = new XMLHttpRequest();
+                            xmlhttp.open("POST", rootUrl);
+                            xmlhttp.onreadystatechange = () => {
+                                if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                                    // console.log(xmlhttp.responseText);
+                                    toastr.success('Success!', "Text Submitted...")
                                 }
-                                xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-
-                                xmlhttp.send(JSON.stringify(config));
                             }
+                            xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                            console.log(\$('#editor').val());
+                            xmlhttp.send(JSON.stringify({
+                                val: \$('#editor').val(),
+                                name: inName,
+                                type: 'text'
+                            }));
                         });
                     });
                 </script>
             </body>
-
-            </html>
-
+        </html>
     """
     render contentType: "text/html", data: html
 }
 
 def textEntryProcessing() {
-    String actionId = params?.cId
+    String actId = params?.cId
     String inName = params?.inName
-    log.debug "POST | actionId: $actionId | inName: $inName"
+    // log.debug "POST | actId: $actId | inName: $inName"
     def resp = request?.JSON ?: null
-    log.debug "Json: $resp"
-
-    def actApp = getActionApps()?.find { it?.id == actionId }
-    Boolean status = (actApp && actApp?.updateTxtEntry([inName: inName, value: json?.value]))
-
-    def json = new groovy.json.JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersion()])
+    // log.debug "textEntryProcessing | Resp: $resp"
+    def actApp = getActionApps()?.find { it?.id == actId }
+    Boolean status = (actApp && actApp?.updateTxtEntry(resp))
+    def json = new JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersion()])
     render contentType: "application/json", data: json, status: 200
 }
 
-String getSettingVals() {
+def getSettingVal(inName) {
     String actionId = params?.cId
-    String inName = params?.inName
-    log.debug "GetSettingVals | actionId: $actionId | inName: $inName"
+    // log.debug "GetSettingVals | actionId: $actionId"
     def actApp = getActionApps()?.find { it?.id == actionId }
-    def sets = null
-    if(actApp) { sets = actApp?.getAllSettings() }
-    log.debug "sets: $sets"
-    def json = new groovy.json.JsonOutput().toJson([message: "success", settings: sets])
-    render contentType: "application/json", data: json, status: 200
+    def value = null
+    if(actApp) { value = actApp?.getSettingInputVal(inName) }
+    return value
 }
 
 String getTextEntryPath(cId, inName) {

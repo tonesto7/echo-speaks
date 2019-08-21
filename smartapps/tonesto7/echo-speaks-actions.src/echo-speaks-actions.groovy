@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()  { return "3.0.0" }
-String appModified() { return "2019-08-19" }
+String appModified() { return "2019-08-21" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -663,14 +663,7 @@ private Map devsSupportVolume(devs) {
 def actionVariableDesc(actType, hideUserTxt=false) {
     Map txtItems = customTxtItems()
     if(!txtItems?.size() && state?.showSpeakEvtVars && !settings?."act_${actType}_txt") {
-        String str = "NOTICE:\nYou can choose to leave the text field empty and generic text will be generated for each event type or define responses for each trigger under Step 1.\n\nVariables can alse be used in your text:"
-        str += "\n • %type% = Event Type"
-        str += "\n • %value% = Event Value"
-        str += "\n • %name% = Event Device"
-        str += "\n • %date% = Event Date"
-        str += "\n • %time% = Event Time"
-        str += "\n • %datetime% = Event Date/Time"
-        str += "\n\nExample: %name% %type% is now %value%"
+        String str = "NOTICE:\nYou can choose to leave the text field empty and generic text will be generated for each event type or define responses for each trigger under Step 1."
         paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
         paragraph pTS("TIPS:\n \u2022 For beep sounds use: 'wop, wop, wop' (equals 3 beeps)\n \u2022 When entering SSML be sure to wrap the text in ${!isST() ? "&lt;speak&gt;&lt;/speak&gt;" : "<speak></speak>"}", null, false, "violet")
     }
@@ -691,35 +684,20 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
     if(itemCnt>=1) {
         paragraph pTS("NOTICE:\nTo reduce scrolling please refer to the text options available on the trigger at the top.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
     } else {
-        String str = "NOTICE:\nYou can choose to leave the text field empty and generic text will be generated for each trigger type or define a single response for all triggers under Step 3.\n\nVariables can alse be used in your text:"
-        str += "\n • %type% = Event Type"
-        str += "\n • %value% = Event Value"
-        str += "\n • %name% = Event Device"
-        str += "\n • %date% = Event Date"
-        str += "\n • %time% = Event Time"
-        str += "\n • %datetime% = Event Date/Time"
-        if(showRepInputs) {
-            str += "\n • %duration% = Repeat Duration"
-        }
-        str += "\n\nExample: %name% %type% is now %value%"
-
+        String str = "NOTICE:\nYou can choose to leave the text field empty and generic text will be generated for each trigger type or define a single response for all triggers under Step 3."
         paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
         paragraph pTS("TIPS:\n \u2022 For beep sounds use: 'wop, wop, wop' (equals 3 beeps)\n \u2022 When entering SSML be sure to wrap the text in ${!isST() ? "&lt;speak&gt;&lt;/speak&gt;" : "<speak></speak>"}", null, false, "violet")
     }
-    String textEntryUrl = parent?.getTextEntryPath(app?.id, "trig_${inType}_txt")
-    log.debug textEntryUrl
     //Custom Text Options
-    paragraph pTS("Description:\nSet custom responses for each ${inType} event.\n\nFYI:\n \u2022 These are only used if Speech or Announcement actions are selected in Step 3.\n \u2022 To allow multiple random responses for this trigger just separate each response with a ;", null, false, "#2784D9")
-    input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Response(s)\n(Optional)", getAppImg("text", true)), description: "Enter Text/SSML Here", submitOnChange: true, required: false, image: getAppImg("text")
-
-    href url: textEntryUrl, style: "embedded", required: false, title: "Custom ${inType?.capitalize()} Response(s)\n(Optional)(WEB)", description: "Enter Text/SSML Here", image: getAppImg("text")
-
-    input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Response(s)\n(Optional)", getAppImg("text", true)), description: "Enter Text/SSML Here", submitOnChange: true, required: false, image: getAppImg("text")
+    paragraph pTS("Description:\nSet custom responses for each ${inType} event.\n\nFYI:\n \u2022 These are only used if Speech or Announcement actions are selected in Step 3.\n \u2022 To allow multiple random responses read description on the text entry page.", null, false, "#2784D9")
+    href url: parent?.getTextEntryPath(app?.id, "trig_${inType}_txt"), style: "embedded", required: false, title: "Custom ${inType?.capitalize()} Response(s)\n(Optional)", description: settings?."trig_${inType}_txt" ?: "Enter Text/SSML Here", image: getAppImg("text")
+    // input "trig_${inType}_txt", "text", title: inTS("Custom ${inType?.capitalize()} Response(s)\n(Optional)", getAppImg("text", true)), description: "Enter Text/SSML Here", submitOnChange: true, required: false, image: getAppImg("text")
     if(showRepInputs) {
         if(settings?."trig_${inType}_after_repeat") {
             //Custom Repeat Text Options
-            paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.\nTo allow multiple random responses just separate each response with a ;", getAppImg("info", true), false, "#2784D9"), state: "complete"
-            input "trig_${inType}_after_repeat_txt", "text", title: inTS("Custom ${inType?.capitalize()} Repeat Response(s)\n(Optional)", getAppImg("text", true)), description: "Enter Text/SSML Here", submitOnChange: true, required: false, image: getAppImg("text")
+            paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.\nTo allow multiple random responses read description on the text entry page.", getAppImg("info", true), false, "#2784D9"), state: "complete"
+            href url: parent?.getTextEntryPath(app?.id, "trig_${inType}_after_repeat_txt"), style: "embedded", title: inTS("Custom ${inType?.capitalize()} Repeat Response(s)\n(Optional)", getAppImg("text", true)), description: settings?."trig_${inType}_after_repeat_txt" ?: "Enter Text/SSML Here", submitOnChange: true, required: false, image: getAppImg("text")
+            // input "trig_${inType}_after_repeat_txt", "text", title: inTS("Custom ${inType?.capitalize()} Repeat Response(s)\n(Optional)", getAppImg("text", true)), description: "Enter Text/SSML Here", submitOnChange: true, required: false, image: getAppImg("text")
         }
     }
 }
@@ -2354,20 +2332,56 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
 }
 
 def updateTxtEntry(obj) {
-    log.debug "updateTxtEntry | Obj: $obj"
-    if(obj?.inName && obj?.value && settings?.containsKey(inName)) {
-        settingUpdate(obj?.inName, "text", obj?.value as String)
+    // log.debug "updateTxtEntry | Obj: $obj"
+    if(obj?.name && obj?.val && obj?.type && settings?.containsKey(obj?.name)) {
+        settingUpdate("${obj?.name}", "${obj?.val}")
         return true
     }
     return false
 }
 
-String getTextInputValue(inName) {
-    return settings?."${inName}"?.toString()  ?: null
-}
-
-Map getAllSettings() {
-    return settings
+Map getInputData(inName) {
+    String desc = null
+    String title = null
+    String varDesc = " \u2022 Variables can alse be used in your text:<br>"
+    varDesc += """<ul style="list-style-type: circle;">"""
+    varDesc += "<li>%type% = Event Type</li>"
+    varDesc += "<li>%value% = Event Value</li>"
+    varDesc += "<li>%name% = Event Device</li>"
+    varDesc += "<li>%date% = Event Date</li>"
+    varDesc += "<li>%time% = Event Time</li>"
+    varDesc += "<li>%datetime% = Event Date/Time</li>"
+    varDesc += inName?.contains("repeat") ? "<li>%duration% = Repeat Duration</li>" : ""
+    varDesc += "<li>Example: %name% %type% is now %value%</li>"
+    varDesc += "</ul>"
+    switch(inName) {
+        case "act_speak_txt":
+            title = "Global | Speak Text Entry"
+            desc = "Add custom responses to use when this action is executed.<br> \u2022 Enable random responses by adding a response on each line.<br> \u2022 When entering SSML be sure to wrap the text in <speak></speak>"
+            break
+        case "act_announcement_txt":
+            title = "Global | Announcement Text Entry"
+            desc = "Add custom responses to use when this action is executed.<br> \u2022 Enable random responses by adding a response on each line.<br> \u2022 When entering SSML be sure to wrap the text in <speak></speak>"
+            break
+        default:
+            if(inName?.startsWith("trig_")) {
+                def i = inName?.tokenize("_")
+                if(i?.contains("repeat")) {
+                    title = "(${i[1]?.toString()?.capitalize()}) Trigger | Repeat Response(s)"
+                    desc = "Add custom responses for ${i[1]?.toString()?.capitalize()} events which have to be repeated.<br> \u2022 Enable random responses by adding a response on each line.<br> \u2022 When entering SSML be sure to wrap the text in <speak></speak><br>${varDesc}"
+                } else {
+                    title = "(${i[1]?.toString()?.capitalize()}) Trigger | Event Response(s)"
+                    desc = "Add custom responses for ${i[1]?.toString()?.capitalize()} trigger events.<br> \u2022 Enable random responses by adding a response on each line.<br> \u2022 When entering SSML be sure to wrap the text in <speak></speak><br>${varDesc}"
+                }
+            }
+            break
+    }
+    Map o = [
+        val: settings?."${inName}"?.toString() ?: null,
+        desc: desc,
+        title: title
+    ]
+    return o
 }
 
 /***********************************************************************************************************************

@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.0"}
-String devModified() { return "2019-08-19" }
+String devModified() { return "2019-08-21" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -40,7 +40,7 @@ metadata {
         attribute "alexaGuardStatus", "string"
         attribute "alexaWakeWord", "string"
         attribute "btDeviceConnected", "string"
-        attribute "btDevicesPaired", "string"
+        attribute "btDevicesPaired", "JSON_OBJECT"
         attribute "currentAlbum", "string"
         attribute "currentStation", "string"
         attribute "deviceFamily", "string"
@@ -1021,19 +1021,22 @@ def getAvailableWakeWordsHandler(response, data) {
 
 def getBluetoothDevices() {
     Map btData = parent?.getBluetoothData(state?.serialNumber) ?: [:]
+    log.debug "btData: ${btData}"
     String curConnName = btData?.curConnName ?: null
     Map btObjs = btData?.btObjs ?: [:]
     // logger("debug", "Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
     String pairedNames = btData?.pairedNames ? btData?.pairedNames?.join(",") : null
-    // if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
-    //     log.info "Bluetooth Device Connected: (${curConnName})"
+    log.debug "pairedNames: $pairedNames | curConnName: $curConnName"
+
+    if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
+        log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
-    // }
+    }
 
     if(isStateChange(device, "btDevicesPaired", pairedNames?.toString())) {
         log.info "Paired Bluetooth Devices: ${pairedNames}"
-        sendEvent(name: "btDevicesPaired", value: pairedNames?.toString(), descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
+        sendEvent(name: "btDevicesPaired", value: pairedNames, descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
     }
 }
 

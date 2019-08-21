@@ -5,21 +5,23 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>Echo Speaks</title>
+    <title>Echo Speak Text Entry</title>
     <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/css/mdb.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.css" rel="stylesheet">
 
-    <!-- Theme included stylesheets -->
-    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link href="https://cdn.quilljs.com/1.3.6/quill.bubble.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/theme/material.min.css" rel="stylesheet">
+
     <!-- JQuery -->
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/mode/simple.min.js"></script>
     <style>
         form div {
             margin-bottom: 0.5em;
@@ -52,92 +54,91 @@
     <script>
         let inName = 'trig_contact_txt';
         let actId = '26a2ccdc-f404-4e8c-9314-8fe4b5cb009b'
-        let rootUrl = 'https://graph.api.smartthings.com:443/api/smartapps/installations/533e121a-d7ba-4ac6-8102-575015956169/textEntryPage/26a2ccdc-f404-4e8c-9314-8fe4b5cb009b/trig_contact_txt?access_token=66965441-ea43-4397-b648-565981895013'
-        let rootTxtVal = 'https://graph.api.smartthings.com:443/api/smartapps/installations/533e121a-d7ba-4ac6-8102-575015956169/textEntryVal/26a2ccdc-f404-4e8c-9314-8fe4b5cb009b/trig_contact_txt?access_token=66965441-ea43-4397-b648-565981895013'
+        let rootUrl = 'https://graph.api.smartthings.com:443/api/smartapps/installations/533e121a-d7ba-4ac6-8102-575015956169/textEntryPage/26a2ccdc-f404-4e8c-9314-8fe4b5cb009b/trig_contact_txt?access_token=66965441-ea43-4397-b648-565981895013';
+        let curText = '%name% %type% is %value%; The %name% %type% is now %value%;%name% %type% changed to %value%';
+        let curTitle = 'Trigger: (Contact) | Event Text';
+        let curDesc = 'Add custom responses for the Contact events.<br>To allow multiple random responses just add a response on each line.';
     </script>
 </head>
 
 <body>
     <!-- Settings Form -->
-    <div style="margin: 0 auto; max-width: 500px;">
+    <div style="margin: 0 auto; max-width: 80%;">
         <form class="p-5">
-            <p class="h4 mb-0 text-center">Text Field Entry</p>
+            <p id="inputTitle" class="h4 mb-2 text-center">Text Field Entry</p>
+            <textarea id="editor"></textarea>
+            <p class="mb-0">Description:</p>
+            <small id="inputDesc">Description goes here.</small>
 
-            <!-- Material input -->
-            <div class="md-form my-2">
-                <i class="fa fa-info prefix"></i>
-                <input type="text" id="textEntry" name="textEntry" class="form-control" aria-describedby="textEntryHelpBlockMD">
-                <label for="textEntry" data-error="wrong" data-success="right">trig_contact_txt</label>
-                <small id="textEntryHelpBlockMD" style="font-size: xx-small" class="form-text text-muted">
-                            Enter the text values to use for responses
-                        </small>
-            </div>
-            <div id="editor"></div>
             <div id="submitBtnDiv" class="text-center">
-                <button class="btn btn-success btn-rounded my-2" type="submit"><i class="fa fa-save mr-1"></i>Save Settings</button>
+                <button class="btn btn-info btn-rounded my-2" type="submit"><i class="fa fa-save mr-1"></i>Submit</button>
             </div>
         </form>
     </div>
-    <!-- MDB core JavaScript -->
+
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
-    <script type="text/javascript" src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <!-- Settings Form -->
     <script>
-        let rootOrigin = window.location.origin;
-        let rootHost = window.location.hostname;
-        console.log('rootOrigin: ' + rootOrigin);
-        console.log('rootHost: ' + rootHost);
-
+        toastr.options = {
+            "closeButton": false,
+            "debug": false,
+            "newestOnTop": false,
+            "progressBar": false,
+            "positionClass": "toast-bottom-center",
+            "preventDuplicates": true,
+            "onclick": null,
+            "showDuration": 300,
+            "hideDuration": 1000,
+            "timeOut": 5000,
+            "extendedTimeOut": 1000,
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        }
         $(document).ready(function() {
-            $.getJSON(rootTxtVal, function(data) {
-                console.log('Text Value: ', data);
+            $('#inputTitle').text(curTitle);
+            $('#inputDesc').html(curDesc);
+            $('#editor').val(txtClean(curText));
+            CodeMirror.defineSimpleMode("simplemode", {
+                start: [{
+                    regex: /%[a-z]+%/,
+                    token: "variable"
+                }]
             });
-            var options = {
-                placeholder: 'Compose an epic...',
+            var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+                theme: 'material',
+                mode: 'simplemode',
+                lineNumbers: true,
+                lineSeparator: ';',
+                lineWrapping: false,
+                autocorrect: false,
+                autocapitalize: false,
+                spellcheck: true
+            });
 
-                theme: 'snow'
-            };
-            var editor = new Quill('#editor', options);
             $('form').submit(function(e) {
                 console.log('form submit...')
                 e.preventDefault();
-                let config = {
-                    value: $('#textEntry').val(),
-                    inName: inName
-                }
-                if (Object.keys(config).length) {
-                    var xmlhttp = new XMLHttpRequest();
-                    xmlhttp.open("POST", rootUrl);
-                    xmlhttp.onreadystatechange = function() {
-                        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-                            // console.log(xmlhttp.responseText);
-                            // Command: toastr["success"]("Settings Saved", "Success")
-                            toastr.options = {
-                                "closeButton": false,
-                                "debug": false,
-                                "newestOnTop": false,
-                                "progressBar": false,
-                                "positionClass": "toast-bottom-center",
-                                "preventDuplicates": true,
-                                "onclick": null,
-                                "showDuration": 300,
-                                "hideDuration": 1000,
-                                "timeOut": 5000,
-                                "extendedTimeOut": 1000,
-                                "showEasing": "swing",
-                                "hideEasing": "linear",
-                                "showMethod": "fadeIn",
-                                "hideMethod": "fadeOut"
-                            }
-                            toastr.success('Success!', "Setting Saved..")
-                        }
+                let xmlhttp = new XMLHttpRequest();
+                xmlhttp.open("POST", rootUrl);
+                xmlhttp.onreadystatechange = () => {
+                    if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                        // console.log(xmlhttp.responseText);
+                        toastr.success('Success!', "Text Submitted...")
                     }
-                    xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-
-                    xmlhttp.send(JSON.stringify(config));
                 }
+                xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                console.log($('#editor').val());
+                xmlhttp.send(JSON.stringify({
+                    value: $('#editor').val(),
+                    name: inName
+                }));
             });
         });
+
+        function txtClean(txt) {
+            return txt.split(';').map(t => t.trim()).join(';')
+        }
     </script>
 </body>
 
