@@ -1021,14 +1021,11 @@ def getAvailableWakeWordsHandler(response, data) {
 
 def getBluetoothDevices() {
     Map btData = parent?.getBluetoothData(state?.serialNumber) ?: [:]
-    log.debug "btData: ${btData}"
     String curConnName = btData?.curConnName ?: null
     Map btObjs = btData?.btObjs ?: [:]
     // logger("debug", "Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
     String pairedNames = btData?.pairedNames ? btData?.pairedNames?.join(",") : null
-    log.debug "pairedNames: $pairedNames | curConnName: $curConnName"
-
     if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
         log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
