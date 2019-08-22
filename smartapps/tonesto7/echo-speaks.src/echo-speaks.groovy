@@ -3264,6 +3264,133 @@ def renderTextEntryPage() {
                                 type: 'text'
                             }));
                         });
+
+                        function insertString(editor, str) {
+                            var selection = editor.getSelection();
+                            if (selection.length > 0) {
+                                editor.replaceSelection(str);
+                            } else {
+                                var doc = editor.getDoc();
+                                var cursor = doc.getCursor();
+                                var pos = {
+                                    line: cursor.line,
+                                    ch: cursor.ch
+                                }
+                                doc.replaceRange(str, pos);
+                            }
+                        }
+
+                        \$('.ssml-buttons input:not(.no-submit)').click(function() {
+                            var ssml = \$(this).data('ssml');
+                            var value = \$(this).val();
+                            var tag = '';
+                            var selected = editor.getSelection();
+                            var replace = '';
+                            if (selected == '') {
+                                replace = 'REPLACE THIS TEXT'
+                            } else {
+                                replace = selected
+                            }
+                            switch (ssml) {
+                                case 'break':
+                                    tag = '<break time="' + value + '"/>';
+                                    break;
+                                case 'emphasis':
+                                    tag = '<emphasis level="' + value + '">' + replace + '</emphasis>';
+                                    break;
+                                case 'pitch':
+                                    tag = '<prosody pitch="' + value + '">' + replace + '</prosody>';
+                                    break;
+                                case 'rate':
+                                    tag = '<prosody rate="' + value + '">' + replace + '</prosody>';
+                                    break;
+                                case 'volume':
+                                    tag = '<prosody volume="' + value + '">' + replace + '</prosody>';
+                                    break;
+                                case 'voice':
+                                    value = 'Ivy';
+                                    if (\$('#voices').val() != '') {
+                                        value = \$('#voices').val()
+                                    }
+                                    tag = '<voice name="' + value + '">' + replace + '</voice>';
+                                    var url = 'https://s3.amazonaws.com/ask-soundlibrary/transportation/amzn_sfx_car_accelerate_01.mp3';
+                                    break;
+                                case 'audio':
+                                    value = 'https://s3.amazonaws.com/ask-soundlibrary/transportation/amzn_sfx_car_accelerate_01.mp3';
+                                    if (\$('#audio').val() != '') {
+                                        value = \$('#audio').val()
+                                    }
+                                    tag = '<audio src="' + value + '"/>';
+                                    break;
+                                case 'sub':
+                                    value = 'magnesium';
+                                    if (\$('#alias').val() != '') {
+                                        value = \$('#alias').val()
+                                    }
+                                    tag = '<sub alias="' + value + '">' + replace + '</sub>';
+                                    break;
+                                case 'say-as':
+                                    if (selected == '') {
+                                        switch (value) {
+                                            case 'number':
+                                                replace = '1234';
+                                                break;
+                                            case 'characters':
+                                                replace = 'TEST';
+                                                break;
+                                            case 'spell-out':
+                                                replace = 'TEST';
+                                                break;
+                                            case 'cardinal':
+                                                replace = '1234';
+                                                break;
+                                            case 'ordinal':
+                                                replace = '5';
+                                                break;
+                                            case 'digits':
+                                                replace = '1234';
+                                                break;
+                                            case 'fraction':
+                                                replace = '1/5';
+                                                break;
+                                            case 'unit':
+                                                replace = 'USD10';
+                                                break;
+                                            case 'date':
+                                                replace = '01012019';
+                                                break;
+                                            case 'time':
+                                                // replace = '1\'21"';
+                                                break;
+                                            case 'telephone':
+                                                replace = '(541) 754-3010';
+                                                break;
+                                            case 'address':
+                                                replace = '711-2880 Nulla St., Mankato, Mississippi, 96522';
+                                                break;
+                                            case 'expletive':
+                                                replace = 'bad word';
+                                                break;
+                                            case 'interjection':
+                                                replace = 'boing';
+                                                break;
+                                            case 'speechcon':
+                                                replace = 'boing';
+                                                break;
+                                            default:
+                                                replace = 'REPLACE THIS TEXT'
+                                        }
+                                    }
+                                    tag = '<say-as interpret-as="' + value + '">' + replace + '</say-as>';
+                                    break;
+                                case 'whisper':
+                                    tag = '<amazon:effect name="whispered">' + replace + '</amazon:effect>';
+                                    break;
+                                default:
+                            }
+                            insertString(editor, tag)
+                            return false
+                        });
                     });
                 </script>
             </body>
