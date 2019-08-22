@@ -2978,11 +2978,48 @@ def renderTextEntryPage() {
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/mode/simple.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/xml/xml.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/edit/closetag.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/edit/matchtags.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/htmlmixed/htmlmixed.min.js"></script>
                 <style>
                     form div { margin-bottom: 0.5em; margin: 0 auto; }
                     .form-control { font-size: 0.7rem; }
                     button.btn.btn-info.btn-block.my-4 { max-width: 200px; text-align: center; }
                     .btn-rounded { border-radius: 50px !important; }
+                    .ssml-buttons {
+                        font-size: .8rem;
+                        margin-bottom: 5px
+                    }
+
+                    .ssml-buttons,
+                    h3 {
+                        font-size: 0.9rem;
+                    }
+
+                    .ssml-button {
+                        font-weight: normal;
+                        margin-left: 5px;
+                        cursor: pointer;
+                        border: 1px solid #555;
+                        border-radius: 2px;
+                        padding: 3px;
+                        background-color: #EEE;
+                        -webkit-appearance: none;
+                        -moz-appearance: none
+                    }
+
+                    .ssml-button:hover {
+                        background-color: #AAA
+                    }
+
+                    .ssml-button:first-child {
+                        margin-left: 0
+                    }
+
+                    .no-submit {
+                        cursor: text
+                    }
                 </style>
             </head>
             <body class="m-2">
@@ -2991,8 +3028,161 @@ def renderTextEntryPage() {
                     <form>
                         <p id="inputTitle" class="h5 mb-2 text-center">Text Field Entry</p>
                         <textarea id="editor"></textarea>
-                        <p class="mb-0">Description:</p>
-                        <small id="inputDesc">Description goes here.</small>
+                        <div class="container px-0">
+                            <div class="row mt-2 mx-auto">
+                                <div class="px-2 col-md-6 col-sm-12">
+                                    <div class="card my-3 mx-0">
+                                        <h5 class="z-depth-1 p-2"><i class="fas fa-info px-2 my-auto"></i>Description</h5>
+                                        <div class="card-body p-2 mx-0">
+                                            <div class="p-1 mx-auto">
+                                                <small id="inputDesc">Description goes here.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="px-2 col-md-6 col-sm-12">
+                                    <div class="card my-3 mx-0">
+                                        <h5 class="z-depth-1 p-2"><i class="fas fa-info px-2 my-auto"></i>SSML Items</h5>
+                                        <div class="card-body p-2 mx-0">
+                                            <div class="p-1 mx-auto">
+                                                <small id="ssmlDesc">Click on an item to insert into text.</small>
+                                                <div class="shortcuts-wrap" style="display: block;">
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>BREAK</h3><input class="ssml-button" type="button" unselectable="on" value="50ms" data-ssml="break"><input class="ssml-button" type="button" unselectable="on" value="200ms" data-ssml="break"><input class="ssml-button"
+                                                                    type="button" unselectable="on" value="500ms" data-ssml="break"><input class="ssml-button" type="button" unselectable="on" value="800ms" data-ssml="break"><input class="ssml-button" type="button" unselectable="on"
+                                                                    value="1s" data-ssml="break"><input class="ssml-button" type="button" unselectable="on" value="2s" data-ssml="break">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>EMPHASIS</h3><input class="ssml-button" type="button" unselectable="on" value="strong" data-ssml="emphasis"><input class="ssml-button" type="button" unselectable="on" value="reduced" data-ssml="emphasis">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>PITCH</h3><input class="ssml-button" type="button" unselectable="on" value="x-low" data-ssml="pitch"><input class="ssml-button" type="button" unselectable="on" value="low" data-ssml="pitch"><input class="ssml-button"
+                                                                    type="button" unselectable="on" value="medium" data-ssml="pitch"><input class="ssml-button" type="button" unselectable="on" value="high" data-ssml="pitch"><input class="ssml-button" type="button" unselectable="on"
+                                                                    value="x-high" data-ssml="pitch">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>RATE</h3><input class="ssml-button" type="button" unselectable="on" value="x-slow" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on" value="slow" data-ssml="rate"><input class="ssml-button"
+                                                                    type="button" unselectable="on" value="medium" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on" value="fast" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on"
+                                                                    value="x-fast" data-ssml="rate">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>VOLUME</h3><input class="ssml-button" type="button" unselectable="on" value="silent" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="x-soft" data-ssml="volume">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="soft" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="medium" data-ssml="volume"><input class="ssml-button"
+                                                                    type="button" unselectable="on" value="loud" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="x-loud" data-ssml="volume">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>WHISPER</h3><input class="ssml-button" type="button" unselectable="on" value="whisper" data-ssml="whisper">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>VOICE</h3><select id="voices">
+                                                                    <option value="Naja" class="x-option ember-view">Danish (F) - Naja</option>
+                                                                    <option value="Mads" class="x-option ember-view">Danish (M) - Mads</option>
+                                                                    <option value="Lotte" class="x-option ember-view">Dutch (F) - Lotte</option>
+                                                                    <option value="Ruben" class="x-option ember-view">Dutch (M) - Ruben</option>
+                                                                    <option value="Nicole" class="x-option ember-view">English, Australian (F) - Nicole</option>
+                                                                    <option value="Russell" class="x-option ember-view">English, Australian (M) - Russell</option>
+                                                                    <option value="Amy" class="x-option ember-view">English, British (F) - Amy</option>
+                                                                    <option value="Emma" class="x-option ember-view">English, British (F) - Emma</option>
+                                                                    <option value="Brian" class="x-option ember-view">English, British (M) - Brian</option>
+                                                                    <option value="Raveena" class="x-option ember-view">English, Indian (F) - Raveena</option>
+                                                                    <option value="Aditi" class="x-option ember-view">English, Indian (F) - Aditi</option>
+                                                                    <option value="Ivy" class="x-option ember-view">English, US (F) - Ivy</option>
+                                                                    <option value="Joanna" class="x-option ember-view">English, US (F) - Joanna</option>
+                                                                    <option value="Kendra" class="x-option ember-view">English, US (F) - Kendra</option>
+                                                                    <option value="Kimberly" class="x-option ember-view">English, US (F) - Kimberly</option>
+                                                                    <option value="Salli" class="x-option ember-view">English, US (F) - Salli</option>
+                                                                    <option value="Joey" class="x-option ember-view">English, US (M) - Joey</option>
+                                                                    <option value="Justin" class="x-option ember-view">English, US (M) - Justin</option>
+                                                                    <option value="Matthew" class="x-option ember-view">English, US (M) - Matthew</option>
+                                                                    <option value="Geraint" class="x-option ember-view">English, Welsh (M) - Geraint</option>
+                                                                    <option value="Celine" class="x-option ember-view">French (F) - Céline</option>
+                                                                    <option value="Lea" class="x-option ember-view">French (F) - Léa</option>
+                                                                    <option value="Mathieu" class="x-option ember-view">French (M) - Mathieu</option>
+                                                                    <option value="Chantal" class="x-option ember-view">French, Canadian (F) - Chantal</option>
+                                                                    <option value="Marlene" class="x-option ember-view">German (F) - Marlene</option>
+                                                                    <option value="Vicki" class="x-option ember-view">German (F) - Vicki</option>
+                                                                    <option value="Hans" class="x-option ember-view">German (M) - Hans</option>
+                                                                    <option value="Aditi" class="x-option ember-view">Hindi (F) - Aditi</option>
+                                                                    <option value="Dóra" class="x-option ember-view">Icelandic (F) - Dóra</option>
+                                                                    <option value="Karl" class="x-option ember-view">Icelandic (M) - Karl</option>
+                                                                    <option value="Carla" class="x-option ember-view">Italian (F) - Carla</option>
+                                                                    <option value="Giorgio" class="x-option ember-view">Italian (M) - Giorgio</option>
+                                                                    <option value="Takumi" class="x-option ember-view">Japanese (M) - Takumi</option>
+                                                                    <option value="Mizuki" class="x-option ember-view">Japanese (F) - Mizuki</option>
+                                                                    <option value="Seoyeon" class="x-option ember-view">Korean (F) - Seoyeon</option>
+                                                                    <option value="Liv" class="x-option ember-view">Norwegian (F) - Liv</option>
+                                                                    <option value="Ewa" class="x-option ember-view">Polish (F) - Ewa</option>
+                                                                    <option value="Maja" class="x-option ember-view">Polish (F) - Maja</option>
+                                                                    <option value="Jacek" class="x-option ember-view">Polish (M) - Jacek</option>
+                                                                    <option value="Jan" class="x-option ember-view">Polish (M) - Jan</option>
+                                                                    <option value="Vitoria" class="x-option ember-view">Portugese, Brazilian (F) - Vitória</option>
+                                                                    <option value="Ricardo" class="x-option ember-view">Portugese, Brazilian (M) - Ricardo</option>
+                                                                    <option value="Ines" class="x-option ember-view">Portugese, European (F) - Inês</option>
+                                                                    <option value="Cristiano" class="x-option ember-view">Portugese, European (M) - Cristiano</option>
+                                                                    <option value="Carmen" class="x-option ember-view">Romanian (F) - Carmen</option>
+                                                                    <option value="Tatyana" class="x-option ember-view">Russian (F) - Tatyana</option>
+                                                                    <option value="Maxim" class="x-option ember-view">Russian (M) - Maxim</option>
+                                                                    <option value="Conchita" class="x-option ember-view">Spanish, European (F) - Conchita</option>
+                                                                    <option value="Enrique" class="x-option ember-view">Spanish, European (M) - Enrique</option>
+                                                                    <option value="Penélope" class="x-option ember-view">Spanish, US (F) - Penélope</option>
+                                                                    <option value="Miguel" class="x-option ember-view">Spanish, US (M) - Miguel</option>
+                                                                    <option value="Astrid" class="x-option ember-view">Swedish (F) - Astrid</option>
+                                                                    <option value="Filiz" class="x-option ember-view">Turkish (F) - Filiz</option>
+                                                                    <option value="Gwyneth" class="x-option ember-view">Welsh (F) - Gwyneth</option>
+                                                                </select>
+                                                                <input class="ssml-button" type="button" unselectable="on" value="ADD" data-ssml="voice">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>AUDIO</h3><input class="ssml-button no-submit" type="url" id="audio" name="audio" value="https://" placeholder="Audio URL" autocomplete="off" novalidate=""><input class="ssml-button" type="button" unselectable="on"
+                                                                    value="ADD" data-ssml="audio">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>SAY-AS</h3><input class="ssml-button" type="button" unselectable="on" value="number" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="spell-out" data-ssml="say-as">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="ordinal" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="digits" data-ssml="say-as"><input class="ssml-button"
+                                                                    type="button" unselectable="on" value="date" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="time" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on"
+                                                                    value="speechcon" data-ssml="say-as">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>SUBSTITUTE</h3><input class="ssml-button no-submit" type="text" id="alias" name="alias" placeholder="Alias" autocomplete="off" novalidate=""><input class="ssml-button" type="button" unselectable="on"
+                                                                    value="ADD" data-ssml="sub">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div id="submitBtnDiv" class="text-center">
                             <button class="btn btn-info btn-rounded my-2" type="submit"><i class="fa fa-save mr-1"></i>Submit</button>
                         </div>
@@ -3013,7 +3203,6 @@ def renderTextEntryPage() {
                         "progressBar": false,
                         "positionClass": "toast-bottom-center",
                         "preventDuplicates": true,
-                        "onclick": null,
                         "showDuration": 300,
                         "hideDuration": 1000,
                         "timeOut": 5000,
@@ -3023,6 +3212,7 @@ def renderTextEntryPage() {
                         "showMethod": "fadeIn",
                         "hideMethod": "fadeOut"
                     }
+
                     function cleanTxt(txt) {
                         txt = txt.split(';').map(t => t.trim()).join(';')
                         return txt.endsWith(';') ? txt.replace(/;([^;]*)\$/, '\$1') : txt
@@ -3034,16 +3224,21 @@ def renderTextEntryPage() {
                         \$('#editor').val(cleanTxt(curText));
                         CodeMirror.defineSimpleMode("simplemode", {
                             start: [{
-                                regex: /%[a-z]+%/, token: "variable"
+                                regex: /%[a-z]+%/,
+                                token: "variable"
                             }, {
-                                regex: /<[^>]+>/, token: 'ssml'
+                                regex: /<[^>]+>/,
+                                token: 'variable-3'
                             }]
                         });
+
                         let editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
                             theme: 'material',
                             mode: 'simplemode',
                             lineNumbers: true,
                             lineSeparator: ';',
+                            showCursorWhenSelecting: true,
+                            autoCloseTags: true,
                             lineWrapping: false,
                             autocorrect: false,
                             autocapitalize: false,

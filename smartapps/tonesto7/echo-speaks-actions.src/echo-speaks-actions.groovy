@@ -2343,42 +2343,42 @@ def updateTxtEntry(obj) {
 Map getInputData(inName) {
     String desc = null
     String title = null
-    String varDesc = " \u2022 Variables can alse be used in your text:<br>"
-    varDesc += """<ul style="list-style-type: circle;">"""
-    varDesc += "<li>%type% = Event Type</li>"
-    varDesc += "<li>%value% = Event Value</li>"
-    varDesc += "<li>%name% = Event Device</li>"
-    varDesc += "<li>%date% = Event Date</li>"
-    varDesc += "<li>%time% = Event Time</li>"
-    varDesc += "<li>%datetime% = Event Date/Time</li>"
-    varDesc += inName?.contains("repeat") ? "<li>%duration% = Repeat Duration</li>" : ""
-    varDesc += "<li>Example: %name% %type% is now %value%</li>"
-    varDesc += "</ul>"
+    String vDesc = "Variables are available to use:"
+    vDesc += """<ul class="pl-3" style="list-style-type: bullet;">"""
+    vDesc += "<li>Event Type: <b>%type%</b></li>"
+    vDesc += "<li>Event Value: <b>%value%</b></li>"
+    vDesc += "<li>Event DeviceName: <b>%name%</b></li>"
+    vDesc += "<li>Event Date: <b>%date%</b></li>"
+    vDesc += "<li>Event Time: <b>%time%</b></li>"
+    vDesc += "<li>Event Date/Time: <b>%datetime%</b></li>"
+    vDesc += inName?.contains("repeat") ? "<li>Repeat Duration: <b>%duration%</b></li>" : ""
+    vDesc += "<li>Example: %name% %type% is now %value%</li>"
+    vDesc += "</ul>"
     switch(inName) {
         case "act_speak_txt":
             title = "Global | Speak Text Entry"
-            desc = "Add custom responses to use when this action is executed.<br> \u2022 Enable random responses by adding a response on each line.<br> \u2022 When entering SSML be sure to wrap the text in <speak></speak>"
+            desc = "<li>Add custom responses to use when this action is executed.</li><li>Enable random responses by adding a response on each line.</li><li>When entering SSML be sure to wrap the text in &lt;speak&gt;&lt;/speak&gt;</li>"
             break
         case "act_announcement_txt":
             title = "Global | Announcement Text Entry"
-            desc = "Add custom responses to use when this action is executed.<br> \u2022 Enable random responses by adding a response on each line.<br> \u2022 When entering SSML be sure to wrap the text in <speak></speak>"
+            desc = "<li>Add custom responses to use when this action is executed.</li><li>Enable random responses by adding a response on each line.</li><li>When entering SSML be sure to wrap the text in &lt;speak&gt;&lt;/speak&gt;</li>"
             break
         default:
             if(inName?.startsWith("trig_")) {
                 def i = inName?.tokenize("_")
                 if(i?.contains("repeat")) {
                     title = "(${i[1]?.toString()?.capitalize()}) Trigger | Repeat Response(s)"
-                    desc = "Add custom responses for ${i[1]?.toString()?.capitalize()} events which have to be repeated.<br> \u2022 Enable random responses by adding a response on each line.<br> \u2022 When entering SSML be sure to wrap the text in <speak></speak><br>${varDesc}"
+                    desc = "<li>Add custom responses for ${i[1]?.toString()?.capitalize()} events which have to be repeated.</li><li>Enable random responses by adding a response on each line.</li><li>When entering SSML be sure to wrap the text in &lt;speak&gt;&lt;/speak&gt;</li><li>${vDesc}</li>"
                 } else {
                     title = "(${i[1]?.toString()?.capitalize()}) Trigger | Event Response(s)"
-                    desc = "Add custom responses for ${i[1]?.toString()?.capitalize()} trigger events.<br> \u2022 Enable random responses by adding a response on each line.<br> \u2022 When entering SSML be sure to wrap the text in <speak></speak><br>${varDesc}"
+                    desc = "<li>Add custom responses for ${i[1]?.toString()?.capitalize()} trigger events.</li><li>Enable random responses by adding a response on each line.</li><li>When entering SSML be sure to wrap the text in &lt;speak&gt;&lt;/speak&gt;</li><li>${vDesc}</li>"
                 }
             }
             break
     }
     Map o = [
         val: settings?."${inName}"?.toString() ?: null,
-        desc: desc,
+        desc: """<ul class="pl-3" style="list-style-type: bullet;">${desc}</ul>""",
         title: title
     ]
     return o
