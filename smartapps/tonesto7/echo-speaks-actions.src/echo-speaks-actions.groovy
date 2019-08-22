@@ -679,63 +679,20 @@ def actionVariableDesc(actType, hideUserTxt=false) {
 }
 
 def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
-    String str = "Description:\nSet custom responses for each ${inType} event.\n\nNOTICE:\nYou can choose to leave the text field empty and generic text will be generated for each trigger type or define a single response for all triggers under Step 3.\n\n \u2022 These are only used if Speech or Announcement actions are selected in Step 3."
+    String str = "Description:\nYou have 3 response options:\n \u2022 1. Leave the text empty below and text will be generated for each ${inType} trigger event.\n \u2022 2. Wait till Step 3 and define a single response for any trigger selected here.\n \u2022 3. Use the reponse builder below and create custom responses for each trigger type. (Supports randomization when multiple responses are configured)\n\nCustom Text is are only used if Speech or Announcement actions are selected in Step 3."
     paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
     //Custom Text Options
-    href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_txt"), style: "embedded", required: false, title: "Custom ${inType?.capitalize()} Response(s)\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
-            description: settings?."trig_${inType}_txt" ?: "Enter Text/SSML Here", image: getAppImg("text")
+    href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_txt"), style: "embedded", required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
+            description: settings?."trig_${inType}_txt" ?: "Open Response Designer...", image: getAppImg("text")
     if(showRepInputs) {
         if(settings?."trig_${inType}_after_repeat") {
             //Custom Repeat Text Options
             paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-            href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_after_repeat_txt"), style: "embedded", title: inTS("Custom ${inType?.capitalize()} Repeat Response(s)\n(Optional)", getAppImg("text", true)),
-                    description: settings?."trig_${inType}_after_repeat_txt" ?: "Enter Text/SSML Here", state: (settings?."trig_${inType}_after_repeat_txt" ? "complete" : '') , submitOnChange: true, required: false, image: getAppImg("text")
-            // input "trig_${inType}_after_repeat_txt", "text", title: inTS("Custom ${inType?.capitalize()} Repeat Response(s)\n(Optional)", getAppImg("text", true)), description: "Enter Text/SSML Here", submitOnChange: true, required: false, image: getAppImg("text")
+            href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_after_repeat_txt"), style: "embedded", title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
+                    description: settings?."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings?."trig_${inType}_after_repeat_txt" ? "complete" : '') , submitOnChange: true, required: false, image: getAppImg("text")
         }
     }
 }
-
-Map getInputData(inName) {
-    String desc = null
-    String title = null
-    String template = null
-    String vDesc = "<li>Example: %name% %type% is now %value%</li>"
-    vDesc += "<li>To make beep sounds use: <b>wop, wop, wop</b> (equals 3 beeps)</li>"
-    switch(inName) {
-        case "act_speak_txt":
-            title = "Global Action Speech Event"
-            desc = "<li>Add custom responses to use when this action is executed.</li>"
-            template = '%name% %type% is now %value%'
-            break
-        case "act_announcement_txt":
-            title = "Global Announcement Speech Event"
-            desc = "<li>Add custom responses to use when this action is executed.</li>"
-            template = '%name% %type% is now %value%'
-            break
-        default:
-            if(inName?.startsWith("trig_")) {
-                def i = inName?.tokenize("_")
-                if(i?.contains("repeat")) {
-                    title = "(${i[1]?.toString()?.capitalize()}) Trigger Repeat Events"
-                    desc = "<li>Add custom responses for ${i[1]?.toString()?.capitalize()} events which have to be repeated.</li>${vDesc}"
-                    template = '%name% %type% is now %value%'
-                } else {
-                    title = "(${i[1]?.toString()?.capitalize()}) Trigger Events"
-                    desc = "<li>Add custom responses for ${i[1]?.toString()?.capitalize()} trigger events.</li>${vDesc}"
-                    template = '%name% %type% is now %value%'
-                }
-            }
-            break
-    }
-    Map o = [
-        val: settings?."${inName}"?.toString() ?: null,
-        desc: """<ul class="pl-3" style="list-style-type: bullet;">${desc}</ul>""",
-        title: title,
-        template: template
-    ]
-    return o
-}
-
 
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: (settings?.actionType ? "Action | (${settings?.actionType})" : "Actions to perform..."), install: false, uninstall: false) {
@@ -761,8 +718,8 @@ def actionsPage() {
                         ssmlInfoSection()
                         section(sTS("Action Config:"), hideable: true) {
                             actionVariableDesc(actionType)
-                            href url: parent?.getTextEditorPath(app?.id, "act_speak_txt"), style: "embedded", required: false, title: inTS("Enter Action Text/SSML\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
-                                    description: settings?."act_speak_txt" ?: "Enter Text/SSML Here", image: getAppImg("text")
+                            href url: parent?.getTextEditorPath(app?.id, "act_speak_txt"), style: "embedded", required: false, title: inTS("Global Action Text Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
+                                    description: settings?."act_speak_txt" ?: "Open Response Designer...", image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
                         actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
@@ -779,8 +736,8 @@ def actionsPage() {
                         ssmlInfoSection()
                         section(sTS("Action Config:")) {
                             actionVariableDesc(actionType)
-                            href url: parent?.getTextEditorPath(app?.id, "act_announcement_txt"), style: "embedded", required: false, title: inTS("Enter Action Text/SSML\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
-                                    description: settings?."act_announcement_txt" ?: "Enter Text/SSML Here", image: getAppImg("text")
+                            href url: parent?.getTextEditorPath(app?.id, "act_announcement_txt"), style: "embedded", required: false, title: inTS("Global Action Text Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
+                                    description: settings?."act_announcement_txt" ?: "Open Response Designer...", image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
                         actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
@@ -2368,15 +2325,61 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
     log.trace "ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)"
 }
 
+Map getInputData(inName) {
+    String desc = null
+    String title = null
+    String template = null
+    String vDesc = "<li>Example: %name% %type% is now %value%</li>"
+    vDesc += "<li>To make beep sounds use: <b>wop, wop, wop</b> (equals 3 beeps)</li>"
+    switch(inName) {
+        case "act_speak_txt":
+            title = "Global Action Speech Event"
+            desc = "<li>Add custom responses to use when this action is executed.</li>"
+            template = '%name% %type% is now %value%'
+            break
+        case "act_announcement_txt":
+            title = "Global Announcement Speech Event"
+            desc = "<li>Add custom responses to use when this action is executed.</li>"
+            template = '%name% %type% is now %value%'
+            break
+        default:
+            if(inName?.startsWith("trig_")) {
+                def i = inName?.tokenize("_")
+                if(i?.contains("repeat")) {
+                    title = "(${i[1]?.toString()?.capitalize()}) Trigger Repeat Events"
+                    desc = "<li>Add custom responses for ${i[1]?.toString()?.capitalize()} events which have to be repeated.</li>${vDesc}"
+                    template = '%name% %type% is now %value%'
+                } else {
+                    title = "(${i[1]?.toString()?.capitalize()}) Trigger Events"
+                    desc = "<li>Add custom responses for ${i[1]?.toString()?.capitalize()} trigger events.</li>${vDesc}"
+                    template = '%name% %type% is now %value%'
+                }
+            }
+            break
+    }
+    Map o = [
+        val: settings?."${inName}"?.toString() ?: null,
+        desc: """<ul class="pl-3" style="list-style-type: bullet;">${desc}</ul>""",
+        title: title,
+        template: template
+    ]
+    return o
+}
+
 def updateTxtEntry(obj) {
     // log.debug "updateTxtEntry | Obj: $obj"
-    if(obj?.name && obj?.val && obj?.type && settings?.containsKey(obj?.name)) {
-        settingUpdate("${obj?.name}", "${obj?.val}")
+    if(obj?.name && obj?.val && obj?.type) {
+        // app?.updateSetting("${obj?.name}", [type: "text", value: obj?.val])
+        settingUpdate("${obj?.name}", "${obj?.val}", 'text')
         return true
     }
     return false
 }
 
+public getSettingInputVal(inName) {
+    // log.debug "getSettingInputVal: ${inName}"
+    return settings?."${inName}" ?: null
+}
 
 
 /***********************************************************************************************************************
@@ -2495,7 +2498,6 @@ String getAlarmSystemStatus() {
         return cur ?: "disarmed"
     } else { return location?.hsmStatus ?: "disarmed" }
 }
-
 Boolean pushStatus() { return (settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || settings?.pushoverEnabled) ? ((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
 Integer getLastMsgSec() { return !state?.lastMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMsgDt, "getLastMsgSec").toInteger() }
 Integer getLastUpdMsgSec() { return !state?.lastUpdMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastUpdMsgDt, "getLastUpdMsgSec").toInteger() }

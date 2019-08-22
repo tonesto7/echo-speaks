@@ -1066,7 +1066,7 @@ def subscribeToEvts() {
 }
 
 def getActionApps() {
-    return getChildApps()?.findAll { it?.name == actChildName() }
+    return getAllChildApps()?.findAll { it?.name == actChildName() }
 }
 
 def onAppTouch(evt) {
@@ -2954,6 +2954,7 @@ def renderTextEditPage() {
     if(actId && inName) {
         def actApp = getActionApps()?.find { it?.id == actId }
         if(actApp) { inData = actApp?.getInputData(inName) }
+        // inData = getInputData(inName, actId)
     }
     String html = """
         <!DOCTYPE html>
@@ -3065,8 +3066,8 @@ def renderTextEditPage() {
                                                                     value="x-high" data-ssml="pitch">
                                                             </div>
                                                         </div>
-                                                        <div class="col-6 px-2">
-                                                            <div class="card-body ssml-buttons px-0 pb-0 pt-1">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
                                                                 <h3>RATE</h3><input class="ssml-button" type="button" unselectable="on" value="x-slow" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on" value="slow" data-ssml="rate"><input class="ssml-button"
                                                                     type="button" unselectable="on" value="medium" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on" value="fast" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on"
                                                                     value="x-fast" data-ssml="rate">
@@ -3074,22 +3075,22 @@ def renderTextEditPage() {
                                                         </div>
                                                     </div>
                                                     <div class="row">
-                                                        <div class="col-6 px-2">
-                                                            <div class="card-body ssml-buttons px-0 pb-0 pt-1">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
                                                                 <h3>VOLUME</h3><input class="ssml-button" type="button" unselectable="on" value="silent" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="x-soft" data-ssml="volume">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="soft" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="medium" data-ssml="volume"><input class="ssml-button"
                                                                     type="button" unselectable="on" value="loud" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="x-loud" data-ssml="volume">
                                                             </div>
                                                         </div>
-                                                        <div class="col-6 px-2">
-                                                            <div class="card-body ssml-buttons px-0 pb-0 pt-1">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
                                                                 <h3>WHISPER</h3><input class="ssml-button" type="button" unselectable="on" value="whisper" data-ssml="whisper">
                                                             </div>
                                                         </div>
                                                     </div>
                                                     <div class="row">
-                                                        <div class="col-6 px-2">
-                                                            <div class="card-body ssml-buttons px-0 pb-0 pt-1">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
                                                                 <h3>VOICE</h3>
                                                                 <select class="browser-default custom-select custom-select-sm mb-2" id="voices">
                                                                                             <option value="Naja" class="x-option ember-view">Danish (F) - Naja</option>
@@ -3150,8 +3151,8 @@ def renderTextEditPage() {
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Add Voice" data-ssml="voice">
                                                             </div>
                                                         </div>
-                                                        <div class="col-6 px-2">
-                                                            <div class="card-body ssml-buttons px-0 pb-0 pt-1">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
                                                                 <h3>SAY-AS</h3><input class="ssml-button" type="button" unselectable="on" value="number" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="spell-out" data-ssml="say-as">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="ordinal" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="digits" data-ssml="say-as"><input class="ssml-button"
                                                                     type="button" unselectable="on" value="date" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="time" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on"

@@ -757,9 +757,11 @@ private refreshStage2() {
 
 public setOnlineStatus(Boolean isOnline) {
     String onlStatus = (isOnline ? "online" : "offline")
-    if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString()) || isStateChange(device, "onlineStatus", onlStatus?.toString())) {
-        log.debug "OnlineStatus has changed to (${onlStatus})"
+    if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString())) {
         sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), displayed: false, isStateChange: true)
+    }
+    if(isStateChange(device, "onlineStatus", onlStatus?.toString())) {
+        log.debug "OnlineStatus has changed to (${onlStatus})"
         sendEvent(name: "onlineStatus", value: onlStatus?.toString(), displayed: true, isStateChange: true)
     }
 }
@@ -1026,10 +1028,10 @@ def getBluetoothDevices() {
     // logger("debug", "Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
     String pairedNames = btData?.pairedNames ? btData?.pairedNames?.join(",") : null
-    if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
-        log.info "Bluetooth Device Connected: (${curConnName})"
+    // if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
+        // log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
-    }
+    // }
 
     if(isStateChange(device, "btDevicesPaired", pairedNames?.toString())) {
         log.info "Paired Bluetooth Devices: ${pairedNames}"
