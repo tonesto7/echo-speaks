@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()  { return "3.0.0" }
-String appModified() { return "2019-08-21" }
+String appModified() { return "2019-08-22" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -481,7 +481,7 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     input "trig_${inType}_all", "bool", title: inTS("Require ALL ${devTitle} to be (${settings?."trig_${inType}_cmd"})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                 }
                 if(settings?."trig_${inType}_cmd" in cmdAfterOpts) {
-                    input "trig_${inType}_after", "number", title: inTS("Only trigger after (${settings?."trig_${inType}_cmd"}) for (xx) minutes?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                    input "trig_${inType}_after", "number", title: inTS("Only trigger after (${settings?."trig_${inType}_cmd"}) for (xx) seconds?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     if(settings?."trig_${inType}_after") {
                         input "trig_${inType}_after_repeat", "number", title: inTS("Repeat trigger every (xx) seconds until not ${settings?."trig_${inType}_cmd"}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
@@ -726,7 +726,8 @@ def actionsPage() {
                         ssmlInfoSection()
                         section(sTS("Action Config:"), hideable: true) {
                             actionVariableDesc(actionType)
-                            input "act_speak_txt", "text", title: inTS("Enter Action Text/SSML\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
+                            href url: parent?.getTextEntryPath(app?.id, "act_speak_txt"), style: "embedded", required: false, title: inTS("Enter Action Text/SSML\n(Optional)", getAppImg("text", true)), description: settings?."act_speak_txt" ?: "Enter Text/SSML Here", image: getAppImg("text")
+                            // input "act_speak_txt", "text", title: inTS("Enter Action Text/SSML\n(Optional)", getAppImg("text", true)), description: "Enter Text to Speak", submitOnChange: true, required: false, image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
                         actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
@@ -743,7 +744,8 @@ def actionsPage() {
                         ssmlInfoSection()
                         section(sTS("Action Config:")) {
                             actionVariableDesc(actionType)
-                            input "act_announcement_txt", "text", title: inTS("Enter Action Text/SSML\n(Optional)", getAppImg("text", true)), description: "Enter Text to Announce", submitOnChange: true, required: false, image: getAppImg("text")
+                            href url: parent?.getTextEntryPath(app?.id, "act_announcement_txt"), style: "embedded", required: false, title: inTS("Enter Action Text/SSML\n(Optional)", getAppImg("text", true)), description: settings?."act_announcement_txt" ?: "Enter Text/SSML Here", image: getAppImg("text")
+                            // input "act_announcement_txt", "text", title: inTS("Enter Action Text/SSML\n(Optional)", getAppImg("text", true)), description: "Enter Text to Announce", submitOnChange: true, required: false, image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
                         actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
@@ -2958,8 +2960,8 @@ String getTriggersDesc(hideDesc=false) {
                         } else {
                             str += settings?."${sPre}${evt}_cmd"  ? "    \u25E6 Trigger State: (${settings?."${sPre}${evt}_cmd"})\n" : ""
                         }
-                        str += settings?."${sPre}${evt}_after"              ? "    \u25E6 Only After: (${settings?."${sPre}${evt}_after"} min)\n" : ""
-                        str += settings?."${sPre}${evt}_after_repeat"       ? "    \u25E6 Repeat Every: (${settings?."${sPre}${evt}_after_repeat"} min)\n" : ""
+                        str += settings?."${sPre}${evt}_after"              ? "    \u25E6 Only After: (${settings?."${sPre}${evt}_after"} sec)\n" : ""
+                        str += settings?."${sPre}${evt}_after_repeat"       ? "    \u25E6 Repeat Every: (${settings?."${sPre}${evt}_after_repeat"} sec)\n" : ""
                         str += settings?."${sPre}${evt}_all"                ? "    \u25E6 Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
                         str += settings?."${sPre}${evt}_once"               ? "    \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
                         str += settings?."${sPre}${evt}_wait"               ? "    \u25E6 Wait: (${settings?."${sPre}${evt}_wait"})\n" : ""
