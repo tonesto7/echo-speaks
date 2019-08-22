@@ -3028,6 +3028,9 @@ def renderTextEntryPage() {
                     <form>
                         <p id="inputTitle" class="h5 mb-2 text-center">Text Field Entry</p>
                         <textarea id="editor"></textarea>
+                        <div class="text-right">
+                            <x-small id="lineCnt"></x-small>
+                        </div>
                         <div class="container px-0">
                             <div class="row mt-2 mx-auto">
                                 <div class="px-2 col-md-6 col-sm-12">
@@ -3094,7 +3097,8 @@ def renderTextEntryPage() {
                                                     <div class="row">
                                                         <div class="col-6">
                                                             <div class="ssml-buttons">
-                                                                <h3>VOICE</h3><select id="voices">
+                                                                <h3>VOICE</h3>
+                                                                <select class="browser-default custom-select custom-select-sm" id="voices">
                                                                     <option value="Naja" class="x-option ember-view">Danish (F) - Naja</option>
                                                                     <option value="Mads" class="x-option ember-view">Danish (M) - Mads</option>
                                                                     <option value="Lotte" class="x-option ember-view">Dutch (F) - Lotte</option>
@@ -3245,6 +3249,13 @@ def renderTextEntryPage() {
                             spellcheck: true
                         });
 
+                        function updateInfo(instance, changeObj) {
+                            selectedLineNum = changeObj.to.line;
+                            $('#lineCnt').text('Response Cnt: ' + changeObj.to.line);
+                        }
+
+                        editor.on("change", updateInfo);
+
                         \$('form').submit(function(e) {
                             console.log('form submit...')
                             e.preventDefault();
@@ -3291,6 +3302,7 @@ def renderTextEntryPage() {
                             } else {
                                 replace = selected
                             }
+                            // TODO: Add <speak> to beginning and end of selected line
                             switch (ssml) {
                                 case 'break':
                                     tag = '<break time="' + value + '"/>';
