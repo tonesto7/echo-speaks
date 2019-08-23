@@ -17,7 +17,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "3.0.0" }
-String appModified() { return "2019-08-22" }
+String appModified() { return "2019-08-23" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -257,7 +257,7 @@ def guardTriggerEvtHandler(evt) {
                 return
             }
             if(inAwayMode && !inHomeMode) { desiredState = "ARMED_AWAY" }
-            if(!inAwayMode && inHomeMode) { desiredState = "ARMED_HOME" }
+            if(!inAwayMode && inHomeMode) { desiredState = "ARMED_STAY" }
             break
         case "presence":
             desiredState = isSomebodyHome(settings?.guardAwayPresence) ? "ARMED_STAY" : "ARMED_AWAY"
@@ -267,12 +267,16 @@ def guardTriggerEvtHandler(evt) {
             Boolean inAlarmHome = isInAlarmMode(settings?.guardHomeAlarm)
             Boolean inAlarmAway = isInAlarmMode(settings?.guardAwayAlarm)
             if(inAlarmAway && !inAlarmHome) { desiredState = "ARMED_AWAY" }
-            if(!inAlarmAway && inAlarmHome) { desiredState = "ARMED_HOME" }
+            if(!inAlarmAway && inAlarmHome) { desiredState = "ARMED_STAY" }
             break
     }
-    if(desiredState && desiredState == "ARMED_STAY" && state?.alexaGuardState != "ARMED_STAY") { setGuardHome() }
+    if(desiredState && desiredState == "ARMED_STAY" && state?.alexaGuardState != "ARMED_STAY") {
+        log.info "Setting Alexa Guard Mode to Home..."
+        setGuardHome()
+    }
     else if(desiredState && desiredState == "ARMED_AWAY" && state?.alexaGuardState != "ARMED_AWAY") {
-        settings?.guardAwayDelay ? runIn(settings?.guardAwayDelay, "setGuardAway") : setGuardAway()
+        if(settings?.guardAwayDelay) { log.warn "Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)"; runIn(settings?.guardAwayDelay, "setGuardAway"); }
+        else { setGuardAway(); log.warn "Setting Alexa Guard Mode to Away..."; }
     }
 }
 
@@ -1038,8 +1042,17 @@ def initialize() {
         getOtherData()
         getEchoDevices()
     }
-    if(settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
-        subscribeToEvts()
+    subscribe(app, onAppTouch)
+    if((settings?.guardHomeAlarm && settings?.guardAwayAlarm) || settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
+        if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
+            subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", guardTriggerEvtHandler)
+        }
+        if(settings?.guardAwayModes && settings?.guardHomeModes) {
+            subscribe(location, "mode", guardTriggerEvtHandler)
+        }
+        if(settings?.guardAwayPresence) {
+            subscribe(settings?.guardAwayPresence, "presence", guardTriggerEvtHandler)
+        }
     }
 }
 
@@ -1050,19 +1063,6 @@ def uninstalled() {
     clearCloudConfig()
     clearCookieData()
     removeDevices(true)
-}
-
-def subscribeToEvts() {
-    if(isST()) { subscribe(app, onAppTouch) }
-    if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
-        subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", guardTriggerEvtHandler)
-    }
-    if(settings?.guardAwayModes && settings?.guardHomeModes) {
-        subscribe(location, "mode", guardTriggerEvtHandler)
-    }
-    if(settings?.guardAwayPresence) {
-        subscribe(settings?.guardAwayPresence, "presence", guardTriggerEvtHandler)
-    }
 }
 
 def getActionApps() {
@@ -1665,6 +1665,7 @@ private setGuardState(guardState) {
 private guardStateConv(gState) {
     switch(gState) {
         case "disarm":
+        case "off":
         case "stay":
         case "home":
         case "ARMED_STAY":
@@ -2968,13 +2969,12 @@ def renderTextEditPage() {
                 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
                 <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
                 <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/css/mdb.min.css" rel="stylesheet">
-                <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.css" rel="stylesheet">
                 <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet">
                 <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/theme/material.min.css" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vanillatoasts@1.3.0/vanillatoasts.css" integrity="sha256-U06o/6s4HELYo2A3Gd7KPGQMojQiAxY9B8oE/hnM3KU=" crossorigin="anonymous">
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
-                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/mode/simple.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/xml/xml.min.js"></script>
@@ -3172,6 +3172,7 @@ def renderTextEditPage() {
                     </form>
                 </div>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/vanillatoasts@1.3.0/vanillatoasts.min.js"></script>
                 <script>
                     let inName = '${inName}';
                     let actId = '${actId}'
@@ -3181,22 +3182,6 @@ def renderTextEditPage() {
                     let curTitle = '${inData?.title}';
                     let curDesc = '${inData?.desc}';
                     let selectedLineNum = undefined;
-                    toastr.options = {
-                        "closeButton": false,
-                        "debug": false,
-                        "newestOnTop": false,
-                        "progressBar": false,
-                        "positionClass": "toast-bottom-center",
-                        "preventDuplicates": true,
-                        "showDuration": 300,
-                        "hideDuration": 1000,
-                        "timeOut": 5000,
-                        "extendedTimeOut": 1000,
-                        "showEasing": "swing",
-                        "hideEasing": "linear",
-                        "showMethod": "fadeIn",
-                        "hideMethod": "fadeOut"
-                    }
 
                     function cleanTxt(txt) {
                         txt = txt.split(';').map(t => t.trim()).join(';')
@@ -3252,7 +3237,14 @@ def renderTextEditPage() {
                             xmlhttp.onreadystatechange = () => {
                                 if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
                                     // console.log(xmlhttp.responseText);
-                                    toastr.success('Success!', "Text Submitted...")
+                                    let toast = VanillaToasts.create({
+                                        title: 'Echo Speaks Actions',
+                                        text: 'Responses saved successfully!',
+                                        type: 'success',
+                                        icon: 'https://github.com/tonesto7/echo-speaks/raw/master/resources/icons/echo_speaks.1x.png',
+                                        timeout: 4500,
+                                        callback: function() { this.hide() }
+                                    });
                                 }
                             }
                             xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
@@ -3525,6 +3517,10 @@ String getAlarmSystemStatus() {
     } else { return location?.hsmStatus ?: "disarmed" }
 }
 
+def getShmIncidents() {
+    def incidentThreshold = now() - 604800000
+    return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
+}
 public setAlarmSystemMode(mode) {
     if(!isST()) {
         switch(mode) {
