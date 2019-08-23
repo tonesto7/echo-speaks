@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()  { return "3.0.0" }
-String appModified() { return "2019-08-22" }
+String appModified() { return "2019-08-23" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1436,7 +1436,9 @@ private getDevEvtHandlerName(String type) {
 }
 
 
-// EVENT HANDLER FUNCTIONS
+/***********************************************************************************************************
+    EVENT HANDLER FUNCTIONS
+************************************************************************************************************/
 def sunriseTimeHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
@@ -1469,8 +1471,8 @@ def alarmEvtHandler(evt) {
             break
     }
 }
-Integer getLastAfterEvtCheck() { return !state?.lastAfterEvtCheck ? 10000000 : GetTimeDiffSeconds(state?.lastAfterEvtCheck, "getLastAfterEvtCheck").toInteger() }
 
+Integer getLastAfterEvtCheck() { return !state?.lastAfterEvtCheck ? 10000000 : GetTimeDiffSeconds(state?.lastAfterEvtCheck, "getLastAfterEvtCheck").toInteger() }
 
 def afterEvtCheckWatcher() {
     Map aEvtMap = atomicState?.afterEvtMap ?: [:]
@@ -1539,7 +1541,7 @@ def afterEvtCheckHandler() {
                         Boolean skipEvt = (nextVal?.triggerState && nextVal?.deviceId && nextVal?.name && devs) ? !devCapValEqual(devs, nextVal?.deviceId, nextVal?.name, nextVal?.triggerState) : true
                         if(!skipEvt) {
                             if(repeat) {
-                                log.info "Last ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | Duration: ${evtElap} | Required: ${reqDur}"
+                                log.debug "Last Repeat ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | Duration: ${evtElap} | Required: ${reqDur}"
                                 aEvtMap[nextItem?.key]?.repeatDt = formatDt(new Date())
                                 aEvtMap[nextItem?.key]?.repeat = repeat
                                 isRepeat = true
@@ -2068,16 +2070,18 @@ Boolean conditionsConfigured() {
 
 private executeActTest() {
     settingUpdate("actTestRun", "false", "bool")
-    String actType = settings?.actionType
+    String actType = settings?.actionType ?: null
+    Boolean hasText = (settings?."act_${actType}_txt" != null)
     Map testData = [:]
     testData?.evt = [name: "contact", displayName: "some test device", value: "open", date: new Date()]
     testData?.custText = null
-    if(actType in ["speak", "announce"]) {
-        if(settings?."act_${actType}_txt") {
-            testData?.custText = settings?."act_${actType}_txt"
-            testData?.evt = null
+    if(actType in ["speak", "announcement"]) {
+        if(hasText) {
+            testData?.custText = decodeVariables(testData.evt, settings?."act_${actType}_txt")
+            // testData?.evt = null
         } else {
             Map evtData = getRandomTrigEvt()
+            log.debug "evtData: ${evtData}"
             testData?.evt = evtData?.evt
             testData?.custText = evtData?.custText
         }
@@ -2086,6 +2090,7 @@ private executeActTest() {
 }
 
 Map getRandomTrigEvt() {
+    log.debug "getRandomTrigEvt..."
     Map evt = [:]
     String actType = settings?.actionType
     String trig = getRandomItem(settings?.triggerEvents?.collect { it as String })
@@ -2093,7 +2098,7 @@ Map getRandomTrigEvt() {
     def randDev = getRandomItem(trigDevs)
     def trigDev = trigDevs?.find { it?.id == randDev?.id }
     String devId = trigDev?.id
-    Boolean hasGblTxt = (actType in ["speak", "announce"] && settings?."act_${actionType}_txt")
+    Boolean hasGblTxt = (actType in ["speak", "announcement"] && settings?."act_${actionType}_txt")
 
     Boolean dca = settings?."trig_${trig}_all"
     String dc = settings?."trig_${trig}_cmd" ?: null
@@ -2155,7 +2160,7 @@ Map getRandomTrigEvt() {
             }
         }
     } else { evt?.custText = settings?."act_${actionType}_txt" }
-    // log.debug "evt: ${evt}"
+    log.debug "evt: ${evt}"
     return [evt: evt?.evt ?: null, custText: evt?.custText ?: null]
 }
 
@@ -2208,8 +2213,8 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
         Integer alarmVol = actMap?.config?.volume?.alarm ?: null
 
         switch(actType) {
-            //Speak Command Logic
             case "speak":
+            case "announcement":
                 if(actConf[actType]) {
                     String txt = null
                     if(actConf[actType]?.text) {
@@ -2218,33 +2223,26 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
                         if(custText && actConf[actType]?.evtText) { txt = custText }
                         else { txt = "Invalid Text Received... Please verify Action configuration..." }
                     }
-                    if(changeVol || restoreVol) {
-                        actDevices?.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) }
-                    } else {
-                        actDevices?.each { dev-> dev?.speak(txt) }
+                    if(actType == "speak") {
+                        //Speak Command Logic
+                        if(changeVol || restoreVol) {
+                            actDevices?.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) }
+                        } else {
+                            actDevices?.each { dev-> dev?.speak(txt) }
+                        }
+                        log.debug "Sending Speak Command: (${txt}) to ${actDevices}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
                     }
-                    log.debug "Sending Speak Command: (${txt}) to ${actDevices}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
-                }
-                break
-
-            //Announcement Command Logic
-            case "announcement":
-                if(actConf[actType] && actConf[actType]?.text) {
-                    String txt = null
-                    if(actConf[actType]?.text) {
-                        txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
-                    } else {
-                        if(custText && actConf[actType]?.evtText) { txt = custText }
-                        else { txt = "Invalid Text Received... Please verify Action configuration..." }
-                    }
-                    if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
-                        //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                        def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
-                        actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
-                        log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
-                    } else {
-                        actDevices?.each { dev-> dev?.playAnnouncement(txt, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol, [delay: actDelayMs]) }
-                        log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                    else if (actType == "announcement") {
+                        //Announcement Command Logic
+                        if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
+                            //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
+                            def devJson = new JsonOutput().toJson(actConf[actType]?.deviceObjs)
+                            actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
+                            log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                        } else {
+                            actDevices?.each { dev-> dev?.playAnnouncement(txt, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol, [delay: actDelayMs]) }
+                            log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                        }
                     }
                 }
                 break
@@ -2422,9 +2420,6 @@ def mGetWeatherAlerts() {
         return result
     }
 }
-
-
-
 
 
 /***********************************************************************************************************
