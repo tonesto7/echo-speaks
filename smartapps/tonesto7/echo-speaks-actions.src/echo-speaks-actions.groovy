@@ -111,7 +111,7 @@ private def buildTriggerEnum() {
     // buildItems["Weather Events"] = ["Weather":"Weather"]
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide"]?.sort{ it?.key }
     buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "button":"Buttons", "thermostat":"Thermostat"]?.sort{ it?.key }
-    buildItems["Sensor Device"] = ["contact":"Contacts, Doors, Windows", "battery":"Battery Level", "motion":"Motion", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
+    buildItems["Sensor Device"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
     if(isST()) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
         // log.debug "enumOpts: $enumOpts"
@@ -486,8 +486,10 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                         input "trig_${inType}_after_repeat", "number", title: inTS("Repeat trigger every (xx) seconds until not ${settings?."trig_${inType}_cmd"}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     }
                 }
-                input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                input "trig_${inType}_wait", "number", title: inTS("Wait between each report (xx) seconds\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                if(!settings?."trig_${inType}_after") {
+                    input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                    input "trig_${inType}_wait", "number", title: inTS("Wait between each report (xx) seconds\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                }
                 triggerVariableDesc(inType, true, trigItemCnt)
             }
         }
@@ -1501,10 +1503,7 @@ def devAfterEvtHandler(evt) {
     }
     ok = schedChk
     if(ok) { aEvtMap["${evt?.deviceId}_${evt?.name}"] =
-        [
-            dt: evt?.date?.toString(), deviceId: evt?.deviceId, displayName: evt?.displayName, name: evt?.name, value: evt?.value, triggerState: dc,
-            wait: dcaf ?: null, repeat: false, repeatWait: dcafr ?: null
-        ]
+        [ dt: evt?.date?.toString(), deviceId: evt?.deviceId, displayName: evt?.displayName, name: evt?.name, value: evt?.value, triggerState: dc, wait: dcaf ?: null, repeat: false, repeatWait: dcafr ?: null ]
     }
     atomicState?.afterEvtMap = aEvtMap
     if(ok) { runIn(2, "afterEvtCheckHandler") }
@@ -1522,7 +1521,7 @@ def afterEvtCheckHandler() {
         def nextItem = aEvtMap?.find { it?.value?.wait == lowWait && it?.value?.timeLeft == lowLeft }
         def nextVal = nextItem?.value ?: null
         def nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal?.deviceId}_${nextVal?.name}" : null
-        // log.debug "nextVal: $nextVal"
+        log.debug "nextVal: $nextVal"
         if(nextVal) {
             def prevDt = nextVal?.repeat && nextVal?.repeatDt ? parseDate(nextVal?.repeatDt?.toString()) : parseDate(nextVal?.dt?.toString())
             def fullDt = parseDate(nextVal?.dt?.toString())
@@ -1533,39 +1532,37 @@ def afterEvtCheckHandler() {
                 def fullElap = (int) ((long)(new Date()?.getTime() - fullDt?.getTime())/1000)
                 def reqDur = (nextVal?.repeat && nextVal?.repeatWait) ? nextVal?.repeatWait : nextVal?.wait ?: null
                 timeLeft = (reqDur - evtElap)
-
+                timeLeft = timeLeft <= 4 ? 0 : timeLeft
                 aEvtMap[nextItem?.key]?.timeLeft = timeLeft
-                // log.info "Last ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | Duration: ${evtElap} | Required: ${reqDur}"
-                if(timeLeft) {
-                    if(timeLeft <= 0 && nextVal?.deviceId && nextVal?.name) {
-                        Boolean skipEvt = (nextVal?.triggerState && nextVal?.deviceId && nextVal?.name && devs) ? !devCapValEqual(devs, nextVal?.deviceId, nextVal?.name, nextVal?.triggerState) : true
-                        if(!skipEvt) {
-                            if(repeat) {
-                                log.debug "Last Repeat ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | Duration: ${evtElap} | Required: ${reqDur}"
-                                aEvtMap[nextItem?.key]?.repeatDt = formatDt(new Date())
-                                aEvtMap[nextItem?.key]?.repeat = repeat
-                                isRepeat = true
-                                deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, totalDur: fullElap], true, true)
-                            } else {
-                                aEvtMap?.remove(nextId)
-                                log.warn "${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) Reached the (${nextVal?.triggerState}) Threshold for (${reqDur} seconds)"
-                                deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value], true)
-                            }
+                // log.info "Last After ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | Required: ${reqDur}"
+
+                if(timeLeft == 0 && nextVal?.deviceId && nextVal?.name) {
+                    Boolean skipEvt = (nextVal?.triggerState && nextVal?.deviceId && nextVal?.name && devs) ? !devCapValEqual(devs, nextVal?.deviceId, nextVal?.name, nextVal?.triggerState) : true
+                    if(!skipEvt) {
+                        if(repeat) {
+                            log.warn "Last Repeat ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | Required: ${reqDur}"
+                            aEvtMap[nextItem?.key]?.repeatDt = formatDt(new Date())
+                            aEvtMap[nextItem?.key]?.repeat = repeat
+                            isRepeat = true
+                            // deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, totalDur: fullElap], true, true)
                         } else {
                             aEvtMap?.remove(nextId)
-                            log.info "${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) state is already ${nextVal?.triggerState} | Skipping Actions..."
+                            log.warn "Wait Threshold (${reqDur} sec) Reached for ${nextVal?.displayName} (${nextVal?.name?.toString()?.capitalize()}) | TriggerState: (${nextVal?.triggerState}) | EvtDuration: ${fullElap}"
+                            // deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value], true)
                         }
+                    } else {
+                        aEvtMap?.remove(nextId)
+                        log.info "${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) state is already ${nextVal?.triggerState} | Skipping Actions..."
                     }
                 }
-
             }
         }
         if(ok2Sched) {
-            log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
-            runIn(2, "scheduleAfterCheck", [data: [val:timeLeft, id:nextId, repeat: isRepeat]])
+            // log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
+            runIn(2, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
         }
         atomicState?.afterEvtMap = aEvtMap
-        log.trace "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})"
+        // log.trace "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})"
     } else { clearAfterCheckSchedule() }
     state?.lastAfterEvtCheck = getDtNow()
 }
@@ -1576,9 +1573,9 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     Boolean evtOk = false
     List d = settings?."trig_${evt?.name}"
     String dc = settings?."trig_${evt?.name}_cmd"
-    Boolean dco = (settings?."trig_${evt?.name}_once" == true)
     Boolean dca = (settings?."trig_${evt?.name}_all" == true)
-    Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
+    Boolean dco = (!settings?."trig_${evt?.name}_after" && settings?."trig_${evt?.name}_once" == true)
+    Integer dcw = (!settings?."trig_${evt?.name}_after" && settings?."trig_${evt?.name}_wait") ? settings?."trig_${evt?.name}_wait" : null
     String dct = settings?."trig_${evt?.name}_txt" ?: null
     String dcart = settings?."trig_${evt?.name}_after_repeat_txt" ?: null
     List evtTxtItems = dct ? dct?.toString()?.tokenize(";") : null
@@ -1721,8 +1718,9 @@ def thermostatEvtHandler(evt) {
     Boolean evtOk = false
     List d = settings?."trig_${evt?.name}"
     String dc = settings?."trig_${evt?.name}_cmd"
-    Boolean dco = (settings?."trig_${evt?.name}_once" == true)
-    Integer dcw = settings?."trig_${evt?.name}_wait" ?: null
+    Boolean dca = (settings?."trig_${evt?.name}_all" == true)
+    Boolean dco = (!settings?."trig_${evt?.name}_after" && settings?."trig_${evt?.name}_once" == true)
+    Integer dcw = (!settings?."trig_${evt?.name}_after" && settings?."trig_${evt?.name}_wait") ? settings?."trig_${evt?.name}_wait" : null
     log.trace "Thermostat Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     String dct = settings?."trig_${evt?.name}_txt" ?: null
