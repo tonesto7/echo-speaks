@@ -722,6 +722,7 @@ def actionsPage() {
                                     description: settings?."act_speak_txt" ?: "Open Response Designer...", image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
+                        // log.debug "showSpeakEvtVars: ${state?.showSpeakEvtVars} | txt: ${settings?.act_speak_txt} | userDefinedTxt: ${hasUserDefinedTxt()}"
                         actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
                         if(state?.showSpeakEvtVars || act_speak_txt) { done = true } else { done = false }
                     } else { done = false }
@@ -2329,7 +2330,7 @@ Map getInputData(inName) {
     String desc = null
     String title = null
     String template = null
-    String vDesc = "<li>Example: %name% %type% is now %value%</li>"
+    String vDesc = "<li>Example: %name% %type% is now %value% would translate into The garage door contact is now open</li>"
     vDesc += "<li>To make beep sounds use: <b>wop, wop, wop</b> (equals 3 beeps)</li>"
     switch(inName) {
         case "act_speak_txt":
@@ -2368,9 +2369,8 @@ Map getInputData(inName) {
 
 def updateTxtEntry(obj) {
     // log.debug "updateTxtEntry | Obj: $obj"
-    if(obj?.name && obj?.val && obj?.type) {
-        // app?.updateSetting("${obj?.name}", [type: "text", value: obj?.val])
-        settingUpdate("${obj?.name}", "${obj?.val}", 'text')
+    if(obj?.name && obj?.type) {
+        settingUpdate("${obj?.name}", obj?.val ?: null, 'text')
         return true
     }
     return false
