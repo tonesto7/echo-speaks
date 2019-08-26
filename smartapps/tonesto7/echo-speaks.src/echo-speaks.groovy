@@ -17,7 +17,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()	 { return "3.0.0" }
-String appModified()  { return "2019-08-23" }
+String appModified()  { return "2019-08-26" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -206,8 +206,8 @@ def alexaGuardAutoPage() {
         }
 
         section(sTS("Set Guard using Modes")) {
-            input "guardHomeModes", "mode", title: inTS("Home in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardAwayModes), submitOnChange: true, image: getAppImg("mode")
-            input "guardAwayModes", "mode", title: inTS("Away in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardHomeModes), submitOnChange: true, image: getAppImg("mode")
+            input "guardHomeModes", "mode", title: inTS("Home in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardAwayModes), multiple: true, submitOnChange: true, image: getAppImg("mode")
+            input "guardAwayModes", "mode", title: inTS("Away in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardHomeModes), multiple: true, submitOnChange: true, image: getAppImg("mode")
         }
         section(sTS("Set Guard using Presence")) {
             input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when all of these Sensors are away", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
@@ -252,10 +252,7 @@ def guardTriggerEvtHandler(evt) {
         case "mode":
             Boolean inAwayMode = isInMode(settings?.guardAwayModes)
             Boolean inHomeMode = isInMode(settings?.guardHomeModes)
-            if(inAwayMode && inHomeMode) {
-                log.error "Guard Control Trigger can't act because same mode is in both Home and Away input"
-                return
-            }
+            if(inAwayMode && inHomeMode) { log.error "Guard Control Trigger can't act because same mode is in both Home and Away input"; return; }
             if(inAwayMode && !inHomeMode) { desiredState = "ARMED_AWAY" }
             if(!inAwayMode && inHomeMode) { desiredState = "ARMED_STAY" }
             break
@@ -270,13 +267,15 @@ def guardTriggerEvtHandler(evt) {
             if(!inAlarmAway && inAlarmHome) { desiredState = "ARMED_STAY" }
             break
     }
-    if(desiredState && desiredState == "ARMED_STAY" && state?.alexaGuardState != "ARMED_STAY") {
-        log.info "Setting Alexa Guard Mode to Home..."
-        setGuardHome()
-    }
-    else if(desiredState && desiredState == "ARMED_AWAY" && state?.alexaGuardState != "ARMED_AWAY") {
-        if(settings?.guardAwayDelay) { log.warn "Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)"; runIn(settings?.guardAwayDelay, "setGuardAway"); }
-        else { setGuardAway(); log.warn "Setting Alexa Guard Mode to Away..."; }
+    if(desiredState) {
+        if (desiredState == "ARMED_STAY" && state?.alexaGuardState != "ARMED_STAY") {
+            log.info "Setting Alexa Guard Mode to Home..."
+            setGuardHome()
+        }
+        else if(desiredState == "ARMED_AWAY" && state?.alexaGuardState != "ARMED_AWAY") {
+            if(settings?.guardAwayDelay) { log.warn "Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)"; runIn(settings?.guardAwayDelay, "setGuardAway"); }
+            else { setGuardAway(); log.warn "Setting Alexa Guard Mode to Away..."; }
+        }
     }
 }
 
@@ -3491,8 +3490,7 @@ Boolean isSomebodyHome(sensors) {
 }
 
 Boolean isInMode(modes) {
-    if(modes) { return (location?.mode?.toString() in mode) }
-    return false
+    return (location?.mode?.toString() in modes)
 }
 
 Boolean isInAlarmMode(modes) {
