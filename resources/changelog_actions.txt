@@ -1,4 +1,0 @@
-V3.0.0 (August 9th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
- • ADDED: importUrl param for Hubitat users to quickly import
- • ADDED: Alexa Routine Execution (Only those with custom voice triggers)

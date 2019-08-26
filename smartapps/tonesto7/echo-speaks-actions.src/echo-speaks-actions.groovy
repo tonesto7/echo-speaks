@@ -20,9 +20,9 @@ import java.text.SimpleDateFormat
 String appVersion()  { return "3.0.0" }
 String appModified() { return "2019-08-26" }
 String appAuthor()   { return "Anthony S." }
-Boolean isBeta()     { return false }
+Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-
+// TODO: Change importURL back to master branch
 definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
@@ -33,7 +33,7 @@ definition(
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
-    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
+    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
     pausable: true)
 
 preferences {
@@ -55,13 +55,11 @@ preferences {
 
 def startPage() {
     if(parent != null) {
-        if(!state?.isInstalled && parent?.childInstallOk() != true) {
-            uhOhPage()
-        } else {
+        if(!state?.isInstalled && parent?.childInstallOk() != true) { uhOhPage() }
+        else {
             state?.isParent = false
-            if(checkMinVersion()) {
-                codeUpdatePage()
-            } else { mainPage() }
+            if(checkMinVersion()) { codeUpdatePage() }
+            else { mainPage() }
         }
     } else { uhOhPage() }
 }
@@ -3081,6 +3079,7 @@ private getPlatform() {
     return state?.hubPlatform
 }
 
+Boolean showChgLogOk() { return (state?.isInstalled && state?.shownChgLog != true) }
 String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
 String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
 String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }

@@ -1,17 +1,28 @@
-V3.0.0 (August 23rd, 2019):
+V3.0.0 (August 26th, 2019):
 ▔▔▔▔▔▔▔▔▔▔▔
 Main App:
+ • NEW: Automation child app called Echo Speaks - Actions
  • ADDED: Added support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).
  • ADDED: Ability to remove 'Echo - ' prefix from device names.
  • ADDED: New Issues section at top of the app UI.  It will show any authentication, code updates/version issues.
  • ADDED: Child App and Devices now verify that they meet the minimum version required and stop processing if they don't.
  • UPDATED: Streamlined the mainPage to be less overwhelming.
  • FIXED: Repaired issue with Bluetooth status requests.
- • FIXED: Device rename issue on Hubitat  
+ • FIXED: Device rename issue on Hubitat
  • FIXED: Other bugs resolved.
  • UPDATED: Added new speech testing and updated the announcement tests.
  • ADDED: importUrl param for Hubitat users to quickly import code
- • ADDED: Checks are now made to make sure you can't install Actions app from the marketplace. 
+ • ADDED: Checks are now made to make sure you can't install Actions app from the marketplace.
+
+Actions App:
+ • ADDED: importUrl param for Hubitat users to quickly import
+ • ADDED: Alexa Routine Execution (Only those with custom voice triggers)
+ • ADDED: Subscribe to just about any location and device events
+ • ADDED: Create responses for each trigger type (Means 1 action can accomodate a large number of events).
+ • ADDED: Monitor devices for changes and speak after so many seconds then repeat every x seconds until it changes to desired state.
+ • ADDED: Define different responses for the repeat events.
+ • ADDED: Define multiple responses and have a random response for each event.
+ • ADDED: Alexa Routine Execution (Only those with custom voice triggers)
 
 Device:
  • ADDED: importUrl param for Hubitat users to quickly import code

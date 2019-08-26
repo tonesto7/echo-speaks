@@ -16,13 +16,13 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "3.0.0" }
+String appVersion()   { return "3.0.0" }
 String appModified()  { return "2019-08-26" }
-String appAuthor()   { return "Anthony S." }
-Boolean isBeta()     { return false }
-Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 300, actionApp: 300, server: 222] } //These values define the minimum versions of code this app will work with.
-
+String appAuthor()    { return "Anthony S." }
+Boolean isBeta()      { return true }
+Boolean isST()        { return (getPlatform() == "SmartThings") }
+Map minVersions()     { return [echoDevice: 300, actionApp: 300, server: 222] } //These values define the minimum versions of code this app will work with.
+// TODO: Change importURL back to master branch
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -32,7 +32,7 @@ definition(
     iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x${state?.updateAvailable ? "_update" : ""}.png",
     iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x${state?.updateAvailable ? "_update" : ""}.png",
     iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x${state?.updateAvailable ? "_update" : ""}.png",
-    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
+    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
     oauth       : true,
     pausable    : true
 )
@@ -91,7 +91,7 @@ def mainPage() {
             deviceDetectOpts()
         } else {
             if(!resumeConfig && state?.authValid != true) {
-                section() { paragraph title: "NOTICE:", "You are not currently logged in to Amazon.  Please complete the Authentication Process on the Server Login Page...", required: true, state: null }
+                section() { paragraph title: "NOTICE:", pTS("You are not currently logged in to Amazon.  Please complete the Authentication Process on the Server Login Page...", null, true, "red"), required: true, state: null }
             }
             section(sTS("Alexa Guard:")) {
                 if(state?.alexaGuardSupported) {
@@ -148,7 +148,7 @@ def mainPage() {
         } else {
             showDevSharePrefs()
             section(sTS("Important Step:")) {
-                paragraph title: "Notice:", "Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", required: true, state: null
+                paragraph title: "Notice:", pTS("Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", null, true, "red"), required: true, state: null
                 state?.resumeConfig = true
             }
         }
@@ -214,7 +214,7 @@ def alexaGuardAutoPage() {
         }
         if(guardAutoConfigured()) {
             section(sTS("Delay:")) {
-                input "guardAwayDelay", "number", title: inTS("Delay before setting Away?", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
+                input "guardAwayDelay", "number", title: inTS("Delay before activating Guard?", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
             }
         }
         section(sTS("Restrict Guard Changes (Optional):")) {
@@ -249,7 +249,7 @@ def guardTriggerEvtHandler(evt) {
     }
     String newState = null
     String curState = state?.alexaGuardState ?: null
-    switch(evt?.name) {
+    switch(evt?.name as String) {
         case "mode":
             Boolean inAwayMode = isInMode(settings?.guardAwayModes)
             Boolean inHomeMode = isInMode(settings?.guardHomeModes)
@@ -268,6 +268,7 @@ def guardTriggerEvtHandler(evt) {
             if(!inAlarmAway && inAlarmHome) { newState = "ARMED_STAY" }
             break
     }
+    if(curState == newState) { log.info "Skipping Guard Change... New Guard State is the same as current state: ($curState)"}
     if(newState && curState != newState) {
         if (newState == "ARMED_STAY") {
             unschedule("setGuardAway")
@@ -343,7 +344,7 @@ private deviceDetectOpts() {
         Map devs = getAllDevices(true)
         if(devs?.size()) {
             input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
-            paragraph title:"Notice:", pTS("To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use these devices input above before removing.", getAppImg("info", true), null, false)
+            paragraph title:"Notice:", pTS("To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use these devices input above before removing.", getAppImg("info", true), false)
         }
     }
 }
@@ -563,7 +564,7 @@ def notifPrefPage() {
         Integer pollMsgWait = 3600
         Integer updNotifyWait = 7200
         section("") {
-            paragraph title: "Notice:", "The settings configure here are used by both the App and the Devices.", state: "complete"
+            paragraph title: "Notice:", pTS("The settings configure here are used by both the App and the Devices.", getAppImg("info", true), true, "#2784D9"), state: "complete"
         }
         section(sTS("Push Messages:")) {
             input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
@@ -1046,7 +1047,7 @@ def initialize() {
     subscribe(app, onAppTouch)
     if((settings?.guardHomeAlarm && settings?.guardAwayAlarm) || settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
         if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
-            subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", guardTriggerEvtHandler)
+            subscribe(location, "${!isST() ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
         }
         if(settings?.guardAwayModes && settings?.guardHomeModes) {
             subscribe(location, "mode", guardTriggerEvtHandler)
