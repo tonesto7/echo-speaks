@@ -206,20 +206,20 @@ def alexaGuardAutoPage() {
         }
 
         section(sTS("Set Guard using Modes")) {
-            input "guardHomeModes", "mode", title: inTS("Home in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardAwayModes), multiple: true, submitOnChange: true, image: getAppImg("mode")
-            input "guardAwayModes", "mode", title: inTS("Away in these Modes", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardHomeModes), multiple: true, submitOnChange: true, image: getAppImg("mode")
+            input "guardHomeModes", "mode", title: inTS("Home in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardAwayModes), multiple: true, submitOnChange: true, image: getAppImg("mode")
+            input "guardAwayModes", "mode", title: inTS("Away in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardHomeModes), multiple: true, submitOnChange: true, image: getAppImg("mode")
         }
         section(sTS("Set Guard using Presence")) {
-            input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when all of these Sensors are away", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
+            input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when all of these Sensors are away?", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
         }
         if(guardAutoConfigured()) {
             section(sTS("Delay:")) {
-                input "guardAwayDelay", "number", title: inTS("Delay before setting Away", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 10, submitOnChange: true, image: getAppImg("delay_time")
+                input "guardAwayDelay", "number", title: inTS("Delay before setting Away?", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
             }
         }
         section(sTS("Restrict Guard Changes (Optional):")) {
-            input "guardRestrictOnSwitch", "capability.switch", title: inTS("Only when these switch(es) are On", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-            input "guardRestrictOffSwitch", "capability.switch", title: inTS("Only when these switch(es) are Off", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardRestrictOnSwitch", "capability.switch", title: inTS("Only when these switch(es) are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardRestrictOffSwitch", "capability.switch", title: inTS("Only when these switch(es) are Off?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
         }
     }
 }
@@ -247,32 +247,34 @@ def guardTriggerEvtHandler(evt) {
         log.debug "guardTriggerEvtHandler | Skipping Changes because restriction filter is active"
         return
     }
-    def desiredState = null
+    String newState = null
+    String curState = state?.alexaGuardState ?: null
     switch(evt?.name) {
         case "mode":
             Boolean inAwayMode = isInMode(settings?.guardAwayModes)
             Boolean inHomeMode = isInMode(settings?.guardHomeModes)
             if(inAwayMode && inHomeMode) { log.error "Guard Control Trigger can't act because same mode is in both Home and Away input"; return; }
-            if(inAwayMode && !inHomeMode) { desiredState = "ARMED_AWAY" }
-            if(!inAwayMode && inHomeMode) { desiredState = "ARMED_STAY" }
+            if(inAwayMode && !inHomeMode) { newState = "ARMED_AWAY" }
+            if(!inAwayMode && inHomeMode) { newState = "ARMED_STAY" }
             break
         case "presence":
-            desiredState = isSomebodyHome(settings?.guardAwayPresence) ? "ARMED_STAY" : "ARMED_AWAY"
+            newState = isSomebodyHome(settings?.guardAwayPresence) ? "ARMED_STAY" : "ARMED_AWAY"
             break
         case "alarmSystemStatus":
         case "hsmStatus":
             Boolean inAlarmHome = isInAlarmMode(settings?.guardHomeAlarm)
             Boolean inAlarmAway = isInAlarmMode(settings?.guardAwayAlarm)
-            if(inAlarmAway && !inAlarmHome) { desiredState = "ARMED_AWAY" }
-            if(!inAlarmAway && inAlarmHome) { desiredState = "ARMED_STAY" }
+            if(inAlarmAway && !inAlarmHome) { newState = "ARMED_AWAY" }
+            if(!inAlarmAway && inAlarmHome) { newState = "ARMED_STAY" }
             break
     }
-    if(desiredState) {
-        if (desiredState == "ARMED_STAY" && state?.alexaGuardState != "ARMED_STAY") {
+    if(newState && curState != newState) {
+        if (newState == "ARMED_STAY") {
+            unschedule("setGuardAway")
             log.info "Setting Alexa Guard Mode to Home..."
             setGuardHome()
         }
-        else if(desiredState == "ARMED_AWAY" && state?.alexaGuardState != "ARMED_AWAY") {
+        if(newState == "ARMED_AWAY") {
             if(settings?.guardAwayDelay) { log.warn "Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)"; runIn(settings?.guardAwayDelay, "setGuardAway"); }
             else { setGuardAway(); log.warn "Setting Alexa Guard Mode to Away..."; }
         }
@@ -320,7 +322,7 @@ def devicePrefsPage() {
     return dynamicPage(name: "devicePrefsPage", uninstall: false, install: false) {
         deviceDetectOpts()
         section(sTS("Detection Override:")) {
-            paragraph "Device not detected?  Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.  This is useful for testing the device."
+            paragraph pTS("Device not detected?  Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.  This is useful for testing the device.", getAppImg("info", true), false)
             input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
         }
         devCleanupSect()
@@ -341,7 +343,7 @@ private deviceDetectOpts() {
         Map devs = getAllDevices(true)
         if(devs?.size()) {
             input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
-            paragraph title:"Notice:", "To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use input before removing."
+            paragraph title:"Notice:", pTS("To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use these devices input above before removing.", getAppImg("info", true), null, false)
         }
     }
 }
@@ -351,7 +353,7 @@ private devCleanupSect() {
         section(sTS("Device Cleanup Options:")) {
             List remDevs = getRemovableDevs()
             if(remDevs?.size()) { paragraph "Removable Devices:\n${remDevs?.sort()?.join("\n")}", required: true, state: null }
-            paragraph title:"Notice:", pTS("Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations")
+            paragraph title:"Notice:", pTS("Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations", getAppImg("info", true), true, "#2784D9")
             input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: "", required: false, defaultValue: false, submitOnChange: true
             if(cleanUpDevices) { removeDevices() }
         }
@@ -415,8 +417,8 @@ def deviceListPage() {
                 str += v?.supported != true ? "\nUnsupported Device: (True)" : ""
                 str += (v?.mediaPlayer == true && v?.musicProviders) ? "\nMusic Providers: [${v?.musicProviders}]" : ""
                 if(onST) {
-                    paragraph title: pTS(v?.name, getAppImg(v?.style?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image)
-                } else { href "deviceListPage", title: pTS(v?.name, getAppImg(v?.style?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image) }
+                    paragraph title: pTS(v?.name, getAppImg(v?.style?.image, true), false, "#2784D9"), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image)
+                } else { href "deviceListPage", title: inTS(v?.name, getAppImg(v?.style?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image) }
             }
         }
     }
@@ -434,12 +436,12 @@ def unrecogDevicesPage() {
                     String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${v?.desc}\nFamily: ${v?.family}\nType: ${v?.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
                     str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
                     if(onST) {
-                        paragraph title: pTS(v?.name, getAppImg(v?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
-                    } else { href "unrecogDevicesPage", title: pTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
+                        paragraph title: pTS(v?.name, getAppImg(v?.image, true), false), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
+                    } else { href "unrecogDevicesPage", title: inTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
                 }
                 input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
-                paragraph "No Uncognized Devices"
+                paragraph pTS("No Uncognized Devices", null, true)
             }
         }
         if(ignDevs?.size()) {
@@ -448,8 +450,8 @@ def unrecogDevicesPage() {
                     String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${v?.desc}\nFamily: ${v?.family}\nType: ${v?.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
                     str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
                     if(onST) {
-                        paragraph title: pTS(v?.name, getAppImg(v?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
-                    } else { href "unrecogDevicesPage", title: pTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
+                        paragraph title: pTS(v?.name, getAppImg(v?.image, true), false, "#2784D9"), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
+                    } else { href "unrecogDevicesPage", title: inTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
                 }
             }
         }
@@ -458,7 +460,7 @@ def unrecogDevicesPage() {
 
 def showDevSharePrefs() {
     section(sTS("Share Data with Developer:")) {
-        paragraph title: "What is this used for?", "These options send non-user identifiable information and error data to diagnose catch trending issues."
+        paragraph title: "What is this used for?", pTS("These options send non-user identifiable information and error data to diagnose catch trending issues.", null, false)
         input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
         if(settings?.optOutMetrics != true) {
             href url: getAppEndpointUrl("renderMetricData"), style: (isST() ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
@@ -498,7 +500,7 @@ def servPrefPage() {
         Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
         Boolean onHeroku = (isST() || settings?.useHeroku != false)
 
-        if(state?.generatedHerokuName) { section() { paragraph title: "Heroku Name:", "${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", state: "complete" }; }
+        if(state?.generatedHerokuName) { section() { paragraph title: "Heroku Name:", pTS("${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", null, false, "orange"), state: "complete" }; }
         if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
         if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
         if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
@@ -529,8 +531,8 @@ def servPrefPage() {
                 }
             }
             if(state?.authValid) {
-                section(sTS("Cookie Info:")) {
-                    if(state?.lastCookieRefresh) { paragraph "Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})", state: "complete" }
+                section(sTS("Cookie Management:")) {
+                    if(state?.lastCookieRefresh) { paragraph pTS("Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})", null, false, "#2784D9"), state: "complete" }
                     input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                     if(refreshCookie) { runCookieRefresh() }
                 }
@@ -948,8 +950,8 @@ def searchTuneInResultsPage() {
                                 str += "\nId: (${item2?.id})"
                                 str += "\nDescription: ${item2?.description}"
                                 if(onST) {
-                                    paragraph title: pTS(item2?.name?.take(75), (onST ? null : item2?.image)), str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: item2?.image ?: ""
-                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (onST ? null : item2?.image)), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: onST && item2?.image ? item2?.image : null }
+                                    paragraph title: pTS(item2?.name?.take(75), (onST ? null : item2?.image), false), str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: item2?.image ?: ""
+                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (onST ? null : item2?.image), false), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: onST && item2?.image ? item2?.image : null }
                             }
                         } else {
                             String str = ""
@@ -957,8 +959,8 @@ def searchTuneInResultsPage() {
                             str += "\nId: (${item?.id})"
                             str += "\nDescription: ${item?.description}"
                             if(onST) {
-                                paragraph title: pTS(item?.name?.take(75), (onST ? null : item?.image)), str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: item?.image ?: ""
-                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (onST ? null : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: onST && item?.image ? item?.image : null }
+                                paragraph title: pTS(item?.name?.take(75), (onST ? null : item?.image), false), str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: item?.image ?: ""
+                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (onST ? null : item?.image), false), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: onST && item?.image ? item?.image : null }
                         }
                     }
                 }
@@ -1632,7 +1634,7 @@ private getGuardState() {
             def respData = resp?.data ?: null
             if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
                 def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
-                state?.alexaGuardState = guardStateData?.value
+                state?.alexaGuardState = guardStateData?.value[0] ? guardStateData?.value[0] : guardStateData?.value
                 settingUpdate("alexaGuardAwayToggle", ((state?.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
                 logger("debug", "Alexa Guard State: (${state?.alexaGuardState})")
             }
@@ -2318,9 +2320,9 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
 Boolean childInstallOk() { return (state?.childInstallOkFlag == true) }
 String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
 String getPublicImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
-String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>""" }
-String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>""" }
-String pTS(String t, String i = null) { return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>""" }
+String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
+String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+String inTS(String t, String i = null, color=null) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : ""}""" }
 
 String actChildName(){ return "Echo Speaks - Actions" }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
@@ -2784,9 +2786,9 @@ def appInfoSect()	{
         str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
     } else { str += "App: v${appVersion()}" }
     section() {
-        href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
+        href "changeLogPage", title: inTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
         if(!state?.isInstalled) {
-            paragraph "--NEW Install--", state: "complete"
+            paragraph pTS("--NEW Install--", null, true, "#2784D9"), state: "complete"
         } else {
             if(!state?.noticeData) { getNoticeData() }
             Map minUpdMap = getMinVerUpdsRequired()
@@ -2796,13 +2798,13 @@ def appInfoSect()	{
                 isNote=true
                 String str2 = "Code Updates Available for:"
                 codeUpdItems?.each { item-> str2 += bulletItem(str2, item) }
-                paragraph str2, required: true, state: null
+                paragraph pTS(str2, null, false, "#2784D9"), required: true, state: null
             }
             if(minUpdMap?.updRequired) {
                 isNote=true
                 String str3 = "Updates Required for:"
                 minUpdMap?.updItems?.each { item-> str3 += bulletItem(str3, item)  }
-                paragraph str3, required: true, state: null
+                paragraph pTS(str3, null, false, "red"), required: true, state: null
             }
             if(!state?.authValid) { paragraph "Amazon Authention:\n \u2022 Login No Longer Valid!", required: true, state: null }
             if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
@@ -2810,9 +2812,9 @@ def appInfoSect()	{
                 state?.noticeData?.notices?.each { item-> paragraph bulletItem(str, item), required: true, state: null }
             }
             if(remDevs?.size()) {
-                paragraph "Devices to Remove:\n(${remDevs?.size()}) Devices to be Removed", required: true, state: null
+                paragraph pTS("Devices to Remove:\n(${remDevs?.size()}) Devices to be Removed", null, false), required: true, state: null
             }
-            if(!isNote) { paragraph "No Issues to Report" }
+            if(!isNote) { paragraph pTS("No Issues to Report", null, true) }
         }
     }
 }
