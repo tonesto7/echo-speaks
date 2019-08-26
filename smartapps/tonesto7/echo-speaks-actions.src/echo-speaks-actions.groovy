@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()  { return "3.0.0" }
-String appModified() { return "2019-08-23" }
+String appModified() { return "2019-08-26" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1498,12 +1498,12 @@ def devAfterEvtHandler(evt) {
     if(aEvtMap?.containsKey(eid)) {
         if(dcaf && !schedChk) {
             aEvtMap?.remove(eid)
-            log.warn "Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${evt?.name?.toUpperCase()}) has the Desired State of (${dc}) | Remaining Items: (${aEvtMap?.size()})"
+            log.warn "Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${evt?.name?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${aEvtMap?.size()})"
         }
     }
     ok = schedChk
     if(ok) { aEvtMap["${evt?.deviceId}_${evt?.name}"] =
-        [ dt: evt?.date?.toString(), deviceId: evt?.deviceId, displayName: evt?.displayName, name: evt?.name, value: evt?.value, triggerState: dc, wait: dcaf ?: null, repeat: false, repeatWait: dcafr ?: null ]
+        [ dt: evt?.date?.toString(), deviceId: evt?.deviceId, displayName: evt?.displayName, name: evt?.name, value: evt?.value, triggerState: dc, wait: dcaf ?: null, isRepeat: false, repeatWait: dcafr ?: null ]
     }
     atomicState?.afterEvtMap = aEvtMap
     if(ok) { runIn(2, "afterEvtCheckHandler") }
@@ -1514,41 +1514,40 @@ def afterEvtCheckHandler() {
     if(aEvtMap?.size()) {
         // Collects all of the evt items and stores there wait values as a list
         Integer timeLeft = null
-        Boolean ok2Sched = true
-        Boolean isRepeat = false
         Integer lowWait = aEvtMap?.findAll { it?.value?.wait != null }?.collect { it?.value?.wait }?.min()
         Integer lowLeft = aEvtMap?.findAll { it?.value?.wait == lowWait }?.collect { it?.value?.timeLeft} ?.min()
         def nextItem = aEvtMap?.find { it?.value?.wait == lowWait && it?.value?.timeLeft == lowLeft }
         def nextVal = nextItem?.value ?: null
         def nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal?.deviceId}_${nextVal?.name}" : null
-        log.debug "nextVal: $nextVal"
+        // log.debug "nextVal: $nextVal"
         if(nextVal) {
             def prevDt = nextVal?.repeat && nextVal?.repeatDt ? parseDate(nextVal?.repeatDt?.toString()) : parseDate(nextVal?.dt?.toString())
             def fullDt = parseDate(nextVal?.dt?.toString())
             def devs = settings?."trig_${nextVal?.name}" ?: null
-            Boolean repeat = (settings?."trig_${nextVal?.name}_after_repeat" != null)
+            Boolean isRepeat = nextVal?.isRepeat ?: false
+            Boolean hasRepeat = (settings?."trig_${nextVal?.name}_after_repeat" != null)
             if(prevDt) {
-                def evtElap = (int) ((long)(new Date()?.getTime() - prevDt?.getTime())/1000)
-                def fullElap = (int) ((long)(new Date()?.getTime() - fullDt?.getTime())/1000)
-                def reqDur = (nextVal?.repeat && nextVal?.repeatWait) ? nextVal?.repeatWait : nextVal?.wait ?: null
+                def timeNow = new Date()?.getTime()
+                Integer evtElap = (int) ((long)(timeNow - prevDt?.getTime())/1000)
+                Integer fullElap = (int) ((long)(timeNow - fullDt?.getTime())/1000)
+                Integer reqDur = (nextVal?.isRepeat && nextVal?.repeatWait) ? nextVal?.repeatWait : nextVal?.wait ?: null
                 timeLeft = (reqDur - evtElap)
-                timeLeft = timeLeft <= 4 ? 0 : timeLeft
                 aEvtMap[nextItem?.key]?.timeLeft = timeLeft
-                // log.info "Last After ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | Required: ${reqDur}"
-
-                if(timeLeft == 0 && nextVal?.deviceId && nextVal?.name) {
+                // log.warn "After Debug | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat}"
+                if(timeLeft <= 4 && nextVal?.deviceId && nextVal?.name) {
+                    timeLeft = reqDur
                     Boolean skipEvt = (nextVal?.triggerState && nextVal?.deviceId && nextVal?.name && devs) ? !devCapValEqual(devs, nextVal?.deviceId, nextVal?.name, nextVal?.triggerState) : true
+                    aEvtMap[nextItem?.key]?.timeLeft = timeLeft
                     if(!skipEvt) {
-                        if(repeat) {
+                        if(hasRepeat) {
                             log.warn "Last Repeat ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | Required: ${reqDur}"
                             aEvtMap[nextItem?.key]?.repeatDt = formatDt(new Date())
-                            aEvtMap[nextItem?.key]?.repeat = repeat
-                            isRepeat = true
-                            // deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, totalDur: fullElap], true, true)
+                            aEvtMap[nextItem?.key]?.isRepeat = true
+                            deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, totalDur: fullElap], true, isRepeat)
                         } else {
                             aEvtMap?.remove(nextId)
                             log.warn "Wait Threshold (${reqDur} sec) Reached for ${nextVal?.displayName} (${nextVal?.name?.toString()?.capitalize()}) | TriggerState: (${nextVal?.triggerState}) | EvtDuration: ${fullElap}"
-                            // deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value], true)
+                            deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value], true)
                         }
                     } else {
                         aEvtMap?.remove(nextId)
@@ -1557,10 +1556,8 @@ def afterEvtCheckHandler() {
                 }
             }
         }
-        if(ok2Sched) {
-            // log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
-            runIn(2, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
-        }
+        // log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
+        runIn(2, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
         atomicState?.afterEvtMap = aEvtMap
         // log.trace "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})"
     } else { clearAfterCheckSchedule() }
@@ -1890,7 +1887,7 @@ def scheduleAfterCheck(data) {
     Boolean rep = (data?.repeat == true)
     Map aSchedMap = atomicState?.afterEvtChkSchedMap ?: null
     if(aSchedMap && aSchedMap?.id && id && aSchedMap?.id == id) {
-        log.debug "Active Schedule Id (${aSchedMap?.id}) is the same as the requested schedule ${id}."
+        // log.debug "Active Schedule Id (${aSchedMap?.id}) is the same as the requested schedule ${id}."
     }
     runIn(val, "afterEvtCheckHandler")
     atomicState?.afterEvtChkSchedMap = [id: id, dur: val, dt: getDtNow()]
