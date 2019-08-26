@@ -149,7 +149,6 @@ def mainPage() {
             }
         }
 
-
         section(sTS("Preferences")) {
             if(!paused) {
                 href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
@@ -195,7 +194,7 @@ def namePage() {
 }
 
 def triggersPage() {
-    return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
+    return dynamicPage(name: "triggersPage", nextPage: "mainPage", uninstall: false, install: false) {
         List stRoutines = getLocationRoutines() ?: []
         Boolean showSpeakEvtVars = false
         section (sTS("Select Capabilities")) {
@@ -584,7 +583,7 @@ Boolean triggersConfigured() {
 ******************************************************************************/
 
 def conditionsPage() {
-    return dynamicPage(name: "conditionsPage", title: "Only when these device, location conditions are True...", install: false, uninstall: false) {
+    return dynamicPage(name: "conditionsPage", title: "Only when these device, location conditions are True...", nextPage: "mainPage", install: false, uninstall: false) {
         section(sTS("Time/Date")) {
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getAppImg("clock")
             input "cond_days", "enum", title: inTS("Days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
@@ -701,7 +700,7 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
 }
 
 def actionsPage() {
-    return dynamicPage(name: "actionsPage", title: (settings?.actionType ? "Action | (${settings?.actionType})" : "Actions to perform..."), install: false, uninstall: false) {
+    return dynamicPage(name: "actionsPage", title: (settings?.actionType ? "Action | (${settings?.actionType})" : "Actions to perform..."), nextPage: "mainPage", install: false, uninstall: false) {
         Boolean done = false
         Map actionExecMap = [configured: false]
         Map actionOpts = [
@@ -1139,7 +1138,7 @@ private actionVolumeInputs(devices, showAlrmVol=false) {
 }
 
 def condTimePage() {
-    return dynamicPage(name:"condTimePage", title: "", uninstall: false) {
+    return dynamicPage(name:"condTimePage", title: "", install: false, uninstall: false) {
         Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
         section(sTS("Start Time:")) {
             input "cond_time_start_type", "enum", title: inTS("Starting at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
@@ -1161,7 +1160,7 @@ def condTimePage() {
 }
 
 def uninstallPage() {
-    return dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
+    return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
         section("") { paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
         if(isST()) { remove("Remove ${app?.label} and Devices!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis App and Devices will be removed") }
     }
@@ -1173,7 +1172,7 @@ Boolean wordInString(String findStr, String fullStr) {
 }
 
 def notifPrefPage() {
-    return dynamicPage(name: "notifPrefPage", title: "Notifications", uninstall: false) {
+    return dynamicPage(name: "notifPrefPage", title: "Notifications", install: false, uninstall: false) {
         section ("Push Messages:") {
             input "usePush", "bool", title: "Send Push Notifications...", required: false, defaultValue: false, submitOnChange: true
             input "pushTimeStamp", "bool", title: "Add timestamp to Push Messages...", required: false, defaultValue: false, submitOnChange: true
