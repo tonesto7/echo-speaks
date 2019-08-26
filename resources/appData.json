@@ -2,16 +2,10 @@
     "appDataVer": "1.0",
     "versions": {
         "mainApp": {
-            "ver": "2.6.0"
-        },
-        "actionApp": {
-            "ver": "2.5.0"
-        },
-        "groupApp": {
-            "ver": "2.5.0"
+            "ver": "3.0.0"
         },
         "echoDevice": {
-            "ver": "2.6.0"
+            "ver": "3.0.0"
         },
         "server": {
             "ver": "2.2.2"
@@ -296,6 +290,11 @@
             "name": "Vobot Bunny",
             "image": "vobot_bunny",
             "allowTTS": true
+        },
+        "A37CFAHI1O0CXT": {
+            "name": "Logitech Blast",
+            "image": "logitech_blast",
+            "caps": []
         }
     }
 }

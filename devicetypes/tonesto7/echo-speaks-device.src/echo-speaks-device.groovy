@@ -17,13 +17,14 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "2.6.0"}
-String devModified() { return "2019-07-10" }
-Boolean isBeta()     { return false }
+String devVersion()  { return "3.0.0"}
+String devModified() { return "2019-08-26" }
+Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
+// TODO: Change importURL back to master branch
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player") {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/devicetypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy") {
         //capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
         capability "Audio Volume"
@@ -37,9 +38,10 @@ metadata {
         attribute "alexaMusicProviders", "JSON_OBJECT"
         attribute "alexaNotifications", "JSON_OBJECT"
         attribute "alexaPlaylists", "JSON_OBJECT"
+        attribute "alexaGuardStatus", "string"
         attribute "alexaWakeWord", "string"
         attribute "btDeviceConnected", "string"
-        attribute "btDevicesPaired", "string"
+        attribute "btDevicesPaired", "JSON_OBJECT"
         attribute "currentAlbum", "string"
         attribute "currentStation", "string"
         attribute "deviceFamily", "string"
@@ -92,7 +94,6 @@ metadata {
         command "sayWelcomeHome", ["number", "number"]
         // command "playCannedRandomTts", ["string", "number", "number"]
         // command "playCannedTts", ["string", "string", "number", "number"]
-        command "playAnnouncement", ["string", "number", "number"]
         command "playAnnouncement", ["string", "string", "number", "number"]
         command "playAnnouncementAll", ["string", "string"]
         command "playCalendarToday", ["number", "number"]
@@ -131,6 +132,7 @@ metadata {
         command "connectBluetooth", ["string"]
         command "disconnectBluetooth"
         command "removeBluetooth", ["string"]
+        command "sendAnnouncementToDevices", ["string", "string", "string", "number", "number"]
     }
 
     tiles (scale: 2) {
@@ -286,6 +288,10 @@ metadata {
             state("paused_vobot_bunny", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/vobot_bunny.png", backgroundColor: "#cccccc")
             state("playing_vobot_bunny", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/vobot_bunny.png", backgroundColor: "#00a0dc")
             state("stopped_vobot_bunny", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/vobot_bunny.png")
+
+            state("paused_logitect_blast", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/logitect_blast.png", backgroundColor: "#cccccc")
+            state("playing_logitect_blast", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/logitect_blast.png", backgroundColor: "#00a0dc")
+            state("stopped_logitect_blast", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/logitect_blast.png")
         }
         valueTile("blank1x1", "device.blank", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state("default", label:'')
@@ -441,8 +447,6 @@ metadata {
 
 def installed() {
     log.trace "${device?.displayName} Executing Installed..."
-    setLevel(20)
-    sendEvent(name: "alarmVolume", value: 0)
     sendEvent(name: "mute", value: "unmuted")
     sendEvent(name: "status", value: "stopped")
     sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
@@ -452,9 +456,10 @@ def installed() {
     sendEvent(name: "onlineStatus", value: "online")
     sendEvent(name: "followUpMode", value: false)
     sendEvent(name: "alarmVolume", value: 0)
-    sendEvent(name: "alexaWakeWord", value: "")
+    sendEvent(name: "alexaWakeWord", value: "ALEXA")
     state?.doNotDisturb = false
     initialize()
+    runIn(20, "postInstall")
 }
 
 def updated() {
@@ -468,12 +473,28 @@ def initialize() {
     sendEvent(name: "DeviceWatch-Enroll", value: new JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), displayed: false)
     resetQueue()
     stateCleanup()
+    if(checkMinVersion()) { log.error "CODE UPDATE required to RESUME operation.  No Device Events will updated."; return; }
     schedDataRefresh(true)
     refreshData(true)
+    //TODO: Add Queue cleanup task to schedule.  If q_speakingNow != true
+    //TODO: Have the queue validated based on the last time it was processed and have it cleanup if it's been too long
+}
+
+def postInstall() {
+    if(device?.currentState('level') == 0) { setLevel(30) }
+    if(device?.currentState('alarmVolume') == 0) { setAlarmVolume(30) }
 }
 
 public triggerInitialize() {
     runIn(3, "initialize")
+}
+
+String getDeviceType() {
+    return state?.deviceType ?: null
+}
+
+String getDeviceSerial() {
+    return state?.serialNumber ?: null
 }
 
 String getHealthStatus(lower=false) {
@@ -658,6 +679,7 @@ void updateDeviceStatus(Map devData) {
                 // log.trace "Alexa Music Providers Changed to ${musicProviders}"
                 sendEvent(name: "alexaMusicProviders", value: musicProviders?.toString(), display: false, displayed: false)
             }
+            // if(devData?.guardStatus) { updGuardStatus(devData?.guardStatus) }
             if(isOnline) {
                 refreshData(true)
             } else {
@@ -682,22 +704,10 @@ void refresh() {
     refreshData(true)
 }
 
-public updateLabel(String lbl) {
-    if(lbl) {
-        log.trace "Updating Device Label to (${lbl})"
-        device?.setLlabel(lbl as String)
-    }
-}
-
 private triggerDataRrsh(parentRefresh=false) {
     if(parentRefresh) {
         runIn(4, "refresh", [overwrite: true])
     } else { runIn(4, "refreshData", [overwrite: true]) }
-}
-
-private stateCleanup() {
-    List items = [""]
-    items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
 }
 
 public schedDataRefresh(frc) {
@@ -714,6 +724,7 @@ private refreshData(full=false) {
         return
     }
     if(!isAuthOk()) {return}
+    if(checkMinVersion()) { log.error "CODE UPDATE required to RESUME operation.  No Device Events will updated."; return; }
     // logger("trace", "permissions: ${state?.permissions}")
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
@@ -738,25 +749,40 @@ private refreshStage2() {
         getNotifications()
     }
     // log.debug "bluetoothControl: ${state?.permissions?.bluetoothControl}"
+
     if(state?.permissions?.bluetoothControl) {
         getBluetoothDevices()
     }
+    updGuardStatus()
 }
 
 public setOnlineStatus(Boolean isOnline) {
     String onlStatus = (isOnline ? "online" : "offline")
-    if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString()) || isStateChange(device, "onlineStatus", onlStatus?.toString())) {
+    if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString())) {
         sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), displayed: false, isStateChange: true)
+    }
+    if(isStateChange(device, "onlineStatus", onlStatus?.toString())) {
+        log.debug "OnlineStatus has changed to (${onlStatus})"
         sendEvent(name: "onlineStatus", value: onlStatus?.toString(), displayed: true, isStateChange: true)
     }
 }
 
 private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
     statusCode = statusCode as Integer
-    if(statusCode == 401) {
+    if(!hasErr && statusCode == 200) {
+        return true
+    } else if(statusCode == 401) {
         setAuthState(false)
         return false
-    } else { if(statusCode > 401 && statusCode < 500) { log.error "${methodName} Error: ${errMsg ?: null}" } }
+    } else {
+        if(statusCode > 401 && statusCode < 500) {
+            log.error "${methodName} Error: ${errMsg ?: null}"
+            if(errMsg == "Forbidden") {
+                setAuthState(false)
+                return false
+            }
+        }
+    }
     if(hasErr && falseOnErr) { return false }
     return true
 }
@@ -776,11 +802,10 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getPlaybackStateHandler", true)) {return}
-    try {} catch (ex) { }
-    // log.debug "response: ${response?.getJson()}"
+    Boolean isPlayStateChange = false
     def sData = [:]
-    def isPlayStateChange = false
-    sData = response?.getJson() ?: null
+    try { sData = response?.data ? response?.json ?: [:] : [:] }
+    catch(ex) { logger("error", "getPlaybackStateHandler Exception: ${ex?.message}") }
     sData = sData?.playerInfo ?: [:]
     if (state?.isGroupPlaying && !isGroupResponse) {
         log.debug "ignoring getPlaybackState because group is playing here"
@@ -865,10 +890,11 @@ def getAlarmVolumeHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getAlarmVolumeHandler")) {return}
-    try {} catch (ex) { }
-    def sData = response?.getJson() ?: null
+    def sData = null
+    try { sData = response?.data ? response?.json ?: null : null }
+    catch(ex) { logger("error", "getAlarmVolumeHandler Exception: ${ex?.message}") }
     // logger("trace", "getAlarmVolume: $sData")
-    if(isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
+    if(sData && isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
         log.trace "Alarm Volume Changed to ${(sData?.volumeLevel ?: 0)}"
         sendEvent(name: "alarmVolume", value: (sData?.volumeLevel ?: 0), display: false, displayed: false)
     }
@@ -889,14 +915,17 @@ def getWakeWordHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getWakeWordHandler", true)) {return}
-    try {} catch (ex) { }
-    def sData = response?.getJson() ?: null
+    def sData = null
+    try { sData = response?.data ? response?.json ?: null : null }
+    catch(ex) { logger("error", "getWakeWordHandler Exception: ${ex?.message}") }
     // log.debug "sData: $sData"
-    def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
-    // logger("trace", "getWakeWord: ${wakeWord?.wakeWord}")
-    if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
-        log.trace "Wake Word Changed to ${(wakeWord?.wakeWord)}"
-        sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
+    if(sData) {
+        def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
+        // logger("trace", "getWakeWord: ${wakeWord?.wakeWord}")
+        if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
+            log.trace "Wake Word Changed to ${(wakeWord?.wakeWord)}"
+            sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
+        }
     }
 }
 
@@ -920,8 +949,9 @@ def getWifiDetailsHandler(response, data) {
     Boolean hasErr = (!(response.status >= 200) || !(response.status <= 299) || response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getWifiDetailsHandler", true)) {return}
-    try {} catch (ex) { }
-    def sData = response?.json ? response?.getJson() : null
+    def sData = null
+    try { sData = response?.data ? response?.json ?: null : null }
+    catch(ex) { logger("error", "getWifiDetailsHandler Exception: ${ex?.message}") }
     // log.debug "sData: $sData"
     def wifiSsid = sData?.essid
     // logger("trace", "getWifiDetails: ${wifiSsid}")
@@ -946,8 +976,9 @@ def getDeviceSettingsHandler(response, data) {
     Boolean hasErr = (!(response.status >= 200) || !(response.status <= 299) || response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getDeviceSettingsHandler", true)) {return}
-    try {} catch (ex) { }
-    def sData = response?.json ? response?.getJson() : null
+    def sData = null
+    try { sData = response?.data ? response?.json ?: null : null }
+    catch(ex) { logger("error", "getDeviceSettingsHandler Exception: ${ex?.message}") }
     def devData = sData?.devicePreferences?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
     state?.devicePreferences = devData ?: [:]
     // log.debug "devData: $devData"
@@ -980,9 +1011,11 @@ def getAvailableWakeWordsHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getAvailableWakeWordsHandler", true)) {return}
-    try {} catch (ex) { }
-    def sData = response?.getJson() ?: null
-    def wakeWords = sData?.wakeWords ?: []
+    def sData = null
+    try { sData = response?.data ? response?.json ?: null : null }
+    catch(ex) { logger("error", "getAvailableWakeWordsHandler Exception: ${ex?.message}") }
+    // log.debug "sData: $sData"
+    def wakeWords = sData?.wakeWords ? sData?.wakeWords?.join(",") : null
     // logger("trace", "getAvailableWakeWords: ${wakeWords}")
     if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
         sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
@@ -995,21 +1028,29 @@ def getBluetoothDevices() {
     Map btObjs = btData?.btObjs ?: [:]
     // logger("debug", "Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
-    List pairedNames = btData?.pairedNames ?: []
+    String pairedNames = btData?.pairedNames ? btData?.pairedNames?.join(",") : null
     // if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
-    //     log.info "Bluetooth Device Connected: (${curConnName})"
+        // log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
     // }
 
-    if(!(device.currentValue("btDevicesPaired")?.toString()?.equals(pairedNames?.toString()))) {
+    if(isStateChange(device, "btDevicesPaired", pairedNames?.toString())) {
         log.info "Paired Bluetooth Devices: ${pairedNames}"
-        sendEvent(name: "btDevicesPaired", value: pairedNames?.toString(), descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
+        sendEvent(name: "btDevicesPaired", value: pairedNames, descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
+    }
+}
+
+def updGuardStatus(val=null) {
+    String gState = val ?: (state?.permissions?.guardSupported ? (parent?.getAlexaGuardStatus() ?: "Unknown") : "Not Supported")
+    if(isStateChange(device, "alexaGuardStatus", gState?.toString())) {
+        sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)
+        log.info "Alexa Guard Status: (${gState})"
     }
 }
 
 private String getBtAddrByAddrOrName(String btNameOrAddr) {
     Map btObj = state?.bluetoothObjs
-    String curBtAddr = btObj?.find { it?.value?.friendlyName == btNameOrAddr || it?.value?.address == btNameOrAddr }?.value?.address ?: null
+    String curBtAddr = btObj?.find { it?.value?.friendlyName == btNameOrAddr || it?.value?.address == btNameOrAddr }?.key ?: null
     // logger("debug", "curBtAddr: ${curBtAddr}")
     return curBtAddr
 }
@@ -1044,9 +1085,10 @@ def getPlaylistsHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getPlaylistsHandler")) {return}
-    try {} catch (ex) { }
-    def sData = response?.getJson() ?: null
-    // logger("trace", "getPlaylists: ${sData}")
+    def sData = null
+    try { sData = response?.data ? response?.json ?: null : null }
+    catch(ex) { logger("error", "getPlaylistsHandler Exception: ${ex?.message}") }
+    // logger("trace", "getPlaylistsHandler: ${sData}")
     Map playlists = sData ? sData?.playlists : "{}"
     if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
         // log.trace "Alexa Playlists Changed to ${playlists}"
@@ -1069,21 +1111,20 @@ def getNotificationsHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getNotificationsHandler")) {return}
-    try {} catch (ex) { }
     List newList = []
-    if(response?.status == 200) {
-        def sData = response?.getJson() ?: null
-        if(sData) {
-            List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
-            items?.each { item->
-                Map li = [:]
-                item?.keySet().each { key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration']) { li[key] = item[key] } }
-                newList?.push(li)
-            }
+    def sData = null
+    try { sData = response?.data ? response?.json ?: null : null }
+    catch(ex) { logger("error", "getNotificationsHandler Exception: ${ex?.message}") }
+    if(sData) {
+        List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
+        items?.each { item->
+            Map li = [:]
+            item?.keySet().each { key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration']) { li[key] = item[key] } }
+            newList?.push(li)
         }
-        if(isStateChange(device, "alexaNotifications", newList?.toString())) {
-            sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
-        }
+    }
+    if(isStateChange(device, "alexaNotifications", newList?.toString())) {
+        sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
     }
     // log.trace "notifications: $newList"
 }
@@ -1108,7 +1149,9 @@ def deviceActivityHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "deviceActivityHandler")) {return}
-    def sData = response?.getJson() ?: null
+    def sData = null
+    try { sData = response?.data ? response?.json ?: null : null }
+    catch(ex) { logger("error", "deviceActivityHandler Exception: ${ex?.message}") }
     Boolean wasLastDevice = false
     def actTS = null
     if (sData && sData?.activities != null) {
@@ -1183,8 +1226,9 @@ def amazonCommandResp(response, data) {
     if(hasErr) log.debug "hasError: $hasErr | status: ${response?.status}"
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
-    try {} catch (ex) { }
-    def resp = response?.data ? response?.getJson() : null
+    def sData = null
+    try { sData = response?.data ? response?.json ?: null : null }
+    catch(ex) { logger("error", "amazonCommandResp Exception: ${ex?.message}") }
     if(response?.status == 200) {
         if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
             triggerDataRrsh()
@@ -1322,6 +1366,24 @@ def mute() {
     }
 }
 
+def repeat() {
+    logger("trace", "repeat() command received...")
+    if(isCommandTypeAllowed("mediaPlayer")) {
+        sendAmazonBasicCommand("RepeatCommand")
+        incrementCntByKey("use_cnt_repeatCmd")
+        triggerDataRrsh()
+    }
+}
+
+def shuffle() {
+    logger("trace", "shuffle() command received...")
+    if(isCommandTypeAllowed("mediaPlayer")) {
+        sendAmazonBasicCommand("ShuffleCommand")
+        incrementCntByKey("use_cnt_shuffleCmd")
+        triggerDataRrsh()
+    }
+}
+
 def unmute() {
     logger("trace", "unmute() command received...")
     if(isCommandTypeAllowed("volumeControl")) {
@@ -1340,14 +1402,14 @@ def setMute(muteState) {
     if(muteState) { (muteState == "muted") ? mute() : unmute() }
 }
 
-def setLevel(Integer level) {
+def setLevel(level) {
     logger("trace", "setVolume($level) command received...")
     if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
         if(level != device?.currentValue('level')) {
             sendSequenceCommand("VolumeCommand", "volume", level)
             incrementCntByKey("use_cnt_volumeCmd")
-            sendEvent(name: "level", value: level, display: false, displayed: false)
-            sendEvent(name: "volume", value: level, display: false, displayed: false)
+            sendEvent(name: "level", value: level?.toInteger(), display: false, displayed: false)
+            sendEvent(name: "volume", value: level?.toInteger(), display: false, displayed: false)
         }
     }
 }
@@ -1469,7 +1531,7 @@ def deviceNotification(String msg) {
 def setVolumeAndSpeak(volume, String msg) {
     logger("trace", "setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
     if(volume != null && permissionOk("volumeControl")) {
-        state?.useThisVolume = volume
+        state?.newVolume = volume
     }
     incrementCntByKey("use_cnt_setVolSpeak")
     speak(msg)
@@ -1479,9 +1541,9 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     logger("trace", "setVolumeSpeakAndRestore(volume: $volume, msg: $msg, restVolume) command received...")
     if(msg) {
         if(volume != null && permissionOk("volumeControl")) {
-            state?.useThisVolume = volume?.toInteger()
+            state?.newVolume = volume?.toInteger()
             if(restVolume != null) {
-                state?.lastVolume = restVolume as Integer
+                state?.oldVolume = restVolume as Integer
                 incrementCntByKey("use_cnt_setVolSpeak")
             } else {
                 storeCurrentVolume()
@@ -1495,16 +1557,17 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
 def storeCurrentVolume() {
     Integer curVol = device?.currentValue("level") ?: 1
     log.trace "storeCurrentVolume(${curVol}) command received..."
-    if(curVol != null) { state?.lastVolume = curVol as Integer }
+    if(curVol != null) { state?.oldVolume = curVol as Integer }
 }
 
 private restoreLastVolume() {
-    log.trace "restoreLastVolume(${state?.lastVolume}) command received..."
-    if(state?.lastVolume && permissionOk("volumeControl")) {
-        setVolume(state?.lastVolume as Integer)
-        sendEvent(name: "level", value: state?.lastVolume, display: false, displayed: false)
-        sendEvent(name: "volume", value: state?.lastVolume, display: false, displayed: false)
-    } else { log.warn "Unable to restore Last Volume!!! lastVolume State Value not found..." }
+    Integer lastVol = state?.oldVolume
+    log.trace "restoreLastVolume(${lastVol}) command received..."
+    if(lastVol && permissionOk("volumeControl")) {
+        setVolume(lastVol as Integer)
+        sendEvent(name: "level", value: lastVol, display: false, displayed: false)
+        sendEvent(name: "volume", value: lastVol, display: false, displayed: false)
+    } else { log.warn "Unable to restore Last Volume!!! restoreVolume State Value not found..." }
 }
 
 def sayWelcomeHome(volume=null, restoreVolume=null) {
@@ -1672,8 +1735,9 @@ def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
     incrementCntByKey("use_cnt_playCannedRandomTTS")
 }
 
-def playAnnouncement(String msg, volume=null, restoreVolume=null) {
+def playAnnouncement(String msg, String title=null, volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("announce")) {
+        msg = "${title ? "${title}::" : ""}${msg}"
         if(volume != null) {
             List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
             if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
@@ -1683,15 +1747,16 @@ def playAnnouncement(String msg, volume=null, restoreVolume=null) {
     }
 }
 
-def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
-    if(isCommandTypeAllowed("announce")) {
-        msg = "${title ? "${title}::" : ""}${msg}"
+def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null, restoreVolume=null) {
+    if(isCommandTypeAllowed("announce") && devObj) {
+        msg = "${title ? "${title}" : "Echo Speaks"}::${msg}::${devObj?.toString()}"
+        // log.debug "sendAnnouncementToDevices | msg: ${msg}"
         if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
+            List seqs = [[command: "volume", value: volume], [command: "announcement_devices", value: msg]]
             if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "playAnnouncement")
-        } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
-        incrementCntByKey("use_cnt_announcement")
+            sendMultiSequenceCommand(seqs, "sendAnnouncementToDevices")
+        } else { doSequenceCmd("sendAnnouncementToDevices", "announcement_devices", msg) }
+        incrementCntByKey("use_cnt_announcementDevices")
     }
 }
 
@@ -2131,7 +2196,7 @@ def speak(String msg) {
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { log.warn "No Message sent with speak($msg) command" }
         // msg = cleanString(msg, true)
-        speakVolumeCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state?.useThisVolume ?: null), oldVolume: (state?.lastVolume ?: null), cmdDt: now()])
+        speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state?.newVolume ?: null), oldVolume: (state?.oldVolume ?: null), cmdDt: now()])
         incrementCntByKey("use_cnt_speak")
     }
 }
@@ -2164,16 +2229,17 @@ private List msgSeqBuilder(String str) {
     // log.debug "msgSeqBuilder: $str"
     List seqCmds = []
     List strArr = []
+    Boolean isSSML = (str?.toString()?.startsWith("<speak>") && str?.toString()?.endsWith("</speak>"))
     if(str?.toString()?.length() < 450) {
-        seqCmds?.push([command: "speak", value: str as String])
+        seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: str as String])
     } else {
         List msgItems = str?.split()
         msgItems?.each { wd->
             if((getStringLen(strArr?.join(" ")) + wd?.length()) <= 430) {
                 // log.debug "CurArrLen: ${(getStringLen(strArr?.join(" ")))} | CurStrLen: (${wd?.length()})"
                 strArr?.push(wd as String)
-            } else { seqCmds?.push([command: "speak", value: strArr?.join(" ")]); strArr = []; strArr?.push(wd as String); }
-            if(wd == msgItems?.last()) { seqCmds?.push([command: "speak", value: strArr?.join(" ")]) }
+            } else { seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: strArr?.join(" ")]); strArr = []; strArr?.push(wd as String); }
+            if(wd == msgItems?.last()) { seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: strArr?.join(" ")]) }
         }
     }
     // log.debug "seqCmds: $seqCmds"
@@ -2262,12 +2328,13 @@ Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     def random = new Random()
     Integer randomInt = random?.nextInt(5) //Was using 7
     if(!msgLen) { return 30 }
-    def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
+    def v = (msgLen <= 14 ? 2 : (msgLen / 14)) as Integer
     // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
-    return addRandom ? (v + randomInt) : v
+    return addRandom ? (v + randomInt) : v+2
 }
 
 Integer getLastTtsCmdSec() { return !state?.lastTtsCmdDt ? 1000 : GetTimeDiffSeconds(state?.lastTtsCmdDt).toInteger() }
+Integer getLastQueueCheckSec() { return !state?.q_lastCheckDt ? 1000 : GetTimeDiffSeconds(state?.q_lastCheckDt).toInteger() }
 Integer getCmdExecutionSec(timeVal) { return !timeVal ? null : GetTimeDiffSeconds(timeVal).toInteger() }
 
 private getQueueSize() {
@@ -2293,121 +2360,152 @@ private processLogItems(String logType, List logList, emptyStart=false, emptyEnd
     }
 }
 
+private stateCleanup() {
+    if(state?.lastVolume) { state?.oldVolume = state?.lastVolume }
+    List items = ["qBlocked", "qCmdCycleCnt", "useThisVolume", "lastVolume", "lastQueueCheckDt", "loopChkCnt", "speakingNow",
+        "cmdQueueWorking", "firstCmdFlag", "recheckScheduled", "cmdQIndexNum", "curMsgLen", "lastTtsCmdDelay",
+        "lastQueueMsg", "lastTtsMsg"
+    ]
+    items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
+}
+
 def resetQueue(showLog=true) {
     if(showLog) { log.trace "resetQueue()" }
     Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("qItem_") }
-    cmdQueue?.each { cmdKey, cmdData ->
-        state?.remove(cmdKey)
-    }
+    cmdQueue?.each { cmdKey, cmdData -> state?.remove(cmdKey) }
+    unschedule("queueCheck")
     unschedule("checkQueue")
-    state?.qCmdCycleCnt = null
-    state?.useThisVolume = null
-    state?.loopChkCnt = null
-    state?.speakingNow = false
-    state?.cmdQueueWorking = false
-    state?.firstCmdFlag = false
-    state?.recheckScheduled = false
-    state?.cmdQIndexNum = null
-    state?.curMsgLen = null
-    state?.lastTtsCmdDelay = null
-    state?.lastTtsMsg = null
-    state?.lastQueueMsg = null
+    state?.q_blocked = false
+    state?.q_cmdCycleCnt = null
+    state?.newVolume = null
+    state?.q_lastCheckDt = null
+    state?.q_loopChkCnt = null
+    state?.q_speakingNow = false
+    state?.q_cmdWorking = false
+    state?.q_firstCmdFlag = false
+    state?.q_recheckScheduled = false
+    state?.q_cmdIndexNum = null
+    state?.q_curMsgLen = null
+    state?.q_lastTtsCmdDelay = null
+    state?.q_lastTtsMsg = null
+    state?.q_lastMsg = null
 }
 
-Integer getQueueIndex() { return state?.cmdQIndexNum ? state?.cmdQIndexNum+1 : 1 }
+Integer getNextQueueIndex() { return state?.q_cmdIndexNum ? state?.q_cmdIndexNum+1 : 1 }
+Integer getCurrentQueueIndex() { return state?.q_cmdIndexNum ?: 1 }
 String getAmazonDomain() { return state?.amazonDomain ?: parent?.settings?.amazonDomain }
 String getAmazonUrl() {return "https://alexa.${getAmazonDomain()}"}
 Map getQueueItems() { return state?.findAll { it?.key?.toString()?.startsWith("qItem_") } }
 
-private schedQueueCheck(Integer delay, overwrite=true, data=null, src) {
-    if(delay) {
-        Map opts = [:]
-        opts["overwrite"] = overwrite
-        if(data) { opts["data"] = data }
-        runIn(delay, "checkQueue", opts)
-        state?.recheckScheduled = true
-        // log.debug "Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | recheckScheduled: (${state?.recheckScheduled}) | Source: (${src})"
+private queueCheckSchedHealth() {
+    Integer cmdCnt = state?.q_cmdCycleCnt
+    Integer lastChk = getLastQueueCheckSec()
+    Integer qSize = getQueueSize()
+    log.info "queueCheckSchedHealth | Qsize: ${qSize} | LastChk: ${lastChk}"
+    if(qSize >= 2 && lastChk > 120) {
+        schedQueueCheck(4, true, null, "queueCheck(missed schedule)")
+        log.debug "queueCheck | Scheduling Queue Check for (4 sec) | Possible Lost Recheck Schedule"
     }
 }
 
-public queueEchoCmd(type, headers, body=null, firstRun=false) {
+private schedQueueCheck(Integer delay=30, overwrite=true, data=null, src) {
+    Map opts = [:]
+    opts["overwrite"] = overwrite
+    if(data) { opts["data"] = data }
+    runIn(delay, "queueCheck", opts)
+    state?.q_recheckScheduled = true
+    // log.debug "Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | q_recheckScheduled: (${state?.q_recheckScheduled}) | Source: (${src})"
+}
+
+public queueEchoCmd(type, msgLen, headers, body=null, firstRun=false) {
+    Integer qSize = getQueueSize()
+    if(state?.q_blocked == true) { log.warn "│ Queue Temporarily Blocked (${qSize} Items): | Working: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled})"; return; }
     List logItems = []
-    Map cmdItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
-    logItems?.push("│ Queue Active: (${state?.cmdQueueWorking}) | Recheck: (${state?.recheckScheduled}) ")
-    if(cmdItems?.size()) {
-        if(headers?.message) {
-            Integer msgLen = headers?.message?.toString()?.length()
-            logItems?.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : ""}")
-        }
+    Map dupItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
+    logItems?.push("│ Queue Active: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled}) ")
+    if(dupItems?.size()) {
+        if(headers?.message) { logItems?.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : ""}") }
         logItems?.push("│ Ignoring (${headers?.cmdType}) Command... It Already Exists in QUEUE!!!")
         logItems?.push("┌────────── Echo Queue Warning ──────────")
         processLogItems("warn", logItems, true, true)
         return
     }
-    state?.cmdQIndexNum = getQueueIndex()
-    state?."qItem_${state?.cmdQIndexNum}" = [type: type, headers: headers, body: body, newVolume: (headers?.newVolume ?: null), oldVolume: (headers?.oldVolume ?: null)]
-    state?.useThisVolume = null
-    state?.lastVolume = null
-    if(headers?.volume) { logItems?.push("│ Volume (${headers?.volume})") }
-    if(headers?.message) {
-        logItems?.push("│ Message(Len: ${headers?.message?.toString()?.length()}): ${headers?.message?.take(200)?.trim()}${headers?.message?.toString()?.length() > 200 ? "..." : ""}")
-    }
-    if(headers?.cmdType) { logItems?.push("│ CmdType: (${headers?.cmdType})") }
-    logItems?.push("┌───── Added Echo Queue Item (${state?.cmdQIndexNum}) ─────")
+    Integer qIndNum = getNextQueueIndex()
+    // log.debug "qIndexNum: $qIndNum"
+    state?.q_cmdIndexNum = qIndNum
+    headers?.qId = qIndNum
+    state?."qItem_${qIndNum}" = [type: type, headers: headers, body: body, newVolume: (headers?.newVolume ?: null), oldVolume: (headers?.oldVolume ?: null)]
+    state?.newVolume = null
+    state?.oldVolume = null
+    if(headers?.volume)  {  logItems?.push("│ Volume (${headers?.volume})") }
+    if(headers?.message) {  logItems?.push("│ Message(Len: ${headers?.message?.toString()?.length()}): ${headers?.message?.take(200)?.trim()}${headers?.message?.toString()?.length() > 200 ? "..." : ""}") }
+    if(headers?.cmdType) {  logItems?.push("│ CmdType: (${headers?.cmdType})") }
+                            logItems?.push("┌───── Added Echo Queue Item (${state?.q_cmdIndexNum}) ─────")
+    // queueCheckSchedHealth()
     if(!firstRun) {
         processLogItems("trace", logItems, false, true)
     }
 }
 
-private checkQueue(data) {
-    // log.debug "checkQueue | ${data}"
-    if(state?.qCmdCycleCnt && state?.qCmdCycleCnt?.toInteger() >= 10) {
-        log.warn "checkQueue | Queue Cycle Count (${state?.qCmdCycleCnt}) is abnormally high... Resetting Queue"
+private queueCheck(data) {
+    // log.debug "queueCheck | ${data}"
+    Integer qSize = getQueueSize()
+    Boolean qEmpty = (qSize == 0)
+    state?.q_lastCheckDt = getDtNow()
+    if(!qEmpty) {
+        if(qSize && qSize >= 10) {
+            state?.q_blocked = true
+            if (qSize < 20) {
+                log.warn "queueCheck | Queue Item Count (${qSize}) is filling up... Blocking Queue Additions Until Queue Size Drops below 10!!!"
+                schedQueueCheck(delay, true, null, "queueCheck(filling)")
+            } else {
+                log.warn "queueCheck | Queue Item Count (${qSize}) is abnormally high... Resetting Queue"
+                resetQueue(false)
+                return
+            }
+        } else { state?.q_blocked = false }
+        if(data && data?.rateLimited == true) {
+            Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.q_curMsgLen)
+            schedQueueCheck(delay, true, null, "queueCheck(rate-limit)")
+            log.debug "queueCheck | Scheduling Queue Check for (${delay} sec) | Recheck for RateLimiting"
+        }
+        processCmdQueue()
+        return
+    } else {
+        log.trace "queueCheck | Nothing in the Queue | Performing Queue Reset..."
         resetQueue(false)
         return
     }
-    Boolean qEmpty = (getQueueSize() == 0)
-    if(qEmpty) {
-        log.trace "checkQueue | Nothing in the Queue... Performing Queue Reset"
-        resetQueue(false)
-        return
-    }
-    if(data && data?.rateLimited == true) {
-        Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.curMsgLen)
-        // schedQueueCheck(delay, true, null, "checkQueue(rate-limit)")
-        log.debug "checkQueue | Scheduling Queue Check for (${delay} sec) ${(data && data?.rateLimited == true) ? " | Recheck for RateLimiting: true" : ""}"
-    }
-    processCmdQueue()
-    return
 }
 
 void processCmdQueue() {
-    state?.cmdQueueWorking = true
-    state?.qCmdCycleCnt = state?.qCmdCycleCnt ? state?.qCmdCycleCnt+1 : 1
+    state?.q_cmdWorking = true
+    Integer q_cmdCycleCnt = state?.q_cmdCycleCnt
+    state?.q_cmdCycleCnt = q_cmdCycleCnt ? q_cmdCycleCnt+1 : 1
     Map cmdQueue = getQueueItems()
     if(cmdQueue?.size()) {
-        state?.recheckScheduled = false
-        def cmdKey = cmdQueue?.keySet()?.sort()?.first()
+        state?.q_recheckScheduled = false
+        def cmdKey = cmdQueue?.keySet()?.sort(false) { it.tokenize('_')[-1] as Integer }?.first()
         Map cmdData = state[cmdKey as String]
         // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${getQueueItems()})")
         cmdData?.headers["queueKey"] = cmdKey
-        Integer loopChkCnt = state?.loopChkCnt ?: 0
-        if(state?.lastTtsMsg == cmdData?.headers?.message && (getLastTtsCmdSec() <= 10)) { state?.loopChkCnt = (loopChkCnt >= 1) ? loopChkCnt++ : 1 }
-        // log.debug "loopChkCnt: ${state?.loopChkCnt}"
-        if(state?.loopChkCnt && (state?.loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
+        Integer q_loopChkCnt = state?.q_loopChkCnt ?: 0
+        if(state?.q_lastTtsMsg == cmdData?.headers?.message && (getLastTtsCmdSec() <= 10)) { state?.q_loopChkCnt = (q_loopChkCnt >= 1) ? q_loopChkCnt++ : 1 }
+        // log.debug "q_loopChkCnt: ${state?.q_loopChkCnt}"
+        if(state?.q_loopChkCnt && (state?.q_loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
             state?.remove(cmdKey as String)
-            log.trace "processCmdQueue | Possible loop detected... Last message the same as current sent less than 10 seconds ago. This message will be removed from the queue"
+            log.trace "processCmdQueue | Possible loop detected... Last message was the same as message sent <10 seconds ago. This message will be removed from the queue"
             schedQueueCheck(2, true, null, "processCmdQueue(removed duplicate)")
+            state?.q_cmdWorking = false
         } else {
-            state?.lastQueueMsg = cmdData?.headers?.message
-            speakVolumeCmd(cmdData?.headers, true)
+            state?.q_lastMsg = cmdData?.headers?.message
+            speechCmd(cmdData?.headers, true)
         }
-    }
-    state?.cmdQueueWorking = false
+    } else { state?.q_cmdWorking = false }
 }
 
 Integer getAdjCmdDelay(elap, reqDelay) {
-    if(elap != null && reqDelay) {
+    if(elap && reqDelay) {
         Integer res = (elap - reqDelay)?.abs()
         // log.debug "getAdjCmdDelay | reqDelay: $reqDelay | elap: $elap | res: ${res+3}"
         return res < 3 ? 3 : res+3
@@ -2419,9 +2517,19 @@ def testMultiCmd() {
     sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]], "testMultiCmd")
 }
 
-private speakVolumeCmd(headers=[:], isQueueCmd=false) {
-    log.debug "speakVolumeCmd($headers)..."
-    // if(!isQueueCmd) { log.trace "speakVolumeCmd(${headers?.cmdDesc}, $isQueueCmd)" }
+private speechCmd(headers=[:], isQueueCmd=false) {
+    //TODO: Look into adding an expiration timestamp for automatic removal from the queue
+    // if(isQueueCmd) log.warn "Blocked: ${state?.q_blocked} | cycleCnt: ${state?.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
+    state?.q_speakingNow = true
+    def tr = "speechCmd (${headers?.cmdDesc}) | Message: ${headers?.message}"
+    tr += headers?.newVolume ? " | SetVolume: (${headers?.newVolume})" : ""
+    tr += headers?.oldVolume ? " | Restore Volume: (${headers?.oldVolume})" : ""
+    tr += headers?.msgDelay  ? " | RecheckSeconds: (${headers?.msgDelay})" : ""
+    tr += headers?.queueKey  ? " | QueueItem: [${headers?.queueKey}]" : ""
+    tr += headers?.cmdDt     ? " | CmdDt: (${headers?.cmdDt})" : ""
+    log.trace "${tr}"
+
+    // if(!isQueueCmd) { log.trace "speechCmd(${headers?.cmdDesc}, $isQueueCmd)" }
     def random = new Random()
     def randCmdId = random?.nextInt(300)
 
@@ -2429,7 +2537,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
     List logItems = []
     String healthStatus = getHealthStatus()
     if(!headers || !(healthStatus in ["ACTIVE", "ONLINE"])) {
-        if(!headers) { log.error "speakVolumeCmd | Error${!headers ? " | headers are missing" : ""} " }
+        if(!headers) { log.error "speechCmd | Error${!headers ? " | headers are missing" : ""} " }
         if(!(healthStatus in ["ACTIVE", "ONLINE"])) { log.warn "Command Ignored... Device is current in OFFLINE State" }
         return
     }
@@ -2443,40 +2551,40 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
     if(!settings?.disableQueue) {
         logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
 
-        Boolean isFirstCmd = (state?.firstCmdFlag != true)
+        Boolean isFirstCmd = (state?.q_firstCmdFlag != true)
         if(isFirstCmd) {
             logItems?.push("│ First Command: (${isFirstCmd})")
             headers["queueKey"] = "qItem_1"
-            state?.firstCmdFlag = true
+            state?.q_firstCmdFlag = true
         }
-        Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state?.speakingNow == true))
+        Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state?.q_speakingNow == true))
         if(!isQueueCmd) { logItems?.push("│ SentToQueue: (${sendToQueue})") }
-        // log.warn "speakVolumeCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | speakingNow: (${state?.speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
+        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
-            queueEchoCmd("Speak", headers, body, isFirstCmd)
+            queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
             if(!isFirstCmd) { return }
         }
     }
     try {
-        state?.speakingNow = true
         Map headerMap = [cookie: getCookieVal(), csrf: getCsrfVal()]
         headers?.each { k,v-> headerMap[k] = v }
         Integer qSize = getQueueSize()
-        logItems?.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${state?.cmdQueueWorking})")
+        logItems?.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${state?.q_cmdWorking})")
 
         if(headers?.message) {
-            state?.curMsgLen = msgLen
-            state?.lastTtsCmdDelay = recheckDelay
-            schedQueueCheck(recheckDelay, true, null, "speakVolumeCmd(sendCloudCommand)")
+            state?.q_curMsgLen = msgLen
+            state?.q_lastTtsCmdDelay = recheckDelay
+            schedQueueCheck(recheckDelay, true, null, "speechCmd(sendCloudCommand)")
             logItems?.push("│ Rechecking: (${recheckDelay} seconds)")
             logItems?.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : ""}")
-            state?.lastTtsMsg = headers?.message
+            state?.q_lastTtsMsg = headers?.message
             // state?.lastTtsCmdDt = getDtNow()
         }
         if(headerMap?.oldVolume) {logItems?.push("│ Restore Volume: (${headerMap?.oldVolume}%)") }
         if(headerMap?.newVolume) {logItems?.push("│ New Volume: (${headerMap?.newVolume}%)") }
         logItems?.push("│ Current Volume: (${device?.currentValue("volume")}%)")
-        logItems?.push("│ Command: (SpeakCommand)")
+        Boolean isSSML = (headers?.message?.toString()?.startsWith("<speak>") && headers?.message?.toString()?.endsWith("</speak>"))
+        logItems?.push("│ Command: (SpeakCommand)${isSSML ? " | (SSML)" : ""}")
         try {
             def bodyObj = null
             List seqCmds = []
@@ -2494,8 +2602,9 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
                 body: bodyObj
             ]
             execAsyncCmd("post", "asyncSpeechHandler", params, [
-                cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), msgLen: msgLen, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
-                message: (headerMap?.message ? (isST() && msgLen > 700 ? headerMap?.message?.take(700) : headerMap?.message) : null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null)
+                cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
+                message: (headerMap?.message ? (isST() && msgLen > 700 ? headerMap?.message?.take(700) : headerMap?.message) : null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null),
+                qId: (headerMap?.qId ?: null)
             ])
         } catch (e) {
             log.error "something went wrong: ", e
@@ -2505,7 +2614,7 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
         logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
         processLogItems("debug", logItems)
     } catch (ex) {
-        log.error "speakVolumeCmd Exception:", ex
+        log.error "speechCmd Exception:", ex
         incrementCntByKey("err_cloud_command")
     }
 }
@@ -2513,25 +2622,36 @@ private speakVolumeCmd(headers=[:], isQueueCmd=false) {
 def asyncSpeechHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    try {} catch (ex) { }
-    def resp = null
-    data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
+    def sData = null
     if(!respIsValid(response?.status, hasErr, errMsg, "asyncSpeechHandler", true)) {
-    // if(!respIsValid(response, "asyncSpeechHandler", true)){
-        resp = response?.errorJson ?: null
-    } else { resp = response?.data ?: null }
-
+        sData = response?.errorJson ?: null
+    } else {
+        try { sData = response?.data ? response?.json ?: null : null }
+        catch(ex) { logger("error", "asyncSpeechHandler Exception: ${ex?.message}") }
+    }
+    data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
     // log.trace "asyncSpeechHandler | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}"
-    postCmdProcess(resp, response?.status, data)
+    postCmdProcess(sData, response?.status, data)
 }
 
 private postCmdProcess(resp, statusCode, data) {
     if(data && data?.deviceId && (data?.deviceId == device?.getDeviceNetworkId())) {
         if(statusCode == 200) {
             def execTime = data?.cmdDt ? (now()-data?.cmdDt) : 0
-            // log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully${data?.queueKey ? " | QueueKey: (${data?.queueKey})" : ""}${data?.msgDelay ? " | RecheckDelay: (${data?.msgDelay} sec)" : ""} | Execution Time (${execTime}ms)"
-            log.info "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"} Sent Successfully${data?.msgLen ? " | Length: (${data?.msgLen}) " : ""}| Execution Time (${execTime}ms)${data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""}${showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""}${data?.cmdId ? " | CmdID: (${data?.cmdId})" : ""}"
-            if(data?.queueKey) { state?.remove(data?.queueKey as String) }
+            if(data?.queueKey) {
+                log.debug "Command Completed | Removing Queue Item: ${data?.queueKey}"
+                state?.remove(data?.queueKey as String)
+            }
+            def pi = "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"}"
+            pi += data?.isSSML ? " (SSML)" : ""
+            pi += " Sent Successfully"
+            pi += data?.msgLen ? " | Length: (${data?.msgLen}) " : ""
+            pi += " | Execution Time (${execTime}ms)"
+            pi += data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""
+            pi += showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""
+            pi += data?.qId ? " | QueueID: (${data?.qId})" : ""
+            log.info "${pi}"
+
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
                 state?.lastTtsCmdDt = getDtNow()
                 String lastMsg = data?.message as String ?: "Nothing to Show Here..."
@@ -2563,7 +2683,8 @@ private postCmdProcess(resp, statusCode, data) {
                 HELPER FUNCTIONS
 ******************************************************/
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
-
+Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
+Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVersions()["actionApp"]) }
 def getDtNow() {
 	def now = new Date()
 	return formatDt(now, false)
@@ -2780,15 +2901,23 @@ Map createSequenceNode(command, value) {
                 value = cleanString(value as String)
                 seqNode?.operationPayload?.textToSpeak = value as String
                 break
+            case "ssml":
             case "announcement":
             case "announcementall":
+            case "announcement_devices":
                 remDevSpecifics = true
                 seqNode?.type = "AlexaAnnouncement"
                 seqNode?.operationPayload?.expireAfter = "PT5S"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
-                seqNode?.operationPayload?.content = [[ locale: (state?.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1] as String ], speak: [ type: "text", value: valObj[1] as String ] ] ]
+                // log.debug "valObj(size: ${valObj?.size()}): $valObj"
+                seqNode?.operationPayload?.content = [[ locale: (state?.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
                 seqNode?.operationPayload?.target = [ customerId : state?.deviceOwnerCustomerId ]
-                if(command != "announcementall") { seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ] }
+                if(!(command in ["announcementall", "announcement_devices"])) {
+                    seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: state?.deviceType, deviceSerialNumber: state?.serialNumber ] ]
+                } else if(command == "announcement_devices" && valObj?.size() && valObj[2] != null) {
+                    List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
+                    seqNode?.operationPayload?.target?.devices = devObjs
+                }
                 break
             case "pushnotification":
                 remDevSpecifics = true

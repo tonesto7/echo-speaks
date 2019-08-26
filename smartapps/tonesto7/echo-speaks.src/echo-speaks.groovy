@@ -8,6 +8,7 @@
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
+ *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
@@ -15,24 +16,25 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()	 { return "2.6.0" }
-String appModified() { return "2019-07-10" }
-String appAuthor()   { return "Anthony S." }
-Boolean isBeta()     { return false }
-Boolean isST()       { return (getPlatform() == "SmartThings") }
-Map minVersions()    { return [echoDevice: 260, server: 222] } //These values define the minimum versions of code this app will work with.
-
+String appVersion()   { return "3.0.0" }
+String appModified()  { return "2019-08-26" }
+String appAuthor()    { return "Anthony S." }
+Boolean isBeta()      { return true }
+Boolean isST()        { return (getPlatform() == "SmartThings") }
+Map minVersions()     { return [echoDevice: 300, actionApp: 300, server: 222] } //These values define the minimum versions of code this app will work with.
+// TODO: Change importURL back to master branch
 definition(
-    name       : "Echo Speaks",
-    namespace  : "tonesto7",
-    author     : "Anthony Santilli",
-    description: "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
-    category   : "My Apps",
-    iconUrl    : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x${state?.updateAvailable ? "_update" : ""}.png",
-    iconX2Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x${state?.updateAvailable ? "_update" : ""}.png",
-    iconX3Url  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x${state?.updateAvailable ? "_update" : ""}.png",
-    pausable   : true,
-    oauth      : true
+    name        : "Echo Speaks",
+    namespace   : "tonesto7",
+    author      : "Anthony Santilli",
+    description : "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
+    category    : "My Apps",
+    iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x${state?.updateAvailable ? "_update" : ""}.png",
+    iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x${state?.updateAvailable ? "_update" : ""}.png",
+    iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x${state?.updateAvailable ? "_update" : ""}.png",
+    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
+    oauth       : true,
+    pausable    : true
 )
 
 preferences {
@@ -40,6 +42,7 @@ preferences {
     page(name: "mainPage")
     page(name: "settingsPage")
     page(name: "devicePrefsPage")
+    page(name: "deviceManagePage")
     page(name: "newSetupPage")
     page(name: "groupsPage")
     page(name: "actionsPage")
@@ -48,6 +51,8 @@ preferences {
     page(name: "unrecogDevicesPage")
     page(name: "changeLogPage")
     page(name: "notifPrefPage")
+    page(name: "alexaGuardPage")
+    page(name: "alexaGuardAutoPage")
     page(name: "servPrefPage")
     page(name: "musicSearchTestPage")
     page(name: "searchTuneInResultsPage")
@@ -65,41 +70,15 @@ def startPage() {
     state?.isParent = true
     checkVersionData(true)
     state?.childInstallOkFlag = false
-    if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) {
-        log.debug "resumeConfig: true"
-        return servPrefPage()
-    }
+    if(!state?.resumeConfig && state?.isInstalled) { checkGuardSupport() }
+    if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) { return servPrefPage() }
     else if(showChgLogOk()) { return changeLogPage() }
     else if(showDonationOk()) { return donationPage() }
     else { return mainPage() }
 }
 
-def appInfoSect()	{
-    Map codeVer = state?.codeVersions ?: null
-    def str = ""//"Author: ${appAuthor()}"
-    // if(isST() && state?.customerName) { str += "User: ${state?.customerName}" }
-    if(codeVer && (codeVer?.server || codeVer?.echoDevice)) {
-        str += bulletItem(str, "App: (v${appVersion()})")
-        str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
-        str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
-        str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
-    } else { str += "\nApp: v${appVersion()}" }
-    section() {
-        href "changeLogPage", title: pTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
-        if(!state?.isInstalled) { paragraph "--NEW Install--", state: "complete" }
-    }
-    section("Developer Notices") {
-        if(!state?.noticeData) { getNoticeData() }
-        if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
-            state?.noticeData?.notices?.each { item-> paragraph bulletItem(str, item), required: true, state: null }
-        } else {
-            paragraph "No Issues to Report"
-        }
-    }
-}
-
 def mainPage() {
-    def tokenOk = getAccessToken()
+    Boolean tokenOk = getAccessToken()
     Boolean newInstall = (state?.isInstalled != true)
     Boolean resumeConf = (state?.resumeConfig == true)
     if(state?.refreshDeviceData == true) { getEchoDevices() }
@@ -112,52 +91,47 @@ def mainPage() {
             deviceDetectOpts()
         } else {
             if(!resumeConfig && state?.authValid != true) {
-                section() { paragraph title: "NOTICE:", "You are not currently logged in to Amazon.  Please complete the Authentication Process on the Server Login Page...", required: true, state: null }
+                section() { paragraph title: "NOTICE:", pTS("You are not currently logged in to Amazon.  Please complete the Authentication Process on the Server Login Page...", null, true, "red"), required: true, state: null }
             }
+            section(sTS("Alexa Guard:")) {
+                if(state?.alexaGuardSupported) {
+                    String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
+                    String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
+                    href "alexaGuardPage", title: inTS("Alexa Guard Control", getAppImg(gStateIcon, true)), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? "complete" : null,
+                            description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : ""}\n\nTap to proceed..."
+                } else { paragraph "Alexa Guard is not enabled or supported by any of your Echo Devices", image: getAppImg(gStateIcon) }
+            }
+
             section(sTS("Alexa Devices:")) {
                 if(!newInstall) {
-                    List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }?.sort()
+                    List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }
                     Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
                     Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
-                    if(devs?.size()) {
-                        href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
-                    } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
-                    if(skDevs?.size()) {
-                        String uDesc = "Unsupported: (${skDevs?.size()})"
-                        uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : ""
-                        uDesc += settings?.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : ""
-                        href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details..."
-                    }
-                }
-                def devPrefDesc = devicePrefsDesc()
-                href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
+                    List remDevs = getRemovableDevs()
+                    if(remDevs?.size()) { paragraph "Removable Devices:\n${remDevs?.sort()?.join("\n")}", required: true, state: null }
+                    href "deviceManagePage", title: inTS("Manage Devices:", getAppImg("devices", true)), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
+                } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
-            // def t1 = getGroupsDesc()
-            // def grpDesc = t1 ? "${t1}\n\nTap to modify" : null
-            // section(sTS("Manage Groups:")) {
-            //     href "groupsPage", title: inTS("Broadcast Groups", getAppImg("es_groups", true)), description: (grpDesc ?: "Tap to configure"), state: (grpDesc ? "complete" : null), image: getAppImg("es_groups")
-            // }
-
-            // def t2 = getActionsDesc()
-            // def actDesc = t2 ? "${t2}\n\nTap to modify" : null
-            // section(sTS("Manage Actions:")) {
-            //     href "actionsPage", title: inTS("Actions", getAppImg("es_actions", true)), description: (actDesc ?: "Tap to configure"), state: (actDesc ? "complete" : null), image: getAppImg("es_actions")
-            // }
-            state?.childInstallOkFlag = true
-
-            section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS("Device Test Page", getAppImg("broadcast", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
-                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
+            def acts = getActionApps()
+            section(sTS("Actions:")) {
+                paragraph "Create automation triggers from device/location events and perform advanced functions using your Alexa device."
+                href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: getActionsDesc(), state: (acts?.size() ? "complete" : null), image: getAppImg("es_actions")
             }
+
             section(sTS("Alexa Login Service:")) {
                 def t0 = getServiceConfDesc()
-                href "servPrefPage", title: inTS("Login Service\nSettings", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
+                href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
             }
             if(!state?.shownDevSharePage) { showDevSharePrefs() }
             section(sTS("Notifications:")) {
                 def t0 = getAppNotifConfDesc()
-                href "notifPrefPage", title: inTS("App and Device\nNotifications", getAppImg("devices", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+                href "notifPrefPage", title: inTS("Manage Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+            }
+
+            section(sTS("Experimental Functions:")) {
+                href "deviceTestPage", title: inTS("Device Testing", getAppImg("testing", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
+                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
             }
         }
         section(sTS("Documentation & Settings:")) {
@@ -174,40 +148,172 @@ def mainPage() {
         } else {
             showDevSharePrefs()
             section(sTS("Important Step:")) {
-                paragraph title: "Notice:", "Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", required: true, state: null
+                paragraph title: "Notice:", pTS("Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", null, true, "red"), required: true, state: null
                 state?.resumeConfig = true
             }
         }
+        state.ok2InstallActionFlag = false
     }
 }
 
-def groupsPage() {
-    return dynamicPage(name: "groupsPage", uninstall: false, install: false) {
-        def groupApp = findChildAppByName( grpChildName() )
-        if(groupApp) { /*Nothing to add here yet*/ }
-        else {
-            section("") {
-                paragraph "You haven't created any Broadcast Groups yet!\nTap Create New Group to get Started"
+def deviceManagePage() {
+    return dynamicPage(name: "deviceManagePage", uninstall: false, install: false) {
+        Boolean newInstall = (state?.isInstalled != true)
+        section(sTS("Alexa Devices:")) {
+            if(!newInstall) {
+                List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }?.sort()
+                Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
+                Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+                if(devs?.size()) {
+                    href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
+                } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
+                if(skDevs?.size()) {
+                    String uDesc = "Unsupported: (${skDevs?.size()})"
+                    uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : ""
+                    uDesc += settings?.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : ""
+                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details..."
+                }
             }
-        }
-        section("") {
-            app(name: "groupApp", appName: grpChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Group", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
+            def devPrefDesc = devicePrefsDesc()
+            href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : ""}Tap to configure...", state: "complete", image: getAppImg("devices")
         }
     }
+}
+
+def alexaGuardPage() {
+    return dynamicPage(name: "alexaGuardPage", uninstall: false, install: false) {
+        String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
+        String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
+        String gStateTitle = (gState == "Unknown" || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
+        section(sTS("Alexa Guard Control")) {
+            input "alexaGuardAwayToggle", "bool", title: inTS(gStateTitle, getAppImg(gStateIcon, true)), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getAppImg(gStateIcon)
+        }
+        if(settings?.alexaGuardAwayToggle != state?.alexaGuardAwayToggle) {
+            setGuardState(settings?.alexaGuardAwayToggle == true ? "ARMED_AWAY" : "ARMED_STAY")
+        }
+        state?.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
+        section(sTS("Automate Guard Control")) {
+            href "alexaGuardAutoPage", title: inTS("Automate Guard Changes", getAppImg("alarm_disarm", true)), description: guardAutoDesc(), image: getAppImg("alarm_disarm"), state: (guardAutoDesc() =="Tap to configure..." ? null : "complete")
+        }
+    }
+}
+
+def alexaGuardAutoPage() {
+    return dynamicPage(name: "alexaGuardAutoPage", uninstall: false, install: false) {
+        section(sTS("Set Guard using ${getAlarmSystemName(true)}")) {
+            input "guardHomeAlarm", "enum", title: inTS("Home in ${getAlarmSystemName(true)} modes.", getAppImg("alarm_home", true)), description: "Tap to select...", options: getAlarmModeOpts(), required: (settings?.guardAwayAlarm), multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
+            input "guardAwayAlarm", "enum", title: inTS("Away in ${getAlarmSystemName(true)} modes.", getAppImg("alarm_away", true)), description: "Tap to select...", options: getAlarmModeOpts(), required: (settings?.guardHomeAlarm), multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
+        }
+
+        section(sTS("Set Guard using Modes")) {
+            input "guardHomeModes", "mode", title: inTS("Home in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardAwayModes), multiple: true, submitOnChange: true, image: getAppImg("mode")
+            input "guardAwayModes", "mode", title: inTS("Away in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardHomeModes), multiple: true, submitOnChange: true, image: getAppImg("mode")
+        }
+        section(sTS("Set Guard using Presence")) {
+            input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when all of these Sensors are away?", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
+        }
+        if(guardAutoConfigured()) {
+            section(sTS("Delay:")) {
+                input "guardAwayDelay", "number", title: inTS("Delay before activating Guard?", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
+            }
+        }
+        section(sTS("Restrict Guard Changes (Optional):")) {
+            input "guardRestrictOnSwitch", "capability.switch", title: inTS("Only when these switch(es) are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardRestrictOffSwitch", "capability.switch", title: inTS("Only when these switch(es) are Off?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+        }
+    }
+}
+
+Boolean guardAutoConfigured() {
+    return ((settings?.guardAwayAlarm && settings?.guardHomeAlarm) || (settings?.guardAwayModes && settings?.guardHomeModes) || settings?.guardAwayPresence)
+}
+
+String guardAutoDesc() {
+    String str = ""
+    if(guardAutoConfigured()) {
+        str += "Guard Triggers:"
+        str += (settings?.guardAwayAlarm && settings?.guardHomeAlarm) ? bulletItem(str, "Using ${getAlarmSystemName()}\n") : ""
+        str += settings?.guardHomeModes ? bulletItem(str, "Home Modes: (${settings?.guardHomeModes?.size()})\n") : ""
+        str += settings?.guardAwayModes ? bulletItem(str, "Away Modes: (${settings?.guardAwayModes?.size()})\n") : ""
+        str += settings?.guardAwayPresence ? bulletItem(str, "Presence Home: (${settings?.guardAwayPresence?.size()})") : ""
+    }
+    return str == "" ? "Tap to configure..." : "${str}\n\nTap to configure..."
+}
+
+def guardTriggerEvtHandler(evt) {
+    def evtDelay = now() - evt?.date?.getTime()
+	log.trace "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    if(!guardRestrictOk()) {
+        log.debug "guardTriggerEvtHandler | Skipping Changes because restriction filter is active"
+        return
+    }
+    String newState = null
+    String curState = state?.alexaGuardState ?: null
+    switch(evt?.name as String) {
+        case "mode":
+            Boolean inAwayMode = isInMode(settings?.guardAwayModes)
+            Boolean inHomeMode = isInMode(settings?.guardHomeModes)
+            if(inAwayMode && inHomeMode) { log.error "Guard Control Trigger can't act because same mode is in both Home and Away input"; return; }
+            if(inAwayMode && !inHomeMode) { newState = "ARMED_AWAY" }
+            if(!inAwayMode && inHomeMode) { newState = "ARMED_STAY" }
+            break
+        case "presence":
+            newState = isSomebodyHome(settings?.guardAwayPresence) ? "ARMED_STAY" : "ARMED_AWAY"
+            break
+        case "alarmSystemStatus":
+        case "hsmStatus":
+            Boolean inAlarmHome = isInAlarmMode(settings?.guardHomeAlarm)
+            Boolean inAlarmAway = isInAlarmMode(settings?.guardAwayAlarm)
+            if(inAlarmAway && !inAlarmHome) { newState = "ARMED_AWAY" }
+            if(!inAlarmAway && inAlarmHome) { newState = "ARMED_STAY" }
+            break
+    }
+    if(curState == newState) { log.info "Skipping Guard Change... New Guard State is the same as current state: ($curState)"}
+    if(newState && curState != newState) {
+        if (newState == "ARMED_STAY") {
+            unschedule("setGuardAway")
+            log.info "Setting Alexa Guard Mode to Home..."
+            setGuardHome()
+        }
+        if(newState == "ARMED_AWAY") {
+            if(settings?.guardAwayDelay) { log.warn "Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)"; runIn(settings?.guardAwayDelay, "setGuardAway"); }
+            else { setGuardAway(); log.warn "Setting Alexa Guard Mode to Away..."; }
+        }
+    }
+}
+
+Boolean guardRestrictOk() {
+    Boolean onSwOk = settings?.guardRestrictOnSwitch ? isSwitchOn(settings?.guardRestrictOnSwitch) : true
+    Boolean offSwOk = settings?.guardRestrictOffSwitch ? !isSwitchOn(settings?.guardRestrictOffSwitch) : true
+    return (onSwOk && offSwOk)
 }
 
 def actionsPage() {
-    return dynamicPage(name: "actionsPage", uninstall: false, install: false) {
-        def actionApp = findChildAppByName( actChildName() )
+    return dynamicPage(name: "actionsPage", nextPage: "mainPage", uninstall: false, install: false) {
+        def actionApp = getChildApps()?.findAll { it?.name == actChildName() }
         if(actionApp) { /*Nothing to add here yet*/ }
         else {
             section("") {
-                paragraph "You haven't created any Actions yet!\nTap Create New Action to get Started"
+                paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started")
             }
         }
-        section("") {
+        section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
         }
+
+        if(actionApp) {
+            section (sTS("Pause All Actions:"), hideable: true, hidden: true) {
+                input "pauseChildActions", "bool", title: inTS("Pause All Actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                // executeActionPause()
+            }
+        }
+        state.childInstallOkFlag = true
+    }
+}
+
+private executeActionPause() {
+    getActionApps()?.each {
+        if(it?.isPaused() != settings?.pauseChildActions) { it?.updatePauseState(settings?.pauseChildActions) }
     }
 }
 
@@ -217,7 +323,7 @@ def devicePrefsPage() {
     return dynamicPage(name: "devicePrefsPage", uninstall: false, install: false) {
         deviceDetectOpts()
         section(sTS("Detection Override:")) {
-            paragraph "Device not detected?  Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.  This is useful for testing the device."
+            paragraph pTS("Device not detected?  Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.  This is useful for testing the device.", getAppImg("info", true), false)
             input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
         }
         devCleanupSect()
@@ -234,10 +340,11 @@ private deviceDetectOpts() {
         input "createWHA", "bool", title: inTS("Create Multiroom Devices?", getAppImg("echo_wha", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
         input "createOtherDevices", "bool", title: inTS("Create Other Alexa Enabled Devices?", getAppImg("devices", true)), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices")
         input "autoRenameDevices", "bool", title: inTS("Rename Devices to Match Amazon Echo Name?", getAppImg("name_tag", true)), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
+        input "addEchoNamePrefix", "bool", title: inTS("Add 'Echo - ' Prefix to label?", getAppImg("name_tag")), description: "", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
         Map devs = getAllDevices(true)
         if(devs?.size()) {
             input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
-            paragraph title:"Notice:", "To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use input before removing."
+            paragraph title:"Notice:", pTS("To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use these devices input above before removing.", getAppImg("info", true), false)
         }
     }
 }
@@ -247,7 +354,7 @@ private devCleanupSect() {
         section(sTS("Device Cleanup Options:")) {
             List remDevs = getRemovableDevs()
             if(remDevs?.size()) { paragraph "Removable Devices:\n${remDevs?.sort()?.join("\n")}", required: true, state: null }
-            paragraph title:"Notice:", "Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations"
+            paragraph title:"Notice:", pTS("Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations", getAppImg("info", true), true, "#2784D9")
             input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: "", required: false, defaultValue: false, submitOnChange: true
             if(cleanUpDevices) { removeDevices() }
         }
@@ -311,8 +418,8 @@ def deviceListPage() {
                 str += v?.supported != true ? "\nUnsupported Device: (True)" : ""
                 str += (v?.mediaPlayer == true && v?.musicProviders) ? "\nMusic Providers: [${v?.musicProviders}]" : ""
                 if(onST) {
-                    paragraph title: pTS(v?.name, getAppImg(v?.style?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image)
-                } else { href "deviceListPage", title: pTS(v?.name, getAppImg(v?.style?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image) }
+                    paragraph title: pTS(v?.name, getAppImg(v?.style?.image, true), false, "#2784D9"), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image)
+                } else { href "deviceListPage", title: inTS(v?.name, getAppImg(v?.style?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.style?.image) }
             }
         }
     }
@@ -330,12 +437,12 @@ def unrecogDevicesPage() {
                     String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${v?.desc}\nFamily: ${v?.family}\nType: ${v?.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
                     str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
                     if(onST) {
-                        paragraph title: pTS(v?.name, getAppImg(v?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
-                    } else { href "unrecogDevicesPage", title: pTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
+                        paragraph title: pTS(v?.name, getAppImg(v?.image, true), false), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
+                    } else { href "unrecogDevicesPage", title: inTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
                 }
                 input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
-                paragraph "No Uncognized Devices"
+                paragraph pTS("No Uncognized Devices", null, true)
             }
         }
         if(ignDevs?.size()) {
@@ -344,8 +451,8 @@ def unrecogDevicesPage() {
                     String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${v?.desc}\nFamily: ${v?.family}\nType: ${v?.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
                     str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
                     if(onST) {
-                        paragraph title: pTS(v?.name, getAppImg(v?.image, true)), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
-                    } else { href "unrecogDevicesPage", title: pTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
+                        paragraph title: pTS(v?.name, getAppImg(v?.image, true), false, "#2784D9"), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
+                    } else { href "unrecogDevicesPage", title: inTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
                 }
             }
         }
@@ -354,7 +461,7 @@ def unrecogDevicesPage() {
 
 def showDevSharePrefs() {
     section(sTS("Share Data with Developer:")) {
-        paragraph title: "What is this used for?", "These options send non-user identifiable information and error data to diagnose catch trending issues."
+        paragraph title: "What is this used for?", pTS("These options send non-user identifiable information and error data to diagnose catch trending issues.", null, false)
         input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
         if(settings?.optOutMetrics != true) {
             href url: getAppEndpointUrl("renderMetricData"), style: (isST() ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
@@ -394,7 +501,7 @@ def servPrefPage() {
         Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
         Boolean onHeroku = (isST() || settings?.useHeroku != false)
 
-        if(state?.generatedHerokuName) { section() { paragraph title: "Heroku Name:", "${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", state: "complete" }; }
+        if(state?.generatedHerokuName) { section() { paragraph title: "Heroku Name:", pTS("${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", null, false, "orange"), state: "complete" }; }
         if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
         if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
         if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
@@ -425,8 +532,8 @@ def servPrefPage() {
                 }
             }
             if(state?.authValid) {
-                section(sTS("Cookie Info:")) {
-                    if(state?.lastCookieRefresh) { paragraph "Cookie Date: (${state?.lastCookieRefresh})", state: "complete" }
+                section(sTS("Cookie Management:")) {
+                    if(state?.lastCookieRefresh) { paragraph pTS("Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})", null, false, "#2784D9"), state: "complete" }
                     input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                     if(refreshCookie) { runCookieRefresh() }
                 }
@@ -447,7 +554,7 @@ def servPrefPage() {
 def srvcPrefOpts(pre=false) {
     section(sTS("${pre ? "Required " : ""}Amazon Region Settings${state?.serviceConfigured ? " (Tap to view)" : ""}"), hideable: state?.serviceConfigured, hidden: state?.serviceConfigured) {
         input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
-        input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("web", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("web")
+        input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("www", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
     }
 }
 
@@ -457,7 +564,7 @@ def notifPrefPage() {
         Integer pollMsgWait = 3600
         Integer updNotifyWait = 7200
         section("") {
-            paragraph title: "Notice:", "The settings configure here are used by both the App and the Devices.", state: "complete"
+            paragraph title: "Notice:", pTS("The settings configure here are used by both the App and the Devices.", getAppImg("info", true), true, "#2784D9"), state: "complete"
         }
         section(sTS("Push Messages:")) {
             input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
@@ -788,7 +895,7 @@ private executeTuneInSearch() {
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-    Map results = makeSyncronousReq(params, "get", "tuneInSearch") ?: [:]
+    Map results = makeSyncHttpReq(params, "get", "tuneInSearch") ?: [:]
     return results
 }
 
@@ -804,7 +911,7 @@ private executeMusicSearchTest() {
 
 def musicSearchTestPage() {
     return dynamicPage(name: "musicSearchTestPage", uninstall: false, install: false) {
-        section(sTS("Test a Music Search on Device:")) {
+        section("Test a Music Search on Device:") {
             paragraph "Use this to test the search you discovered above directly on a device.", state: "complete"
             Map testEnum = ["CLOUDPLAYER": "My Library", "AMAZON_MUSIC": "Amazon Music", "I_HEART_RADIO": "iHeartRadio", "PANDORA": "Pandora", "APPLE_MUSIC": "Apple Music", "TUNEIN": "TuneIn", "SIRIUSXM": "siriusXm", "SPOTIFY": "Spotify"]
             input "musicTestProvider", "enum", title: inTS("Select Music Provider to perform test", getAppImg("music", true)), defaultValue: null, required: false, options: testEnum, submitOnChange: true, image: getAppImg("music")
@@ -844,8 +951,8 @@ def searchTuneInResultsPage() {
                                 str += "\nId: (${item2?.id})"
                                 str += "\nDescription: ${item2?.description}"
                                 if(onST) {
-                                    paragraph title: pTS(item2?.name?.take(75), (onST ? null : item2?.image)), str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: item2?.image ?: ""
-                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (onST ? null : item2?.image)), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: onST && item2?.image ? item2?.image : null }
+                                    paragraph title: pTS(item2?.name?.take(75), (onST ? null : item2?.image), false), str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: item2?.image ?: ""
+                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (onST ? null : item2?.image), false), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: onST && item2?.image ? item2?.image : null }
                             }
                         } else {
                             String str = ""
@@ -853,8 +960,8 @@ def searchTuneInResultsPage() {
                             str += "\nId: (${item?.id})"
                             str += "\nDescription: ${item?.description}"
                             if(onST) {
-                                paragraph title: pTS(item?.name?.take(75), (onST ? null : item?.image)), str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: item?.image ?: ""
-                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (onST ? null : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: onST && item?.image ? item?.image : null }
+                                paragraph title: pTS(item?.name?.take(75), (onST ? null : item?.image), false), str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: item?.image ?: ""
+                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (onST ? null : item?.image), false), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: onST && item?.image ? item?.image : null }
                         }
                     }
                 }
@@ -868,9 +975,24 @@ private getChildDeviceBySerial(String serial) {
     return childDevs?.find { it?.deviceNetworkId?.tokenize("|")?.contains(serial) } ?: null
 }
 
-private getChildDeviceByCap(String cap) {
+public getChildDeviceByCap(String cap) {
     def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
     return childDevs?.find { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) } ?: null
+}
+
+public getDevicesFromList(List ids) {
+    def cDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    return cDevs?.findAll { it?.id in ids } ?: null
+}
+
+public getDeviceFromId(String id) {
+    def cDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    return cDevs?.find { it?.id == id } ?: null
+}
+
+public getChildDevicesByCap(String cap) {
+    def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    return childDevs?.findAll { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) } ?: null
 }
 
 def donationPage() {
@@ -904,6 +1026,7 @@ def updated() {
     log.debug "Updated with settings: ${settings}"
     if(!state?.isInstalled) { state?.isInstalled = true }
     if(!state?.installData) { state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: getDtNow().toString(), shownDonation: false, sentMetrics: false] }
+    unsubscribe()
     unschedule()
     initialize()
 }
@@ -911,16 +1034,27 @@ def updated() {
 def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
-    subscribe(app, onAppTouch)
     if(!state?.resumeConfig) {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
         appCleanup()
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         validateCookie(true)
-        runIn(15, "reInitDevices")
+        runIn(15, "reInitChildren")
         getOtherData()
         getEchoDevices()
+    }
+    subscribe(app, onAppTouch)
+    if((settings?.guardHomeAlarm && settings?.guardAwayAlarm) || settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
+        if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
+            subscribe(location, "${!isST() ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
+        }
+        if(settings?.guardAwayModes && settings?.guardHomeModes) {
+            subscribe(location, "mode", guardTriggerEvtHandler)
+        }
+        if(settings?.guardAwayPresence) {
+            subscribe(settings?.guardAwayPresence, "presence", guardTriggerEvtHandler)
+        }
     }
 }
 
@@ -933,21 +1067,8 @@ def uninstalled() {
     removeDevices(true)
 }
 
-def getGroupApps() {
-    return getChildApps()?.findAll { it?.name == grpChildName() }
-}
-
 def getActionApps() {
-    return getChildApps()?.findAll { it?.name == actChildName() }
-}
-
-public getBroadcastGrps() {
-    Map grps = [:]
-    def groupApps = getChildApps()?.findAll { it?.name == grpChildName() }
-    groupApps?.each { grp->
-        grps[grp?.getId() as String] = grp?.getBroadcastGroupData(true)
-    }
-    return grps
+    return getAllChildApps()?.findAll { it?.name == actChildName() }
 }
 
 def onAppTouch(evt) {
@@ -971,6 +1092,7 @@ mappings {
     path("/renderMetricData")  { action: [GET: "renderMetricData"] }
     path("/receiveData")       { action: [POST: "processData"] }
     path("/config")            { action: [GET: "renderConfig"] }
+    path("/textEditor/:cId/:inName") { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
     path("/cookie")            { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
 }
 
@@ -1050,8 +1172,9 @@ private resetQueues() {
     (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.resetQueue() }
 }
 
-private reInitDevices() {
+private reInitChildren() {
     (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.triggerInitialize() }
+    updChildAppVer()
 }
 
 private updCodeVerMap(key, val) {
@@ -1084,6 +1207,7 @@ def processData() {
 def getCookieData() {
     log.trace "getCookieData() Request Received..."
     Map resp = state?.cookieData ?: [:]
+    resp["refreshDt"] = state?.lastCookieRefresh ?: null
     def json = new groovy.json.JsonOutput().toJson(resp)
     incrementCntByKey("getCookieCnt")
     render contentType: "application/json", data: json
@@ -1163,7 +1287,7 @@ private validateCookie(frc=false) {
         execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
     } catch(ex) {
         incrementCntByKey("err_app_cookieValidCnt")
-        log.error "validateCookie() Exception:", ex
+        log.error "validateCookie() Exception: ${ex.message}"
     }
 }
 
@@ -1241,7 +1365,7 @@ private apiHealthCheck(frc=false) {
         }
     } catch(ex) {
         incrementCntByKey("err_app_apiHealthCnt")
-        log.error "apiHealthCheck() Exception:", ex
+        log.error "apiHealthCheck() Exception: ${ex.message}"
     }
 }
 
@@ -1278,20 +1402,16 @@ private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, 
 
 private noAuthReminder() { log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..." }
 
-private makeSyncronousReq(params, method="get", src, showLogs=false) {
+def makeSyncHttpReq(Map params, String method="get", String src, Boolean strInJsonResp=false, Boolean showLogs=false) {
     try {
         "http${method?.toString()?.toLowerCase()?.capitalize()}"(params) { resp ->
-            if(resp?.data) {
-                // log.debug "status: ${resp?.status}"
-                if(showLogs) { log.debug "makeSyncronousReq(Src: $src) | Status: ${resp?.status}: ${resp?.data}" }
-                return resp?.data
-            }
-            return null
+            if(showLogs) { log.debug "makeSyncHttpReq(Src: $src) | Status: ${resp?.status}: ${resp?.data}" }
+            return resp?.data ?: null
         }
     } catch (ex) {
         if(ex instanceof  groovyx.net.http.ResponseParseException) {
-            log.error "There was an errow while parsing the response: ", ex
-        } else { log.error "makeSyncronousReq(Method: ${method}, Src: ${src}) exception", ex }
+            log.error "There was an error while parsing the response: ${ex.message}"
+        } else { log.error "makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}" }
         return null
     }
 }
@@ -1306,6 +1426,11 @@ public childInitiatedRefresh() {
     } else {
         log.warn "childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)"
     }
+}
+
+public updChildAppVer() {
+    def actApps = getActionApps()
+    if(actApps?.size()) { updCodeVerMap("actionApp", actApps[0]?.appVersion()) }
 }
 
 private getEchoDevices() {
@@ -1333,19 +1458,20 @@ private getMusicProviders() {
         contentType: "application/json"
     ]
     Map items = [:]
-    List musicResp = makeSyncronousReq(params, "get", "getMusicProviders") ?: [:]
+    List musicResp = makeSyncHttpReq(params, "get", "getMusicProviders") ?: []
     if(musicResp?.size()) {
         musicResp?.findAll { it?.availability == "AVAILABLE" }?.each { item->
             items[item?.id] = item?.displayName
         }
     }
-    // log.debug "items: $items"
+    // log.debug "Music Providers: ${items}"
     return items
 }
 
 private getOtherData() {
     getBluetoothDevices()
     getDoNotDisturb()
+    checkGuardSupport()
 }
 
 private getBluetoothDevices() {
@@ -1358,7 +1484,7 @@ private getBluetoothDevices() {
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-    def btResp = makeSyncronousReq(params, "get", "getBluetoothDevices") ?: null
+    def btResp = makeSyncHttpReq(params, "get", "getBluetoothDevices") ?: null
     state?.bluetoothData = btResp ?: [:]
 }
 
@@ -1370,12 +1496,12 @@ def getBluetoothData(serialNumber) {
     Map bluData = btData && btData?.bluetoothStates?.size() ? btData?.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
     if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
         def bData = bluData?.pairedDeviceList?.findAll { (it?.deviceClass != "GADGET") }
-        bData?.each {
+        bData?.findAll { it?.address != null }?.each {
             btObjs[it?.address as String] = it
             if(it?.connected == true) { curConnName = it?.friendlyName as String }
         }
     }
-    return [btObjs: btObjs, pairedNames: btObjs?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
+    return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
 }
 
 private getDoNotDisturb() {
@@ -1387,7 +1513,7 @@ private getDoNotDisturb() {
         requestContentType: "application/json",
         contentType: "application/json",
     ]
-    def dndResp = makeSyncronousReq(params, "get", "getDoNotDisturb") ?: null
+    def dndResp = makeSyncHttpReq(params, "get", "getDoNotDisturb") ?: null
     state?.dndData = dndResp ?: [:]
 }
 
@@ -1398,7 +1524,7 @@ def getDndEnabled(serialNumber) {
     return (dndData && dndData?.enabled == true)
 }
 
-private getRoutines(autoId=null, limit=2000) {
+public def getAlexaRoutines(autoId=null, utterOnly=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
@@ -1407,27 +1533,42 @@ private getRoutines(autoId=null, limit=2000) {
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-    Map items = [:]
-    def routineResp = makeSyncronousReq(params, "get", "getRoutinesHandler") ?: [:]
+
+    def routineResp = makeSyncHttpReq(params, "get", "getAlexaRoutines") ?: [:]
     // log.debug "routineResp: $routineResp"
     if(routineResp) {
         if(autoId) {
             return routineResp
         } else {
+            Map items = [:]
+            Integer cnt = 1
             if(routineResp?.size()) {
                 routineResp?.findAll { it?.status == "ENABLED" }?.each { item->
-                    items[item?.automationId] = item?.name
+                    if(utterOnly) {
+                        if(item?.triggers?.size()) {
+                            item?.triggers?.each { trg->
+                                if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
+                                    items[item?.automationId] = trg?.payload?.utterance as String
+                                } else {
+                                    items[item?.automationId] = "Unlabeled Routine ($cnt)"
+                                    cnt++
+                                }
+                            }
+                        }
+                    } else {
+                        items[item?.automationId] = item?.name
+                    }
                 }
             }
+            // log.debug "routine items: $items"
+            return items
         }
     }
-    // log.debug "routine items: $items"
-    return items
 }
 
 def executeRoutineById(String routineId) {
     def execDt = now()
-    Map routineData = getRoutines(routineId)
+    Map routineData = getAlexaRoutines(routineId)
     if(routineData && routineData?.sequence) {
         sendSequenceCommand("ExecuteRoutine", routineData, null)
         // log.debug "Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${routineId}"
@@ -1436,6 +1577,132 @@ def executeRoutineById(String routineId) {
         log.debug "No Routine Data Returned for ID: (${routineId})"
         return false
     }
+}
+
+def checkGuardSupport() {
+    if(!isAuthValid("checkGuardSupport")) { return }
+    def params = [
+        uri: getAmazonUrl(),
+        path: "/api/phoenix",
+        query: [ cached: true, _: new Date().getTime() ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json",
+    ]
+    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
+}
+
+def checkGuardSupportResponse(response, data) {
+    // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
+    //TODO: This will fail on ST platform if the json file size returned is greater than 500Kb
+    //TODO: Maybe we can use the server to get the required ID needed to make guard requests
+    def resp = parseJson(response?.data?.toString())
+    Boolean guardSupported = false
+    if(resp && resp?.networkDetail) {
+        def details = parseJson(resp?.networkDetail as String)
+        def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
+        if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
+            def guardKey = locDetails?.applianceDetails?.applianceDetails?.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+            def guardData = locDetails?.applianceDetails?.applianceDetails[guardKey?.key]
+            // log.debug "Guard: ${guardData}"
+            if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
+                state?.guardData = [
+                    entityId: guardData?.entityId,
+                    applianceId: guardData?.applianceId,
+                    friendlyName: guardData?.friendlyName,
+                ]
+                guardSupported = true
+            } else { log.error "checkGuardSupportResponse Error | No data received..." }
+        }
+    } else { log.error "checkGuardSupportResponse Error | No data received..." }
+    state?.alexaGuardSupported = guardSupported
+    if(guardSupported) getGuardState()
+}
+
+private getGuardState() {
+    if(!isAuthValid("getGuardState")) { return }
+    if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return; }
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/phoenix/state",
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json",
+        body: [ stateRequests: [ [entityId: state?.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
+    ]
+    try {
+        httpPost(params) { resp ->
+            def respData = resp?.data ?: null
+            if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
+                def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
+                state?.alexaGuardState = guardStateData?.value[0] ? guardStateData?.value[0] : guardStateData?.value
+                settingUpdate("alexaGuardAwayToggle", ((state?.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
+                logger("debug", "Alexa Guard State: (${state?.alexaGuardState})")
+            }
+            // log.debug "GuardState resp: ${respData}"
+        }
+    } catch (ex) {
+        if(ex instanceof  groovyx.net.http.ResponseParseException) {
+            log.error "There was an error while parsing the response: ${ex.message}"
+        } else { log.error "makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}" }
+    }
+}
+
+private setGuardState(guardState) {
+    if(!isAuthValid("setGuardState")) { return }
+    if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return; }
+    guardState = guardStateConv(guardState)
+    log.trace "setAlexaGuard($guardState)"
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/phoenix/state",
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        requestContentType: "application/json",
+        contentType: "application/json",
+        body: [ controlRequests: [ [ entityId: state?.guardData?.applianceId, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ]
+    ]
+    execAsyncCmd("put", "setGuardStateResponse", params, [execDt: now(), requestedState: guardState ])
+}
+
+private guardStateConv(gState) {
+    switch(gState) {
+        case "disarm":
+        case "off":
+        case "stay":
+        case "home":
+        case "ARMED_STAY":
+            return "ARMED_STAY"
+        case "away":
+        case "ARMED_AWAY":
+            return "ARMED_AWAY"
+        default:
+            return "ARMED_STAY"
+    }
+}
+
+def setGuardStateResponse(response, data) {
+    def resp = response?.json
+    // log.debug "resp: ${resp}"
+    if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
+        log.info "Alexa Guard set to (${data?.requestedState}) Successfully!!!"
+        state?.alexaGuardState = data?.requestedState
+    } else { log.error "Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}" }
+}
+
+String getAlexaGuardStatus() {
+    return state?.alexaGuardState ?: null
+}
+
+Boolean getAlexaGuardSupported() {
+    return (state?.alexaGuardSupported == true) ? true : false
+}
+
+public setGuardHome() {
+    setGuardState("ARMED_STAY")
+}
+
+public setGuardAway() {
+    setGuardState("ARMED_AWAY")
 }
 
 Map isFamilyAllowed(String family) {
@@ -1482,7 +1749,7 @@ def echoDevicesResponse(response, data) {
         // log.debug "echoDevices: ${echoDevices}"
         receiveEventData([echoDevices: echoDevices, musicProviders: getMusicProviders(), execDt: data?.execDt], "Groovy")
     } catch (ex) {
-        log.error "echoDevicesResponse Exception", ex
+        log.error "echoDevicesResponse Exception: ${ex.message}"
     }
 }
 
@@ -1499,15 +1766,9 @@ def receiveEventData(Map evtData, String src) {
             Boolean onHeroku = (state?.onHeroku == true && state?.isLocal == true)
 
             //Check for minimum versions before processing
-            Boolean updRequired = false
-            List updRequiredItems = []
-            ["server":"Echo Speaks Server", "echoDevice":"Echo Speaks Device"]?.each { k,v->
-                Map codeVers = state?.codeVersions
-                if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) {
-                    updRequired = true
-                    updRequiredItems?.push("$v")
-                }
-            }
+            Map updReqMap = getMinVerUpdsRequired()
+            Boolean updRequired = updReqMap?.updRequired
+            List updRequiredItems = updReqMap?.updItems
 
             if (evtData?.echoDevices?.size()) {
                 def execTime = evtData?.execDt ? (now()-evtData?.execDt) : 0
@@ -1591,7 +1852,8 @@ def receiveEventData(Map evtData, String src) {
                     permissions["followUpMode"] = (echoValue?.capabilities?.contains("GOLDFISH"))
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     permissions["bluetoothControl"] = (echoValue?.capabilities.contains("PAIR_BT_SOURCE") || echoValue?.capabilities.contains("PAIR_BT_SINK"))
-                    permissions["alexaGuardSupport"] = (echoValue?.capabilities?.contains("TUPLE"))
+                    permissions["guardSupported"] = (echoValue?.capabilities?.contains("TUPLE"))
+                    echoValue["guardStatus"] = (state?.alexaGuardSupported && state?.alexaGuardState) ? state?.alexaGuardState as String : (permissions?.guardSupported ? "Unknown" : "Not Supported")
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
@@ -1606,8 +1868,9 @@ def receiveEventData(Map evtData, String src) {
 
                     String dni = [app?.id, "echoSpeaks", echoKey].join("|")
                     def childDevice = getChildDevice(dni)
-                    String devLabel = "Echo - ${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
+                    String devLabel = "${settings?.addEchoNamePrefix != false ? "Echo - " : ""}${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
                     String childHandlerName = "Echo Speaks Device"
+                    Boolean autoRename = (settings?.autoRenameDevices != false)
                     if (!childDevice) {
                         // log.debug "childDevice not found | autoCreateDevices: ${settings?.autoCreateDevices}"
                         if(settings?.autoCreateDevices != false) {
@@ -1615,19 +1878,20 @@ def receiveEventData(Map evtData, String src) {
                                 log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)${(settings?.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : "" }"
                                 childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
                             } catch(ex) {
-                                log.error "AddDevice Error! ", ex
+                                log.error "AddDevice Error! | ${ex.message}"
                             }
                         }
                     } else {
                         //Check and see if name needs a refresh
-                        if (settings?.autoRenameDevices != false && (childDevice?.name != childHandlerName || childDevice?.label != devLabel)) {
-                            log.debug ("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${childDevice?.label})")
-                            childDevice?.name = childHandlerName as String
+                        String curLbl = childDevice?.getLabel()
+                        if(autoRename && childDevice?.name as String != childHandlerName) { childDevice?.name = childHandlerName as String }
+                        // log.debug "curLbl: ${curLbl} | newLbl: ${devLabel} | autoRename: ${autoRename}"
+                        if(autoRename && (curLbl != devLabel)) {
+                            log.debug ("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${curLbl})")
                             childDevice?.setLabel(devLabel as String)
                         }
                         // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
-                        // childDevice?.updateServiceInfo(getServiceHostInfo(), onHeroku)
                         updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
                     curDevFamily.push(echoValue?.deviceStyle?.name)
@@ -1648,9 +1912,22 @@ def receiveEventData(Map evtData, String src) {
             if(state?.installData?.sentMetrics != true) { runIn(900, "sendInstallData", [overwrite: false]) }
         }
     } catch(ex) {
-        log.error "receiveEventData Error:", ex
+        log.error "receiveEventData Error: ${ex.message}"
         incrementCntByKey("appErrorCnt")
     }
+}
+
+private Map getMinVerUpdsRequired() {
+    Boolean updRequired = false
+    List updItems = []
+    ["server":"Echo Speaks Server", "echoDevice":"Echo Speaks Device", "actionApp":"Echo Speaks Actions"]?.each { k,v->
+        Map codeVers = state?.codeVersions
+        if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) {
+            updRequired = true
+            updItems?.push("$v")
+        }
+    }
+    return [updRequired: updRequired, updItems: updItems]
 }
 
 public getDeviceStyle(String family, String type) {
@@ -1715,7 +1992,7 @@ private removeDevices(all=false) {
             Boolean isST = isST()
             items?.each {  isST ? deleteChildDevice(it as String, true) : deleteChildDevice(it as String) }
         }
-    } catch (ex) { log.error "Device Removal Failed: ", ex }
+    } catch (ex) { log.error "Device Removal Failed: ${ex.message}" }
 }
 
 Map sequenceBuilder(cmd, val) {
@@ -1896,18 +2173,16 @@ private missPollNotify(Boolean on, Integer wait) {
 private appUpdateNotify() {
     Boolean on = (settings?.sendAppUpdateMsg != false)
     Boolean appUpd = isAppUpdateAvail()
-    Boolean actUpd = false//isActionAppUpdateAvail()
-    Boolean grpUpd = false//isGroupAppUpdateAvail()
+    Boolean actUpd = isActionAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
-    logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | grpUpd: (${grpUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
+    logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
-        if(on && (appUpd || actUpd || grpUpd || echoDevUpd || servUpd)) {
+        if(on && (appUpd || actUpd || echoDevUpd || servUpd)) {
             state?.updateAvailable = true
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
-            str += !grpUpd ? "" : "\nEcho Speaks - Groups: v${state?.appData?.versions?.groupApp?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
             str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
@@ -1916,6 +2191,21 @@ private appUpdateNotify() {
         }
         state?.updateAvailable = false
     }
+}
+
+private List codeUpdateItems() {
+    Boolean appUpd = isAppUpdateAvail()
+    Boolean actUpd = isActionAppUpdateAvail()
+    Boolean devUpd = isEchoDevUpdateAvail()
+    Boolean servUpd = isServerUpdateAvail()
+    List updItems = []
+    if(appUpd || actUpd || devUpd || servUpd) {
+        if(appUpd) updItems.push("\nEcho Speaks App: (v${state?.appData?.versions?.mainApp?.ver?.toString()})")
+        if(actUpd) updItems.push("\nEcho Speaks - Actions: (v${state?.appData?.versions?.actionApp?.ver?.toString()})")
+        if(devUpd) updItems.push("\nEcho Speaks Device: (v${state?.appData?.versions?.echoDevice?.ver?.toString()})")
+        if(servUpd) updItems.push("\nServer: (v${state?.appData?.versions?.server?.ver?.toString()})")
+    }
+    return updItems
 }
 
 Boolean pushStatus() { return (settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || settings?.pushoverEnabled) ? ((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
@@ -2023,19 +2313,19 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
         }
     } catch (ex) {
         incrementCntByKey("appErrorCnt")
-        log.error "sendMsg $sentstr Exception:", ex
+        log.error "sendMsg $sentstr Exception: ${ex.message}"
     }
     return sent
 }
 
-String getAppImg(String imgName, frc=false) { return (frc || state?.hubPlatform == "SmartThings") ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
-String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
-String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</h3>""" }
-String inTS(String t, String i = null) { return isST() ? t : """${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>""" }
-String pTS(String t, String i = null) { return isST() ? t : """<b>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", " ")}</b>""" }
+Boolean childInstallOk() { return (state?.childInstallOkFlag == true) }
+String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getPublicImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
+String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
+String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+String inTS(String t, String i = null, color=null) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : ""}""" }
 
 String actChildName(){ return "Echo Speaks - Actions" }
-String grpChildName(){ return "Echo Speaks - Groups" }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
@@ -2120,7 +2410,7 @@ def queueFirebaseData(url, path, data, cmdType=null, type=null) {
             result = true
         } else { log.debug "queueFirebaseData UNKNOWN cmdType: ${cmdType}" }
 
-    } catch(ex) { log.error "queueFirebaseData (type: $typeDesc) Exception:", ex }
+    } catch(ex) { log.error "queueFirebaseData (type: $typeDesc) Exception: ${ex.message}" }
     return result
 }
 
@@ -2159,7 +2449,7 @@ def processFirebaseResponse(resp, data) {
         } else { log.warn "processFirebaseResponse: 'Unexpected' Response: ${resp?.status}" }
         if (isST() && resp?.hasError()) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
     } catch(ex) {
-        log.error "processFirebaseResponse (type: $typeDesc) Exception:", ex
+        log.error "processFirebaseResponse (type: $typeDesc) Exception: ${ex.message}"
     }
 }
 
@@ -2167,7 +2457,7 @@ def renderMetricData() {
     try {
         def json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
         render contentType: "application/json", data: json
-    } catch (ex) { log.error "renderMetricData Exception:", ex }
+    } catch (ex) { log.error "renderMetricData Exception: ${ex.message}" }
 }
 
 private Map getSkippedDevsAnon() {
@@ -2213,7 +2503,7 @@ private createMetricsDataJson(rendAsMap=false) {
         def json = new groovy.json.JsonOutput().toJson(dataObj)
         return json
     } catch (ex) {
-        log.error "createMetricsDataJson: Exception:", ex
+        log.error "createMetricsDataJson: Exception: ${ex.message}"
     }
 }
 
@@ -2260,11 +2550,6 @@ Boolean isAppUpdateAvail() {
 
 Boolean isActionAppUpdateAvail() {
     if(state?.appData?.versions && state?.codeVersions?.actionApp && isCodeUpdateAvailable(state?.appData?.versions?.actionApp?.ver, state?.codeVersions?.actionApp, "action_app")) { return true }
-    return false
-}
-
-Boolean isGroupAppUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.groupApp && isCodeUpdateAvailable(state?.appData?.versions?.groupApp?.ver, state?.codeVersions?.groupApp, "group_app")) { return true }
     return false
 }
 
@@ -2326,7 +2611,7 @@ private getWebData(params, desc, text=true) {
         incrementCntByKey("appErrorCnt")
         if(ex instanceof groovyx.net.http.HttpResponseException) {
             log.warn("${desc} file not found")
-        } else { log.error "getWebData(params: $params, desc: $desc, text: $text) Exception:", ex }
+        } else { log.error "getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex.message}" }
         return "${label} info not found"
     }
 }
@@ -2349,6 +2634,13 @@ def parseDt(pFormat, dt, tzFmt=true) {
     result = formatDt(newDt, tzFmt)
     //log.debug "parseDt Result: $result"
     return result
+}
+
+def parseFmtDt(parseFmt, newFmt, dt) {
+    def newDt = Date.parse(parseFmt, dt?.toString())
+    def tf = new SimpleDateFormat(newFmt)
+    if(location.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf?.format(newDt)
 }
 
 def getDtNow() {
@@ -2382,7 +2674,7 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         return diff
     }
     catch (ex) {
-        log.error "GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate):", ex
+        log.error "GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex.message}"
         return 10000
     }
 }
@@ -2395,11 +2687,11 @@ String getAppNotifConfDesc() {
     if(pushStatus()) {
         def ap = getAppNotifDesc()
         def nd = getNotifSchedDesc()
-        str += (settings?.usePush) ? "${str != "" ? "\n" : ""}Sending via: (Push)" : ""
-        str += (settings?.pushoverEnabled) ? "${str != "" ? "\n" : ""}Pushover: (Enabled)" : ""
-        str += (settings?.pushoverEnabled && settings?.pushoverPriority) ? bulletItem(str, "Priority: (${settings?.pushoverPriority})") : ""
-        str += (settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : ""
-        str += (settings?.phone) ? "${str != "" ? "\n" : ""}Sending via: (SMS)" : ""
+        str += (settings?.usePush) ? bulletItem(str, "Sending via: (Push)") : ""
+        str += (settings?.pushoverEnabled) ? bulletItem(str, "Pushover: (Enabled)") : ""
+        // str += (settings?.pushoverEnabled && settings?.pushoverPriority) ? bulletItem(str, "Priority: (${settings?.pushoverPriority})") : ""
+        // str += (settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : ""
+        str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : ""
         str += (ap) ? "${str != "" ? "\n\n" : ""}Enabled Alerts:\n${ap}" : ""
         str += (ap && nd) ? "${str != "" ? "\n" : ""}\nAlert Restrictions:\n${nd}" : ""
     }
@@ -2427,10 +2719,10 @@ String getNotifSchedDesc() {
 
 String getServiceConfDesc() {
     String str = ""
-    str += (state?.generatedHerokuName && state?.onHeroku) ? bulletItem(str, "Heroku: (Configured)") : ""
-    str += (state?.serviceConfigured && state?.isLocal) ? bulletItem(str, "Local Server: (Configured)") : ""
-    str += (settings?.amazonDomain) ? bulletItem(str, "Domain: (${settings?.amazonDomain})") : ""
-    str += (state?.lastCookieRefresh) ? bulletItem(str, "Cookie Date: (${state?.lastCookieRefresh})") : ""
+    str += (state?.generatedHerokuName && state?.onHeroku) ? "Heroku: (Configured)\n" : ""
+    str += (state?.serviceConfigured && state?.isLocal) ? "Local Server: (Configured)\n" : ""
+    str += (settings?.amazonDomain) ? "Domain: (${settings?.amazonDomain})\n" : ""
+    str += (state?.lastCookieRefresh) ? "Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})\n" : ""
     return str != "" ? str : null
 }
 
@@ -2442,14 +2734,9 @@ String getAppNotifDesc() {
     return str != "" ? str : null
 }
 
-String getGroupsDesc() {
-    def grps = getGroupApps()
-    return grps?.size() ? " • (${grps?.size()}) Groups Configured" : null
-}
-
 String getActionsDesc() {
     def acts = getActionApps()
-    return acts?.size() ? " • (${acts?.size()}) Actions Configured" : null
+    return acts?.size() ? "(${acts?.size()}) Actions Configured\n\nTap to modify" : "Tap to configure"
 }
 
 String getServInfoDesc() {
@@ -2489,6 +2776,50 @@ String getInputToStringDesc(inpt, addSpace = null) {
     return (str != "") ? "${str}" : null
 }
 
+def appInfoSect()	{
+    Map codeVer = state?.codeVersions ?: null
+    String str = ""
+    Boolean isNote = false
+    if(codeVer && (codeVer?.server || codeVer?.echoDevice)) {
+        str += bulletItem(str, "App: (v${appVersion()})")
+        str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
+        str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
+        str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
+    } else { str += "App: v${appVersion()}" }
+    section() {
+        href "changeLogPage", title: inTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
+        if(!state?.isInstalled) {
+            paragraph pTS("--NEW Install--", null, true, "#2784D9"), state: "complete"
+        } else {
+            if(!state?.noticeData) { getNoticeData() }
+            Map minUpdMap = getMinVerUpdsRequired()
+            List codeUpdItems = codeUpdateItems()
+            List remDevs = getRemovableDevs()
+            if(codeUpdItems?.size()) {
+                isNote=true
+                String str2 = "Code Updates Available for:"
+                codeUpdItems?.each { item-> str2 += bulletItem(str2, item) }
+                paragraph pTS(str2, null, false, "#2784D9"), required: true, state: null
+            }
+            if(minUpdMap?.updRequired) {
+                isNote=true
+                String str3 = "Updates Required for:"
+                minUpdMap?.updItems?.each { item-> str3 += bulletItem(str3, item)  }
+                paragraph pTS(str3, null, false, "red"), required: true, state: null
+            }
+            if(!state?.authValid) { paragraph "Amazon Authention:\n \u2022 Login No Longer Valid!", required: true, state: null }
+            if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
+                isNote = true
+                state?.noticeData?.notices?.each { item-> paragraph bulletItem(str, item), required: true, state: null }
+            }
+            if(remDevs?.size()) {
+                paragraph pTS("Devices to Remove:\n(${remDevs?.size()}) Devices to be Removed", null, false), required: true, state: null
+            }
+            if(!isNote) { paragraph pTS("No Issues to Report", null, true) }
+        }
+    }
+}
+
 def getRandomItem(items) {
     def list = new ArrayList<String>();
     items?.each { list?.add(it) }
@@ -2503,14 +2834,12 @@ String randomString(Integer len) {
     return randChars.join()
 }
 
-def getAccessToken() {
+Boolean getAccessToken() {
     try {
         if(!state?.accessToken) { state?.accessToken = createAccessToken() }
         else { return true }
-    }
-    catch (ex) {
-        // sendPush("Error: OAuth is not Enabled for ${appName()}!. Please click remove and Enable Oauth under the SmartApp App Settings in the IDE")
-        log.error "getAccessToken Exception", ex
+    } catch (ex) {
+        log.error "getAccessToken Exception: ${ex.message}"
         return false
     }
 }
@@ -2620,6 +2949,489 @@ def renderConfig() {
     render contentType: "text/html", data: html
 }
 
+def renderTextEditPage() {
+    String actId = params?.cId
+    String inName = params?.inName
+    Map inData = [:]
+    // log.debug "actId: $actId | inName: $inName"
+    if(actId && inName) {
+        def actApp = getActionApps()?.find { it?.id == actId }
+        if(actApp) { inData = actApp?.getInputData(inName) }
+        // inData = getInputData(inName, actId)
+    }
+    String html = """
+        <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta http-equiv="x-ua-compatible" content="ie=edge">
+                <title>Echo Speak Text Entry</title>
+                <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/css/mdb.min.css" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/theme/material.min.css" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vanillatoasts@1.3.0/vanillatoasts.css" integrity="sha256-U06o/6s4HELYo2A3Gd7KPGQMojQiAxY9B8oE/hnM3KU=" crossorigin="anonymous">
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/mode/simple.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/xml/xml.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/edit/closetag.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/edit/matchtags.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/htmlmixed/htmlmixed.min.js"></script>
+                <style>
+                    form div { margin-bottom: 0.5em; margin: 0 auto; }
+                    .form-control { font-size: 0.7rem; }
+                    button.btn.btn-info.btn-block.my-4 { max-width: 200px; text-align: center; }
+                    .ssml-buttons { font-size: .8rem; margin-bottom: 5px; text-decoration: none; }
+                    .ssml-buttons, h3 { font-size: 0.9rem; text-decoration: underline; }
+                    .ssml-buttons, input { font-size: 0.9rem; text-decoration: none; }
+                    .ssml-button { font-weight: normal; margin-left: 5px; margin-bottom: 5px; cursor: pointer; border: 0.5px solid #b1a8a8; border-radius: 7px; padding: 3px; background-color: #EEE; -webkit-appearance: none; -moz-appearance: none }
+                    .ssml-button:hover { background-color: #AAA }
+                    .ssml-button:first-child { margin-left: 0 }
+                    .no-submit { cursor: text }
+                </style>
+            </head>
+            <body class="m-2">
+                <div class="p-3"><button type="button" class="close" aria-label="Close" onclick="window.open('','_parent',''); window.close();"><span aria-hidden="true">×</span></button></div>
+                <div class="w-100 pt-0">
+                    <form>
+                        <div class="container px-0">
+                            <div class="text-center">
+                                <p id="inputTitle" class="h5 mb-0">Text Field Entry</p>
+                                <p class="mt-1 mb-2 text-center">Response Designer</p>
+                            </div>
+                            <div class="px-0">
+                                <textarea id="editor"></textarea>
+                                <div class="text-center blue-text"><small>Each line item represents a single response. Multiple lines will trigger a random selection.</small></div>
+                                <div class="d-flex justify-content-center">
+                                    <button id="newLineBtn" style="border-radius: 50px !important;" class="btn btn-sm btn-outline-info px-1 my-2 mx-3" type="button"><i class="fas fa-plus mr-1"></i>Add New Response Line</button>
+                                    <button style="border-radius: 50px !important;" class="btn btn-sm btn-info my-2" type="submit"><i class="fa fa-save mr-1"></i>Submit Responses</button>
+                                </div>
+                            </div>
+                            <div class="row mt-2 mx-auto">
+                                <div class="px-2 col-12">
+                                    <div class="card my-3 mx-0">
+                                        <h5 class="card-header px-2 py-0"><i class="fas fa-info px-2 my-auto"></i>Builder Items</h5>
+                                        <div class="card-body py-0 px-2 mx-0">
+                                            <div class="text-center orange-text mt-0 mb-2">
+                                                <small>Select a line item and tap on an item to insert or replace the item in the text.</small>
+                                            </div>
+                                            <div class="p-1 mx-auto">
+                                                <div class="shortcuts-wrap" style="display: block;">
+                                                    <div class="row">
+                                                        <div class="col-12">
+                                                            <div class="ssml-buttons">
+                                                                <h3>Event Variables</h3>
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Type" data-ssml="evttype">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Value" data-ssml="evtvalue">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="DeviceName" data-ssml="evtname">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Date" data-ssml="evtdate">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Time" data-ssml="evttime">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Date/Time" data-ssml="evtdatetime">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Duration" data-ssml="evtduration">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="my-3">
+                                                    <small id="inputDesc">Description goes here.</small>
+                                                </div>
+                                            </div>
+                                            <hr class="mb-1 mx-auto" style="background-color: #696969; width: 100%;">
+                                            <div class="p-1 mx-auto">
+                                                <h4>SSML Markup Items</h4>
+                                                <div class="shortcuts-wrap" style="display: block;">
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>BREAK</h3><input class="ssml-button" type="button" unselectable="on" value="50ms" data-ssml="break"><input class="ssml-button" type="button" unselectable="on" value="200ms" data-ssml="break"><input class="ssml-button"
+                                                                    type="button" unselectable="on" value="500ms" data-ssml="break"><input class="ssml-button" type="button" unselectable="on" value="800ms" data-ssml="break"><input class="ssml-button" type="button" unselectable="on"
+                                                                    value="1s" data-ssml="break"><input class="ssml-button" type="button" unselectable="on" value="2s" data-ssml="break">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>EMPHASIS</h3><input class="ssml-button" type="button" unselectable="on" value="strong" data-ssml="emphasis"><input class="ssml-button" type="button" unselectable="on" value="reduced" data-ssml="emphasis">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>PITCH</h3><input class="ssml-button" type="button" unselectable="on" value="x-low" data-ssml="pitch"><input class="ssml-button" type="button" unselectable="on" value="low" data-ssml="pitch"><input class="ssml-button"
+                                                                    type="button" unselectable="on" value="medium" data-ssml="pitch"><input class="ssml-button" type="button" unselectable="on" value="high" data-ssml="pitch"><input class="ssml-button" type="button" unselectable="on"
+                                                                    value="x-high" data-ssml="pitch">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>RATE</h3><input class="ssml-button" type="button" unselectable="on" value="x-slow" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on" value="slow" data-ssml="rate"><input class="ssml-button"
+                                                                    type="button" unselectable="on" value="medium" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on" value="fast" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on"
+                                                                    value="x-fast" data-ssml="rate">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>VOLUME</h3><input class="ssml-button" type="button" unselectable="on" value="silent" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="x-soft" data-ssml="volume">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="soft" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="medium" data-ssml="volume"><input class="ssml-button"
+                                                                    type="button" unselectable="on" value="loud" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="x-loud" data-ssml="volume">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>WHISPER</h3><input class="ssml-button" type="button" unselectable="on" value="whisper" data-ssml="whisper">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>VOICE</h3>
+                                                                <select class="browser-default custom-select custom-select-sm mb-2" id="voices">
+                                                                                            <option value="Naja" class="x-option ember-view">Danish (F) - Naja</option>
+                                                                                            <option value="Mads" class="x-option ember-view">Danish (M) - Mads</option>
+                                                                                            <option value="Lotte" class="x-option ember-view">Dutch (F) - Lotte</option>
+                                                                                            <option value="Ruben" class="x-option ember-view">Dutch (M) - Ruben</option>
+                                                                                            <option value="Nicole" class="x-option ember-view">English, Australian (F) - Nicole</option>
+                                                                                            <option value="Russell" class="x-option ember-view">English, Australian (M) - Russell</option>
+                                                                                            <option value="Amy" class="x-option ember-view">English, British (F) - Amy</option>
+                                                                                            <option value="Emma" class="x-option ember-view">English, British (F) - Emma</option>
+                                                                                            <option value="Brian" class="x-option ember-view">English, British (M) - Brian</option>
+                                                                                            <option value="Raveena" class="x-option ember-view">English, Indian (F) - Raveena</option>
+                                                                                            <option value="Aditi" class="x-option ember-view">English, Indian (F) - Aditi</option>
+                                                                                            <option value="Ivy" class="x-option ember-view">English, US (F) - Ivy</option>
+                                                                                            <option value="Joanna" class="x-option ember-view">English, US (F) - Joanna</option>
+                                                                                            <option value="Kendra" class="x-option ember-view">English, US (F) - Kendra</option>
+                                                                                            <option value="Kimberly" class="x-option ember-view">English, US (F) - Kimberly</option>
+                                                                                            <option value="Salli" class="x-option ember-view">English, US (F) - Salli</option>
+                                                                                            <option value="Joey" class="x-option ember-view">English, US (M) - Joey</option>
+                                                                                            <option value="Justin" class="x-option ember-view">English, US (M) - Justin</option>
+                                                                                            <option value="Matthew" class="x-option ember-view">English, US (M) - Matthew</option>
+                                                                                            <option value="Geraint" class="x-option ember-view">English, Welsh (M) - Geraint</option>
+                                                                                            <option value="Celine" class="x-option ember-view">French (F) - Céline</option>
+                                                                                            <option value="Lea" class="x-option ember-view">French (F) - Léa</option>
+                                                                                            <option value="Mathieu" class="x-option ember-view">French (M) - Mathieu</option>
+                                                                                            <option value="Chantal" class="x-option ember-view">French, Canadian (F) - Chantal</option>
+                                                                                            <option value="Marlene" class="x-option ember-view">German (F) - Marlene</option>
+                                                                                            <option value="Vicki" class="x-option ember-view">German (F) - Vicki</option>
+                                                                                            <option value="Hans" class="x-option ember-view">German (M) - Hans</option>
+                                                                                            <option value="Aditi" class="x-option ember-view">Hindi (F) - Aditi</option>
+                                                                                            <option value="Dóra" class="x-option ember-view">Icelandic (F) - Dóra</option>
+                                                                                            <option value="Karl" class="x-option ember-view">Icelandic (M) - Karl</option>
+                                                                                            <option value="Carla" class="x-option ember-view">Italian (F) - Carla</option>
+                                                                                            <option value="Giorgio" class="x-option ember-view">Italian (M) - Giorgio</option>
+                                                                                            <option value="Takumi" class="x-option ember-view">Japanese (M) - Takumi</option>
+                                                                                            <option value="Mizuki" class="x-option ember-view">Japanese (F) - Mizuki</option>
+                                                                                            <option value="Seoyeon" class="x-option ember-view">Korean (F) - Seoyeon</option>
+                                                                                            <option value="Liv" class="x-option ember-view">Norwegian (F) - Liv</option>
+                                                                                            <option value="Ewa" class="x-option ember-view">Polish (F) - Ewa</option>
+                                                                                            <option value="Maja" class="x-option ember-view">Polish (F) - Maja</option>
+                                                                                            <option value="Jacek" class="x-option ember-view">Polish (M) - Jacek</option>
+                                                                                            <option value="Jan" class="x-option ember-view">Polish (M) - Jan</option>
+                                                                                            <option value="Vitoria" class="x-option ember-view">Portugese, Brazilian (F) - Vitória</option>
+                                                                                            <option value="Ricardo" class="x-option ember-view">Portugese, Brazilian (M) - Ricardo</option>
+                                                                                            <option value="Ines" class="x-option ember-view">Portugese, European (F) - Inês</option>
+                                                                                            <option value="Cristiano" class="x-option ember-view">Portugese, European (M) - Cristiano</option>
+                                                                                            <option value="Carmen" class="x-option ember-view">Romanian (F) - Carmen</option>
+                                                                                            <option value="Tatyana" class="x-option ember-view">Russian (F) - Tatyana</option>
+                                                                                            <option value="Maxim" class="x-option ember-view">Russian (M) - Maxim</option>
+                                                                                            <option value="Conchita" class="x-option ember-view">Spanish, European (F) - Conchita</option>
+                                                                                            <option value="Enrique" class="x-option ember-view">Spanish, European (M) - Enrique</option>
+                                                                                            <option value="Penélope" class="x-option ember-view">Spanish, US (F) - Penélope</option>
+                                                                                            <option value="Miguel" class="x-option ember-view">Spanish, US (M) - Miguel</option>
+                                                                                            <option value="Astrid" class="x-option ember-view">Swedish (F) - Astrid</option>
+                                                                                            <option value="Filiz" class="x-option ember-view">Turkish (F) - Filiz</option>
+                                                                                            <option value="Gwyneth" class="x-option ember-view">Welsh (F) - Gwyneth</option>
+                                                                                        </select>
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Add Voice" data-ssml="voice">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="ssml-buttons">
+                                                                <h3>SAY-AS</h3><input class="ssml-button" type="button" unselectable="on" value="number" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="spell-out" data-ssml="say-as">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="ordinal" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="digits" data-ssml="say-as"><input class="ssml-button"
+                                                                    type="button" unselectable="on" value="date" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="time" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on"
+                                                                    value="speechcon" data-ssml="say-as">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <hr class="mb-1 mx-auto" style="background-color: #696969; width: 100%;">
+                                            <div class="text-center align-text-top blue-text"><small>Speak tags will automatically be added to lines where SSML is inserted.</small></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/vanillatoasts@1.3.0/vanillatoasts.min.js"></script>
+                <script>
+                    let inName = '${inName}';
+                    let actId = '${actId}'
+                    let rootUrl = '${getAppEndpointUrl("textEditor/${actId}/${inName}")}';
+                    let curText = '${inData?.val}';
+                    curText = curText == null || curText == 'null' || curText == '' ? '${inData?.template}' : curText
+                    let curTitle = '${inData?.title}';
+                    let curDesc = '${inData?.desc}';
+                    let selectedLineNum = undefined;
+
+                    function cleanTxt(txt) {
+                        txt = txt.split(';').map(t => t.trim()).join(';')
+                        return txt.endsWith(';') ? txt.replace(/;([^;]*)\$/, '\$1') : txt
+                    }
+
+                    \$(document).ready(function() {
+                        \$('#inputTitle').text(curTitle);
+                        \$('#inputDesc').html(curDesc);
+                        \$('#editor').val(cleanTxt(curText));
+                        CodeMirror.defineSimpleMode("simplemode", {
+                            start: [{
+                                regex: /%[a-z]+%/,
+                                token: "variable"
+                            }, {
+                                regex: /<[^>]+>/,
+                                token: 'variable-3'
+                            }]
+                        });
+
+                        let editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+                            theme: 'material',
+                            mode: 'simplemode',
+                            lineNumbers: true,
+                            lineSeparator: ';',
+                            showCursorWhenSelecting: true,
+                            autoCloseTags: true,
+                            lineWrapping: false,
+                            autocorrect: false,
+                            autocapitalize: false,
+                            spellcheck: true
+                        });
+
+                        \$('#newLineBtn').click((e) => {
+                            let doc = editor.getDoc();
+                            let cursor = doc.getCursor();
+                            let lineCnt = editor.lineCount();
+                            doc.replaceRange(';', CodeMirror.Pos(lineCnt - 1));
+                        });
+
+                        function updateInfo(instance, changeObj) {
+                            selectedLineNum = changeObj.to.line;
+                            // \$('#lineCnt').text('Response Cnt: ' + changeObj.to.line);
+                        }
+
+                        editor.on("change", updateInfo);
+
+                        \$('form').submit(function(e) {
+                            console.log('form submit...')
+                            e.preventDefault();
+                            let xmlhttp = new XMLHttpRequest();
+                            xmlhttp.open("POST", rootUrl);
+                            xmlhttp.onreadystatechange = () => {
+                                if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                                    // console.log(xmlhttp.responseText);
+                                    let toast = VanillaToasts.create({
+                                        title: 'Echo Speaks Actions',
+                                        text: 'Responses saved successfully!',
+                                        type: 'success',
+                                        icon: 'https://github.com/tonesto7/echo-speaks/raw/master/resources/icons/echo_speaks.1x.png',
+                                        timeout: 4500,
+                                        callback: function() { this.hide() }
+                                    });
+                                }
+                            }
+                            xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                            console.log(\$('#editor').val());
+                            xmlhttp.send(JSON.stringify({
+                                val: \$('#editor').val(),
+                                name: inName,
+                                type: 'text'
+                            }));
+                        });
+
+                        function insertSsml(editor, str, sTags = true) {
+                            let doc = editor.getDoc();
+                            let cursor = doc.getCursor();
+                            let line = cursor.line;
+                            console.log(`lineTxt (\${editor.getLine(line).length}): `, editor.getLine(line))
+                            if (editor.getSelection().length > 0) {
+                                editor.replaceSelection(` \${str}`);
+                            } else {
+                                doc.replaceRange(` \${str}`, {
+                                    line: line,
+                                    ch: cursor.ch
+                                });
+                            }
+                            if (sTags) {
+                                doc.replaceRange(editor.getLine(line).replace('<speak>', '').replace('</speak>', ''), {
+                                    line: line,
+                                    ch: 0
+                                }, {
+                                    line: line,
+                                    ch: editor.getLine(line).length
+                                });
+                                doc.replaceRange('<speak>', {
+                                    line: line,
+                                    ch: 0
+                                });
+                                doc.replaceRange('</speak>', {
+                                    line: line,
+                                    ch: editor.getLine(line).length
+                                });
+                            }
+                        }
+
+                        \$('.ssml-buttons input:not(.no-submit)').click(function() {
+                            let ssml = \$(this).data('ssml');
+                            let value = \$(this).val();
+                            var selected = editor.getSelection();
+                            var replace = (selected == '') ? 'REPLACE_THIS_TEXT' : selected;
+                            switch (ssml) {
+                                case 'break':
+                                    insertSsml(editor, `<break time="\${value}"/>`);
+                                    break;
+                                case 'emphasis':
+                                    insertSsml(editor, `<emphasis level="\${value}">\${replace}</emphasis>`);
+                                    break;
+                                case 'pitch':
+                                case 'rate':
+                                case 'volume':
+                                    insertSsml(editor, `<prosody \${ssml}="\${value}">\${replace}</prosody>`);
+                                    break;
+                                case 'voice':
+                                    insertSsml(editor, `<voice name="\${(\$('#voices').val() != '') ? \$('#voices').val() : 'Ivy'}">\${replace}</voice>`);
+                                    break;
+                                case 'audio':
+                                    insertSsml(editor, `<audio src="\${(\$('#audio').val() != '') ? \$('#audio').val() : 'https://s3.amazonaws.com/ask-soundlibrary/transportation/amzn_sfx_car_accelerate_01.mp3'}"/>`);
+                                    break;
+                                case 'sub':
+                                    insertSsml(editor, `<sub alias="\${(\$('#alias').val() != '') ? \$('#alias').val() : 'magnesium'}">\${replace}</sub>`);
+                                    break;
+                                case 'say-as':
+                                    if (selected == '') {
+                                        switch (value) {
+                                            case 'number':
+                                                replace = '1234';
+                                                break;
+                                            case 'characters':
+                                                replace = 'TEST';
+                                                break;
+                                            case 'spell-out':
+                                                replace = 'TEST';
+                                                break;
+                                            case 'cardinal':
+                                                replace = '1234';
+                                                break;
+                                            case 'ordinal':
+                                                replace = '5';
+                                                break;
+                                            case 'digits':
+                                                replace = '1234';
+                                                break;
+                                            case 'fraction':
+                                                replace = '1/5';
+                                                break;
+                                            case 'unit':
+                                                replace = 'USD10';
+                                                break;
+                                            case 'date':
+                                                replace = '01012019';
+                                                break;
+                                            case 'time':
+                                                // replace = '1'21"';
+                                                break;
+                                            case 'telephone':
+                                                replace = '(541) 754-3010';
+                                                break;
+                                            case 'address':
+                                                replace = '711-2880 Nulla St., Mankato, Mississippi, 96522';
+                                                break;
+                                            case 'expletive':
+                                                replace = 'bad word';
+                                                break;
+                                            case 'interjection':
+                                                replace = 'boing';
+                                                break;
+                                            case 'speechcon':
+                                                replace = 'boing';
+                                                break;
+                                            default:
+                                                replace = 'REPLACE THIS TEXT';
+                                        }
+                                    }
+                                    insertSsml(editor, `<say-as interpret-as="\${value}">\${replace}</say-as>`)
+                                    break;
+                                case 'whisper':
+                                    insertSsml(editor, `<amazon:effect name="whispered">\${replace}</amazon:effect>`);
+                                    break;
+                                case 'evttype':
+                                    insertSsml(editor, '%type%', false);
+                                    break;
+                                case 'evtvalue':
+                                    insertSsml(editor, '%value%', false);
+                                    break;
+                                case 'evtname':
+                                    insertSsml(editor, '%name%', false);
+                                    break;
+                                case 'evtdate':
+                                    insertSsml(editor, '%date%', false);
+                                    break;
+                                case 'evttime':
+                                    insertSsml(editor, '%time%', false);
+                                    break;
+                                case 'evtdatetime':
+                                    insertSsml(editor, '%datetime%', false);
+                                    break;
+                                case 'evtduration':
+                                    insertSsml(editor, '%duration%', false);
+                                    break;
+                                default:
+                                    break;
+                            }
+                            return false
+                        });
+                    });
+                </script>
+            </body>
+        </html>
+    """
+    render contentType: "text/html", data: html
+}
+
+def textEditProcessing() {
+    String actId = params?.cId
+    String inName = params?.inName
+    // log.debug "POST | actId: $actId | inName: $inName"
+    def resp = request?.JSON ?: null
+    // log.debug "textEntryProcessing | Resp: $resp"
+    def actApp = getActionApps()?.find { it?.id == actId }
+    Boolean status = (actApp && actApp?.updateTxtEntry(resp))
+    def json = new JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersion()])
+    render contentType: "application/json", data: json, status: 200
+}
+
+def getSettingVal(inName) {
+    String actionId = params?.cId
+    // log.debug "GetSettingVals | actionId: $actionId"
+    def actApp = getActionApps()?.find { it?.id == actionId }
+    def value = null
+    if(actApp) { value = actApp?.getSettingInputVal(inName) }
+    return value
+}
+
+String getTextEditorPath(cId, inName) {
+    return getAppEndpointUrl("textEditor/${cId}/${inName}") as String
+}
+
 String getObjType(obj) {
     if(obj instanceof String) {return "String"}
     else if(obj instanceof GString) {return "GString"}
@@ -2633,6 +3445,7 @@ String getObjType(obj) {
     else if(obj instanceof BigDecimal) {return "BigDecimal"}
     else if(obj instanceof Float) {return "Float"}
     else if(obj instanceof Byte) {return "Byte"}
+    else if(obj instanceof Date) {return "Date"}
     else { return "unknown"}
 }
 
@@ -2654,9 +3467,101 @@ private getPlatform() {
         try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
         // p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
         state?.hubPlatform = p
-        log.debug "hubPlatform: (${state?.hubPlatform})"
     }
+    // log.debug "hubPlatform: (${state?.hubPlatform})"
     return state?.hubPlatform
+}
+
+Boolean isContactOpen(sensors) {
+    if(sensors) { sensors?.each { if(sensors?.currentSwitch == "open") { return true } } }
+    return false
+}
+
+Boolean isSwitchOn(devs) {
+    if(devs) { devs?.each { if(it?.currentSwitch == "on") { return true } } }
+    return false
+}
+
+Boolean isSensorPresent(sensors) {
+    if(sensors) { sensors?.each { if(it?.currentPresence == "present") { return true } } }
+    return false
+}
+
+Boolean isSomebodyHome(sensors) {
+    if(sensors) { return (sensors?.findAll { it?.currentPresence == "present" }?.size() > 0) }
+    return false
+}
+
+Boolean isInMode(modes) {
+    return (location?.mode?.toString() in modes)
+}
+
+Boolean isInAlarmMode(modes) {
+    if(!modes) return false
+    return (getAlarmSystemStatus() in modes)
+}
+
+String getAlarmSystemName(abbr=false) {
+    return isST() ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
+}
+
+List getAlarmModeOpts() {
+    return isST() ? ["off", "stay", "away"] : ["disarm", "armNight", "armHome", "armAway"]
+}
+
+String getAlarmSystemStatus() {
+    if(isST()) {
+        def cur = location.currentState("alarmSystemStatus")?.value
+        def inc = getShmIncidents()
+        if(inc != null && inc?.size()) { cur = 'alarm_active' }
+        return cur ?: "disarmed"
+    } else { return location?.hsmStatus ?: "disarmed" }
+}
+
+def getShmIncidents() {
+    def incidentThreshold = now() - 604800000
+    return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
+}
+public setAlarmSystemMode(mode) {
+    if(!isST()) {
+        switch(mode) {
+            case "armAway":
+            case "away":
+                mode = "armAway"
+                break
+            case "armHome":
+            case "night":
+            case "stay":
+                mode = "armHome"
+                break
+            case "disarm":
+            case "off":
+                mode = "disarm"
+                break
+        }
+    }
+    log.info "Setting the ${getAlarmSystemName()} Mode to (${mode})..."
+    sendLocationEvent(name: (isST() ? 'alarmSystemStatus' : 'hsmSetArm'), value: mode.toString())
+}
+
+public JsonElementsParser(root) {
+    if (root instanceof List) {
+        root.collect {
+            if (it instanceof Map) { JsonElementsParser(it) }
+            else if (it instanceof List) { JsonElementsParser(it) }
+            else if (it == null) { null }
+            else {
+                if(it?.toString()?.startsWith("{") && it?.toString()?.endsWith("}")) { it = JsonElementsParser(parseJson(it?.toString())) }
+                else { it }
+            }
+        }
+    } else if (root instanceof Map) {
+        root.each {
+            if (it.value instanceof Map) { JsonElementsParser(it.value) }
+            else if (it.value instanceof List) { it.value = JsonElementsParser(it.value) }
+            else if (it.value == null) { it.value }
+        }
+    }
 }
 
 Integer stateSize() {
