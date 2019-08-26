@@ -13,6 +13,8 @@ Main App:
  • UPDATED: Added new speech testing and updated the announcement tests.
  • ADDED: importUrl param for Hubitat users to quickly import code
  • ADDED: Checks are now made to make sure you can't install Actions app from the marketplace.
+ • ADDED: New Log filtering options to reducing log output.
+
 
 Actions App:
  • ADDED: importUrl param for Hubitat users to quickly import
@@ -23,6 +25,7 @@ Actions App:
  • ADDED: Define different responses for the repeat events.
  • ADDED: Define multiple responses and have a random response for each event.
  • ADDED: Web Based reponse builder.
+ • ADDED: New Log filtering options to reducing log output.
  • ADDED: Much more.
 
 Device:
@@ -35,5 +38,6 @@ Device:
  • FIXED: All web calls have been reworked to eliminate the JSON error in the logs.
  • FIXED: setLevel type mismatch issues.
  • FIXED: Extensive queue testing and optimizations.
+ • ADDED: New Log filtering options to reducing log output.
  • Other stuff i'm not remembering
 

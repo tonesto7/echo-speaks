@@ -1039,7 +1039,8 @@ def initialize() {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
         appCleanup()
         runEvery1Minute("getOtherData")
-        runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
+        // runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
+        runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
         validateCookie(true)
         runIn(15, "reInitChildren")
         getOtherData()
@@ -1074,7 +1075,8 @@ def getActionApps() {
 
 def onAppTouch(evt) {
     // logTrace("appTouch...")
-    updated()
+    authValidationEvent(false)
+    // updated()
 }
 
 void settingUpdate(name, value, type=null) {
@@ -1090,11 +1092,11 @@ void settingRemove(String name) {
 }
 
 mappings {
-    path("/renderMetricData")  { action: [GET: "renderMetricData"] }
-    path("/receiveData")       { action: [POST: "processData"] }
-    path("/config")            { action: [GET: "renderConfig"] }
-    path("/textEditor/:cId/:inName") { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
-    path("/cookie")            { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
+    path("/renderMetricData")           { action: [GET: "renderMetricData"] }
+    path("/receiveData")                { action: [POST: "processData"] }
+    path("/config")                     { action: [GET: "renderConfig"] }
+    path("/textEditor/:cId/:inName")    { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
+    path("/cookie")                     { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
 }
 
 String getCookieVal() { return (state?.cookieData && state?.cookieData?.localCookie) ? state?.cookieData?.localCookie as String : null }
@@ -1246,12 +1248,12 @@ def clearCookieData(src=null) {
     unschedule("getEchoDevices")
     unschedule("getOtherData")
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
-    updateChildAuth(false)
+    updateChildAuth(false, null)
     // if(getServerHostURL()) { clearServerAuth() }
 }
 
 private updateChildAuth(Boolean isValid) {
-    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.setAuthState(isValid) }
+    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.setAuthState(isValid, [cookie: getCookieVal(), csrf: getCsrfVal()]) }
 }
 
 private authEvtHandler(Boolean isAuth) {
@@ -1373,7 +1375,7 @@ def cookieValidResp(response, data) {
     // logTrace("cookieValidResp...")
     if(response?.status == 401) {
         logError("cookieValidResp Status: (${response.status})")
-        authEvtHandler(false)
+        authValidationEvent(false)
         state?.lastCookieChkDt = getDtNow()
         return
     }
@@ -1387,13 +1389,25 @@ def cookieValidResp(response, data) {
     state?.lastCookieChkDt = getDtNow()
     def execTime = data?.execDt ? (now()-data?.execDt) : 0
     logDebug("Cookie Validation: (${valid}) | Process Time: (${execTime}ms)")
-    authEvtHandler(valid)
+    authValidationEvent(valid)
+}
+
+private authValidationEvent(valid) {
+	Integer listSize = 3
+    List eList = atomicState?.authValidHistory ?: [true, true, true]
+    eList.push(valid)
+	if(eList?.size() > listSize) { eList = eList?.drop( (eList?.size()-listSize)+1 ) }
+	atomicState?.authValidHistory = eList
+    if(eList?.every { it == false }) {
+        logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
+        authEvtHandler(false)
+    }
 }
 
 private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
     statusCode = statusCode as Integer
     if(statusCode == 401) {
-        setAuthState(false)
+        authValidationEvent(false)
         return false
     } else { if(statusCode > 401 && statusCode < 500) { logError("${methodName} Error: ${errMsg ?: null}") } }
     if(hasErr && falseOnErr) { return false }
@@ -1727,7 +1741,7 @@ def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     if(response?.status == 401) {
-        authEvtHandler(false)
+        authValidationEvent(false)
         return
     }
     try {
@@ -1805,7 +1819,7 @@ def receiveEventData(Map evtData, String src) {
                                 reasons?.push(familyAllowed?.reason)
                             } else if(isInIgnoreInput) {
                                 reasons?.push("In Ignore Device Input")
-                                logWarn("skipping ${echoValue?.accountName} because it is in the do not use list...")
+                                logDebug("skipping ${echoValue?.accountName} because it is in the do not use list...")
                             } else {
                                 if(!allowTTS) { reasons?.push("No TTS") }
                                 if(!isMediaPlayer) { reasons?.push("No Media Controls") }

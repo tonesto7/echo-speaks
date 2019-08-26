@@ -437,8 +437,6 @@ metadata {
 
     preferences {
         section("Preferences") {
-            input "showLogs", "bool", required: false, title: "Show Debug Logs?", defaultValue: false
-
             input "logInfo", "bool", title: "Show Info Logs?",  required: false, defaultValue: true
             input "logWarn", "bool", title: "Show Warning Logs?", required: false, defaultValue: true
             input "logError", "bool", title: "Show Error Logs?",  required: false, defaultValue: true
@@ -453,7 +451,7 @@ metadata {
 }
 
 def installed() {
-    log.trace "${device?.displayName} Executing Installed..."
+    logInfo("${device?.displayName} Executing Installed...")
     sendEvent(name: "mute", value: "unmuted")
     sendEvent(name: "status", value: "stopped")
     sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
@@ -470,12 +468,12 @@ def installed() {
 }
 
 def updated() {
-    log.trace "${device?.displayName} Executing Updated()"
+    logTrace("${device?.displayName} Executing Updated()")
     initialize()
 }
 
 def initialize() {
-    log.trace "${device?.displayName} Executing initialize()"
+    logInfo("${device?.displayName} Executing initialize()")
     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
     sendEvent(name: "DeviceWatch-Enroll", value: new JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), displayed: false)
     resetQueue()
@@ -514,8 +512,9 @@ def getShortDevName(){
     return device?.displayName?.replace("Echo - ", "")
 }
 
-public setAuthState(authenticated) {
+public setAuthState(authenticated, cookieData) {
     state?.authValid = (authenticated == true)
+    state?.cookie = cookieData ?: null
     if(authenticated != true && state?.refreshScheduled) {
         log.warn "Cookie Authentication Cleared by Parent.  Scheduled Refreshes also cancelled!"
         unschedule("refreshData")
@@ -641,6 +640,7 @@ void updateDeviceStatus(Map devData) {
             state?.deviceAccountId = devData?.deviceAccountId
             state?.softwareVersion = devData?.softwareVersion
             state?.cookie = devData?.cookie
+            state?.authValid = (devData?.authValid == true)
             state?.amazonDomain = devData?.amazonDomain
             state?.regionLocale = devData?.regionLocale
             Map permissions = state?.permissions ?: [:]
@@ -653,7 +653,6 @@ void updateDeviceStatus(Map devData) {
             if(isStateChange(device, "permissions", permissionList?.toString())) {
                 sendEvent(name: "permissions", value: permissionList, display: false, displayed: false)
             }
-            state?.authValid = (devData?.authValid == true)
             Map deviceStyle = devData?.deviceStyle
             state?.deviceStyle = devData?.deviceStyle
             // logInfo("deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
@@ -779,13 +778,13 @@ private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, 
     if(!hasErr && statusCode == 200) {
         return true
     } else if(statusCode == 401) {
-        setAuthState(false)
+        // setAuthState(false)
         return false
     } else {
         if(statusCode > 401 && statusCode < 500) {
             logError("${methodName} Error: ${errMsg ?: null}")
             if(errMsg == "Forbidden") {
-                setAuthState(false)
+                // setAuthState(false)
                 return false
             }
         }
@@ -2348,7 +2347,7 @@ private getQueueSizeStr() {
 }
 
 private processLogItems(String logType, List logList, emptyStart=false, emptyEnd=true) {
-    if(logType && logList?.size() && settings?.showLogs) {
+    if(logType && logList?.size() && settings?.logDebug) {
         Integer maxStrLen = 0
         String endSep = "└─────────────────────────────"
         if(emptyEnd) { logger(logType, " ") }
@@ -2647,7 +2646,7 @@ private postCmdProcess(resp, statusCode, data) {
             pi += data?.msgLen ? " | Length: (${data?.msgLen}) " : ""
             pi += " | Execution Time (${execTime}ms)"
             pi += data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""
-            pi += showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""
+            pi += logDebug && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""
             pi += data?.qId ? " | QueueID: (${data?.qId})" : ""
             logInfo("${pi}")
 
@@ -2716,7 +2715,7 @@ Boolean ok2Notify() {
 }
 
 private logger(type, msg) {
-    if(type && msg && settings?.showLogs) {
+    if(type && msg && settings?.logDebug) {
         log."${type}" "${msg}"
     }
 }
