@@ -140,6 +140,11 @@
             "image": "echo_dot_gen3",
             "caps": ["a", "t"]
         },
+        "A1RABVCI4QCIKC": {
+            "name": "Echo Dot (Gen3)",
+            "image": "echo_dot_gen3",
+            "caps": ["a", "t"]
+        },
         "A10A33FOX2NUBK": {
             "name": "Echo Spot",
             "image": "echo_spot_gen1",
@@ -281,6 +286,11 @@
             "name": "Vobot Bunny",
             "image": "vobot_bunny",
             "caps": ["a", "t"]
+        },
+        "A37CFAHI1O0CXT": {
+            "name": "Logitech Blast",
+            "image": "logitech_blast",
+            "caps": []
         }
     }
 }
