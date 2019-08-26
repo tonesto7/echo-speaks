@@ -745,7 +745,7 @@ def actionsPage() {
                         if(settings?.act_EchoDevices?.size() > 1) {
                             List devObj = []
                             devices?.each { devObj?.push([deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]]) }
-                            log.debug "devObj: $devObj"
+                            // log.debug "devObj: $devObj"
                             actionExecMap?.config?.announcement?.deviceObjs = devObj
                         }
                         if(state?.showSpeakEvtVars || act_announcement_txt) { done = true } else { done = false }
@@ -848,7 +848,7 @@ def actionsPage() {
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
                         List musicProvs = devices[0]?.hasAttribute("supportedMusic") ? devices[0]?.currentValue("supportedMusic")?.split(",")?.collect { "${it?.toString()?.trim()}"} : []
-                        log.debug "Music Providers: ${musicProvs}"
+                        logger("debug", "Music Providers: ${musicProvs}")
                         if(musicProvs) {
                             section(sTS("Music Providers:")) {
                                 input "act_music_provider", "enum", title: inTS("Select Music Provider", getAppImg("music", true)), description: "", options: musicProvs, multiple: false, required: true, submitOnChange: true, image: getAppImg("music")
@@ -950,7 +950,7 @@ def actionsPage() {
                             paragraph pTS("This will Allow you trigger any Alexa Routines (Those with voice triggers only)", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                         }
                         def routinesAvail = parent?.getAlexaRoutines(null, true) ?: [:]
-                        log.debug "routinesAvail: $routinesAvail"
+                        logger("debug", "routinesAvail: $routinesAvail")
                         section(sTS("Action Config:")) {
                             input "act_alexaroutine_cmd", "enum", title: inTS("Select Alexa Routine", getAppImg("command", true)), description: "", options: routinesAvail, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         }
@@ -969,7 +969,7 @@ def actionsPage() {
                         }
                         if(devsCnt >= 1) {
                             List wakeWords = devices[0]?.hasAttribute("wakeWords") ? devices[0]?.currentValue("wakeWords")?.replaceAll('"', "")?.split(",") : []
-                            // log.debug "WakeWords: ${wakeWords}"
+                            // logger("debug", "WakeWords: ${wakeWords}")
                             devices?.each { cDev->
                                 section(sTS("${cDev?.getLabel()}:")) {
                                     if(wakeWords?.size()) {
@@ -982,7 +982,7 @@ def actionsPage() {
                         }
                         actionExecMap?.config?.wakeword = [ devices: devsObj]
                         def aCnt = settings?.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }
-                        log.debug "aCnt: ${aCnt} | devsCnt: ${devsCnt}"
+                        // log.debug "aCnt: ${aCnt} | devsCnt: ${devsCnt}"
                         if(settings?.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }?.size() == devsCnt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -1067,7 +1067,7 @@ def cleanupDevSettings(prefix) {
             }
         } else { rem = rem + sets }
     }
-    log.debug "rem: $rem"
+    // log.debug "rem: $rem"
     // rem?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
@@ -1889,7 +1889,7 @@ def scheduleAfterCheck(data) {
     }
     runIn(val, "afterEvtCheckHandler")
     atomicState?.afterEvtChkSchedMap = [id: id, dur: val, dt: getDtNow()]
-    log.debug "Schedule After Event Check${rep ? " (Repeat)" : ""} for (${val} seconds) | Id: ${id}"
+    logger("debug", "Schedule After Event Check${rep ? " (Repeat)" : ""} for (${val} seconds) | Id: ${id}")
 }
 
 private clearAfterCheckSchedule() {
@@ -2074,7 +2074,7 @@ private executeActTest() {
             // testData?.evt = null
         } else {
             Map evtData = getRandomTrigEvt()
-            log.debug "evtData: ${evtData}"
+            // log.debug "evtData: ${evtData}"
             testData?.evt = evtData?.evt
             testData?.custText = evtData?.custText
         }
@@ -2083,7 +2083,7 @@ private executeActTest() {
 }
 
 Map getRandomTrigEvt() {
-    log.debug "getRandomTrigEvt..."
+    // log.debug "getRandomTrigEvt..."
     Map evt = [:]
     String actType = settings?.actionType
     String trig = getRandomItem(settings?.triggerEvents?.collect { it as String })
@@ -2153,7 +2153,7 @@ Map getRandomTrigEvt() {
             }
         }
     } else { evt?.custText = settings?."act_${actionType}_txt" }
-    log.debug "evt: ${evt}"
+    // log.debug "evt: ${evt}"
     return [evt: evt?.evt ?: null, custText: evt?.custText ?: null]
 }
 
@@ -2622,7 +2622,7 @@ String getCurrentMode() {
 
 List getLocationModes(Boolean sorted=false) {
     List modes = location?.modes*.name
-    log.debug "modes: ${modes}"
+    // log.debug "modes: ${modes}"
     return (sorted) ? modes?.sort() : modes
 }
 
@@ -3058,7 +3058,7 @@ String randomString(Integer len) {
     def pool = ["a".."z",0..9].flatten()
     Random rand = new Random(new Date().getTime())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
-    log.debug "randomString: ${randChars?.join()}"
+    // log.debug "randomString: ${randChars?.join()}"
     return randChars.join()
 }
 
@@ -3074,7 +3074,7 @@ private getPlatform() {
         try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
         // p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
         state?.hubPlatform = p
-        log.debug "hubPlatform: (${state?.hubPlatform})"
+        // log.debug "hubPlatform: (${state?.hubPlatform})"
     }
     return state?.hubPlatform
 }
@@ -3107,11 +3107,9 @@ String getAppDebugDesc() {
     return (str != "") ? "${str}" : null
 }
 
-private logger(type, msg, traceOnly=false) {
-    if (traceOnly && !settings?.appTrace) { return }
-    if(type && msg && settings?.appDebug) {
-        log."${type}" "${msg}"
-    }
+private logger(ty, m, tr=false) {
+    if (tr && !settings?.appTrace) { return }
+    if(ty && m && settings?.appDebug) { log."${ty}" "${m}" }
 }
 
 String convMusicProvider(String prov) {
