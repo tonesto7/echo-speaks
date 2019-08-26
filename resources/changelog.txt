@@ -22,7 +22,8 @@ Actions App:
  • ADDED: Monitor devices for changes and speak after so many seconds then repeat every x seconds until it changes to desired state.
  • ADDED: Define different responses for the repeat events.
  • ADDED: Define multiple responses and have a random response for each event.
- • ADDED: Alexa Routine Execution (Only those with custom voice triggers)
+ • ADDED: Web Based reponse builder.
+ • ADDED: Much more.
 
 Device:
  • ADDED: importUrl param for Hubitat users to quickly import code
