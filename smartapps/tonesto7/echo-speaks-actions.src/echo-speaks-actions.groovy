@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()  { return "3.0.0" }
-String appModified() { return "2019-08-26" }
+String appModified() { return "2019-08-27" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
