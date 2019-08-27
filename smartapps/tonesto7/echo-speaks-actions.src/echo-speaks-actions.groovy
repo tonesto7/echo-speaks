@@ -687,13 +687,13 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
     String str = "Description:\nYou have 3 response options:\n \u2022 1. Leave the text empty below and text will be generated for each ${inType} trigger event.\n \u2022 2. Wait till Step 3 and define a single response for any trigger selected here.\n \u2022 3. Use the reponse builder below and create custom responses for each trigger type. (Supports randomization when multiple responses are configured)\n\nCustom Text is are only used if Speech or Announcement actions are selected in Step 3."
     paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
     //Custom Text Options
-    href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_txt"), style: "embedded", required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
+    href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
             description: settings?."trig_${inType}_txt" ?: "Open Response Designer...", image: getAppImg("text")
     if(showRepInputs) {
         if(settings?."trig_${inType}_after_repeat") {
             //Custom Repeat Text Options
             paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-            href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_after_repeat_txt"), style: "embedded", title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
+            href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_after_repeat_txt"), style: (isST() ? "embedded" : "external"), title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
                     description: settings?."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings?."trig_${inType}_after_repeat_txt" ? "complete" : '') , submitOnChange: true, required: false, image: getAppImg("text")
         }
     }
@@ -723,7 +723,7 @@ def actionsPage() {
                         ssmlInfoSection()
                         section(sTS("Action Config:"), hideable: true) {
                             actionVariableDesc(actionType)
-                            href url: parent?.getTextEditorPath(app?.id, "act_speak_txt"), style: "embedded", required: false, title: inTS("Global Action Text Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
+                            href url: parent?.getTextEditorPath(app?.id, "act_speak_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Global Action Text Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
                                     description: settings?."act_speak_txt" ?: "Open Response Designer...", image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
@@ -742,7 +742,7 @@ def actionsPage() {
                         ssmlInfoSection()
                         section(sTS("Action Config:")) {
                             actionVariableDesc(actionType)
-                            href url: parent?.getTextEditorPath(app?.id, "act_announcement_txt"), style: "embedded", required: false, title: inTS("Global Action Text Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
+                            href url: parent?.getTextEditorPath(app?.id, "act_announcement_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Global Action Text Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
                                     description: settings?."act_announcement_txt" ?: "Open Response Designer...", image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
@@ -1024,7 +1024,7 @@ def actionsPage() {
                     input "act_delay", "number", title: inTS("Delay Action in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                 }
                 section(sTS("Simulate Action")) {
-                    paragraph pTS("Perform a test of this action to see the results", getAppImg("info", true), false, "#2784D9"), image: getAppImg("info")
+                    paragraph pTS("Toggle this to execute the action and see the results.\nWhen global text is not defined, this will generate a random event based on your trigger selections.", getAppImg("info", true), false, "#2784D9"), image: getAppImg("info")
                     input "actTestRun", "bool", title: inTS("Test this action?", getAppImg("testing", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
                     if(actTestRun) { executeActTest() }
                 }
@@ -2088,13 +2088,14 @@ private executeActTest() {
 
 Map getRandomTrigEvt() {
     // log.debug "getRandomTrigEvt..."
+    List noDevOpts = ["mode","routine", "hsmStatus", "alarmSystemStatus"]
     Map evt = [:]
     String actType = settings?.actionType
     String trig = getRandomItem(settings?.triggerEvents?.collect { it as String })
-    List trigDevs = settings?."trig_${trig}"
-    def randDev = getRandomItem(trigDevs)
-    def trigDev = trigDevs?.find { it?.id == randDev?.id }
-    String devId = trigDev?.id
+    List trigDevs = (!trig in noDevOpts) ? settings?."trig_${trig}" : null
+    def randDev = (!trig in noDevOpts) ? getRandomItem(trigDevs) : null
+    def trigDev = (!trig in noDevOpts) ? trigDevs?.find { it?.id == randDev?.id } : null
+    String devId = trigDev?.id ?: null
     Boolean hasGblTxt = (actType in ["speak", "announcement"] && settings?."act_${actionType}_txt")
 
     Boolean dca = settings?."trig_${trig}_all"
@@ -2121,11 +2122,14 @@ Map getRandomTrigEvt() {
         power: getRandomItem(100..3000),
         thermostat: getRandomItem(["cooling is "]),
         mode: getRandomItem(location?.modes),
-        alarm: getRandomItem(getAlarmTrigOpts()),
-        routine: getRandomItem(getLocationRoutines()),
+        alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
+        routine: isST() ? getRandomItem(getLocationRoutines()) : null
     ]
+
     if(attVal?.containsKey(trig)) {
-        evt?.evt = [name: trig, displayName: randDev?.displayName, value: attVal[trig], date: new Date(), deviceId: devId]
+        if(trig in noDevOpts) {
+            evt?.evt = [name: trig, displayName: "", value: attVal[trig], date: new Date(), deviceId: devId]
+        } else { evt?.evt = [name: trig, displayName: randDev?.displayName, value: attVal[trig], date: new Date(), deviceId: devId] }
     }
     if(!hasGblTxt) {
         List txtItems = eTxtItems + rTxtItems
@@ -2139,8 +2143,7 @@ Map getRandomTrigEvt() {
                 case "routine":
                     evt?.custText = "The ${attVal[trig]} routine was just executed!."
                     break
-                case "hsmStatus":
-                case "alarmSystemStatus":
+                case "alarm":
                     evt?.custText = "The ${getAlarmSystemName()} is now set to ${attVal[trig]}"
                     break
                 case "humidity":
@@ -2149,10 +2152,10 @@ Map getRandomTrigEvt() {
                 case "illuminance":
                 case "level":
                 case "battery":
-                    evt?.custText = "${trigDev?.displayName}${!trigDev?.displayName?.toLowerCase()?.contains(trig) ? " ${trig}" : ""} is ${attVal[trig]} ${getAttrPostfix(trig)}"
+                    evt?.custText = "${trigDev?.displayName}${!trigDev?.displayName?.toLowerCase()?.contains(trig) ? " ${trig}" : ""} is ${devAttVal[trig]} ${getAttrPostfix(trig)}"
                     break
                 default:
-                    evt?.custText = "${trigDev?.displayName}${!trigDev?.displayName?.toLowerCase()?.contains(trig) ? " ${trig}" : ""} is ${attVal[trig]}"
+                    evt?.custText = "${trigDev?.displayName}${!trigDev?.displayName?.toLowerCase()?.contains(trig) ? " ${trig}" : ""} is ${devAttVal[trig]}"
                     break
             }
         }
@@ -2365,7 +2368,7 @@ Map getInputData(inName) {
 def updateTxtEntry(obj) {
     // log.debug "updateTxtEntry | Obj: $obj"
     if(obj?.name && obj?.type) {
-        settingUpdate("${obj?.name}", obj?.val ?: null, 'text')
+        settingUpdate("${obj?.name}", obj?.val ?: "", obj?.type as String)
         return true
     }
     return false
