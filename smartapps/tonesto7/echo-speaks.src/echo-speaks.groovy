@@ -3461,7 +3461,6 @@ def textEditProcessing() {
     String inName = params?.inName
     // log.debug "POST | actId: $actId | inName: $inName"
     def resp = request?.JSON ?: null
-    // log.debug "textEntryProcessing | Resp: $resp"
     def actApp = getTextEditChild(actId)
     Boolean status = (actApp && actApp?.updateTxtEntry(resp))
     def json = new JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersion()])
@@ -3634,7 +3633,7 @@ String getAppDebugDesc() {
 }
 
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
+private logInfo(msg) { if(settings?.logInfo == null || settings?.logInfo != false) { log.info msg } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
 private logWarn(msg) { if(settings?.logWarn != false) { log.warn msg } }
 private logError(msg) { if(settings?.logError != false) { log.error msg } }
