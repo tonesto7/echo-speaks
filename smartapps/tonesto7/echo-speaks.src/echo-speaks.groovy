@@ -90,9 +90,6 @@ def mainPage() {
         if(newInstall) {
             deviceDetectOpts()
         } else {
-            if(!resumeConfig && state?.authValid != true) {
-                section() { paragraph title: "NOTICE:", pTS("You are not currently logged in to Amazon.  Please complete the Authentication Process on the Server Login Page...", null, true, "red"), required: true, state: null }
-            }
             section(sTS("Alexa Guard:")) {
                 if(state?.alexaGuardSupported) {
                     String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
@@ -536,6 +533,7 @@ def servPrefPage() {
                 section(sTS("Cookie Management:")) {
                     if(state?.lastCookieRefresh) { paragraph pTS("Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})", null, false, "#2784D9"), state: "complete" }
                     input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                    paragraph pTS("Notice:\nRunning this too fast back to back will actually cause it to clear your cookie.  Run at a max of once every 24 hours.", null, false, "#2784D9")
                     if(refreshCookie) { runCookieRefresh() }
                 }
             }
@@ -1035,18 +1033,6 @@ def updated() {
 def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
-    if(!state?.resumeConfig) {
-        runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
-        appCleanup()
-        runEvery1Minute("getOtherData")
-        runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
-        // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
-        validateCookie(true)
-        runIn(15, "reInitChildren")
-        getOtherData()
-        getEchoDevices()
-    }
-    subscribe(app, onAppTouch)
     if((settings?.guardHomeAlarm && settings?.guardAwayAlarm) || settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
         if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
             subscribe(location, "${!isST() ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
@@ -1057,6 +1043,17 @@ def initialize() {
         if(settings?.guardAwayPresence) {
             subscribe(settings?.guardAwayPresence, "presence", guardTriggerEvtHandler)
         }
+    }
+    if(!state?.resumeConfig) {
+        runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
+        appCleanup()
+        validateCookie(true)
+        runEvery1Minute("getOtherData")
+        runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
+        // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
+        runIn(15, "reInitChildren")
+        getOtherData()
+        getEchoDevices()
     }
 }
 
@@ -1229,7 +1226,8 @@ def storeCookieData() {
         state?.serverHost = request?.JSON?.serverUrl ?: null
         updCodeVerMap("server", request?.JSON?.version)
     }
-    if(state?.cookieData?.localCookie && state?.cookieData?.csrf) {
+    // log.debug "csrf: ${state?.cookieData?.csrf}"
+    if(state?.cookieData?.localCookie && state?.cookieData?.csrf != null) {
         logInfo("Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds...")
         validateCookie(true)
         state?.serviceConfigured = true
@@ -1247,7 +1245,8 @@ def clearCookieData(src=null) {
     unschedule("getEchoDevices")
     unschedule("getOtherData")
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
-    updateChildAuth(false, null)
+    updateChildAuth(false)
+    state?.authValid = false
     // if(getServerHostURL()) { clearServerAuth() }
 }
 
@@ -1256,6 +1255,7 @@ private updateChildAuth(Boolean isValid) {
 }
 
 private authEvtHandler(Boolean isAuth) {
+    log.debug "authEvtHandler(${isAuth})"
     state?.authValid = (isAuth == true)
     if(isAuth == false && !state?.noAuthActive) {
         clearCookieData()
@@ -1279,17 +1279,6 @@ Boolean isAuthValid(methodName) {
         return false
     }
     return true
-}
-
-private validateCookie(frc=false) {
-    if((!frc && getLastCookieChkSec() <= 1800) || !getCookieVal() || !getCsrfVal()) { return }
-    try {
-        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
-        execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
-    } catch(ex) {
-        incrementCntByKey("err_app_cookieValidCnt")
-        logError("validateCookie() Exception: ${ex.message}")
-    }
 }
 
 String toQueryString(Map m) {
@@ -1316,6 +1305,7 @@ def clearServerAuth() {
 
 private runCookieRefresh() {
     settingUpdate("refreshCookie", "false", "bool")
+    if(getLastCookieRefreshSec() < 86400) { log.error "Cookie Refresh is blocked... | Last refresh was less than 24 hours ago."; return; }
     Map params = [
         uri: getServerHostURL(),
         path: "/config",
@@ -1376,6 +1366,17 @@ private apiHealthCheck(frc=false) {
     }
 }
 
+private validateCookie(frc=false) {
+    if((!frc && getLastCookieChkSec() <= 1800) || !getCookieVal() || !getCsrfVal()) { return }
+    try {
+        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
+        execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
+    } catch(ex) {
+        incrementCntByKey("err_app_cookieValidCnt")
+        logError("validateCookie() Exception: ${ex.message}")
+    }
+}
+
 def cookieValidResp(response, data) {
     // logTrace("cookieValidResp...")
     if(response?.status == 401) {
@@ -1399,6 +1400,7 @@ def cookieValidResp(response, data) {
 
 private authValidationEvent(valid) {
 	Integer listSize = 3
+    valid =false
     List eList = atomicState?.authValidHistory ?: [true, true, true]
     eList.push(valid)
 	if(eList?.size() > listSize) { eList = eList?.drop( (eList?.size()-listSize)+1 ) }
@@ -1406,18 +1408,9 @@ private authValidationEvent(valid) {
     if(eList?.every { it == false }) {
         logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
         authEvtHandler(false)
-    }
+        return
+    } else { authEvtHandler(true) }
 }
-
-// private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
-//     statusCode = statusCode as Integer
-//     if(statusCode == 401) {
-//         authValidationEvent(false)
-//         return false
-//     } else { if(statusCode > 401 && statusCode < 500) { logError("${methodName} Error: ${errMsg ?: null}") } }
-//     if(hasErr && falseOnErr) { return false }
-//     return true
-// }
 
 private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
     statusCode = statusCode as Integer
@@ -1671,7 +1664,7 @@ private getGuardState() {
     ]
     try {
         httpPost(params) { resp ->
-            def respData = resp?.data ?: null
+            Map respData = resp?.data ?: null
             if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
                 def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
                 state?.alexaGuardState = guardStateData?.value[0] ? guardStateData?.value[0] : guardStateData?.value
@@ -2774,7 +2767,13 @@ String getAppNotifDesc() {
 
 String getActionsDesc() {
     def acts = getActionApps()
-    return acts?.size() ? "(${acts?.size()}) Actions Configured\n\nTap to modify" : "Tap to configure"
+    def paused = acts?.findAll { it?.isPaused() == true }
+    def active = acts?.findAll { it?.isPaused() != true }
+    String str = ""
+    str += active?.size() ? "(${active?.size()}) Active\n" : ""
+    str += paused?.size() ? "(${paused?.size()}) Paused\n" : ""
+    str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to configure"
+    return str
 }
 
 String getServInfoDesc() {
@@ -2845,12 +2844,13 @@ def appInfoSect()	{
                 minUpdMap?.updItems?.each { item-> str3 += bulletItem(str3, item)  }
                 paragraph pTS(str3, null, false, "red"), required: true, state: null
             }
-            if(!state?.authValid) { paragraph "Amazon Authention:\n \u2022 Login No Longer Valid!", required: true, state: null }
+            if(!state?.authValid && !state?.resumeConfig) { isNote = true; paragraph pTS("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", null, false, "red"), required: true, state: null }
             if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
                 isNote = true
-                state?.noticeData?.notices?.each { item-> paragraph bulletItem(str, item), required: true, state: null }
+                state?.noticeData?.notices?.each { item-> paragraph pTS(bulletItem(str, item), null, false, "red"), required: true, state: null }
             }
             if(remDevs?.size()) {
+                isNote = true
                 paragraph pTS("Devices to Remove:\n(${remDevs?.size()}) Devices to be Removed", null, false), required: true, state: null
             }
             if(!isNote) { paragraph pTS("No Issues to Report", null, true) }
