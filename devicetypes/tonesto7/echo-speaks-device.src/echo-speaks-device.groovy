@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.0"}
-String devModified() { return "2019-08-26" }
+String devModified() { return "2019-08-27" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -1041,7 +1041,7 @@ def getBluetoothDevices() {
     // }
 
     if(isStateChange(device, "btDevicesPaired", pairedNames?.toString())) {
-        logInfo("Paired Bluetooth Devices: ${pairedNames}")
+        logDebug("Paired Bluetooth Devices: ${pairedNames}")
         sendEvent(name: "btDevicesPaired", value: pairedNames, descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
     }
 }
@@ -1050,7 +1050,7 @@ def updGuardStatus(val=null) {
     String gState = val ?: (state?.permissions?.guardSupported ? (parent?.getAlexaGuardStatus() ?: "Unknown") : "Not Supported")
     if(isStateChange(device, "alexaGuardStatus", gState?.toString())) {
         sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)
-        logInfo("Alexa Guard Status: (${gState})")
+        logDebug("Alexa Guard Status: (${gState})")
     }
 }
 

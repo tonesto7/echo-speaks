@@ -17,7 +17,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()   { return "3.0.0" }
-String appModified()  { return "2019-08-26" }
+String appModified()  { return "2019-08-27" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -1325,29 +1325,7 @@ private runCookieRefresh() {
     execAsyncCmd("get", "wakeUpServerResp", params, [execDt: now()])
 }
 
-// def wakeUpServerResp(response, data) {
-//     logTrace("wakeUpServerResp...")
-//     try { } catch(ex) { logError("wakeUpServerResp Error: ${response?.getErrorMessage() ?: null}") }
-//     def rData = response?.data ?: null
-//     if (rData) {
-//         log.debug "rData: $rData"
-//         log.debug("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
-//         Map cookieData = state?.cookieData ?: [:]
-//         if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
-//             logError("Required Registration data is missing for Cookie Refresh")
-//             return
-//         }
-//         Map params = [
-//             uri: getServerHostURL(),
-//             path: "/refreshCookie"
-//         ]
-//         execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
-//     }
-// }
-
 def wakeUpServerResp(response, data) {
-    // logTrace("wakeUpServerResp...")
-    // try { } catch(ex) { logError("wakeUpServerResp Error: ${response?.getErrorMessage() ?: null}") }
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "wakeUpServerResp")) {return}
@@ -1356,7 +1334,7 @@ def wakeUpServerResp(response, data) {
     catch(ex) { logError("wakeUpServerResp Exception: ${ex?.message}") }
     if (rData) {
         // log.debug "rData: $rData"
-        log.debug("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
+        logInfo("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         Map cookieData = state?.cookieData ?: [:]
         if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
             logError("Required Registration data is missing for Cookie Refresh")
@@ -1371,15 +1349,13 @@ def wakeUpServerResp(response, data) {
 }
 
 def cookieRefreshResp(response, data) {
-    // logTrace("cookieRefreshResp...")
-    // try { } catch(ex) { logError("cookieRefreshResp Error: ${response?.getErrorMessage() ?: null}") }
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "cookieRefreshResp")) {return}
     Map rData = null
     try { rData = response?.data ? response?.json ?: [:] : [:] }
-    catch(ex) { logError("cookieRefreshResp Exception: ${ex?.message}") }
-    log.debug "rData: $rData"
+    catch(ex) { logError("cookieRefreshResp Exception: ${ex}") }
+    // log.debug "rData: $rData"
     if (rData && rData?.result && rData?.result?.size()) {
         logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         if(settings?.sendCookieRefreshMsg == true) { sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!") }
@@ -1388,7 +1364,6 @@ def cookieRefreshResp(response, data) {
 }
 
 private apiHealthCheck(frc=false) {
-    // if(!frc || (getLastApiChkSec() <= 1800)) { return }
     try {
         Map params = [uri: getAmazonUrl(), path: "/api/ping", query: ["_": ""], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "plain/text"]
         httpGet(params) { resp->
