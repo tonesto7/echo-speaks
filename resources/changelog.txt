@@ -1,8 +1,8 @@
 
-╔══════════════╗
-║ Main App (v3.0.0)  ║
-║ August 27th, 2019  ║
-╚══════════════╝
+╔═══════════╗
+║   Main App (v3.0.0)   ║
+║   August 27th, 2019   ║
+╚═══════════╝
  • NEW: Automation child app called Echo Speaks - Actions to eliminate the need for 3rd party apps to use all of Echo Speaks functionality.
  • NEW: Support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).
  • NEW: Ability to remove 'Echo - ' prefix from device names.
