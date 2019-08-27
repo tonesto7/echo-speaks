@@ -23,6 +23,7 @@ Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
 Map minVersions()     { return [echoDevice: 300, actionApp: 300, server: 222] } //These values define the minimum versions of code this app will work with.
 // TODO: Change importURL back to master branch
+// TODO: Change docs link to public docs for release
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -72,7 +73,7 @@ def startPage() {
     state?.childInstallOkFlag = false
     if(!state?.resumeConfig && state?.isInstalled) { checkGuardSupport() }
     if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) { return servPrefPage() }
-    else if(showChgLogOk()) { return changeLogPage() }
+    else if(isBeta() || showChgLogOk()) { return changeLogPage() }
     else if(showDonationOk()) { return donationPage() }
     else { return mainPage() }
 }
@@ -1255,7 +1256,7 @@ private updateChildAuth(Boolean isValid) {
 }
 
 private authEvtHandler(Boolean isAuth) {
-    log.debug "authEvtHandler(${isAuth})"
+    // log.debug "authEvtHandler(${isAuth})"
     state?.authValid = (isAuth == true)
     if(isAuth == false && !state?.noAuthActive) {
         clearCookieData()
@@ -1400,7 +1401,6 @@ def cookieValidResp(response, data) {
 
 private authValidationEvent(valid) {
 	Integer listSize = 3
-    valid =false
     List eList = atomicState?.authValidHistory ?: [true, true, true]
     eList.push(valid)
 	if(eList?.size() > listSize) { eList = eList?.drop( (eList?.size()-listSize)+1 ) }
@@ -2357,7 +2357,7 @@ String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t
 String inTS(String t, String i = null, color=null) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : ""}""" }
 
 String actChildName(){ return "Echo Speaks - Actions" }
-String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
+String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs2" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
@@ -2404,8 +2404,8 @@ def changeLogPage() {
     def execTime = now()
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
-            paragraph title: "What's New in this Release...", "", state: "complete", image: getAppImg("whats_new")
-            paragraph changeLogData()
+            paragraph title: "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""}): ", pTS(isST() ? "" : "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""}): ", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
+            paragraph pTS(changeLogData(), null, false, "gray")
         }
         Map iData = atomicState?.installData ?: [:]
         iData["shownChgLog"] = true
