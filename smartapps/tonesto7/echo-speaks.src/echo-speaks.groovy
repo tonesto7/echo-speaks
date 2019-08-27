@@ -1039,8 +1039,8 @@ def initialize() {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
         appCleanup()
         runEvery1Minute("getOtherData")
-        // runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
-        runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
+        runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
+        // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
         validateCookie(true)
         runIn(15, "reInitChildren")
         getOtherData()
@@ -1075,8 +1075,7 @@ def getActionApps() {
 
 def onAppTouch(evt) {
     // logTrace("appTouch...")
-    authValidationEvent(false)
-    // updated()
+    updated()
 }
 
 void settingUpdate(name, value, type=null) {
@@ -1326,13 +1325,38 @@ private runCookieRefresh() {
     execAsyncCmd("get", "wakeUpServerResp", params, [execDt: now()])
 }
 
+// def wakeUpServerResp(response, data) {
+//     logTrace("wakeUpServerResp...")
+//     try { } catch(ex) { logError("wakeUpServerResp Error: ${response?.getErrorMessage() ?: null}") }
+//     def rData = response?.data ?: null
+//     if (rData) {
+//         log.debug "rData: $rData"
+//         log.debug("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
+//         Map cookieData = state?.cookieData ?: [:]
+//         if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
+//             logError("Required Registration data is missing for Cookie Refresh")
+//             return
+//         }
+//         Map params = [
+//             uri: getServerHostURL(),
+//             path: "/refreshCookie"
+//         ]
+//         execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
+//     }
+// }
+
 def wakeUpServerResp(response, data) {
-    logTrace("wakeUpServerResp...")
-    try { } catch(ex) { logError("wakeUpServerResp Error: ${response?.getErrorMessage() ?: null}") }
-    def rData = response?.data ?: null
+    // logTrace("wakeUpServerResp...")
+    // try { } catch(ex) { logError("wakeUpServerResp Error: ${response?.getErrorMessage() ?: null}") }
+    Boolean hasErr = (response?.hasError() == true)
+    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
+    if(!respIsValid(response?.status, hasErr, errMsg, "wakeUpServerResp")) {return}
+    def rData = null
+    try { rData = response?.data ?: null }
+    catch(ex) { logError("wakeUpServerResp Exception: ${ex?.message}") }
     if (rData) {
         // log.debug "rData: $rData"
-        logDebug("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
+        log.debug("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         Map cookieData = state?.cookieData ?: [:]
         if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
             logError("Required Registration data is missing for Cookie Refresh")
@@ -1347,9 +1371,15 @@ def wakeUpServerResp(response, data) {
 }
 
 def cookieRefreshResp(response, data) {
-    logTrace("cookieRefreshResp...")
-    try { } catch(ex) { logError("cookieRefreshResp Error: ${response?.getErrorMessage() ?: null}") }
-    Map rData = response?.json ?: [:]
+    // logTrace("cookieRefreshResp...")
+    // try { } catch(ex) { logError("cookieRefreshResp Error: ${response?.getErrorMessage() ?: null}") }
+    Boolean hasErr = (response?.hasError() == true)
+    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
+    if(!respIsValid(response?.status, hasErr, errMsg, "cookieRefreshResp")) {return}
+    Map rData = null
+    try { rData = response?.data ? response?.json ?: [:] : [:] }
+    catch(ex) { logError("cookieRefreshResp Exception: ${ex?.message}") }
+    log.debug "rData: $rData"
     if (rData && rData?.result && rData?.result?.size()) {
         logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         if(settings?.sendCookieRefreshMsg == true) { sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!") }
@@ -1404,12 +1434,32 @@ private authValidationEvent(valid) {
     }
 }
 
+// private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
+//     statusCode = statusCode as Integer
+//     if(statusCode == 401) {
+//         authValidationEvent(false)
+//         return false
+//     } else { if(statusCode > 401 && statusCode < 500) { logError("${methodName} Error: ${errMsg ?: null}") } }
+//     if(hasErr && falseOnErr) { return false }
+//     return true
+// }
+
 private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
     statusCode = statusCode as Integer
-    if(statusCode == 401) {
+    if(!hasErr && statusCode == 200) {
+        return true
+    } else if(statusCode == 401) {
         authValidationEvent(false)
         return false
-    } else { if(statusCode > 401 && statusCode < 500) { logError("${methodName} Error: ${errMsg ?: null}") } }
+    } else {
+        if(statusCode > 401 && statusCode < 500) {
+            logError("${methodName} Error: ${errMsg ?: null}")
+            if(errMsg == "Forbidden") {
+                authValidationEvent(false)
+                return false
+            }
+        }
+    }
     if(hasErr && falseOnErr) { return false }
     return true
 }
