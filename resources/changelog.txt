@@ -2,50 +2,50 @@
    Main App (v3.0.0)
    August 27th, 2019
  ═════════
-    • NEW: Automation child app called Echo Speaks - Actions to eliminate the need for 3rd party apps to use all of Echo Speaks functionality.
-    • NEW: Support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).
-    • NEW: Ability to remove 'Echo - ' prefix from device names.
-    • NEW: Issues section at top of the app UI.  It will show any authentication, code updates/version issues.
-    • NEW: Child App and Devices now verify that they meet the minimum version required and stop processing if they don't.
-    • NEW: importUrl header param for Hubitat users to quickly import code.
-    • NEW: Checks are now made to make sure you can't install Actions app from the marketplace.
-    • NEW: Log filtering options to reducing log output.
-    • NEW: Three strikes rule for authentication failures. Instead of clearing auth on the first failed attempt it will wait for 3 consectutive failures.
-    • NEW: Speech testing has been added to the device testing section.
-    • FIXED: Repaired issue with Bluetooth status requests.
-    • FIXED: Device rename issue on Hubitat.
-    • FIXED: Authentication handling tweaks and optimizations.
-    • FIXED: Other bugs resolved.
-    • UPDATED: Streamlined the mainPage to be less cluttered and overwhelming.
-    • UPDATED: Rebuilt the announcement tests function.
+  • NEW: Automation child app called Echo Speaks - Actions to eliminate the need for 3rd party apps to use all of Echo Speaks functionality.
+  • NEW: Support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).
+  • NEW: Ability to remove 'Echo - ' prefix from device names.
+  • NEW: Issues section at top of the app UI.  It will show any authentication, code updates/version issues.
+  • NEW: Child App and Devices now verify that they meet the minimum version required and stop processing if they don't.
+  • NEW: importUrl header param for Hubitat users to quickly import code.
+  • NEW: Checks are now made to make sure you can't install Actions app from the marketplace.
+  • NEW: Log filtering options to reducing log output.
+  • NEW: Three strikes rule for authentication failures. Instead of clearing auth on the first failed attempt it will wait for 3 consectutive failures.
+  • NEW: Speech testing has been added to the device testing section.
+  • FIXED: Repaired issue with Bluetooth status requests.
+  • FIXED: Device rename issue on Hubitat.
+  • FIXED: Authentication handling tweaks and optimizations.
+  • FIXED: Other bugs resolved.
+  • UPDATED: Streamlined the mainPage to be less cluttered and overwhelming.
+  • UPDATED: Rebuilt the announcement tests function.
 
  ══════════
    Actions App (v3.0.0)
    August 27th, 2019
  ══════════
-    • NEW: importUrl header param for Hubitat users to quickly import code.
-    • NEW: Alexa Routine Execution (Only those with custom voice triggers).
-    • NEW: Subscribe to just about any location and device events.
-    • NEW: Create responses for each trigger type (Means 1 action can accomodate a large number of events).
-    • NEW: Monitor devices for changes and speak after so many seconds then repeat every x seconds until it changes to desired state.
-    • NEW: Define different responses for the repeat events.
-    • NEW: Define multiple responses and have a random response for each event.
-    • NEW: Web Based reponse builder.
-    • NEW: Log filtering options to reducing log output.
-    • NEW: Much more.
+  • NEW: importUrl header param for Hubitat users to quickly import code.
+  • NEW: Alexa Routine Execution (Only those with custom voice triggers).
+  • NEW: Subscribe to just about any location and device events.
+  • NEW: Create responses for each trigger type (Means 1 action can accomodate a large number of events).
+  • NEW: Monitor devices for changes and speak after so many seconds then repeat every x seconds until it changes to desired state.
+  • NEW: Define different responses for the repeat events.
+  • NEW: Define multiple responses and have a random response for each event.
+  • NEW: Web Based reponse builder.
+  • NEW: Log filtering options to reducing log output.
+  • NEW: Much more.
 
  ═════════
    Device (v3.0.0)
    August 27th, 2019
  ═════════
-    • NEW: importUrl header param for Hubitat users to quickly import code.
-    • NEW: SSML Support for Speech commands.
-    • NEW: Better version checks for devices to prevent compatibility issues.
-    • NEW: alexaGuardStatus attribute.
-    • NEW: Log filtering options to reducing log output.
-    • FIXED: All web calls have been reworked to eliminate the JSON error in the logs.
-    • FIXED: setLevel type mismatch issues.
-    • FIXED: Extensive queue testing and optimizations.
-    • FIXED: Authentication handling tweaks and optimizations.
-    • FIXED: Other stuff i'm not remembering.
-    • UPDATED: Tweaked and optimized the Queue system in the device to be much more resilient and reliable.
+  • NEW: importUrl header param for Hubitat users to quickly import code.
+  • NEW: SSML Support for Speech commands.
+  • NEW: Better version checks for devices to prevent compatibility issues.
+  • NEW: alexaGuardStatus attribute.
+  • NEW: Log filtering options to reducing log output.
+  • FIXED: All web calls have been reworked to eliminate the JSON error in the logs.
+  • FIXED: setLevel type mismatch issues.
+  • FIXED: Extensive queue testing and optimizations.
+  • FIXED: Authentication handling tweaks and optimizations.
+  • FIXED: Other stuff i'm not remembering.
+  • UPDATED: Tweaked and optimized the Queue system in the device to be much more resilient and reliable.
