@@ -24,6 +24,7 @@ Boolean isST()        { return (getPlatform() == "SmartThings") }
 Map minVersions()     { return [echoDevice: 300, actionApp: 300, server: 222] } //These values define the minimum versions of code this app will work with.
 // TODO: Change importURL back to master branch
 // TODO: Change docs link to public docs for release
+// TODO: Add an auth check page with list of cookie and current validationTest, last cookie date, etc
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
