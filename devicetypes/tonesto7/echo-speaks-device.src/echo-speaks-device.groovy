@@ -522,11 +522,13 @@ public setAuthState(authenticated, cookieData) {
     }
 }
 
-Boolean isAuthOk() {
-    if(state?.authValid != true && state?.refreshScheduled) { unschedule("refreshData"); state?.refreshScheduled = false; }
-    if(state?.authValid != true && state?.cookie != null) {
-        log.warn "Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!!"
-        state?.remove("cookie")
+Boolean isAuthOk(noLogs=false) {
+    if(state?.authValid != true) {
+        if(state?.refreshScheduled) { unschedule("refreshData"); state?.refreshScheduled = false; }
+        if(state?.cookie != null) {
+            if(!noLogs) { log.warn "Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!!" }
+            state?.remove("cookie")
+        }
         return false
     } else { return true }
 }
@@ -534,6 +536,7 @@ Boolean isAuthOk() {
 Boolean isCommandTypeAllowed(String type, noLogs=false) {
     Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
     if(!isOnline) { if(!noLogs) { log.warn "Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})" }; return false; }
+    if(!isAuthOk(noLogs)) { return false }
     if(!getAmazonDomain()) { if(!noLogs) { log.warn "amazonDomain State Value Missing: ${getAmazonDomain()}" }; return false }
     if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { if(!noLogs) { log.warn "Amazon Cookie State Values Missing: ${state?.cookie}" }; return false }
     if(!state?.serialNumber) { if(!noLogs) { log.warn "SerialNumber State Value Missing: ${state?.serialNumber}" }; return false }
