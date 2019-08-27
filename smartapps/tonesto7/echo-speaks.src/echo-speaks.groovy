@@ -25,6 +25,7 @@ Map minVersions()     { return [echoDevice: 300, actionApp: 300, server: 222] } 
 // TODO: Change importURL back to master branch
 // TODO: Change docs link to public docs for release
 // TODO: Add an auth check page with list of cookie and current validationTest, last cookie date, etc
+// TODO: and the options to update the cookies on the devices and overall restructure the login server page and split up the server settings make it a little bit more pretty
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
