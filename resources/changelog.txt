@@ -2,49 +2,49 @@
    Main App (v3.0.0)
    August 27th, 2019
  ══════════
- • NEW: Automation child app called Echo Speaks - Actions to eliminate the need for 3rd party apps to use all of Echo Speaks functionality.
- • NEW: Support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).
- • NEW: Ability to remove 'Echo - ' prefix from device names.
- • NEW: Issues section at top of the app UI.  It will show any authentication, code updates/version issues.
- • NEW: Child App and Devices now verify that they meet the minimum version required and stop processing if they don't.
- • NEW: importUrl param for Hubitat users to quickly import code.
- • NEW: Checks are now made to make sure you can't install Actions app from the marketplace.
- • NEW: Log filtering options to reducing log output.
- • NEW: Three strikes rule for authentication failures. Instead of clearing auth on the first failed attempt it will wait for 3 consectutive failures.
- • NEW: Speech testing has been added to the device testing section.
- • FIXED: Repaired issue with Bluetooth status requests.
- • FIXED: Device rename issue on Hubitat.
- • FIXED: Other bugs resolved.
- • UPDATED: Streamlined the mainPage to be less overwhelming.
- • UPDATED: Rebuilt the announcement tests function.
+ • NEW: Automation child app called Echo Speaks - Actions to eliminate the need for 3rd party apps to use all of Echo Speaks functionality.\n
+ • NEW: Support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).\n
+ • NEW: Ability to remove 'Echo - ' prefix from device names.\n
+ • NEW: Issues section at top of the app UI.  It will show any authentication, code updates/version issues.\n
+ • NEW: Child App and Devices now verify that they meet the minimum version required and stop processing if they don't.\n
+ • NEW: importUrl param for Hubitat users to quickly import code.\n
+ • NEW: Checks are now made to make sure you can't install Actions app from the marketplace.\n
+ • NEW: Log filtering options to reducing log output.\n
+ • NEW: Three strikes rule for authentication failures. Instead of clearing auth on the first failed attempt it will wait for 3 consectutive failures.\n
+ • NEW: Speech testing has been added to the device testing section.\n
+ • FIXED: Repaired issue with Bluetooth status requests.\n
+ • FIXED: Device rename issue on Hubitat.\n
+ • FIXED: Other bugs resolved.\n
+ • UPDATED: Streamlined the mainPage to be less overwhelming.\n
+ • UPDATED: Rebuilt the announcement tests function.\n
 
  ══════════
    Actions App (v3.0.0)
    August 27th, 2019
  ══════════
- • NEW: importUrl param for Hubitat users to quickly import.
- • NEW: Alexa Routine Execution (Only those with custom voice triggers).
- • NEW: Subscribe to just about any location and device events.
- • NEW: Create responses for each trigger type (Means 1 action can accomodate a large number of events).
- • NEW: Monitor devices for changes and speak after so many seconds then repeat every x seconds until it changes to desired state.
- • NEW: Define different responses for the repeat events.
- • NEW: Define multiple responses and have a random response for each event.
- • NEW: Web Based reponse builder.
- • NEW: Log filtering options to reducing log output.
- • NEW: Much more.
+ • NEW: importUrl param for Hubitat users to quickly import.\n
+ • NEW: Alexa Routine Execution (Only those with custom voice triggers).\n
+ • NEW: Subscribe to just about any location and device events.\n
+ • NEW: Create responses for each trigger type (Means 1 action can accomodate a large number of events).\n
+ • NEW: Monitor devices for changes and speak after so many seconds then repeat every x seconds until it changes to desired state.\n
+ • NEW: Define different responses for the repeat events.\n
+ • NEW: Define multiple responses and have a random response for each event.\n
+ • NEW: Web Based reponse builder.\n
+ • NEW: Log filtering options to reducing log output.\n
+ • NEW: Much more.\n
 
  ══════════
    Device (v3.0.0)
    August 27th, 2019
  ══════════
- • NEW: importUrl param for Hubitat users to quickly import code.
- • NEW: SSML Support for Speech commands.
- • NEW: Better version checks for devices to prevent compatibility issues.
- • NEW: alexaGuardStatus attribute.
- • NEW: Log filtering options to reducing log output.
- • FIXED: All web calls have been reworked to eliminate the JSON error in the logs.
- • FIXED: setLevel type mismatch issues.
- • FIXED: Extensive queue testing and optimizations.
- • FIXED: Other stuff i'm not remembering.
- • UPDATED: Tweaked and optimized the Queue system in the device to be much more resilient and reliable.
+ • NEW: importUrl param for Hubitat users to quickly import code.\n
+ • NEW: SSML Support for Speech commands.\n
+ • NEW: Better version checks for devices to prevent compatibility issues.\n
+ • NEW: alexaGuardStatus attribute.\n
+ • NEW: Log filtering options to reducing log output.\n
+ • FIXED: All web calls have been reworked to eliminate the JSON error in the logs.\n
+ • FIXED: setLevel type mismatch issues.\n
+ • FIXED: Extensive queue testing and optimizations.\n
+ • FIXED: Other stuff i'm not remembering.\n
+ • UPDATED: Tweaked and optimized the Queue system in the device to be much more resilient and reliable.\n
 
