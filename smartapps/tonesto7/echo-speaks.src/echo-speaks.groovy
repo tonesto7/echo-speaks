@@ -534,8 +534,14 @@ def servPrefPage() {
                 section(sTS("Cookie Management:")) {
                     if(state?.lastCookieRefresh) { paragraph pTS("Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})", null, false, "#2784D9"), state: "complete" }
                     input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                    paragraph pTS("Notice:\nRunning this too fast back to back will actually cause it to clear your cookie.  Run at a max of once every 24 hours.", null, false, "#2784D9")
-                    if(refreshCookie) { runCookieRefresh() }
+                    if(getLastCookieRefreshSec() < 84200) {
+                        paragraph pTS("Notice:\nIt's too soon to refresh your cookie.  Run at a max of once every 24 hours.", null, false, "red"), required: true, state: null
+                    }
+                    paragraph pTS("Notice:\nAfter refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
+                    if(refreshCookie) {
+                        settingUpdate("refreshCookie", "false", "bool")
+                        runIn(2, "runCookieRefresh")
+                    }
                 }
             }
             srvcPrefOpts()
@@ -588,7 +594,7 @@ def notifPrefPage() {
                             input "pushoverSound", "enum", title: inTS("Notification Sound (Optional)"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
                         }
                     }
-                } else { paragraph "New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", state: "complete" }
+                } else { paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, "#2784D9"), state: "complete" }
             }
         }
         if(settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) {
@@ -1107,7 +1113,6 @@ def clearCloudConfig() {
     remItems?.each { rem->
         state?.remove(rem as String)
     }
-    // (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { dev-> dev?.setAuthState(false) }
     state?.serviceConfigured = false
     state?.resumeConfig = true
 }
@@ -2404,7 +2409,7 @@ def changeLogPage() {
     def execTime = now()
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
-            paragraph title: "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""}): ", pTS(isST() ? "" : "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""}): ", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
+            paragraph title: "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""}):\nThis will show on every load until out of beta.", pTS(isST() ? "" : "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""}):\nThis will show on every load until out of beta.", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
             paragraph pTS(changeLogData(), null, false, "gray")
         }
         Map iData = atomicState?.installData ?: [:]
@@ -2882,6 +2887,13 @@ Boolean getAccessToken() {
     }
 }
 
+private getTextEditChild(id) {
+    if(!isST()) {
+        Long longId = id as Long
+        return getChildAppById(longId) ?: null
+    } else { return getActionApps()?.find { it?.id == id } ?: null }
+}
+
 def renderConfig() {
     String title = "Echo Speaks"
     Boolean heroku = (isST() || (settings?.useHeroku == null || settings?.useHeroku != false))
@@ -2993,9 +3005,8 @@ def renderTextEditPage() {
     Map inData = [:]
     // log.debug "actId: $actId | inName: $inName"
     if(actId && inName) {
-        def actApp = getActionApps()?.find { it?.id == actId }
+        def actApp = getTextEditChild(actId)
         if(actApp) { inData = actApp?.getInputData(inName) }
-        // inData = getInputData(inName, actId)
     }
     String html = """
         <!DOCTYPE html>
@@ -3133,61 +3144,61 @@ def renderTextEditPage() {
                                                             <div class="ssml-buttons">
                                                                 <h3>VOICE</h3>
                                                                 <select class="browser-default custom-select custom-select-sm mb-2" id="voices">
-                                                                                            <option value="Naja" class="x-option ember-view">Danish (F) - Naja</option>
-                                                                                            <option value="Mads" class="x-option ember-view">Danish (M) - Mads</option>
-                                                                                            <option value="Lotte" class="x-option ember-view">Dutch (F) - Lotte</option>
-                                                                                            <option value="Ruben" class="x-option ember-view">Dutch (M) - Ruben</option>
-                                                                                            <option value="Nicole" class="x-option ember-view">English, Australian (F) - Nicole</option>
-                                                                                            <option value="Russell" class="x-option ember-view">English, Australian (M) - Russell</option>
-                                                                                            <option value="Amy" class="x-option ember-view">English, British (F) - Amy</option>
-                                                                                            <option value="Emma" class="x-option ember-view">English, British (F) - Emma</option>
-                                                                                            <option value="Brian" class="x-option ember-view">English, British (M) - Brian</option>
-                                                                                            <option value="Raveena" class="x-option ember-view">English, Indian (F) - Raveena</option>
-                                                                                            <option value="Aditi" class="x-option ember-view">English, Indian (F) - Aditi</option>
-                                                                                            <option value="Ivy" class="x-option ember-view">English, US (F) - Ivy</option>
-                                                                                            <option value="Joanna" class="x-option ember-view">English, US (F) - Joanna</option>
-                                                                                            <option value="Kendra" class="x-option ember-view">English, US (F) - Kendra</option>
-                                                                                            <option value="Kimberly" class="x-option ember-view">English, US (F) - Kimberly</option>
-                                                                                            <option value="Salli" class="x-option ember-view">English, US (F) - Salli</option>
-                                                                                            <option value="Joey" class="x-option ember-view">English, US (M) - Joey</option>
-                                                                                            <option value="Justin" class="x-option ember-view">English, US (M) - Justin</option>
-                                                                                            <option value="Matthew" class="x-option ember-view">English, US (M) - Matthew</option>
-                                                                                            <option value="Geraint" class="x-option ember-view">English, Welsh (M) - Geraint</option>
-                                                                                            <option value="Celine" class="x-option ember-view">French (F) - Céline</option>
-                                                                                            <option value="Lea" class="x-option ember-view">French (F) - Léa</option>
-                                                                                            <option value="Mathieu" class="x-option ember-view">French (M) - Mathieu</option>
-                                                                                            <option value="Chantal" class="x-option ember-view">French, Canadian (F) - Chantal</option>
-                                                                                            <option value="Marlene" class="x-option ember-view">German (F) - Marlene</option>
-                                                                                            <option value="Vicki" class="x-option ember-view">German (F) - Vicki</option>
-                                                                                            <option value="Hans" class="x-option ember-view">German (M) - Hans</option>
-                                                                                            <option value="Aditi" class="x-option ember-view">Hindi (F) - Aditi</option>
-                                                                                            <option value="Dóra" class="x-option ember-view">Icelandic (F) - Dóra</option>
-                                                                                            <option value="Karl" class="x-option ember-view">Icelandic (M) - Karl</option>
-                                                                                            <option value="Carla" class="x-option ember-view">Italian (F) - Carla</option>
-                                                                                            <option value="Giorgio" class="x-option ember-view">Italian (M) - Giorgio</option>
-                                                                                            <option value="Takumi" class="x-option ember-view">Japanese (M) - Takumi</option>
-                                                                                            <option value="Mizuki" class="x-option ember-view">Japanese (F) - Mizuki</option>
-                                                                                            <option value="Seoyeon" class="x-option ember-view">Korean (F) - Seoyeon</option>
-                                                                                            <option value="Liv" class="x-option ember-view">Norwegian (F) - Liv</option>
-                                                                                            <option value="Ewa" class="x-option ember-view">Polish (F) - Ewa</option>
-                                                                                            <option value="Maja" class="x-option ember-view">Polish (F) - Maja</option>
-                                                                                            <option value="Jacek" class="x-option ember-view">Polish (M) - Jacek</option>
-                                                                                            <option value="Jan" class="x-option ember-view">Polish (M) - Jan</option>
-                                                                                            <option value="Vitoria" class="x-option ember-view">Portugese, Brazilian (F) - Vitória</option>
-                                                                                            <option value="Ricardo" class="x-option ember-view">Portugese, Brazilian (M) - Ricardo</option>
-                                                                                            <option value="Ines" class="x-option ember-view">Portugese, European (F) - Inês</option>
-                                                                                            <option value="Cristiano" class="x-option ember-view">Portugese, European (M) - Cristiano</option>
-                                                                                            <option value="Carmen" class="x-option ember-view">Romanian (F) - Carmen</option>
-                                                                                            <option value="Tatyana" class="x-option ember-view">Russian (F) - Tatyana</option>
-                                                                                            <option value="Maxim" class="x-option ember-view">Russian (M) - Maxim</option>
-                                                                                            <option value="Conchita" class="x-option ember-view">Spanish, European (F) - Conchita</option>
-                                                                                            <option value="Enrique" class="x-option ember-view">Spanish, European (M) - Enrique</option>
-                                                                                            <option value="Penélope" class="x-option ember-view">Spanish, US (F) - Penélope</option>
-                                                                                            <option value="Miguel" class="x-option ember-view">Spanish, US (M) - Miguel</option>
-                                                                                            <option value="Astrid" class="x-option ember-view">Swedish (F) - Astrid</option>
-                                                                                            <option value="Filiz" class="x-option ember-view">Turkish (F) - Filiz</option>
-                                                                                            <option value="Gwyneth" class="x-option ember-view">Welsh (F) - Gwyneth</option>
-                                                                                        </select>
+                                                                    <option value="Naja" class="x-option ember-view">Danish (F) - Naja</option>
+                                                                    <option value="Mads" class="x-option ember-view">Danish (M) - Mads</option>
+                                                                    <option value="Lotte" class="x-option ember-view">Dutch (F) - Lotte</option>
+                                                                    <option value="Ruben" class="x-option ember-view">Dutch (M) - Ruben</option>
+                                                                    <option value="Nicole" class="x-option ember-view">English, Australian (F) - Nicole</option>
+                                                                    <option value="Russell" class="x-option ember-view">English, Australian (M) - Russell</option>
+                                                                    <option value="Amy" class="x-option ember-view">English, British (F) - Amy</option>
+                                                                    <option value="Emma" class="x-option ember-view">English, British (F) - Emma</option>
+                                                                    <option value="Brian" class="x-option ember-view">English, British (M) - Brian</option>
+                                                                    <option value="Raveena" class="x-option ember-view">English, Indian (F) - Raveena</option>
+                                                                    <option value="Aditi" class="x-option ember-view">English, Indian (F) - Aditi</option>
+                                                                    <option value="Ivy" class="x-option ember-view">English, US (F) - Ivy</option>
+                                                                    <option value="Joanna" class="x-option ember-view">English, US (F) - Joanna</option>
+                                                                    <option value="Kendra" class="x-option ember-view">English, US (F) - Kendra</option>
+                                                                    <option value="Kimberly" class="x-option ember-view">English, US (F) - Kimberly</option>
+                                                                    <option value="Salli" class="x-option ember-view">English, US (F) - Salli</option>
+                                                                    <option value="Joey" class="x-option ember-view">English, US (M) - Joey</option>
+                                                                    <option value="Justin" class="x-option ember-view">English, US (M) - Justin</option>
+                                                                    <option value="Matthew" class="x-option ember-view">English, US (M) - Matthew</option>
+                                                                    <option value="Geraint" class="x-option ember-view">English, Welsh (M) - Geraint</option>
+                                                                    <option value="Celine" class="x-option ember-view">French (F) - Céline</option>
+                                                                    <option value="Lea" class="x-option ember-view">French (F) - Léa</option>
+                                                                    <option value="Mathieu" class="x-option ember-view">French (M) - Mathieu</option>
+                                                                    <option value="Chantal" class="x-option ember-view">French, Canadian (F) - Chantal</option>
+                                                                    <option value="Marlene" class="x-option ember-view">German (F) - Marlene</option>
+                                                                    <option value="Vicki" class="x-option ember-view">German (F) - Vicki</option>
+                                                                    <option value="Hans" class="x-option ember-view">German (M) - Hans</option>
+                                                                    <option value="Aditi" class="x-option ember-view">Hindi (F) - Aditi</option>
+                                                                    <option value="Dóra" class="x-option ember-view">Icelandic (F) - Dóra</option>
+                                                                    <option value="Karl" class="x-option ember-view">Icelandic (M) - Karl</option>
+                                                                    <option value="Carla" class="x-option ember-view">Italian (F) - Carla</option>
+                                                                    <option value="Giorgio" class="x-option ember-view">Italian (M) - Giorgio</option>
+                                                                    <option value="Takumi" class="x-option ember-view">Japanese (M) - Takumi</option>
+                                                                    <option value="Mizuki" class="x-option ember-view">Japanese (F) - Mizuki</option>
+                                                                    <option value="Seoyeon" class="x-option ember-view">Korean (F) - Seoyeon</option>
+                                                                    <option value="Liv" class="x-option ember-view">Norwegian (F) - Liv</option>
+                                                                    <option value="Ewa" class="x-option ember-view">Polish (F) - Ewa</option>
+                                                                    <option value="Maja" class="x-option ember-view">Polish (F) - Maja</option>
+                                                                    <option value="Jacek" class="x-option ember-view">Polish (M) - Jacek</option>
+                                                                    <option value="Jan" class="x-option ember-view">Polish (M) - Jan</option>
+                                                                    <option value="Vitoria" class="x-option ember-view">Portugese, Brazilian (F) - Vitória</option>
+                                                                    <option value="Ricardo" class="x-option ember-view">Portugese, Brazilian (M) - Ricardo</option>
+                                                                    <option value="Ines" class="x-option ember-view">Portugese, European (F) - Inês</option>
+                                                                    <option value="Cristiano" class="x-option ember-view">Portugese, European (M) - Cristiano</option>
+                                                                    <option value="Carmen" class="x-option ember-view">Romanian (F) - Carmen</option>
+                                                                    <option value="Tatyana" class="x-option ember-view">Russian (F) - Tatyana</option>
+                                                                    <option value="Maxim" class="x-option ember-view">Russian (M) - Maxim</option>
+                                                                    <option value="Conchita" class="x-option ember-view">Spanish, European (F) - Conchita</option>
+                                                                    <option value="Enrique" class="x-option ember-view">Spanish, European (M) - Enrique</option>
+                                                                    <option value="Penélope" class="x-option ember-view">Spanish, US (F) - Penélope</option>
+                                                                    <option value="Miguel" class="x-option ember-view">Spanish, US (M) - Miguel</option>
+                                                                    <option value="Astrid" class="x-option ember-view">Swedish (F) - Astrid</option>
+                                                                    <option value="Filiz" class="x-option ember-view">Turkish (F) - Filiz</option>
+                                                                    <option value="Gwyneth" class="x-option ember-view">Welsh (F) - Gwyneth</option>
+                                                                </select>
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Add Voice" data-ssml="voice">
                                                             </div>
                                                         </div>
@@ -3218,7 +3229,7 @@ def renderTextEditPage() {
                     let actId = '${actId}'
                     let rootUrl = '${getAppEndpointUrl("textEditor/${actId}/${inName}")}';
                     let curText = '${inData?.val}';
-                    curText = curText == null || curText == 'null' || curText == '' ? '${inData?.template}' : curText
+                    curText = (curText == null || curText == 'null' || curText == '') ? '${inData?.template}' : curText
                     let curTitle = '${inData?.title}';
                     let curDesc = '${inData?.desc}';
                     let selectedLineNum = undefined;
@@ -3451,16 +3462,16 @@ def textEditProcessing() {
     // log.debug "POST | actId: $actId | inName: $inName"
     def resp = request?.JSON ?: null
     // log.debug "textEntryProcessing | Resp: $resp"
-    def actApp = getActionApps()?.find { it?.id == actId }
+    def actApp = getTextEditChild(actId)
     Boolean status = (actApp && actApp?.updateTxtEntry(resp))
     def json = new JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersion()])
     render contentType: "application/json", data: json, status: 200
 }
 
 def getSettingVal(inName) {
-    String actionId = params?.cId
-    // log.debug "GetSettingVals | actionId: $actionId"
-    def actApp = getActionApps()?.find { it?.id == actionId }
+    String actId = params?.cId
+    // log.debug "GetSettingVals | actId: $actId"
+    def actApp = getTextEditChild(actId)
     def value = null
     if(actApp) { value = actApp?.getSettingInputVal(inName) }
     return value
