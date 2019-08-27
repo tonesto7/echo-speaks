@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.0"}
-String devModified() { return "2019-08-26" }
+String devModified() { return "2019-08-27" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -437,7 +437,12 @@ metadata {
 
     preferences {
         section("Preferences") {
-            input "showLogs", "bool", required: false, title: "Show Debug Logs?", defaultValue: false
+            input "logInfo", "bool", title: "Show Info Logs?",  required: false, defaultValue: true
+            input "logWarn", "bool", title: "Show Warning Logs?", required: false, defaultValue: true
+            input "logError", "bool", title: "Show Error Logs?",  required: false, defaultValue: true
+            input "logDebug", "bool", title: "Show Debug Logs?", description: "Only leave on when required", required: false, defaultValue: false
+            input "logTrace", "bool", title: "Show Detailed Logs?", description: "Only Enabled when asked by the developer", required: false, defaultValue: false
+
             input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
             input "disableTextTransform", "bool", required: false, title: "Disable Text Transform?", description: "This will attempt to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false
             input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
@@ -446,7 +451,7 @@ metadata {
 }
 
 def installed() {
-    log.trace "${device?.displayName} Executing Installed..."
+    logInfo("${device?.displayName} Executing Installed...")
     sendEvent(name: "mute", value: "unmuted")
     sendEvent(name: "status", value: "stopped")
     sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
@@ -463,17 +468,17 @@ def installed() {
 }
 
 def updated() {
-    log.trace "${device?.displayName} Executing Updated()"
+    logTrace("${device?.displayName} Executing Updated()")
     initialize()
 }
 
 def initialize() {
-    log.trace "${device?.displayName} Executing initialize()"
+    logInfo("${device?.displayName} Executing initialize()")
     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
     sendEvent(name: "DeviceWatch-Enroll", value: new JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), displayed: false)
     resetQueue()
     stateCleanup()
-    if(checkMinVersion()) { log.error "CODE UPDATE required to RESUME operation.  No Device Events will updated."; return; }
+    if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
     schedDataRefresh(true)
     refreshData(true)
     //TODO: Add Queue cleanup task to schedule.  If q_speakingNow != true
@@ -507,8 +512,9 @@ def getShortDevName(){
     return device?.displayName?.replace("Echo - ", "")
 }
 
-public setAuthState(authenticated) {
+public setAuthState(authenticated, cookieData) {
     state?.authValid = (authenticated == true)
+    state?.cookie = cookieData ?: null
     if(authenticated != true && state?.refreshScheduled) {
         log.warn "Cookie Authentication Cleared by Parent.  Scheduled Refreshes also cancelled!"
         unschedule("refreshData")
@@ -624,7 +630,7 @@ void updateDeviceStatus(Map devData) {
             // }
             // devData?.playerState?.each { k,v ->
             //     if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
-            //         logger("debug", "$k: $v")
+            //         logDebug("$k: $v")
             //     }
             // }
             state?.isSupportedDevice = (devData?.unsupported != true)
@@ -634,6 +640,7 @@ void updateDeviceStatus(Map devData) {
             state?.deviceAccountId = devData?.deviceAccountId
             state?.softwareVersion = devData?.softwareVersion
             state?.cookie = devData?.cookie
+            state?.authValid = (devData?.authValid == true)
             state?.amazonDomain = devData?.amazonDomain
             state?.regionLocale = devData?.regionLocale
             Map permissions = state?.permissions ?: [:]
@@ -646,10 +653,9 @@ void updateDeviceStatus(Map devData) {
             if(isStateChange(device, "permissions", permissionList?.toString())) {
                 sendEvent(name: "permissions", value: permissionList, display: false, displayed: false)
             }
-            state?.authValid = (devData?.authValid == true)
             Map deviceStyle = devData?.deviceStyle
             state?.deviceStyle = devData?.deviceStyle
-            // logger("info", "deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
+            // logInfo("deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
             state?.deviceImage = deviceStyle?.image as String
             if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
                 sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
@@ -694,12 +700,12 @@ void updateDeviceStatus(Map devData) {
         state?.fullRefreshOk = true
         schedDataRefresh()
     // } catch(ex) {
-    //     log.error "updateDeviceStatus Error: ", ex
+    //     logError( "updateDeviceStatus Error: ${ex?.message}")
     // }
 }
 
 void refresh() {
-    log.trace "refresh()"
+    logTrace("refresh()")
     parent?.childInitiatedRefresh()
     refreshData(true)
 }
@@ -718,14 +724,14 @@ public schedDataRefresh(frc) {
 }
 
 private refreshData(full=false) {
-    // logger("trace", "refreshData()...")
+    // logTrace("trace", "refreshData()...")
     if(device?.currentValue("onlineStatus") != "online") {
-        logger("warn", "Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
+        logWarn("Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
         return
     }
     if(!isAuthOk()) {return}
-    if(checkMinVersion()) { log.error "CODE UPDATE required to RESUME operation.  No Device Events will updated."; return; }
-    // logger("trace", "permissions: ${state?.permissions}")
+    if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
+    // logTrace("permissions: ${state?.permissions}")
     if(state?.permissions?.mediaPlayer == true) {
         getPlaybackState()
         getPlaylists()
@@ -772,13 +778,13 @@ private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, 
     if(!hasErr && statusCode == 200) {
         return true
     } else if(statusCode == 401) {
-        setAuthState(false)
+        // setAuthState(false)
         return false
     } else {
         if(statusCode > 401 && statusCode < 500) {
-            log.error "${methodName} Error: ${errMsg ?: null}"
+            logError("${methodName} Error: ${errMsg ?: null}")
             if(errMsg == "Forbidden") {
-                setAuthState(false)
+                // setAuthState(false)
                 return false
             }
         }
@@ -805,18 +811,18 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     Boolean isPlayStateChange = false
     def sData = [:]
     try { sData = response?.data ? response?.json ?: [:] : [:] }
-    catch(ex) { logger("error", "getPlaybackStateHandler Exception: ${ex?.message}") }
+    catch(ex) { logError("getPlaybackStateHandler Exception: ${ex?.message}") }
     sData = sData?.playerInfo ?: [:]
     if (state?.isGroupPlaying && !isGroupResponse) {
         log.debug "ignoring getPlaybackState because group is playing here"
         return
     }
-    // logger("trace", "getPlaybackState: ${sData}")
+    // logTrace("getPlaybackState: ${sData}")
     String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
     String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
     // log.debug "deviceStatus: ${deviceStatus}"
     if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
-        log.trace "Status Changed to ${playState}"
+        logTrace("Status Changed to ${playState}")
         isPlayStateChange = true
         if (isGroupResponse) {
             state?.isGroupPlaying = (sData?.state == 'PLAYING')
@@ -856,7 +862,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
             if(level < 0) { level = 0 }
             if(level > 100) { level = 100 }
             if(isStateChange(device, "level", level?.toString()) || isStateChange(device, "volume", level?.toString())) {
-                log.trace "Volume Level Set to ${level}%"
+                logDebug("Volume Level Set to ${level}%")
                 sendEvent(name: "level", value: level, display: false, displayed: false)
                 sendEvent(name: "volume", value: level, display: false, displayed: false)
             }
@@ -864,7 +870,7 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
         if(sData?.volume?.muted != null) {
             String muteState = (sData?.volume?.muted == true) ? "muted" : "unmuted"
             if(isStateChange(device, "mute", muteState?.toString())) {
-                log.trace "Mute Changed to ${muteState}"
+                logDebug("Mute Changed to ${muteState}")
                 sendEvent(name: "mute", value: muteState, descriptionText: "Volume has been ${muteState}", display: true, displayed: true)
             }
         }
@@ -892,10 +898,10 @@ def getAlarmVolumeHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getAlarmVolumeHandler")) {return}
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logger("error", "getAlarmVolumeHandler Exception: ${ex?.message}") }
-    // logger("trace", "getAlarmVolume: $sData")
+    catch(ex) { logError("getAlarmVolumeHandler Exception: ${ex?.message}") }
+    // logTrace("getAlarmVolume: $sData")
     if(sData && isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
-        log.trace "Alarm Volume Changed to ${(sData?.volumeLevel ?: 0)}"
+        logDebug("Alarm Volume Changed to ${(sData?.volumeLevel ?: 0)}")
         sendEvent(name: "alarmVolume", value: (sData?.volumeLevel ?: 0), display: false, displayed: false)
     }
 }
@@ -917,13 +923,13 @@ def getWakeWordHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getWakeWordHandler", true)) {return}
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logger("error", "getWakeWordHandler Exception: ${ex?.message}") }
+    catch(ex) { logError("getWakeWordHandler Exception: ${ex?.message}") }
     // log.debug "sData: $sData"
     if(sData) {
         def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
-        // logger("trace", "getWakeWord: ${wakeWord?.wakeWord}")
+        // logTrace("getWakeWord: ${wakeWord?.wakeWord}")
         if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
-            log.trace "Wake Word Changed to ${(wakeWord?.wakeWord)}"
+            logDebug("Wake Word Changed to ${(wakeWord?.wakeWord)}")
             sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
         }
     }
@@ -951,12 +957,12 @@ def getWifiDetailsHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getWifiDetailsHandler", true)) {return}
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logger("error", "getWifiDetailsHandler Exception: ${ex?.message}") }
+    catch(ex) { logError("getWifiDetailsHandler Exception: ${ex?.message}") }
     // log.debug "sData: $sData"
     def wifiSsid = sData?.essid
-    // logger("trace", "getWifiDetails: ${wifiSsid}")
+    // logTrace("getWifiDetails: ${wifiSsid}")
     if(isStateChange(device, "wifiNetwork", wifiSsid?.toString())) {
-        log.trace "WiFi SSID Changed to ${(wifiSsid)}"
+        logDebug("WiFi SSID Changed to ${(wifiSsid)}")
         sendEvent(name: "wifiNetwork", value: wifiSsid, display: false, displayed: false)
     }
 }
@@ -978,16 +984,16 @@ def getDeviceSettingsHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getDeviceSettingsHandler", true)) {return}
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logger("error", "getDeviceSettingsHandler Exception: ${ex?.message}") }
+    catch(ex) { logError("getDeviceSettingsHandler Exception: ${ex?.message}") }
     def devData = sData?.devicePreferences?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
     state?.devicePreferences = devData ?: [:]
     // log.debug "devData: $devData"
     def fupMode = (devData?.goldfishEnabled == true)
     if(isStateChange(device, "followUpMode", fupMode?.toString())) {
-        log.trace "FollowUp Mode Changed to ${(fupMode)}"
+        logDebug("FollowUp Mode Changed to ${(fupMode)}")
         sendEvent(name: "followUpMode", value: fupMode, display: false, displayed: false)
     }
-    // logger("trace", "getDeviceSettingsHandler: ${sData}")
+    // logTrace("getDeviceSettingsHandler: ${sData}")
 }
 
 private getAvailableWakeWords() {
@@ -1013,10 +1019,10 @@ def getAvailableWakeWordsHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getAvailableWakeWordsHandler", true)) {return}
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logger("error", "getAvailableWakeWordsHandler Exception: ${ex?.message}") }
+    catch(ex) { logError("getAvailableWakeWordsHandler Exception: ${ex?.message}") }
     // log.debug "sData: $sData"
     def wakeWords = sData?.wakeWords ? sData?.wakeWords?.join(",") : null
-    // logger("trace", "getAvailableWakeWords: ${wakeWords}")
+    // logTrace("getAvailableWakeWords: ${wakeWords}")
     if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
         sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
     }
@@ -1026,7 +1032,7 @@ def getBluetoothDevices() {
     Map btData = parent?.getBluetoothData(state?.serialNumber) ?: [:]
     String curConnName = btData?.curConnName ?: null
     Map btObjs = btData?.btObjs ?: [:]
-    // logger("debug", "Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
+    // logDebug("Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
     String pairedNames = btData?.pairedNames ? btData?.pairedNames?.join(",") : null
     // if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
@@ -1035,7 +1041,7 @@ def getBluetoothDevices() {
     // }
 
     if(isStateChange(device, "btDevicesPaired", pairedNames?.toString())) {
-        log.info "Paired Bluetooth Devices: ${pairedNames}"
+        logDebug("Paired Bluetooth Devices: ${pairedNames}")
         sendEvent(name: "btDevicesPaired", value: pairedNames, descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
     }
 }
@@ -1044,23 +1050,23 @@ def updGuardStatus(val=null) {
     String gState = val ?: (state?.permissions?.guardSupported ? (parent?.getAlexaGuardStatus() ?: "Unknown") : "Not Supported")
     if(isStateChange(device, "alexaGuardStatus", gState?.toString())) {
         sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)
-        log.info "Alexa Guard Status: (${gState})"
+        logDebug("Alexa Guard Status: (${gState})")
     }
 }
 
 private String getBtAddrByAddrOrName(String btNameOrAddr) {
     Map btObj = state?.bluetoothObjs
     String curBtAddr = btObj?.find { it?.value?.friendlyName == btNameOrAddr || it?.value?.address == btNameOrAddr }?.key ?: null
-    // logger("debug", "curBtAddr: ${curBtAddr}")
+    // logDebug("curBtAddr: ${curBtAddr}")
     return curBtAddr
 }
 
 private getDoNotDisturb() {
     Boolean dndEnabled = (parent?.getDndEnabled(state?.serialNumber) == true)
-    logger("trace", "getDoNotDisturb: $dndEnabled")
+    logTrace("getDoNotDisturb: $dndEnabled")
     state?.doNotDisturb = dndEnabled
     if(isStateChange(device, "doNotDisturb", (dndEnabled == true)?.toString())) {
-        log.info "Do Not Disturb: (${(dndEnabled == true)})"
+        logInfo("Do Not Disturb: (${(dndEnabled == true)})")
         sendEvent(name: "doNotDisturb", value: (dndEnabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndEnabled == true)}", display: true, displayed: true)
     }
 }
@@ -1087,8 +1093,8 @@ def getPlaylistsHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "getPlaylistsHandler")) {return}
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logger("error", "getPlaylistsHandler Exception: ${ex?.message}") }
-    // logger("trace", "getPlaylistsHandler: ${sData}")
+    catch(ex) { logError("getPlaylistsHandler Exception: ${ex?.message}") }
+    // logTrace("getPlaylistsHandler: ${sData}")
     Map playlists = sData ? sData?.playlists : "{}"
     if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
         // log.trace "Alexa Playlists Changed to ${playlists}"
@@ -1114,7 +1120,7 @@ def getNotificationsHandler(response, data) {
     List newList = []
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logger("error", "getNotificationsHandler Exception: ${ex?.message}") }
+    catch(ex) { logError("getNotificationsHandler Exception: ${ex?.message}") }
     if(sData) {
         List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
         items?.each { item->
@@ -1151,7 +1157,7 @@ def deviceActivityHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "deviceActivityHandler")) {return}
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logger("error", "deviceActivityHandler Exception: ${ex?.message}") }
+    catch(ex) { logError("deviceActivityHandler Exception: ${ex?.message}") }
     Boolean wasLastDevice = false
     def actTS = null
     if (sData && sData?.activities != null) {
@@ -1178,11 +1184,6 @@ def deviceActivityHandler(response, data) {
             sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
         }
     }
-}
-
-private getTodaysWeather(String zipCode) {
-    def curForecast = getTwcForecast()
-    log.debug "curForecast: ${curForecast?.narrative?.get(0)}"
 }
 
 String getCookieVal() { return (state?.cookie && state?.cookie?.cookie) ? state?.cookie?.cookie as String : null }
@@ -1228,19 +1229,19 @@ def amazonCommandResp(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logger("error", "amazonCommandResp Exception: ${ex?.message}") }
+    catch(ex) { logError("amazonCommandResp Exception: ${ex?.message}") }
     if(response?.status == 200) {
         if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
             triggerDataRrsh()
         } else if(data?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
-        log.trace "amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!"
+        logDebug("amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!")
     } else {
-        // logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
+        // logWarn("amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
     }
 }
 
 private sendSequenceCommand(type, command, value) {
-    // logger("trace", "sendSequenceCommand($type) | command: $command | value: $value")
+    // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
     Map seqObj = sequenceBuilder(command, value)
     sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
@@ -1272,7 +1273,7 @@ def searchTest() {
 *******************************************************************/
 
 def play() {
-    logger("trace", "play() command received...")
+    logTrace("play() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("PlayCommand")
         incrementCntByKey("use_cnt_playCmd")
@@ -1287,11 +1288,11 @@ def play() {
 
 def playTrack(track) {
     // if(isCommandTypeAllowed("mediaPlayer")) { }
-    log.warn "Uh-Oh... The playTrack() Command is NOT Supported by this Device!!!"
+    logWarn("Uh-Oh... The playTrack() Command is NOT Supported by this Device!!!")
 }
 
 def pause() {
-    logger("trace", "pause() command received...")
+    logTrace("pause() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("PauseCommand")
         incrementCntByKey("use_cnt_pauseCmd")
@@ -1306,7 +1307,7 @@ def pause() {
 
 def stop() {
     log.debug "stop..."
-    logger("trace", "stop() command received...")
+    logTrace("stop() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("PauseCommand")
         incrementCntByKey("use_cnt_stopCmd")
@@ -1318,8 +1319,7 @@ def stop() {
 }
 
 def togglePlayback() {
-    log.debug "togglePlayback..."
-    logger("trace", "togglePlayback() command received...")
+    logTrace("togglePlayback() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         def isPlaying = (device?.currentValue('status') == "playing")
         if(isPlaying) {
@@ -1337,7 +1337,7 @@ def stopAllDevices() {
 }
 
 def previousTrack() {
-    logger("trace", "previousTrack() command received...")
+    logTrace("previousTrack() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("PreviousCommand")
         incrementCntByKey("use_cnt_prevTrackCmd")
@@ -1346,7 +1346,7 @@ def previousTrack() {
 }
 
 def nextTrack() {
-    logger("trace", "nextTrack() command received...")
+    logTrace("nextTrack() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("NextCommand")
         incrementCntByKey("use_cnt_nextTrackCmd")
@@ -1355,7 +1355,7 @@ def nextTrack() {
 }
 
 def mute() {
-    logger("trace", "mute() command received...")
+    logTrace("mute() command received...")
     if(isCommandTypeAllowed("volumeControl")) {
         state.muteLevel = device?.currentValue("level")?.toInteger()
         incrementCntByKey("use_cnt_muteCmd")
@@ -1367,7 +1367,7 @@ def mute() {
 }
 
 def repeat() {
-    logger("trace", "repeat() command received...")
+    logTrace("repeat() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("RepeatCommand")
         incrementCntByKey("use_cnt_repeatCmd")
@@ -1376,7 +1376,7 @@ def repeat() {
 }
 
 def shuffle() {
-    logger("trace", "shuffle() command received...")
+    logTrace("shuffle() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("ShuffleCommand")
         incrementCntByKey("use_cnt_shuffleCmd")
@@ -1385,7 +1385,7 @@ def shuffle() {
 }
 
 def unmute() {
-    logger("trace", "unmute() command received...")
+    logTrace("unmute() command received...")
     if(isCommandTypeAllowed("volumeControl")) {
         if(state?.muteLevel) {
             setLevel(state?.muteLevel)
@@ -1403,7 +1403,7 @@ def setMute(muteState) {
 }
 
 def setLevel(level) {
-    logger("trace", "setVolume($level) command received...")
+    logTrace("setVolume($level) command received...")
     if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
         if(level != device?.currentValue('level')) {
             sendSequenceCommand("VolumeCommand", "volume", level)
@@ -1415,7 +1415,7 @@ def setLevel(level) {
 }
 
 def setAlarmVolume(vol) {
-    logger("trace", "setAlarmVolume($vol) command received...")
+    logTrace("setAlarmVolume($vol) command received...")
     if(isCommandTypeAllowed("alarms") && vol>=0 && vol<=100) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
@@ -1478,7 +1478,7 @@ def followUpModeOn() {
 }
 
 def setDoNotDisturb(Boolean val) {
-    logger("trace", "setDoNotDisturb($val) command received...")
+    logTrace("setDoNotDisturb($val) command received...")
     if(isCommandTypeAllowed("doNotDisturb")) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
@@ -1497,9 +1497,9 @@ def setDoNotDisturb(Boolean val) {
 }
 
 def setFollowUpMode(Boolean val) {
-    logger("trace", "setFollowUpMode($val) command received...")
+    logTrace("setFollowUpMode($val) command received...")
     if(state?.devicePreferences == null || !state?.devicePreferences?.size()) { return }
-    if(!state?.deviceAccountId) { log.error "renameDevice Failed because deviceAccountId is not found..."; return; }
+    if(!state?.deviceAccountId) { logError("renameDevice Failed because deviceAccountId is not found..."); return; }
     if(isCommandTypeAllowed("followUpMode")) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
@@ -1519,17 +1519,17 @@ def setFollowUpMode(Boolean val) {
 }
 
 def deviceNotification(String msg) {
-    logger("trace", "deviceNotification(msg: $msg) command received...")
+    logTrace("deviceNotification(msg: $msg) command received...")
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { log.warn "No Message sent with deviceNotification($msg) command"; return; }
-        // log.trace "deviceNotification(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
+        // logTrace("deviceNotification(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
         incrementCntByKey("use_cnt_devNotif")
         speak(msg as String)
     }
 }
 
 def setVolumeAndSpeak(volume, String msg) {
-    logger("trace", "setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
+    logTrace("setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
     if(volume != null && permissionOk("volumeControl")) {
         state?.newVolume = volume
     }
@@ -1538,7 +1538,7 @@ def setVolumeAndSpeak(volume, String msg) {
 }
 
 def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
-    logger("trace", "setVolumeSpeakAndRestore(volume: $volume, msg: $msg, restVolume) command received...")
+    logTrace("setVolumeSpeakAndRestore(volume: $volume, msg: $msg, restVolume) command received...")
     if(msg) {
         if(volume != null && permissionOk("volumeControl")) {
             state?.newVolume = volume?.toInteger()
@@ -1556,13 +1556,13 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
 
 def storeCurrentVolume() {
     Integer curVol = device?.currentValue("level") ?: 1
-    log.trace "storeCurrentVolume(${curVol}) command received..."
+    logTrace("storeCurrentVolume(${curVol}) command received...")
     if(curVol != null) { state?.oldVolume = curVol as Integer }
 }
 
 private restoreLastVolume() {
     Integer lastVol = state?.oldVolume
-    log.trace "restoreLastVolume(${lastVol}) command received..."
+    logTrace("restoreLastVolume(${lastVol}) command received...")
     if(lastVol && permissionOk("volumeControl")) {
         setVolume(lastVol as Integer)
         sendEvent(name: "level", value: lastVol, display: false, displayed: false)
@@ -1626,7 +1626,7 @@ def sayGoodbye(volume=null, restoreVolume=null) {
 
 def executeRoutineId(String rId) {
     def execDt = now()
-    logger("trace", "executeRoutineId($rId) command received...")
+    logTrace("executeRoutineId($rId) command received...")
     if(!rId) { log.warn "No Routine ID sent with executeRoutineId($rId) command" }
     if(parent?.executeRoutineById(rId as String)) {
         log.debug "Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${rId}"
@@ -1769,7 +1769,7 @@ def playAnnouncementAll(String msg, String title=null) {
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
-    // log.trace "searchMusic(${searchPhrase}, ${providerId})"
+    // logTrace("searchMusic(${searchPhrase}, ${providerId})")
     if(isCommandTypeAllowed(getCommandTypeForProvider(providerId))) {
         doSearchMusicCmd(searchPhrase, providerId, volume, sleepSeconds)
     } else { log.warn "searchMusic not supported for ${providerId}" }
@@ -1864,7 +1864,7 @@ def searchIheart(String searchPhrase, volume=null, sleepSeconds=null) {
 
 private doSequenceCmd(cmdType, seqCmd, seqVal="") {
     if(state?.serialNumber) {
-        logger("debug", "Sending (${cmdType}) | Command: ${seqCmd} | Value: ${seqVal}")
+        logDebug("Sending (${cmdType}) | Command: ${seqCmd} | Value: ${seqVal}")
         sendSequenceCommand(cmdType, seqCmd, seqVal)
     } else { log.warn "doSequenceCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
 }
@@ -1903,29 +1903,29 @@ private Map validateMusicSearch(searchPhrase, providerId, sleepSeconds=null) {
         Map rData = resp?.data ?: null
         if(resp?.status == 200) {
             if (rData?.result != "VALID") {
-                log.error "Amazon the Music Search Request as Invalid | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})"
+                logError("Amazon the Music Search Request as Invalid | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})")
                 result = null
             } else { result = rData }
-        } else { log.error "validateMusicSearch Request failed with status: (${resp?.status}) | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})" }
+        } else { logError("validateMusicSearch Request failed with status: (${resp?.status}) | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})") }
     }
     return result
 }
 
 private getMusicSearchObj(String searchPhrase, String providerId, sleepSeconds=null) {
-    if (searchPhrase == "") { log.error 'getMusicSearchObj Searchphrase empty'; return; }
+    if (searchPhrase == "") { logError("getMusicSearchObj Searchphrase empty"); return; }
     Map validObj = [type: "Alexa.Music.PlaySearchPhrase", "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"]
     Map validResp = validateMusicSearch(searchPhrase, providerId, sleepSeconds)
     if(validResp && validResp?.operationPayload) {
         validObj?.operationPayload = validResp?.operationPayload
     } else {
-        log.error "Something went wrong with the Music Search | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})"
+        logError("Something went wrong with the Music Search | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})")
         validObj = null
     }
     return validObj
 }
 
 private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=null) {
-    logger("trace", "playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId | sleepSeconds: $sleepSeconds")
+    logTrace("playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId | sleepSeconds: $sleepSeconds")
     Map validObj = getMusicSearchObj(searchPhrase, providerId, sleepSeconds)
     if(!validObj) { return }
     Map seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": validObj]
@@ -1936,7 +1936,7 @@ private playMusicProvider(searchPhrase, providerId, volume=null, sleepSeconds=nu
 }
 
 def setWakeWord(String newWord) {
-    logger("trace", "setWakeWord($newWord) command received...")
+    logTrace("setWakeWord($newWord) command received...")
     String oldWord = device?.currentValue('alexaWakeWord')
     def wwList = device?.currentValue('wakeWords') ?: []
     log.debug "newWord: $newWord | oldWord: $oldWord | wwList: $wwList (${wwList?.contains(newWord.toString()?.toUpperCase())})"
@@ -1962,7 +1962,7 @@ def setWakeWord(String newWord) {
 }
 
 def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
-    logger("trace", "createAlarm($alarmLbl, $alarmDate, $alarmTime) command received...")
+    logTrace("createAlarm($alarmLbl, $alarmDate, $alarmTime) command received...")
     if(alarmLbl && alarmDate && alarmTime) {
         createNotification("Alarm", [
             cmdType: "CreateAlarm",
@@ -1976,7 +1976,7 @@ def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
 }
 
 def createReminder(String remLbl, String remDate, String remTime) {
-    logger("trace", "createReminder($remLbl, $remDate, $remTime) command received...")
+    logTrace("createReminder($remLbl, $remDate, $remTime) command received...")
     if(isCommandTypeAllowed("alarms")) {
         if(remLbl && remDate && remTime) {
             createNotification("Reminder", [
@@ -1992,7 +1992,7 @@ def createReminder(String remLbl, String remDate, String remTime) {
 }
 
 def removeNotification(String id) {
-    logger("trace", "removeNotification($id) command received...")
+    logTrace("removeNotification($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
             sendAmazonCommand("delete", [
@@ -2049,8 +2049,8 @@ private createNotification(type, options) {
 }
 
 def renameDevice(newName) {
-    logger("trace", "renameDevice($newName) command received...")
-    if(!state?.deviceAccountId) { log.error "renameDevice Failed because deviceAccountId is not found..."; return; }
+    logTrace("renameDevice($newName) command received...")
+    if(!state?.deviceAccountId) { logError("renameDevice Failed because deviceAccountId is not found..."); return; }
     sendAmazonCommand("put", [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device/${state?.serialNumber}",
@@ -2068,7 +2068,7 @@ def renameDevice(newName) {
 }
 
 def connectBluetooth(String btNameOrAddr) {
-    logger("trace", "connectBluetooth(${btName}) command received...")
+    logTrace("connectBluetooth(${btName}) command received...")
     if(isCommandTypeAllowed("bluetoothControl")) {
         String curBtAddr = getBtAddrByAddrOrName(btNameOrAddr as String)
         if(curBtAddr) {
@@ -2082,12 +2082,12 @@ def connectBluetooth(String btNameOrAddr) {
             ], [cmdDesc: "connectBluetooth($btNameOrAddr)"])
             incrementCntByKey("use_cnt_connectBluetooth")
             sendEvent(name: "btDeviceConnected", value: btNameOrAddr, display: true, displayed: true)
-        } else { log.error "ConnectBluetooth Error: Unable to find the connected bluetooth device address..." }
+        } else { logError("ConnectBluetooth Error: Unable to find the connected bluetooth device address...") }
     }
 }
 
 def disconnectBluetooth() {
-    logger("trace", "disconnectBluetooth() command received...")
+    logTrace("disconnectBluetooth() command received...")
     if(isCommandTypeAllowed("bluetoothControl")) {
         String curBtAddr = getBtAddrByAddrOrName(device?.currentValue("btDeviceConnected") as String)
         if(curBtAddr) {
@@ -2100,12 +2100,12 @@ def disconnectBluetooth() {
                 body: [ bluetoothDeviceAddress: curBtAddr ]
             ], [cmdDesc: "disconnectBluetooth"])
             incrementCntByKey("use_cnt_disconnectBluetooth")
-        } else { log.error "DisconnectBluetooth Error: Unable to find the connected bluetooth device address..." }
+        } else { logError("DisconnectBluetooth Error: Unable to find the connected bluetooth device address...") }
     }
 }
 
 def removeBluetooth(String btNameOrAddr) {
-    logger("trace", "removeBluetooth(${btNameOrAddr}) command received...")
+    logTrace("removeBluetooth(${btNameOrAddr}) command received...")
     if(isCommandTypeAllowed("bluetoothControl")) {
         String curBtAddr = getBtAddrByAddrOrName(btNameOrAddr)
         if(curBtAddr) {
@@ -2118,7 +2118,7 @@ def removeBluetooth(String btNameOrAddr) {
                 body: [ bluetoothDeviceAddress: curBtAddr, bluetoothDeviceClass: "OTHER" ]
             ], [cmdDesc: "removeBluetooth(${btNameOrAddr})"])
             incrementCntByKey("use_cnt_removeBluetooth")
-        } else { log.error "RemoveBluetooth Error: Unable to find the connected bluetooth device address..." }
+        } else { logError("RemoveBluetooth Error: Unable to find the connected bluetooth device address...") }
     }
 }
 
@@ -2134,13 +2134,13 @@ def getRandomItem(items) {
 }
 
 def replayText() {
-    logger("trace", "replayText() command received...")
+    logTrace("replayText() command received...")
     String lastText = device?.currentValue("lastSpeakCmd")?.toString()
     if(lastText) { speak(lastText) } else { log.warn "Last Text was not found" }
 }
 
 def playText(String msg) {
-	logger("trace", "playText(msg: $msg) command received...")
+	logTrace("playText(msg: $msg) command received...")
 	speak(msg as String)
 }
 
@@ -2149,7 +2149,7 @@ def playTrackAndResume(uri, duration, volume=null) {
 }
 
 def playTextAndResume(text, volume=null) {
-    logger("trace", "The playTextAndResume(text: $text, volume: $volume) command received...")
+    logTrace("The playTextAndResume(text: $text, volume: $volume) command received...")
     def restVolume = device?.currentValue("level")?.toInteger()
 	if (volume != null) {
 		setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
@@ -2161,7 +2161,7 @@ def playTrackAndRestore(uri, duration, volume=null) {
 }
 
 def playTextAndRestore(text, volume=null) {
-    logger("trace", "The playTextAndRestore(text: $text, volume: $volume) command received...")
+    logTrace("The playTextAndRestore(text: $text, volume: $volume) command received...")
     def restVolume = device?.currentValue("level")?.toInteger()
 	if (volume != null) {
 		setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
@@ -2177,7 +2177,6 @@ def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
 }
 
 def speechTest(ttsMsg) {
-    // log.trace "speechTest"
     List items = [
         "Testing Testing 1, 2, 3",
         "Yay!, I'm Alive... Hopefully you can hear me speaking?",
@@ -2192,7 +2191,7 @@ def speechTest(ttsMsg) {
 }
 
 def speak(String msg) {
-    logger("trace", "speak() command received...")
+    logTrace("speak() command received...")
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { log.warn "No Message sent with speak($msg) command" }
         // msg = cleanString(msg, true)
@@ -2298,7 +2297,7 @@ def executeSequenceCommand(String seqStr) {
                         List valObj = (li[1]?.trim()?.toString()?.contains("::")) ? li[1]?.trim()?.split("::") : [li[1]?.trim() as String]
                         String provID = seqItemsAvail()?.music[cmd]
                         if(!isCommandTypeAllowed(seqItemsAvail()?.musicAlt[cmd])) { log.warn "Current Music Sequence command ($cmd) not allowed... "; return; }
-                        if (!valObj || valObj[0] == "") { log.error 'Play Music Sequence it Searchphrase empty'; return; }
+                        if (!valObj || valObj[0] == "") { logError("Play Music Sequence it Searchphrase empty"); return; }
                         Map validObj = getMusicSearchObj(valObj[0], provID, valObj[1] ?: null)
                         if(!validObj) { return }
                         seqItems?.push([command: validObj])
@@ -2312,7 +2311,7 @@ def executeSequenceCommand(String seqStr) {
                 }
             }
         }
-        logger("debug", "executeSequenceCommand Items: $seqItems | seqStr: ${seqStr}")
+        logDebug("executeSequenceCommand Items: $seqItems | seqStr: ${seqStr}")
         if(seqItems?.size()) {
             sendMultiSequenceCommand(seqItems, "executeSequenceCommand")
             incrementCntByKey("use_cnt_executeSequenceCommand")
@@ -2329,7 +2328,7 @@ Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     Integer randomInt = random?.nextInt(5) //Was using 7
     if(!msgLen) { return 30 }
     def v = (msgLen <= 14 ? 2 : (msgLen / 14)) as Integer
-    // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
+    // logTrace("getRecheckDelay($msgLen) | delay: $v + $randomInt")
     return addRandom ? (v + randomInt) : v+2
 }
 
@@ -2348,7 +2347,7 @@ private getQueueSizeStr() {
 }
 
 private processLogItems(String logType, List logList, emptyStart=false, emptyEnd=true) {
-    if(logType && logList?.size() && settings?.showLogs) {
+    if(logType && logList?.size() && settings?.logDebug) {
         Integer maxStrLen = 0
         String endSep = "└─────────────────────────────"
         if(emptyEnd) { logger(logType, " ") }
@@ -2370,7 +2369,7 @@ private stateCleanup() {
 }
 
 def resetQueue(showLog=true) {
-    if(showLog) { log.trace "resetQueue()" }
+    if(showLog) { logTrace("resetQueue()") }
     Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("qItem_") }
     cmdQueue?.each { cmdKey, cmdData -> state?.remove(cmdKey) }
     unschedule("queueCheck")
@@ -2401,7 +2400,7 @@ private queueCheckSchedHealth() {
     Integer cmdCnt = state?.q_cmdCycleCnt
     Integer lastChk = getLastQueueCheckSec()
     Integer qSize = getQueueSize()
-    log.info "queueCheckSchedHealth | Qsize: ${qSize} | LastChk: ${lastChk}"
+    logDebug("queueCheckSchedHealth | Qsize: ${qSize} | LastChk: ${lastChk}")
     if(qSize >= 2 && lastChk > 120) {
         schedQueueCheck(4, true, null, "queueCheck(missed schedule)")
         log.debug "queueCheck | Scheduling Queue Check for (4 sec) | Possible Lost Recheck Schedule"
@@ -2467,12 +2466,12 @@ private queueCheck(data) {
         if(data && data?.rateLimited == true) {
             Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.q_curMsgLen)
             schedQueueCheck(delay, true, null, "queueCheck(rate-limit)")
-            log.debug "queueCheck | Scheduling Queue Check for (${delay} sec) | Recheck for RateLimiting"
+            logDebug("queueCheck | Scheduling Queue Check for (${delay} sec) | Recheck for RateLimiting")
         }
         processCmdQueue()
         return
     } else {
-        log.trace "queueCheck | Nothing in the Queue | Performing Queue Reset..."
+        logDebug("queueCheck | Nothing in the Queue | Performing Queue Reset...")
         resetQueue(false)
         return
     }
@@ -2487,14 +2486,14 @@ void processCmdQueue() {
         state?.q_recheckScheduled = false
         def cmdKey = cmdQueue?.keySet()?.sort(false) { it.tokenize('_')[-1] as Integer }?.first()
         Map cmdData = state[cmdKey as String]
-        // logger("debug", "processCmdQueue | Key: ${cmdKey} | Queue Items: (${getQueueItems()})")
+        // logDebug("processCmdQueue | Key: ${cmdKey} | Queue Items: (${getQueueItems()})")
         cmdData?.headers["queueKey"] = cmdKey
         Integer q_loopChkCnt = state?.q_loopChkCnt ?: 0
         if(state?.q_lastTtsMsg == cmdData?.headers?.message && (getLastTtsCmdSec() <= 10)) { state?.q_loopChkCnt = (q_loopChkCnt >= 1) ? q_loopChkCnt++ : 1 }
         // log.debug "q_loopChkCnt: ${state?.q_loopChkCnt}"
         if(state?.q_loopChkCnt && (state?.q_loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
             state?.remove(cmdKey as String)
-            log.trace "processCmdQueue | Possible loop detected... Last message was the same as message sent <10 seconds ago. This message will be removed from the queue"
+            logWarn("processCmdQueue | Possible loop detected... Last message was the same as message sent <10 seconds ago. This message will be removed from the queue")
             schedQueueCheck(2, true, null, "processCmdQueue(removed duplicate)")
             state?.q_cmdWorking = false
         } else {
@@ -2527,9 +2526,8 @@ private speechCmd(headers=[:], isQueueCmd=false) {
     tr += headers?.msgDelay  ? " | RecheckSeconds: (${headers?.msgDelay})" : ""
     tr += headers?.queueKey  ? " | QueueItem: [${headers?.queueKey}]" : ""
     tr += headers?.cmdDt     ? " | CmdDt: (${headers?.cmdDt})" : ""
-    log.trace "${tr}"
+    logTrace("${tr}")
 
-    // if(!isQueueCmd) { log.trace "speechCmd(${headers?.cmdDesc}, $isQueueCmd)" }
     def random = new Random()
     def randCmdId = random?.nextInt(300)
 
@@ -2537,7 +2535,7 @@ private speechCmd(headers=[:], isQueueCmd=false) {
     List logItems = []
     String healthStatus = getHealthStatus()
     if(!headers || !(healthStatus in ["ACTIVE", "ONLINE"])) {
-        if(!headers) { log.error "speechCmd | Error${!headers ? " | headers are missing" : ""} " }
+        if(!headers) { logError("speechCmd | Error${!headers ? " | headers are missing" : ""} ") }
         if(!(healthStatus in ["ACTIVE", "ONLINE"])) { log.warn "Command Ignored... Device is current in OFFLINE State" }
         return
     }
@@ -2607,14 +2605,14 @@ private speechCmd(headers=[:], isQueueCmd=false) {
                 qId: (headerMap?.qId ?: null)
             ])
         } catch (e) {
-            log.error "something went wrong: ", e
+            logError("something went wrong: ${e?.message}")
             incrementCntByKey("err_cloud_command")
         }
 
         logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
         processLogItems("debug", logItems)
     } catch (ex) {
-        log.error "speechCmd Exception:", ex
+        logError("speechCmd Exception: ${ex?.message}")
         incrementCntByKey("err_cloud_command")
     }
 }
@@ -2627,10 +2625,10 @@ def asyncSpeechHandler(response, data) {
         sData = response?.errorJson ?: null
     } else {
         try { sData = response?.data ? response?.json ?: null : null }
-        catch(ex) { logger("error", "asyncSpeechHandler Exception: ${ex?.message}") }
+        catch(ex) { logError("asyncSpeechHandler Exception: ${ex?.message}") }
     }
     data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-    // log.trace "asyncSpeechHandler | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}"
+    // logTrace("asyncSpeechHandler | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}"
     postCmdProcess(sData, response?.status, data)
 }
 
@@ -2648,9 +2646,9 @@ private postCmdProcess(resp, statusCode, data) {
             pi += data?.msgLen ? " | Length: (${data?.msgLen}) " : ""
             pi += " | Execution Time (${execTime}ms)"
             pi += data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""
-            pi += showLogs && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""
+            pi += logDebug && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""
             pi += data?.qId ? " | QueueID: (${data?.qId})" : ""
-            log.info "${pi}"
+            logInfo("${pi}")
 
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
                 state?.lastTtsCmdDt = getDtNow()
@@ -2671,7 +2669,7 @@ private postCmdProcess(resp, statusCode, data) {
             schedQueueCheck(rDelay, true, [rateLimited: true, delay: data?.msgDelay], "postCmdProcess(Rate-Limited)")
             return
         } else {
-            log.error "postCmdProcess Error | status: ${statusCode} | message: ${resp?.message}"
+            logError("postCmdProcess Error | status: ${statusCode} | message: ${resp?.message}")
             incrementCntByKey("err_cloud_commandPost")
             resetQueue()
             return
@@ -2717,16 +2715,22 @@ Boolean ok2Notify() {
 }
 
 private logger(type, msg) {
-    if(type && msg && settings?.showLogs) {
+    if(type && msg && settings?.logDebug) {
         log."${type}" "${msg}"
     }
 }
+
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
+private logWarn(msg) { if(settings?.logWarn != false) { log.warn msg } }
+private logError(msg) { if(settings?.logError != false) { log.error msg } }
 
 private incrementCntByKey(String key) {
 	long evtCnt = state?."${key}" ?: 0
 	// evtCnt = evtCnt?.toLong()+1
 	evtCnt++
-	// logger("trace", "${key?.toString()?.capitalize()}: $evtCnt")
+	// logTrace("${key?.toString()?.capitalize()}: $evtCnt")
 	state?."${key}" = evtCnt?.toLong()
 }
 
@@ -2944,7 +2948,7 @@ Map createSequenceNode(command, value) {
         }
         return seqNode
     } catch (ex) {
-        log.error "createSequenceNode Exception: $ex"
+        logError("createSequenceNode Exception: ${ex?.message}")
         return [:]
     }
 }

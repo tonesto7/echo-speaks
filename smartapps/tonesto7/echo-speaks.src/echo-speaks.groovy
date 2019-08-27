@@ -17,7 +17,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 String appVersion()   { return "3.0.0" }
-String appModified()  { return "2019-08-26" }
+String appModified()  { return "2019-08-27" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -242,7 +242,7 @@ String guardAutoDesc() {
 
 def guardTriggerEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-	log.trace "${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+	logDebug("${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     if(!guardRestrictOk()) {
         log.debug "guardTriggerEvtHandler | Skipping Changes because restriction filter is active"
         return
@@ -253,7 +253,7 @@ def guardTriggerEvtHandler(evt) {
         case "mode":
             Boolean inAwayMode = isInMode(settings?.guardAwayModes)
             Boolean inHomeMode = isInMode(settings?.guardHomeModes)
-            if(inAwayMode && inHomeMode) { log.error "Guard Control Trigger can't act because same mode is in both Home and Away input"; return; }
+            if(inAwayMode && inHomeMode) { logError("Guard Control Trigger can't act because same mode is in both Home and Away input"); return; }
             if(inAwayMode && !inHomeMode) { newState = "ARMED_AWAY" }
             if(!inAwayMode && inHomeMode) { newState = "ARMED_STAY" }
             break
@@ -268,16 +268,16 @@ def guardTriggerEvtHandler(evt) {
             if(!inAlarmAway && inAlarmHome) { newState = "ARMED_STAY" }
             break
     }
-    if(curState == newState) { log.info "Skipping Guard Change... New Guard State is the same as current state: ($curState)"}
+    if(curState == newState) { logInfo("Skipping Guard Change... New Guard State is the same as current state: ($curState)") }
     if(newState && curState != newState) {
         if (newState == "ARMED_STAY") {
             unschedule("setGuardAway")
-            log.info "Setting Alexa Guard Mode to Home..."
+            logInfo("Setting Alexa Guard Mode to Home...")
             setGuardHome()
         }
         if(newState == "ARMED_AWAY") {
-            if(settings?.guardAwayDelay) { log.warn "Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)"; runIn(settings?.guardAwayDelay, "setGuardAway"); }
-            else { setGuardAway(); log.warn "Setting Alexa Guard Mode to Away..."; }
+            if(settings?.guardAwayDelay) { logWarn("Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)"); runIn(settings?.guardAwayDelay, "setGuardAway"); }
+            else { setGuardAway(); logWarn("Setting Alexa Guard Mode to Away..."); }
         }
     }
 }
@@ -390,10 +390,11 @@ private String devicePrefsDesc() {
 def settingsPage() {
     return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
         section(sTS("Logging:")) {
-            input "appDebug", "bool", title: inTS("Show Debug Logs in the IDE?", getAppImg("debug", true)), description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
-            if(settings?.appDebug) {
-                input "appTrace", "bool", title: inTS("Show Detailed Trace Logs in the IDE?", getAppImg("debug", true)), description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
-            }
+            input "logInfo", "bool", title: inTS("Show Info Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logWarn", "bool", title: inTS("Show Warning Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logError", "bool", title: inTS("Show Error Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
         }
         showDevSharePrefs()
         section(sTS("App Change Details:")) {
@@ -804,7 +805,7 @@ Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     Integer randomInt = random?.nextInt(5) //Was using 7
     if(!msgLen) { return 30 }
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
-    // logger("trace", "getRecheckDelay($msgLen) | delay: $v + $randomInt")
+    // logTrace("getRecheckDelay($msgLen) | delay: $v + $randomInt")
     return addRandom ? (v + randomInt) : (v < 5 ? 5 : v)
 }
 
@@ -817,7 +818,7 @@ private executeSpeechTest() {
         if(childDev && childDev?.hasCommand('setVolumeSpeakAndRestore')) {
             childDev?.setVolumeSpeakAndRestore(settings?.speechTestVolume as Integer, testMsg, (settings?.speechTestRestVolume ?: 30))
         } else {
-            log.error "Speech Test device with serial# (${devSerial} was not located!!!"
+            logError("Speech Test device with serial# (${devSerial} was not located!!!")
         }
     }
 }
@@ -862,7 +863,7 @@ private executeAnnouncement() {
         if(childDev && childDev?.hasCommand('playAnnouncementAll')) {
             childDev?.playAnnouncementAll(testMsg)
         } else {
-            log.error "Announcement Test All | A Device with was not found that supports announcements!!!"
+            logError("Announcement Test All | A Device with was not found that supports announcements!!!")
         }
     } else {
         Map eDevs = state?.echoDeviceMap
@@ -882,7 +883,7 @@ private executeSequence() {
     if(settings?.sequenceDevice?.hasCommand("executeSequenceCommand")) {
         settings?.sequenceDevice?.executeSequenceCommand(seqStr as String)
     } else {
-        log.warn "sequence test device doesn't support the executeSequenceCommand command..."
+        logWarn("sequence test device doesn't support the executeSequenceCommand command...")
     }
 }
 
@@ -903,9 +904,9 @@ private executeMusicSearchTest() {
     settingUpdate("performMusicTest", "false", "bool")
     if(settings?.musicTestDevice && settings?.musicTestProvider && settings?.musicTestQuery) {
         if(settings?.musicTestDevice?.hasCommand("searchMusic")) {
-            log.debug "Performing ${settings?.musicTestProvider} Search Test with Query: (${settings?.musicTestQuery}) on Device: (${settings?.musicTestDevice})"
+            logDebug("Performing ${settings?.musicTestProvider} Search Test with Query: (${settings?.musicTestQuery}) on Device: (${settings?.musicTestDevice})")
             settings?.musicTestDevice?.searchMusic(settings?.musicTestQuery as String, settings?.musicTestProvider as String)
-        } else { log.error "The Device ${settings?.musicTestDevice} does NOT support the searchMusic() command..." }
+        } else { logError("The Device ${settings?.musicTestDevice} does NOT support the searchMusic() command...") }
     }
 }
 
@@ -1039,6 +1040,7 @@ def initialize() {
         appCleanup()
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
+        // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
         validateCookie(true)
         runIn(15, "reInitChildren")
         getOtherData()
@@ -1072,7 +1074,7 @@ def getActionApps() {
 }
 
 def onAppTouch(evt) {
-    // log.trace "appTouch..."
+    // logTrace("appTouch...")
     updated()
 }
 
@@ -1084,23 +1086,23 @@ void settingUpdate(name, value, type=null) {
 }
 
 void settingRemove(String name) {
-    logger("trace", "settingRemove($name)...")
+    logTrace("settingRemove($name)...")
     if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
 }
 
 mappings {
-    path("/renderMetricData")  { action: [GET: "renderMetricData"] }
-    path("/receiveData")       { action: [POST: "processData"] }
-    path("/config")            { action: [GET: "renderConfig"] }
-    path("/textEditor/:cId/:inName") { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
-    path("/cookie")            { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
+    path("/renderMetricData")           { action: [GET: "renderMetricData"] }
+    path("/receiveData")                { action: [POST: "processData"] }
+    path("/config")                     { action: [GET: "renderConfig"] }
+    path("/textEditor/:cId/:inName")    { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
+    path("/cookie")                     { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
 }
 
 String getCookieVal() { return (state?.cookieData && state?.cookieData?.localCookie) ? state?.cookieData?.localCookie as String : null }
 String getCsrfVal() { return (state?.cookieData && state?.cookieData?.csrf) ? state?.cookieData?.csrf as String : null }
 
 def clearCloudConfig() {
-    log.trace "clearCloudConfig called..."
+    logTrace("clearCloudConfig called...")
     settingUpdate("resetService", "false", "bool")
     unschedule("cloudServiceHeartbeat")
     List remItems = ["generatedHerokuName", "useHeroku", "onHeroku", "nodeServiceInfo", "serverHost", "isLocal"]
@@ -1131,7 +1133,7 @@ String getEnvParamsStr() {
 private checkIfCodeUpdated() {
     if(state?.codeVersions && state?.codeVersions?.mainApp != appVersion()) {
         checkVersionData(true)
-        log.info "Code Version Change! Re-Initializing SmartApp in 5 seconds..."
+        logInfo("Code Version Change! Re-Initializing SmartApp in 5 seconds...")
         state?.pollBlocked = true
         updCodeVerMap("mainApp", appVersion())
         Map iData = atomicState?.installData ?: [:]
@@ -1189,14 +1191,14 @@ String getRandAppName() {
 }
 
 def processData() {
-    // log.trace "processData() | Data: ${request.JSON}"
+    // logTrace("processData() | Data: ${request.JSON}")
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
             state?.onHeroku = (isST() || data?.onHeroku == true || data?.onHeroku == null || (!data?.isLocal && settings?.useHeroku != false))
             state?.isLocal = (!isST() && data?.isLocal == true)
             state?.serverHost = (data?.serverUrl ?: null)
-            log.trace "processData Received | Version: ${data?.version} | onHeroku: ${data?.onHeroku} | serverUrl: ${data?.serverUrl}"
+            logTrace("processData Received | Version: ${data?.version} | onHeroku: ${data?.onHeroku} | serverUrl: ${data?.serverUrl}")
             updCodeVerMap("server", data?.version)
         } else { log.debug "data: $data" }
     }
@@ -1205,7 +1207,7 @@ def processData() {
 }
 
 def getCookieData() {
-    log.trace "getCookieData() Request Received..."
+    logTrace("getCookieData() Request Received...")
     Map resp = state?.cookieData ?: [:]
     resp["refreshDt"] = state?.lastCookieRefresh ?: null
     def json = new groovy.json.JsonOutput().toJson(resp)
@@ -1214,10 +1216,9 @@ def getCookieData() {
 }
 
 def storeCookieData() {
-    log.trace "storeCookieData Request Received..."
+    logTrace("storeCookieData Request Received...")
     if(request?.JSON && request?.JSON?.cookieData) {
-        log.trace "cookieData Received: ${request?.JSON?.cookieData?.keySet()}"
-        logger("trace", "cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
+        logTrace("cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
         Map obj = [:]
         request?.JSON?.cookieData?.each { k,v->
             obj[k as String] = v as String
@@ -1229,7 +1230,7 @@ def storeCookieData() {
         updCodeVerMap("server", request?.JSON?.version)
     }
     if(state?.cookieData?.localCookie && state?.cookieData?.csrf) {
-        log.info "Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds..."
+        logInfo("Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds...")
         validateCookie(true)
         state?.serviceConfigured = true
         state?.lastCookieRefresh = getDtNow()
@@ -1238,20 +1239,20 @@ def storeCookieData() {
 }
 
 def clearCookieData(src=null) {
-    logger("trace", "clearCookieData(${src ?: ""})")
+    logTrace("clearCookieData(${src ?: ""})")
     settingUpdate("resetCookies", "false", "bool")
     state?.remove("cookie")
     state?.remove("cookieData")
     state?.remove("lastCookieRefresh")
     unschedule("getEchoDevices")
     unschedule("getOtherData")
-    log.warn "Cookie Data has been cleared and Device Data Refreshes have been suspended..."
-    updateChildAuth(false)
+    logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
+    updateChildAuth(false, null)
     // if(getServerHostURL()) { clearServerAuth() }
 }
 
 private updateChildAuth(Boolean isValid) {
-    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.setAuthState(isValid) }
+    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.setAuthState(isValid, [cookie: getCookieVal(), csrf: getCsrfVal()]) }
 }
 
 private authEvtHandler(Boolean isAuth) {
@@ -1274,7 +1275,7 @@ private authEvtHandler(Boolean isAuth) {
 
 Boolean isAuthValid(methodName) {
     if(state?.authValid == false) {
-        log.warn "Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!! | Method: (${methodName})"
+        logWarn("Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!! | Method: (${methodName})")
         return false
     }
     return true
@@ -1287,7 +1288,7 @@ private validateCookie(frc=false) {
         execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
     } catch(ex) {
         incrementCntByKey("err_app_cookieValidCnt")
-        log.error "validateCookie() Exception: ${ex.message}"
+        logError("validateCookie() Exception: ${ex.message}")
     }
 }
 
@@ -1302,13 +1303,13 @@ String getServerHostURL() {
 Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 100000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
 
 def clearServerAuth() {
-    log.debug "serverUrl: ${getServerHostURL()}"
+    logDebug("serverUrl: ${getServerHostURL()}")
     Map params = [ uri: getServerHostURL(), path: "/clearAuth" ]
     def execDt = now()
     httpGet(params) { resp->
-        log.debug "resp: ${resp.status} | data: ${resp?.data}"
+        // log.debug "resp: ${resp.status} | data: ${resp?.data}"
         if (resp?.status == 200) {
-            log.debug "clearServerAuth Completed... | Process Time: (${execDt ? (now()-execDt) : 0}ms)"
+            logInfo("Clear Server Auth Completed... | Process Time: (${execDt ? (now()-execDt) : 0}ms)")
         }
     }
 }
@@ -1325,15 +1326,18 @@ private runCookieRefresh() {
 }
 
 def wakeUpServerResp(response, data) {
-    log.trace "wakeUpServerResp..."
-    try { } catch(ex) { log.error "wakeUpServerResp Error: ${response?.getErrorMessage() ?: null}" }
-    def rData = response?.data ?: null
+    Boolean hasErr = (response?.hasError() == true)
+    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
+    if(!respIsValid(response?.status, hasErr, errMsg, "wakeUpServerResp")) {return}
+    def rData = null
+    try { rData = response?.data ?: null }
+    catch(ex) { logError("wakeUpServerResp Exception: ${ex?.message}") }
     if (rData) {
         // log.debug "rData: $rData"
-        log.debug "wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)"
+        logInfo("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         Map cookieData = state?.cookieData ?: [:]
         if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
-            log.error("Required Registration data is missing for Cookie Refresh")
+            logError("Required Registration data is missing for Cookie Refresh")
             return
         }
         Map params = [
@@ -1345,35 +1349,38 @@ def wakeUpServerResp(response, data) {
 }
 
 def cookieRefreshResp(response, data) {
-    log.trace "cookieRefreshResp..."
-    try { } catch(ex) { log.error "cookieRefreshResp Error: ${response?.getErrorMessage() ?: null}" }
-    Map rData = response?.json ?: [:]
+    Boolean hasErr = (response?.hasError() == true)
+    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
+    if(!respIsValid(response?.status, hasErr, errMsg, "cookieRefreshResp")) {return}
+    Map rData = null
+    try { rData = response?.data ? response?.json ?: [:] : [:] }
+    catch(ex) { logError("cookieRefreshResp Exception: ${ex}") }
+    // log.debug "rData: $rData"
     if (rData && rData?.result && rData?.result?.size()) {
-        log.debug "refreshAlexaCookie Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)"
+        logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         if(settings?.sendCookieRefreshMsg == true) { sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!") }
         // log.debug "refreshAlexaCookie Response: ${rData?.result}"
     }
 }
 
 private apiHealthCheck(frc=false) {
-    // if(!frc || (getLastApiChkSec() <= 1800)) { return }
     try {
         Map params = [uri: getAmazonUrl(), path: "/api/ping", query: ["_": ""], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "plain/text"]
         httpGet(params) { resp->
-            log.debug "API Health Check Resp: (${resp?.getData()})"
+            logDebug("API Health Check Resp: (${resp?.getData()})")
             return (resp?.getData().toString() == "healthy")
         }
     } catch(ex) {
         incrementCntByKey("err_app_apiHealthCnt")
-        log.error "apiHealthCheck() Exception: ${ex.message}"
+        logError("apiHealthCheck() Exception: ${ex.message}")
     }
 }
 
 def cookieValidResp(response, data) {
-    // log.trace "cookieValidResp..."
+    // logTrace("cookieValidResp...")
     if(response?.status == 401) {
-        log.error "cookieValidResp Status: (${response.status})"
-        authEvtHandler(false)
+        logError("cookieValidResp Status: (${response.status})")
+        authValidationEvent(false)
         state?.lastCookieChkDt = getDtNow()
         return
     }
@@ -1386,21 +1393,53 @@ def cookieValidResp(response, data) {
     }
     state?.lastCookieChkDt = getDtNow()
     def execTime = data?.execDt ? (now()-data?.execDt) : 0
-    log.debug "Cookie Validation: (${valid}) | Process Time: (${execTime}ms)"
-    authEvtHandler(valid)
+    logDebug("Cookie Validation: (${valid}) | Process Time: (${execTime}ms)")
+    authValidationEvent(valid)
 }
+
+private authValidationEvent(valid) {
+	Integer listSize = 3
+    List eList = atomicState?.authValidHistory ?: [true, true, true]
+    eList.push(valid)
+	if(eList?.size() > listSize) { eList = eList?.drop( (eList?.size()-listSize)+1 ) }
+	atomicState?.authValidHistory = eList
+    if(eList?.every { it == false }) {
+        logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
+        authEvtHandler(false)
+    }
+}
+
+// private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
+//     statusCode = statusCode as Integer
+//     if(statusCode == 401) {
+//         authValidationEvent(false)
+//         return false
+//     } else { if(statusCode > 401 && statusCode < 500) { logError("${methodName} Error: ${errMsg ?: null}") } }
+//     if(hasErr && falseOnErr) { return false }
+//     return true
+// }
 
 private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
     statusCode = statusCode as Integer
-    if(statusCode == 401) {
-        setAuthState(false)
+    if(!hasErr && statusCode == 200) {
+        return true
+    } else if(statusCode == 401) {
+        authValidationEvent(false)
         return false
-    } else { if(statusCode > 401 && statusCode < 500) { log.error "${methodName} Error: ${errMsg ?: null}" } }
+    } else {
+        if(statusCode > 401 && statusCode < 500) {
+            logError("${methodName} Error: ${errMsg ?: null}")
+            if(errMsg == "Forbidden") {
+                authValidationEvent(false)
+                return false
+            }
+        }
+    }
     if(hasErr && falseOnErr) { return false }
     return true
 }
 
-private noAuthReminder() { log.warn "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page..." }
+private noAuthReminder() { logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...") }
 
 def makeSyncHttpReq(Map params, String method="get", String src, Boolean strInJsonResp=false, Boolean showLogs=false) {
     try {
@@ -1410,8 +1449,8 @@ def makeSyncHttpReq(Map params, String method="get", String src, Boolean strInJs
         }
     } catch (ex) {
         if(ex instanceof  groovyx.net.http.ResponseParseException) {
-            log.error "There was an error while parsing the response: ${ex.message}"
-        } else { log.error "makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}" }
+            logError("There was an error while parsing the response: ${ex.message}")
+        } else { logError("makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}") }
         return null
     }
 }
@@ -1419,12 +1458,12 @@ def makeSyncHttpReq(Map params, String method="get", String src, Boolean strInJs
 public childInitiatedRefresh() {
     Integer lastRfsh = getLastChildInitRefreshSec()
     if(state?.deviceRefreshInProgress != true && lastRfsh > 120) {
-        log.debug "A Child Device is requesting a Device List Refresh..."
+        logDebug("A Child Device is requesting a Device List Refresh...")
         state?.lastChildInitRefreshDt = getDtNow()
         getOtherData()
         runIn(3, "getEchoDevices")
     } else {
-        log.warn "childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)"
+        logWarn("childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)")
     }
 }
 
@@ -1475,7 +1514,7 @@ private getOtherData() {
 }
 
 private getBluetoothDevices() {
-    // log.trace "getBluetoothDevices"
+    // logTrace("getBluetoothDevices")
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
@@ -1489,7 +1528,7 @@ private getBluetoothDevices() {
 }
 
 def getBluetoothData(serialNumber) {
-    // log.trace "getBluetoothData: ${serialNumber}"
+    // logTrace("getBluetoothData: ${serialNumber}")
     String curConnName = null
     Map btObjs = [:]
     Map btData = state?.bluetoothData ?: [:]
@@ -1518,7 +1557,7 @@ private getDoNotDisturb() {
 }
 
 def getDndEnabled(serialNumber) {
-    // log.trace "getBluetoothData: ${serialNumber}"
+    // logTrace("getBluetoothData: ${serialNumber}")
     Map sData = state?.dndData ?: [:]
     def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
     return (dndData && dndData?.enabled == true)
@@ -1574,7 +1613,7 @@ def executeRoutineById(String routineId) {
         // log.debug "Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${routineId}"
         return true
     } else {
-        log.debug "No Routine Data Returned for ID: (${routineId})"
+        logError("No Routine Data Returned for ID: (${routineId})")
         return false
     }
 }
@@ -1612,16 +1651,16 @@ def checkGuardSupportResponse(response, data) {
                     friendlyName: guardData?.friendlyName,
                 ]
                 guardSupported = true
-            } else { log.error "checkGuardSupportResponse Error | No data received..." }
+            } else { logError("checkGuardSupportResponse Error | No data received...") }
         }
-    } else { log.error "checkGuardSupportResponse Error | No data received..." }
+    } else { logError("checkGuardSupportResponse Error | No data received...") }
     state?.alexaGuardSupported = guardSupported
     if(guardSupported) getGuardState()
 }
 
 private getGuardState() {
     if(!isAuthValid("getGuardState")) { return }
-    if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return; }
+    if(!state?.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return; }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
@@ -1637,22 +1676,22 @@ private getGuardState() {
                 def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
                 state?.alexaGuardState = guardStateData?.value[0] ? guardStateData?.value[0] : guardStateData?.value
                 settingUpdate("alexaGuardAwayToggle", ((state?.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
-                logger("debug", "Alexa Guard State: (${state?.alexaGuardState})")
+                logDebug("Alexa Guard State: (${state?.alexaGuardState})")
             }
             // log.debug "GuardState resp: ${respData}"
         }
     } catch (ex) {
         if(ex instanceof  groovyx.net.http.ResponseParseException) {
-            log.error "There was an error while parsing the response: ${ex.message}"
-        } else { log.error "makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}" }
+            logError("There was an error while parsing the response: ${ex.message}")
+        } else { logError("makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}") }
     }
 }
 
 private setGuardState(guardState) {
     if(!isAuthValid("setGuardState")) { return }
-    if(!state?.alexaGuardSupported) { log.error "Alexa Guard is either not enabled. or not supported by any of your devices"; return; }
+    if(!state?.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return; }
     guardState = guardStateConv(guardState)
-    log.trace "setAlexaGuard($guardState)"
+    logDebug("setAlexaGuard($guardState)")
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
@@ -1684,9 +1723,9 @@ def setGuardStateResponse(response, data) {
     def resp = response?.json
     // log.debug "resp: ${resp}"
     if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
-        log.info "Alexa Guard set to (${data?.requestedState}) Successfully!!!"
+        logInfo("Alexa Guard set to (${data?.requestedState}) Successfully!!!")
         state?.alexaGuardState = data?.requestedState
-    } else { log.error "Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}" }
+    } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
 }
 
 String getAlexaGuardStatus() {
@@ -1727,7 +1766,7 @@ def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     if(response?.status == 401) {
-        authEvtHandler(false)
+        authValidationEvent(false)
         return
     }
     try {
@@ -1749,18 +1788,18 @@ def echoDevicesResponse(response, data) {
         // log.debug "echoDevices: ${echoDevices}"
         receiveEventData([echoDevices: echoDevices, musicProviders: getMusicProviders(), execDt: data?.execDt], "Groovy")
     } catch (ex) {
-        log.error "echoDevicesResponse Exception: ${ex.message}"
+        logError("echoDevicesResponse Exception: ${ex.message}")
     }
 }
 
 def receiveEventData(Map evtData, String src) {
     try {
         if(checkIfCodeUpdated()) {
-            log.warn "Possible Code Version Change Detected... Device Updates will occur on next cycle."
+            logWarn("Possible Code Version Change Detected... Device Updates will occur on next cycle.")
             return
         }
         // log.debug "musicProviders: ${evtData?.musicProviders}"
-        logger("trace", "evtData(Keys): ${evtData?.keySet()}", true)
+        logTrace("evtData(Keys): ${evtData?.keySet()}")
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
             Boolean onHeroku = (state?.onHeroku == true && state?.isLocal == true)
@@ -1778,8 +1817,8 @@ def receiveEventData(Map evtData, String src) {
                 List curDevFamily = []
                 Integer cnt = 0
                 evtData?.echoDevices?.each { echoKey, echoValue->
-                    logger("debug", "echoDevice | $echoKey | ${echoValue}", true)
-                    logger("debug", "echoDevice | ${echoValue?.accountName}", false)
+                    logTrace("echoDevice | $echoKey | ${echoValue}")
+                    // logDebug("echoDevice | ${echoValue?.accountName}", false)
                     allEchoDevices[echoKey] = [name: echoValue?.accountName]
                     // log.debug "name: ${echoValue?.accountName}"
                     Map familyAllowed = isFamilyAllowed(echoValue?.deviceFamily as String)
@@ -1794,7 +1833,7 @@ def receiveEventData(Map evtData, String src) {
                     Boolean bypassBlock = (settings?.bypassDeviceBlocks == true && !isInIgnoreInput)
 
                     if(!bypassBlock && (familyAllowed?.ok == false || isBlocked == true || (!allowTTS && !isMediaPlayer) || isInIgnoreInput)) {
-                        logger("debug", "familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
+                        logDebug("familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
                         if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
                             List reasons = []
                             if(deviceStyleData?.blocked) {
@@ -1805,7 +1844,7 @@ def receiveEventData(Map evtData, String src) {
                                 reasons?.push(familyAllowed?.reason)
                             } else if(isInIgnoreInput) {
                                 reasons?.push("In Ignore Device Input")
-                                logger("warn", "skipping ${echoValue?.accountName} because it is in the do not use list...")
+                                logDebug("skipping ${echoValue?.accountName} because it is in the do not use list...")
                             } else {
                                 if(!allowTTS) { reasons?.push("No TTS") }
                                 if(!isMediaPlayer) { reasons?.push("No Media Controls") }
@@ -1857,7 +1896,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
-                    // log.warn "Device Permisions | Name: ${echoValue?.accountName} | $permissions"
+                    // logWarn("Device Permisions | Name: ${echoValue?.accountName} | $permissions")
 
                     echoDeviceMap[echoKey] = [
                         name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey,
@@ -1875,10 +1914,10 @@ def receiveEventData(Map evtData, String src) {
                         // log.debug "childDevice not found | autoCreateDevices: ${settings?.autoCreateDevices}"
                         if(settings?.autoCreateDevices != false) {
                             try{
-                                log.debug "Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)${(settings?.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : "" }"
+                                logInfo("Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)${(settings?.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : "" }")
                                 childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
                             } catch(ex) {
-                                log.error "AddDevice Error! | ${ex.message}"
+                                logError("AddDevice Error! | ${ex.message}")
                             }
                         }
                     } else {
@@ -1887,16 +1926,16 @@ def receiveEventData(Map evtData, String src) {
                         if(autoRename && childDevice?.name as String != childHandlerName) { childDevice?.name = childHandlerName as String }
                         // log.debug "curLbl: ${curLbl} | newLbl: ${devLabel} | autoRename: ${autoRename}"
                         if(autoRename && (curLbl != devLabel)) {
-                            log.debug ("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${curLbl})")
+                            logDebug("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${curLbl})")
                             childDevice?.setLabel(devLabel as String)
                         }
-                        // logger("info", "Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
+                        // logInfo("Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
                         updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
                     curDevFamily.push(echoValue?.deviceStyle?.name)
                 }
-                log.debug "Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)"
+                logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
                 state?.lastDevDataUpd = getDtNow()
                 state?.echoDeviceMap = echoDeviceMap
                 state?.allEchoDevices = allEchoDevices
@@ -1906,13 +1945,13 @@ def receiveEventData(Map evtData, String src) {
                 log.warn "No Echo Device Data Sent... This may be the first transmission from the service after it started up!"
             }
             if(updRequired) {
-                log.warn "CODE UPDATES REQUIRED: Echo Speaks Integration may not function until the following items are ALL Updated ${updRequiredItems}..."
+                logWarn("CODE UPDATES REQUIRED: Echo Speaks Integration may not function until the following items are ALL Updated ${updRequiredItems}...")
                 appUpdateNotify()
             }
             if(state?.installData?.sentMetrics != true) { runIn(900, "sendInstallData", [overwrite: false]) }
         }
     } catch(ex) {
-        log.error "receiveEventData Error: ${ex.message}"
+        logError("receiveEventData Error: ${ex.message}")
         incrementCntByKey("appErrorCnt")
     }
 }
@@ -1949,9 +1988,9 @@ public Map getDeviceTypesMap() {
 }
 
 private getDevicesFromSerialList(serialNumberList) {
-    //log.trace "getDevicesFromSerialList called with: ${ serialNumberList}"
+    //logTrace("getDevicesFromSerialList called with: ${ serialNumberList}")
     if (serialNumberList == null) {
-       log.debug "SerialNumberList is null"
+       logDebug("SerialNumberList is null")
        return;
     }
     def devicesList = serialNumberList.findResults { echoKey ->
@@ -1964,7 +2003,7 @@ private getDevicesFromSerialList(serialNumberList) {
 
 // This is called by the device handler to send playback data to cluster members
 public sendPlaybackStateToClusterMembers(whaKey, response, data) {
-    //log.trace "sendPlaybackStateToClusterMembers: key: ${ whaKey}"
+    //logTrace("sendPlaybackStateToClusterMembers: key: ${ whaKey}")
     def echoDeviceMap = state?.echoDeviceMap
     def whaMap = echoDeviceMap[whaKey]
     def clusterMembers = whaMap?.clusterMembers
@@ -1987,12 +2026,12 @@ private removeDevices(all=false) {
         settingUpdate("cleanUpDevices", "false", "bool")
         List devList = getDeviceList(true)?.collect { String dni = [app?.id, "echoSpeaks", it?.key].join("|") }
         def items = app.getChildDevices()?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : null }
-        log.warn "removeDevices(${all ? "all" : ""}) | In Use: (${all ? 0 : devList?.size()}) | Removing: (${items?.size()})"
+        logWarn("removeDevices(${all ? "all" : ""}) | In Use: (${all ? 0 : devList?.size()}) | Removing: (${items?.size()})")
         if(items?.size() > 0) {
             Boolean isST = isST()
             items?.each {  isST ? deleteChildDevice(it as String, true) : deleteChildDevice(it as String) }
         }
-    } catch (ex) { log.error "Device Removal Failed: ${ex.message}" }
+    } catch (ex) { logError("Device Removal Failed: ${ex.message}") }
 }
 
 Map sequenceBuilder(cmd, val) {
@@ -2034,7 +2073,6 @@ Map createSequenceNode(command, value, Map deviceData = [:]) {
                 seqNode?.operationPayload?.textToSpeak = value as String
                 break
             case "announcementTest":
-                log.debug "test"
                 seqNode?.type = "AlexaAnnouncement"
                 seqNode?.operationPayload?.remove('deviceType')
                 seqNode?.operationPayload?.remove('deviceSerialNumber')
@@ -2061,7 +2099,7 @@ Map createSequenceNode(command, value, Map deviceData = [:]) {
         // log.debug "seqNode: $seqNode"
         return seqNode
     } catch (ex) {
-        log.error "createSequenceNode Exception: $ex"
+        logError("createSequenceNode Exception: ${ex?.message}")
         return [:]
     }
 }
@@ -2073,7 +2111,7 @@ private execAsyncCmd(String method, String callbackHandler, Map params, Map othe
             include 'asynchttp_v1'
             asynchttp_v1."${m}"(callbackHandler, params, otherData)
         } else { "asynchttp${m?.capitalize()}"("${callbackHandler}", params, otherData) }
-    } else { log.error "execAsyncCmd Error | Missing a required parameter" }
+    } else { logError("execAsyncCmd Error | Missing a required parameter") }
 }
 
 private sendAmazonCommand(String method, Map params, Map otherData) {
@@ -2086,14 +2124,14 @@ def amazonCommandResp(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
     try {} catch (ex) { }
     def resp = response?.data ? response?.getJson() : null
-    // logger("warn", "amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
+    // logDebug("amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
     if(response?.status == 200) {
-        log.trace "amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!"
+        logDebug("amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!")
     }
 }
 
 private sendSequenceCommand(type, command, value) {
-    // logger("trace", "sendSequenceCommand($type) | command: $command | value: $value")
+    // logTrace("sendSequenceCommand($type) | command: $command | value: $value", true)
     Map seqObj = sequenceBuilder(command, value)
     sendAmazonCommand("post", [
         uri: getAmazonUrl(),
@@ -2129,10 +2167,10 @@ Map notifValEnum(allowCust = true) {
 }
 
 private healthCheck() {
-    // logger("trace", "healthCheck")
+    // logTrace("healthCheck", true)
     checkVersionData()
     if(checkIfCodeUpdated()) {
-        log.warn "Code Version Change Detected... Health Check will occur on next cycle."
+        logWarn("Code Version Change Detected... Health Check will occur on next cycle.")
         return
     }
     validateCookie()
@@ -2144,7 +2182,7 @@ private healthCheck() {
 }
 
 private missPollNotify(Boolean on, Integer wait) {
-    logger("debug", "missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastDevicePollSec()}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastMisPollMsgSec()})")
+    logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastDevicePollSec()}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastMisPollMsgSec()})")
     if(!on || !wait || !(getLastDevicePollSec() > (state?.misPollNotifyWaitVal ?: 2700))) { return }
     if(!(getLastMisPollMsgSec() > wait.toInteger())) {
         state?.missPollRepair = false
@@ -2160,7 +2198,7 @@ private missPollNotify(Boolean on, Integer wait) {
         if(state?.authValid) {
             msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastDevicePollSec()}) seconds.\nThere maybe an issue with the scheduling.  Please open the app and press Done/Save."
         } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
-        log.warn "${msg.toString().replaceAll("\n", " ")}"
+        logWarn("${msg.toString().replaceAll("\n", " ")}")
         if(sendMsg("${app.name} ${state?.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
             state?.lastMisPollMsgDt = getDtNow()
         }
@@ -2176,7 +2214,7 @@ private appUpdateNotify() {
     Boolean actUpd = isActionAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
-    logger("debug", "appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
+    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
         if(on && (appUpd || actUpd || echoDevUpd || servUpd)) {
             state?.updateAvailable = true
@@ -2223,7 +2261,7 @@ Boolean getOk2Notify() {
     Boolean daysOk = quietDaysOk(settings?.quietDays)
     Boolean timeOk = quietTimeOk()
     Boolean modesOk = quietModesOk(settings?.quietModes)
-    logger("debug", "getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     if(!(smsOk || pushOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
     return true
@@ -2264,14 +2302,14 @@ Boolean quietDaysOk(days) {
 
 // Sends the notifications based on app settings
 public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMap=null, sms=null, push=null) {
-    logger("trace", "sendMsg() | msgTitle: ${msgTitle}, msg: ${msg}, showEvt: ${showEvt}")
+    logTrace("sendMsg() | msgTitle: ${msgTitle}, msg: ${msg}, showEvt: ${showEvt}")
     String sentstr = "Push"
     Boolean sent = false
     try {
         String newMsg = "${msgTitle}: ${msg}"
         String flatMsg = newMsg.toString().replaceAll("\n", " ")
         if(!getOk2Notify()) {
-            log.info "sendMsg: Message Skipped During Quiet Time ($flatMsg)"
+            logInfo("sendMsg: Message Skipped During Quiet Time ($flatMsg)")
             if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
             if(push || settings?.usePush) {
@@ -2308,12 +2346,12 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
             if(sent) {
                 state?.lastMsg = flatMsg
                 state?.lastMsgDt = getDtNow()
-                logger("debug", "sendMsg: Sent ${sentstr} (${flatMsg})")
+                logDebug("sendMsg: Sent ${sentstr} (${flatMsg})")
             }
         }
     } catch (ex) {
         incrementCntByKey("appErrorCnt")
-        log.error "sendMsg $sentstr Exception: ${ex.message}"
+        logError("sendMsg $sentstr Exception: ${ex.message}")
     }
     return sent
 }
@@ -2392,11 +2430,11 @@ private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID
 private sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), "/clients/${state?.appGuid}.json", createMetricsDataJson(), "put", "heartbeat"); } }
 private removeInstallData() { return removeFirebaseData("/clients/${state?.appGuid}.json") }
 private sendFirebaseData(url, path, data, cmdType=null, type=null) {
-    logger("trace", "sendFirebaseData(${path}, ${data}, $cmdType, $type", true)
+    logTrace("sendFirebaseData(${path}, ${data}, $cmdType, $type")
     return queueFirebaseData(url, path, data, cmdType, type)
 }
 def queueFirebaseData(url, path, data, cmdType=null, type=null) {
-    logger("trace", "queueFirebaseData(${path}, ${data}, $cmdType, $type", true)
+    logTrace("queueFirebaseData(${path}, ${data}, $cmdType, $type")
     Boolean result = false
     def json = new groovy.json.JsonOutput().prettyPrint(data)
     Map params = [uri: url as String, path: path as String, requestContentType: "application/json", contentType: "application/json", body: json.toString()]
@@ -2408,24 +2446,24 @@ def queueFirebaseData(url, path, data, cmdType=null, type=null) {
         } else if (cmdType == "post") {
             execAsyncCmd(cmdType, "processFirebaseResponse", params, [type: typeDesc])
             result = true
-        } else { log.debug "queueFirebaseData UNKNOWN cmdType: ${cmdType}" }
+        } else { logWarn("queueFirebaseData UNKNOWN cmdType: ${cmdType}") }
 
-    } catch(ex) { log.error "queueFirebaseData (type: $typeDesc) Exception: ${ex.message}" }
+    } catch(ex) { logError("queueFirebaseData (type: $typeDesc) Exception: ${ex.message}") }
     return result
 }
 
 def removeFirebaseData(pathVal) {
-    logger("trace", "removeFirebaseData(${pathVal})", true)
+    logTrace("removeFirebaseData(${pathVal})")
     Boolean result = true
     try {
         httpDelete(uri: getFbMetricsUrl(), path: pathVal as String) { resp ->
-            logger("debug", "Remove Firebase | resp: ${resp?.status}")
+            logDebug("Remove Firebase | resp: ${resp?.status}")
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.ResponseParseException) {
-            logger("error", "removeFirebaseData: Response: ${ex?.message}")
+            logError("removeFirebaseData: Response: ${ex?.message}")
         } else {
-            logger("error", "removeFirebaseData: Response: ${ex?.message}")
+            logError("removeFirebaseData: Response: ${ex?.message}")
             result = false
         }
     }
@@ -2433,23 +2471,23 @@ def removeFirebaseData(pathVal) {
 }
 
 def processFirebaseResponse(resp, data) {
-    logger("trace", "processFirebaseResponse(${data?.type})", true)
+    logTrace("processFirebaseResponse(${data?.type})")
     Boolean result = false
     String typeDesc = data?.type as String
     try {
         if(resp?.status == 200) {
-            logger("info", "processFirebaseResponse: ${typeDesc} Data Sent SUCCESSFULLY")
+            logDebug("processFirebaseResponse: ${typeDesc} Data Sent SUCCESSFULLY")
             if(typeDesc?.toString() == "heartbeat") { state?.lastMetricUpdDt = getDtNow() }
             def iData = atomicState?.installData ?: [:]
             iData["sentMetrics"] = true
             atomicState?.installData = iData
             result = true
         } else if(resp?.status == 400) {
-            log.error "processFirebaseResponse: 'Bad Request': ${resp?.status}"
-        } else { log.warn "processFirebaseResponse: 'Unexpected' Response: ${resp?.status}" }
-        if (isST() && resp?.hasError()) { log.error "processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}" }
+            logError("processFirebaseResponse: 'Bad Request': ${resp?.status}")
+        } else { logWarn("processFirebaseResponse: 'Unexpected' Response: ${resp?.status}") }
+        if (isST() && resp?.hasError()) { logError("processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}") }
     } catch(ex) {
-        log.error "processFirebaseResponse (type: $typeDesc) Exception: ${ex.message}"
+        logError("processFirebaseResponse (type: $typeDesc) Exception: ${ex.message}")
     }
 }
 
@@ -2457,7 +2495,7 @@ def renderMetricData() {
     try {
         def json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
         render contentType: "application/json", data: json
-    } catch (ex) { log.error "renderMetricData Exception: ${ex.message}" }
+    } catch (ex) { logError("renderMetricData Exception: ${ex.message}") }
 }
 
 private Map getSkippedDevsAnon() {
@@ -2503,7 +2541,7 @@ private createMetricsDataJson(rendAsMap=false) {
         def json = new groovy.json.JsonOutput().toJson(dataObj)
         return json
     } catch (ex) {
-        log.error "createMetricsDataJson: Exception: ${ex.message}"
+        logError("createMetricsDataJson: Exception: ${ex.message}")
     }
 }
 
@@ -2511,7 +2549,7 @@ private incrementCntByKey(String key) {
     long evtCnt = state?."${key}" ?: 0
     // evtCnt = evtCnt?.toLong()+1
     evtCnt++
-    logger("trace", "${key?.toString()?.capitalize()}: $evtCnt", true)
+    // logTrace("${key?.toString()?.capitalize()}: $evtCnt", true)
     state?."${key}" = evtCnt?.toLong()
 }
 
@@ -2539,7 +2577,7 @@ Boolean isCodeUpdateAvailable(String newVer, String curVer, String type) {
             result = (latestVer == newVer) ? true : false
         }
     }
-    // logger("trace", "isCodeUpdateAvailable | type: $type | newVer: $newVer | curVer: $curVer | newestVersion: ${latestVer} | result: $result")
+    // logDebug("isCodeUpdateAvailable | type: $type | newVer: $newVer | curVer: $curVer | newestVersion: ${latestVer} | result: $result")
     return result
 }
 
@@ -2582,7 +2620,7 @@ private getConfigData() {
     if(data) {
         state?.appData = data
         state?.lastVerUpdDt = getDtNow()
-        log.info "Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo..."
+        logInfo("Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo...")
     }
 }
 
@@ -2594,7 +2632,7 @@ private getNoticeData() {
     def data = getWebData(params, "noticeData", false)
     if(data) {
         state?.noticeData = data
-        log.info "Successfully Retrieved Developer Notices from GitHub Repo..."
+        logInfo("Successfully Retrieved Developer Notices from GitHub Repo...")
     }
 }
 
@@ -2610,8 +2648,8 @@ private getWebData(params, desc, text=true) {
     } catch (ex) {
         incrementCntByKey("appErrorCnt")
         if(ex instanceof groovyx.net.http.HttpResponseException) {
-            log.warn("${desc} file not found")
-        } else { log.error "getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex.message}" }
+            logWarn("${desc} file not found")
+        } else { logError("getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex.message}") }
         return "${label} info not found"
     }
 }
@@ -2674,7 +2712,7 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         return diff
     }
     catch (ex) {
-        log.error "GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex.message}"
+        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex.message}")
         return 10000
     }
 }
@@ -2830,7 +2868,7 @@ String randomString(Integer len) {
     def pool = ["a".."z",0..9].flatten()
     Random rand = new Random(new Date().getTime())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
-    log.debug "randomString: ${randChars?.join()}"
+    logDebug("randomString: ${randChars?.join()}")
     return randChars.join()
 }
 
@@ -2839,7 +2877,7 @@ Boolean getAccessToken() {
         if(!state?.accessToken) { state?.accessToken = createAccessToken() }
         else { return true }
     } catch (ex) {
-        log.error "getAccessToken Exception: ${ex.message}"
+        logError("getAccessToken Exception: ${ex.message}")
         return false
     }
 }
@@ -3540,7 +3578,7 @@ public setAlarmSystemMode(mode) {
                 break
         }
     }
-    log.info "Setting the ${getAlarmSystemName()} Mode to (${mode})..."
+    logInfo("Setting the ${getAlarmSystemName()} Mode to (${mode})...")
     sendLocationEvent(name: (isST() ? 'alarmSystemStatus' : 'hsmSetArm'), value: mode.toString())
 }
 
@@ -3564,27 +3602,28 @@ public JsonElementsParser(root) {
     }
 }
 
-Integer stateSize() {
-    def j = new groovy.json.JsonOutput().toJson(state)
-    return j?.toString().length()
-}
-Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
-String debugStatus() { return !settings?.appDebug ? "Off" : "On" }
+Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
+Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
+// String debugStatus() { return (!settings?.appDebug) ? "Off" : "On" }
 String deviceDebugStatus() { return !settings?.childDebug ? "Off" : "On" }
-Boolean isAppDebug() { return (settings?.appDebug == true) }
 Boolean isChildDebug() { return (settings?.childDebug == true) }
 
+List logLevels() {
+    List lItems = ["logInfo", "logWarn", "logDebug", "logError", "logTrace"]
+    return settings?.findAll { it?.key in lItems && it?.value == true }?.collect { it?.key }
+}
+
 String getAppDebugDesc() {
+    def ll = logLevels()
     def str = ""
-    str += isAppDebug() ? "App Debug: (${debugStatus()})" : ""
+    str += ll?.size() ? "App Log Levels: (${ll?.join(", ")})" : ""
     str += isChildDebug() && str != "" ? "\n" : ""
     str += isChildDebug() ? "Device Debug: (${deviceDebugStatus()})" : ""
     return (str != "") ? "${str}" : null
 }
 
-private logger(type, msg, traceOnly=false) {
-    if (traceOnly && !settings?.appTrace) { return }
-    if(type && msg && settings?.appDebug) {
-        log."${type}" "${msg}"
-    }
-}
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
+private logWarn(msg) { if(settings?.logWarn != false) { log.warn msg } }
+private logError(msg) { if(settings?.logError != false) { log.error msg } }

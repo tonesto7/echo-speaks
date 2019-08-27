@@ -149,7 +149,6 @@ def mainPage() {
             }
         }
 
-
         section(sTS("Preferences")) {
             if(!paused) {
                 href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
@@ -172,8 +171,14 @@ def mainPage() {
 
 def prefsPage() {
     return dynamicPage(name: "prefsPage", install: false, uninstall: false) {
-        section(sTS("Debug")) {
-            input "appDebug", "bool", title: inTS("Show Debug Logs in the IDE?", getAppImg("debug", true)), description: "Only enable when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+        section(sTS("Logging:")) {
+            input "logInfo", "bool", title: inTS("Show Info Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logWarn", "bool", title: inTS("Show Warning Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logError", "bool", title: inTS("Show Error Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+        }
+        section(sTS("Other:")) {
             input "clrEvtHistory", "bool", title: inTS("Clear Device Event History?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
             if(clrEvtHistory) { clearEvtHistory() }
         }
@@ -189,7 +194,7 @@ def namePage() {
 }
 
 def triggersPage() {
-    return dynamicPage(name: "triggersPage", uninstall: false, install: false) {
+    return dynamicPage(name: "triggersPage", nextPage: "mainPage", uninstall: false, install: false) {
         List stRoutines = getLocationRoutines() ?: []
         Boolean showSpeakEvtVars = false
         section (sTS("Select Capabilities")) {
@@ -578,7 +583,7 @@ Boolean triggersConfigured() {
 ******************************************************************************/
 
 def conditionsPage() {
-    return dynamicPage(name: "conditionsPage", title: "Only when these device, location conditions are True...", install: false, uninstall: false) {
+    return dynamicPage(name: "conditionsPage", title: "Only when these device, location conditions are True...", nextPage: "mainPage", install: false, uninstall: false) {
         section(sTS("Time/Date")) {
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getAppImg("clock")
             input "cond_days", "enum", title: inTS("Days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
@@ -695,7 +700,7 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
 }
 
 def actionsPage() {
-    return dynamicPage(name: "actionsPage", title: (settings?.actionType ? "Action | (${settings?.actionType})" : "Actions to perform..."), install: false, uninstall: false) {
+    return dynamicPage(name: "actionsPage", title: (settings?.actionType ? "Action | (${settings?.actionType})" : "Actions to perform..."), nextPage: "mainPage", install: false, uninstall: false) {
         Boolean done = false
         Map actionExecMap = [configured: false]
         Map actionOpts = [
@@ -745,7 +750,7 @@ def actionsPage() {
                         if(settings?.act_EchoDevices?.size() > 1) {
                             List devObj = []
                             devices?.each { devObj?.push([deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]]) }
-                            log.debug "devObj: $devObj"
+                            // log.debug "devObj: $devObj"
                             actionExecMap?.config?.announcement?.deviceObjs = devObj
                         }
                         if(state?.showSpeakEvtVars || act_announcement_txt) { done = true } else { done = false }
@@ -848,7 +853,7 @@ def actionsPage() {
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
                         List musicProvs = devices[0]?.hasAttribute("supportedMusic") ? devices[0]?.currentValue("supportedMusic")?.split(",")?.collect { "${it?.toString()?.trim()}"} : []
-                        log.debug "Music Providers: ${musicProvs}"
+                        logDebug("Music Providers: ${musicProvs}")
                         if(musicProvs) {
                             section(sTS("Music Providers:")) {
                                 input "act_music_provider", "enum", title: inTS("Select Music Provider", getAppImg("music", true)), description: "", options: musicProvs, multiple: false, required: true, submitOnChange: true, image: getAppImg("music")
@@ -950,7 +955,7 @@ def actionsPage() {
                             paragraph pTS("This will Allow you trigger any Alexa Routines (Those with voice triggers only)", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
                         }
                         def routinesAvail = parent?.getAlexaRoutines(null, true) ?: [:]
-                        log.debug "routinesAvail: $routinesAvail"
+                        logDebug("routinesAvail: $routinesAvail")
                         section(sTS("Action Config:")) {
                             input "act_alexaroutine_cmd", "enum", title: inTS("Select Alexa Routine", getAppImg("command", true)), description: "", options: routinesAvail, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         }
@@ -969,7 +974,7 @@ def actionsPage() {
                         }
                         if(devsCnt >= 1) {
                             List wakeWords = devices[0]?.hasAttribute("wakeWords") ? devices[0]?.currentValue("wakeWords")?.replaceAll('"', "")?.split(",") : []
-                            // log.debug "WakeWords: ${wakeWords}"
+                            // logDebug("WakeWords: ${wakeWords}")
                             devices?.each { cDev->
                                 section(sTS("${cDev?.getLabel()}:")) {
                                     if(wakeWords?.size()) {
@@ -982,7 +987,7 @@ def actionsPage() {
                         }
                         actionExecMap?.config?.wakeword = [ devices: devsObj]
                         def aCnt = settings?.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }
-                        log.debug "aCnt: ${aCnt} | devsCnt: ${devsCnt}"
+                        // log.debug "aCnt: ${aCnt} | devsCnt: ${devsCnt}"
                         if(settings?.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }?.size() == devsCnt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -1035,7 +1040,7 @@ def actionsPage() {
             } else { actionExecMap = [configured: false] }
         }
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
-        log.debug "actionExecMap: ${atomicState?.actionExecMap}"
+        logDebug("actionExecMap: ${atomicState?.actionExecMap}")
     }
 }
 
@@ -1056,7 +1061,7 @@ def ssmlInfoSection() {
 def cleanupDevSettings(prefix) {
     List cDevs = settings?.act_EchoDevices
     List sets = settings?.findAll { it?.key?.startsWith(prefix) }?.collect { it?.key as String }
-    log.debug "cDevs: $cDevs | sets: $sets"
+    // log.debug "cDevs: $cDevs | sets: $sets"
     List rem = []
     if(sets?.size()) {
         if(cDevs?.size()) {
@@ -1067,7 +1072,7 @@ def cleanupDevSettings(prefix) {
             }
         } else { rem = rem + sets }
     }
-    log.debug "rem: $rem"
+    // log.debug "rem: $rem"
     // rem?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
@@ -1092,7 +1097,7 @@ Boolean hasUserDefinedTxt() {
 
 
 def updateActionExecMap(data) {
-    // log.trace "updateActionExecMap..."
+    // logTrace( "updateActionExecMap...")
     atomicState?.actionExecMap = (data && data?.configured == true) ? data : [configured: false]
     // log.debug "actionExecMap: ${state?.actionExecMap}"
 }
@@ -1133,7 +1138,7 @@ private actionVolumeInputs(devices, showAlrmVol=false) {
 }
 
 def condTimePage() {
-    return dynamicPage(name:"condTimePage", title: "", uninstall: false) {
+    return dynamicPage(name:"condTimePage", title: "", install: false, uninstall: false) {
         Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
         section(sTS("Start Time:")) {
             input "cond_time_start_type", "enum", title: inTS("Starting at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
@@ -1155,7 +1160,7 @@ def condTimePage() {
 }
 
 def uninstallPage() {
-    return dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
+    return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
         section("") { paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
         if(isST()) { remove("Remove ${app?.label} and Devices!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis App and Devices will be removed") }
     }
@@ -1167,7 +1172,7 @@ Boolean wordInString(String findStr, String fullStr) {
 }
 
 def notifPrefPage() {
-    return dynamicPage(name: "notifPrefPage", title: "Notifications", uninstall: false) {
+    return dynamicPage(name: "notifPrefPage", title: "Notifications", install: false, uninstall: false) {
         section ("Push Messages:") {
             input "usePush", "bool", title: "Send Push Notifications...", required: false, defaultValue: false, submitOnChange: true
             input "pushTimeStamp", "bool", title: "Add timestamp to Push Messages...", required: false, defaultValue: false, submitOnChange: true
@@ -1280,7 +1285,7 @@ public triggerInitialize() {
 
 public updatePauseState(Boolean pause) {
     if(settings?.actionPause != pause) {
-        log.debug "Received Request to Update Pause State to (${pause})"
+        logDebug("Received Request to Update Pause State to (${pause})")
         settingUpdate("actionPause", "${pause}", "bool")
         runIn(4, updated())
     }
@@ -1305,7 +1310,7 @@ def scheduleTrigEvt() {
     Boolean wOk = (recur && weeks && recur in ["Weekly"]) ? (dateMap?.wm in weeks && sTrigMap?.lastRun?.wm != dateMap?.wm) : true
     Boolean mOk = (recur && months && recur in ["Weekly", "Monthly"]) ? (dateMap?.m in months && sTrigMap?.lastRun?.m != dateMap?.m) : true
     // Boolean yOk = (recur && recur in ["Yearly"]) ? (sTrigMap?.lastRun?.y != dateMap?.y) : true
-    log.debug "scheduleTrigEvt | dayOk: $dOk | weekOk: $wOk | monthOk: $mOk"
+    logDebug("scheduleTrigEvt | dayOk: $dOk | weekOk: $wOk | monthOk: $mOk")
     if(dOk && wOk && mOk) {
         sTripMap?.lastRun = dateMap
         atomicState?.schedTrigMap = sTrigMap
@@ -1441,14 +1446,14 @@ private getDevEvtHandlerName(String type) {
 ************************************************************************************************************/
 def sunriseTimeHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     String custText = null
     executeAction(evt, false, custText, "sunriseTimeHandler")
 }
 
 def sunsetTimeHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     String custText = null
     executeAction(evt, false, custText, "sunsetTimeHandler")
 }
@@ -1456,7 +1461,7 @@ def sunsetTimeHandler(evt) {
 def alarmEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     String custText = null
-    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     Boolean useAlerts = (settings?.trig_alarm == "Alerts")
     switch(evt?.name) {
         case "hsmStatus":
@@ -1492,7 +1497,7 @@ def devAfterEvtHandler(evt) {
     Integer dcafr = settings?."trig_${evt?.name}_after_repeat" ?: null
     String eid = "${evt?.deviceId}_${evt?.name}"
     Boolean schedChk = (dc && dcaf && evt?.value == dc)
-    log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})"
+    logTrace( "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})")
     if(aEvtMap?.containsKey(eid)) {
         if(dcaf && !schedChk) {
             aEvtMap?.remove(eid)
@@ -1549,7 +1554,7 @@ def afterEvtCheckHandler() {
                         }
                     } else {
                         aEvtMap?.remove(nextId)
-                        log.info "${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) state is already ${nextVal?.triggerState} | Skipping Actions..."
+                        logInfo("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) state is already ${nextVal?.triggerState} | Skipping Actions...")
                     }
                 }
             }
@@ -1557,7 +1562,7 @@ def afterEvtCheckHandler() {
         // log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
         runIn(2, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
         atomicState?.afterEvtMap = aEvtMap
-        // log.trace "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})"
+        // logTrace( "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})")
     } else { clearAfterCheckSchedule() }
     state?.lastAfterEvtCheck = getDtNow()
 }
@@ -1575,7 +1580,7 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     String dcart = settings?."trig_${evt?.name}_after_repeat_txt" ?: null
     List evtTxtItems = dct ? dct?.toString()?.tokenize(";") : null
     List repeatTxtItems = dcart ? dcart?.toString()?.tokenize(";") : null
-    log.trace "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (AfterEvt)" : ""}"
+    logTrace( "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (AfterEvt)" : ""}")
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     switch(evt?.name) {
         case "switch":
@@ -1716,7 +1721,7 @@ def thermostatEvtHandler(evt) {
     Boolean dca = (settings?."trig_${evt?.name}_all" == true)
     Boolean dco = (!settings?."trig_${evt?.name}_after" && settings?."trig_${evt?.name}_once" == true)
     Integer dcw = (!settings?."trig_${evt?.name}_after" && settings?."trig_${evt?.name}_wait") ? settings?."trig_${evt?.name}_wait" : null
-    log.trace "Thermostat Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    logTrace( "Thermostat Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     String dct = settings?."trig_${evt?.name}_txt" ?: null
     List evtTxtItems = dct ? dct?.toString()?.tokenize(";") : null
@@ -1814,7 +1819,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
             def dayOk = !once || (once && !isDateToday(prevDt))
-            log.info "Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "OK" : "Block"}) | OnceDaily: (${once}) - Status: (${dayOk ? "OK" : "Block"})"
+            logInfo("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "OK" : "Block"}) | OnceDaily: (${once}) - Status: (${dayOk ? "OK" : "Block"})")
             ok = (waitOk && dayOk)
         }
     }
@@ -1844,28 +1849,28 @@ String getAttrPostfix(attr) {
 def routineEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     String custText = "The ${evt?.displayName} routine was just executed!."
-    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     executeAction(evt, false, custText, "routineEvtHandler")
 }
 
 def sceneEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     String custText = "The ${evt?.displayName} scene was just activated!."
-    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     executeAction(evt, false, custText, "sceneEvtHandler")
 }
 
 def modeEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     String custText = "The location mode is now set to ${evt?.value}"
-    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     executeAction(evt, false, "The location mode is now set to ${evt?.value}", "modeEvtHandler")
 }
 
 def locationEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     String custText = null
-    log.trace "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms"
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     executeAction(evt, false, custText, "locationEvtHandler")
 }
 
@@ -1889,14 +1894,13 @@ def scheduleAfterCheck(data) {
     }
     runIn(val, "afterEvtCheckHandler")
     atomicState?.afterEvtChkSchedMap = [id: id, dur: val, dt: getDtNow()]
-    log.debug "Schedule After Event Check${rep ? " (Repeat)" : ""} for (${val} seconds) | Id: ${id}"
+    logDebug("Schedule After Event Check${rep ? " (Repeat)" : ""} for (${val} seconds) | Id: ${id}")
 }
 
 private clearAfterCheckSchedule() {
-    log.error "Clearing After Event Check Schedule..."
-    atomicState?.afterEvtChkSchedMap = null
     unschedule("afterEvtCheckHandler")
-    // unschedule("afterEvtCheckWatcher")
+    logDebug("Clearing After Event Check Schedule...")
+    atomicState?.afterEvtChkSchedMap = null
 }
 
 /***********************************************************************************************************
@@ -1934,7 +1938,7 @@ Boolean dateCondOk() {
 Boolean locationCondOk() {
     Boolean mOk = settings?.cond_mode ? (isInMode(settings?.cond_mode)) : true
     Boolean aOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
-    // log.debug "locationCondOk | modeOk: $mOk | alarmOk: $aOk"
+    logDebug("locationCondOk | modeOk: $mOk | alarmOk: $aOk")
     return (mOk && aOk)
 }
 
@@ -1999,7 +2003,7 @@ Boolean deviceCondOk() {
     Boolean humDevOk = checkDeviceNumCondOk("humidity")
     Boolean illDevOk = checkDeviceNumCondOk("illuminance")
     Boolean battDevOk = checkDeviceNumCondOk("battery")
-    // log.debug "checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk"
+    logDebug("checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk")
     return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk && tempDevOk && humDevOk && battDevOk && illDevOk)
 }
 
@@ -2008,7 +2012,7 @@ def allConditionsOk() {
     def dateOk = dateCondOk()
     def locOk = locationCondOk()
     def devOk = deviceCondOk()
-    log.debug "Action Conditions Check | Time: ($timeOk) | Date: ($dateOk) | Location: ($locOk) | Devices: ($devOk)"
+    logDebug("Action Conditions Check | Time: ($timeOk) | Date: ($dateOk) | Location: ($locOk) | Devices: ($devOk)")
     return (timeOk && dateOk && locOk && devOk)
 }
 
@@ -2074,7 +2078,7 @@ private executeActTest() {
             // testData?.evt = null
         } else {
             Map evtData = getRandomTrigEvt()
-            log.debug "evtData: ${evtData}"
+            // log.debug "evtData: ${evtData}"
             testData?.evt = evtData?.evt
             testData?.custText = evtData?.custText
         }
@@ -2083,7 +2087,7 @@ private executeActTest() {
 }
 
 Map getRandomTrigEvt() {
-    log.debug "getRandomTrigEvt..."
+    // log.debug "getRandomTrigEvt..."
     Map evt = [:]
     String actType = settings?.actionType
     String trig = getRandomItem(settings?.triggerEvents?.collect { it as String })
@@ -2153,7 +2157,7 @@ Map getRandomTrigEvt() {
             }
         }
     } else { evt?.custText = settings?."act_${actionType}_txt" }
-    log.debug "evt: ${evt}"
+    // log.debug "evt: ${evt}"
     return [evt: evt?.evt ?: null, custText: evt?.custText ?: null]
 }
 
@@ -2186,7 +2190,7 @@ String decodeVariables(evt, str) {
 
 private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=false) {
     def startTime = now()
-    log.trace "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}"
+    logTrace( "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
     if(isPaused()) { log.warn "Action is PAUSED... Skipping Action Execution..."; return; }
     Boolean condOk = allConditionsOk()
     Boolean actOk = getConfStatusItem("actions")
@@ -2196,8 +2200,8 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
     if(actOk && actType) {
         if(!condOk) { log.warn "Skipping Execution because set conditions have not been met"; return; }
         if(!actMap || !actMap?.size()) { log.error "executeAction Error | The ActionExecutionMap is not found or is empty"; return; }
-        if(!actDevices?.size()) { log.error "executeAction Error | No Echo Device List is not found or is empty"; return; }
-        if(!actMap?.actionType) { log.error "executeAction Error | The ActionType is not found or is empty"; return; }
+        if(!actDevices?.size()) { log.error "executeAction Error | Echo Device List not found or is empty"; return; }
+        if(!actMap?.actionType) { log.error "executeAction Error | The ActionType is missing or is empty"; return; }
         Map actConf = actMap?.config
         Integer actDelay = actMap?.delay ?: 0
         Integer actDelayMs = actMap?.delay ? (actMap?.delay*1000) : 0
@@ -2223,7 +2227,7 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
                         } else {
                             actDevices?.each { dev-> dev?.speak(txt) }
                         }
-                        log.debug "Sending Speak Command: (${txt}) to ${actDevices}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                        logDebug("Sending Speak Command: (${txt}) to ${actDevices}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     }
                     else if (actType == "announcement") {
                         //Announcement Command Logic
@@ -2231,10 +2235,10 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
                             //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                             def devJson = new JsonOutput().toJson(actConf[actType]?.deviceObjs)
                             actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
-                            log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                            logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                         } else {
                             actDevices?.each { dev-> dev?.playAnnouncement(txt, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol, [delay: actDelayMs]) }
-                            log.debug "Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                            logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                         }
                     }
                 }
@@ -2243,7 +2247,7 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
             case "sequence":
                 if(actConf[actType] && actConf[actType]?.text) {
                     actDevices?.each { dev-> dev?.executeSequenceCommand(actConf[actType]?.text as String, [delay: actDelayMs]) }
-                    log.debug "Sending Sequence Command: (${actConf[actType]?.text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                    logDebug("Sending Sequence Command: (${actConf[actType]?.text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                 }
                 break
 
@@ -2251,7 +2255,7 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
             case "dnd":
                 if(actConf[actType] && actConf[actType]?.cmd) {
                     actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
-                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                    logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                 }
                 break
 
@@ -2261,10 +2265,10 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
                 if(actConf[actType] && actConf[actType]?.cmd) {
                     if(changeVol || restoreVol) {
                         actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol, [delay: actDelayMs]) }
-                        log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else {
                         actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
-                        log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                     }
                 }
                 break
@@ -2273,21 +2277,21 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
             case "reminder":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.label && actConf[actType]?.date && actConf[actType]?.time) {
                     actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, [delay: actDelayMs]) }
-                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}"
+                    logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}")
                 }
                 break
 
             case "music":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.provider && actConf[actType]?.search) {
                     actDevices?.each { dev-> dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol, [delay: actDelayMs]) }
-                    log.debug "Sending ${actType?.toString()?.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}"
+                    logDebug("Sending ${actType?.toString()?.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                 }
                 break
 
             case "alexaroutine":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.routineId) {
                     actDevices[0]?."${actConf[actType]?.cmd}"(actConf[actType]?.routineId as String)
-                    log.debug "Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) | RoutineId: ${actConf[actType]?.routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                    logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) | RoutineId: ${actConf[actType]?.routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                 }
                 break
 
@@ -2296,7 +2300,7 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
                     actConf[actType]?.devices?.each { d->
                         def aDev = actDevices?.find { it?.id == d?.device }
                         aDev?."${d?.cmd}"(d?.wakeword, [delay: actDelayMs])
-                        log.debug "Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                        logDebug("Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}")
                     }
                 }
                 break
@@ -2308,13 +2312,13 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
                         if(d?.cmd == "disconnectBluetooth") {
                             aDev?."${d?.cmd}"([delay: actDelayMs])
                         } else { aDev?."${d?.cmd}"(d?.btDevice, [delay: actDelayMs]) }
-                        log.debug "Sending ${d?.cmd} | Bluetooth Device: ${d?.btDevice} to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}"
+                        logDebug("Sending ${d?.cmd} | Bluetooth Device: ${d?.btDevice} to ${aDev}${actDelay ? " | Delay: (${actDelay})" : ""}")
                     }
                 }
                 break
         }
     }
-    log.trace "ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)"
+    logDebug("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
 }
 
 Map getInputData(inName) {
@@ -2425,7 +2429,7 @@ void settingUpdate(name, value, type=null) {
 }
 
 void settingRemove(String name) {
-    logger("trace", "settingRemove($name)...")
+    logTrace("settingRemove($name)...")
     if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
 }
 
@@ -2501,7 +2505,7 @@ Boolean getOk2Notify() {
     Boolean daysOk = quietDaysOk(settings?.quietDays)
     Boolean timeOk = quietTimeOk()
     Boolean modesOk = quietModesOk(settings?.quietModes)
-    logger("debug", "getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     if(!(smsOk || pushOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
     return true
@@ -2537,14 +2541,14 @@ Boolean quietDaysOk(days) {
 
 // Sends the notifications based on app settings
 public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMap=null, sms=null, push=null) {
-    logger("trace", "sendMsg() | msgTitle: ${msgTitle}, msg: ${msg}, showEvt: ${showEvt}")
+    logTrace("sendMsg() | msgTitle: ${msgTitle}, msg: ${msg}, showEvt: ${showEvt}")
     String sentstr = "Push"
     Boolean sent = false
     try {
         String newMsg = "${msgTitle}: ${msg}"
         String flatMsg = newMsg.toString().replaceAll("\n", " ")
         if(!getOk2Notify()) {
-            log.info "sendMsg: Message Skipped During Quiet Time ($flatMsg)"
+            logInfo( "sendMsg: Message Skipped During Quiet Time ($flatMsg)")
             if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
             if(push || settings?.usePush) {
@@ -2582,7 +2586,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
             if(sent) {
                 state?.lastMsg = flatMsg
                 state?.lastMsgDt = getDtNow()
-                logger("debug", "sendMsg: Sent ${sentstr} (${flatMsg})")
+                logDebug("sendMsg: Sent ${sentstr} (${flatMsg})")
             }
         }
     } catch (ex) {
@@ -2622,7 +2626,7 @@ String getCurrentMode() {
 
 List getLocationModes(Boolean sorted=false) {
     List modes = location?.modes*.name
-    log.debug "modes: ${modes}"
+    // log.debug "modes: ${modes}"
     return (sorted) ? modes?.sort() : modes
 }
 
@@ -2829,7 +2833,7 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         return diff
     }
     catch (ex) {
-        log.error "GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate):", ex
+        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex?.message}")
         return 10000
     }
 }
@@ -3058,7 +3062,7 @@ String randomString(Integer len) {
     def pool = ["a".."z",0..9].flatten()
     Random rand = new Random(new Date().getTime())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
-    log.debug "randomString: ${randChars?.join()}"
+    // logDebug("randomString: ${randChars?.join()}")
     return randChars.join()
 }
 
@@ -3074,7 +3078,7 @@ private getPlatform() {
         try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
         // p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
         state?.hubPlatform = p
-        log.debug "hubPlatform: (${state?.hubPlatform})"
+        // logDebug("hubPlatform: (${state?.hubPlatform})")
     }
     return state?.hubPlatform
 }
@@ -3107,12 +3111,16 @@ String getAppDebugDesc() {
     return (str != "") ? "${str}" : null
 }
 
-private logger(type, msg, traceOnly=false) {
-    if (traceOnly && !settings?.appTrace) { return }
-    if(type && msg && settings?.appDebug) {
-        log."${type}" "${msg}"
-    }
+private logger(ty, m, tr=false) {
+    if (tr && !settings?.appTrace) { return }
+    if(ty && m && settings?.appDebug) { log."${ty}" "${m}" }
 }
+
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
+private logWarn(msg) { if(settings?.logWarn != false) { log.warn msg } }
+private logError(msg) { if(settings?.logError != false) { log.error msg } }
 
 String convMusicProvider(String prov) {
     switch (prov) {
