@@ -2403,7 +2403,7 @@ private queueCheckSchedHealth() {
     logDebug("queueCheckSchedHealth | Qsize: ${qSize} | LastChk: ${lastChk}")
     if(qSize >= 2 && lastChk > 120) {
         schedQueueCheck(4, true, null, "queueCheck(missed schedule)")
-        log.debug "queueCheck | Scheduling Queue Check for (4 sec) | Possible Lost Recheck Schedule"
+        logDebug("queueCheck | Scheduling Queue Check for (4 sec) | Possible Lost Recheck Schedule")
     }
 }
 
@@ -2637,7 +2637,7 @@ private postCmdProcess(resp, statusCode, data) {
         if(statusCode == 200) {
             def execTime = data?.cmdDt ? (now()-data?.cmdDt) : 0
             if(data?.queueKey) {
-                log.debug "Command Completed | Removing Queue Item: ${data?.queueKey}"
+                logDebug("Command Completed | Removing Queue Item: ${data?.queueKey}")
                 state?.remove(data?.queueKey as String)
             }
             def pi = "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"}"
@@ -2647,7 +2647,8 @@ private postCmdProcess(resp, statusCode, data) {
             pi += " | Execution Time (${execTime}ms)"
             pi += data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""
             pi += logDebug && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""
-            pi += data?.qId ? " | QueueID: (${data?.qId})" : ""
+            pi += data?.qId ? " | QueueID: (${data?.qId}) | QueueItems: (${getQueueSize()})" : ""
+            pi +=
             logInfo("${pi}")
 
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {

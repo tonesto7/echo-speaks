@@ -145,7 +145,7 @@ def mainPage() {
             // }
         } else {
             section() {
-                paragraph pTS("This Action is currently in a paused state...  To edit the configuration please un-pause", getAppImg("pause_orange", true)), required: true, state: null, image: getAppImg("pause_orange")
+                paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
             }
         }
 

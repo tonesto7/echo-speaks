@@ -1,6 +1,5 @@
-V3.0.0 (August 26th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-Main App:
+Main App [v3.0.0] (August 27th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
  • NEW: Automation child app called Echo Speaks - Actions
  • ADDED: Added support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).
  • ADDED: Ability to remove 'Echo - ' prefix from device names.
@@ -14,9 +13,10 @@ Main App:
  • ADDED: importUrl param for Hubitat users to quickly import code
  • ADDED: Checks are now made to make sure you can't install Actions app from the marketplace.
  • ADDED: New Log filtering options to reducing log output.
+ • ADDED: New three strikes rule for authentication failures. Instead of clearing auth on the first failed attempt it will wait for 3 consectutive failures.
 
-
-Actions App:
+Actions App [v3.0.0] (August 27th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
  • ADDED: importUrl param for Hubitat users to quickly import
  • ADDED: Alexa Routine Execution (Only those with custom voice triggers)
  • ADDED: Subscribe to just about any location and device events
@@ -28,7 +28,8 @@ Actions App:
  • ADDED: New Log filtering options to reducing log output.
  • ADDED: Much more.
 
-Device:
+Device [v3.0.0] (August 27th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
  • ADDED: importUrl param for Hubitat users to quickly import code
  • ADDED: SSML Support for Speech commands.
  • UPDATED: Tweaked and optimized the Queue system in the device.
