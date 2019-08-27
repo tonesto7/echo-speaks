@@ -2,5 +2,5 @@
     "versions": {
         "server": "2.2.3"
     },
-    "notices": ["Looks like amazon changed some auth stuff again.  Please update to server v2.2.3 if you experience refresh issues."]
+    "notices": []
 }
