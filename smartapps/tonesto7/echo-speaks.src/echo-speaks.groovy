@@ -24,6 +24,7 @@ Boolean isST()        { return (getPlatform() == "SmartThings") }
 Map minVersions()     { return [echoDevice: 300, actionApp: 300, server: 222] } //These values define the minimum versions of code this app will work with.
 // TODO: Change importURL back to master branch
 // TODO: Change docs link to public docs for release
+// TODO: Add in Actions to the metrics
 // TODO: Add an auth check page with list of cookie and current validationTest, last cookie date, etc
 // TODO: and the options to update the cookies on the devices and overall restructure the login server page and split up the server settings make it a little bit more pretty
 definition(
@@ -47,7 +48,7 @@ preferences {
     page(name: "devicePrefsPage")
     page(name: "deviceManagePage")
     page(name: "newSetupPage")
-    page(name: "groupsPage")
+    page(name: "authStatusPage")
     page(name: "actionsPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
@@ -120,8 +121,9 @@ def mainPage() {
             }
 
             section(sTS("Alexa Login Service:")) {
-                def t0 = getServiceConfDesc()
-                href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
+                Boolean aOk = (state?.authValid == true)
+                href "authStatusPage", title: inTS("Login Status | Service Management", getAppImg("settings", true)), description: (aOk ? "${Auth: Valid}\n\nTap to modify" : "Tap to configure"), state: (aOk ? "complete" : null), image: getAppImg("settings")
+                // href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
             }
             if(!state?.shownDevSharePage) { showDevSharePrefs() }
             section(sTS("Notifications:")) {
@@ -154,6 +156,110 @@ def mainPage() {
         }
         state.ok2InstallActionFlag = false
     }
+}
+
+def authStatusPage() {
+    Boolean newInstall = (state?.isInstalled != true)
+    Boolean resumeConf = (state?.resumeConfig == true)
+    return dynamicPage(name: "authStatusPage", install: false, nextPage: "mainPage", uninstall: false) {
+        if(state?.authValid) {
+            section(sTS("Cookie Status:")) {
+                Boolean cookieValid = (validateCookie() == true)
+                String chk1 = state?.cookieData && state?.cookieData?.localCookie ? "OK" : "Issue"
+                String chk2 = state?.cookieData && state?.cookieData?.csrf ? "OK" : "Issue"
+                String chk3 = getLastCookieRefreshSec() < 432000 ? "OK" : "Issue"
+                String chk4 = (cookieValid == true) ? "OK" : "Invalid"
+                // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
+                paragraph pTS("Cookie Session: ${chk1}", null, false, chk1 == "OK" ? "#2784D9" : "red"), state: (chk1 == "OK" ? "complete" : null), required: true
+                paragraph pTS("Cookie CSRF: ${chk2}", null, false, chk2 == "OK" ? "#2784D9" : "red"), state: (chk2 == "OK" ? "complete" : null), required: true
+                paragraph pTS("Cookie Refresh Date: ${chk3}", null, false, chk3 == "OK" ? "#2784D9" : "red"), state: (chk3 == "OK" ? "complete" : null), required: true
+                paragraph pTS("Cookie Valid: ${chk3}", null, false, chk4 == "OK" ? "#2784D9" : "red"), state: (chk4 == "OK" ? "complete" : null), required: true
+                // TODO: Last Refresh Check and Time until refresh. Add a time check to adjust schedule incase of initialize reseting the clock
+            }
+            section(sTS("Cookie Management:")) {
+                input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(getLastCookieRefreshSec() < 84200) {
+                    paragraph pTS("Notice:\nIt's too soon to refresh your cookie.  Run at a max of once every 24 hours.", null, false, "red"), required: true, state: null
+                }
+                paragraph pTS("Notice:\nAfter refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
+                if(refreshCookie) {
+                    settingUpdate("refreshCookie", "false", "bool")
+                    runIn(2, "runCookieRefresh")
+                }
+            }
+        }
+
+
+        section(sTS("Service Management")) {
+            def t0 = getServiceConfDesc()
+            href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
+        }
+        section(sTS("Reset Options (Tap to view):"), hideable: true, hidden: true) {
+            input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+            if(settings?.resetCookies) { clearCookieData() }
+        }
+
+    }
+}
+
+def servPrefPage() {
+    Boolean newInstall = (state?.isInstalled != true)
+    Boolean resumeConf = (state?.resumeConfig == true)
+    return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : ""), uninstall: (state?.serviceConfigured != true)) {
+        Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
+        Boolean onHeroku = (isST() || settings?.useHeroku != false)
+
+        if(state?.generatedHerokuName) { section() { paragraph title: "Heroku Name:", pTS("${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", null, false, "orange"), state: "complete" }; }
+        if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
+        if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
+        if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
+
+        if(!state?.serviceConfigured) {
+            if(!isST()) {
+                section(sTS("Server Deployment Option:")) {
+                    input "useHeroku", "bool", title: inTS("Deploy server to Heroku?", getAppImg("heroku", true)), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("heroku")
+                    if(settings?.useHeroku == false) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
+                }
+            }
+            section("") { paragraph "Proceed with the server setup by tapping on Begin Server Setup", state: "complete" }
+            srvcPrefOpts(true)
+            section(sTS("Deploy the Server:")) {
+                href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
+            }
+        } else {
+            if(state?.onHeroku) {
+                section(sTS("Server Management:")) {
+                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                }
+            }
+            if(state?.isLocal) {
+                section(sTS("Local Server Management:")) {
+                    href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                }
+            }
+            srvcPrefOpts()
+        }
+        section(sTS("Reset Options (Tap to view):"), hideable:true, hidden: true) {
+            input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
+                required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+            if(settings?.resetService) { clearCloudConfig() }
+        }
+        state?.resumeConfig = false
+    }
+}
+
+def srvcPrefOpts(req=false) {
+    section(sTS("${req ? "Required " : ""}Amazon Region Settings${state?.serviceConfigured ? " (Tap to view)" : ""}"), hideable: state?.serviceConfigured, hidden: state?.serviceConfigured) {
+        input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
+        input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("www", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
+    }
+}
+
+private cookieRefreshScheduler() {
+    Integer reqChk = 432000
+    Integer lastChk = getLast
 }
 
 def deviceManagePage() {
@@ -495,76 +601,7 @@ Map getAllDevices(isInputEnum=false) {
     return isInputEnum ? (devMap?.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
 }
 
-def servPrefPage() {
-    Boolean newInstall = (state?.isInstalled != true)
-    Boolean resumeConf = (state?.resumeConfig == true)
-    return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : ""), uninstall: (state?.serviceConfigured != true)) {
-        Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
-        Boolean onHeroku = (isST() || settings?.useHeroku != false)
 
-        if(state?.generatedHerokuName) { section() { paragraph title: "Heroku Name:", pTS("${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", null, false, "orange"), state: "complete" }; }
-        if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
-        if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
-        if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
-
-        if(!state?.serviceConfigured) {
-            if(!isST()) {
-                section(sTS("Server Deployment Option:")) {
-                    input "useHeroku", "bool", title: inTS("Deploy server to Heroku?", getAppImg("heroku", true)), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("heroku")
-                    if(settings?.useHeroku == false) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
-                }
-            }
-            section("") { paragraph "Proceed with the server setup by tapping on Begin Server Setup", state: "complete" }
-            srvcPrefOpts(true)
-            section(sTS("Deploy the Server:")) {
-                href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
-            }
-        } else {
-            if(state?.onHeroku) {
-                section(sTS("Server Management:")) {
-                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
-                }
-            }
-            if(state?.isLocal) {
-                section(sTS("Local Server Management:")) {
-                    href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                }
-            }
-            if(state?.authValid) {
-                section(sTS("Cookie Management:")) {
-                    if(state?.lastCookieRefresh) { paragraph pTS("Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})", null, false, "#2784D9"), state: "complete" }
-                    input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                    if(getLastCookieRefreshSec() < 84200) {
-                        paragraph pTS("Notice:\nIt's too soon to refresh your cookie.  Run at a max of once every 24 hours.", null, false, "red"), required: true, state: null
-                    }
-                    paragraph pTS("Notice:\nAfter refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
-                    if(refreshCookie) {
-                        settingUpdate("refreshCookie", "false", "bool")
-                        runIn(2, "runCookieRefresh")
-                    }
-                }
-            }
-            srvcPrefOpts()
-        }
-        section(sTS("Reset Options (Tap to view):"), hideable:true, hidden: true) {
-            input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
-                required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-            input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-            if(settings?.resetService) { clearCloudConfig() }
-            if(settings?.resetCookies) { clearCookieData() }
-        }
-        state?.resumeConfig = false
-    }
-}
-
-def srvcPrefOpts(pre=false) {
-    section(sTS("${pre ? "Required " : ""}Amazon Region Settings${state?.serviceConfigured ? " (Tap to view)" : ""}"), hideable: state?.serviceConfigured, hidden: state?.serviceConfigured) {
-        input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
-        input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("www", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
-    }
-}
 
 def notifPrefPage() {
     dynamicPage(name: "notifPrefPage", install: false) {
@@ -1056,7 +1093,7 @@ def initialize() {
     if(!state?.resumeConfig) {
         runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
         appCleanup()
-        validateCookie(true)
+        validateCookieAsync(true)
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
@@ -1237,7 +1274,7 @@ def storeCookieData() {
     // log.debug "csrf: ${state?.cookieData?.csrf}"
     if(state?.cookieData?.localCookie && state?.cookieData?.csrf != null) {
         logInfo("Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds...")
-        validateCookie(true)
+        validateCookieAsync(true)
         state?.serviceConfigured = true
         state?.lastCookieRefresh = getDtNow()
         runIn(10, "initialize", [overwrite: true])
@@ -1374,14 +1411,42 @@ private apiHealthCheck(frc=false) {
     }
 }
 
-private validateCookie(frc=false) {
+Boolean validateCookie() {
+    try {
+        def execDt = now()
+        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
+        httpGet(params) { resp->
+            if(resp?.status == 401) {
+                logError("validateCookie Status: (${resp.status})")
+                state?.lastCookieChkDt = getDtNow()
+                return false
+            }
+            Map aData = resp?.data?.authentication ?: [:]
+            Boolean valid = false
+            if (aData) {
+                if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
+                if(aData?.customerName) { state?.customerName = aData?.customerName }
+                valid = (resp?.data?.authentication?.authenticated != false)
+            }
+            state?.lastCookieChkDt = getDtNow()
+            // logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-data?.execDt)}ms)")
+            return valid
+        }
+    } catch(ex) {
+        incrementCntByKey("err_app_cookieValidCnt")
+        logError("validateCookie() Exception: ${ex.message}")
+        return false
+    }
+}
+
+private validateCookieAsync(frc=false) {
     if((!frc && getLastCookieChkSec() <= 1800) || !getCookieVal() || !getCsrfVal()) { return }
     try {
         def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
         execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
     } catch(ex) {
         incrementCntByKey("err_app_cookieValidCnt")
-        logError("validateCookie() Exception: ${ex.message}")
+        logError("validateCookieAsync() Exception: ${ex.message}")
     }
 }
 
@@ -2173,7 +2238,7 @@ private healthCheck() {
         logWarn("Code Version Change Detected... Health Check will occur on next cycle.")
         return
     }
-    validateCookie()
+    validateCookieAsync()
     if(getLastCookieRefreshSec() > 432000) { runCookieRefresh() }
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
@@ -3572,6 +3637,7 @@ def getShmIncidents() {
     def incidentThreshold = now() - 604800000
     return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
 }
+
 public setAlarmSystemMode(mode) {
     if(!isST()) {
         switch(mode) {
