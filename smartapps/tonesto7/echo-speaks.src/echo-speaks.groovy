@@ -426,6 +426,8 @@ def actionsPage() {
                     input "unpauseChildActions", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
                     if(settings?.unpauseChildActions) { settingUpdate("unpauseChildActions", "false", "bool"); runIn(3, "executeActionUnpause"); }
                 }
+                input "reinitChildActions", "bool", title: inTS("Force Refresh all actions?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(settings?.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUnpause"); }
             }
         }
         state.childInstallOkFlag = true
@@ -1107,16 +1109,20 @@ def initialize() {
         }
     }
     if(!state?.resumeConfig) {
-        runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
-        appCleanup()
         validateCookieAsync(true)
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
-        runIn(15, "reInitChildren")
+        runIn(15, "postInitialize")
         getOtherData()
         getEchoDevices()
     }
+}
+
+def postInitialize() {
+    runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
+    appCleanup()
+    reInitChildren()
 }
 
 def uninstalled() {
@@ -1189,23 +1195,48 @@ String getEnvParamsStr() {
 }
 
 private checkIfCodeUpdated() {
-    if(state?.codeVersions && state?.codeVersions?.mainApp != appVersion()) {
-        checkVersionData(true)
-        logInfo("Code Version Change! Re-Initializing SmartApp in 5 seconds...")
-        state?.pollBlocked = true
-        updCodeVerMap("mainApp", appVersion())
-        Map iData = atomicState?.installData ?: [:]
-        iData["updatedDt"] = getDtNow().toString()
-        iData["shownChgLog"] = false
-        if(iData?.shownDonation == null) {
-            iData["shownDonation"] = false
+    Boolean codeUpdated = false
+    List chgs = []
+    // updChildVers()
+    if(state?.codeVersions) {
+        if(state?.codeVersions?.mainApp != appVersion()) {
+            checkVersionData(true)
+            chgs?.push("mainApp")
+            state?.pollBlocked = true
+            updCodeVerMap("mainApp", appVersion())
+            Map iData = atomicState?.installData ?: [:]
+            iData["updatedDt"] = getDtNow().toString()
+            iData["shownChgLog"] = false
+            if(iData?.shownDonation == null) {
+                iData["shownDonation"] = false
+            }
+            atomicState?.installData = iData
+            codeUpdated = true
         }
-        atomicState?.installData = iData
+        def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+        if(cDevs?.size() && state?.codeVersions?.echoDevice != cDevs[0]?.devVersion()) {
+            chgs?.push("echoDevice")
+            state?.pollBlocked = true
+            updCodeVerMap("echoDevice", cDevs[0]?.devVersion())
+            codeUpdated = true
+        }
+        def cApps = getActionApps()
+        if(cApps?.size() && state?.codeVersions?.actionApp != cApps[0]?.appVersion()) {
+            chgs?.push("actionApp")
+            state?.pollBlocked = true
+            updCodeVerMap("actionApp", cApps[0]?.appVersion())
+            codeUpdated = true
+        }
+    }
+    if(codeUpdated) {
+        log.debug "Code Version Change! Re-Initializing SmartApp in 5 seconds... | Chgs: ${chgs}"
+        logInfo("Code Version Change! Re-Initializing SmartApp in 5 seconds...")
         runIn(5, "postCodeUpdated", [overwrite: false])
         return true
+    } else {
+        state?.pollBlocked = false
+        return false
     }
-    state?.pollBlocked = false
-    return false
 }
 
 private postCodeUpdated() {
@@ -1234,13 +1265,20 @@ private resetQueues() {
 
 private reInitChildren() {
     (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.triggerInitialize() }
-    updChildAppVer()
+    updChildVers()
+    reInitChildApps()
+}
+
+private reInitChildApps() {
+    getActionApps()?.each { it?.triggerInitialize() }
 }
 
 private updCodeVerMap(key, val) {
     Map cv = atomicState?.codeVersions ?: [:]
-    cv[key as String] = val
-    atomicState?.codeVersions = cv
+    if(cv?.containsKey(key) && cv[key] != val) {
+        cv[key as String] = val
+        atomicState?.codeVersions = cv
+    }
 }
 
 String getRandAppName() {
@@ -1556,13 +1594,11 @@ public childInitiatedRefresh() {
     }
 }
 
-public trigChildVerUpd() {
-    runIn(5, "updChildAppVer")
-}
-
-public updChildAppVer() {
-    def actApps = getActionApps()
-    if(actApps?.size()) { updCodeVerMap("actionApp", actApps[0]?.appVersion()) }
+public updChildVers() {
+    def cApps = getActionApps()
+    def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+    if(cApps?.size()) { updCodeVerMap("actionApp", cApps[0]?.appVersion()) }
+    if(cDevs?.size()) { updCodeVerMap("echoDevice", cDevs[0]?.devVersion()) }
 }
 
 private getEchoDevices() {
@@ -2024,7 +2060,7 @@ def receiveEventData(Map evtData, String src) {
                         }
                         // logInfo("Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
-                        updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
+                        // updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
                     curDevFamily.push(echoValue?.deviceStyle?.name)
                 }
@@ -2050,14 +2086,16 @@ def receiveEventData(Map evtData, String src) {
     }
 }
 
-private Map getMinVerUpdsRequired() {
+private Map getMinVerUpdsRequired(devOnly) {
     Boolean updRequired = false
     List updItems = []
     ["server":"Echo Speaks Server", "echoDevice":"Echo Speaks Device", "actionApp":"Echo Speaks Actions"]?.each { k,v->
         Map codeVers = state?.codeVersions
         if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) {
-            updRequired = true
-            updItems?.push("$v")
+            if(devOnly && k == "echoDevice") {
+                updRequired = true
+                updItems?.push("$v")
+            }
         }
     }
     return [updRequired: updRequired, updItems: updItems]
