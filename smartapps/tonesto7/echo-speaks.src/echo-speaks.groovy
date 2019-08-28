@@ -17,12 +17,12 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.0" }
-String appModified()  { return "2019-08-27" }
+String appVersion()   { return "3.0.0.1" }
+String appModified()  { return "2019-08-28" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 300, actionApp: 300, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3001, actionApp: 3001, server: 222] } //These values define the minimum versions of code this app will work with.
 // TODO: Change importURL back to master branch
 // TODO: Change docs link to public docs for release
 // TODO: Add in Actions to the metrics
@@ -110,14 +110,14 @@ def mainPage() {
                     Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
                     Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
                     List remDevs = getRemovableDevs()
-                    if(remDevs?.size()) { paragraph "Removable Devices:\n${remDevs?.sort()?.join("\n")}", required: true, state: null }
+                    if(remDevs?.size()) { paragraph pTS("Removable Devices:\n${remDevs?.sort()?.join("\n")}", null, false, "red"), required: true, state: null }
                     href "deviceManagePage", title: inTS("Manage Devices:", getAppImg("devices", true)), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
             def acts = getActionApps()
             section(sTS("Actions:")) {
-                paragraph "Create automation triggers from device/location events and perform advanced functions using your Alexa device."
+                paragraph pTS("Create automation triggers from device/location events and perform advanced functions using your Alexa devices.", null, false, "#2784D9")
                 href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: getActionsDesc(), state: (acts?.size() ? "complete" : null), image: getAppImg("es_actions")
             }
 
@@ -164,29 +164,36 @@ def authStatusPage() {
     Boolean resumeConf = (state?.resumeConfig == true)
     return dynamicPage(name: "authStatusPage", install: false, nextPage: "mainPage", uninstall: false) {
         if(state?.authValid) {
-            Integer lastRfrChk = getLastCookieRefreshSec()
+            Integer lastChkSec = getLastCookieRefreshSec()
+            Boolean pastDayChkOk = (lastChkSec > 86400)
+
             section(sTS("Cookie Status:")) {
                 Boolean cookieValid = (validateCookie() == true)
-                Map rd = seconds2Duration(lastRfrChk, true)
                 String chk1 = state?.cookieData && state?.cookieData?.localCookie ? "OK" : "Issue"
                 String chk2 = state?.cookieData && state?.cookieData?.csrf ? "OK" : "Issue"
-                String chk3 = lastRfrChk < 432000 ? "OK" : "Issue"
+                String chk3 = lastChkSec < 432000 ? "OK" : "Issue"
                 String chk4 = (cookieValid == true) ? "OK" : "Invalid"
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
                 paragraph pTS("Session: (${chk1})", null, false, chk1 == "OK" ? "#2784D9" : "red"), state: (chk1 == "OK" ? "complete" : null), required: true
                 paragraph pTS("CSRF: (${chk2})", null, false, chk2 == "OK" ? "#2784D9" : "red"), state: (chk2 == "OK" ? "complete" : null), required: true
-                paragraph pTS("Refreshed: (${chk3})\n(${rd?.d ? "${rd?.d} Day${rd?.d>1 ? "s" : ""}" : ""}${rd?.h ? "${rd?.d ? " " : ""}${rd?.h} Hour${rd?.h>1 ? "s" : ""}" : ""} ago)", null, false, chk3 == "OK" ? "#2784D9" : "red"), state: (chk3 == "OK" ? "complete" : null), required: true
-                paragraph pTS("Valid Cookie: (${chk4})", null, false, chk4 == "OK" ? "#2784D9" : "red"), state: (chk4 == "OK" ? "complete" : null), required: true
+                paragraph pTS("Refreshed: (${chk3})\n(${getCookieRefreshDurDesc()})", null, false, chk3 == "OK" ? "#2784D9" : "red"), state: (chk3 == "OK" ? "complete" : null), required: true
+                paragraph pTS("Tested: (${chk4})", null, false, chk4 == "OK" ? "#2784D9" : "red"), state: (chk4 == "OK" ? "complete" : null), required: true
             }
-            section(sTS("Cookie Management: (Tap to show)"), hideable: true, hidden: true) {
-                def lchkok = (lastRfrChk > 84200)
-                def s = lchkok ? "This will Refresh your Amazon Cookie." : pTS("It's too soon to refresh your cookie.  Run no more than once every 24 hours.", null, false, lchkok ? null : "red")
-                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every?", getAppImg("day_calendar", true)), description: "in Days", required: false, defaultValue: 5, range: "1..5", submitOnChange: true, image: getAppImg("day_calendar")
-                input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: s, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (lchkok ? "" : null)
+            section(sTS("Cookie Tools: (Tap to show)"), hideable: true, hidden: true) {
+                def s = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.  Run no more than once every 24 hours."
+                input "cookieRefreshDays", "number", title: inTS("Auto refresh cookie every?", getAppImg("day_calendar", true)), description: "in Days", required: false, defaultValue: 5, range: "1..5", submitOnChange: true, image: getAppImg("day_calendar")
+                // Refreshes the cookie
+                input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: s, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? "" : null)
+                if(!isST()) { paragraph pTS(s, null, false, pastDayChkOk ? null : "red") }
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
-                input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh"); }
+                // Clears cookies for app and devices
+                input "resetCookies", "bool", title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data from app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(!isST()) { paragraph pTS("This will clear all stored cookie data from app and devices.", null, false, "gray") }
+                input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Forces devices to syncronize the stored cookies with the main app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(!isST()) { paragraph pTS("Forces devices to syncronize their stored cookies with the main app.", null, false, "gray") }
+                if(settings?.refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh"); }
                 if(settings?.resetCookies) { clearCookieData() }
+                if(settings?.refreshDevCookies) { refreshDevCookies() }
             }
         }
 
@@ -204,7 +211,6 @@ def servPrefPage() {
         Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
         Boolean onHeroku = (isST() || settings?.useHeroku != false)
 
-        if(state?.generatedHerokuName) { section() { paragraph title: "Heroku Name:", pTS("${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", null, false, "orange"), state: "complete" }; }
         if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
         if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
         if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
@@ -224,6 +230,7 @@ def servPrefPage() {
         } else {
             if(state?.onHeroku) {
                 section(sTS("Server Management:")) {
+                    if(state?.generatedHerokuName) { paragraph title: "Heroku Name:", pTS("${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", null, true, "#2784D9"), state: "complete" }
                     href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
                     href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
@@ -239,6 +246,7 @@ def servPrefPage() {
         section(sTS("Reset Options (Tap to show):"), hideable: true, hidden: true) {
             input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
                 required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+            if(!isST()) { paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", null, false, "gray") }
             if(settings?.resetService) { clearCloudConfig() }
         }
         state?.resumeConfig = false
@@ -246,15 +254,17 @@ def servPrefPage() {
 }
 
 def srvcPrefOpts(req=false) {
-    section(sTS("${req ? "Required " : ""}Amazon Region Settings${state?.serviceConfigured ? " (Tap to view)" : ""}"), hideable: state?.serviceConfigured, hidden: state?.serviceConfigured) {
-        input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
-        input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("www", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
+    section(sTS("${req ? "Required " : ""}Amazon Locale Settings"), hideable: false, hidden: false) {
+        if(req) {
+            input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
+            input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("www", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
+        } else {
+            def s = ""
+            s += settings?.amazonDomain ? "Amazon Domain: (${settings?.amazonDomain})" : ""
+            s += settings?.regionLocale ? "\nLocale Region: (${settings?.regionLocale})" : ""
+            paragraph pTS(s, null, false, "#2784D9"), state: "complete", image: getAppImg("amazon_orange")
+        }
     }
-}
-
-private cookieRefreshScheduler() {
-    Integer reqChk = 432000
-    Integer lastChk = getLast
 }
 
 def deviceManagePage() {
@@ -391,8 +401,10 @@ Boolean guardRestrictOk() {
 
 def actionsPage() {
     return dynamicPage(name: "actionsPage", nextPage: "mainPage", uninstall: false, install: false) {
-        def actionApp = getChildApps()?.findAll { it?.name == actChildName() }
-        if(actionApp) { /*Nothing to add here yet*/ }
+        List actApps = getActionApps()
+        List activeActions = actApps?.findAll { it?.isPaused() != true }
+        List pausedActions = actApps?.findAll { it?.isPaused() == true }
+        if(actApps) { /*Nothing to add here yet*/ }
         else {
             section("") {
                 paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started")
@@ -402,10 +414,18 @@ def actionsPage() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
         }
 
-        if(actionApp) {
-            section (sTS("Pause All Actions:"), hideable: true, hidden: true) {
-                input "pauseChildActions", "bool", title: inTS("Pause All Actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
-                // executeActionPause()
+        if(actApps?.size()) {
+            section (sTS("Global Actions Management:"), hideable: true, hidden: true) {
+                if(activeActions?.size()) {
+                    input "pauseChildActions", "bool", title: inTS("Pause all actions?", getAppImg("pause_orange", true)), description: "When pausing all Actions you can either restore all or open each action and manually unpause it.",
+                            defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                    if(settings?.pauseChildActions) { settingUpdate("pauseChildActions", "false", "bool"); runIn(3, "executeActionPause"); }
+                    if(!isST()) { paragraph pTS("When pausing all Actions you can either restore all or open each action and manually unpause it.", null, false, "gray") }
+                }
+                if(pausedActions?.size()) {
+                    input "unpauseChildActions", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                    if(settings?.unpauseChildActions) { settingUpdate("unpauseChildActions", "false", "bool"); runIn(3, "executeActionUnpause"); }
+                }
             }
         }
         state.childInstallOkFlag = true
@@ -413,9 +433,10 @@ def actionsPage() {
 }
 
 private executeActionPause() {
-    getActionApps()?.each {
-        if(it?.isPaused() != settings?.pauseChildActions) { it?.updatePauseState(settings?.pauseChildActions) }
-    }
+    getActionApps()?.findAll { it?.isPaused() != true }?.each { it?.updatePauseState(true) }
+}
+private executeActionUnpause() {
+    getActionApps()?.findAll { it?.isPaused() == true }?.each { it?.updatePauseState(false) }
 }
 
 def devicePrefsPage() {
@@ -1287,11 +1308,18 @@ def clearCookieData(src=null) {
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
     updateChildAuth(false)
     state?.authValid = false
-    // if(getServerHostURL()) { clearServerAuth() }
+}
+
+private refreshDevCookies() {
+    logTrace("refreshDevCookies()")
+    settingUpdate("refreshDevCookies", "false", "bool")
+    logDebug("Re-Syncing Cookie Data with Devices")
+    Boolean isValid = (state?.authValid && getCookieVal() != null && getCsrfVal() != null)
+    updateChildAuth(isValid)
 }
 
 private updateChildAuth(Boolean isValid) {
-    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.setAuthState(isValid, [cookie: getCookieVal(), csrf: getCsrfVal()]) }
+    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { (isValid) ? it?.updateCookies([cookie: getCookieVal(), csrf: getCsrfVal()]) : it?.removeCookies(true); }
 }
 
 private authEvtHandler(Boolean isAuth) {
@@ -1329,7 +1357,8 @@ String getServerHostURL() {
     return (state?.isLocal && state?.serverHost) ? (state?.serverHost ? "${state?.serverHost}" : null) : "https://${getRandAppName()}.herokuapp.com"
 }
 
-Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 100000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
+Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 500000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
+Integer cookieChkSeconds() { return (settings?.cookieRefreshDays ?: 5)*86400 as Integer }
 
 def clearServerAuth() {
     logDebug("serverUrl: ${getServerHostURL()}")
@@ -1525,6 +1554,10 @@ public childInitiatedRefresh() {
     } else {
         logWarn("childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)")
     }
+}
+
+public trigChildVerUpd() {
+    runIn(5, "updChildAppVer")
 }
 
 public updChildAppVer() {
@@ -2012,6 +2045,7 @@ def receiveEventData(Map evtData, String src) {
         }
     } catch(ex) {
         logError("receiveEventData Error: ${ex.message}")
+        // log.error "receiveEventData Exception: ${ex}"
         incrementCntByKey("appErrorCnt")
     }
 }
@@ -2234,7 +2268,7 @@ private healthCheck() {
         return
     }
     validateCookieAsync()
-    if(getLastCookieRefreshSec() > 432000) { runCookieRefresh() }
+    if(getLastCookieRefreshSec() > cookieChkSeconds()) { runCookieRefresh() }
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
@@ -2275,7 +2309,7 @@ private appUpdateNotify() {
     Boolean echoDevUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
     logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
-    if(getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
+    if(state?.updNotifyWaitVal && getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
         if(on && (appUpd || actUpd || echoDevUpd || servUpd)) {
             state?.updateAvailable = true
             def str = ""
@@ -2421,7 +2455,7 @@ String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://
 String getPublicImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
 String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
 String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
-String inTS(String t, String i = null, color=null) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : ""}""" }
+String inTS(String t, String i = null, color=null, under=true) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
 
 String actChildName(){ return "Echo Speaks - Actions" }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs2" }
@@ -2725,6 +2759,7 @@ def formatDt(dt, tzChg=true) {
 
 String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
 String isPluralString(obj) { return (obj?.size() > 1) ? "(s)" : "" }
+String pluralize(itemVal, str) { return (itemVal?.toInteger() > 1) ? "${str}s" : str }
 
 def parseDt(pFormat, dt, tzFmt=true) {
     def result
@@ -2786,12 +2821,6 @@ private seconds2Duration(Integer timeSec, asMap=false) {
     Map dt = [y: years, mn: months, d: days, h: hours, m: minutes, s: seconds]
     if(asMap) { return dt }
 	String dtStr = ""
-	// dtStr += dt?.y ? "${dt?.y}yr${dt?.y>1?"s":""}, " : ""
-	// dtStr += dt?.mn ? "${dt?.mn}mon${dt?.mn>1?"s":""}, " : ""
-	// dtStr += dt?.d ? "${dt?.d}day${dt?.d>1?"s":""}, " : ""
-	// dtStr += dt?.h ? "${dt?.h}hr${dt?.h>1?"s":""} " : ""
-	// dtStr += dt?.m ? "${dt?.m}min${dt?.m>1?"s":""} " : ""
-	// dtStr += dt?.s ? "${dt?.s}sec" : ""
 	dtStr += dt?.d ? "${dt?.d}D " : ""
 	dtStr += dt?.h ? "${dt?.h}H " : ""
 	dtStr += dt?.m ? "${dt?.m}M " : ""
@@ -2846,9 +2875,18 @@ String getServiceConfDesc() {
 }
 
 String getLoginStatusDesc() {
-    def str = ""
-    str += "Login Status: (${state?.authValid ? "Valid" : "Invalid"})"
-    str += (state?.lastCookieRefresh) ? "\nCookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a", state?.lastCookieRefresh)})" : ""
+    def s = "Login Status: (${state?.authValid ? "Valid" : "Invalid"})"
+    s += (state?.lastCookieRefresh) ? "\nCookie Updated:\n(${getCookieRefreshDurDesc()})" : ""
+    return s
+}
+
+String getCookieRefreshDurDesc() {
+    Map d = seconds2Duration(getLastCookieRefreshSec(), true)
+    List lst = []
+    if(d?.d > 0) { lst.push("${d?.d} ${pluralize(d?.d, "day")}") }
+    if(d?.h > 0) { lst?.push("${d?.h} ${pluralize(d?.h, "hour")}") }
+    if(d?.m > 0 && ( ((d?.d > 0) && !(d?.h > 0)) || (!(d?.d > 0) && (d?.h > 0)) ) ) { lst?.push("${d?.m} ${pluralize(d?.m, "min")}") }
+    return lst?.size() ? "${lst?.join(", ")} ago" : "Not Sure"
 }
 
 String getAppNotifDesc() {
@@ -2911,14 +2949,14 @@ def appInfoSect()	{
     Map codeVer = state?.codeVersions ?: null
     String str = ""
     Boolean isNote = false
-    if(codeVer && (codeVer?.server || codeVer?.echoDevice)) {
-        str += bulletItem(str, "App: (v${appVersion()})")
+    if(codeVer && (codeVer?.server || codeVer?.actionApp || codeVer?.echoDevice)) {
+        str += (codeVer && codeVer?.actionApp) ? bulletItem(str, "Actions: (v${codeVer?.actionApp})") : ""
         str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
         str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
-    } else { str += "App: v${appVersion()}" }
+    }
     section() {
-        href "changeLogPage", title: inTS("${app?.name}", getAppImg("echo_speaks.2x", true)), description: str, image: getAppImg("echo_speaks.2x")
+        href "changeLogPage", title: inTS("${app?.name} (v${appVersion()})", getAppImg("echo_speaks.2x", true), null, false), description: str, image: getAppImg("echo_speaks.2x")
         if(!state?.isInstalled) {
             paragraph pTS("--NEW Install--", null, true, "#2784D9"), state: "complete"
         } else {
@@ -2936,7 +2974,7 @@ def appInfoSect()	{
                 isNote=true
                 String str3 = "Updates Required for:"
                 minUpdMap?.updItems?.each { item-> str3 += bulletItem(str3, item)  }
-                paragraph pTS(str3, null, false, "red"), required: true, state: null
+                paragraph pTS(str3, null, true, "red"), required: true, state: null
             }
             if(!state?.authValid && !state?.resumeConfig) { isNote = true; paragraph pTS("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", null, false, "red"), required: true, state: null }
             if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
@@ -2945,7 +2983,7 @@ def appInfoSect()	{
             }
             if(remDevs?.size()) {
                 isNote = true
-                paragraph pTS("Devices to Remove:\n(${remDevs?.size()}) Devices to be Removed", null, false), required: true, state: null
+                paragraph pTS("Device Removal:\n(${remDevs?.size()}) devices can be removed", null, false), required: true, state: null
             }
             if(!isNote) { paragraph pTS("No Issues to Report", null, true) }
         }

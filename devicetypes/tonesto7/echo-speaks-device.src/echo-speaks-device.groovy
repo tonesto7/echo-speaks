@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.0"}
-String devModified() { return "2019-08-27" }
+String devVersion()  { return "3.0.0.1"}
+String devModified() { return "2019-08-28" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -512,14 +512,26 @@ def getShortDevName(){
     return device?.displayName?.replace("Echo - ", "")
 }
 
-public setAuthState(authenticated, cookieData) {
+public setAuthState(authenticated) {
     state?.authValid = (authenticated == true)
-    state?.cookie = cookieData ?: null
     if(authenticated != true && state?.refreshScheduled) {
-        log.warn "Cookie Authentication Cleared by Parent.  Scheduled Refreshes also cancelled!"
-        unschedule("refreshData")
-        state?.refreshScheduled = false
+        removeCookies()
     }
+}
+
+public updateCookies(cookies) {
+    log.warn "Cookies Update by Parent.  Re-Initializing Device in 5 Seconds..."
+    state?.cookie = cookies
+    state?.authValid = true
+    runIn(5, "initialize")
+}
+
+public removeCookies(isParent=false) {
+    log.warn "Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} |  Scheduled Refreshes also cancelled!"
+    unschedule("refreshData")
+    state?.cookie = null
+    state?.authValid = false
+    state?.refreshScheduled = false
 }
 
 Boolean isAuthOk(noLogs=false) {
