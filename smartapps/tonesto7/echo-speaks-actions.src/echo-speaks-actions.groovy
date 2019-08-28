@@ -17,8 +17,8 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.0.1" }
-String appModified() { return "2019-08-28" }
+String appVersion()  { return "3.0.0" }
+String appModified() { return "2019-08-27" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1238,7 +1238,6 @@ def initialize() {
     runIn(7, "subscribeToEvts")
     updConfigStatusMap()
     appCleanup()
-    parent?.trigChildVerUpd()
 }
 
 private updAppLabel() {
@@ -1288,7 +1287,7 @@ public updatePauseState(Boolean pause) {
     if(settings?.actionPause != pause) {
         logDebug("Received Request to Update Pause State to (${pause})")
         settingUpdate("actionPause", "${pause}", "bool")
-        runIn(4, "updated")
+        runIn(4, updated())
     }
 }
 
