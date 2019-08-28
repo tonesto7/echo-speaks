@@ -15,6 +15,7 @@
  */
 
 import groovy.json.*
+import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 String appVersion()   { return "3.0.0" }
 String appModified()  { return "2019-08-27" }
@@ -121,8 +122,8 @@ def mainPage() {
             }
 
             section(sTS("Alexa Login Service:")) {
-                Boolean aOk = (state?.authValid == true)
-                href "authStatusPage", title: inTS("Login Status | Service Management", getAppImg("settings", true)), description: (aOk ? "${Auth: Valid}\n\nTap to modify" : "Tap to configure"), state: (aOk ? "complete" : null), image: getAppImg("settings")
+                def ls = getLoginStatusDesc()
+                href "authStatusPage", title: inTS("Login Status | Service Management", getAppImg("settings", true)), description: (ls ? "${ls}\n\nTap to modify" : "Tap to configure"), state: (ls ? "complete" : null), image: getAppImg("settings")
                 // href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
             }
             if(!state?.shownDevSharePage) { showDevSharePrefs() }
@@ -163,42 +164,36 @@ def authStatusPage() {
     Boolean resumeConf = (state?.resumeConfig == true)
     return dynamicPage(name: "authStatusPage", install: false, nextPage: "mainPage", uninstall: false) {
         if(state?.authValid) {
+            Integer lastRfrChk = getLastCookieRefreshSec()
             section(sTS("Cookie Status:")) {
                 Boolean cookieValid = (validateCookie() == true)
+                Map rd = seconds2Duration(lastRfrChk, true)
                 String chk1 = state?.cookieData && state?.cookieData?.localCookie ? "OK" : "Issue"
                 String chk2 = state?.cookieData && state?.cookieData?.csrf ? "OK" : "Issue"
-                String chk3 = getLastCookieRefreshSec() < 432000 ? "OK" : "Issue"
+                String chk3 = lastRfrChk < 432000 ? "OK" : "Issue"
                 String chk4 = (cookieValid == true) ? "OK" : "Invalid"
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
-                paragraph pTS("Cookie Session: ${chk1}", null, false, chk1 == "OK" ? "#2784D9" : "red"), state: (chk1 == "OK" ? "complete" : null), required: true
-                paragraph pTS("Cookie CSRF: ${chk2}", null, false, chk2 == "OK" ? "#2784D9" : "red"), state: (chk2 == "OK" ? "complete" : null), required: true
-                paragraph pTS("Cookie Refresh Date: ${chk3}", null, false, chk3 == "OK" ? "#2784D9" : "red"), state: (chk3 == "OK" ? "complete" : null), required: true
-                paragraph pTS("Cookie Valid: ${chk3}", null, false, chk4 == "OK" ? "#2784D9" : "red"), state: (chk4 == "OK" ? "complete" : null), required: true
-                // TODO: Last Refresh Check and Time until refresh. Add a time check to adjust schedule incase of initialize reseting the clock
+                paragraph pTS("Session: (${chk1})", null, false, chk1 == "OK" ? "#2784D9" : "red"), state: (chk1 == "OK" ? "complete" : null), required: true
+                paragraph pTS("CSRF: (${chk2})", null, false, chk2 == "OK" ? "#2784D9" : "red"), state: (chk2 == "OK" ? "complete" : null), required: true
+                paragraph pTS("Refreshed: (${chk3})\n(${rd?.d ? "${rd?.d} Day${rd?.d>1 ? "s" : ""}" : ""}${rd?.h ? "${rd?.d ? " " : ""}${rd?.h} Hour${rd?.h>1 ? "s" : ""}" : ""} ago)", null, false, chk3 == "OK" ? "#2784D9" : "red"), state: (chk3 == "OK" ? "complete" : null), required: true
+                paragraph pTS("Valid Cookie: (${chk4})", null, false, chk4 == "OK" ? "#2784D9" : "red"), state: (chk4 == "OK" ? "complete" : null), required: true
             }
-            section(sTS("Cookie Management:")) {
-                input "refreshCookie", "bool", title: inTS("Refresh Alexa Cookie?", getAppImg("reset", true)), description: "This will Refresh your Amazon Cookie.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(getLastCookieRefreshSec() < 84200) {
-                    paragraph pTS("Notice:\nIt's too soon to refresh your cookie.  Run at a max of once every 24 hours.", null, false, "red"), required: true, state: null
-                }
-                paragraph pTS("Notice:\nAfter refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
-                if(refreshCookie) {
-                    settingUpdate("refreshCookie", "false", "bool")
-                    runIn(2, "runCookieRefresh")
-                }
+            section(sTS("Cookie Management: (Tap to show)"), hideable: true, hidden: true) {
+                def lchkok = (lastRfrChk > 84200)
+                def s = lchkok ? "This will Refresh your Amazon Cookie." : pTS("It's too soon to refresh your cookie.  Run no more than once every 24 hours.", null, false, lchkok ? null : "red")
+                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every?", getAppImg("day_calendar", true)), description: "in Days", required: false, defaultValue: 5, range: "1..5", submitOnChange: true, image: getAppImg("day_calendar")
+                input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: s, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (lchkok ? "" : null)
+                paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
+                input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh"); }
+                if(settings?.resetCookies) { clearCookieData() }
             }
         }
-
 
         section(sTS("Service Management")) {
             def t0 = getServiceConfDesc()
             href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
         }
-        section(sTS("Reset Options (Tap to view):"), hideable: true, hidden: true) {
-            input "resetCookies", "bool", title: inTS("Clear Stored Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-            if(settings?.resetCookies) { clearCookieData() }
-        }
-
     }
 }
 
@@ -241,7 +236,7 @@ def servPrefPage() {
             }
             srvcPrefOpts()
         }
-        section(sTS("Reset Options (Tap to view):"), hideable:true, hidden: true) {
+        section(sTS("Reset Options (Tap to show):"), hideable: true, hidden: true) {
             input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
                 required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
             if(settings?.resetService) { clearCloudConfig() }
@@ -2775,11 +2770,33 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(now)).getTime()
         def diff = (int) (long) (stop - start) / 1000
         return diff
-    }
-    catch (ex) {
+    } catch (ex) {
         logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex.message}")
         return 10000
     }
+}
+
+private seconds2Duration(Integer timeSec, asMap=false) {
+    Integer years = Math.floor(timeSec / 31536000); timeSec -= years * 31536000;
+    Integer months = Math.floor(timeSec / 31536000); timeSec -= months * 2592000;
+    Integer days = Math.floor(timeSec / 86400); timeSec -= days * 86400;
+    Integer hours = Math.floor(timeSec / 3600); timeSec -= hours * 3600;
+    Integer minutes = Math.floor(timeSec / 60); timeSec -= minutes * 60;
+    Integer seconds = Integer.parseInt((timeSec % 60) as String, 10);
+    Map dt = [y: years, mn: months, d: days, h: hours, m: minutes, s: seconds]
+    if(asMap) { return dt }
+	String dtStr = ""
+	// dtStr += dt?.y ? "${dt?.y}yr${dt?.y>1?"s":""}, " : ""
+	// dtStr += dt?.mn ? "${dt?.mn}mon${dt?.mn>1?"s":""}, " : ""
+	// dtStr += dt?.d ? "${dt?.d}day${dt?.d>1?"s":""}, " : ""
+	// dtStr += dt?.h ? "${dt?.h}hr${dt?.h>1?"s":""} " : ""
+	// dtStr += dt?.m ? "${dt?.m}min${dt?.m>1?"s":""} " : ""
+	// dtStr += dt?.s ? "${dt?.s}sec" : ""
+	dtStr += dt?.d ? "${dt?.d}D " : ""
+	dtStr += dt?.h ? "${dt?.h}H " : ""
+	dtStr += dt?.m ? "${dt?.m}M " : ""
+	dtStr += dt?.s ? "${dt?.s}S" : ""
+	return dtStr
 }
 
 /******************************************
@@ -2824,9 +2841,14 @@ String getServiceConfDesc() {
     String str = ""
     str += (state?.generatedHerokuName && state?.onHeroku) ? "Heroku: (Configured)\n" : ""
     str += (state?.serviceConfigured && state?.isLocal) ? "Local Server: (Configured)\n" : ""
-    str += (settings?.amazonDomain) ? "Domain: (${settings?.amazonDomain})\n" : ""
-    str += (state?.lastCookieRefresh) ? "Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})\n" : ""
+    str += (settings?.amazonDomain) ? "Domain: (${settings?.amazonDomain})" : ""
     return str != "" ? str : null
+}
+
+String getLoginStatusDesc() {
+    def str = ""
+    str += "Login Status: (${state?.authValid ? "Valid" : "Invalid"})"
+    str += (state?.lastCookieRefresh) ? "\nCookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a", state?.lastCookieRefresh)})" : ""
 }
 
 String getAppNotifDesc() {
