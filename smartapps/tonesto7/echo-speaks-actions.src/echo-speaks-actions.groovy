@@ -17,7 +17,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.0.1" }
+String appVersion()  { return "3.0.0.2" }
 String appModified() { return "2019-08-29" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
@@ -1285,7 +1285,7 @@ public updatePauseState(Boolean pause) {
     if(settings?.actionPause != pause) {
         logDebug("Received Request to Update Pause State to (${pause})")
         settingUpdate("actionPause", "${pause}", "bool")
-        runIn(4, updated())
+        runIn(4, "updated")
     }
 }
 
