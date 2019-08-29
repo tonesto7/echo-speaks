@@ -161,22 +161,25 @@ def authStatusPage() {
         if(state?.authValid) {
             Integer lastChkSec = getLastCookieRefreshSec()
             Boolean pastDayChkOk = (lastChkSec > 86400)
-
             section(sTS("Cookie Status:")) {
                 Boolean cookieValid = (validateCookie() == true)
-                String chk1 = state?.cookieData && state?.cookieData?.localCookie ? "OK" : "Issue"
-                String chk2 = state?.cookieData && state?.cookieData?.csrf ? "OK" : "Issue"
-                String chk3 = lastChkSec < 432000 ? "OK" : "Issue"
-                String chk4 = (cookieValid == true) ? "OK" : "Invalid"
+                Boolean chk1 = (state?.cookieData && state?.cookieData?.localCookie)
+                Boolean chk2 = (state?.cookieData && state?.cookieData?.csrf)
+                Boolean chk3 = (lastChkSec < 432000)
+                Boolean chk4 = (cookieValid == true)
+                String nextRfsh = nextCookieRefreshDur()
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
-                paragraph pTS("Session: (${chk1})", null, false, chk1 == "OK" ? "#2784D9" : "red"), state: (chk1 == "OK" ? "complete" : null), required: true
-                paragraph pTS("CSRF: (${chk2})", null, false, chk2 == "OK" ? "#2784D9" : "red"), state: (chk2 == "OK" ? "complete" : null), required: true
-                paragraph pTS("Refreshed: (${chk3})\n(${getCookieRefreshDurDesc()})", null, false, chk3 == "OK" ? "#2784D9" : "red"), state: (chk3 == "OK" ? "complete" : null), required: true
-                paragraph pTS("Tested: (${chk4})", null, false, chk4 == "OK" ? "#2784D9" : "red"), state: (chk4 == "OK" ? "complete" : null), required: true
+                paragraph pTS("Session Value: (${chk1 ? "OK" : "Missing"})", null, false, chk1 ? "#2784D9" : "red"), state: (chk1 ? "complete" : null), required: true
+                paragraph pTS("CSRF Value: (${chk2 ? "OK" : "Missing"})", null, false, chk2 ? "#2784D9" : "red"), state: (chk2 ? "complete" : null), required: true
+                paragraph pTS("Validated: (${chk4 ? "OK" : "Invalid"})", null, false, chk4 ? "#2784D9" : "red"), state: (chk4 ? "complete" : null), required: true
+                paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastCookieRefreshSec())})", null, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : null), required: true
+                paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", null, false, "#2784D9"), state: "complete", required: true
             }
             section(sTS("Cookie Tools: (Tap to show)"), hideable: true, hidden: true) {
                 def s = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.  Run no more than once every 24 hours."
-                input "cookieRefreshDays", "number", title: inTS("Auto refresh cookie every?", getAppImg("day_calendar", true)), description: "in Days", required: false, defaultValue: 5, range: "1..5", submitOnChange: true, image: getAppImg("day_calendar")
+                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every (x) days?", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, defaultValue: 5, range: "1..5", submitOnChange: true, image: getAppImg("day_calendar")
+                settingUpdate("refreshCookieDays", settings?.refreshCookieDays?.toInteger(), "number")
+                if(!isST()) { paragraph pTS("in Days (1-5 max)", null, false, "gray") }
                 // Refreshes the cookie
                 input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: s, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? "" : null)
                 if(!isST()) { paragraph pTS(s, null, false, pastDayChkOk ? null : "red") }
@@ -1314,7 +1317,7 @@ private appCleanup() {
     state?.deviceRefreshInProgress = false
     // Settings Cleanup
 
-    List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "stHub"]
+    List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "stHub", "cookieRefreshDays"]
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     setItems?.each { sI->
         if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
@@ -1449,7 +1452,8 @@ String getServerHostURL() {
     return (state?.isLocal && state?.serverHost) ? (state?.serverHost ? "${state?.serverHost}" : null) : "https://${getRandAppName()}.herokuapp.com"
 }
 
-Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 100000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
+Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 500000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
+Integer cookieChkSeconds() { return (settings?.refreshCookieDays ?: 5)*86400 as Integer }
 
 def clearServerAuth() {
     logDebug("serverUrl: ${getServerHostURL()}")
@@ -2585,10 +2589,8 @@ Boolean metricsOk() { (settings?.optOutMetrics != true && state?.appData?.settin
 private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID().toString() } }
 private sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), "/clients/${state?.appGuid}.json", createMetricsDataJson(), "put", "heartbeat"); } }
 private removeInstallData() { return removeFirebaseData("/clients/${state?.appGuid}.json") }
-private sendFirebaseData(url, path, data, cmdType=null, type=null) {
-    logTrace("sendFirebaseData(${path}, ${data}, $cmdType, $type")
-    return queueFirebaseData(url, path, data, cmdType, type)
-}
+private sendFirebaseData(url, path, data, cmdType=null, type=null) { logTrace("sendFirebaseData(${path}, ${data}, $cmdType, $type"); return queueFirebaseData(url, path, data, cmdType, type); }
+
 def queueFirebaseData(url, path, data, cmdType=null, type=null) {
     logTrace("queueFirebaseData(${path}, ${data}, $cmdType, $type")
     Boolean result = false
@@ -2672,7 +2674,7 @@ private createMetricsDataJson(rendAsMap=false) {
             if(obj?.usage?.size()) { obj?.usage?.each { k,v-> deviceUsageMap[k as String] = (deviceUsageMap[k as String] ? deviceUsageMap[k as String] + v : v) } }
             if(obj?.errors?.size()) { obj?.errors?.each { k,v-> deviceErrorMap[k as String] = (deviceErrorMap[k as String] ? deviceErrorMap[k as String] + v : v) } }
         }
-        def dataObj = [
+        Map dataObj = [
             guid: state?.appGuid,
             datetime: getDtNow()?.toString(),
             installDt: state?.installData?.dt,
@@ -2768,7 +2770,7 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
 }
 
 private getConfigData() {
-    def params = [
+    Map params = [
         uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData2.json",
         contentType: "application/json"
     ]
@@ -2781,7 +2783,7 @@ private getConfigData() {
 }
 
 private getNoticeData() {
-    def params = [
+    Map params = [
         uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/notices.json",
         contentType: "application/json"
     ]
@@ -2825,9 +2827,7 @@ String isPluralString(obj) { return (obj?.size() > 1) ? "(s)" : "" }
 def parseDt(pFormat, dt, tzFmt=true) {
     def result
     def newDt = Date.parse("$pFormat", dt)
-    result = formatDt(newDt, tzFmt)
-    //log.debug "parseDt Result: $result"
-    return result
+    return formatDt(newDt, tzFmt)
 }
 
 def parseFmtDt(parseFmt, newFmt, dt) {
@@ -2871,6 +2871,35 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex.message}")
         return 10000
     }
+}
+
+private seconds2Duration(Integer timeSec, postfix=true, tk=2, asMap=false) {
+    Integer years = Math.floor(timeSec / 31536000); timeSec -= years * 31536000;
+    Integer months = Math.floor(timeSec / 31536000); timeSec -= months * 2592000;
+    Integer days = Math.floor(timeSec / 86400); timeSec -= days * 86400;
+    Integer hours = Math.floor(timeSec / 3600); timeSec -= hours * 3600;
+    Integer minutes = Math.floor(timeSec / 60); timeSec -= minutes * 60;
+    Integer seconds = Integer.parseInt((timeSec % 60) as String, 10);
+    Map d = [y: years, mn: months, d: days, h: hours, m: minutes, s: seconds]
+    if(asMap) { return d; }
+    List l = []
+    if(d?.d > 0) { l.push("${d?.d} ${pluralize(d?.d, "day")}") }
+    if(d?.h > 0) { l?.push("${d?.h} ${pluralize(d?.h, "hour")}") }
+    if(d?.m > 0) { l?.push("${d?.m} ${pluralize(d?.m, "min")}") }
+    if(d?.s > 0) { l?.push("${d?.s} ${pluralize(d?.s, "sec")}") }
+    return l?.size() ? "${l?.take(tk ?: 2)?.join(", ")}${postfix ? " ago" : ""}" : "Not Sure"
+}
+
+private nextCookieRefreshDur() {
+    Integer days = settings?.refreshCookieDays ?: 5
+    if(!state?.lastCookieRefresh) { return "Not Sure"}
+    Date now = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", getDtNow())))
+    Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", state?.lastCookieRefresh)))
+    Date nextDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt + days))
+    def diff = ((long) (nextDt?.getTime() - now?.getTime()) / 1000) as Integer
+    def dur = seconds2Duration(diff, false, 3)
+    // log.debug "now: ${now} | lastDt: ${lastDt} | nextDt: ${nextDt} | Days: $days | Wait: $diff | Dur: ${dur}"
+    return dur
 }
 
 /******************************************
@@ -2918,6 +2947,12 @@ String getServiceConfDesc() {
     str += (settings?.amazonDomain) ? "Domain: (${settings?.amazonDomain})\n" : ""
     str += (state?.lastCookieRefresh) ? "Cookie Date:\n \u2022 (${parseFmtDt("E MMM dd HH:mm:ss z yyyy", "MM/dd/yyyy HH:mm a" ,state?.lastCookieRefresh)})\n" : ""
     return str != "" ? str : null
+}
+
+String getLoginStatusDesc() {
+    def s = "Login Status: (${state?.authValid ? "Valid" : "Invalid"})"
+    s += (state?.lastCookieRefresh) ? "\nCookie Updated:\n(${seconds2Duration(getLastCookieRefreshSec())})" : ""
+    return s
 }
 
 String getAppNotifDesc() {
