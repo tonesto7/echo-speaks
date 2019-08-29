@@ -17,8 +17,8 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.0" }
-String appModified() { return "2019-08-27" }
+String appVersion()  { return "3.0.0.1" }
+String appModified() { return "2019-08-29" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1094,8 +1094,6 @@ Boolean hasUserDefinedTxt() {
     return false
 }
 
-
-
 def updateActionExecMap(data) {
     // logTrace( "updateActionExecMap...")
     atomicState?.actionExecMap = (data && data?.configured == true) ? data : [configured: false]
@@ -1423,12 +1421,12 @@ private subscribeToEvts() {
         if(settings?.trig_weather && settings?.trig_weather_cmd) { runEvery1Minute("weatherCheckHandler") }
     }
 
-    settings?.triggerEvents?.each {
-        if(settings?."trig_${it}_after") {
-            runEvery1Minute("afterEvtCheckWatcher")
-            return
-        }
-    }
+    // settings?.triggerEvents?.each {
+    //     if(settings?."trig_${it}_after") {
+    //         runEvery1Minute("afterEvtCheckWatcher")
+    //         return
+    //     }
+    // }
 }
 
 private attributeConvert(String attr) {
@@ -1482,7 +1480,7 @@ Integer getLastAfterEvtCheck() { return !state?.lastAfterEvtCheck ? 10000000 : G
 def afterEvtCheckWatcher() {
     Map aEvtMap = atomicState?.afterEvtMap ?: [:]
     Map aSchedMap = atomicState?.afterEvtChkSchedMap ?: null
-    if((aEvtMap?.size() == 0 && aSchedMap && aSchedMap?.id) || (aEvtMap?.size() && getLastAfterEvtCheck() > 240000)) {
+    if((aEvtMap?.size() == 0 && aSchedMap && aSchedMap?.id) || (aEvtMap?.size() && getLastAfterEvtCheck() > 240)) {
         runIn(2, "afterEvtCheckHandler")
     }
 }
@@ -1491,6 +1489,7 @@ def devAfterEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     Boolean ok = true
     Map aEvtMap = atomicState?.afterEvtMap ?: [:]
+    Boolean aftWatSched = state?.afterEvtCheckWatcherSched ?: false
     def evtDt = parseDate(evt?.date?.toString())
     String dc = settings?."trig_${evt?.name}_cmd" ?: null
     Integer dcaf = settings?."trig_${evt?.name}_after" ?: null
@@ -1509,7 +1508,13 @@ def devAfterEvtHandler(evt) {
         [ dt: evt?.date?.toString(), deviceId: evt?.deviceId, displayName: evt?.displayName, name: evt?.name, value: evt?.value, triggerState: dc, wait: dcaf ?: null, isRepeat: false, repeatWait: dcafr ?: null ]
     }
     atomicState?.afterEvtMap = aEvtMap
-    if(ok) { runIn(2, "afterEvtCheckHandler") }
+    if(ok) {
+        runIn(2, "afterEvtCheckHandler")
+        if(!aftWatSched) {
+            state?.afterEvtCheckWatcherSched = true
+            runEvery5Minutes("afterEvtCheckWatcher")
+        }
+    }
 }
 
 def afterEvtCheckHandler() {
@@ -1901,6 +1906,10 @@ private clearAfterCheckSchedule() {
     unschedule("afterEvtCheckHandler")
     logDebug("Clearing After Event Check Schedule...")
     atomicState?.afterEvtChkSchedMap = null
+    if(state?.afterEvtCheckWatcherSched) {
+        state?.afterEvtCheckWatcherSched = false
+        unschedule("afterEvtCheckWatcher")
+    }
 }
 
 /***********************************************************************************************************

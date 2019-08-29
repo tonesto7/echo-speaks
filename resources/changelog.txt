@@ -1,4 +1,27 @@
  ═════════
+   Main App (v3.0.0.1)
+   August 29th, 2019
+ ═════════
+  • NEW: Login Status page now available.  It will list each item and run a validation test and give you the response realtime.
+  • NEW: You can force the devices to sync there cookies with the main app (in the rare occassion they get messed up).
+  • NEW: Setting to define how often your cookie refreshes (in days). Between 1 to 5 days. Refreshes attempted before 24hours are now blocked.
+  • NEW: Pause/Unpause all actions from the Main App actions page.
+  • FIXED: Other bugs resolved.
+  • UPDATED: UI polishing.
+
+ ══════════
+   Actions App (v3.0.0.1)
+   August 29th, 2019
+ ══════════
+  • NEW: Version number updates.
+
+ ═════════
+   Device (v3.0.0.1)
+   August 29th, 2019
+ ═════════
+  • UPDATED: Modified the synchronization of Cookie data with the app.
+
+ ═════════
    Main App (v3.0.0)
    August 27th, 2019
  ═════════

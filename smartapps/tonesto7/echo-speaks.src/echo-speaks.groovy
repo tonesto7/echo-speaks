@@ -16,8 +16,8 @@
 
 import groovy.json.*
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.0" }
-String appModified()  { return "2019-08-27" }
+String appVersion()   { return "3.0.0.1" }
+String appModified()  { return "2019-08-29" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -151,6 +151,114 @@ def mainPage() {
             }
         }
         state.ok2InstallActionFlag = false
+    }
+}
+
+def authStatusPage() {
+    Boolean newInstall = (state?.isInstalled != true)
+    Boolean resumeConf = (state?.resumeConfig == true)
+    return dynamicPage(name: "authStatusPage", install: false, nextPage: "mainPage", uninstall: false) {
+        if(state?.authValid) {
+            Integer lastChkSec = getLastCookieRefreshSec()
+            Boolean pastDayChkOk = (lastChkSec > 86400)
+
+            section(sTS("Cookie Status:")) {
+                Boolean cookieValid = (validateCookie() == true)
+                String chk1 = state?.cookieData && state?.cookieData?.localCookie ? "OK" : "Issue"
+                String chk2 = state?.cookieData && state?.cookieData?.csrf ? "OK" : "Issue"
+                String chk3 = lastChkSec < 432000 ? "OK" : "Issue"
+                String chk4 = (cookieValid == true) ? "OK" : "Invalid"
+                // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
+                paragraph pTS("Session: (${chk1})", null, false, chk1 == "OK" ? "#2784D9" : "red"), state: (chk1 == "OK" ? "complete" : null), required: true
+                paragraph pTS("CSRF: (${chk2})", null, false, chk2 == "OK" ? "#2784D9" : "red"), state: (chk2 == "OK" ? "complete" : null), required: true
+                paragraph pTS("Refreshed: (${chk3})\n(${getCookieRefreshDurDesc()})", null, false, chk3 == "OK" ? "#2784D9" : "red"), state: (chk3 == "OK" ? "complete" : null), required: true
+                paragraph pTS("Tested: (${chk4})", null, false, chk4 == "OK" ? "#2784D9" : "red"), state: (chk4 == "OK" ? "complete" : null), required: true
+            }
+            section(sTS("Cookie Tools: (Tap to show)"), hideable: true, hidden: true) {
+                def s = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.  Run no more than once every 24 hours."
+                input "cookieRefreshDays", "number", title: inTS("Auto refresh cookie every?", getAppImg("day_calendar", true)), description: "in Days", required: false, defaultValue: 5, range: "1..5", submitOnChange: true, image: getAppImg("day_calendar")
+                // Refreshes the cookie
+                input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: s, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? "" : null)
+                if(!isST()) { paragraph pTS(s, null, false, pastDayChkOk ? null : "red") }
+                paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
+                // Clears cookies for app and devices
+                input "resetCookies", "bool", title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data from app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(!isST()) { paragraph pTS("This will clear all stored cookie data from app and devices.", null, false, "gray") }
+                input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Forces devices to syncronize the stored cookies with the main app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(!isST()) { paragraph pTS("Forces devices to syncronize their stored cookies with the main app.", null, false, "gray") }
+                if(settings?.refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh"); }
+                if(settings?.resetCookies) { clearCookieData() }
+                if(settings?.refreshDevCookies) { refreshDevCookies() }
+            }
+        }
+
+        section(sTS("Service Management")) {
+            def t0 = getServiceConfDesc()
+            href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
+        }
+    }
+}
+
+def servPrefPage() {
+    Boolean newInstall = (state?.isInstalled != true)
+    Boolean resumeConf = (state?.resumeConfig == true)
+    return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : ""), uninstall: (state?.serviceConfigured != true)) {
+        Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
+        Boolean onHeroku = (isST() || settings?.useHeroku != false)
+
+        if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
+        if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
+        if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
+
+        if(!state?.serviceConfigured) {
+            if(!isST()) {
+                section(sTS("Server Deployment Option:")) {
+                    input "useHeroku", "bool", title: inTS("Deploy server to Heroku?", getAppImg("heroku", true)), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("heroku")
+                    if(settings?.useHeroku == false) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
+                }
+            }
+            section() { paragraph pTS("Tap on Begin Server Setup below to proceed with the server setup", null, true, "#2784D9"), state: "complete" }
+            srvcPrefOpts(true)
+            section(sTS("Deploy the Server:")) {
+                href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
+            }
+        } else {
+            if(state?.onHeroku) {
+                section(sTS("Server Management:")) {
+                    if(state?.generatedHerokuName) { paragraph title: "Heroku Name:", pTS("${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", null, true, "#2784D9"), state: "complete" }
+                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                }
+            }
+            if(state?.isLocal) {
+                section(sTS("Local Server Management:")) {
+                    href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                }
+            }
+            srvcPrefOpts()
+        }
+        section(sTS("Reset Options (Tap to show):"), hideable: true, hidden: true) {
+            input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
+                required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+            if(!isST()) { paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", null, false, "gray") }
+            if(settings?.resetService) { clearCloudConfig() }
+        }
+        state?.resumeConfig = false
+    }
+}
+
+def srvcPrefOpts(req=false) {
+    section(sTS("${req ? "Required " : ""}Amazon Locale Settings"), hideable: false, hidden: false) {
+        if(req) {
+            input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: "", required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
+            input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("www", true)), description: "", required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
+        } else {
+            def s = ""
+            s += settings?.amazonDomain ? "Amazon Domain: (${settings?.amazonDomain})" : ""
+            s += settings?.regionLocale ? "\nLocale Region: (${settings?.regionLocale})" : ""
+            paragraph pTS(s, null, false, "#2784D9"), state: "complete", image: getAppImg("amazon_orange")
+        }
     }
 }
 
@@ -299,10 +407,20 @@ def actionsPage() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
         }
 
-        if(actionApp) {
-            section (sTS("Pause All Actions:"), hideable: true, hidden: true) {
-                input "pauseChildActions", "bool", title: inTS("Pause All Actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
-                // executeActionPause()
+        if(actApps?.size()) {
+            section (sTS("Global Actions Management:"), hideable: true, hidden: true) {
+                if(activeActions?.size()) {
+                    input "pauseChildActions", "bool", title: inTS("Pause all actions?", getAppImg("pause_orange", true)), description: "When pausing all Actions you can either restore all or open each action and manually unpause it.",
+                            defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                    if(settings?.pauseChildActions) { settingUpdate("pauseChildActions", "false", "bool"); runIn(3, "executeActionPause"); }
+                    if(!isST()) { paragraph pTS("When pausing all Actions you can either restore all or open each action and manually unpause it.", null, false, "gray") }
+                }
+                if(pausedActions?.size()) {
+                    input "unpauseChildActions", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                    if(settings?.unpauseChildActions) { settingUpdate("unpauseChildActions", "false", "bool"); runIn(3, "executeActionUnpause"); }
+                }
+                input "reinitChildActions", "bool", title: inTS("Force Refresh all actions?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(settings?.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUnpause"); }
             }
         }
         state.childInstallOkFlag = true
@@ -360,12 +478,15 @@ private devCleanupSect() {
 }
 
 private List getRemovableDevs() {
-    def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
     Map eDevs = state?.echoDeviceMap ?: [:]
+    log.debug "eDevs: $eDevs"
     List remDevs = []
-    childDevs?.each { cDev->
+    (isST() ? app?.getChildDevices(true) : app?.getChildDevices())?.each { cDev->
         def dni = cDev?.deviceNetworkId?.tokenize("|")
-        if(!eDevs?.containsKey(dni[2])) { remDevs?.push(cDev?.getLabel() as String) }
+        if(!eDevs?.containsKey(dni[2])) {
+            log.debug "eDev: ${dni[2]}"
+            remDevs?.push(cDev?.getLabel() as String)
+        }
     }
     return remDevs ?: []
 }
@@ -1052,16 +1173,20 @@ def initialize() {
         }
     }
     if(!state?.resumeConfig) {
-        runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
-        appCleanup()
-        validateCookie(true)
+        validateCookieAsync(true)
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
-        runIn(15, "reInitChildren")
+        runIn(15, "postInitialize")
         getOtherData()
         getEchoDevices()
     }
+}
+
+def postInitialize() {
+    runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
+    appCleanup()
+    reInitChildren()
 }
 
 def uninstalled() {
@@ -1134,23 +1259,48 @@ String getEnvParamsStr() {
 }
 
 private checkIfCodeUpdated() {
-    if(state?.codeVersions && state?.codeVersions?.mainApp != appVersion()) {
-        checkVersionData(true)
-        logInfo("Code Version Change! Re-Initializing SmartApp in 5 seconds...")
-        state?.pollBlocked = true
-        updCodeVerMap("mainApp", appVersion())
-        Map iData = atomicState?.installData ?: [:]
-        iData["updatedDt"] = getDtNow().toString()
-        iData["shownChgLog"] = false
-        if(iData?.shownDonation == null) {
-            iData["shownDonation"] = false
+    Boolean codeUpdated = false
+    List chgs = []
+    // updChildVers()
+    if(state?.codeVersions) {
+        if(state?.codeVersions?.mainApp != appVersion()) {
+            checkVersionData(true)
+            chgs?.push("mainApp")
+            state?.pollBlocked = true
+            updCodeVerMap("mainApp", appVersion())
+            Map iData = atomicState?.installData ?: [:]
+            iData["updatedDt"] = getDtNow().toString()
+            iData["shownChgLog"] = false
+            if(iData?.shownDonation == null) {
+                iData["shownDonation"] = false
+            }
+            atomicState?.installData = iData
+            codeUpdated = true
         }
-        atomicState?.installData = iData
+        def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+        if(cDevs?.size() && state?.codeVersions?.echoDevice != cDevs[0]?.devVersion()) {
+            chgs?.push("echoDevice")
+            state?.pollBlocked = true
+            updCodeVerMap("echoDevice", cDevs[0]?.devVersion())
+            codeUpdated = true
+        }
+        def cApps = getActionApps()
+        if(cApps?.size() && state?.codeVersions?.actionApp != cApps[0]?.appVersion()) {
+            chgs?.push("actionApp")
+            state?.pollBlocked = true
+            updCodeVerMap("actionApp", cApps[0]?.appVersion())
+            codeUpdated = true
+        }
+    }
+    if(codeUpdated) {
+        log.debug "Code Version Change! Re-Initializing SmartApp in 5 seconds... | Chgs: ${chgs}"
+        logInfo("Code Version Change! Re-Initializing SmartApp in 5 seconds...")
         runIn(5, "postCodeUpdated", [overwrite: false])
         return true
+    } else {
+        state?.pollBlocked = false
+        return false
     }
-    state?.pollBlocked = false
-    return false
 }
 
 private postCodeUpdated() {
@@ -1179,13 +1329,20 @@ private resetQueues() {
 
 private reInitChildren() {
     (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.triggerInitialize() }
-    updChildAppVer()
+    updChildVers()
+    reInitChildApps()
+}
+
+private reInitChildApps() {
+    getActionApps()?.each { it?.triggerInitialize() }
 }
 
 private updCodeVerMap(key, val) {
     Map cv = atomicState?.codeVersions ?: [:]
-    cv[key as String] = val
-    atomicState?.codeVersions = cv
+    if(cv?.containsKey(key) && cv[key] != val) {
+        cv[key as String] = val
+        atomicState?.codeVersions = cv
+    }
 }
 
 String getRandAppName() {
@@ -1245,6 +1402,7 @@ def storeCookieData() {
 def clearCookieData(src=null) {
     logTrace("clearCookieData(${src ?: ""})")
     settingUpdate("resetCookies", "false", "bool")
+    state?.authValid = false
     state?.remove("cookie")
     state?.remove("cookieData")
     state?.remove("lastCookieRefresh")
@@ -1252,8 +1410,6 @@ def clearCookieData(src=null) {
     unschedule("getOtherData")
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
     updateChildAuth(false)
-    state?.authValid = false
-    // if(getServerHostURL()) { clearServerAuth() }
 }
 
 private updateChildAuth(Boolean isValid) {
@@ -1465,9 +1621,11 @@ public childInitiatedRefresh() {
     }
 }
 
-public updChildAppVer() {
-    def actApps = getActionApps()
-    if(actApps?.size()) { updCodeVerMap("actionApp", actApps[0]?.appVersion()) }
+public updChildVers() {
+    def cApps = getActionApps()
+    def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+    if(cApps?.size()) { updCodeVerMap("actionApp", cApps[0]?.appVersion()) }
+    if(cDevs?.size()) { updCodeVerMap("echoDevice", cDevs[0]?.devVersion()) }
 }
 
 private getEchoDevices() {
@@ -1954,14 +2112,16 @@ def receiveEventData(Map evtData, String src) {
     }
 }
 
-private Map getMinVerUpdsRequired() {
+private Map getMinVerUpdsRequired(devOnly) {
     Boolean updRequired = false
     List updItems = []
     ["server":"Echo Speaks Server", "echoDevice":"Echo Speaks Device", "actionApp":"Echo Speaks Actions"]?.each { k,v->
         Map codeVers = state?.codeVersions
         if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) {
-            updRequired = true
-            updItems?.push("$v")
+            if(devOnly && k == "echoDevice") {
+                updRequired = true
+                updItems?.push("$v")
+            }
         }
     }
     return [updRequired: updRequired, updItems: updItems]
