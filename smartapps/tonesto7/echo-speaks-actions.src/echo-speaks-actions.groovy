@@ -23,6 +23,7 @@ String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 // TODO: Change importURL back to master branch
+// TODO: Create export to JSON for Importing? Web Based Exporter?
 definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
@@ -109,7 +110,7 @@ private def buildTriggerEnum() {
     // buildItems["Weather Events"] = ["Weather":"Weather"]
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide"]?.sort{ it?.key }
     buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "button":"Buttons", "thermostat":"Thermostat"]?.sort{ it?.key }
-    buildItems["Sensor Device"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
+    buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
     if(isST()) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
         // log.debug "enumOpts: $enumOpts"
@@ -118,8 +119,8 @@ private def buildTriggerEnum() {
 }
 
 def mainPage() {
-    Boolean newInstall = !state?.isInstalled
-    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
+    Boolean newInstall = (state?.isInstalled != true)
+    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: (newInstall == true), install: !newInstall) {
         appInfoSect()
         Boolean paused = isPaused()
         if(!paused) {
@@ -133,12 +134,12 @@ def mainPage() {
             section(sTS("Configuration: Part 2")) {
                 if(trigConf) {
                     href "conditionsPage", title: inTS("Condition/Restrictions\n(Optional)", getAppImg("conditions", true)), description: getConditionsDesc(), state: (condConf ? "complete": ""), image: getAppImg("conditions")
-                } else { paragraph pTS("More Options will be shown once triggers are configured", getAppImg("info", true)) }
+                } else { paragraph pTS("These options will be shown once the triggers are configured.", getAppImg("info", true)) }
             }
             section(sTS("Configuration: Part 3")) {
                 if(trigConf) {
                     href "actionsPage", title: inTS("Action Execution", getAppImg("es_actions", true)), description: getActionDesc(), state: (actConf ? "complete" : ""), image: getAppImg("es_actions")
-                } else { paragraph pTS("More Options will be shown once triggers are configured", getAppImg("info", true)) }
+                } else { paragraph pTS("These options will be shown once the triggers are configured.", getAppImg("info", true)) }
             }
             // section(sTS("Preferences")) {
             //     href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
@@ -583,7 +584,10 @@ Boolean triggersConfigured() {
 ******************************************************************************/
 
 def conditionsPage() {
-    return dynamicPage(name: "conditionsPage", title: "Only when these device, location conditions are True...", nextPage: "mainPage", install: false, uninstall: false) {
+    return dynamicPage(name: "conditionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
+        section() {
+            paragraph pTS("Notice:\nAll selected conditions must pass before this action will execute", null, false, "#2784D9"), state: "complete"
+        }
         section(sTS("Time/Date")) {
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getAppImg("clock")
             input "cond_days", "enum", title: inTS("Days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
@@ -700,7 +704,7 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
 }
 
 def actionsPage() {
-    return dynamicPage(name: "actionsPage", title: (settings?.actionType ? "Action | (${settings?.actionType})" : "Actions to perform..."), nextPage: "mainPage", install: false, uninstall: false) {
+    return dynamicPage(name: "actionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
         Boolean done = false
         Map actionExecMap = [configured: false]
         Map actionOpts = [
@@ -708,7 +712,7 @@ def actionsPage() {
             "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
             "bluetooth":"Bluetooth Control", "wakeword":"Wake Word", "alexaroutine": "Execute Alexa Routine(s)"
         ]
-        section(sTS("Configure Actions to Take:"), hideable: true, hidden: (settings?.act_EchoDevices?.size())) {
+        section(sTS("Actions Type Selection: ${settings?.act_EchoDevices?.size() ? "(Tap to change)" : ""}"), hideable: true, hidden: (settings?.act_EchoDevices?.size())) {
             input "actionType", "enum", title: inTS("Actions Type", getAppImg("list", true)), description: "", options: actionOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
         }
 
@@ -720,8 +724,7 @@ def actionsPage() {
                 case "speak":
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
-                        ssmlInfoSection()
-                        section(sTS("Action Config:"), hideable: true) {
+                        section(sTS("Action Type Config:"), hideable: true) {
                             actionVariableDesc(actionType)
                             href url: parent?.getTextEditorPath(app?.id, "act_speak_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Global Action Text Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
                                     description: settings?."act_speak_txt" ?: "Open Response Designer...", image: getAppImg("text")
@@ -739,8 +742,7 @@ def actionsPage() {
                     }
                     echoDevicesInputByPerm("announce")
                     if(settings?.act_EchoDevices) {
-                        ssmlInfoSection()
-                        section(sTS("Action Config:")) {
+                        section(sTS("Action Type Config:")) {
                             actionVariableDesc(actionType)
                             href url: parent?.getTextEditorPath(app?.id, "act_announcement_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Global Action Text Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
                                     description: settings?."act_announcement_txt" ?: "Open Response Designer...", image: getAppImg("text")
@@ -788,7 +790,7 @@ def actionsPage() {
                             paragraph str3, state: "complete"
                             paragraph pTS("Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", null, false, , false, "violet"), state: "complete"
                         }
-                        section(sTS("Action Config:")) {
+                        section(sTS("Action Type Config:")) {
                             input "act_sequence_txt", "text", title: inTS("Enter sequence text", getAppImg("text", true)), submitOnChange: true, required: false, image: getAppImg("text")
                         }
                         actionExecMap?.config?.sequence = [text: settings?.act_sequence_txt]
@@ -868,7 +870,7 @@ def actionsPage() {
                                         }
                                     }
                                 }
-                                section(sTS("Action Config:")) {
+                                section(sTS("Action Type Config:")) {
                                     input "act_music_txt", "text", title: inTS("Enter Music Search text", getAppImg("text", true)), submitOnChange: true, required: false, image: getAppImg("text")
                                 }
                                 actionVolumeInputs(devices)
@@ -885,7 +887,7 @@ def actionsPage() {
                     }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
-                        section(sTS("Action Config:")) {
+                        section(sTS("Action Type Config:")) {
                             input "act_calendar_cmd", "enum", title: inTS("Select Calendar Action", getAppImg("command", true)), description: "", options: ["playCalendarToday":"Today", "playCalendarTomorrow":"Tomorrow", "playCalendarNext":"Next Events"],
                                     required: true, submitOnChange: true, image: getAppImg("command")
                         }
@@ -902,7 +904,7 @@ def actionsPage() {
                     }
                     echoDevicesInputByPerm("alarms")
                     if(settings?.act_EchoDevices) {
-                        section(sTS("Action Config:")) {
+                        section(sTS("Action Type Config:")) {
                             input "act_alarm_label", "text", title: inTS("Alarm Label", getAppImg("name_tag", true)), submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_alarm_date", "text", title: inTS("Alarm Date\n(yyyy-mm-dd)", getAppImg("day_calendar", true)), submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_alarm_time", "time", title: inTS("Alarm Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getPublicImg("clock")
@@ -921,7 +923,7 @@ def actionsPage() {
                     }
                     echoDevicesInputByPerm("reminders")
                     if(settings?.act_EchoDevices) {
-                        section(sTS("Action Config:")) {
+                        section(sTS("Action Type Config:")) {
                             input "act_reminder_label", "text", title: inTS("Reminder Label", getAppImg("name_tag", true)), submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_reminder_date", "text", title: inTS("Reminder Date\n(yyyy-mm-dd)", getAppImg("day_calendar", true)), submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_reminder_time", "time", title: inTS("Reminder Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getPublicImg("clock")
@@ -940,7 +942,7 @@ def actionsPage() {
                         section(sTS("Action Description:")) {
                             paragraph pTS("This will allow you to enable/disable Do Not Disturb based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete"
                         }
-                        section(sTS("Action Config:")) {
+                        section(sTS("Action Type Config:")) {
                             input "act_dnd_cmd", "enum", title: inTS("Select Do Not Disturb Action", getAppImg("command", true)), description: "", options: dndOpts, required: true, submitOnChange: true, image: getAppImg("command")
                         }
                         actionExecMap?.config?.dnd = [cmd: settings?.act_dnd_cmd]
@@ -956,7 +958,7 @@ def actionsPage() {
                         }
                         def routinesAvail = parent?.getAlexaRoutines(null, true) ?: [:]
                         logDebug("routinesAvail: $routinesAvail")
-                        section(sTS("Action Config:")) {
+                        section(sTS("Action Type Config:")) {
                             input "act_alexaroutine_cmd", "enum", title: inTS("Select Alexa Routine", getAppImg("command", true)), description: "", options: routinesAvail, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                         }
                         actionExecMap?.config?.alexaroutine = [cmd: "executeRoutineId", routineId: settings?.act_alexaroutine_cmd]
@@ -1128,8 +1130,8 @@ private actionVolumeInputs(devices, showAlrmVol=false) {
             section(sTS("Volume Options:")) {
                 if(volMap?.n?.size() > 0 && volMap?.n?.size() < devices?.size()) { paragraph "Some of the selected devices do not support volume control" }
                 else if(devices?.size() == volMap?.n?.size()) { paragraph "Some of the selected devices do not support volume control"; return; }
-                input "act_volume_change", "number", title: inTS("Volume Level\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
-                input "act_volume_restore", "number", title: inTS("Restore Volume\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
+                input "act_volume_change", "number", title: inTS("Volume Level\n(Optional)", getAppImg("speed_knob", true)), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
+                input "act_volume_restore", "number", title: inTS("Restore Volume\n(Optional)", getAppImg("speed_knob", true)), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
             }
         }
     }
