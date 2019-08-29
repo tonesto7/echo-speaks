@@ -18,7 +18,7 @@ import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 String appVersion()   { return "3.0.0.1" }
-String appModified()  { return "2019-08-28" }
+String appModified()  { return "2019-08-29" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -222,7 +222,7 @@ def servPrefPage() {
                     if(settings?.useHeroku == false) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
                 }
             }
-            section("") { paragraph "Proceed with the server setup by tapping on Begin Server Setup", state: "complete" }
+            section() { paragraph pTS("Tap on Begin Server Setup below to proceed with the server setup", null, true, "#2784D9"), state: "complete" }
             srvcPrefOpts(true)
             section(sTS("Deploy the Server:")) {
                 href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
@@ -486,12 +486,15 @@ private devCleanupSect() {
 }
 
 private List getRemovableDevs() {
-    def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
     Map eDevs = state?.echoDeviceMap ?: [:]
+    log.debug "eDevs: $eDevs"
     List remDevs = []
-    childDevs?.each { cDev->
+    (isST() ? app?.getChildDevices(true) : app?.getChildDevices())?.each { cDev->
         def dni = cDev?.deviceNetworkId?.tokenize("|")
-        if(!eDevs?.containsKey(dni[2])) { remDevs?.push(cDev?.getLabel() as String) }
+        if(!eDevs?.containsKey(dni[2])) {
+            log.debug "eDev: ${dni[2]}"
+            remDevs?.push(cDev?.getLabel() as String)
+        }
     }
     return remDevs ?: []
 }
@@ -1338,6 +1341,7 @@ def storeCookieData() {
 def clearCookieData(src=null) {
     logTrace("clearCookieData(${src ?: ""})")
     settingUpdate("resetCookies", "false", "bool")
+    state?.authValid = false
     state?.remove("cookie")
     state?.remove("cookieData")
     state?.remove("lastCookieRefresh")
@@ -1345,7 +1349,6 @@ def clearCookieData(src=null) {
     unschedule("getOtherData")
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
     updateChildAuth(false)
-    state?.authValid = false
 }
 
 private refreshDevCookies() {
@@ -2060,7 +2063,7 @@ def receiveEventData(Map evtData, String src) {
                         }
                         // logInfo("Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
-                        // updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
+                        updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
                     curDevFamily.push(echoValue?.deviceStyle?.name)
                 }
