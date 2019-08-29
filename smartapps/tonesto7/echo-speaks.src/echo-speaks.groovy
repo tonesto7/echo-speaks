@@ -26,8 +26,7 @@ Map minVersions()     { return [echoDevice: 3002, actionApp: 3002, server: 222] 
 // TODO: Change importURL back to master branch
 // TODO: Change docs link to public docs for release
 // TODO: Add in Actions to the metrics
-// TODO: Add an auth check page with list of cookie and current validationTest, last cookie date, etc
-// TODO: and the options to update the cookies on the devices and overall restructure the login server page and split up the server settings make it a little bit more pretty
+// TODO: Add the ability to duplicate an existing action (Web based?)
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -3400,6 +3399,12 @@ def renderTextEditPage() {
                     let curTitle = '${inData?.title}';
                     let curDesc = '${inData?.desc}';
                     let selectedLineNum = undefined;
+
+                    // SSML Links
+                    let ssmlTestUrl = "https://topvoiceapps.com/ssml"
+                    let ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
+                    let ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
+                    let ssmlSpeechConsUrl = "https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-english-us.html"
 
                     function cleanTxt(txt) {
                         txt = txt.split(';').map(t => t.trim()).join(';')
