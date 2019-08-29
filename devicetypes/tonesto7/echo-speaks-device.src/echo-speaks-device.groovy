@@ -2698,7 +2698,7 @@ private postCmdProcess(resp, statusCode, data) {
 ******************************************************/
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
-Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVersions()["actionApp"]) }
+Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVersions()["echoDevice"]) }
 def getDtNow() {
 	def now = new Date()
 	return formatDt(now, false)
