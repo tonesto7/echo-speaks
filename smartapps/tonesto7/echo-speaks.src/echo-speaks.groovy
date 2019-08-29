@@ -487,12 +487,10 @@ private devCleanupSect() {
 
 private List getRemovableDevs() {
     Map eDevs = state?.echoDeviceMap ?: [:]
-    log.debug "eDevs: $eDevs"
     List remDevs = []
     (isST() ? app?.getChildDevices(true) : app?.getChildDevices())?.each { cDev->
         def dni = cDev?.deviceNetworkId?.tokenize("|")
         if(!eDevs?.containsKey(dni[2])) {
-            log.debug "eDev: ${dni[2]}"
             remDevs?.push(cDev?.getLabel() as String)
         }
     }
