@@ -17,8 +17,8 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.0.2" }
-String appModified()  { return "2019-08-29" }
+String appVersion()   { return "3.0.0.3" }
+String appModified()  { return "2019-08-30" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -179,14 +179,16 @@ def authStatusPage() {
                 paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastCookieRefreshSec())})", null, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : null), required: true
                 paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", null, false, "#2784D9"), state: "complete", required: true
             }
+
             section(sTS("Cookie Tools: (Tap to show)"), hideable: true, hidden: true) {
-                def s = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.  Run no more than once every 24 hours."
-                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every (x) days?", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, defaultValue: 5, range: "1..5", submitOnChange: true, image: getAppImg("day_calendar")
-                settingUpdate("refreshCookieDays", settings?.refreshCookieDays?.toInteger(), "number")
+                String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.  Run no more than once every 24 hours."
+                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every (x) days?", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
+                if(refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
+                if(refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
                 if(!isST()) { paragraph pTS("in Days (1-5 max)", null, false, "gray") }
                 // Refreshes the cookie
-                input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: s, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? "" : null)
-                if(!isST()) { paragraph pTS(s, null, false, pastDayChkOk ? null : "red") }
+                input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? "" : null)
+                if(!isST()) { paragraph pTS(chDesc, null, false, pastDayChkOk ? null : "red") }
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
                 // Clears cookies for app and devices
                 input "resetCookies", "bool", title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data from app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
@@ -526,6 +528,10 @@ def settingsPage() {
         showDevSharePrefs()
         section(sTS("App Change Details:")) {
             href "changeLogPage", title: inTS("View App Revision History", getAppImg("change_log", true)), description: "Tap to view", image: getAppImg("change_log")
+        }
+        section(sTS("Diagnostic Data:"), hideable: true, hidden: true) {
+            paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", null, false, "gray")
+            href url: getAppEndpointUrl("diagData"), type: "external", title: inTS("Diagnostic Data (JSON)"), description: "Tap to view"
         }
     }
 }
@@ -1164,6 +1170,7 @@ mappings {
     path("/config")                     { action: [GET: "renderConfig"] }
     path("/textEditor/:cId/:inName")    { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
     path("/cookie")                     { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
+    path("/diagData")                   { action: [GET: "getDiagData"] }
 }
 
 String getCookieVal() { return (state?.cookieData && state?.cookieData?.localCookie) ? state?.cookieData?.localCookie as String : null }
@@ -1252,6 +1259,7 @@ private appCleanup() {
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
+    state?.missPollRepair = false
     state?.deviceRefreshInProgress = false
     // Settings Cleanup
 
@@ -1434,6 +1442,7 @@ def wakeUpServerResp(response, data) {
     catch(ex) { logError("wakeUpServerResp Exception: ${ex?.message}") }
     if (rData) {
         // log.debug "rData: $rData"
+        state?.lastServerWakeDt = getDtNow()
         logInfo("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         Map cookieData = state?.cookieData ?: [:]
         if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
@@ -2322,7 +2331,7 @@ private missPollNotify(Boolean on, Integer wait) {
         state?.missPollRepair = false
         return
     } else {
-        if(!state?.missPollRepair) {
+        if(state?.missPollRepair == false) {
             state?.missPollRepair = true
             initialize()
             return
@@ -2659,7 +2668,7 @@ private createMetricsDataJson(rendAsMap=false) {
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
             serverPlatform: state?.onHeroku ? "Cloud" : "Local",
-            versions: [app: appVersion(), server: swVer?.server ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
+            versions: [app: appVersion(), server: swVer?.server ?: "N/A", actions: swVer?.actionApp ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
             detections: [skippedDevices: getSkippedDevsAnon()],
             counts: [
                 deviceStyleCnts: state?.deviceStyleCnts ?: [:],
@@ -2784,6 +2793,118 @@ private getWebData(params, desc, text=true) {
         } else { logError("getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex.message}") }
         return "${label} info not found"
     }
+}
+
+/******************************************
+|    Diagnostic Data
+*******************************************/
+
+private getDiagData() {
+    try {
+        updChildVers()
+        def actApps = getActionApps()
+        def childDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+        List appWarnings = []
+        List appErrors = []
+        List devWarnings = []
+        List devErrors = []
+        List actWarnings = []
+        List actErrors = []
+        def ah = getLogHistory()
+        if(ah?.warnings?.size()) { appWarnings = appWarnings + ah?.warnings }
+        if(ah?.errors?.size()) { appErrors = appErrors + ah?.errors }
+        childDevs?.each { dev->
+            def h = dev?.getLogHistory()
+            if(h?.warnings?.size()) { devWarnings = devWarnings + h?.warnings }
+            if(h?.errors?.size()) { devErrors = devErrors + h?.errors }
+        }
+        actApps?.each { act->
+            def h = act?.getLogHistory()
+            if(h?.warnings?.size()) { actWarnings = actWarnings + h?.warnings }
+            if(h?.errors?.size()) { actErrors = actErrors + h?.errors }
+        }
+        Map output = [
+            diagDt: getDtNow()?.toString(),
+            app: [
+                version: appVersion(),
+                installed: state?.installData?.dt,
+                updated: state?.installData?.updatedDt,
+                timeZone: location?.timeZone?.ID?.toString(),
+                lastVersionUpdDt: state?.lastVerUpdDt,
+                flags: [
+                    pollBlocked: (state?.pollBlocked == true),
+                    resumeConfig: state?.resumeConfig,
+                    serviceConfigured: state?.serviceConfigured,
+                    refreshDeviceData: state?.refreshDeviceData,
+                    deviceRefreshInProgress: state?.deviceRefreshInProgress,
+                    noAuthActive: state?.noAuthActive,
+                    missPollRepair: state?.missPollRepair,
+                    pushTested: state?.pushTested,
+                    updateAvailable: state?.updateAvailable,
+                    devices: [
+                        addEchoNamePrefix: settings?.addEchoNamePrefix,
+                        autoCreateDevices: settings?.autoCreateDevices,
+                        autoRenameDevices: settings?.autoRenameDevices,
+                        bypassDeviceBlocks: settings?.bypassDeviceBlocks,
+                        createOtherDevices: settings?.createOtherDevices,
+                        createTablets: settings?.createTablets,
+                        createWHA: settings?.createWHA,
+                        echoDeviceFilters: settings?.echoDeviceFilter?.size() ?: 0
+                    ]
+                ],
+                stateUsage: "${stateSizePerc()}%",
+                warnings: appWarnings,
+                errors: appErrors
+            ],
+            actions: [
+                version: state?.codeVersions?.actionApp ?: null,
+                count: actApps?.size() ?: 0,
+                warnings: actWarnings,
+                errors: actErrors
+            ],
+            devices: [
+                version: state?.codeVersions?.echoDevice ?: null,
+                count: childDevs?.size() ?: 0,
+                lastDataUpdDt: state?.lastDevDataUpd,
+                models: state?.deviceStyleCnts ?: [:],
+                warnings: devWarnings,
+                errors: devErrors
+            ],
+            hubPlatform: getPlatform(),
+            authStatus: [
+                cookieUpdated: state?.lastCookieRefresh ?: null,
+                cookieUpdatedDur: seconds2Duration(getLastCookieRefreshSec()) ?: null,
+                cookieValidationState: (state?.authValid == true),
+                cookieValidDate: state?.lastCookieChkDt ?: null,
+                cookieValidHistory: state?.authValidHistory,
+                cookieLastRefreshDate: state?.lastCookieRefresh ?: null,
+                cookieLastRefreshDur: seconds2Duration(getLastCookieRefreshSec()),
+                cookieRefreshDays: settings?.refreshCookieDays,
+                hasCookie: (state?.cookieData && state?.cookieData?.localCookie),
+                hasCSRF: (state?.cookieData && state?.cookieData?.csrf)
+            ],
+            alexaGuard: [
+                supported: state?.alexaGuardSupported,
+                status: state?.alexaGuardState
+            ],
+            server: [
+                version: state?.codeVersions?.server ?: null,
+                amazonDomain: settings?.amazonDomain,
+                amazonLocale: settings?.regionLocale,
+                lastServerWakeDt: state?.lastServerWakeDt,
+                serverPlatform: state?.onHeroku ? "Cloud" : "Local",
+                randomName: state?.generatedHerokuName
+            ]
+        ]
+        log.debug "output: $output"
+        def json = new groovy.json.JsonOutput().toJson(output)
+        // def json = new groovy.json.JsonOutput().toJson(json)
+        render contentType: "application/json", data: json, status: 200
+    } catch (ex) {
+        logError("getDiagData: Exception: ${ex.message}")
+        render contentType: "application/json", data: [status: "failed", error: ex?.message], status: 500
+    }
+
 }
 
 /******************************************
@@ -3808,5 +3929,23 @@ String getAppDebugDesc() {
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
 private logInfo(msg) { if(settings?.logInfo == null || settings?.logInfo != false) { log.info msg } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
-private logWarn(msg) { if(settings?.logWarn != false) { log.warn msg } }
-private logError(msg) { if(settings?.logError != false) { log.error msg } }
+private logWarn(msg) {
+    if(settings?.logWarn != false) { log.warn msg }
+    Integer sz = 10
+    List wData = atomicState?.warnHistory ?: []
+    wData.push([dt: getDtNow(), message: msg])
+	if(wData?.size() > sz) { wData = wData?.drop( (wData?.size()-sz)+1 ) }
+	atomicState?.warnHistory = wData
+}
+private logError(msg) {
+    if(settings?.logError != false) { log.error msg }
+    Integer sz = 10
+    List eData = atomicState?.errorHistory ?: []
+    eData.push([dt: getDtNow(), message: msg])
+	if(eData?.size() > sz) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
+	atomicState?.errorHistory = eData
+}
+
+Map getLogHistory() {
+    return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
+}

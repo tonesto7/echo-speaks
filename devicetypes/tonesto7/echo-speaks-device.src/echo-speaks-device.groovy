@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.0.2"}
-String devModified() { return "2019-08-29" }
+String devVersion()  { return "3.0.0.3"}
+String devModified() { return "2019-08-30" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -2739,8 +2739,26 @@ private logger(type, msg) {
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
 private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
-private logWarn(msg) { if(settings?.logWarn != false) { log.warn msg } }
-private logError(msg) { if(settings?.logError != false) { log.error msg } }
+private logWarn(msg) {
+    if(settings?.logWarn != false) { log.warn msg }
+    Integer sz = 10
+    List wData = atomicState?.warnHistory ?: []
+    wData.push([dt: getDtNow(), message: msg])
+	if(wData?.size() > sz) { wData = wData?.drop( (wData?.size()-sz)+1 ) }
+	atomicState?.warnHistory = wData
+}
+private logError(msg) {
+    if(settings?.logError != false) { log.error msg }
+    Integer sz = 10
+    List eData = atomicState?.errorHistory ?: []
+    eData.push([dt: getDtNow(), message: msg])
+	if(eData?.size() > sz) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
+	atomicState?.errorHistory = eData
+}
+
+Map getLogHistory() {
+    return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
+}
 
 private incrementCntByKey(String key) {
 	long evtCnt = state?."${key}" ?: 0

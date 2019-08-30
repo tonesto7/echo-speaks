@@ -1,3 +1,22 @@
+  ═════════
+   Main App (v3.0.0.3)
+   August 30th, 2019
+ ═════════
+  • ADDED: Collection of the last 5 errors and warning messages for each device.
+  • ADDED: Under the logging page in the main app you can share your diagnostic data with the developer when you are having issues.
+
+ ══════════
+   Actions App (v3.0.0.3)
+   August 30th, 2019
+ ══════════
+  • ADDED: Collection of the last 5 errors and warning messages for each device.
+
+ ═════════
+   Device (v3.0.0.3)
+   August 30th, 2019
+ ═════════
+  • ADDED: Collection of the last 5 errors and warning messages for each device.
+
  ═════════
    Main App (v3.0.0.1)
    August 29th, 2019
