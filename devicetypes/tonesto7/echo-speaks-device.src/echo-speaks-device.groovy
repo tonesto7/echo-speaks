@@ -1301,9 +1301,16 @@ def play() {
     }
 }
 
-def playTrack(track) {
-    // if(isCommandTypeAllowed("mediaPlayer")) { }
-    logWarn("Uh-Oh... The playTrack() Command is NOT Supported by this Device!!!")
+def playTrack(uri) {
+    if(isCommandTypeAllowed("TTS")) {
+        String tts = uriSpeechParser(uri)
+        if (tts) {
+            logDebug("playTrack($uri) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
+            speak(tts as String)
+        } else {
+            logWarn("Uh-Oh... The playTrack($uri) Command is NOT Supported by this Device!!!")
+        }
+    }
 }
 
 def pause() {
@@ -2160,7 +2167,18 @@ def playText(String msg) {
 }
 
 def playTrackAndResume(uri, duration, volume=null) {
-    log.warn "Uh-Oh... The playTrackAndResume(uri: $uri, duration: $duration, volume: $volume) Command is NOT Supported by this Device!!!"
+    if(isCommandTypeAllowed("TTS")) {
+        String tts = uriSpeechParser(uri)
+        if (tts) {
+            logDebug("playTrackAndResume($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
+            if(volume) {
+                def restVolume = device?.currentValue("level")?.toInteger()
+                setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
+            } else { speak(tts as String) }
+        } else {
+            logWarn("Uh-Oh... The playTrackAndResume($uri, $volume) Command is NOT Supported by this Device!!!")
+        }
+    }
 }
 
 def playTextAndResume(text, volume=null) {
@@ -2172,23 +2190,53 @@ def playTextAndResume(text, volume=null) {
 }
 
 def playTrackAndRestore(uri, duration, volume=null) {
-    log.warn "Uh-Oh... The playTrackAndRestore(uri: $uri, duration: $duration, volume: $volume) Command is NOT Supported by this Device!!!"
+    if(isCommandTypeAllowed("TTS")) {
+        String tts = uriSpeechParser(uri)
+        if (tts) {
+            logDebug("playTrackAndRestore($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
+            if(volume) {
+                def restVolume = device?.currentValue("level")?.toInteger()
+                setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
+            } else { speak(tts as String) }
+        } else {
+            logWarn("Uh-Oh... The playTrackAndRestore(uri: $uri, duration: $duration, volume: $volume) Command is NOT Supported by this Device!!!")
+        }
+    }
 }
 
 def playTextAndRestore(text, volume=null) {
-    logTrace("The playTextAndRestore(text: $text, volume: $volume) command received...")
+    logTrace("The playTextAndRestore($text, $volume) command received...")
     def restVolume = device?.currentValue("level")?.toInteger()
 	if (volume != null) {
 		setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
     } else { speak(text as String) }
 }
 
-def playURL(theURL) {
-	log.warn "Uh-Oh... The playUrl(url: $theURL) Command is NOT Supported by this Device!!!"
+def playURL(uri) {
+    if(isCommandTypeAllowed("TTS")) {
+        String tts = uriSpeechParser(uri)
+        if (tts) {
+            logDebug("playURL($uri) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
+            speak(tts as String)
+        } else {
+            logWarn("Uh-Oh... The playUrl($uri) Command is NOT Supported by this Device!!!")
+        }
+    }
 }
 
 def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
     log.warn "Uh-Oh... The playSoundAndTrack(soundUri: $soundUri, duration: $duration, trackData: $trackData, volume: $volume) Command is NOT Supported by this Device!!!"
+}
+
+String uriSpeechParser(uri) {
+    // Thanks klaflamboise for this idea.  It never for one second occurred to me to parse out the trackUri...
+    if (uri?.toString()?.contains("/")) {
+        Integer sInd = uri?.lastIndexOf("/") + 1
+        uri = uri?.substring(sInd, uri?.size())?.toLowerCase()?.replace(".mp3", "")
+        logDebug("uriSpeechParser | tts: $uri")
+        return uri
+    }
+    return null
 }
 
 def speechTest(ttsMsg) {
