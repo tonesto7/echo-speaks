@@ -3125,29 +3125,22 @@ String getAppDebugDesc() {
     return (str != "") ? "${str}" : null
 }
 
-private logger(ty, m, tr=false) {
-    if (tr && !settings?.appTrace) { return }
-    if(ty && m && settings?.appDebug) { log."${ty}" "${m}" }
+private addToLogHistory(String logKey, msg, Integer max=10) {
+    List eData = atomicState[logKey as String] ?: []
+    eData.push([dt: getDtNow(), message: msg])
+	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
+	atomicState[logKey as String] = eData
 }
-
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
 private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
 private logWarn(msg) {
     if(settings?.logWarn != false) { log.warn msg }
-    Integer sz = 10
-    List wData = atomicState?.warnHistory ?: []
-    wData.push([dt: getDtNow(), message: msg])
-	if(wData?.size() > sz) { wData = wData?.drop( (wData?.size()-sz)+1 ) }
-	atomicState?.warnHistory = wData
+    addToLogHistory("warnHistory", msg, 10)
 }
 private logError(msg) {
     if(settings?.logError != false) { log.error msg }
-    Integer sz = 10
-    List eData = atomicState?.errorHistory ?: []
-    eData.push([dt: getDtNow(), message: msg])
-	if(eData?.size() > sz) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
-	atomicState?.errorHistory = eData
+    addToLogHistory("errorHistory", msg, 10)
 }
 
 Map getLogHistory() {

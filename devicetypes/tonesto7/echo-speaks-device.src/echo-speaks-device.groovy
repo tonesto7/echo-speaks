@@ -2361,16 +2361,12 @@ private getQueueSizeStr() {
     return "($size) Item${size>1 || size==0 ? "s" : ""}"
 }
 
-private processLogItems(String logType, List logList, emptyStart=false, emptyEnd=true) {
-    if(logType && logList?.size() && settings?.logDebug) {
-        Integer maxStrLen = 0
-        String endSep = "└─────────────────────────────"
-        if(emptyEnd) { logger(logType, " ") }
-        logger(logType, endSep)
-        logList?.each { l->
-            logger(logType, l)
-        }
-        if(emptyStart) { logger(logType, " ") }
+private processLogItems(String t, List ll, es=false, ee=true) {
+    if(t && ll?.size() && settings?.logDebug) {
+        if(ee) { "log${t?.capitalize()}"(" ") }
+        "log${t?.capitalize()}"("└─────────────────────────────")
+        ll?.each { "log${t?.capitalize()}"(it) }
+        if(es) { "log${t?.capitalize()}"(" ") }
     }
 }
 
@@ -2676,6 +2672,7 @@ private postCmdProcess(resp, statusCode, data) {
                     sendEvent(name: "volume", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: false, displayed: false)
                 }
                 schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), data?.msgDelay), true, null, "postCmdProcess(adjDelay)")
+                logSpeech(data?.message, statusCode, null)
             }
             return
         } else if(statusCode.toInteger() == 400 && resp?.message && resp?.message?.toString()?.toLowerCase() == "rate exceeded") {
@@ -2683,9 +2680,11 @@ private postCmdProcess(resp, statusCode, data) {
             Integer rDelay = 2//random?.nextInt(5)
             log.warn "You've been Rate-Limited by Amazon for sending Consectutive Commands to 5+ Device... | Device will retry again in ${rDelay} seconds"
             schedQueueCheck(rDelay, true, [rateLimited: true, delay: data?.msgDelay], "postCmdProcess(Rate-Limited)")
+            logSpeech(data?.message, statusCode, resp?.message)
             return
         } else {
             logError("postCmdProcess Error | status: ${statusCode} | message: ${resp?.message}")
+            logSpeech(data?.message, statusCode, resp?.message)
             incrementCntByKey("err_cloud_commandPost")
             resetQueue()
             return
@@ -2730,41 +2729,36 @@ Boolean ok2Notify() {
     return (parent?.getOk2Notify())
 }
 
-private logger(type, msg) {
-    if(type && msg && settings?.logDebug) {
-        log."${type}" "${msg}"
-    }
+private logSpeech(msg, status, error=null) {
+    addToLogHistory("speechHistory", msg, [status: status, error: error], 5)
 }
 
+private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
+    List eData = atomicState[logKey as String] ?: []
+    if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
+    else { eData.push([dt: getDtNow(), message: msg]) }
+	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
+	atomicState[logKey as String] = eData
+}
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
 private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
 private logWarn(msg) {
     if(settings?.logWarn != false) { log.warn msg }
-    Integer sz = 10
-    List wData = atomicState?.warnHistory ?: []
-    wData.push([dt: getDtNow(), message: msg])
-	if(wData?.size() > sz) { wData = wData?.drop( (wData?.size()-sz)+1 ) }
-	atomicState?.warnHistory = wData
+    addToLogHistory("warnHistory", msg, null, 10)
 }
 private logError(msg) {
     if(settings?.logError != false) { log.error msg }
-    Integer sz = 10
-    List eData = atomicState?.errorHistory ?: []
-    eData.push([dt: getDtNow(), message: msg])
-	if(eData?.size() > sz) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
-	atomicState?.errorHistory = eData
+    addToLogHistory("errorHistory", msg, null, 10)
 }
 
 Map getLogHistory() {
-    return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
+    return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [], speech: atomicState?.speechHistory ?: [] ]
 }
 
 private incrementCntByKey(String key) {
 	long evtCnt = state?."${key}" ?: 0
-	// evtCnt = evtCnt?.toLong()+1
 	evtCnt++
-	// logTrace("${key?.toString()?.capitalize()}: $evtCnt")
 	state?."${key}" = evtCnt?.toLong()
 }
 
