@@ -2734,7 +2734,7 @@ private logSpeech(msg, status, error=null) {
 }
 
 private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
-    List eData = state[logKey as String] ?: []
+    List eData = state?.containsKey(logKey as String) ? state[logKey as String] : []
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
 	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
