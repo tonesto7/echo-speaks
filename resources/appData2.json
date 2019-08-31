@@ -288,6 +288,11 @@
             "name": "Logitech Blast",
             "image": "logitech_blast",
             "caps": []
+        },
+        "A2X8WT9JELC577": {
+            "name": "Ecobee5",
+            "image": "ecobee4",
+            "caps": ["a", "t"]
         }
     }
 }
