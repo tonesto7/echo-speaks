@@ -188,7 +188,7 @@ def authStatusPage() {
                 if(!isST()) { paragraph pTS("in Days (1-5 max)", null, false, "gray") }
                 // Refreshes the cookie
                 input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? "" : null)
-                if(!isST()) { paragraph pTS(chDesc, null, false, pastDayChkOk ? null : "red") }
+                if(!isST()) { paragraph pTS(ckDesc, null, false, pastDayChkOk ? null : "red") }
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
                 // Clears cookies for app and devices
                 input "resetCookies", "bool", title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data from app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
@@ -1407,7 +1407,7 @@ String getServerHostURL() {
 }
 
 Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 500000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
-Integer cookieChkSeconds() { return (settings?.refreshCookieDays ?: 5)*86400 as Integer }
+Integer cookieRefreshSeconds() { return (settings?.refreshCookieDays ?: 5)*86400 as Integer }
 
 def clearServerAuth() {
     logDebug("serverUrl: ${getServerHostURL()}")
@@ -2317,7 +2317,7 @@ private healthCheck() {
         return
     }
     validateCookieAsync()
-    if(getLastCookieRefreshSec() > cookieChkSeconds()) { runCookieRefresh() }
+    if(getLastCookieRefreshSec() > cookieRefreshSeconds()) { runCookieRefresh() }
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
@@ -2808,6 +2808,7 @@ private getDiagData() {
         List appErrors = []
         List devWarnings = []
         List devErrors = []
+        List devSpeech = []
         List actWarnings = []
         List actErrors = []
         def ah = getLogHistory()
@@ -2817,6 +2818,7 @@ private getDiagData() {
             def h = dev?.getLogHistory()
             if(h?.warnings?.size()) { devWarnings = devWarnings + h?.warnings }
             if(h?.errors?.size()) { devErrors = devErrors + h?.errors }
+            if(h?.speech?.size()) { devSpeech = devSpeech + h?.speech }
         }
         actApps?.each { act->
             def h = act?.getLogHistory()
@@ -2976,9 +2978,9 @@ private seconds2Duration(Integer timeSec, postfix=true, tk=2, asMap=false) {
     Integer minutes = Math.floor(timeSec / 60); timeSec -= minutes * 60;
     Integer seconds = Integer.parseInt((timeSec % 60) as String, 10);
     Map d = [y: years, mn: months, d: days, h: hours, m: minutes, s: seconds]
-    if(asMap) { return d; }
+    if(asMap) { return d }
     List l = []
-    if(d?.d > 0) { l.push("${d?.d} ${pluralize(d?.d, "day")}") }
+    if(d?.d > 0) { l?.push("${d?.d} ${pluralize(d?.d, "day")}") }
     if(d?.h > 0) { l?.push("${d?.h} ${pluralize(d?.h, "hour")}") }
     if(d?.m > 0) { l?.push("${d?.m} ${pluralize(d?.m, "min")}") }
     if(d?.s > 0) { l?.push("${d?.s} ${pluralize(d?.s, "sec")}") }
@@ -3926,24 +3928,22 @@ String getAppDebugDesc() {
     return (str != "") ? "${str}" : null
 }
 
+private addToLogHistory(String logKey, msg, Integer max=10) {
+    List eData = atomicState[logKey as String] ?: []
+    eData.push([dt: getDtNow(), message: msg])
+	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
+	atomicState[logKey as String] = eData
+}
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
-private logInfo(msg) { if(settings?.logInfo == null || settings?.logInfo != false) { log.info msg } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
 private logWarn(msg) {
     if(settings?.logWarn != false) { log.warn msg }
-    Integer sz = 10
-    List wData = atomicState?.warnHistory ?: []
-    wData.push([dt: getDtNow(), message: msg])
-	if(wData?.size() > sz) { wData = wData?.drop( (wData?.size()-sz)+1 ) }
-	atomicState?.warnHistory = wData
+    addToLogHistory("warnHistory", msg, 10)
 }
 private logError(msg) {
     if(settings?.logError != false) { log.error msg }
-    Integer sz = 10
-    List eData = atomicState?.errorHistory ?: []
-    eData.push([dt: getDtNow(), message: msg])
-	if(eData?.size() > sz) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
-	atomicState?.errorHistory = eData
+    addToLogHistory("errorHistory", msg, 10)
 }
 
 Map getLogHistory() {
