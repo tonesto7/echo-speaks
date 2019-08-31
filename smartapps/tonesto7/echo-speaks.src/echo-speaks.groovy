@@ -2898,9 +2898,7 @@ private getDiagData() {
                 randomName: state?.generatedHerokuName
             ]
         ]
-        log.debug "output: $output"
         def json = new groovy.json.JsonOutput().toJson(output)
-        // def json = new groovy.json.JsonOutput().toJson(json)
         render contentType: "application/json", data: json, status: 200
     } catch (ex) {
         logError("getDiagData: Exception: ${ex.message}")
