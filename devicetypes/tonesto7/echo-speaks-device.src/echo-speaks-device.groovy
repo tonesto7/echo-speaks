@@ -2734,11 +2734,11 @@ private logSpeech(msg, status, error=null) {
 }
 
 private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
-    List eData = atomicState[logKey as String] ?: []
+    List eData = state[logKey as String] ?: []
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
 	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
-	atomicState[logKey as String] = eData
+	state[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
 private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
@@ -2753,7 +2753,7 @@ private logError(msg) {
 }
 
 Map getLogHistory() {
-    return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [], speech: atomicState?.speechHistory ?: [] ]
+    return [ warnings: state?.warnHistory ?: [], errors: state?.errorHistory ?: [], speech: state?.speechHistory ?: [] ]
 }
 
 private incrementCntByKey(String key) {
