@@ -2229,7 +2229,7 @@ def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
 }
 
 String uriSpeechParser(uri) {
-    // Thanks klaflamboise for this idea.  It never for one second occurred to me to parse out the trackUri...
+    // Thanks @fkrlaframboise for this idea.  It never for one second occurred to me to parse out the trackUri...
     if (uri?.toString()?.contains("/")) {
         Integer sInd = uri?.lastIndexOf("/") + 1
         uri = uri?.substring(sInd, uri?.size())?.toLowerCase()?.replace(".mp3", "")
