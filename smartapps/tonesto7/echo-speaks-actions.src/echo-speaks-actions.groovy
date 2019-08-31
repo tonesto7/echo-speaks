@@ -17,8 +17,8 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.0.3" }
-String appModified() { return "2019-08-30" }
+String appVersion()  { return "3.0.0.4" }
+String appModified() { return "2019-08-31" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -3128,7 +3128,7 @@ String getAppDebugDesc() {
 private addToLogHistory(String logKey, msg, Integer max=10) {
     List eData = atomicState[logKey as String] ?: []
     eData.push([dt: getDtNow(), message: msg])
-	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
+	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
 	atomicState[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }

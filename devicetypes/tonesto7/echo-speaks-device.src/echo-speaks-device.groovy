@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.0.3"}
-String devModified() { return "2019-08-30" }
+String devVersion()  { return "3.0.0.4"}
+String devModified() { return "2019-08-31" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -2714,8 +2714,8 @@ def GetTimeDiffSeconds(strtDate, stpDate=null) {
 	if((strtDate && !stpDate) || (strtDate && stpDate)) {
 		def now = new Date()
 		def stopVal = stpDate ? stpDate.toString() : formatDt(now, false)
-		def start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate).getTime()
-		def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal).getTime()
+		def start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate)?.getTime()
+		def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal)?.getTime()
 		def diff = (int) (long) (stop - start) / 1000
 		return diff
 	} else { return null }
@@ -2737,7 +2737,7 @@ private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
     List eData = state[logKey as String] ?: []
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
-	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-sz)+1 ) }
+	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
 	state[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
