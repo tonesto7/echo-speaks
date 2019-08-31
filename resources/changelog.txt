@@ -1,111 +1,93 @@
-V2.1.2 (January 7th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • ADDED: New Music Search Test Page which allows you to perform search commands on your device.  It also allows you to perform tunein search and see results returned by Amazon
+  ═════════
+   Main App (v3.0.0.3)
+   August 30th, 2019
+ ═════════
+  • ADDED: Collection of the last 5 errors and warning messages for each device.
+  • ADDED: Under the logging page in the main app you can share your diagnostic data with the developer when you are having issues.
 
-Device (v2.1.2):
- • FIXED: TuneIn search command is now fixed
- • ADDED: Support for Alexa for Windows Detection (Supports all features)
+ ══════════
+   Actions App (v3.0.0.3)
+   August 30th, 2019
+ ══════════
+  • ADDED: Collection of the last 5 errors and warning messages for each device.
 
-V2.1.1 (January 6th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • ADDED: Documentation link now on the main page.
- • ADDED: regionLocale environment variable is now passed and created by the server.
- • FIXED: Some minor bug fixes
+ ═════════
+   Device (v3.0.0.3)
+   August 30th, 2019
+ ═════════
+  • ADDED: Collection of the last 5 errors and warning messages for each device.
 
-Server:
- • FIXED: Hopefully the login issues for non-us users
+ ═════════
+   Main App (v3.0.0.1)
+   August 29th, 2019
+ ═════════
+  • NEW: Login Status page now available.  It will list each item and run a validation test and give you the response realtime.
+  • NEW: You can force the devices to sync there cookies with the main app (in the rare occassion they get messed up).
+  • NEW: Setting to define how often your cookie refreshes (in days). Between 1 to 5 days. Refreshes attempted before 24hours are now blocked.
+  • NEW: Pause/Unpause all actions from the Main App actions page.
+  • FIXED: Other bugs resolved.
+  • UPDATED: UI polishing.
 
-V2.1.0 (January 4th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • ADDED: Support for Self refreshing Amazon Cookies!
- • ADDED: Local it-IT to options
+ ══════════
+   Actions App (v3.0.0.1)
+   August 29th, 2019
+ ══════════
+  • NEW: Version number updates.
 
-Device:
- • FIXED: forgot to add the actual function for the sendAlexaAppNotification
+ ═════════
+   Device (v3.0.0.1)
+   August 29th, 2019
+ ═════════
+  • UPDATED: Modified the synchronization of Cookie data with the app.
 
-Server:
- • ADDED: Self refreshing Amazon Cookies!
- • UPDATED: Lot of code cleanups
+ ═════════
+   Main App (v3.0.0)
+   August 27th, 2019
+ ═════════
+  • NEW: Automation child app called Echo Speaks - Actions to eliminate the need for 3rd party apps to use all of Echo Speaks functionality.
+  • NEW: Support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).
+  • NEW: Ability to remove 'Echo - ' prefix from device names.
+  • NEW: Issues section at top of the app UI.  It will show any authentication, code updates/version issues.
+  • NEW: Child App and Devices now verify that they meet the minimum version required and stop processing if they don't.
+  • NEW: importUrl header param for Hubitat users to quickly import code.
+  • NEW: Checks are now made to make sure you can't install Actions app from the marketplace.
+  • NEW: Log filtering options to reducing log output.
+  • NEW: Three strikes rule for authentication failures. Instead of clearing auth on the first failed attempt it will wait for 3 consectutive failures.
+  • NEW: Speech testing has been added to the device testing section.
+  • FIXED: Repaired issue with Bluetooth status requests.
+  • FIXED: Device rename issue on Hubitat.
+  • FIXED: Authentication handling tweaks and optimizations.
+  • FIXED: Other bugs resolved.
+  • UPDATED: Streamlined the mainPage to be less cluttered and overwhelming.
+  • UPDATED: Rebuilt the announcement tests function.
 
-V2.0.9 (January 3rd, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • UPDATED: increased required device version
+ ══════════
+   Actions App (v3.0.0)
+   August 27th, 2019
+ ══════════
+  • NEW: importUrl header param for Hubitat users to quickly import code.
+  • NEW: Alexa Routine Execution (Only those with custom voice triggers).
+  • NEW: Subscribe to just about any location and device events.
+  • NEW: Create responses for each trigger type (Means 1 action can accomodate a large number of events).
+  • NEW: Monitor devices for changes and speak after so many seconds then repeat every x seconds until it changes to desired state.
+  • NEW: Define different responses for the repeat events.
+  • NEW: Define multiple responses and have a random response for each event.
+  • NEW: Web Based reponse builder.
+  • NEW: Log filtering options to reducing log output.
+  • NEW: Much more.
 
-Device:
- • FIXED: forgot to add the actual function for the sendAlexaAppNotification
-
-V2.0.8 (December 31st, 2018):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • UPDATED: UI refinements
- • UPDATED: Bug fixes
- • UPDATED: Mover musicprovider check to the app to elimate 50X errors and unnecessary calls by the devices
- • FIXED: Rename devices setting is no longer ignored and works correctly
-
-Device:
- • UPDATED: Bug fixes
- • UPDATED: searchMusic commands with an optional sleep timer parameter
- • ADDED: New Commands
-    Calendar Actions:
-    • playCalendarToday()
-    • playCalendarTomorrow()
-    • playCalendarNext()
-
-    New TTS Actions:
-    • playJoke()
-    • playFunFact()
-
-    Canned TTS Responses:
-    • playWelcomeHome()
-    • playGoodNight()
-
-    New Device Control Actions:
-    • stopAllDevices() - (Stops all echos devices)(ONLY Send to one device)
-
-    Send Announcements:
-    • playAnnouncement()
-    • playAnnouncementAll() - (To All Echo Devices)(Only send to one device)
-
-    Send Alexa App Notifications:
-    • sendAlexaAppNotification() - (Sends Push message to Alexa Mobile App)
-
-V2.0.7 (December 18th, 2018):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • UPDATED: Updated the cookie validation and notifification logic
- • UPDATED: Bug fixes
-
-Device:
- • UPDATED: Updated the cookie validation and notifification logic
- • UPDATED: Bug fixes
-
-V2.0.5 (December 5th, 2018):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • UPDATED: Increased Full Device Polling from every 15 to every 10 minutes
- • UPDATED: Device Style table is now remotely updatable via the appData.json file used for version info (v2.0.4).
-
-Device:
- • ADDED: Refresh now sends triggers the smartapp to refresh the device list.
- • ADDED: Devices prevent any speech while DoNotDisturb is enabled.
- • ADDED: Devices now prevent commands while device is marked as offline. (Offline Status updates every 10 minutes)
- • UPDATED: setVolumeSpeakAndRestore() now supports an optional 3rd parameter for the restore volume.  If it's not sent it will just use the old volume.
- • UPDATED: Debug Logging data is more detailed for troubleshooting.
- • FIXED: DoNotDisturb Status has been broken since v2 release. It's now fixed.
-
-Server (v2.0.2):
- • FIXED: Web Interactions are now all via https:// (SSL)
-
-V2.0.2 (December 3rd, 2018):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Device Icon issue.
- • FIXED: Cookie validation will not be attempted if the cookie state is empty.
-
-Device:
- • UPDATED: Device will no longer attempt to update data when it's marked offline by amazon.
- • FIXED: GetAlarmVolume Error.
+ ═════════
+   Device (v3.0.0)
+   August 27th, 2019
+ ═════════
+  • NEW: importUrl header param for Hubitat users to quickly import code.
+  • NEW: SSML Support for Speech commands.
+  • NEW: Better version checks for devices to prevent compatibility issues.
+  • NEW: alexaGuardStatus attribute.
+  • NEW: Log filtering options to reducing log output.
+  • FIXED: All web calls have been reworked to eliminate the JSON error in the logs.
+  • FIXED: setLevel type mismatch issues.
+  • FIXED: Extensive queue testing and optimizations.
+  • FIXED: Authentication handling tweaks and optimizations.
+  • FIXED: Other stuff i'm not remembering.
+  • UPDATED: Tweaked and optimized the Queue system in the device to be much more resilient and reliable.

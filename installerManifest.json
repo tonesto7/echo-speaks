@@ -1,42 +1,50 @@
 {
-  "namespace": "tonesto7",
-  "repoOwner": "tonesto7",
-  "repoName": "echo-speaks",
-  "repoBranch": "master",
-  "name": "Echo Speaks",
-  "author": "Anthony S.",
-  "description": "Integrate your Amazon Devices into your SmartThing Environment.",
-  "category": "My Apps",
-  "bannerUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
-  "forumUrl": "https://community.smartthings.com/t/release-echo-speaks/",
-  "docUrl": "http://thingsthataresmart.wiki/index.php?title=Echo_Speaks",
-  "releaseType": "production",
-  "keywords": [
-    "amazon",
-    "alexa",
-    "voice",
-    "assistant",
-    "echo"
-  ],
-  "notes": "Nothing to show here (yet)",
-  "smartApps": {
-    "parent": {
-      "name": "Echo Speaks",
-      "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
-      "published": true,
-      "oAuth": true,
-      "version": "2.1.3",
-      "appSettings": {},
-      "appUrl": "smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy"
+    "namespace": "tonesto7",
+    "repoOwner": "tonesto7",
+    "repoName": "echo-speaks",
+    "repoBranch": "master",
+    "name": "Echo Speaks",
+    "author": "Anthony S.",
+    "description": "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
+    "category": "My Apps",
+    "bannerUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
+    "forumUrl": "https://community.smartthings.com/t/release-echo-speaks/",
+    "docUrl": "https://tonesto7.github.io/echo-speaks-docs/#/docs",
+    "releaseType": "production",
+    "keywords": [
+        "amazon",
+        "alexa",
+        "voice",
+        "assistant",
+        "echo"
+    ],
+    "notes": "Nothing to show here (yet)",
+    "smartApps": {
+        "parent": {
+            "name": "Echo Speaks",
+            "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
+            "published": true,
+            "oAuth": true,
+            "version": "3.0.0",
+            "appSettings": {},
+            "appUrl": "smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy"
+        },
+        "children": [{
+            "name": "Echo Speaks - Actions",
+            "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
+            "published": true,
+            "oAuth": false,
+            "version": "3.0.0",
+            "appSettings": {},
+            "appUrl": "smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy"
+        }]
     },
-    "children": []
-  },
-  "deviceHandlers": [{
-    "name": "Echo Speaks Device",
-    "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.png",
-    "published": true,
-    "version": "2.1.3",
-    "appUrl": "deviceTypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy",
-    "optional": false
-  }]
+    "deviceHandlers": [{
+        "name": "Echo Speaks Device",
+        "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.png",
+        "published": true,
+        "version": "3.0.0",
+        "appUrl": "deviceTypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy",
+        "optional": false
+    }]
 }

@@ -1,0 +1,111 @@
+V2.1.2 (January 7th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • ADDED: New Music Search Test Page which allows you to perform search commands on your device.  It also allows you to perform tunein search and see results returned by Amazon
+
+Device (v2.1.2):
+ • FIXED: TuneIn search command is now fixed
+ • ADDED: Support for Alexa for Windows Detection (Supports all features)
+
+V2.1.1 (January 6th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • ADDED: Documentation link now on the main page.
+ • ADDED: regionLocale environment variable is now passed and created by the server.
+ • FIXED: Some minor bug fixes
+
+Server:
+ • FIXED: Hopefully the login issues for non-us users
+
+V2.1.0 (January 4th, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • ADDED: Support for Self refreshing Amazon Cookies!
+ • ADDED: Local it-IT to options
+
+Device:
+ • FIXED: forgot to add the actual function for the sendAlexaAppNotification
+
+Server:
+ • ADDED: Self refreshing Amazon Cookies!
+ • UPDATED: Lot of code cleanups
+
+V2.0.9 (January 3rd, 2019):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • UPDATED: increased required device version
+
+Device:
+ • FIXED: forgot to add the actual function for the sendAlexaAppNotification
+
+V2.0.8 (December 31st, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • UPDATED: UI refinements
+ • UPDATED: Bug fixes
+ • UPDATED: Mover musicprovider check to the app to elimate 50X errors and unnecessary calls by the devices
+ • FIXED: Rename devices setting is no longer ignored and works correctly
+
+Device:
+ • UPDATED: Bug fixes
+ • UPDATED: searchMusic commands with an optional sleep timer parameter
+ • ADDED: New Commands
+    Calendar Actions:
+    • playCalendarToday()
+    • playCalendarTomorrow()
+    • playCalendarNext()
+
+    New TTS Actions:
+    • playJoke()
+    • playFunFact()
+
+    Canned TTS Responses:
+    • playWelcomeHome()
+    • playGoodNight()
+
+    New Device Control Actions:
+    • stopAllDevices() - (Stops all echos devices)(ONLY Send to one device)
+
+    Send Announcements:
+    • playAnnouncement()
+    • playAnnouncementAll() - (To All Echo Devices)(Only send to one device)
+
+    Send Alexa App Notifications:
+    • sendAlexaAppNotification() - (Sends Push message to Alexa Mobile App)
+
+V2.0.7 (December 18th, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • UPDATED: Updated the cookie validation and notifification logic
+ • UPDATED: Bug fixes
+
+Device:
+ • UPDATED: Updated the cookie validation and notifification logic
+ • UPDATED: Bug fixes
+
+V2.0.5 (December 5th, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • UPDATED: Increased Full Device Polling from every 15 to every 10 minutes
+ • UPDATED: Device Style table is now remotely updatable via the appData.json file used for version info (v2.0.4).
+
+Device:
+ • ADDED: Refresh now sends triggers the smartapp to refresh the device list.
+ • ADDED: Devices prevent any speech while DoNotDisturb is enabled.
+ • ADDED: Devices now prevent commands while device is marked as offline. (Offline Status updates every 10 minutes)
+ • UPDATED: setVolumeSpeakAndRestore() now supports an optional 3rd parameter for the restore volume.  If it's not sent it will just use the old volume.
+ • UPDATED: Debug Logging data is more detailed for troubleshooting.
+ • FIXED: DoNotDisturb Status has been broken since v2 release. It's now fixed.
+
+Server (v2.0.2):
+ • FIXED: Web Interactions are now all via https:// (SSL)
+
+V2.0.2 (December 3rd, 2018):
+▔▔▔▔▔▔▔▔▔▔▔
+App:
+ • FIXED: Device Icon issue.
+ • FIXED: Cookie validation will not be attempted if the cookie state is empty.
+
+Device:
+ • UPDATED: Device will no longer attempt to update data when it's marked offline by amazon.
+ • FIXED: GetAlarmVolume Error.
