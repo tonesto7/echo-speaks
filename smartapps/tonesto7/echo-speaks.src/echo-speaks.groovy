@@ -1208,6 +1208,7 @@ private checkIfCodeUpdated() {
     Boolean codeUpdated = false
     List chgs = []
     // updChildVers()
+    logDebug("Code versions: ${state?.codeVersions}")
     if(state?.codeVersions) {
         if(state?.codeVersions?.mainApp != appVersion()) {
             checkVersionData(true)
@@ -1286,7 +1287,7 @@ private reInitChildApps() {
 
 private updCodeVerMap(key, val) {
     Map cv = atomicState?.codeVersions ?: [:]
-    if(cv?.containsKey(key) && cv[key] != val) {
+    if(!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val)) {
         cv[key as String] = val
         atomicState?.codeVersions = cv
     }
