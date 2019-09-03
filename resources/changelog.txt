@@ -1,4 +1,25 @@
-  ═════════
+
+ ══════════
+   Main App (v3.0.0.5)
+   September 3rd, 2019
+ ══════════
+  • UPDATED: Response designer to format SSML properly on save
+  • FIXED: recent change caused Exceptions on saving history.
+
+ ══════════
+   Actions App (v3.0.0.5)
+   September 3rd, 2019
+ ══════════
+  • FIXED: recent change caused Exceptions on saving history.
+
+ ══════════
+   Device (v3.0.0.5)
+   September 3rd, 2019
+ ══════════
+  • FIXED: recent change caused Exceptions on saving history.
+
+
+ ═════════
    Main App (v3.0.0.3)
    August 30th, 2019
  ═════════

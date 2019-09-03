@@ -17,8 +17,8 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.0.4" }
-String appModified()  { return "2019-08-31" }
+String appVersion()   { return "3.0.0.5" }
+String appModified()  { return "2019-09-03" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -2510,6 +2510,8 @@ String inTS(String t, String i = null, color=null, under=true) { return isST() ?
 String actChildName(){ return "Echo Speaks - Actions" }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs2" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
+def updateDocsInput() { href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")}
+
 String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 //PushOver-Manager Input Generation Functions
@@ -3130,12 +3132,14 @@ def appInfoSect()	{
                 String str2 = "Code Updates Available for:"
                 codeUpdItems?.each { item-> str2 += bulletItem(str2, item) }
                 paragraph pTS(str2, null, false, "#2784D9"), required: true, state: null
+                updateDocsInput()
             }
             if(minUpdMap?.updRequired) {
                 isNote=true
                 String str3 = "Updates Required for:"
                 minUpdMap?.updItems?.each { item-> str3 += bulletItem(str3, item)  }
                 paragraph pTS(str3, null, true, "red"), required: true, state: null
+                updateDocsInput()
             }
             if(!state?.authValid && !state?.resumeConfig) { isNote = true; paragraph pTS("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", null, false, "red"), required: true, state: null }
             if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
@@ -3185,18 +3189,19 @@ private getTextEditChild(id) {
 def renderConfig() {
     String title = "Echo Speaks"
     Boolean heroku = (isST() || (settings?.useHeroku == null || settings?.useHeroku != false))
-    String oStr = !heroku ? """<div id="localServerDiv" class="w-100 mb-3">
-                    <div class="my-2 text-left">
-                        <p>Due to the complexity of node environments I will not be able to support local server setup</p>
-                        <h5>1. Install the node server</h5>
-                        <h5>2. Start the node server</h5>
-                        <h5>3. Open the servers web config page</h5>
-                        <h5>4. Copy the following URL and use it in the appCallbackUrl field of the Server Web Config Page</h5>
-                    </div>
-                    <div class="all-copy nameContainer mx-0 mb-2 p-1">
-                        <p id="copyCallback" class="m-0 p-0">${getAppEndpointUrl("receiveData") as String}</p>
-                    </div>
-                </div>""" : """
+    String oStr = !heroku ? """
+        <div id="localServerDiv" class="w-100 mb-3">
+            <div class="my-2 text-left">
+                <p>Due to the complexity of node environments I will not be able to support local server setup</p>
+                <h5>1. Install the node server</h5>
+                <h5>2. Start the node server</h5>
+                <h5>3. Open the servers web config page</h5>
+                <h5>4. Copy the following URL and use it in the appCallbackUrl field of the Server Web Config Page</h5>
+            </div>
+            <div class="all-copy nameContainer mx-0 mb-2 p-1">
+                <p id="copyCallback" class="m-0 p-0">${getAppEndpointUrl("receiveData") as String}</p>
+            </div>
+        </div>""" : """
         <div id="cloudServerDiv" class="w-100 mb-3">
             <div class="my-2 text-center">
                 <h5>1. Copy the following Name and use it when asked by Heroku</h5>
@@ -3231,42 +3236,17 @@ def renderConfig() {
         <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/js/bootstrap.min.js"></script>
         <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
         <style>
-            .btn-rounded {
-                border-radius: 50px!important;
-            }
-            span img {
-                width: 48px;
-                height: auto;
-            }
-            span p {
-                display: block;
-            }
-            .all-copy p {
-                -webkit-user-select: all;
-                -moz-user-select: all;
-                -ms-user-select: all;
-                user-select: all;
-            }
-            .nameContainer {
-                border-radius: 18px;
-                color: rgba(255,255,255,1);
-                font-size: 1.5rem;
-                background: #666;
-                -webkit-box-shadow: 1px 1px 1px 0 rgba(0,0,0,0.3) ;
-                box-shadow: 1px 1px 1px 0 rgba(0,0,0,0.3) ;
-                text-shadow: 1px 1px 1px rgba(0,0,0,0.2) ;
-            }
+            .btn-rounded { border-radius: 50px!important; }
+            span img { width: 48px; height: auto; }
+            span p { display: block; }
+            .all-copy p { -webkit-user-select: all; -moz-user-select: all; -ms-user-select: all; user-select: all; }
+            .nameContainer { border-radius: 18px; color: rgba(255,255,255,1); font-size: 1.5rem; background: #666; -webkit-box-shadow: 1px 1px 1px 0 rgba(0,0,0,0.3); box-shadow: 1px 1px 1px 0 rgba(0,0,0,0.3); text-shadow: 1px 1px 1px rgba(0,0,0,0.2); }
         </style>
     <head>
     <body>
         <div style="margin: 0 auto; max-width: 600px;">
             <form class="p-1">
-                <div class="my-3 text-center">
-                    <span>
-                        <img src="${getAppImg("echo_speaks.1x", true)}"/>
-                        <p class="h4 text-center">Echo Speaks</p>
-                    </span>
-                </div>
+                <div class="my-3 text-center"><span><img src="${getAppImg("echo_speaks.1x", true)}"/><p class="h4 text-center">Echo Speaks</p></span></div>
                 <hr>
                 ${oStr}
 
@@ -3317,6 +3297,8 @@ def renderTextEditPage() {
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/mode/simple.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/xml/xml.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/hint/show-hint.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/hint/xml-hint.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/edit/closetag.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/edit/matchtags.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/htmlmixed/htmlmixed.min.js"></script>
@@ -3346,8 +3328,9 @@ def renderTextEditPage() {
                                 <textarea id="editor"></textarea>
                                 <div class="text-center blue-text"><small>Each line item represents a single response. Multiple lines will trigger a random selection.</small></div>
                                 <div class="d-flex justify-content-center">
-                                    <button id="newLineBtn" style="border-radius: 50px !important;" class="btn btn-sm btn-outline-info px-1 my-2 mx-3" type="button"><i class="fas fa-plus mr-1"></i>Add New Response Line</button>
-                                    <button style="border-radius: 50px !important;" class="btn btn-sm btn-info my-2" type="submit"><i class="fa fa-save mr-1"></i>Submit Responses</button>
+                                    <button id="clearBtn" style="border-radius: 50px !important;" class="btn btn-sm btn-outline-warning px-1 my-2 mx-3" type="button"><i class="fas fa-times-circle mr-1"></i>Clear All</button>
+                                    <button id="newLineBtn" style="border-radius: 50px !important;" class="btn btn-sm btn-outline-info px-1 my-2 mx-3" type="button"><i class="fas fa-plus mr-1"></i>New Response</button>
+                                    <button id="submitBtn" style="border-radius: 50px !important;" class="btn btn-sm btn-outline-success my-2" type="submit"><i class="fa fa-save mr-1"></i>Save Responses</button>
                                 </div>
                             </div>
                             <div class="row mt-2 mx-auto">
@@ -3528,22 +3511,44 @@ def renderTextEditPage() {
                     let ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
                     let ssmlSpeechConsUrl = "https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-english-us.html"
 
-                    function cleanTxt(txt) {
-                        txt = txt.split(';').map(t => t.trim()).join(';')
-                        return txt.endsWith(';') ? txt.replace(/;([^;]*)\$/, '\$1') : txt
+                    function cleanEditorText(txt) {
+                        txt = txt.split(';').filter(t => t.trim().length > 0).map(t => t.trim()).join(';');
+                        txt = txt.endsWith(';') ? txt.replace(/;([^;]*)\$/, '\$1') : txt;
+                        return txt.replace(/  +/g, ' ').replace('> <', '><');
                     }
 
                     \$(document).ready(function() {
                         \$('#inputTitle').text(curTitle);
                         \$('#inputDesc').html(curDesc);
-                        \$('#editor').val(cleanTxt(curText));
+                        \$('#editor').val(cleanEditorText(curText));
                         CodeMirror.defineSimpleMode("simplemode", {
                             start: [{
+                                regex: /<speak>|<\\/speak>/,
+                                token: 'tag'
+                            }, {
+                                regex: /<voice[^>]+>|<\\/voice>/,
+                                token: 'attribute'
+                            }, {
+                                regex: /<say-as[^>]+>|<\\/say-as>|<emphasis[^>]+>|<\\/emphasis>/,
+                                token: 'string'
+                            }, {
+                                regex: /<prosody[^>]+>|<\\/prosody>/,
+                                token: 'keyword'
+                            }, {
                                 regex: /%[a-z]+%/,
-                                token: "variable"
+                                token: "variable-2"
                             }, {
                                 regex: /<[^>]+>/,
-                                token: 'variable-3'
+                                token: 'variable'
+                            }, {
+                                regex: /=["']?((?:.(?!["']?\\s+(?:\\S+)=|[>"']))+.)["']?/,
+                                token: 'value'
+                            }, {
+                                regex: /REPLACE_THIS_TEXT/,
+                                token: "error"
+                            }, {
+                                regex: /0x[a-f\\d]+|[-+]?(?:\\.\\d+|\\d+\\.?\\d*)(?:e[-+]?\\d+)?/i,
+                                token: "number"
                             }]
                         });
 
@@ -3552,13 +3557,18 @@ def renderTextEditPage() {
                             mode: 'simplemode',
                             lineNumbers: true,
                             lineSeparator: ';',
+                            styleActiveLine: true,
                             showCursorWhenSelecting: true,
                             autoCloseTags: true,
                             lineWrapping: false,
                             autocorrect: false,
                             autocapitalize: false,
-                            spellcheck: true
+                            spellcheck: true,
+                            styleActiveLine: {
+                                nonEmpty: true
+                            }
                         });
+                        editor.markClean();
 
                         \$('#newLineBtn').click((e) => {
                             let doc = editor.getDoc();
@@ -3567,12 +3577,24 @@ def renderTextEditPage() {
                             doc.replaceRange(';', CodeMirror.Pos(lineCnt - 1));
                         });
 
+                        \$('#clearBtn').click((e) => {
+                            editor.setValue('');
+                        });
+
                         function updateInfo(instance, changeObj) {
                             selectedLineNum = changeObj.to.line;
+                            if (!editor.isClean()) {
+                                \$('#submitBtn').removeClass('btn-outline-success').addClass('btn-success');
+                            } else {
+                                \$('#submitBtn').removeClass('btn-success').addClass('btn-outline-success');
+                            }
                             // \$('#lineCnt').text('Response Cnt: ' + changeObj.to.line);
                         }
 
                         editor.on("change", updateInfo);
+                        editor.on('beforeSelectionChange', (e) => {
+                            //Handles selection changes
+                        })
 
                         \$('form').submit(function(e) {
                             console.log('form submit...')
@@ -3593,23 +3615,27 @@ def renderTextEditPage() {
                                 }
                             }
                             xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-                            console.log(\$('#editor').val());
+                            // console.log(\$('#editor').val());
+                            flattenSsml();
+                            console.log('editor: ', editor.getValue());
                             xmlhttp.send(JSON.stringify({
-                                val: \$('#editor').val(),
+                                val: editor.getValue(),
                                 name: inName,
                                 type: 'text'
                             }));
+                            editor.markClean();
+                            \$('#submitBtn').removeClass('btn-success').addClass('btn-outline-info');
                         });
 
                         function insertSsml(editor, str, sTags = true) {
                             let doc = editor.getDoc();
                             let cursor = doc.getCursor();
                             let line = cursor.line;
-                            console.log(`lineTxt (\${editor.getLine(line).length}): `, editor.getLine(line))
+                            // console.log(`lineTxt (\${editor.getLine(line).length}): `, editor.getLine(line))
                             if (editor.getSelection().length > 0) {
-                                editor.replaceSelection(` \${str}`);
+                                editor.replaceSelection(cleanEditorText(` \${str}`));
                             } else {
-                                doc.replaceRange(` \${str}`, {
+                                doc.replaceRange(cleanEditorText(` \${str}`), {
                                     line: line,
                                     ch: cursor.ch
                                 });
@@ -3631,6 +3657,45 @@ def renderTextEditPage() {
                                     ch: editor.getLine(line).length
                                 });
                             }
+                        }
+
+                        function flattenSsml() {
+                            let doc = editor.getDoc();
+                            let mlInd = 0
+                            let mlItems = [];
+                            let ln = 0
+                            doc.eachLine(line => {
+                                if (line.text.trim().startsWith('<speak>') && !line.text.trim().endsWith('</speak>')) {
+                                    mlItems[mlInd] = {
+                                        s: ln,
+                                        str: line.text.replace(';', '').trim()
+                                    };
+                                } else if (!line.text.trim().startsWith('<speak>') && line.text.trim().endsWith('</speak>')) {
+                                    if (mlItems[mlInd] !== undefined && mlItems[mlInd].s !== undefined) {
+                                        mlItems[mlInd].e = ln;
+                                        mlItems[mlInd].str += line.text.replace(';', '').trim();
+                                        mlItems[mlInd].el = line.text.length;
+                                        mlInd++;
+                                    }
+                                } else {
+                                    if (mlItems[mlInd] !== undefined) {
+                                        mlItems[mlInd].str += line.text.replace(';', '').trim();
+                                    }
+                                }
+                                ln++;
+                            });
+                            // console.log(mlItems);
+                            if (mlItems.length) {
+                                doc.replaceRange(mlItems[0].str, {
+                                    line: mlItems[0].s,
+                                    ch: 0
+                                }, {
+                                    line: mlItems[0].e,
+                                    ch: mlItems[0].el
+                                });
+                                flattenSsml();
+                            }
+                            editor.setValue(cleanEditorText(editor.getValue()));
                         }
 
                         \$('.ssml-buttons input:not(.no-submit)').click(function() {
