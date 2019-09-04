@@ -17,8 +17,8 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.0.5" }
-String appModified() { return "2019-09-03" }
+String appVersion()  { return "3.0.0.6" }
+String appModified() { return "2019-09-04" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -507,13 +507,13 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
             input "trig_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
             if (settings?."trig_${inType}_cmd") {
                 if (settings?."trig_${inType}_cmd" in ["between", "below"]) {
-                    input "trig_${inType}_low", "number", title: inTS("a ${settings?."trig_${inType}_cmd" == "between" ? "Low " : ""}${cmdTitle} of..."), required: true, submitOnChange: true
+                    input "trig_${inType}_low", "number", title: inTS("a ${settings?."trig_${inType}_cmd" == "between" ? "Low " : ""}${cmdTitle} of...", getAppImg("low", true)), required: true, submitOnChange: true, image: getAppImg("low")
                 }
                 if (settings?."trig_${inType}_cmd" in ["between", "above"]) {
-                    input "trig_${inType}_high", "number", title: inTS("${settings?."trig_${inType}_cmd" == "between" ? "and a high " : "a "}${cmdTitle} of..."), required: true, submitOnChange: true
+                    input "trig_${inType}_high", "number", title: inTS("${settings?."trig_${inType}_cmd" == "between" ? "and a high " : "a "}${cmdTitle} of...", getAppImg("high", true)), required: true, submitOnChange: true, image: getAppImg("high")
                 }
                 if (settings?."trig_${inType}_cmd" == "equals") {
-                    input "trig_${inType}_equal", "number", title: inTS("a ${cmdTitle} of..."), required: true, submitOnChange: true
+                    input "trig_${inType}_equal", "number", title: inTS("a ${cmdTitle} of...", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
                 }
                 if (settings?.trig_level?.size() > 1) {
                     input "trig_${inType}_all", "bool", title: inTS("Require ALL devices to be (${settings?."trig_${inType}_cmd"}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
@@ -640,13 +640,13 @@ def condNumValSect(String inType, String capType, String sectStr, String devTitl
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
             if (settings?."cond_${inType}_cmd") {
                 if (settings?."cond_${inType}_cmd" in ["between", "below"]) {
-                    input "cond_${inType}_low", "number", title: inTS("a ${settings?."cond_${inType}_cmd" == "between" ? "Low " : ""}${cmdTitle} of..."), required: true, submitOnChange: true
+                    input "cond_${inType}_low", "number", title: inTS("a ${settings?."cond_${inType}_cmd" == "between" ? "Low " : ""}${cmdTitle} of...", getAppImg("low", true)), required: true, submitOnChange: true, image: getAppImg("low")
                 }
                 if (settings?."cond_${inType}_cmd" in ["between", "above"]) {
-                    input "cond_${inType}_high", "number", title: inTS("${settings?."cond_${inType}_cmd" == "between" ? "and a high " : "a "}${cmdTitle} of..."), required: true, submitOnChange: true
+                    input "cond_${inType}_high", "number", title: inTS("${settings?."cond_${inType}_cmd" == "between" ? "and a high " : "a "}${cmdTitle} of...", getAppImg("high", true)), required: true, submitOnChange: true, image: getAppImg("high")
                 }
                 if (settings?."cond_${inType}_cmd" == "equals") {
-                    input "cond_${inType}_equal", "number", title: inTS("a ${cmdTitle} of..."), required: true, submitOnChange: true
+                    input "cond_${inType}_equal", "number", title: inTS("a ${cmdTitle} of...", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
                 }
                 if (settings?.cond_level?.size() > 1) {
                     input "cond_${inType}_all", "bool", title: inTS("Require ALL devices to be (${settings?."cond_${inType}_cmd"}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
@@ -726,7 +726,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Type Config:"), hideable: true) {
                             actionVariableDesc(actionType)
-                            href url: parent?.getTextEditorPath(app?.id, "act_speak_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Global Action Text Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
+                            href url: parent?.getTextEditorPath(app?.id, "act_speak_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Defaul Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
                                     description: settings?."act_speak_txt" ?: "Open Response Designer...", image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
@@ -744,7 +744,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
                             actionVariableDesc(actionType)
-                            href url: parent?.getTextEditorPath(app?.id, "act_announcement_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Global Action Text Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
+                            href url: parent?.getTextEditorPath(app?.id, "act_announcement_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
                                     description: settings?."act_announcement_txt" ?: "Open Response Designer...", image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
@@ -1826,7 +1826,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
             def dayOk = !once || (once && !isDateToday(prevDt))
-            logInfo("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "OK" : "Block"}) | OnceDaily: (${once}) - Status: (${dayOk ? "OK" : "Block"})")
+            logDebug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "OK" : "Block"}) | OnceDaily: (${once}) - Status: (${dayOk ? "OK" : "Block"})")
             ok = (waitOk && dayOk)
         }
     }
@@ -2079,12 +2079,12 @@ Boolean conditionsConfigured() {
 private executeActTest() {
     settingUpdate("actTestRun", "false", "bool")
     String actType = settings?.actionType ?: null
-    Boolean hasText = (settings?."act_${actType}_txt" != null)
+    Boolean hasGlbText = (settings?."act_${actType}_txt" != null)
     Map testData = [:]
     testData?.evt = [name: "contact", displayName: "some test device", value: "open", date: new Date()]
     testData?.custText = null
     if(actType in ["speak", "announcement"]) {
-        if(hasText) {
+        if(hasGlbText) {
             testData?.custText = decodeVariables(testData.evt, settings?."act_${actType}_txt")
             // testData?.evt = null
         } else {
@@ -2095,6 +2095,26 @@ private executeActTest() {
         }
     }
     executeAction(testData?.evt, true, testData?.custText, "executeActTest")
+}
+
+String getResponseItem(evt, isRepeat) {
+    String respItem = null
+    String actType = settings?.actionType ?: null
+    String glbText = (settings?."act_${actType}_txt" != null)
+    if(glbText) {
+        List eTxtItems = glbText ? glbText?.toString()?.tokenize(";") : []
+        respItem = getRandomItem(eTxtItems)
+    } else {
+        String dct = settings?."trig_${evt?.name}_txt" ?: null
+        String dcart = settings?."trig_${evt?.name}_after_repeat" && settings?."trig_${evt?.name}_after_repeat_txt" ? settings?."trig_${evt?.name}_after_repeat_txt" : null
+        List eTxtItems = dct ? dct?.toString()?.tokenize(";") : []
+        List rTxtItems = dcart ? dcart?.toString()?.tokenize(";") : []
+        if(isRepeat && rTxtItems?.size()) {
+            respItem = getRandomItem(rTxtItems)
+        } else { respItem = getRandomItem(eTxtItems) }
+    }
+    if(respItem) { return decodeVariables(evt, respItem) }
+    return null
 }
 
 Map getRandomTrigEvt() {
@@ -2229,7 +2249,8 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
                 if(actConf[actType]) {
                     String txt = null
                     if(actConf[actType]?.text) {
-                        txt = evt ? (decodeVariables(evt, actConf[actType]?.text)) : actConf[actType]?.text
+                        List eTxtItems = actConf[actType]?.text ? actConf[actType]?.text?.toString()?.tokenize(";") : []
+                        txt = evt ? (decodeVariables(evt, getRandomItem(eTxtItems))) : getRandomItem(eTxtItems)
                     } else {
                         if(custText && actConf[actType]?.evtText) { txt = custText }
                         else { txt = "Invalid Text Received... Please verify Action configuration..." }
@@ -3030,6 +3051,7 @@ String getActionDesc() {
         str += settings?.act_volume_change ? " • Set Volume: (${settings?.act_volume_change})\n" : ""
         str += settings?.act_volume_restore ? " • Restore Volume: (${settings?.act_volume_restore})\n" : ""
         str += settings?.act_delay ? " • Delay: (${settings?.act_delay})\n" : ""
+        str += settings?."act_${settings?.actionType}_txt" ? " • Using Default Response: (True)\n" : ""
         str += "\ntap to modify..."
         return str
     } else {
