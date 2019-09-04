@@ -1314,7 +1314,8 @@ def scheduleTrigEvt() {
     if(dOk && wOk && mOk) {
         sTripMap?.lastRun = dateMap
         atomicState?.schedTrigMap = sTrigMap
-        executeAction(evt, false, null, "scheduleTrigEvt")
+        Date dt = new Date()
+        executeAction([name: "Schedule", displayName: "Scheduled Trigger", value: time2Str(dt?.toString()), date: dt, deviceId: null], false, "scheduleTrigEvt", false, false)
     }
 }
 
@@ -1447,32 +1448,27 @@ private getDevEvtHandlerName(String type) {
 def sunriseTimeHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
-    String custText = null
-    executeAction(evt, false, custText, "sunriseTimeHandler")
+    executeAction(evt, false, "sunriseTimeHandler", false, false)
 }
 
 def sunsetTimeHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
-    String custText = null
-    executeAction(evt, false, custText, "sunsetTimeHandler")
+    executeAction(evt, false, "sunsetTimeHandler", false, false)
 }
 
 def alarmEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-    String custText = null
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     Boolean useAlerts = (settings?.trig_alarm == "Alerts")
     switch(evt?.name) {
         case "hsmStatus":
         case "alarmSystemStatus":
-            def inc = (isST() && useAlerts) ? getShmIncidents() : null
-            custText = "The ${getAlarmSystemName()} is now set to ${evt?.value}"
-            executeAction(evt, false, custText, "alarmEvtHandler")
+            // def inc = (isST() && useAlerts) ? getShmIncidents() : null
+            executeAction(evt, false, "alarmEvtHandler", false, false)
             break
         case "hsmAlert":
-            custText = "A ${getAlarmSystemName()} ${evt?.displayName} alert with ${evt?.value} has occurred."
-            executeAction(evt, false, custText, "alarmEvtHandler")
+            executeAction(evt, false, "alarmEvtHandler", false, false)
             break
     }
 }
@@ -1576,8 +1572,8 @@ def afterEvtCheckHandler() {
 
 def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     def evtDelay = now() - evt?.date?.getTime()
-    String custText = null
     Boolean evtOk = false
+    Boolean evtAd = false
     List d = settings?."trig_${evt?.name}"
     String dc = settings?."trig_${evt?.name}_cmd"
     Boolean dca = (settings?."trig_${evt?.name}_all" == true)
@@ -1604,36 +1600,12 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
             if(d?.size() && dc) {
                 if(dc == "any") {
                     evtOk = true
-                    if(aftRepEvt) {
-                        custText = (repeatTxtItems?.size()) ? decodeVariables(evt, getRandomItem(repeatTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
-                    } else {
-                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
-                    }
                 } else {
                     if(dca && (allDevCapValsEqual(d, dc, evt?.value))) {
                         evtOk = true
-                        if(d?.size() > 1) {
-                            if(aftRepEvt) {
-                                custText = (repeatTxtItems?.size()) ? decodeVariables(evt, getRandomItem(repeatTxtItems)) : "All ${d?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
-                            } else {
-                                custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "All ${d?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
-                            }
-                        } else {
-                            if(aftRepEvt) {
-                                custText = (repeatTxtItems?.size()) ? decodeVariables(evt, getRandomItem(repeatTxtItems)) : "All ${d?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
-                            } else {
-                                custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
-                            }
-                        }
+                        evtAd = true
                     } else {
-                        if(evt?.value == dc) {
-                            evtOk=true
-                            if(aftRepEvt) {
-                                custText = (repeatTxtItems?.size()) ? decodeVariables(evt, getRandomItem(repeatTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
-                            } else {
-                                custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value}"
-                            }
-                        }
+                        if(evt?.value == dc) { evtOk=true }
                     }
                 }
             }
@@ -1650,17 +1622,17 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
             Double dce = settings?."trig_${evt?.name}_equal"
             Map valChk = deviceEvtProcNumValue(evt, d, dc, dcl, dch, dce, dca)
             evtOk = valChk?.evtOk
-            custText = valChk?.custText
+            evtAd = valChk?.evtAd
             break
     }
     if(evtOk && devEvtWaitOk) {
-        executeAction(evt, false, custText, "deviceEvtHandler(${evt?.name})", aftRepEvt)
+        executeAction(evt, false, "deviceEvtHandler(${evt?.name})", aftRepEvt, evtAd)
     }
 }
 
 Map deviceEvtProcNumValue(evt, List devs = null, String cmd = null, Double dcl = null, Double dch = null, Double dce = null, Boolean dca = false) {
-    String custText = null
     Boolean evtOk = false
+    Boolean evtAd = false
     // log.debug "deviceEvtProcNumValue | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}"
     if(devs?.size() && cmd && evt?.value?.isNumber()) {
         String postfix = getAttrPostfix(evt?.name)
@@ -1671,58 +1643,32 @@ Map deviceEvtProcNumValue(evt, List devs = null, String cmd = null, Double dcl =
             case "equals":
                 if(!dca && dce && dce?.toDouble() == evt?.value?.toDouble()) {
                     evtOk=true
-                } else if(dca && dce && allDevCapNumValsEqual(devs, evt?.name, dce)) { evtOk=true }
+                } else if(dca && dce && allDevCapNumValsEqual(devs, evt?.name, dce)) { evtOk=true; evtAd=true; }
                 break
             case "between":
                 if(!dca && dcl && dch && (evt?.value?.toDouble() in (dcl..dch))) {
                     evtOk=true
-                } else if(dca && dcl && dch && allDevCapNumValsBetween(devs, evt?.name, dcl, dch)) { evtOk=true }
+                } else if(dca && dcl && dch && allDevCapNumValsBetween(devs, evt?.name, dcl, dch)) { evtOk=true; evtAd=true; }
                 break
             case "above":
                 if(!dca && dch && (evt?.value?.toDouble() > dch)) {
                     evtOk=true
-                } else if(dca && dch && allDevCapNumValsAbove(devs, evt?.name, dch)) { evtOk=true }
+                } else if(dca && dch && allDevCapNumValsAbove(devs, evt?.name, dch)) { evtOk=true; evtAd=true; }
                 break
             case "below":
                 if(dcl && (evt?.value?.toDouble() < dcl)) {
                     evtOk=true
-                } else if(dca && dcl && allDevCapNumValsBelow(devs, evt?.name, dcl)) { evtOk=true }
+                } else if(dca && dcl && allDevCapNumValsBelow(devs, evt?.name, dcl)) { evtOk=true; evtAd=true; }
                 break
         }
-        if(evtOk) {
-            if(dca) {
-                custText = "All ${devs?.size()} ${evt?.name} devices are now ${v} ${postfix}"
-            } else {
-                switch(evt?.name) {
-                    case "thermostatFanMode":
-                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Fan Mode is ${v} ${postfix}"
-                        break
-                    case "thermostatMode":
-                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Mode is ${v} ${postfix}"
-                        break
-                    case "coolSetpoint":
-                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Cool Setpoint is ${v} ${postfix}"
-                        break
-                    case "heatSetpoint":
-                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Heat Setpoint is ${v} ${postfix}"
-                        break
-                    case "thermostatOperatingState":
-                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Operating State is ${v} ${postfix}"
-                        break
-                    default:
-                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${v} ${postfix}"
-                        break
-                }
-            }
-        }
     }
-    return [evtOk: evtOk, custText: custText]
+    return [evtOk: evtOk, evtAd: evtAd]
 }
 
 def thermostatEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-    String custText = null
     Boolean evtOk = false
+    Boolean evtAd = false
     List d = settings?."trig_${evt?.name}"
     String dc = settings?."trig_${evt?.name}_cmd"
     Boolean dca = (settings?."trig_${evt?.name}_all" == true)
@@ -1746,7 +1692,7 @@ def thermostatEvtHandler(evt) {
                             Double dce = settings?.trig_thermostat_setpoint_equal
                             Map valChk = deviceEvtProcNumValue(evt, d, dsc, dcl, dch, dce, null)
                             evtOk = valChk?.evtOk
-                            custText = valChk?.custText
+                            evtAd = valChk?.evtAd
                         }
                         break
                 }
@@ -1760,7 +1706,7 @@ def thermostatEvtHandler(evt) {
                     Double dce = settings?.trig_thermostat_ambient_equal
                     Map valChk = deviceEvtProcNumValue(evt, d, dac, dcl, dch, dce, null)
                     evtOk = valChk?.evtOk
-                    custText = valChk?.custText
+                    evtAd = valChk?.evtAd
                 }
                 break
 
@@ -1769,32 +1715,23 @@ def thermostatEvtHandler(evt) {
             case "fanmode":
                 if(evt?.name == "thermostatMode") {
                     String dmc = settings?.trig_thermostat_fanmode_cmd ?: null
-                    if(dmc == "any" || evt?.value == dmc) {
-                        evtOk=true
-                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Mode is ${evt?.value}"
-                    }
+                    if(dmc == "any" || evt?.value == dmc) { evtOk=true }
                 }
 
                 if(evt?.name == "thermostatOperatingState") {
                     String doc = settings?.trig_thermostat_state_cmd ?: null
-                    if(doc == "any" || evt?.value == doc) {
-                        evtOk=true
-                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Operating State is ${evt?.value}"
-                    }
+                    if(doc == "any" || evt?.value == doc) { evtOk=true }
                 }
 
                 if(evt?.name == "thermostatFanMode") {
                     String dfc = settings?.trig_thermostat_mode_cmd ?: null
-                    if(dfc == "any" || evt?.value == dfc) {
-                        evtOk=true
-                        custText = (evtTxtItems?.size()) ? decodeVariables(evt, getRandomItem(evtTxtItems)) : "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} Fan Mode is ${evt?.value}"
-                    }
+                    if(dfc == "any" || evt?.value == dfc) { evtOk=true }
                 }
                 break
         }
     }
     if(evtOk && devEvtWaitOk) {
-        executeAction(evt, false, custText, "thermostatEvtHandler(${evt?.name})")
+        executeAction(evt, false, "thermostatEvtHandler(${evt?.name})", false, evtAd)
     }
 }
 
@@ -1855,30 +1792,26 @@ String getAttrPostfix(attr) {
 
 def routineEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-    String custText = "The ${evt?.displayName} routine was just executed!."
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
-    executeAction(evt, false, custText, "routineEvtHandler")
+    executeAction(evt, false, "routineEvtHandler", false, false)
 }
 
 def sceneEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-    String custText = "The ${evt?.displayName} scene was just activated!."
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
-    executeAction(evt, false, custText, "sceneEvtHandler")
+    executeAction(evt, false, "sceneEvtHandler", false, false)
 }
 
 def modeEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-    String custText = "The location mode is now set to ${evt?.value}"
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
-    executeAction(evt, false, "The location mode is now set to ${evt?.value}", "modeEvtHandler")
+    executeAction(evt, false, "modeEvtHandler", false, false)
 }
 
 def locationEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-    String custText = null
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
-    executeAction(evt, false, custText, "locationEvtHandler")
+    executeAction(evt, false, "locationEvtHandler", false, false)
 }
 
 def weatherCheckHandler() {
@@ -1888,7 +1821,7 @@ def weatherCheckHandler() {
     // def alerts = getTwcAlerts()
     // log.debug "alerts: ${alerts}"
 
-    // executeAction(evt, false, custText, "locationEvtHandler")
+    // executeAction(evt, false, "locationEvtHandler", false, false)
 }
 
 def scheduleAfterCheck(data) {
@@ -2078,64 +2011,23 @@ Boolean conditionsConfigured() {
 
 private executeActTest() {
     settingUpdate("actTestRun", "false", "bool")
-    String actType = settings?.actionType ?: null
-    Boolean hasGlbText = (settings?."act_${actType}_txt" != null)
-    Map testData = [:]
-    testData?.evt = [name: "contact", displayName: "some test device", value: "open", date: new Date()]
-    testData?.custText = null
-    if(actType in ["speak", "announcement"]) {
-        if(hasGlbText) {
-            testData?.custText = decodeVariables(testData.evt, settings?."act_${actType}_txt")
-            // testData?.evt = null
-        } else {
-            Map evtData = getRandomTrigEvt()
-            // log.debug "evtData: ${evtData}"
-            testData?.evt = evtData?.evt
-            testData?.custText = evtData?.custText
-        }
+    Map evt = [name: "contact", displayName: "some test device", value: "open", date: new Date()]
+    if(settings?.actionType in ["speak", "announcement"]) {
+        evt = getRandomTrigEvt()
     }
-    executeAction(testData?.evt, true, testData?.custText, "executeActTest")
-}
-
-String getResponseItem(evt, isRepeat) {
-    String respItem = null
-    String actType = settings?.actionType ?: null
-    String glbText = (settings?."act_${actType}_txt" != null)
-    if(glbText) {
-        List eTxtItems = glbText ? glbText?.toString()?.tokenize(";") : []
-        respItem = getRandomItem(eTxtItems)
-    } else {
-        String dct = settings?."trig_${evt?.name}_txt" ?: null
-        String dcart = settings?."trig_${evt?.name}_after_repeat" && settings?."trig_${evt?.name}_after_repeat_txt" ? settings?."trig_${evt?.name}_after_repeat_txt" : null
-        List eTxtItems = dct ? dct?.toString()?.tokenize(";") : []
-        List rTxtItems = dcart ? dcart?.toString()?.tokenize(";") : []
-        if(isRepeat && rTxtItems?.size()) {
-            respItem = getRandomItem(rTxtItems)
-        } else { respItem = getRandomItem(eTxtItems) }
-    }
-    if(respItem) { return decodeVariables(evt, respItem) }
-    return null
+    executeAction(evt, true, "executeActTest", false, false)
 }
 
 Map getRandomTrigEvt() {
-    // log.debug "getRandomTrigEvt..."
-    List noDevOpts = ["mode","routine", "hsmStatus", "alarmSystemStatus"]
+    List noDevOpts = ["mode", "routine", "scene", "hsmStatus", "alarmSystemStatus"]
+    Boolean useDev = ((trig in noDevOpts) == false)
     Map evt = [:]
     String actType = settings?.actionType
     String trig = getRandomItem(settings?.triggerEvents?.collect { it as String })
-    List trigDevs = (!trig in noDevOpts) ? settings?."trig_${trig}" : null
-    def randDev = (!trig in noDevOpts) ? getRandomItem(trigDevs) : null
-    def trigDev = (!trig in noDevOpts) ? trigDevs?.find { it?.id == randDev?.id } : null
+    def trigDevs = useDev ? settings?."trig_${trig}" : null
+    def randDev = useDev ? getRandomItem(trigDevs) : null
+    def trigDev = (useDev && randDev) ? trigDevs?.find { it?.id == randDev?.id } : null
     String devId = trigDev?.id ?: null
-    Boolean hasGblTxt = (actType in ["speak", "announcement"] && settings?."act_${actionType}_txt")
-
-    Boolean dca = settings?."trig_${trig}_all"
-    String dc = settings?."trig_${trig}_cmd" ?: null
-    String dct = settings?."trig_${trig}_txt" ?: null
-    String dcart = settings?."trig_${trig}_after_repeat" && settings?."trig_${trig}_after_repeat_txt" ? settings?."trig_${trig}_after_repeat_txt" : null
-    List eTxtItems = dct ? dct?.toString()?.tokenize(";") : []
-    List rTxtItems = dcart ? dcart?.toString()?.tokenize(";") : []
-
     Map attVal = [
         "switch": getRandomItem(["on", "off"]),
         door: getRandomItem(["open", "closed", "opening", "closing"]),
@@ -2159,40 +2051,11 @@ Map getRandomTrigEvt() {
 
     if(attVal?.containsKey(trig)) {
         if(trig in noDevOpts) {
-            evt?.evt = [name: trig, displayName: "", value: attVal[trig], date: new Date(), deviceId: devId]
-        } else { evt?.evt = [name: trig, displayName: randDev?.displayName, value: attVal[trig], date: new Date(), deviceId: devId] }
+            evt = [name: trig, displayName: "", value: attVal[trig], date: new Date(), deviceId: devId]
+        } else { evt = [name: trig, displayName: trigDev?.displayName, value: attVal[trig], date: new Date(), deviceId: devId] }
     }
-    if(!hasGblTxt) {
-        List txtItems = eTxtItems + rTxtItems
-        if(txtItems?.size()) {
-            evt?.custText = decodeVariables(evt?.evt, getRandomItem(txtItems))
-        } else {
-            switch(trig) {
-                case "mode":
-                    evt?.custText = "The location mode is now set to ${attVal[trig]}"
-                    break
-                case "routine":
-                    evt?.custText = "The ${attVal[trig]} routine was just executed!."
-                    break
-                case "alarm":
-                    evt?.custText = "The ${getAlarmSystemName()} is now set to ${attVal[trig]}"
-                    break
-                case "humidity":
-                case "temperature":
-                case "power":
-                case "illuminance":
-                case "level":
-                case "battery":
-                    evt?.custText = "${trigDev?.displayName}${!trigDev?.displayName?.toLowerCase()?.contains(trig) ? " ${trig}" : ""} is ${devAttVal[trig]} ${getAttrPostfix(trig)}"
-                    break
-                default:
-                    evt?.custText = "${trigDev?.displayName}${!trigDev?.displayName?.toLowerCase()?.contains(trig) ? " ${trig}" : ""} is ${devAttVal[trig]}"
-                    break
-            }
-        }
-    } else { evt?.custText = settings?."act_${actionType}_txt" }
-    // log.debug "evt: ${evt}"
-    return [evt: evt?.evt ?: null, custText: evt?.custText ?: null]
+    // log.debug "getRandomTrigEvt: ${evt}"
+    return evt
 }
 
 String convEvtType(type) {
@@ -2222,9 +2085,77 @@ String decodeVariables(evt, str) {
     return str
 }
 
-private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=false) {
+String getResponseItem(evt, evtAd=false, isRepeat=false, testMode=false) {
+    log.debug "getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}"
+    String glbText = settings?."act_${settings?.actionType}_txt" ?: null
+    if(glbText) {
+        List eTxtItems = glbText ? glbText?.toString()?.tokenize(";") : []
+        return decodeVariables(evt, getRandomItem(eTxtItems))
+    } else {
+        List devs = settings?."trig_${evt?.name}" ?: []
+        String dc = settings?."trig_${evt?.name}_cmd"
+        Boolean dca = (settings?."trig_${evt?.name}_all" == true)
+        String dct = settings?."trig_${evt?.name}_txt" ?: null
+        String dcart = settings?."trig_${evt?.name}_after_repeat" && settings?."trig_${evt?.name}_after_repeat_txt" ? settings?."trig_${evt?.name}_after_repeat_txt" : null
+        List eTxtItems = dct ? dct?.toString()?.tokenize(";") : []
+        List rTxtItems = dcart ? dcart?.toString()?.tokenize(";") : []
+        List testItems = eTxtItems + rTxtItems
+        if(testMode && testItems?.size()) {
+            return  decodeVariables(evt, getRandomItem(testItems))
+        } else if(!testMode && isRepeat && rTxtItems?.size()) {
+            return  decodeVariables(evt, getRandomItem(rTxtItems))
+        } else if(!testMode && eTxtItems?.size()) {
+            return  decodeVariables(evt, getRandomItem(eTxtItems))
+        } else {
+            String postfix = getAttrPostfix(evt?.name) ?: ""
+            switch(evt?.name) {
+                case "thermostatMode":
+                case "thermostatFanMode":
+                case "thermostatOperatingState":
+                case "coolSetpoint":
+                case "heatSetpoint":
+                    return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} ${evt?.name} is ${evt?.value} ${postfix}"
+                    break
+                case "mode":
+                    return  "The location mode is now set to ${evt?.value}"
+                    break
+                case "routine":
+                    return  "The ${evt?.value} routine was just executed!."
+                    break
+                case "scene":
+                    return  "The ${evt?.value} scene was just executed!."
+                    break
+                case "alarm":
+                case "hsmStatus":
+                case "alarmSystemStatus":
+                    return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
+                    break
+                case "hsmAlert":
+                    return "A ${getAlarmSystemName()} ${evt?.displayName} alert with ${evt?.value} has occurred."
+                    break
+                case "sunriseTime":
+                case "sunsetTime":
+                    return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
+                    break
+                case "schedule":
+                    return "Your scheduled event has occurred at ${evt?.value}"
+                    break
+                default:
+                    if(evtAd && devs?.size()>1) {
+                        return "All ${devs?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
+                    } else {
+                        return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} is ${evt?.value} ${postfix}"
+                    }
+                    break
+            }
+        }
+    }
+    return "Invalid Text Received... Please verify Action configuration..."
+}
+
+private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, isRptAct=false) {
     def startTime = now()
-    logTrace( "executeAction${src ? "($src)" : ""}${frc ? " | [Forced]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
+    logTrace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
     if(isPaused()) { log.warn "Action is PAUSED... Skipping Action Execution..."; return; }
     Boolean condOk = allConditionsOk()
     Boolean actOk = getConfStatusItem("actions")
@@ -2247,14 +2178,15 @@ private executeAction(evt = null, frc=false, custText=null, src=null, isRptAct=f
             case "speak":
             case "announcement":
                 if(actConf[actType]) {
-                    String txt = null
-                    if(actConf[actType]?.text) {
-                        List eTxtItems = actConf[actType]?.text ? actConf[actType]?.text?.toString()?.tokenize(";") : []
-                        txt = evt ? (decodeVariables(evt, getRandomItem(eTxtItems))) : getRandomItem(eTxtItems)
-                    } else {
-                        if(custText && actConf[actType]?.evtText) { txt = custText }
-                        else { txt = "Invalid Text Received... Please verify Action configuration..." }
-                    }
+                    String txt = getResponseItem(evt, allDevsResp, isRptAct, testMode) ?: null
+                    // if(actConf[actType]?.text) {
+                    //     List eTxtItems = actConf[actType]?.text ? actConf[actType]?.text?.toString()?.tokenize(";") : []
+                    //     txt = evt ? (decodeVariables(evt, getRandomItem(eTxtItems))) : getRandomItem(eTxtItems)
+                    // } else {
+                    //     if(actConf[actType]?.evtText) { txt = getR }
+                    //     else { txt = "Invalid Text Received... Please verify Action configuration..." }
+                    // }
+                    if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     if(actType == "speak") {
                         //Speak Command Logic
                         if(changeVol || restoreVol) {
