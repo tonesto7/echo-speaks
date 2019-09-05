@@ -1791,26 +1791,22 @@ String getAttrPostfix(attr) {
 }
 
 def routineEvtHandler(evt) {
-    def evtDelay = now() - evt?.date?.getTime()
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     executeAction(evt, false, "routineEvtHandler", false, false)
 }
 
 def sceneEvtHandler(evt) {
-    def evtDelay = now() - evt?.date?.getTime()
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     executeAction(evt, false, "sceneEvtHandler", false, false)
 }
 
 def modeEvtHandler(evt) {
-    def evtDelay = now() - evt?.date?.getTime()
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     executeAction(evt, false, "modeEvtHandler", false, false)
 }
 
 def locationEvtHandler(evt) {
-    def evtDelay = now() - evt?.date?.getTime()
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     executeAction(evt, false, "locationEvtHandler", false, false)
 }
 
@@ -2026,7 +2022,7 @@ Map getRandomTrigEvt() {
     String trig = getRandomItem(settings?.triggerEvents?.collect { it as String })
     def trigDevs = useDev ? settings?."trig_${trig}" : null
     def randDev = useDev ? getRandomItem(trigDevs) : null
-    def trigDev = (useDev && randDev) ? trigDevs?.find { it?.id == randDev?.id } : null
+    def trigDev = (trigDevs && useDev && randDev) ? trigDevs?.find { it?.id == randDev?.id } : null
     String devId = trigDev?.id ?: null
     Map attVal = [
         "switch": getRandomItem(["on", "off"]),
@@ -2048,7 +2044,6 @@ Map getRandomTrigEvt() {
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
         routine: isST() ? getRandomItem(getLocationRoutines()) : null
     ]
-
     if(attVal?.containsKey(trig)) {
         if(trig in noDevOpts) {
             evt = [name: trig, displayName: "", value: attVal[trig], date: new Date(), deviceId: devId]
@@ -2086,7 +2081,7 @@ String decodeVariables(evt, str) {
 }
 
 String getResponseItem(evt, evtAd=false, isRepeat=false, testMode=false) {
-    log.debug "getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}"
+    // log.debug "getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}"
     String glbText = settings?."act_${settings?.actionType}_txt" ?: null
     if(glbText) {
         List eTxtItems = glbText ? glbText?.toString()?.tokenize(";") : []
