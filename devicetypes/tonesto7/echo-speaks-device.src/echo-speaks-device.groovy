@@ -17,7 +17,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.0.6"}
+String devVersion()  { return "3.0.0.7"}
 String devModified() { return "2019-09-05" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -2788,11 +2788,11 @@ private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
 	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
 	state[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info "Echo (v${devVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Echo (v${devVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn "Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 10); } }
-private logError(msg) { if(settings?.logError != false) { log.error "Echo (v${devVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, null, 10); }
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoDevice (v${devVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info "EchoDevice (v${devVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoDevice (v${devVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn "EchoDevice (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 10); } }
+private logError(msg) { if(settings?.logError != false) { log.error "EchoDevice (v${devVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, null, 10); }
 
 Map getLogHistory() {
     return [ warnings: state?.warnHistory ?: [], errors: state?.errorHistory ?: [], speech: state?.speechHistory ?: [] ]

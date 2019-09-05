@@ -17,16 +17,17 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.0.6" }
+String appVersion()   { return "3.0.0.7" }
 String appModified()  { return "2019-09-05" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3005, actionApp: 3006, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3007, actionApp: 3007, server: 222] } //These values define the minimum versions of code this app will work with.
 // TODO: Change importURL back to master branch
 // TODO: Change docs link to public docs for release
 // TODO: Add in Actions to the metrics
 // TODO: Add the ability to duplicate an existing action (Web based?)
+// TODO: Add automated call to updated() using healthCheck every few days to make sure everything stays running.
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -3351,6 +3352,7 @@ def renderTextEditPage() {
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Type" data-ssml="evttype">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Value" data-ssml="evtvalue">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="DeviceName" data-ssml="evtname">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Unit" data-ssml="evtunit">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Date" data-ssml="evtdate">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Time" data-ssml="evttime">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Date/Time" data-ssml="evtdatetime">
@@ -3793,6 +3795,9 @@ def renderTextEditPage() {
                                     break;
                                 case 'evtdate':
                                     insertSsml(editor, '%date%', false);
+                                    break;
+                                case 'evtunit':
+                                    insertSsml(editor, '%unit%', false);
                                     break;
                                 case 'evttime':
                                     insertSsml(editor, '%time%', false);

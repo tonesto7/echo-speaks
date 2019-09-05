@@ -1,3 +1,32 @@
+ ══════════
+   Main App (v3.0.0.7)
+   September 5th, 2019
+ ══════════
+  • UPDATED: All logs now include "EchoApp (v3.0.0.x) | prefix.
+  • UPDATED: Changelogs will only be shown now when version is changed.
+  • FIXED: Bugs squashed.
+
+ ═════════════
+   Actions App (v3.0.0.7)
+   September 5th, 2019
+ ═════════════
+  • ADDED: New Unit variable %unit%.
+  • UPDATED: Toggle to use the numeric average of multiple devices as the value.
+  • UPDATED: All logs now include "Actions (v3.0.0.x) | prefix.
+  • UPDATED: Added last spoken to device to the top of the Echo device list (@TonyFleisher).
+  • FIXED: Illuminance triggers were missing so I made sure they were added.
+  • FIXED: Made sure the Test execution now handles non-device triggers.
+  • FIXED: Using multiple responses with the default (global) text responses.
+  • FIXED: Refactored code to simplify response item generation.  Should speed up the action execution some.
+  • FIXED: Bugs squashed.
+
+ ════════════
+   Device (v3.0.0.7)
+   September 5th, 2019
+ ════════════
+  • UPDATED: All logs now include "EchoDevice (v3.0.0.x) | prefix.
+
+-------------------------------------------------------------------
 
  ══════════
    Main App (v3.0.0.5)
@@ -18,6 +47,7 @@
  ══════════
   • FIXED: recent change caused Exceptions on saving history.
 
+-------------------------------------------------------------------
 
  ═════════
    Main App (v3.0.0.3)
