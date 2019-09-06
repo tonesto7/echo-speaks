@@ -17,16 +17,17 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.0.6" }
-String appModified()  { return "2019-09-04" }
+String appVersion()   { return "3.0.0.7" }
+String appModified()  { return "2019-09-06" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3005, actionApp: 3006, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3007, actionApp: 3007, server: 222] } //These values define the minimum versions of code this app will work with.
 // TODO: Change importURL back to master branch
 // TODO: Change docs link to public docs for release
 // TODO: Add in Actions to the metrics
 // TODO: Add the ability to duplicate an existing action (Web based?)
+// TODO: Add automated call to updated() using healthCheck every few days to make sure everything stays running.
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -76,7 +77,7 @@ def startPage() {
     state?.childInstallOkFlag = false
     if(!state?.resumeConfig && state?.isInstalled) { checkGuardSupport() }
     if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) { return servPrefPage() }
-    else if(isBeta() || showChgLogOk()) { return changeLogPage() }
+    else if(showChgLogOk()) { return changeLogPage() }
     else if(showDonationOk()) { return donationPage() }
     else { return mainPage() }
 }
@@ -431,7 +432,7 @@ def actionsPage() {
                     if(settings?.unpauseChildActions) { settingUpdate("unpauseChildActions", "false", "bool"); runIn(3, "executeActionUnpause"); }
                 }
                 input "reinitChildActions", "bool", title: inTS("Force Refresh all actions?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUnpause"); }
+                if(settings?.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUpdate"); }
             }
         }
         state.childInstallOkFlag = true
@@ -443,6 +444,9 @@ private executeActionPause() {
 }
 private executeActionUnpause() {
     getActionApps()?.findAll { it?.isPaused() == true }?.each { it?.updatePauseState(false) }
+}
+private executeActionUpdate() {
+    getActionApps()?.each { it?.updated() }
 }
 
 def devicePrefsPage() {
@@ -627,8 +631,6 @@ Map getAllDevices(isInputEnum=false) {
     availDevs?.each { key, val-> devMap[key] = val }
     return isInputEnum ? (devMap?.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
 }
-
-
 
 def notifPrefPage() {
     dynamicPage(name: "notifPrefPage", install: false) {
@@ -1106,6 +1108,7 @@ def updated() {
 def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
+    subscribe(app, onAppTouch)
     if((settings?.guardHomeAlarm && settings?.guardAwayAlarm) || settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
         if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
             subscribe(location, "${!isST() ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
@@ -1422,16 +1425,21 @@ def clearServerAuth() {
     }
 }
 
-private runCookieRefresh() {
-    settingUpdate("refreshCookie", "false", "bool")
-    if(getLastCookieRefreshSec() < 86400) { log.error "Cookie Refresh is blocked... | Last refresh was less than 24 hours ago."; return; }
+Integer getLastServerWakeSec() { return !state?.lastServerWakeDt ? 500000 : GetTimeDiffSeconds(state?.lastServerWakeDt, "getLastServerWakeSec").toInteger() }
+private wakeupServer(refreshCookie=false) {
     Map params = [
         uri: getServerHostURL(),
         path: "/config",
         contentType: "text/html",
         requestContentType: "text/html"
     ]
-    execAsyncCmd("get", "wakeUpServerResp", params, [execDt: now()])
+    execAsyncCmd("get", "wakeUpServerResp", params, [execDt: now(), refreshCookie: refreshCookie])
+}
+
+private runCookieRefresh() {
+    settingUpdate("refreshCookie", "false", "bool")
+    if(getLastCookieRefreshSec() < 86400) { log.error "Cookie Refresh is blocked... | Last refresh was less than 24 hours ago."; return; }
+    wakeUpServer(true)
 }
 
 def wakeUpServerResp(response, data) {
@@ -1445,17 +1453,21 @@ def wakeUpServerResp(response, data) {
         // log.debug "rData: $rData"
         state?.lastServerWakeDt = getDtNow()
         logInfo("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
-        Map cookieData = state?.cookieData ?: [:]
-        if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
-            logError("Required Registration data is missing for Cookie Refresh")
-            return
-        }
-        Map params = [
-            uri: getServerHostURL(),
-            path: "/refreshCookie"
-        ]
-        execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
+        if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
     }
+}
+
+private cookieRefresh() {
+    Map cookieData = state?.cookieData ?: [:]
+    if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
+        logError("Required Registration data is missing for Cookie Refresh")
+        return
+    }
+    Map params = [
+        uri: getServerHostURL(),
+        path: "/refreshCookie"
+    ]
+    execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
 }
 
 def cookieRefreshResp(response, data) {
@@ -2318,7 +2330,10 @@ private healthCheck() {
         return
     }
     validateCookieAsync()
-    if(getLastCookieRefreshSec() > cookieRefreshSeconds()) { runCookieRefresh() }
+    if(getLastCookieRefreshSec() > cookieRefreshSeconds()) {
+        runCookieRefresh()
+    } else if(getLastServerWakeSec() > 86400) { wakeUpServer() }
+
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
@@ -2552,15 +2567,16 @@ Integer getDaysSinceUpdated() {
 }
 
 String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
-Boolean showChgLogOk() { return (state?.isInstalled && state?.installData?.shownChgLog != true) }
+Boolean showChgLogOk() { return (state?.isInstalled && (state?.curAppVer != appVersion() || state?.installData?.shownChgLog != true)) }
 def changeLogPage() {
     def execTime = now()
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
-            paragraph title: "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""}):\nThis will show on every load until out of beta.", pTS(isST() ? "" : "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""}):\nThis will show on every load until out of beta.", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
+            paragraph title: "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""})", pTS(isST() ? "" : "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""})", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
             paragraph pTS(changeLogData(), null, false, "gray")
         }
         Map iData = atomicState?.installData ?: [:]
+        state?.curAppVer = appVersion()
         iData["shownChgLog"] = true
         atomicState?.installData = iData
     }
@@ -3350,6 +3366,7 @@ def renderTextEditPage() {
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Type" data-ssml="evttype">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Value" data-ssml="evtvalue">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="DeviceName" data-ssml="evtname">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Unit" data-ssml="evtunit">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Date" data-ssml="evtdate">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Time" data-ssml="evttime">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Date/Time" data-ssml="evtdatetime">
@@ -3793,6 +3810,9 @@ def renderTextEditPage() {
                                 case 'evtdate':
                                     insertSsml(editor, '%date%', false);
                                     break;
+                                case 'evtunit':
+                                    insertSsml(editor, '%unit%', false);
+                                    break;
                                 case 'evttime':
                                     insertSsml(editor, '%time%', false);
                                     break;
@@ -3998,17 +4018,11 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
 	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
 	atomicState[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
-private logWarn(msg) {
-    if(settings?.logWarn != false) { log.warn msg }
-    addToLogHistory("warnHistory", msg, 10)
-}
-private logError(msg) {
-    if(settings?.logError != false) { log.error msg }
-    addToLogHistory("errorHistory", msg, 10)
-}
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) {  log.info " EchoApp (v${appVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 10); } }
+private logError(msg) {if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 10); }
 
 Map getLogHistory() {
     return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]

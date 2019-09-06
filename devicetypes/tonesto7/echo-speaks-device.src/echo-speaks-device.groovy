@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.0.5"}
-String devModified() { return "2019-09-03" }
+String devVersion()  { return "3.0.0.7"}
+String devModified() { return "2019-09-06" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -520,14 +520,14 @@ public setAuthState(authenticated) {
 }
 
 public updateCookies(cookies) {
-    log.warn "Cookies Update by Parent.  Re-Initializing Device in 5 Seconds..."
+    logWarn("Cookies Update by Parent.  Re-Initializing Device in 5 Seconds...")
     state?.cookie = cookies
     state?.authValid = true
     runIn(5, "initialize")
 }
 
 public removeCookies(isParent=false) {
-    log.warn "Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} |  Scheduled Refreshes also cancelled!"
+    logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
     unschedule("refreshData")
     state?.cookie = null
     state?.authValid = false
@@ -538,7 +538,7 @@ Boolean isAuthOk(noLogs=false) {
     if(state?.authValid != true) {
         if(state?.refreshScheduled) { unschedule("refreshData"); state?.refreshScheduled = false; }
         if(state?.cookie != null) {
-            if(!noLogs) { log.warn "Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!!" }
+            if(!noLogs) { logWarn("Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!!", true) }
             state?.remove("cookie")
         }
         return false
@@ -547,16 +547,16 @@ Boolean isAuthOk(noLogs=false) {
 
 Boolean isCommandTypeAllowed(String type, noLogs=false) {
     Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
-    if(!isOnline) { if(!noLogs) { log.warn "Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})" }; return false; }
+    if(!isOnline) { if(!noLogs) { logWarn("Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})", true) }; return false; }
     if(!isAuthOk(noLogs)) { return false }
-    if(!getAmazonDomain()) { if(!noLogs) { log.warn "amazonDomain State Value Missing: ${getAmazonDomain()}" }; return false }
-    if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { if(!noLogs) { log.warn "Amazon Cookie State Values Missing: ${state?.cookie}" }; setAuthState(false, null); return false }
-    if(!state?.serialNumber) { if(!noLogs) { log.warn "SerialNumber State Value Missing: ${state?.serialNumber}" }; return false }
-    if(!state?.deviceType) { if(!noLogs) { log.warn "DeviceType State Value Missing: ${state?.deviceType}" }; return false }
-    if(!state?.deviceOwnerCustomerId) { if(!noLogs) { log.warn "OwnerCustomerId State Value Missing: ${state?.deviceOwnerCustomerId}" }; return false; }
-    if(state?.isSupportedDevice == false) { log.warn "You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer"; return true; }
-    if(!type || state?.permissions == null) { if(!noLogs) { log.warn "Permissions State Object Missing: ${state?.permissions}" }; return false }
-    if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { log.warn "All Voice Output Blocked... Do Not Disturb is ON" }; return false }
+    if(!getAmazonDomain()) { if(!noLogs) { logWarn("amazonDomain State Value Missing: ${getAmazonDomain()}", true) }; return false }
+    if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { if(!noLogs) { logWarn("Amazon Cookie State Values Missing: ${state?.cookie}", true) }; setAuthState(false, null); return false }
+    if(!state?.serialNumber) { if(!noLogs) { logWarn("SerialNumber State Value Missing: ${state?.serialNumber}", true) }; return false }
+    if(!state?.deviceType) { if(!noLogs) { logWarn("DeviceType State Value Missing: ${state?.deviceType}", true) }; return false }
+    if(!state?.deviceOwnerCustomerId) { if(!noLogs) { logWarn("OwnerCustomerId State Value Missing: ${state?.deviceOwnerCustomerId}", true) }; return false; }
+    if(state?.isSupportedDevice == false) { logWarn("You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer", true); return true; }
+    if(!type || state?.permissions == null) { if(!noLogs) { logWarn("Permissions State Object Missing: ${state?.permissions}", true) }; return false }
+    if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
     if(state?.permissions?.containsKey(type) && state?.permissions[type] == true) { return true }
     else {
         String warnMsg = null
@@ -619,7 +619,7 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
                 warnMsg = "OOPS... Flash Briefs are NOT Supported by this Device!!!"
                 break
         }
-        if(warnMsg && !noLogs) { log.warn warnMsg }
+        if(warnMsg && !noLogs) { logWarn(warnMsg, true) }
         return false
     }
 }
@@ -1472,15 +1472,15 @@ def volumeDown() {
 }
 
 def setTrack(String uri, metaData="") {
-    log.warn "Uh-Oh... The setTrack(uri: $uri, meta: $meta) Command is NOT Supported by this Device!!!"
+    logWarn("Uh-Oh... The setTrack(uri: $uri, meta: $meta) Command is NOT Supported by this Device!!!", true)
 }
 
 def resumeTrack() {
-    log.warn "Uh-Oh... The resumeTrack() Command is NOT Supported by this Device!!!"
+    logWarn("Uh-Oh... The resumeTrack() Command is NOT Supported by this Device!!!", true)
 }
 
 def restoreTrack() {
-    log.warn "Uh-Oh... The restoreTrack() Command is NOT Supported by this Device!!!"
+    logWarn("Uh-Oh... The restoreTrack() Command is NOT Supported by this Device!!!", true)
 }
 
 def doNotDisturbOff() {
@@ -1543,7 +1543,7 @@ def setFollowUpMode(Boolean val) {
 def deviceNotification(String msg) {
     logTrace("deviceNotification(msg: $msg) command received...")
     if(isCommandTypeAllowed("TTS")) {
-        if(!msg) { log.warn "No Message sent with deviceNotification($msg) command"; return; }
+        if(!msg) { logWarn("No Message sent with deviceNotification($msg) command", true); return; }
         // logTrace("deviceNotification(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
         incrementCntByKey("use_cnt_devNotif")
         speak(msg as String)
@@ -2145,6 +2145,7 @@ def removeBluetooth(String btNameOrAddr) {
 }
 
 def sendAlexaAppNotification(String text) {
+    log.debug "sendAlexaAppNotification(${text})"
     doSequenceCmd("AlexaAppNotification", "pushnotification", text)
     incrementCntByKey("use_cnt_alexaAppNotification")
 }
@@ -2225,7 +2226,7 @@ def playURL(uri) {
 }
 
 def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
-    log.warn "Uh-Oh... The playSoundAndTrack(soundUri: $soundUri, duration: $duration, trackData: $trackData, volume: $volume) Command is NOT Supported by this Device!!!"
+    logWarn("Uh-Oh... The playSoundAndTrack(soundUri: $soundUri, duration: $duration, trackData: $trackData, volume: $volume) Command is NOT Supported by this Device!!!", true)
 }
 
 String uriSpeechParser(uri) {
@@ -2354,12 +2355,12 @@ def executeSequenceCommand(String seqStr) {
                     Boolean isMusicCmd = (seqItemsAvail()?.music?.containsKey(cmd) && !seqItemsAvail()?.other?.containsKey(cmd) && !seqItemsAvail()?.dnd?.containsKey(cmd))
                     // log.debug "cmd: $cmd | isValidCmd: $isValidCmd | isMusicCmd: $isMusicCmd"
 
-                    if(!isValidCmd) { log.warn "executeSequenceCommand command ($cmd) is not a valid sequence command!!!"; return; }
+                    if(!isValidCmd) { logError("executeSequenceCommand command ($cmd) is not a valid sequence command!!!"); return; }
 
                     if(isMusicCmd) {
                         List valObj = (li[1]?.trim()?.toString()?.contains("::")) ? li[1]?.trim()?.split("::") : [li[1]?.trim() as String]
                         String provID = seqItemsAvail()?.music[cmd]
-                        if(!isCommandTypeAllowed(seqItemsAvail()?.musicAlt[cmd])) { log.warn "Current Music Sequence command ($cmd) not allowed... "; return; }
+                        if(!isCommandTypeAllowed(seqItemsAvail()?.musicAlt[cmd])) { logError("Current Music Sequence command ($cmd) not allowed... "); return; }
                         if (!valObj || valObj[0] == "") { logError("Play Music Sequence it Searchphrase empty"); return; }
                         Map validObj = getMusicSearchObj(valObj[0], provID, valObj[1] ?: null)
                         if(!validObj) { return }
@@ -2595,7 +2596,7 @@ private speechCmd(headers=[:], isQueueCmd=false) {
     String healthStatus = getHealthStatus()
     if(!headers || !(healthStatus in ["ACTIVE", "ONLINE"])) {
         if(!headers) { logError("speechCmd | Error${!headers ? " | headers are missing" : ""} ") }
-        if(!(healthStatus in ["ACTIVE", "ONLINE"])) { log.warn "Command Ignored... Device is current in OFFLINE State" }
+        if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("Command Ignored... Device is current in OFFLINE State", true) }
         return
     }
     Boolean isTTS = true
@@ -2702,12 +2703,12 @@ private postCmdProcess(resp, statusCode, data) {
             def pi = "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"}"
             pi += data?.isSSML ? " (SSML)" : ""
             pi += " Sent Successfully"
-            pi += data?.msgLen ? " | Length: (${data?.msgLen}) " : ""
-            pi += " | Execution Time (${execTime}ms)"
-            pi += data?.msgDelay ? " | Recheck Wait: (${data?.msgDelay} sec)" : ""
+            pi += " | Message (${data?.message})"
+            pi += logDebug && !logInfo && data?.msgLen ? " | Length: (${data?.msgLen}) " : ""
+            pi += data?.msgDelay ? " | Runtime: (${data?.msgDelay} sec)" : ""
             pi += logDebug && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""
-            pi += data?.qId ? " | QueueID: (${data?.qId}) | QueueItems: (${getQueueSize()})" : ""
-            pi +=
+            pi += logDebug && data?.qId ? " | QueueID: (${data?.qId}) | QueueItems: (${getQueueSize()})" : ""
+            pi += " | Execution Time: (${execTime}ms)"
             logInfo("${pi}")
 
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
@@ -2726,7 +2727,7 @@ private postCmdProcess(resp, statusCode, data) {
         } else if(statusCode.toInteger() == 400 && resp?.message && resp?.message?.toString()?.toLowerCase() == "rate exceeded") {
             def random = new Random()
             Integer rDelay = 2//random?.nextInt(5)
-            log.warn "You've been Rate-Limited by Amazon for sending Consectutive Commands to 5+ Device... | Device will retry again in ${rDelay} seconds"
+            logWarn("You've been Rate-Limited by Amazon for sending Consectutive Commands to 5+ Device... | Device will retry again in ${rDelay} seconds", true)
             schedQueueCheck(rDelay, true, [rateLimited: true, delay: data?.msgDelay], "postCmdProcess(Rate-Limited)")
             logSpeech(data?.message, statusCode, resp?.message)
             return
@@ -2788,17 +2789,11 @@ private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
 	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
 	state[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug msg } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info msg } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace msg } }
-private logWarn(msg) {
-    if(settings?.logWarn != false) { log.warn msg }
-    addToLogHistory("warnHistory", msg, null, 10)
-}
-private logError(msg) {
-    if(settings?.logError != false) { log.error msg }
-    addToLogHistory("errorHistory", msg, null, 10)
-}
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info " Echo (v${devVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Echo (v${devVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 10); } }
+private logError(msg) { if(settings?.logError != false) { log.error "Echo (v${devVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, null, 10); }
 
 Map getLogHistory() {
     return [ warnings: state?.warnHistory ?: [], errors: state?.errorHistory ?: [], speech: state?.speechHistory ?: [] ]
