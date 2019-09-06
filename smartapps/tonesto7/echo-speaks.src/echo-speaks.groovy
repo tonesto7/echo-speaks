@@ -18,7 +18,7 @@ import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 String appVersion()   { return "3.0.0.7" }
-String appModified()  { return "2019-09-05" }
+String appModified()  { return "2019-09-06" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -432,7 +432,7 @@ def actionsPage() {
                     if(settings?.unpauseChildActions) { settingUpdate("unpauseChildActions", "false", "bool"); runIn(3, "executeActionUnpause"); }
                 }
                 input "reinitChildActions", "bool", title: inTS("Force Refresh all actions?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUnpause"); }
+                if(settings?.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUpdate"); }
             }
         }
         state.childInstallOkFlag = true
@@ -444,6 +444,9 @@ private executeActionPause() {
 }
 private executeActionUnpause() {
     getActionApps()?.findAll { it?.isPaused() == true }?.each { it?.updatePauseState(false) }
+}
+private executeActionUpdate() {
+    getActionApps()?.each { it?.updated() }
 }
 
 def devicePrefsPage() {
@@ -1107,6 +1110,7 @@ def updated() {
 def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
+    subscribe(app, onAppTouch)
     if((settings?.guardHomeAlarm && settings?.guardAwayAlarm) || settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
         if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
             subscribe(location, "${!isST() ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
@@ -1423,16 +1427,21 @@ def clearServerAuth() {
     }
 }
 
-private runCookieRefresh() {
-    settingUpdate("refreshCookie", "false", "bool")
-    if(getLastCookieRefreshSec() < 86400) { log.error "Cookie Refresh is blocked... | Last refresh was less than 24 hours ago."; return; }
+Integer getLastServerWakeSec() { return !state?.lastServerWakeDt ? 500000 : GetTimeDiffSeconds(state?.lastServerWakeDt, "getLastServerWakeSec").toInteger() }
+private wakeupServer(refreshCookie=false) {
     Map params = [
         uri: getServerHostURL(),
         path: "/config",
         contentType: "text/html",
         requestContentType: "text/html"
     ]
-    execAsyncCmd("get", "wakeUpServerResp", params, [execDt: now()])
+    execAsyncCmd("get", "wakeUpServerResp", params, [execDt: now(), refreshCookie: refreshCookie])
+}
+
+private runCookieRefresh() {
+    settingUpdate("refreshCookie", "false", "bool")
+    if(getLastCookieRefreshSec() < 86400) { log.error "Cookie Refresh is blocked... | Last refresh was less than 24 hours ago."; return; }
+    wakeUpServer(true)
 }
 
 def wakeUpServerResp(response, data) {
@@ -1446,17 +1455,21 @@ def wakeUpServerResp(response, data) {
         // log.debug "rData: $rData"
         state?.lastServerWakeDt = getDtNow()
         logInfo("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
-        Map cookieData = state?.cookieData ?: [:]
-        if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
-            logError("Required Registration data is missing for Cookie Refresh")
-            return
-        }
-        Map params = [
-            uri: getServerHostURL(),
-            path: "/refreshCookie"
-        ]
-        execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
+        if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
     }
+}
+
+private cookieRefresh() {
+    Map cookieData = state?.cookieData ?: [:]
+    if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
+        logError("Required Registration data is missing for Cookie Refresh")
+        return
+    }
+    Map params = [
+        uri: getServerHostURL(),
+        path: "/refreshCookie"
+    ]
+    execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
 }
 
 def cookieRefreshResp(response, data) {
@@ -2319,7 +2332,10 @@ private healthCheck() {
         return
     }
     validateCookieAsync()
-    if(getLastCookieRefreshSec() > cookieRefreshSeconds()) { runCookieRefresh() }
+    if(getLastCookieRefreshSec() > cookieRefreshSeconds()) {
+        runCookieRefresh()
+    } else if(getLastServerWakeSec() > 86400) { wakeUpServer() }
+
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
@@ -4005,9 +4021,9 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
 	atomicState[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info "EchoApp (v${appVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) {  log.info " EchoApp (v${appVersion()}) | ${msg}" } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 10); } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 10); } }
 private logError(msg) {if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 10); }
 
 Map getLogHistory() {

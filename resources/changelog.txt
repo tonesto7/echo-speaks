@@ -1,14 +1,15 @@
  ══════════
    Main App (v3.0.0.7)
-   September 5th, 2019
+   September 6th, 2019
  ══════════
+  • ADDED: Added daily server wakeups to the healthcheck method.  To help prevent heroku servers for going into a deep sleep.
   • UPDATED: All logs now include "EchoApp (v3.0.0.x) | prefix.
   • UPDATED: Changelogs will only be shown now when version is changed.
   • FIXED: Bugs squashed.
 
  ═════════════
    Actions App (v3.0.0.7)
-   September 5th, 2019
+   September 6th, 2019
  ═════════════
   • ADDED: New Unit variable %unit%.
   • UPDATED: Toggle to use the numeric average of multiple devices as the value.
@@ -22,7 +23,7 @@
 
  ════════════
    Device (v3.0.0.7)
-   September 5th, 2019
+   September 6th, 2019
  ════════════
   • UPDATED: All logs now include "EchoDevice (v3.0.0.x) | prefix.
 
