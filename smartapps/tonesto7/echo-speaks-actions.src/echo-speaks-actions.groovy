@@ -2046,9 +2046,9 @@ Map getRandomTrigEvt() {
     if(attVal?.containsKey(trig)) {
         if(trig in noDevOpts) {
             evt = [name: trig, displayName: "", value: attVal[trig], date: new Date(), deviceId: trigId]
-        } else { evt = [name: trig, displayName: trigDev?.displayName, value: attVal[trig], date: new Date(), deviceId: trigId] }
+        } else { evt = [name: trig, displayName: trigItem?.displayName, value: attVal[trig], date: new Date(), deviceId: trigId] }
     }
-    // log.debug "getRandomTrigEvt: ${evt}"
+    log.debug "getRandomTrigEvt: ${evt}"
     return evt
 }
 
@@ -2084,7 +2084,7 @@ String decodeVariables(evt, str) {
 }
 
 String getResponseItem(evt, evtAd=false, isRepeat=false, testMode=false) {
-    // log.debug "getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}"
+    log.debug "getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}"
     String glbText = settings?."act_${settings?.actionType}_txt" ?: null
     if(glbText) {
         List eTxtItems = glbText ? glbText?.toString()?.tokenize(";") : []
@@ -2178,6 +2178,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "announcement":
                 if(actConf[actType]) {
                     String txt = getResponseItem(evt, allDevsResp, isRptAct, testMode) ?: null
+                    log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     if(actType == "speak") {
                         //Speak Command Logic
