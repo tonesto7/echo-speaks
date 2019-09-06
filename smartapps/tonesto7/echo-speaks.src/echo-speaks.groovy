@@ -632,8 +632,6 @@ Map getAllDevices(isInputEnum=false) {
     return isInputEnum ? (devMap?.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
 }
 
-
-
 def notifPrefPage() {
     dynamicPage(name: "notifPrefPage", install: false) {
         Integer pollWait = 900

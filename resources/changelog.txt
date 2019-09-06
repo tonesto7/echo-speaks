@@ -12,6 +12,7 @@
    September 6th, 2019
  ═════════════
   • ADDED: New Unit variable %unit%.
+  • ADDED: Action notifications using SMS, push, Pushover (Requires my Pushover manager solution), Alexa Mobile App push message (still has bugs).
   • UPDATED: Toggle to use the numeric average of multiple devices as the value.
   • UPDATED: All logs now include "Actions (v3.0.0.x) | prefix.
   • UPDATED: Added last spoken to device to the top of the Echo device list (@TonyFleisher).

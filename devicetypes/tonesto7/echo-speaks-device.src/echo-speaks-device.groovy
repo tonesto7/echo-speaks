@@ -2145,6 +2145,7 @@ def removeBluetooth(String btNameOrAddr) {
 }
 
 def sendAlexaAppNotification(String text) {
+    log.debug "sendAlexaAppNotification(${text})"
     doSequenceCmd("AlexaAppNotification", "pushnotification", text)
     incrementCntByKey("use_cnt_alexaAppNotification")
 }

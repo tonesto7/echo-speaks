@@ -39,19 +39,19 @@ definition(
 
 preferences {
     page(name: "startPage")
-    page(name: "codeUpdatePage")
-    page(name: "mainPage")
     page(name: "uhOhPage")
-    page(name: "namePage")
+    page(name: "codeUpdatePage")
+    page(name: "mainPage", install: false, uninstall: false)
+    page(name: "prefsPage")
     page(name: "triggersPage")
     page(name: "conditionsPage")
-    page(name: "notifPrefPage")
-    page(name: "actionsPage")
-    page(name: "prefsPage")
-    page(name: "searchTuneInResultsPage")
     page(name: "condTimePage")
+    page(name: "actionsPage")
+    page(name: "actNotifPage")
+    page(name: "actNotifTimePage")
+    page(name: "searchTuneInResultsPage")
     page(name: "uninstallPage")
-    page(name: "sequencePage")
+    page(name: "namePage")
 }
 
 def startPage() {
@@ -130,7 +130,6 @@ def mainPage() {
             section (sTS("Configuration: Part 1")) {
                 href "triggersPage", title: inTS("Action Triggers", getAppImg("trigger", true)), description: getTriggersDesc(), state: (trigConf ? "complete" : ""), image: getAppImg("trigger")
             }
-
             section(sTS("Configuration: Part 2")) {
                 if(trigConf) {
                     href "conditionsPage", title: inTS("Condition/Restrictions\n(Optional)", getAppImg("conditions", true)), description: getConditionsDesc(), state: (condConf ? "complete": ""), image: getAppImg("conditions")
@@ -141,9 +140,7 @@ def mainPage() {
                     href "actionsPage", title: inTS("Action Execution", getAppImg("es_actions", true)), description: getActionDesc(), state: (actConf ? "complete" : ""), image: getAppImg("es_actions")
                 } else { paragraph pTS("These options will be shown once the triggers are configured.", getAppImg("info", true)) }
             }
-            // section(sTS("Preferences")) {
-            //     href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
-            // }
+            if(trigConf && condConf && actConf) { actionSimulationSect() }
         } else {
             section() {
                 paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
@@ -437,31 +434,6 @@ def triggersPage() {
                             "VOL":	"Volcanic Activity Statement",
                             "HWW":	"Hurricane Wind Warning"
                         ]
-                    // if(trig_weather_cmd) {
-                    //     input "trig_weather_hourly", "enum", title: inTS("Hourly Forecast Updates", getAppImg("command", true)), required: false, multiple: false, submitOnChange: true, image: getAppImg("command"),
-                    //             options: ["conditions":"Weather Condition Changes", "rain":"Chance of Precipitation Changes", "wind":"Wind Speed Changes", "humidit":"Humidity Changes", "any":"Any Weather Updates"]
-                    //     if(!settings?.trig_weather_hourly) {
-                    //         input "trig_weather_events", "enum", title: inTS("Weather Elements", getAppImg("command", true)), required: false, multiple: false, submitOnChange: true, options: ["Chance of Precipitation (in/mm)", "Wind Gust (MPH/kPH)", "Humidity (%)", "Temperature (F/C)"], image: getAppImg("command")
-                    //         if (settings?.trig_WeatherEvents) {
-                    //             input "trig_weather_events_cmd", "enum", title: inTS("Notify when Weather Element changes...", getAppImg("command", true)), options: ["above", "below"], required: false, submitOnChange: true, image: getAppImg("command")
-                    //         }
-                    //         if (settings?.trig_WeatherEventsCond) {
-                    //             input "trig_WeatherThreshold", "decimal", title: inTS("Weather Variable Threshold...", getAppImg("command", true)), required: false, submitOnChange: true, image: getAppImg("command")
-                    //             if (settings?.trig_WeatherThreshold) {
-                    //                 input "trig_WeatherCheckSched", "enum", title: inTS("How Often to Check for Weather Changes...", getAppImg("command", true)), required: true, multiple: false, submitOnChange: true, image: getAppImg("command"),
-                    //                     options: [
-                    //                         "runEvery1Minute": "Every Minute",
-                    //                         "runEvery5Minutes": "Every 5 Minutes",
-                    //                         "runEvery10Minutes": "Every 10 Minutes",
-                    //                         "runEvery15Minutes": "Every 15 Minutes",
-                    //                         "runEvery30Minutes": "Every 30 Minutes",
-                    //                         "runEvery1Hour": "Every Hour",
-                    //                         "runEvery3Hours": "Every 3 Hours"
-                    //                     ]
-                    //             }
-                    //         }
-                    //     }
-                    // }
                 }
             }
             if(triggersConfigured()) {
@@ -1031,19 +1003,20 @@ def actionsPage() {
                     break
             }
             if(done) {
+                section(sTS("Notifications:")) {
+                    def t0 = getAppNotifDesc()
+                    href "actNotifPage", title: inTS("Send Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+                }
                 section(sTS("Delay Config:")) {
                     input "act_delay", "number", title: inTS("Delay Action in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
+                    paragraph "This does not work on Hubitat yet..."
                 }
-                section(sTS("Simulate Action")) {
-                    paragraph pTS("Toggle this to execute the action and see the results.\nWhen global text is not defined, this will generate a random event based on your trigger selections.", getAppImg("info", true), false, "#2784D9"), image: getAppImg("info")
-                    input "actTestRun", "bool", title: inTS("Test this action?", getAppImg("testing", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
-                    if(actTestRun) { executeActTest() }
-                }
+                actionSimulationSect()
                 section("") {
                     paragraph pTS("You're all done with this step.  Press Done/Save", getAppImg("done", true)), state: "complete", image: getAppImg("done")
                 }
                 actionExecMap?.config?.volume = [change: settings?.act_volume_change, restore: settings?.act_volume_restore, alarm: settings?.act_alarm_volume]
-                // devices = parent?.getDevicesFromList(settings?.act_EchoDevices)
+
                 actionExecMap?.delay = settings?.act_delay
                 actionExecMap?.configured = true
 
@@ -1052,6 +1025,100 @@ def actionsPage() {
         }
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
         logDebug("actionExecMap: ${atomicState?.actionExecMap}")
+    }
+}
+
+def actionSimulationSect() {
+    section(sTS("Simulate Action")) {
+        paragraph pTS("Toggle this to execute the action and see the results.\nWhen global text is not defined, this will generate a random event based on your trigger selections.", getAppImg("info", true), false, "#2784D9"), image: getAppImg("info")
+        input "actTestRun", "bool", title: inTS("Test this action?", getAppImg("testing", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
+        if(actTestRun) { executeActTest() }
+    }
+}
+
+Boolean customMsgRequired() { return ((settings?.actionType in ["speak", "announcement"]) != true) }
+Boolean customMsgConfigured() { return (settings?.notif_use_custom && settings?.notif_custom_message) }
+def actNotifPage() {
+    return dynamicPage(name: "actNotifPage", title: "Action Notifications", install: false, uninstall: false) {
+        section (sTS("Message Customization:")) {
+            if(customMsgRequired() && !settings?.notif_use_custom) { settingUpdate("notif_use_custom", "true", "bool") }
+            paragraph pTS("When using speak and announcements you can leave this off and a notification will be sent with speech text.  For other action types a custom message is required", null, false, "gray")
+            input "notif_use_custom", "bool", title: inTS("Send a custom notification...", getAppImg("question", true)), required: false, defaultValue: customMsgRequired(), submitOnChange: true, image: getAppImg("question")
+            if(settings?.notif_use_custom) {
+                input "notif_custom_message", "text", title: inTS("Enter custom message...", getAppImg("text", true)), required: true, submitOnChange: true, image: getAppImg("text")
+            }
+        }
+
+        section (sTS("Push Messages:")) {
+            input "notif_send_push", "bool", title: inTS("Send Push Notifications...", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+        }
+        section (sTS("Text Messages:"), hideWhenEmpty: true) {
+            paragraph pTS("To send to multiple numbers separate the number by a comma\n\nE.g. 8045551122,8046663344", getAppImg("info", true), false, "gray")
+            input "notif_sms_numbers", "text", title: inTS("Send SMS Text to...", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+        }
+        section (sTS("Alexa Mobile Notification:")) {
+            paragraph pTS("This will send a push notification the Alexa Mobile app.", null, false, "gray")
+            input "notif_alexa_mobile", "bool", title: inTS("Send message to Alexa App?", getAppImg("notification", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
+        }
+        if(isST()) {
+            section(sTS("Pushover Support:")) {
+                input "notif_pushover", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover_icon", true)), required: false, submitOnChange: true, image: getAppImg("pushover")
+                if(settings?.notif_pushover == true) {
+                    def poDevices = parent?.getPushoverDevices()
+                    if(!poDevices) {
+                        parent?.pushover_init()
+                        paragraph pTS("If this is the first time enabling Pushover than leave this page and come back if the devices list is empty", null, false, "#2784D9"), state: "complete"
+                    } else {
+                        input "notif_pushover_devices", "enum", title: inTS("Select Pushover Devices", getAppImg("select_icon", true)), description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
+                        if(settings?.notif_pushover_devices) {
+                            def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
+                            input "notif_pushover_priority", "enum", title: inTS("Notification Priority (Optional)", getAppImg("priority", true)), description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority")
+                            input "notif_pushover_sound", "enum", title: inTS("Notification Sound (Optional)", getAppImg("sound", true)), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound")
+                        }
+                    }
+                }
+            }
+        }
+        if(isActNotifConfigured()) {
+            section(sTS("Notification Restrictions:")) {
+                def nsd = getNotifSchedDesc()
+                href "actNotifTimePage", title: inTS("Notification Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
+            }
+            if(!state?.notif_message_tested) {
+                def actDevices = settings?.notif_alexa_mobile ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
+                def aMsgDev = actDevices?.size() && settings?.notif_alexa_mobile ? actDevices[0] : null
+                if(sendNotifMsg("Info", "Action Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state?.notif_message_tested = true }
+            }
+        } else { state?.notif_message_tested = false }
+    }
+}
+
+def actNotifTimePage() {
+    return dynamicPage(name:"actNotifTimePage", title: "", install: false, uninstall: false) {
+        def pre = "notif"
+        Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
+        section(sTS("Start Time:")) {
+            input "${pre}_time_start_type", "enum", title: inTS("Starting at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            if(settings?."${pre}_time_start_type" == "time") {
+                input "${pre}_time_start", "time", title: inTS("Start time", getAppImg("start_time", true)), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
+            } else if(settings?."${pre}_time_start_type" in ["sunrise", "sunrise"]) {
+                input "${pre}_time_start_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
+            }
+        }
+        section(sTS("Stop Time:")) {
+            input "${pre}_time_stop_type", "enum", title: inTS("Stopping at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            if(settings?."${pre}_time_stop_type" == "time") {
+                input "${pre}_time_stop", "time", title: inTS("Stop time", getAppImg("start_time", true)), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
+            } else if(settings?."${pre}_time_stop_type" in ["sunrise", "sunrise"]) {
+                input "${pre}_time_stop_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
+            }
+        }
+        section(sTS("Quiet Days:")) {
+            input "${pre}_days", "enum", title: inTS("Only on these days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
+        }
+        section(sTS("Quiet Modes:")) {
+            input "${pre}_modes", "mode", title: inTS("When these Modes are Active", getAppImg("mode", true)), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
+        }
     }
 }
 
@@ -1181,52 +1248,6 @@ Boolean wordInString(String findStr, String fullStr) {
     return (findStr in parts)
 }
 
-def notifPrefPage() {
-    return dynamicPage(name: "notifPrefPage", title: "Notifications", install: false, uninstall: false) {
-        section ("Push Messages:") {
-            input "usePush", "bool", title: "Send Push Notifications...", required: false, defaultValue: false, submitOnChange: true
-            input "pushTimeStamp", "bool", title: "Add timestamp to Push Messages...", required: false, defaultValue: false, submitOnChange: true
-        }
-        section ("Text Messages:", hideWhenEmpty: true) {
-            paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
-            input "smsNumbers", "text", title: "Send SMS Text to...", required: false, submitOnChange: true, image: getAppImg("sms_phone")
-        }
-        section ("Alexa Mobile Notification:") {
-            paragraph "This will send a push notification the Alexa Mobile app."
-            input "alexaMobileMsg", "text", title: "Send this message to Alexa App", required: false, submitOnChange: true, image: getAppImg("sms_phone")
-        }
-        section("Pushover Support:") {
-            input ("pushoverEnabled", "bool", title: "Use Pushover Integration", required: false, submitOnChange: true, image: getAppImg("pushover_icon"))
-            if(settings?.pushoverEnabled == true) {
-                def poDevices = parent?.getPushoverDevices()
-                if(!poDevices) {
-                    parent?.pushover_init()
-                    paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
-                } else {
-                    input "pushoverDevices", "enum", title: "Select Pushover Devices", description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
-                    if(settings?.pushoverDevices) {
-                        def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
-                        input "pushoverPriority", "enum", title: "Notification Priority (Optional)", description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority")
-                        input "pushoverSound", "enum", title: "Notification Sound (Optional)", description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound")
-                    }
-                }
-                // } else { paragraph "New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", state: "complete" }
-            }
-        }
-        if(settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) {
-            if((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
-                if(sendMsg("Info", "Push Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
-                    state.pushTested = true
-                }
-            }
-            section("Notification Restrictions:") {
-                def t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: "Notification Restrictions", description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("restriction")
-            }
-        } else { state.pushTested = false }
-    }
-}
-
 def installed() {
     log.debug "Installed with settings: ${settings}"
     initialize()
@@ -1248,7 +1269,6 @@ def initialize() {
     runIn(7, "subscribeToEvts")
     updConfigStatusMap()
     appCleanup()
-    runEvery1Minute("getRandomTrigEvt")
 }
 
 private updAppLabel() {
@@ -2154,8 +2174,10 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
     def actDevices = parent?.getDevicesFromList(settings?.act_EchoDevices)
+    String actMsgTxt = null
     String actType = settings?.actionType
     if(actOk && actType) {
+        def alexaMsgDev = actDevices?.size() && settings?.notif_alexa_mobile ? actDevices[0] : null
         if(!condOk) { log.warn "Skipping Execution because set conditions have not been met"; return; }
         if(!actMap || !actMap?.size()) { log.error "executeAction Error | The ActionExecutionMap is not found or is empty"; return; }
         if(!actDevices?.size()) { log.error "executeAction Error | Echo Device List not found or is empty"; return; }
@@ -2174,6 +2196,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                     String txt = getResponseItem(evt, allDevsResp, isRptAct, testMode) ?: null
                     log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
+                    actMsgTxt = txt
                     if(actType == "speak") {
                         //Speak Command Logic
                         if(changeVol || restoreVol) {
@@ -2315,6 +2338,14 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                 }
                 break
         }
+        if(isActNotifConfigured()) {
+            Boolean ok2SendNotif = true
+            if(customMsgConfigured()) { actMsgTxt = settings?.notif_custom_message; }
+            if(customMsgRequired() && !customMsgConfigured()) { ok2SendNotif = false }
+            if(ok2SendNotif && actMsgTxt) {
+                if(sendNotifMsg(app?.getLabel() as String, actMsgTxt as String, alexaMsgDev, false)) { logDebug("Sent Action Notification...") }
+            }
+        }
     }
     logDebug("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
 }
@@ -2372,48 +2403,6 @@ def updateTxtEntry(obj) {
 public getSettingInputVal(inName) {
     // log.debug "getSettingInputVal: ${inName}"
     return settings?."${inName}" ?: null
-}
-
-
-/***********************************************************************************************************************
-    WEATHER ALERTS
-***********************************************************************************************************************/
-def mGetWeatherAlerts() {
-    def data = [:]
-    try {
-        def weather = getTwcAlerts()
-        def type = weather?.alerts?.type[0]
-        def alert = weather?.alerts?.description[0]
-        def expire = weather?.alerts?.expires[0]
-        def typeOk = settings?.myWeatherAlert?.find {a -> a == type}
-        if (typeOk) {
-            if (expire != null) { expire = expire?.replaceAll(~/ EST /, " ")?.replaceAll(~/ CST /, " ")?.replaceAll(~/ MST /, " ")?.replaceAll(~/ PST /, " ") }
-            if (alert != null) {
-                result = alert  + " is in effect for your area, that expires at " + expire
-                if (state?.weatherAlert == null) {
-                    state?.weatherAlert = result
-                    state?.lastAlert = new Date(now()).format("h:mm aa", location.timeZone)
-                    data = [value: result, name: "weather alert", device:"weather"]
-                    alertsHandler(data)
-                } else {
-                    if (state?.showDebug) { log.debug "new weather alert = ${alert}, expire = ${expire}" }
-                    def newAlert = result != state?.weatherAlert ? true : false
-                    if (newAlert == true) {
-                        state?.weatherAlert = result
-                        state?.lastAlert = new Date(now()).format("h:mm aa", location.timeZone)
-                        data = [value: result, name: "weather alert", device:"weather"]
-                        alertsHandler(data)
-                    }
-                }
-            }
-        } else if (firstTime == true) {
-            data = [value: result, name: "weather alert", device:"weather"]
-            alertsHandler(data)
-        }
-    } catch (Throwable t) {
-        log.error t
-        return result
-    }
 }
 
 
@@ -2488,69 +2477,59 @@ String getAlarmSystemStatus() {
         return cur ?: "disarmed"
     } else { return location?.hsmStatus ?: "disarmed" }
 }
-Boolean pushStatus() { return (settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || settings?.pushoverEnabled) ? ((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
-Integer getLastMsgSec() { return !state?.lastMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMsgDt, "getLastMsgSec").toInteger() }
-Integer getLastUpdMsgSec() { return !state?.lastUpdMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastUpdMsgDt, "getLastUpdMsgSec").toInteger() }
-Integer getLastMisPollMsgSec() { return !state?.lastMisPollMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMisPollMsgDt, "getLastMisPollMsgSec").toInteger() }
-Integer getLastVerUpdSec() { return !state?.lastVerUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastVerUpdDt, "getLastVerUpdSec").toInteger() }
-Integer getLastDevicePollSec() { return !state?.lastDevDataUpd ? 840 : GetTimeDiffSeconds(state?.lastDevDataUpd, "getLastDevicePollSec").toInteger() }
-Integer getLastCookieChkSec() { return !state?.lastCookieChkDt ? 3600 : GetTimeDiffSeconds(state?.lastCookieChkDt, "getLastCookieChkSec").toInteger() }
+Boolean pushStatus() { return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_pushover) ? ((settings?.notif_send_push || (settings?.notif_pushover && settings?.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : null }
+Integer getLastNotifMsgSec() { return !state?.lastActNotifMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastActNotifMsgDt, "getLastMsgSec").toInteger() }
 Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state?.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 Boolean getOk2Notify() {
-    Boolean smsOk = (settings?.smsNumbers?.toString()?.length()>=10)
-    Boolean pushOk = settings?.usePush
-    Boolean pushOver = (settings?.pushoverEnabled && settings?.pushoverDevices)
-    Boolean daysOk = quietDaysOk(settings?.quietDays)
-    Boolean timeOk = quietTimeOk()
-    Boolean modesOk = quietModesOk(settings?.quietModes)
+    Boolean smsOk = (settings?.notif_sms_numbers?.toString()?.length()>=10)
+    Boolean pushOk = settings?.notif_send_push
+    Boolean pushOver = (settings?.notif_pushover && settings?.notif_pushover_devices)
+    Boolean daysOk = settings?.notif_days ? (isDayOfWeek(settings?.notif_days)) : true
+    Boolean timeOk = notifTimeOk()
+    Boolean modesOk = settings?.notif_mode ? (isInMode(settings?.notif_mode)) : true
     logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     if(!(smsOk || pushOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
     return true
 }
-Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) ? false : true }
-Boolean quietTimeOk() {
-    def strtTime = null
+
+Boolean notifTimeOk() {
+    def startTime = null
     def stopTime = null
     def now = new Date()
     def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
-    if(settings?.qStartTime && settings?.qStopTime) {
-        if(settings?.qStartInput == "sunset") { strtTime = sun?.sunset }
-        else if(settings?.qStartInput == "sunrise") { strtTime = sun?.sunrise }
-        else if(settings?.qStartInput == "A specific time" && settings?.qStartTime) { strtTime = settings?.qStartTime }
+    if(settings?.notif_time_start_type && settings?.notif_time_stop_type) {
+        if(settings?.notif_time_start_type == "sunset") { startTime = sun?.sunset }
+        else if(settings?.notif_time_start_type == "sunrise") { startTime = sun?.sunrise }
+        else if(settings?.notif_time_start_type == "time" && settings?.notif_time_start) { startTime = settings?.notif_time_start }
 
-        if(settings?.qStopInput == "sunset") { stopTime = sun?.sunset }
-        else if(settings?.qStopInput == "sunrise") { stopTime = sun?.sunrise }
-        else if(settings?.qStopInput == "A specific time" && settings?.qStopTime) { stopTime = settings?.qStopTime }
+        if(settings?.notif_time_stop_type == "sunset") { stopTime = sun?.sunset }
+        else if(settings?.notif_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
+        else if(settings?.notif_time_stop_type == "time" && settings?.notif_time_stop) { stopTime = settings?.notif_time_stop }
     } else { return true }
-    if(strtTime && stopTime) {
-        return timeOfDayIsBetween(strtTime, stopTime, new Date(), location.timeZone) ? false : true
+    if(startTime && stopTime) {
+        if(!isST()) {
+            startTime = toDateTime(startTime)
+            stopTime = toDateTime(stopTime)
+        }
+        return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
     } else { return true }
-}
-
-Boolean quietDaysOk(days) {
-    if(days) {
-        def dayFmt = new SimpleDateFormat("EEEE")
-        if(location?.timeZone) { dayFmt?.setTimeZone(location?.timeZone) }
-        return days?.contains(dayFmt?.format(new Date())) ? false : true
-    }
-    return true
 }
 
 // Sends the notifications based on app settings
-public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMap=null, sms=null, push=null) {
-    logTrace("sendMsg() | msgTitle: ${msgTitle}, msg: ${msg}, showEvt: ${showEvt}")
-    String sentstr = "Push"
+public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=true) {
+    logTrace("sendNotifMsg() | msgTitle: ${msgTitle}, msg: ${msg}, $alexaDev, showEvt: ${showEvt}")
+    List sentSrc = ["Push"]
     Boolean sent = false
     try {
         String newMsg = "${msgTitle}: ${msg}"
         String flatMsg = newMsg.toString().replaceAll("\n", " ")
         if(!getOk2Notify()) {
-            logInfo( "sendMsg: Message Skipped During Quiet Time ($flatMsg)")
+            logInfo( "sendNotifMsg: Message Skipped During Quiet Time ($flatMsg)")
             if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
-            if(push || settings?.usePush) {
-                sentstr = "Push Message"
+            if(settings?.notif_send_push) {
+                sendSrc?.push("Push Message")
                 if(showEvt) {
                     sendPush(newMsg)	// sends push and notification feed
                 } else {
@@ -2558,17 +2537,16 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
                 }
                 sent = true
             }
-            if(settings?.pushoverEnabled && settings?.pushoverDevices) {
-                sentstr = "Pushover Message"
-                Map msgObj = [:]
-                msgObj = pushoverMap ?: [title: msgTitle, message: msg, priority: (settings?.pushoverPriority?:0)]
-                if(settings?.pushoverSound) { msgObj?.sound = settings?.pushoverSound }
-                buildPushMessage(settings?.pushoverDevices, msgObj, true)
+            if(settings?.notif_pushover && settings?.notif_pushover_devices) {
+                sentSrc?.push("Pushover Message")
+                Map msgObj = [title: msgTitle, message: msg, priority: (settings?.notif_pushover_priority?:0)]
+                if(settings?.notif_pushover_sound) { msgObj?.sound = settings?.notif_pushover_sound }
+                buildPushMessage(settings?.notif_pushover_devices, msgObj, true)
                 sent = true
             }
-            String smsPhones = sms ? sms.toString() : (settings?.smsNumbers?.toString() ?: null)
+            String smsPhones = settings?.notif_sms_numbers?.toString() ?: null
             if(smsPhones) {
-                List phones = smsPhones?.toString()?.split("\\,")
+                List phones = smsPhones?.toString()?.tokenize(",")
                 for (phone in phones) {
                     String t0 = newMsg.take(140)
                     if(showEvt) {
@@ -2576,22 +2554,30 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
                     } else {
                         sendSmsMessage(phone?.trim(), t0)	// send SMS
                     }
-
                 }
-                sentstr = "Text Message to Phone [${phones}]"
+                sentSrc?.push("SMS Message to [${phones}]")
+                sent = true
+            }
+            if(settings?.notif_alexa_mobile && alexaDev) {
+                alexaDev?.sendAlexaAppNotification(msg)
+                sentSrc?.push("Alexa Mobile App")
                 sent = true
             }
             if(sent) {
-                state?.lastMsg = flatMsg
-                state?.lastMsgDt = getDtNow()
-                logDebug("sendMsg: Sent ${sentstr} (${flatMsg})")
+                state?.lastActionNotificationMsg = flatMsg
+                state?.lastActNotifMsgDt = getDtNow()
+                logDebug("sendNotifMsg: Sent ${sendSrc} (${flatMsg})")
             }
         }
     } catch (ex) {
-        incrementCntByKey("appErrorCnt")
-        log.error "sendMsg $sentstr Exception:", ex
+        logError("sendNotifMsg $sentstr Exception: ${ex}")
     }
     return sent
+}
+
+Boolean isActNotifConfigured() {
+    if(customMsgRequired() && (!settings?.notif_use_custom || settings?.notif_custom_message)) { return false }
+    return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_alexa_mobile || (isST() && settings?.notif_pushover && settings?.notif_pushover_devices))
 }
 
 //PushOver-Manager Input Generation Functions
@@ -2787,7 +2773,7 @@ def convToDateTime(dt) {
 Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
 String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
-String isPluralString(obj) { return (obj?.size() > 1) ? "(s)" : "" }
+String pluralizeStr(obj) { return (obj?.size() > 1) ? "(s)" : "" }
 
 def parseDt(pFormat, dt, tzFmt=true) {
     def result
@@ -2909,6 +2895,38 @@ String unitStr(type) {
     }
 }
 
+String getAppNotifDesc(hide=false) {
+    String str = ""
+    if(isActNotifConfigured()) {
+        str += hide ? "" : "Send To:\n"
+        str += settings?.notif_sms_numbers ? " \u2022 (${settings?.notif_sms_numbers?.tokenize(",")?.size()} SMS Numbers)\n" : ""
+        str += settings?.notif_send_push ? " \u2022 (Push Message)\n" : ""
+        str += (settings?.notif_pushover && settings?.notif_pushover_devices?.size()) ? " \u2022 Pushover Device${pluralizeStr(settings?.notif_pushover_devices)} (${settings?.notif_pushover_devices?.size()})\n" : ""
+        str += settings?.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : ""
+        str += getNotifSchedDesc() ? " \u2022 Restrictions: (${getOk2Notify() ? "OK" : "Blocked"})\n" : ""
+    }
+    return str != "" ? str : null
+}
+
+String getNotifSchedDesc() {
+    def sun = getSunriseAndSunset()
+    def startInput = settings?.notif_time_start_type
+    def startTime = settings?.notif_time_start
+    def stopInput = settings?.notif_time_stop_type
+    def stopTime = settings?.notif_time_stop
+    def dayInput = settings?.notif_days
+    def modeInput = settings?.notif_modes
+    def str = ""
+    def startLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
+    def stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
+    str += (startLbl && stopLbl) ? " • Silent Time: ${startLbl} - ${stopLbl}" : ""
+    def days = getInputToStringDesc(dayInput)
+    def modes = getInputToStringDesc(modeInput)
+    str += days ? "${(startLbl || stopLbl) ? "\n" : ""} • Silent Day${pluralizeStr(dayInput)}: ${days}" : ""
+    str += modes ? "${(startLbl || stopLbl || days) ? "\n" : ""} • Silent Mode${pluralizeStr(modeInput)}: ${modes}" : ""
+    return (str != "") ? "${str}" : null
+}
+
 String getTriggersDesc(hideDesc=false) {
     Boolean confd = triggersConfigured()
     List setItem = settings?.triggerEvents
@@ -3020,7 +3038,10 @@ String getActionDesc() {
         str += settings?.act_volume_restore ? " • Restore Volume: (${settings?.act_volume_restore})\n" : ""
         str += settings?.act_delay ? " • Delay: (${settings?.act_delay})\n" : ""
         str += settings?."act_${settings?.actionType}_txt" ? " • Using Default Response: (True)\n" : ""
-        str += "\ntap to modify..."
+        def nd = getAppNotifDesc(true)
+        str += nd ? "\nNotifications:\n" : ""
+        str += nd ? "${nd}" : ""
+        str += "\nTap to modify..."
         return str
     } else {
         return "tap to configure..."
