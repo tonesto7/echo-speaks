@@ -1721,42 +1721,43 @@ public def getAlexaRoutines(autoId=null, utterOnly=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
-        query: [ limit: limit ],
+        query: [ limit: 100 ],
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-
-    def routineResp = makeSyncHttpReq(params, "get", "getAlexaRoutines") ?: [:]
-    // log.debug "routineResp: $routineResp"
-    if(routineResp) {
-        if(autoId) {
-            return routineResp
-        } else {
-            Map items = [:]
-            Integer cnt = 1
-            if(routineResp?.size()) {
-                routineResp?.findAll { it?.status == "ENABLED" }?.each { item->
-                    if(utterOnly) {
-                        if(item?.triggers?.size()) {
-                            item?.triggers?.each { trg->
-                                if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
-                                    items[item?.automationId] = trg?.payload?.utterance as String
-                                } else {
-                                    items[item?.automationId] = "Unlabeled Routine ($cnt)"
-                                    cnt++
+    try {
+        def routineResp = makeSyncHttpReq(params, "get", "getAlexaRoutines") ?: [:]
+        // log.debug "routineResp: $routineResp"
+        if(routineResp) {
+            if(autoId) {
+                return routineResp
+            } else {
+                Map items = [:]
+                Integer cnt = 1
+                if(routineResp?.size()) {
+                    routineResp?.findAll { it?.status == "ENABLED" }?.each { item->
+                        if(utterOnly) {
+                            if(item?.triggers?.size()) {
+                                item?.triggers?.each { trg->
+                                    if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
+                                        items[item?.automationId] = trg?.payload?.utterance as String
+                                    } else {
+                                        items[item?.automationId] = "Unlabeled Routine ($cnt)"
+                                        cnt++
+                                    }
                                 }
                             }
+                        } else {
+                            items[item?.automationId] = item?.name
                         }
-                    } else {
-                        items[item?.automationId] = item?.name
                     }
                 }
+                // log.debug "routine items: $items"
+                return items
             }
-            // log.debug "routine items: $items"
-            return items
         }
-    }
+    } catch(ex) { logError("getAlexaRoutines Error: ${ex}"); return [:]; }
 }
 
 def executeRoutineById(String routineId) {
