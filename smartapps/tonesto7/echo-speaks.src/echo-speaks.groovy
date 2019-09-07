@@ -1426,6 +1426,7 @@ def clearServerAuth() {
 }
 
 Integer getLastServerWakeSec() { return !state?.lastServerWakeDt ? 500000 : GetTimeDiffSeconds(state?.lastServerWakeDt, "getLastServerWakeSec").toInteger() }
+
 private wakeupServer(refreshCookie=false) {
     Map params = [
         uri: getServerHostURL(),
@@ -1433,26 +1434,26 @@ private wakeupServer(refreshCookie=false) {
         contentType: "text/html",
         requestContentType: "text/html"
     ]
-    execAsyncCmd("get", "wakeUpServerResp", params, [execDt: now(), refreshCookie: refreshCookie])
+    execAsyncCmd("get", "wakeupServerResp", params, [execDt: now(), refreshCookie: refreshCookie])
 }
 
 private runCookieRefresh() {
     settingUpdate("refreshCookie", "false", "bool")
     if(getLastCookieRefreshSec() < 86400) { log.error "Cookie Refresh is blocked... | Last refresh was less than 24 hours ago."; return; }
-    wakeUpServer(true)
+    wakeupServer(true)
 }
 
-def wakeUpServerResp(response, data) {
+def wakeupServerResp(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "wakeUpServerResp")) {return}
+    if(!respIsValid(response?.status, hasErr, errMsg, "wakeupServerResp")) {return}
     def rData = null
     try { rData = response?.data ?: null }
-    catch(ex) { logError("wakeUpServerResp Exception: ${ex?.message}") }
+    catch(ex) { logError("wakeupServerResp Exception: ${ex?.message}") }
     if (rData) {
         // log.debug "rData: $rData"
         state?.lastServerWakeDt = getDtNow()
-        logInfo("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
+        logInfo("wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
     }
 }
@@ -1721,42 +1722,43 @@ public def getAlexaRoutines(autoId=null, utterOnly=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
-        query: [ limit: limit ],
+        query: [ limit: 100 ],
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-
-    def routineResp = makeSyncHttpReq(params, "get", "getAlexaRoutines") ?: [:]
-    // log.debug "routineResp: $routineResp"
-    if(routineResp) {
-        if(autoId) {
-            return routineResp
-        } else {
-            Map items = [:]
-            Integer cnt = 1
-            if(routineResp?.size()) {
-                routineResp?.findAll { it?.status == "ENABLED" }?.each { item->
-                    if(utterOnly) {
-                        if(item?.triggers?.size()) {
-                            item?.triggers?.each { trg->
-                                if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
-                                    items[item?.automationId] = trg?.payload?.utterance as String
-                                } else {
-                                    items[item?.automationId] = "Unlabeled Routine ($cnt)"
-                                    cnt++
+    try {
+        def routineResp = makeSyncHttpReq(params, "get", "getAlexaRoutines") ?: [:]
+        // log.debug "routineResp: $routineResp"
+        if(routineResp) {
+            if(autoId) {
+                return routineResp
+            } else {
+                Map items = [:]
+                Integer cnt = 1
+                if(routineResp?.size()) {
+                    routineResp?.findAll { it?.status == "ENABLED" }?.each { item->
+                        if(utterOnly) {
+                            if(item?.triggers?.size()) {
+                                item?.triggers?.each { trg->
+                                    if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
+                                        items[item?.automationId] = trg?.payload?.utterance as String
+                                    } else {
+                                        items[item?.automationId] = "Unlabeled Routine ($cnt)"
+                                        cnt++
+                                    }
                                 }
                             }
+                        } else {
+                            items[item?.automationId] = item?.name
                         }
-                    } else {
-                        items[item?.automationId] = item?.name
                     }
                 }
+                // log.debug "routine items: $items"
+                return items
             }
-            // log.debug "routine items: $items"
-            return items
         }
-    }
+    } catch(ex) { logError("getAlexaRoutines Error: ${ex}"); return [:]; }
 }
 
 def executeRoutineById(String routineId) {
@@ -2332,7 +2334,7 @@ private healthCheck() {
     validateCookieAsync()
     if(getLastCookieRefreshSec() > cookieRefreshSeconds()) {
         runCookieRefresh()
-    } else if(getLastServerWakeSec() > 86400) { wakeUpServer() }
+    } else if(getLastServerWakeSec() > 86400) { wakeupServer() }
 
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
