@@ -1426,6 +1426,7 @@ def clearServerAuth() {
 }
 
 Integer getLastServerWakeSec() { return !state?.lastServerWakeDt ? 500000 : GetTimeDiffSeconds(state?.lastServerWakeDt, "getLastServerWakeSec").toInteger() }
+
 private wakeupServer(refreshCookie=false) {
     Map params = [
         uri: getServerHostURL(),
@@ -1433,26 +1434,26 @@ private wakeupServer(refreshCookie=false) {
         contentType: "text/html",
         requestContentType: "text/html"
     ]
-    execAsyncCmd("get", "wakeUpServerResp", params, [execDt: now(), refreshCookie: refreshCookie])
+    execAsyncCmd("get", "wakeupServerResp", params, [execDt: now(), refreshCookie: refreshCookie])
 }
 
 private runCookieRefresh() {
     settingUpdate("refreshCookie", "false", "bool")
     if(getLastCookieRefreshSec() < 86400) { log.error "Cookie Refresh is blocked... | Last refresh was less than 24 hours ago."; return; }
-    wakeUpServer(true)
+    wakeupServer(true)
 }
 
-def wakeUpServerResp(response, data) {
+def wakeupServerResp(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "wakeUpServerResp")) {return}
+    if(!respIsValid(response?.status, hasErr, errMsg, "wakeupServerResp")) {return}
     def rData = null
     try { rData = response?.data ?: null }
-    catch(ex) { logError("wakeUpServerResp Exception: ${ex?.message}") }
+    catch(ex) { logError("wakeupServerResp Exception: ${ex?.message}") }
     if (rData) {
         // log.debug "rData: $rData"
         state?.lastServerWakeDt = getDtNow()
-        logInfo("wakeUpServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
+        logInfo("wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
     }
 }
@@ -2333,7 +2334,7 @@ private healthCheck() {
     validateCookieAsync()
     if(getLastCookieRefreshSec() > cookieRefreshSeconds()) {
         runCookieRefresh()
-    } else if(getLastServerWakeSec() > 86400) { wakeUpServer() }
+    } else if(getLastServerWakeSec() > 86400) { wakeupServer() }
 
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
