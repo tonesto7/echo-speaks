@@ -711,6 +711,26 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
     }
 }
 
+String actionTypeDesc() {
+    Map descs = [
+        speak: "Speak any message choose on your Echo Devices",
+        announcement: "Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.",
+        sequence: "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.",
+        weather: "Plays a very basic weather report.",
+        playback: "Allows you to control the media playback state of your Echo devices.",
+        builtin: "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.",
+        music: "Allows playback of various Songs/Radio using any connected music provider",
+        calendar: "This will read out events in your calendar (Requires accounts to be configured in the alexa app. Must not have PIN.)",
+        alarm: "This will allow you to create Alexa alarm clock notifications.",
+        reminder: "This will allow you to create Alexa reminder notifications.",
+        dnd: "This will allow you to enable/disable Do Not Disturb mode",
+        alexaroutine: "This will allow you to run your configured Alexa Routines",
+        wakeword: "This will allow you to change the Wake Word of your Echo devices.",
+        bluetooth: "This will allow you to connect or disconnect bluetooth devices paired to your echo devices."
+    ]
+    return descs?.containsKey(settings?.actionType) ? descs[settings?.actionType] as String : "No Description Found..."
+}
+
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
         Boolean done = false
@@ -719,8 +739,12 @@ def actionsPage() {
             actionExecMap?.actionType = actionType
             actionExecMap?.config = [:]
             List devices = parent?.getDevicesFromList(settings?.act_EchoDevices)
+            section(sTS("Action Type:")) {
+                paragraph pTS("${settings?.actionType}", null, false, "#2678D9")
+            }
             switch(actionType) {
                 case "speak":
+                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Type Config:"), hideable: true) {
@@ -736,9 +760,7 @@ def actionsPage() {
                     break
 
                 case "announcement":
-                    section(sTS("Action Description:")) {
-                        paragraph pTS("Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                    }
+                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("announce")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
@@ -759,9 +781,7 @@ def actionsPage() {
                     break
 
                 case "sequence":
-                    section(sTS("Action Description:")) {
-                        paragraph pTS("Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                    }
+                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Sequence Options Legend:"), hideable: true, hidden: false) {
@@ -798,9 +818,7 @@ def actionsPage() {
                     break
 
                 case "weather":
-                    section(sTS("Action Description:")) {
-                        paragraph pTS("Plays a very basic weather report.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                    }
+                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         actionVolumeInputs(devices)
@@ -810,9 +828,7 @@ def actionsPage() {
                     break
 
                 case "playback":
-                    section(sTS("Action Description:")) {
-                        paragraph pTS("Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                    }
+                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
                         Map playbackOpts = [
@@ -828,9 +844,7 @@ def actionsPage() {
                     break
 
                 case "builtin":
-                    section(sTS("Action Description:")) {
-                        paragraph pTS("Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                    }
+                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         Map builtinOpts = [
@@ -848,9 +862,7 @@ def actionsPage() {
                     break
 
                 case "music":
-                    section(sTS("Action Description:")) {
-                        paragraph pTS("Allow playback of various Songs/Radio using any connected music provider", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                    }
+                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
                         List musicProvs = devices[0]?.hasAttribute("supportedMusic") ? devices[0]?.currentValue("supportedMusic")?.split(",")?.collect { "${it?.toString()?.trim()}"} : []
@@ -881,9 +893,7 @@ def actionsPage() {
                     break
 
                 case "calendar":
-                    section(sTS("Action Description:")) {
-                        paragraph pTS("This will read out events in your calendar (Requires accounts to be configured in the alexa app. Must not have PIN.)", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                    }
+                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
@@ -898,9 +908,7 @@ def actionsPage() {
 
                 case "alarm":
                     //TODO: Offer to remove alarm after event.
-                    section(sTS("Action Description:")) {
-                        paragraph pTS("This will allow you to alexa alarms based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                    }
+                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("alarms")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
@@ -917,9 +925,7 @@ def actionsPage() {
 
                 case "reminder":
                     //TODO: Offer to remove reminder after event.
-                    section(sTS("Action Description:")) {
-                        paragraph pTS("This will allow you to alexa reminders based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                    }
+                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("reminders")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
@@ -938,9 +944,7 @@ def actionsPage() {
                     echoDevicesInputByPerm("doNotDisturb")
                     if(settings?.act_EchoDevices) {
                         Map dndOpts = ["doNotDisturbOn":"Enable", "doNotDisturbOff":"Disable"]
-                        section(sTS("Action Description:")) {
-                            paragraph pTS("This will allow you to enable/disable Do Not Disturb based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete"
-                        }
+                        section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                         section(sTS("Action Type Config:")) {
                             input "act_dnd_cmd", "enum", title: inTS("Select Do Not Disturb Action", getAppImg("command", true)), description: "", options: dndOpts, required: true, submitOnChange: true, image: getAppImg("command")
                         }
@@ -952,9 +956,7 @@ def actionsPage() {
                 case "alexaroutine":
                     echoDevicesInputByPerm("wakeWord")
                     if(settings?.act_EchoDevices) {
-                        section(sTS("Action Description:")) {
-                            paragraph pTS("This will Allow you trigger any Alexa Routines (Those with voice triggers only)", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                        }
+                        section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                         def routinesAvail = parent?.getAlexaRoutines(null, true) ?: [:]
                         logDebug("routinesAvail: $routinesAvail")
                         section(sTS("Action Type Config:")) {
@@ -970,9 +972,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
                         List devsObj = []
-                        section(sTS("Action Description:")) {
-                            paragraph pTS("This will allow you to change the Wake Word of your Echo's based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                        }
+                        section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                         if(devsCnt >= 1) {
                             List wakeWords = devices[0]?.hasAttribute("wakeWords") ? devices[0]?.currentValue("wakeWords")?.replaceAll('"', "")?.split(",") : []
                             // logDebug("WakeWords: ${wakeWords}")
@@ -998,9 +998,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
                         List devsObj = []
-                        section(sTS("Action Description:")) {
-                            paragraph pTS("This will allow you to connect or disconnect bluetooth based on triggers", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                        }
+                        section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                         if(devsCnt >= 1) {
                             devices?.each { cDev->
                                 List btDevs = cDev?.hasAttribute("btDevicesPaired") ? cDev?.currentValue("btDevicesPaired")?.split(",") : []
