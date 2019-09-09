@@ -34,9 +34,9 @@ definition(
     author      : "Anthony Santilli",
     description : "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
     category    : "My Apps",
-    iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x${state?.updateAvailable ? "_update" : ""}.png",
-    iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.2x${state?.updateAvailable ? "_update" : ""}.png",
-    iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.3x${state?.updateAvailable ? "_update" : ""}.png",
+    iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${state?.updateAvailable ? "_update" : ""}.png",
+    iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${state?.updateAvailable ? "_update" : ""}.png",
+    iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${state?.updateAvailable ? "_update" : ""}.png",
     importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
     oauth       : true,
     pausable    : true
@@ -992,7 +992,7 @@ def musicSearchTestPage() {
             if(musicTestProvider) {
                 input "musicTestQuery", "text", title: inTS("Music Search term to test on Device", getAppImg("search2", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("search2")
                 if(settings?.musicTestQuery) {
-                    input "musicTestDevice", "device.EchoSpeaksDevice", title: inTS("Select a Device to Test Music Search", getAppImg("echo_speaks.1x", true)), description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks.1x")
+                    input "musicTestDevice", "device.EchoSpeaksDevice", title: inTS("Select a Device to Test Music Search", getAppImg("echo_speaks_3.1x", true)), description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks_3.1x")
                     if(musicTestDevice) {
                         input "performMusicTest", "bool", title: inTS("Perform the Music Search Test?", getAppImg("music", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music")
                         if(performMusicTest) { executeMusicSearchTest() }
@@ -3137,7 +3137,7 @@ def appInfoSect()	{
         str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
     }
     section() {
-        href "changeLogPage", title: inTS("${app?.name} (v${appVersion()})", getAppImg("echo_speaks.2x", true), null, false), description: str, image: getAppImg("echo_speaks.2x")
+        href "changeLogPage", title: inTS("${app?.name} (v${appVersion()})", getAppImg("echo_speaks_3.2x", true), null, false), description: str, image: getAppImg("echo_speaks_3.2x")
         if(!state?.isInstalled) {
             paragraph pTS("--NEW Install--", null, true, "#2784D9"), state: "complete"
         } else {
@@ -3264,7 +3264,7 @@ def renderConfig() {
     <body>
         <div style="margin: 0 auto; max-width: 600px;">
             <form class="p-1">
-                <div class="my-3 text-center"><span><img src="${getAppImg("echo_speaks.1x", true)}"/><p class="h4 text-center">Echo Speaks</p></span></div>
+                <div class="my-3 text-center"><span><img src="${getAppImg("echo_speaks_3.1x", true)}"/><p class="h4 text-center">Echo Speaks</p></span></div>
                 <hr>
                 ${oStr}
 
@@ -3627,7 +3627,7 @@ def renderTextEditPage() {
                                         title: 'Echo Speaks Actions',
                                         text: 'Responses saved successfully!',
                                         type: 'success',
-                                        icon: 'https://github.com/tonesto7/echo-speaks/raw/master/resources/icons/echo_speaks.1x.png',
+                                        icon: 'https://github.com/tonesto7/echo-speaks/raw/master/resources/icons/echo_speaks_3.1x.png',
                                         timeout: 4500,
                                         callback: function() { this.hide() }
                                     });
