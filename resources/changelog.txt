@@ -1,3 +1,16 @@
+  ══════════
+   Main App (v3.0.0.8)
+   September 9th, 2019
+ ══════════
+  • ADDED: Added notification devices to the notification options
+
+ ═════════════
+   Actions App (v3.0.0.9)
+   September 9th, 2019
+ ═════════════
+  • ADDED: Added notification devices to the notification options
+  • UPDATED: Actions config flow to be easier to follow.
+
  ══════════
    Main App (v3.0.0.7)
    September 6th, 2019
