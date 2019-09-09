@@ -27,7 +27,6 @@ Map minVersions()     { return [echoDevice: 3008, actionApp: 3008, server: 222] 
 // TODO: Change docs link to public docs for release
 // TODO: Add in Actions to the metrics
 // TODO: Add the ability to duplicate an existing action (Web based?)
-// TODO: Add automated call to updated() using healthCheck every few days to make sure everything stays running.
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
