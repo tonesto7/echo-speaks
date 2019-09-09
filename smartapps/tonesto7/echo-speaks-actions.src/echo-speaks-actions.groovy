@@ -141,7 +141,7 @@ def mainPage() {
             }
             section (sTS("Configuration: Part 2")) {
                 if(settings?.actionType) {
-                    href "triggersPage", title: inTS("Action Triggers", getAppImg("trigger", true)), description: getTriggersDesc(), state: (trigConf ? "complete" : ""), image: getAppImg("trigger")
+                    href "triggersPage", title: inTS("Action Triggers", getAppImg("trigger", true)), description: getTriggersDesc(), state: (trigConf ? "complete" : ""), required: true, image: getAppImg("trigger")
                 } else { paragraph pTS("These options will be shown once the action type is configured.", getAppImg("info", true)) }
             }
             section(sTS("Configuration: Part 3")) {
@@ -151,7 +151,7 @@ def mainPage() {
             }
             section(sTS("Configuration: Part 4")) {
                 if(settings?.actionType && trigConf) {
-                    href "actionsPage", title: inTS("Device Config ", getAppImg("es_actions", true)), description: getActionDesc(), state: (actConf ? "complete" : ""), image: getAppImg("es_actions")
+                    href "actionsPage", title: inTS("Execution Config", getAppImg("es_actions", true)), description: getActionDesc(), state: (actConf ? "complete" : ""), required: true, image: getAppImg("es_actions")
                 } else { paragraph pTS("These options will be shown once the triggers are configured.", getAppImg("info", true)) }
             }
             if(settings?.actionType && trigConf && actConf) {
