@@ -123,27 +123,42 @@ def mainPage() {
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: (newInstall == true), install: !newInstall) {
         appInfoSect()
         Boolean paused = isPaused()
-        if(!paused) {
+        if(paused) {
+            section() {
+                paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
+            }
+        } else {
             Boolean trigConf = triggersConfigured()
             Boolean condConf = conditionsConfigured()
-            Boolean actConf = actionsConfigured()
-            section (sTS("Configuration: Part 1")) {
-                href "triggersPage", title: inTS("Action Triggers", getAppImg("trigger", true)), description: getTriggersDesc(), state: (trigConf ? "complete" : ""), image: getAppImg("trigger")
+            Boolean actConf = executionConfigured()
+            section(sTS("Configuration: Part 1")) {
+                Map actionOpts = [
+                    "speak":"Speak (SSML Supported)", "announcement":"Announcement (SSML Supported)", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
+                    "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
+                    "bluetooth":"Bluetooth Control", "wakeword":"Wake Word", "alexaroutine": "Execute Alexa Routine(s)"
+                ]
+                input "actionType", "enum", title: inTS("Action Type", getAppImg("list", true)), description: "", options: actionOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
             }
-            section(sTS("Configuration: Part 2")) {
-                if(trigConf) {
+            section (sTS("Configuration: Part 2")) {
+                if(settings?.actionType) {
+                    href "triggersPage", title: inTS("Action Triggers", getAppImg("trigger", true)), description: getTriggersDesc(), state: (trigConf ? "complete" : ""), image: getAppImg("trigger")
+                } else { paragraph pTS("These options will be shown once the action type is configured.", getAppImg("info", true)) }
+            }
+            section(sTS("Configuration: Part 3")) {
+                if(settings?.actionType && trigConf) {
                     href "conditionsPage", title: inTS("Condition/Restrictions\n(Optional)", getAppImg("conditions", true)), description: getConditionsDesc(), state: (condConf ? "complete": ""), image: getAppImg("conditions")
                 } else { paragraph pTS("These options will be shown once the triggers are configured.", getAppImg("info", true)) }
             }
-            section(sTS("Configuration: Part 3")) {
-                if(trigConf) {
-                    href "actionsPage", title: inTS("Action Execution", getAppImg("es_actions", true)), description: getActionDesc(), state: (actConf ? "complete" : ""), image: getAppImg("es_actions")
+            section(sTS("Configuration: Part 4")) {
+                if(settings?.actionType && trigConf) {
+                    href "actionsPage", title: inTS("Device Config ", getAppImg("es_actions", true)), description: getActionDesc(), state: (actConf ? "complete" : ""), image: getAppImg("es_actions")
                 } else { paragraph pTS("These options will be shown once the triggers are configured.", getAppImg("info", true)) }
             }
-            if(trigConf && condConf && actConf) { actionSimulationSect() }
-        } else {
-            section() {
-                paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
+            if(settings?.actionType && trigConf && actConf) {
+                section(sTS("Notifications:")) {
+                    def t0 = getAppNotifDesc()
+                    href "actNotifPage", title: inTS("Send Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+                }
             }
         }
 
@@ -154,6 +169,10 @@ def mainPage() {
             if(state?.isInstalled) {
                 input "actionPause", "bool", title: inTS("Pause Action?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
                 if(actionPause) { unsubscribe() }
+                if(!paused) {
+                    input "actTestRun", "bool", title: inTS("Test this action?", getAppImg("testing", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
+                    if(actTestRun) { executeActTest() }
+                }
             }
         }
         if(state?.isInstalled) {
@@ -649,7 +668,7 @@ private Map devsSupportVolume(devs) {
 def actionVariableDesc(actType, hideUserTxt=false) {
     Map txtItems = customTxtItems()
     if(!txtItems?.size() && state?.showSpeakEvtVars && !settings?."act_${actType}_txt") {
-        String str = "NOTICE:\nYou can choose to leave the text field empty and generic text will be generated for each event type or define responses for each trigger under Step 1."
+        String str = "NOTICE:\nYou can choose to leave the text field empty and generic text will be generated for each event type or define responses for each trigger under Step 2."
         paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
     }
     if(!hideUserTxt) {
@@ -659,27 +678,29 @@ def actionVariableDesc(actType, hideUserTxt=false) {
                 i?.value?.each { i2-> str += "\n \u2022 ${i?.key?.toString()?.capitalize()} ${i2?.key?.toString()?.capitalize()}: (${i2?.value?.size()} Responses)" }
             }
             paragraph pTS(str, null, true, "#2784D9"), state: "complete"
-            paragraph pTS("NOTICE:\nEntering text in the input below will override the user defined text for each trigger type under Step 1.", null, true, "red"), required: true, state: null
+            paragraph pTS("NOTICE:\nEntering text in the input below will override the user defined text for each trigger type under Step 2.", null, true, "red"), required: true, state: null
         }
     }
 }
 
 def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
-    String str = "Description:\nYou have 3 response options:\n"
-    str += " \u2022 1. Leave the text empty below and text will be generated for each ${inType} trigger event.\n"
-    str += " \u2022 2. Wait till Step 3 and define a single response for any trigger selected here.\n"
-    str += " \u2022 3. Use the reponse builder below and create custom responses for each trigger type. (Supports randomization when multiple responses are configured)\n\n"
-    str += "Custom Text is only used when Speech or Announcement action type is selected in Step 3."
-    paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
-    //Custom Text Options
-    href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
-            description: settings?."trig_${inType}_txt" ?: "Open Response Designer...", image: getAppImg("text")
-    if(showRepInputs) {
-        if(settings?."trig_${inType}_after_repeat") {
-            //Custom Repeat Text Options
-            paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-            href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_after_repeat_txt"), style: (isST() ? "embedded" : "external"), title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
-                    description: settings?."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings?."trig_${inType}_after_repeat_txt" ? "complete" : '') , submitOnChange: true, required: false, image: getAppImg("text")
+    if(settings?.actionType in ["speak", "announcement"]) {
+        String str = "Description:\nYou have 3 response options:\n"
+        str += " \u2022 1. Leave the text empty below and text will be generated for each ${inType} trigger event.\n"
+        str += " \u2022 2. Wait till Step 4 and define a single response for any trigger selected here.\n"
+        str += " \u2022 3. Use the reponse builder below and create custom responses for each trigger type. (Supports randomization when multiple responses are configured)\n\n"
+        str += "Custom Text is only used when Speech or Announcement action type is selected in Step 4."
+        paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
+        //Custom Text Options
+        href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
+                description: settings?."trig_${inType}_txt" ?: "Open Response Designer...", image: getAppImg("text")
+        if(showRepInputs) {
+            if(settings?."trig_${inType}_after_repeat") {
+                //Custom Repeat Text Options
+                paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
+                href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_after_repeat_txt"), style: (isST() ? "embedded" : "external"), title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
+                        description: settings?."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings?."trig_${inType}_after_repeat_txt" ? "complete" : '') , submitOnChange: true, required: false, image: getAppImg("text")
+            }
         }
     }
 }
@@ -688,16 +709,7 @@ def actionsPage() {
     return dynamicPage(name: "actionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
         Boolean done = false
         Map actionExecMap = [configured: false]
-        Map actionOpts = [
-            "speak":"Speak (SSML Supported)", "announcement":"Announcement (SSML Supported)", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
-            "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
-            "bluetooth":"Bluetooth Control", "wakeword":"Wake Word", "alexaroutine": "Execute Alexa Routine(s)"
-        ]
-        section(sTS("Actions Type Selection: ${settings?.act_EchoDevices?.size() ? "(Tap to change)" : ""}"), hideable: true, hidden: (settings?.act_EchoDevices?.size())) {
-            input "actionType", "enum", title: inTS("Actions Type", getAppImg("list", true)), description: "", options: actionOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
-        }
-
-        if(actionType) {
+        if(settings?.actionType) {
             actionExecMap?.actionType = actionType
             actionExecMap?.config = [:]
             List devices = parent?.getDevicesFromList(settings?.act_EchoDevices)
@@ -1003,10 +1015,6 @@ def actionsPage() {
                     break
             }
             if(done) {
-                section(sTS("Notifications:")) {
-                    def t0 = getAppNotifDesc()
-                    href "actNotifPage", title: inTS("Send Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
-                }
                 section(sTS("Delay Config:")) {
                     input "act_delay", "number", title: inTS("Delay Action in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                     paragraph "This does not work on Hubitat yet..."
@@ -1181,12 +1189,12 @@ def updateActionExecMap(data) {
     // log.debug "actionExecMap: ${state?.actionExecMap}"
 }
 
-Boolean actionsConfigured() {
-    Boolean type = (settings?.actionType)
+Boolean executionConfigured() {
+    // Boolean type = (settings?.actionType)
     Boolean opts = (state?.actionExecMap && state?.actionExecMap?.configured == true)
     Boolean devs = (settings?.act_EchoDevices)
-    // log.debug "type: $type | Options: $opts | devs: $devs"
-    return (type || opts || devs)
+    // log.debug "Options: $opts | devs: $devs"
+    return (opts || devs)
 }
 
 private echoDevicesInputByPerm(type) {
@@ -1283,7 +1291,7 @@ private updConfigStatusMap() {
     Map sMap = atomicState?.configStatusMap ?: [:]
     sMap?.triggers = triggersConfigured()
     sMap?.conditions = conditionsConfigured()
-    sMap?.actions = actionsConfigured()
+    sMap?.actions = executionConfigured()
     atomicState?.configStatusMap = sMap
 }
 
@@ -3036,20 +3044,17 @@ String getConditionsDesc() {
 }
 
 String getActionDesc() {
-    Boolean confd = actionsConfigured()
+    Boolean confd = executionConfigured()
     def time = null
     String sPre = "act_"
-    if(confd) {
-        String str = "Actions:${settings?.act_EchoDevices ? " (${settings?.act_EchoDevices?.size()} Device${settings?.act_EchoDevices?.size() > 1 ? "s" : ""})" : ""}\n"
-        str += " • ${settings?.actionType?.capitalize()}\n"
-        // str += settings?."act_${settings?.actionType}_cmd" ? " • Cmd: (${settings?."act_${settings?.actionType}_cmd"})\n" : ""
+    if(settings?.actionType && confd) {
+        String str = ""
+        def eDevs = parent?.getDevicesFromList(settings?.act_EchoDevices)
+        str += eDevs?.size() ? "Alexa Devices used:\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
         str += settings?.act_volume_change ? " • Set Volume: (${settings?.act_volume_change})\n" : ""
         str += settings?.act_volume_restore ? " • Restore Volume: (${settings?.act_volume_restore})\n" : ""
         str += settings?.act_delay ? " • Delay: (${settings?.act_delay})\n" : ""
         str += settings?."act_${settings?.actionType}_txt" ? " • Using Default Response: (True)\n" : ""
-        def nd = getAppNotifDesc(true)
-        str += nd ? "\nNotifications:\n" : ""
-        str += nd ? "${nd}" : ""
         str += "\nTap to modify..."
         return str
     } else {
