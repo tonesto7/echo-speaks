@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.0.7"}
-String devModified() { return "2019-09-06" }
+String devVersion()  { return "3.0.0.8"}
+String devModified() { return "2019-09-09" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -712,7 +712,7 @@ void updateDeviceStatus(Map devData) {
         }
         setOnlineStatus(isOnline)
         sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
-        state?.fullRefreshOk = true
+        // state?.fullRefreshOk = true
         schedDataRefresh()
     // } catch(ex) {
     //     logError( "updateDeviceStatus Error: ${ex?.message}")
@@ -741,7 +741,7 @@ public schedDataRefresh(frc) {
 private refreshData(full=false) {
     // logTrace("trace", "refreshData()...")
     if(device?.currentValue("onlineStatus") != "online") {
-        logWarn("Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
+        logTrace("Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
         return
     }
     if(!isAuthOk()) {return}
