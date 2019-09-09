@@ -17,8 +17,8 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.0.7" }
-String appModified()  { return "2019-09-06" }
+String appVersion()   { return "3.0.0.8" }
+String appModified()  { return "2019-09-09" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -647,6 +647,9 @@ def notifPrefPage() {
             paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
             input "smsNumbers", "text", title: inTS("Send SMS to Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
         }
+        section (sTS("Notification Devices:")) {
+            input "notif_devs", "device.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
+        }
         section(sTS("Pushover Support:")) {
             input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
             if(settings?.pushoverEnabled == true) {
@@ -665,8 +668,8 @@ def notifPrefPage() {
                 } else { paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, "#2784D9"), state: "complete" }
             }
         }
-        if(settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) {
-            if((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
+        if(settings?.smsNumbers?.toString()?.length()>=10 || settings?.notif_devs || settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) {
+            if((settings?.usePush || settings?.notif_devs || (settings?.pushoverEnabled && settings?.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
                 if(sendMsg("Info", "Push Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
                     state.pushTested = true
                 }
@@ -2418,12 +2421,13 @@ Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3
 Boolean getOk2Notify() {
     Boolean smsOk = (settings?.smsNumbers?.toString()?.length()>=10)
     Boolean pushOk = settings?.usePush
+    Boolean notifDevs = (settings?.notif_devs?.size())
     Boolean pushOver = (settings?.pushoverEnabled && settings?.pushoverDevices)
     Boolean daysOk = quietDaysOk(settings?.quietDays)
     Boolean timeOk = quietTimeOk()
     Boolean modesOk = quietModesOk(settings?.quietModes)
     logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
-    if(!(smsOk || pushOk || pushOver)) { return false }
+    if(!(smsOk || pushOk || notifDevs || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
     return true
 }
@@ -2490,6 +2494,12 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
                 buildPushMessage(settings?.pushoverDevices, msgObj, true)
                 sent = true
             }
+            if(settings?.notif_devs) {
+                sentstr = "Notification Devices"
+                settings?.notif_devs?.each { it?.deviceNotification(msg as String) }
+                sent = true
+            }
+
             String smsPhones = sms ? sms.toString() : (settings?.smsNumbers?.toString() ?: null)
             if(smsPhones) {
                 List phones = smsPhones?.toString()?.split("\\,")

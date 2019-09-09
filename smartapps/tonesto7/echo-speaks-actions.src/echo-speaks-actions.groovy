@@ -17,8 +17,8 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.0.7" }
-String appModified() { return "2019-09-06" }
+String appVersion()  { return "3.0.0.8" }
+String appModified() { return "2019-09-09" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1055,6 +1055,9 @@ def actNotifPage() {
         section (sTS("Text Messages:"), hideWhenEmpty: true) {
             paragraph pTS("To send to multiple numbers separate the number by a comma\n\nE.g. 8045551122,8046663344", getAppImg("info", true), false, "gray")
             input "notif_sms_numbers", "text", title: inTS("Send SMS Text to...", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+        }
+        section (sTS("Notification Devices:")) {
+            input "notif_devs", "device.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
         }
         section (sTS("Alexa Mobile Notification:")) {
             paragraph pTS("This will send a push notification the Alexa Mobile app.", null, false, "gray")
@@ -2484,11 +2487,12 @@ Boolean getOk2Notify() {
     Boolean smsOk = (settings?.notif_sms_numbers?.toString()?.length()>=10)
     Boolean pushOk = settings?.notif_send_push
     Boolean pushOver = (settings?.notif_pushover && settings?.notif_pushover_devices)
+    Boolean notifDevsOk = (settings?.notif_devs?.size())
     Boolean daysOk = settings?.notif_days ? (isDayOfWeek(settings?.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = settings?.notif_mode ? (isInMode(settings?.notif_mode)) : true
     logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
-    if(!(smsOk || pushOk || pushOver)) { return false }
+    if(!(smsOk || pushOk || notifDevsOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
     return true
 }
@@ -2558,6 +2562,11 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
                 sentSrc?.push("SMS Message to [${phones}]")
                 sent = true
             }
+            if(settings?.notif_devs) {
+                sentSrc?.push("Notification Devices")
+                settings?.notif_devs?.each { it?.deviceNotification(msg as String) }
+                sent = true
+            }
             if(settings?.notif_alexa_mobile && alexaDev) {
                 alexaDev?.sendAlexaAppNotification(msg)
                 sentSrc?.push("Alexa Mobile App")
@@ -2577,7 +2586,7 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
 
 Boolean isActNotifConfigured() {
     if(customMsgRequired() && (!settings?.notif_use_custom || settings?.notif_custom_message)) { return false }
-    return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_alexa_mobile || (isST() && settings?.notif_pushover && settings?.notif_pushover_devices))
+    return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_devs || settings?.notif_alexa_mobile || (isST() && settings?.notif_pushover && settings?.notif_pushover_devices))
 }
 
 //PushOver-Manager Input Generation Functions
