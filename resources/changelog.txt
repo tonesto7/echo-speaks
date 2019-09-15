@@ -1,4 +1,70 @@
-  ═════════
+  ══════════
+   Main App (v3.0.0.8)
+   September 9th, 2019
+ ══════════
+  • ADDED: Added notification devices to the notification options
+
+ ═════════════
+   Actions App (v3.0.0.9)
+   September 9th, 2019
+ ═════════════
+  • ADDED: Added notification devices to the notification options
+  • UPDATED: Actions config flow to be easier to follow.
+
+ ══════════
+   Main App (v3.0.0.7)
+   September 6th, 2019
+ ══════════
+  • ADDED: Added daily server wakeups to the healthcheck method.  To help prevent heroku servers for going into a deep sleep.
+  • UPDATED: All logs now include "EchoApp (v3.0.0.x) | prefix.
+  • UPDATED: Changelogs will only be shown now when version is changed.
+  • FIXED: Bugs squashed.
+
+ ═════════════
+   Actions App (v3.0.0.7)
+   September 6th, 2019
+ ═════════════
+  • ADDED: New Unit variable %unit%.
+  • ADDED: Action notifications using SMS, push, Pushover (Requires my Pushover manager solution), Alexa Mobile App push message (still has bugs).
+  • UPDATED: Toggle to use the numeric average of multiple devices as the value.
+  • UPDATED: All logs now include "Actions (v3.0.0.x) | prefix.
+  • UPDATED: Added last spoken to device to the top of the Echo device list (@TonyFleisher).
+  • FIXED: Illuminance triggers were missing so I made sure they were added.
+  • FIXED: Made sure the Test execution now handles non-device triggers.
+  • FIXED: Using multiple responses with the default (global) text responses.
+  • FIXED: Refactored code to simplify response item generation.  Should speed up the action execution some.
+  • FIXED: Bugs squashed.
+
+ ════════════
+   Device (v3.0.0.7)
+   September 6th, 2019
+ ════════════
+  • UPDATED: All logs now include "EchoDevice (v3.0.0.x) | prefix.
+
+-------------------------------------------------------------------
+
+ ══════════
+   Main App (v3.0.0.5)
+   September 3rd, 2019
+ ══════════
+  • UPDATED: Response designer to format SSML properly on save
+  • FIXED: recent change caused Exceptions on saving history.
+
+ ══════════
+   Actions App (v3.0.0.5)
+   September 3rd, 2019
+ ══════════
+  • FIXED: recent change caused Exceptions on saving history.
+
+ ══════════
+   Device (v3.0.0.5)
+   September 3rd, 2019
+ ══════════
+  • FIXED: recent change caused Exceptions on saving history.
+
+-------------------------------------------------------------------
+
+ ═════════
    Main App (v3.0.0.3)
    August 30th, 2019
  ═════════

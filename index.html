@@ -10,13 +10,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/css/mdb.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/theme/material.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vanillatoasts@1.3.0/vanillatoasts.css" integrity="sha256-U06o/6s4HELYo2A3Gd7KPGQMojQiAxY9B8oE/hnM3KU=" crossorigin="anonymous">
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/addon/mode/simple.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/xml/xml.min.js"></script>
@@ -80,6 +79,93 @@
         .no-submit {
             cursor: text
         }
+        
+        .cm-s-material .CodeMirror-activeline-background {
+            background: rgba(0, 0, 0, 0);
+        }
+        
+        .cm-s-material .cm-keyword {
+            color: rgba(199, 146, 234, 1);
+        }
+        
+        .cm-s-material .cm-operator {
+            color: rgba(233, 237, 237, 1);
+        }
+        
+        .cm-s-material .cm-variable-2 {
+            color: #80CBC4;
+        }
+        
+        .cm-s-material .cm-variable-3,
+        .cm-s-material .cm-type {
+            color: #82B1FF;
+        }
+        
+        .cm-s-material .cm-builtin {
+            color: #DECB6B;
+        }
+        
+        .cm-s-material .cm-atom {
+            color: #F77669;
+        }
+        
+        .cm-s-material .cm-number {
+            color: #F77669;
+        }
+        
+        .cm-s-material .cm-def {
+            color: rgba(233, 237, 237, 1);
+        }
+        
+        .cm-s-material .cm-string {
+            color: #C3E88D;
+        }
+        
+        .cm-s-material .cm-string-2 {
+            color: #80CBC4;
+        }
+        
+        .cm-s-material .cm-comment {
+            color: #546E7A;
+        }
+        
+        .cm-s-material .cm-variable {
+            color: #82B1FF;
+        }
+        
+        .cm-s-material .cm-tag {
+            color: #80CBC4;
+        }
+        
+        .cm-s-material .cm-meta {
+            color: #80CBC4;
+        }
+        
+        .cm-s-material .cm-attribute {
+            color: #FFCB6B;
+        }
+        
+        .cm-s-material .cm-property {
+            color: #80CBAE;
+        }
+        
+        .cm-s-material .cm-qualifier {
+            color: #DECB6B;
+        }
+        
+        .cm-s-material .cm-variable-3,
+        .cm-s-material .cm-type {
+            color: #DECB6B;
+        }
+        
+        .cm-s-material .cm-tag {
+            color: rgba(255, 83, 112, 1);
+        }
+        
+        .cm-s-material .cm-error {
+            color: rgba(255, 255, 255, 1.0);
+            background-color: #EC5F67;
+        }
     </style>
 </head>
 
@@ -96,9 +182,13 @@
                     <textarea id="editor"></textarea>
                     <div class="text-center blue-text"><small>Each line item represents a single response. Multiple lines will trigger a random selection.</small></div>
                     <div class="d-flex justify-content-center">
-                        <button id="newLineBtn" style="border-radius: 50px !important;" class="btn btn-sm btn-outline-info px-1 my-2 mx-3" type="button"><i class="fas fa-plus mr-1"></i>Add New Response Line</button>
-                        <button style="border-radius: 50px !important;" class="btn btn-sm btn-info my-2" type="submit"><i class="fa fa-save mr-1"></i>Submit Responses</button>
+                        <button id="clearBtn" style="border-radius: 50px !important;" class="btn btn-sm btn-outline-warning px-1 my-2 mx-3" type="button"><i class="fas fa-times-circle mr-1"></i>Clear All</button>
+                        <button id="newLineBtn" style="border-radius: 50px !important;" class="btn btn-sm btn-outline-info px-1 my-2 mx-3" type="button"><i class="fas fa-plus mr-1"></i>New Response</button>
+                        <button id="submitBtn" style="border-radius: 50px !important;" class="btn btn-sm btn-outline-success my-2" type="submit"><i class="fa fa-save mr-1"></i>Save Responses</button>
                     </div>
+                    <!-- <div class="d-flex justify-content-end align-content-top">
+                        <p id="cursorPostion" class="">Line: 0, Position: 46</p>
+                    </div> -->
                 </div>
                 <div class="row mt-2 mx-auto">
                     <div class="px-2 col-12">
@@ -155,8 +245,8 @@
                                                         value="x-high" data-ssml="pitch">
                                                 </div>
                                             </div>
-                                            <div class="col-6 px-2">
-                                                <div class="card-body ssml-buttons px-0 pb-0 pt-1">
+                                            <div class="col-6">
+                                                <div class="ssml-buttons">
                                                     <h3>RATE</h3><input class="ssml-button" type="button" unselectable="on" value="x-slow" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on" value="slow" data-ssml="rate"><input class="ssml-button"
                                                         type="button" unselectable="on" value="medium" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on" value="fast" data-ssml="rate"><input class="ssml-button" type="button" unselectable="on"
                                                         value="x-fast" data-ssml="rate">
@@ -164,84 +254,84 @@
                                             </div>
                                         </div>
                                         <div class="row">
-                                            <div class="col-6 px-2">
-                                                <div class="card-body ssml-buttons px-0 pb-0 pt-1">
+                                            <div class="col-6">
+                                                <div class="ssml-buttons">
                                                     <h3>VOLUME</h3><input class="ssml-button" type="button" unselectable="on" value="silent" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="x-soft" data-ssml="volume">
                                                     <input class="ssml-button" type="button" unselectable="on" value="soft" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="medium" data-ssml="volume"><input class="ssml-button"
                                                         type="button" unselectable="on" value="loud" data-ssml="volume"><input class="ssml-button" type="button" unselectable="on" value="x-loud" data-ssml="volume">
                                                 </div>
                                             </div>
-                                            <div class="col-6 px-2">
-                                                <div class="card-body ssml-buttons px-0 pb-0 pt-1">
+                                            <div class="col-6">
+                                                <div class="ssml-buttons">
                                                     <h3>WHISPER</h3><input class="ssml-button" type="button" unselectable="on" value="whisper" data-ssml="whisper">
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="row">
-                                            <div class="col-6 px-2">
-                                                <div class="card-body ssml-buttons px-0 pb-0 pt-1">
+                                            <div class="col-6">
+                                                <div class="ssml-buttons">
                                                     <h3>VOICE</h3>
                                                     <select class="browser-default custom-select custom-select-sm mb-2" id="voices">
-                                                                                <option value="Naja" class="x-option ember-view">Danish (F) - Naja</option>
-                                                                                <option value="Mads" class="x-option ember-view">Danish (M) - Mads</option>
-                                                                                <option value="Lotte" class="x-option ember-view">Dutch (F) - Lotte</option>
-                                                                                <option value="Ruben" class="x-option ember-view">Dutch (M) - Ruben</option>
-                                                                                <option value="Nicole" class="x-option ember-view">English, Australian (F) - Nicole</option>
-                                                                                <option value="Russell" class="x-option ember-view">English, Australian (M) - Russell</option>
-                                                                                <option value="Amy" class="x-option ember-view">English, British (F) - Amy</option>
-                                                                                <option value="Emma" class="x-option ember-view">English, British (F) - Emma</option>
-                                                                                <option value="Brian" class="x-option ember-view">English, British (M) - Brian</option>
-                                                                                <option value="Raveena" class="x-option ember-view">English, Indian (F) - Raveena</option>
-                                                                                <option value="Aditi" class="x-option ember-view">English, Indian (F) - Aditi</option>
-                                                                                <option value="Ivy" class="x-option ember-view">English, US (F) - Ivy</option>
-                                                                                <option value="Joanna" class="x-option ember-view">English, US (F) - Joanna</option>
-                                                                                <option value="Kendra" class="x-option ember-view">English, US (F) - Kendra</option>
-                                                                                <option value="Kimberly" class="x-option ember-view">English, US (F) - Kimberly</option>
-                                                                                <option value="Salli" class="x-option ember-view">English, US (F) - Salli</option>
-                                                                                <option value="Joey" class="x-option ember-view">English, US (M) - Joey</option>
-                                                                                <option value="Justin" class="x-option ember-view">English, US (M) - Justin</option>
-                                                                                <option value="Matthew" class="x-option ember-view">English, US (M) - Matthew</option>
-                                                                                <option value="Geraint" class="x-option ember-view">English, Welsh (M) - Geraint</option>
-                                                                                <option value="Celine" class="x-option ember-view">French (F) - Céline</option>
-                                                                                <option value="Lea" class="x-option ember-view">French (F) - Léa</option>
-                                                                                <option value="Mathieu" class="x-option ember-view">French (M) - Mathieu</option>
-                                                                                <option value="Chantal" class="x-option ember-view">French, Canadian (F) - Chantal</option>
-                                                                                <option value="Marlene" class="x-option ember-view">German (F) - Marlene</option>
-                                                                                <option value="Vicki" class="x-option ember-view">German (F) - Vicki</option>
-                                                                                <option value="Hans" class="x-option ember-view">German (M) - Hans</option>
-                                                                                <option value="Aditi" class="x-option ember-view">Hindi (F) - Aditi</option>
-                                                                                <option value="Dóra" class="x-option ember-view">Icelandic (F) - Dóra</option>
-                                                                                <option value="Karl" class="x-option ember-view">Icelandic (M) - Karl</option>
-                                                                                <option value="Carla" class="x-option ember-view">Italian (F) - Carla</option>
-                                                                                <option value="Giorgio" class="x-option ember-view">Italian (M) - Giorgio</option>
-                                                                                <option value="Takumi" class="x-option ember-view">Japanese (M) - Takumi</option>
-                                                                                <option value="Mizuki" class="x-option ember-view">Japanese (F) - Mizuki</option>
-                                                                                <option value="Seoyeon" class="x-option ember-view">Korean (F) - Seoyeon</option>
-                                                                                <option value="Liv" class="x-option ember-view">Norwegian (F) - Liv</option>
-                                                                                <option value="Ewa" class="x-option ember-view">Polish (F) - Ewa</option>
-                                                                                <option value="Maja" class="x-option ember-view">Polish (F) - Maja</option>
-                                                                                <option value="Jacek" class="x-option ember-view">Polish (M) - Jacek</option>
-                                                                                <option value="Jan" class="x-option ember-view">Polish (M) - Jan</option>
-                                                                                <option value="Vitoria" class="x-option ember-view">Portugese, Brazilian (F) - Vitória</option>
-                                                                                <option value="Ricardo" class="x-option ember-view">Portugese, Brazilian (M) - Ricardo</option>
-                                                                                <option value="Ines" class="x-option ember-view">Portugese, European (F) - Inês</option>
-                                                                                <option value="Cristiano" class="x-option ember-view">Portugese, European (M) - Cristiano</option>
-                                                                                <option value="Carmen" class="x-option ember-view">Romanian (F) - Carmen</option>
-                                                                                <option value="Tatyana" class="x-option ember-view">Russian (F) - Tatyana</option>
-                                                                                <option value="Maxim" class="x-option ember-view">Russian (M) - Maxim</option>
-                                                                                <option value="Conchita" class="x-option ember-view">Spanish, European (F) - Conchita</option>
-                                                                                <option value="Enrique" class="x-option ember-view">Spanish, European (M) - Enrique</option>
-                                                                                <option value="Penélope" class="x-option ember-view">Spanish, US (F) - Penélope</option>
-                                                                                <option value="Miguel" class="x-option ember-view">Spanish, US (M) - Miguel</option>
-                                                                                <option value="Astrid" class="x-option ember-view">Swedish (F) - Astrid</option>
-                                                                                <option value="Filiz" class="x-option ember-view">Turkish (F) - Filiz</option>
-                                                                                <option value="Gwyneth" class="x-option ember-view">Welsh (F) - Gwyneth</option>
-                                                                            </select>
+                                                                <option value="Naja" class="x-option ember-view">Danish (F) - Naja</option>
+                                                                <option value="Mads" class="x-option ember-view">Danish (M) - Mads</option>
+                                                                <option value="Lotte" class="x-option ember-view">Dutch (F) - Lotte</option>
+                                                                <option value="Ruben" class="x-option ember-view">Dutch (M) - Ruben</option>
+                                                                <option value="Nicole" class="x-option ember-view">English, Australian (F) - Nicole</option>
+                                                                <option value="Russell" class="x-option ember-view">English, Australian (M) - Russell</option>
+                                                                <option value="Amy" class="x-option ember-view">English, British (F) - Amy</option>
+                                                                <option value="Emma" class="x-option ember-view">English, British (F) - Emma</option>
+                                                                <option value="Brian" class="x-option ember-view">English, British (M) - Brian</option>
+                                                                <option value="Raveena" class="x-option ember-view">English, Indian (F) - Raveena</option>
+                                                                <option value="Aditi" class="x-option ember-view">English, Indian (F) - Aditi</option>
+                                                                <option value="Ivy" class="x-option ember-view">English, US (F) - Ivy</option>
+                                                                <option value="Joanna" class="x-option ember-view">English, US (F) - Joanna</option>
+                                                                <option value="Kendra" class="x-option ember-view">English, US (F) - Kendra</option>
+                                                                <option value="Kimberly" class="x-option ember-view">English, US (F) - Kimberly</option>
+                                                                <option value="Salli" class="x-option ember-view">English, US (F) - Salli</option>
+                                                                <option value="Joey" class="x-option ember-view">English, US (M) - Joey</option>
+                                                                <option value="Justin" class="x-option ember-view">English, US (M) - Justin</option>
+                                                                <option value="Matthew" class="x-option ember-view">English, US (M) - Matthew</option>
+                                                                <option value="Geraint" class="x-option ember-view">English, Welsh (M) - Geraint</option>
+                                                                <option value="Celine" class="x-option ember-view">French (F) - Céline</option>
+                                                                <option value="Lea" class="x-option ember-view">French (F) - Léa</option>
+                                                                <option value="Mathieu" class="x-option ember-view">French (M) - Mathieu</option>
+                                                                <option value="Chantal" class="x-option ember-view">French, Canadian (F) - Chantal</option>
+                                                                <option value="Marlene" class="x-option ember-view">German (F) - Marlene</option>
+                                                                <option value="Vicki" class="x-option ember-view">German (F) - Vicki</option>
+                                                                <option value="Hans" class="x-option ember-view">German (M) - Hans</option>
+                                                                <option value="Aditi" class="x-option ember-view">Hindi (F) - Aditi</option>
+                                                                <option value="Dóra" class="x-option ember-view">Icelandic (F) - Dóra</option>
+                                                                <option value="Karl" class="x-option ember-view">Icelandic (M) - Karl</option>
+                                                                <option value="Carla" class="x-option ember-view">Italian (F) - Carla</option>
+                                                                <option value="Giorgio" class="x-option ember-view">Italian (M) - Giorgio</option>
+                                                                <option value="Takumi" class="x-option ember-view">Japanese (M) - Takumi</option>
+                                                                <option value="Mizuki" class="x-option ember-view">Japanese (F) - Mizuki</option>
+                                                                <option value="Seoyeon" class="x-option ember-view">Korean (F) - Seoyeon</option>
+                                                                <option value="Liv" class="x-option ember-view">Norwegian (F) - Liv</option>
+                                                                <option value="Ewa" class="x-option ember-view">Polish (F) - Ewa</option>
+                                                                <option value="Maja" class="x-option ember-view">Polish (F) - Maja</option>
+                                                                <option value="Jacek" class="x-option ember-view">Polish (M) - Jacek</option>
+                                                                <option value="Jan" class="x-option ember-view">Polish (M) - Jan</option>
+                                                                <option value="Vitoria" class="x-option ember-view">Portugese, Brazilian (F) - Vitória</option>
+                                                                <option value="Ricardo" class="x-option ember-view">Portugese, Brazilian (M) - Ricardo</option>
+                                                                <option value="Ines" class="x-option ember-view">Portugese, European (F) - Inês</option>
+                                                                <option value="Cristiano" class="x-option ember-view">Portugese, European (M) - Cristiano</option>
+                                                                <option value="Carmen" class="x-option ember-view">Romanian (F) - Carmen</option>
+                                                                <option value="Tatyana" class="x-option ember-view">Russian (F) - Tatyana</option>
+                                                                <option value="Maxim" class="x-option ember-view">Russian (M) - Maxim</option>
+                                                                <option value="Conchita" class="x-option ember-view">Spanish, European (F) - Conchita</option>
+                                                                <option value="Enrique" class="x-option ember-view">Spanish, European (M) - Enrique</option>
+                                                                <option value="Penélope" class="x-option ember-view">Spanish, US (F) - Penélope</option>
+                                                                <option value="Miguel" class="x-option ember-view">Spanish, US (M) - Miguel</option>
+                                                                <option value="Astrid" class="x-option ember-view">Swedish (F) - Astrid</option>
+                                                                <option value="Filiz" class="x-option ember-view">Turkish (F) - Filiz</option>
+                                                                <option value="Gwyneth" class="x-option ember-view">Welsh (F) - Gwyneth</option>
+                                                            </select>
                                                     <input class="ssml-button" type="button" unselectable="on" value="Add Voice" data-ssml="voice">
                                                 </div>
                                             </div>
-                                            <div class="col-6 px-2">
-                                                <div class="card-body ssml-buttons px-0 pb-0 pt-1">
+                                            <div class="col-6">
+                                                <div class="ssml-buttons">
                                                     <h3>SAY-AS</h3><input class="ssml-button" type="button" unselectable="on" value="number" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="spell-out" data-ssml="say-as">
                                                     <input class="ssml-button" type="button" unselectable="on" value="ordinal" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="digits" data-ssml="say-as"><input class="ssml-button"
                                                         type="button" unselectable="on" value="date" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on" value="time" data-ssml="say-as"><input class="ssml-button" type="button" unselectable="on"
@@ -261,48 +351,67 @@
         </form>
     </div>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanillatoasts@1.3.0/vanillatoasts.min.js"></script>
     <script>
-        let inName = 'trig_contact_txt';
-        let actId = '26a2ccdc-f404-4e8c-9314-8fe4b5cb009b'
-        let rootUrl = 'https://graph.api.smartthings.com:443/api/smartapps/installations/533e121a-d7ba-4ac6-8102-575015956169/textEditor/26a2ccdc-f404-4e8c-9314-8fe4b5cb009b/trig_contact_txt?access_token=66965441-ea43-4397-b648-565981895013';
-        let curText = '%name% %type% is %value%;The %name% %type% is now %value%;%name% %type% changed to %value%;%name% %type% has been %value% for %duration% seconds;';
-        curText = curText == null || curText == 'null' || curText == '' ? '%name% %type% is now %value%' : curText
-        let curTitle = '(Contact) Trigger Events';
-        let curDesc = '<ul class="pl-3" style="list-style-type: bullet;"><li>Add custom responses for Contact trigger events.</li><li>Example: %name% %type% is now %value%</li><li>To make beep sounds use: <b>wop, wop, wop</b> (equals 3 beeps)</li></ul>';
+        let inName = 'act_speak_txt';
+        let actId = 'dd3b4ba8-529c-4186-aea4-45f412503e21'
+        let rootUrl = 'https://graph.api.smartthings.com:443/api/smartapps/installations/533e121a-d7ba-4ac6-8102-575015956169/textEditor/dd3b4ba8-529c-4186-aea4-45f412503e21/act_speak_txt?access_token=66965441-ea43-4397-b648-565981895013';
+        let curText = '<speak>In Paris, they pronounce it <lang xml:lang="fr-FR">Paris</lang></speak>;;;;<speak>In Paris, they pronounce it <lang xml:lang="fr-FR">Paris</lang></speak>';
+        curText = (curText == null || curText == 'null' || curText == '') ? '%name% %type% is now %value%' : curText
+        let curTitle = 'Global Action Speech Event';
+        let curDesc = '<ul class="pl-3" style="list-style-type: bullet;"><li>Add custom responses to use when this action is executed.</li></ul>';
         let selectedLineNum = undefined;
-        toastr.options = {
-            "closeButton": false,
-            "debug": false,
-            "newestOnTop": false,
-            "progressBar": false,
-            "positionClass": "toast-bottom-center",
-            "preventDuplicates": true,
-            "showDuration": 300,
-            "hideDuration": 1000,
-            "timeOut": 5000,
-            "extendedTimeOut": 1000,
-            "showEasing": "swing",
-            "hideEasing": "linear",
-            "showMethod": "fadeIn",
-            "hideMethod": "fadeOut"
-        }
 
-        function cleanTxt(txt) {
-            txt = txt.split(';').map(t => t.trim()).join(';')
-            return txt.endsWith(';') ? txt.replace(/;([^;]*)$/, '$1') : txt
+        // SSML Links
+        let ssmlTestUrl = "https://topvoiceapps.com/ssml"
+        let ssmlDocsUrl = "https://developer.amazon.com/docs/custom-skills/speech-synthesis-markup-language-ssml-reference.html"
+        let ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
+        let ssmlSpeechConsUrl = "https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-english-us.html"
+
+        function cleanEditorText(txt) {
+            txt = txt.split(';').filter(t => t.trim().length > 0).map(t => t.trim()).join(';');
+            txt = txt.endsWith(';') ? txt.replace(/;([^;]*)$/, '$1') : txt;
+            return txt.replace(/  +/g, ' ').replace('> <', '><');
         }
 
         $(document).ready(function() {
             $('#inputTitle').text(curTitle);
             $('#inputDesc').html(curDesc);
-            $('#editor').val(cleanTxt(curText));
+            $('#editor').val(cleanEditorText(curText));
             CodeMirror.defineSimpleMode("simplemode", {
                 start: [{
+                    regex: /<speak>|<\/speak>/,
+                    token: 'tag'
+                }, {
+                    regex: /<voice[^>]+>|<\/voice>/,
+                    token: 'attribute'
+                }, {
+                    regex: /<say-as[^>]+>|<\/say-as>|<emphasis[^>]+>|<\/emphasis>/,
+                    token: 'string'
+                }, {
+                    regex: /<prosody[^>]+>|<\/prosody>/,
+                    token: 'keyword'
+                }, {
                     regex: /%[a-z]+%/,
-                    token: "variable"
+                    token: "variable-2"
                 }, {
                     regex: /<[^>]+>/,
-                    token: 'variable-3'
+                    token: 'variable'
+                }, {
+                    regex: /=["']?((?:.(?!["']?\s+(?:\S+)=|[>"']))+.)["']?/,
+                    token: 'value'
+                }, {
+                    regex: /REPLACE_THIS_TEXT/,
+                    token: "error"
+                }, {
+                    regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i,
+                    token: "number"
+                }, {
+                    regex: /[\{\[\(]/,
+                    indent: true
+                }, {
+                    regex: /[\}\]\)]/,
+                    dedent: true
                 }]
             });
 
@@ -316,8 +425,12 @@
                 lineWrapping: false,
                 autocorrect: false,
                 autocapitalize: false,
-                spellcheck: true
+                spellcheck: true,
+                styleActiveLine: {
+                    nonEmpty: true
+                }
             });
+            editor.markClean();
 
             $('#newLineBtn').click((e) => {
                 let doc = editor.getDoc();
@@ -326,12 +439,24 @@
                 doc.replaceRange(';', CodeMirror.Pos(lineCnt - 1));
             });
 
+            $('#clearBtn').click((e) => {
+                editor.setValue('');
+            });
+
             function updateInfo(instance, changeObj) {
                 selectedLineNum = changeObj.to.line;
+                if (!editor.isClean()) {
+                    $('#submitBtn').removeClass('btn-outline-success').addClass('btn-success');
+                } else {
+                    $('#submitBtn').removeClass('btn-success').addClass('btn-outline-success');
+                }
                 // $('#lineCnt').text('Response Cnt: ' + changeObj.to.line);
             }
 
             editor.on("change", updateInfo);
+            editor.on('beforeSelectionChange', (e) => {
+
+            })
 
             $('form').submit(function(e) {
                 console.log('form submit...')
@@ -341,27 +466,41 @@
                 xmlhttp.onreadystatechange = () => {
                     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
                         // console.log(xmlhttp.responseText);
-                        toastr.success('Success!', "Text Submitted...")
+                        let toast = VanillaToasts.create({
+                            title: 'Echo Speaks Actions',
+                            text: 'Responses saved successfully!',
+                            type: 'success',
+                            icon: 'https://github.com/tonesto7/echo-speaks/raw/master/resources/icons/echo_speaks.1x.png',
+                            timeout: 4500,
+                            callback: function() {
+                                this.hide()
+                            }
+                        });
                     }
                 }
                 xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-                console.log($('#editor').val());
+                // console.log($('#editor').val());
+                flattenSsml();
+                console.log('editor: ', editor.getValue());
                 xmlhttp.send(JSON.stringify({
-                    val: $('#editor').val(),
+                    val: editor.getValue(),
                     name: inName,
                     type: 'text'
                 }));
+                editor.markClean();
+                $('#submitBtn').removeClass('btn-success').addClass('btn-outline-info');
             });
 
             function insertSsml(editor, str, sTags = true) {
                 let doc = editor.getDoc();
                 let cursor = doc.getCursor();
                 let line = cursor.line;
-                console.log(`lineTxt (${editor.getLine(line).length}): `, editor.getLine(line))
+                console.log('cursor: ', cursor)
+                    // console.log(`lineTxt (${editor.getLine(line).length}): `, editor.getLine(line))
                 if (editor.getSelection().length > 0) {
-                    editor.replaceSelection(` ${str}`);
+                    editor.replaceSelection(cleanEditorText(` ${str}`));
                 } else {
-                    doc.replaceRange(` ${str}`, {
+                    doc.replaceRange(cleanEditorText(` ${str}`), {
                         line: line,
                         ch: cursor.ch
                     });
@@ -383,6 +522,45 @@
                         ch: editor.getLine(line).length
                     });
                 }
+            }
+
+            function flattenSsml() {
+                let doc = editor.getDoc();
+                let mlInd = 0
+                let mlItems = [];
+                let ln = 0
+                doc.eachLine(line => {
+                    if (line.text.trim().startsWith('<speak>') && !line.text.trim().endsWith('</speak>')) {
+                        mlItems[mlInd] = {
+                            s: ln,
+                            str: line.text.replace(';', '').trim()
+                        };
+                    } else if (!line.text.trim().startsWith('<speak>') && line.text.trim().endsWith('</speak>')) {
+                        if (mlItems[mlInd] !== undefined && mlItems[mlInd].s !== undefined) {
+                            mlItems[mlInd].e = ln;
+                            mlItems[mlInd].str += line.text.replace(';', '').trim();
+                            mlItems[mlInd].el = line.text.length;
+                            mlInd++;
+                        }
+                    } else {
+                        if (mlItems[mlInd] !== undefined) {
+                            mlItems[mlInd].str += line.text.replace(';', '').trim();
+                        }
+                    }
+                    ln++;
+                });
+                // console.log(mlItems);
+                if (mlItems.length) {
+                    doc.replaceRange(mlItems[0].str, {
+                        line: mlItems[0].s,
+                        ch: 0
+                    }, {
+                        line: mlItems[0].e,
+                        ch: mlItems[0].el
+                    });
+                    flattenSsml();
+                }
+                editor.setValue(cleanEditorText(editor.getValue()));
             }
 
             $('.ssml-buttons input:not(.no-submit)').click(function() {
