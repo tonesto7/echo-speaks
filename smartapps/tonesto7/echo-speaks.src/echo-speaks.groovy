@@ -17,8 +17,8 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.0.8" }
-String appModified()  { return "2019-09-09" }
+String appVersion()   { return "3.0.0.9" }
+String appModified()  { return "2019-09-14" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -1377,7 +1377,7 @@ private updateChildAuth(Boolean isValid) {
     (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { (isValid) ? it?.updateCookies([cookie: getCookieVal(), csrf: getCsrfVal()]) : it?.removeCookies(true); }
 }
 
-private authEvtHandler(Boolean isAuth) {
+private authEvtHandler(Boolean isAuth, String src=null) {
     // log.debug "authEvtHandler(${isAuth})"
     state?.authValid = (isAuth == true)
     if(isAuth == false && !state?.noAuthActive) {
@@ -1386,6 +1386,7 @@ private authEvtHandler(Boolean isAuth) {
         sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
         runEvery1Hour("noAuthReminder")
         state?.noAuthActive = true
+        state?.authEvtClearReason = [dt: getDtNow(), src: src]
         updateChildAuth(isAuth)
     } else {
         if(state?.noAuthActive) {
@@ -1544,7 +1545,7 @@ def cookieValidResp(response, data) {
     // logTrace("cookieValidResp...")
     if(response?.status == 401) {
         logError("cookieValidResp Status: (${response.status})")
-        authValidationEvent(false)
+        authValidationEvent(false, “cookieValidResp”)
         state?.lastCookieChkDt = getDtNow()
         return
     }
@@ -1561,7 +1562,7 @@ def cookieValidResp(response, data) {
     authValidationEvent(valid)
 }
 
-private authValidationEvent(valid) {
+private authValidationEvent(Boolean valid, String src=null) {
 	Integer listSize = 3
     List eList = atomicState?.authValidHistory ?: [true, true, true]
     eList.push(valid)
@@ -1569,7 +1570,7 @@ private authValidationEvent(valid) {
 	atomicState?.authValidHistory = eList
     if(eList?.every { it == false }) {
         logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
-        authEvtHandler(false)
+        authEvtHandler(false, src)
         return
     } else { authEvtHandler(true) }
 }
@@ -1579,13 +1580,13 @@ private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, 
     if(!hasErr && statusCode == 200) {
         return true
     } else if(statusCode == 401) {
-        authValidationEvent(false)
+        authValidationEvent(false, “respIsValid”)
         return false
     } else {
         if(statusCode > 401 && statusCode < 500) {
             logError("${methodName} Error: ${errMsg ?: null}")
             if(errMsg == "Forbidden") {
-                authValidationEvent(false)
+                authValidationEvent(false, “respIsValid”)
                 return false
             }
         }
@@ -1924,7 +1925,7 @@ def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     if(response?.status == 401) {
-        authValidationEvent(false)
+        authValidationEvent(false, “echoDevicesResponse”)
         return
     }
     try {
@@ -2911,6 +2912,7 @@ private getDiagData() {
                 cookieValidHistory: state?.authValidHistory,
                 cookieLastRefreshDate: state?.lastCookieRefresh ?: null,
                 cookieLastRefreshDur: seconds2Duration(getLastCookieRefreshSec()),
+                cookieInvalidReason: (state?.authValid != true && state.authEvtClearReason) ? state?.authEvtClearReason : “Not Defined”,
                 cookieRefreshDays: settings?.refreshCookieDays,
                 hasCookie: (state?.cookieData && state?.cookieData?.localCookie),
                 hasCSRF: (state?.cookieData && state?.cookieData?.csrf)
