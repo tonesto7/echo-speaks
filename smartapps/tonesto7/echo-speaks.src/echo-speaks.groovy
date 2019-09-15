@@ -391,8 +391,8 @@ def guardTriggerEvtHandler(evt) {
             setGuardHome()
         }
         if(newState == "ARMED_AWAY") {
-            if(settings?.guardAwayDelay) { logWarn("Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)"); runIn(settings?.guardAwayDelay, "setGuardAway"); }
-            else { setGuardAway(); logWarn("Setting Alexa Guard Mode to Away..."); }
+            if(settings?.guardAwayDelay) { logWarn("Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)", true); runIn(settings?.guardAwayDelay, "setGuardAway"); }
+            else { setGuardAway(); logWarn("Setting Alexa Guard Mode to Away...", true); }
         }
     }
 }
@@ -958,7 +958,7 @@ private executeSequence() {
     if(settings?.sequenceDevice?.hasCommand("executeSequenceCommand")) {
         settings?.sequenceDevice?.executeSequenceCommand(seqStr as String)
     } else {
-        logWarn("sequence test device doesn't support the executeSequenceCommand command...")
+        logWarn("sequence test device doesn't support the executeSequenceCommand command...", true)
     }
 }
 
@@ -2188,7 +2188,7 @@ private removeDevices(all=false) {
         settingUpdate("cleanUpDevices", "false", "bool")
         List devList = getDeviceList(true)?.collect { String dni = [app?.id, "echoSpeaks", it?.key].join("|") }
         def items = app.getChildDevices()?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : null }
-        logWarn("removeDevices(${all ? "all" : ""}) | In Use: (${all ? 0 : devList?.size()}) | Removing: (${items?.size()})")
+        logWarn("removeDevices(${all ? "all" : ""}) | In Use: (${all ? 0 : devList?.size()}) | Removing: (${items?.size()})", true)
         if(items?.size() > 0) {
             Boolean isST = isST()
             items?.each {  isST ? deleteChildDevice(it as String, true) : deleteChildDevice(it as String) }
@@ -4067,16 +4067,17 @@ String getAppDebugDesc() {
 }
 
 private addToLogHistory(String logKey, msg, Integer max=10) {
+    Boolean ssOk = (stateSizePerc() > 70)
     List eData = atomicState[logKey as String] ?: []
-    eData.push([dt: getDtNow(), message: msg])
-	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
+    eData?.push([dt: getDtNow(), message: msg])
+	if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
 	atomicState[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
 private logInfo(msg) { if(settings?.logInfo != false) {  log.info " EchoApp (v${appVersion()}) | ${msg}" } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 10); } }
-private logError(msg) {if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 10); }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg) {if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 15); }
 
 Map getLogHistory() {
     return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
