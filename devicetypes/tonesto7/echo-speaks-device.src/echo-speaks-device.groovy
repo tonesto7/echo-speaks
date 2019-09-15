@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.0.8"}
-String devModified() { return "2019-09-09" }
+String devVersion()  { return "3.0.0.9"}
+String devModified() { return "2019-09-15" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -446,6 +446,7 @@ metadata {
             input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
             input "disableTextTransform", "bool", required: false, title: "Disable Text Transform?", description: "This will attempt to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false
             input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
+            input "ttsWordDelay", "number", required: true, title: "Speech queue delay (per character)", description: "Currently there is a 2 second delay per every 14 characters.", defaultValue: 2
         }
     }
 }
@@ -2390,8 +2391,9 @@ def executeSequenceCommand(String seqStr) {
 Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     def random = new Random()
     Integer randomInt = random?.nextInt(5) //Was using 7
+    Integer twd = ttsWordDelay ? ttsWordDelay?.toInteger() : 2
     if(!msgLen) { return 30 }
-    def v = (msgLen <= 14 ? 2 : (msgLen / 14)) as Integer
+    def v = (msgLen <= 14 ? twd : (msgLen / 14)) as Integer
     // logTrace("getRecheckDelay($msgLen) | delay: $v + $randomInt")
     return addRandom ? (v + randomInt) : v+2
 }

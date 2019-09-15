@@ -1,4 +1,19 @@
-  ══════════
+ ══════════
+   Main App (v3.0.0.9)
+   September 15th, 2019
+ ══════════
+  • ADDED: Auth failure reason to the diagnostic info.
+  • ADDED: Updated diagnostic page to include link to directly email developer.
+
+ ════════════
+   Device (v3.0.0.9)
+   September 15th, 2019
+ ════════════
+  • ADDED: TTS Delay adjustment to each device setting page. Default is 2 seconds per every 14 characters.
+
+-------------------------------------------------------------------
+
+ ══════════
    Main App (v3.0.0.8)
    September 9th, 2019
  ══════════

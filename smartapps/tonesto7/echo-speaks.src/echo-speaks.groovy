@@ -18,7 +18,7 @@ import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 String appVersion()   { return "3.0.0.9" }
-String appModified()  { return "2019-09-14" }
+String appModified()  { return "2019-09-15" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -196,7 +196,7 @@ def authStatusPage() {
                 input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Forces devices to syncronize the stored cookies with the main app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 if(!isST()) { paragraph pTS("Forces devices to syncronize their stored cookies with the main app.", null, false, "gray") }
                 if(settings?.refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh"); }
-                if(settings?.resetCookies) { clearCookieData() }
+                if(settings?.resetCookies) { clearCookieData("resetCookieToggle") }
                 if(settings?.refreshDevCookies) { refreshDevCookies() }
             }
         }
@@ -532,9 +532,9 @@ def settingsPage() {
         section(sTS("App Change Details:")) {
             href "changeLogPage", title: inTS("View App Revision History", getAppImg("change_log", true)), description: "Tap to view", image: getAppImg("change_log")
         }
-        section(sTS("Diagnostic Data:"), hideable: true, hidden: true) {
+        section(sTS("Diagnostic Data:")) {
             paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", null, false, "gray")
-            href url: getAppEndpointUrl("diagData"), type: "external", title: inTS("Diagnostic Data (JSON)"), description: "Tap to view"
+            href url: getAppEndpointUrl("diagData"), style: "external", title: inTS("Diagnostic Data"), description: "Tap to view"
         }
     }
 }
@@ -1144,7 +1144,7 @@ def uninstalled() {
     unschedule()
     if(settings?.optOutMetrics != true) { if(removeInstallData()) { state?.appGuid = null } }
     clearCloudConfig()
-    clearCookieData()
+    clearCookieData("App Uninstalled")
     removeDevices(true)
 }
 
@@ -1172,10 +1172,11 @@ void settingRemove(String name) {
 mappings {
     path("/renderMetricData")           { action: [GET: "renderMetricData"] }
     path("/receiveData")                { action: [POST: "processData"] }
-    path("/config")                     { action: [GET: "renderConfig"] }
+    path("/config")                      { action: [GET: "renderConfig"] }
     path("/textEditor/:cId/:inName")    { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
     path("/cookie")                     { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
     path("/diagData")                   { action: [GET: "getDiagData"] }
+    path("/diagDataJson")               { action: [GET: "getDiagDataJson"] }
 }
 
 String getCookieVal() { return (state?.cookieData && state?.cookieData?.localCookie) ? state?.cookieData?.localCookie as String : null }
@@ -1545,7 +1546,7 @@ def cookieValidResp(response, data) {
     // logTrace("cookieValidResp...")
     if(response?.status == 401) {
         logError("cookieValidResp Status: (${response.status})")
-        authValidationEvent(false, “cookieValidResp”)
+        authValidationEvent(false, "cookieValidResp")
         state?.lastCookieChkDt = getDtNow()
         return
     }
@@ -1580,13 +1581,13 @@ private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, 
     if(!hasErr && statusCode == 200) {
         return true
     } else if(statusCode == 401) {
-        authValidationEvent(false, “respIsValid”)
+        authValidationEvent(false, "respIsValid")
         return false
     } else {
         if(statusCode > 401 && statusCode < 500) {
             logError("${methodName} Error: ${errMsg ?: null}")
             if(errMsg == "Forbidden") {
-                authValidationEvent(false, “respIsValid”)
+                authValidationEvent(false, "respIsValid")
                 return false
             }
         }
@@ -1925,7 +1926,7 @@ def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     if(response?.status == 401) {
-        authValidationEvent(false, “echoDevicesResponse”)
+        authValidationEvent(false, "echoDevicesResponse")
         return
     }
     try {
@@ -2830,7 +2831,7 @@ private getWebData(params, desc, text=true) {
 |    Diagnostic Data
 *******************************************/
 
-private getDiagData() {
+private getDiagDataJson() {
     try {
         updChildVers()
         def actApps = getActionApps()
@@ -2912,7 +2913,7 @@ private getDiagData() {
                 cookieValidHistory: state?.authValidHistory,
                 cookieLastRefreshDate: state?.lastCookieRefresh ?: null,
                 cookieLastRefreshDur: seconds2Duration(getLastCookieRefreshSec()),
-                cookieInvalidReason: (state?.authValid != true && state.authEvtClearReason) ? state?.authEvtClearReason : “Not Defined”,
+                cookieInvalidReason: (state?.authValid != true && state.authEvtClearReason) ? state?.authEvtClearReason : "Not Defined",
                 cookieRefreshDays: settings?.refreshCookieDays,
                 hasCookie: (state?.cookieData && state?.cookieData?.localCookie),
                 hasCSRF: (state?.cookieData && state?.cookieData?.csrf)
@@ -2936,7 +2937,47 @@ private getDiagData() {
         logError("getDiagData: Exception: ${ex.message}")
         render contentType: "application/json", data: [status: "failed", error: ex?.message], status: 500
     }
+}
 
+def getDiagData() {
+    def ema = new String("dG9uZXN0bzdAZ21haWwuY29t"?.decodeBase64())
+    String html = """
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta http-equiv="x-ua-compatible" content="ie=edge">
+                <title>Echo Speak Diagnostics</title>
+                <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/css/mdb.min.css" rel="stylesheet">
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+                <script>
+                    let link = '${getAppEndpointUrl("diagData")}';
+                </script>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="text-center">
+                        <h3 class="mt-4 mb-0">Echo Speaks Diagnostics</h3>
+                        <p>(v${appVersion()})</p>
+                    </div>
+                    <div class="px-0">
+                        <div class="d-flex justify-content-center">
+                            <button id="emailBtn" onclick="location.href='mailto:${ema?.toString()}?subject=Echo%20Speaks%20Diagnostics&body=${getAppEndpointUrl("diagData")}'" class="btn btn-sm btn-success px-1 my-2 mx-3" type="button"><i class="fas fa-envelope mr-1"></i>Send as Email</button>
+                            <button id="jsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info px-1 my-2 mx-3" type="button"><i class="fas fa-code mr-1"></i>View JSON</button>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
+        </html>
+    """
+    render contentType: "text/html", data: html, status: 200
 }
 
 /******************************************
