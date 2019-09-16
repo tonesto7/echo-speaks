@@ -1,4 +1,26 @@
  ══════════
+   Main App (v3.0.1.1)
+   September 16th, 2019
+ ══════════
+  • ADDED: reset diagnostic logs via diagnostic page so I can make sure i'm starting with fresh logs when necessary.
+  • UPDATED: Authentication valid history fixes.
+
+ ══════════
+   Actions App (v3.0.1.0)
+   September 15th, 2019
+ ══════════
+  • REMOVED: button triggers removed until I can repair the logic.
+  • UPDATED: diagnostic logs tweaks.
+
+ ════════════
+   Device (v3.0.1.0)
+   September 15th, 2019
+ ════════════
+  • UPDATED: diagnostic logs tweaks.
+
+-------------------------------------------------------------------
+
+ ══════════
    Main App (v3.0.1.0)
    September 15th, 2019
  ══════════
@@ -19,163 +41,3 @@
   • NEW: public release
 
 -------------------------------------------------------------------
-
- ══════════
-   Main App (v3.0.0.8)
-   September 9th, 2019
- ══════════
-  • ADDED: Added notification devices to the notification options
-
- ═════════════
-   Actions App (v3.0.0.9)
-   September 9th, 2019
- ═════════════
-  • ADDED: Added notification devices to the notification options
-  • UPDATED: Actions config flow to be easier to follow.
-
- ══════════
-   Main App (v3.0.0.7)
-   September 6th, 2019
- ══════════
-  • ADDED: Added daily server wakeups to the healthcheck method.  To help prevent heroku servers for going into a deep sleep.
-  • UPDATED: All logs now include "EchoApp (v3.0.0.x) | prefix.
-  • UPDATED: Changelogs will only be shown now when version is changed.
-  • FIXED: Bugs squashed.
-
- ═════════════
-   Actions App (v3.0.0.7)
-   September 6th, 2019
- ═════════════
-  • ADDED: New Unit variable %unit%.
-  • ADDED: Action notifications using SMS, push, Pushover (Requires my Pushover manager solution), Alexa Mobile App push message (still has bugs).
-  • UPDATED: Toggle to use the numeric average of multiple devices as the value.
-  • UPDATED: All logs now include "Actions (v3.0.0.x) | prefix.
-  • UPDATED: Added last spoken to device to the top of the Echo device list (@TonyFleisher).
-  • FIXED: Illuminance triggers were missing so I made sure they were added.
-  • FIXED: Made sure the Test execution now handles non-device triggers.
-  • FIXED: Using multiple responses with the default (global) text responses.
-  • FIXED: Refactored code to simplify response item generation.  Should speed up the action execution some.
-  • FIXED: Bugs squashed.
-
- ════════════
-   Device (v3.0.0.7)
-   September 6th, 2019
- ════════════
-  • UPDATED: All logs now include "EchoDevice (v3.0.0.x) | prefix.
-
--------------------------------------------------------------------
-
- ══════════
-   Main App (v3.0.0.5)
-   September 3rd, 2019
- ══════════
-  • UPDATED: Response designer to format SSML properly on save
-  • FIXED: recent change caused Exceptions on saving history.
-
- ══════════
-   Actions App (v3.0.0.5)
-   September 3rd, 2019
- ══════════
-  • FIXED: recent change caused Exceptions on saving history.
-
- ══════════
-   Device (v3.0.0.5)
-   September 3rd, 2019
- ══════════
-  • FIXED: recent change caused Exceptions on saving history.
-
--------------------------------------------------------------------
-
- ═════════
-   Main App (v3.0.0.3)
-   August 30th, 2019
- ═════════
-  • ADDED: Collection of the last 5 errors and warning messages for each device.
-  • ADDED: Under the logging page in the main app you can share your diagnostic data with the developer when you are having issues.
-
- ══════════
-   Actions App (v3.0.0.3)
-   August 30th, 2019
- ══════════
-  • ADDED: Collection of the last 5 errors and warning messages for each device.
-
- ═════════
-   Device (v3.0.0.3)
-   August 30th, 2019
- ═════════
-  • ADDED: Collection of the last 5 errors and warning messages for each device.
-
- ═════════
-   Main App (v3.0.0.1)
-   August 29th, 2019
- ═════════
-  • NEW: Login Status page now available.  It will list each item and run a validation test and give you the response realtime.
-  • NEW: You can force the devices to sync there cookies with the main app (in the rare occassion they get messed up).
-  • NEW: Setting to define how often your cookie refreshes (in days). Between 1 to 5 days. Refreshes attempted before 24hours are now blocked.
-  • NEW: Pause/Unpause all actions from the Main App actions page.
-  • FIXED: Other bugs resolved.
-  • UPDATED: UI polishing.
-
- ══════════
-   Actions App (v3.0.0.1)
-   August 29th, 2019
- ══════════
-  • NEW: Version number updates.
-
- ═════════
-   Device (v3.0.0.1)
-   August 29th, 2019
- ═════════
-  • UPDATED: Modified the synchronization of Cookie data with the app.
-
- ═════════
-   Main App (v3.0.0)
-   August 27th, 2019
- ═════════
-  • NEW: Automation child app called Echo Speaks - Actions to eliminate the need for 3rd party apps to use all of Echo Speaks functionality.
-  • NEW: Support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).
-  • NEW: Ability to remove 'Echo - ' prefix from device names.
-  • NEW: Issues section at top of the app UI.  It will show any authentication, code updates/version issues.
-  • NEW: Child App and Devices now verify that they meet the minimum version required and stop processing if they don't.
-  • NEW: importUrl header param for Hubitat users to quickly import code.
-  • NEW: Checks are now made to make sure you can't install Actions app from the marketplace.
-  • NEW: Log filtering options to reducing log output.
-  • NEW: Three strikes rule for authentication failures. Instead of clearing auth on the first failed attempt it will wait for 3 consectutive failures.
-  • NEW: Speech testing has been added to the device testing section.
-  • FIXED: Repaired issue with Bluetooth status requests.
-  • FIXED: Device rename issue on Hubitat.
-  • FIXED: Authentication handling tweaks and optimizations.
-  • FIXED: Other bugs resolved.
-  • UPDATED: Streamlined the mainPage to be less cluttered and overwhelming.
-  • UPDATED: Rebuilt the announcement tests function.
-
- ══════════
-   Actions App (v3.0.0)
-   August 27th, 2019
- ══════════
-  • NEW: importUrl header param for Hubitat users to quickly import code.
-  • NEW: Alexa Routine Execution (Only those with custom voice triggers).
-  • NEW: Subscribe to just about any location and device events.
-  • NEW: Create responses for each trigger type (Means 1 action can accomodate a large number of events).
-  • NEW: Monitor devices for changes and speak after so many seconds then repeat every x seconds until it changes to desired state.
-  • NEW: Define different responses for the repeat events.
-  • NEW: Define multiple responses and have a random response for each event.
-  • NEW: Web Based reponse builder.
-  • NEW: Log filtering options to reducing log output.
-  • NEW: Much more.
-
- ═════════
-   Device (v3.0.0)
-   August 27th, 2019
- ═════════
-  • NEW: importUrl header param for Hubitat users to quickly import code.
-  • NEW: SSML Support for Speech commands.
-  • NEW: Better version checks for devices to prevent compatibility issues.
-  • NEW: alexaGuardStatus attribute.
-  • NEW: Log filtering options to reducing log output.
-  • FIXED: All web calls have been reworked to eliminate the JSON error in the logs.
-  • FIXED: setLevel type mismatch issues.
-  • FIXED: Extensive queue testing and optimizations.
-  • FIXED: Authentication handling tweaks and optimizations.
-  • FIXED: Other stuff i'm not remembering.
-  • UPDATED: Tweaked and optimized the Queue system in the device to be much more resilient and reliable.

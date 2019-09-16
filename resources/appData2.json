@@ -2,13 +2,13 @@
     "appDataVer": "2.0",
     "versions": {
         "mainApp": {
-            "ver": "3.0.1.0"
+            "ver": "3.0.1.1"
         },
         "actionApp": {
-            "ver": "3.0.1.0"
+            "ver": "3.0.1.1"
         },
         "echoDevice": {
-            "ver": "3.0.1.0"
+            "ver": "3.0.1.1"
         },
         "server": {
             "ver": "2.2.2"

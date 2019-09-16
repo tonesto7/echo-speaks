@@ -17,12 +17,12 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.1.0" }
-String appModified()   { return "2019-09-15" }
+String appVersion()   { return "3.0.1.1" }
+String appModified()   { return "2019-09-16" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3010, actionApp: 3010, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3011, actionApp: 3011, server: 222] } //These values define the minimum versions of code this app will work with.
 // TODO: Add in Actions to the metrics
 // TODO: Add the ability to duplicate an existing action (Web based?)
 definition(
@@ -1170,10 +1170,11 @@ void settingRemove(String name) {
 mappings {
     path("/renderMetricData")           { action: [GET: "renderMetricData"] }
     path("/receiveData")                { action: [POST: "processData"] }
-    path("/config")                      { action: [GET: "renderConfig"] }
+    path("/config")                     { action: [GET: "renderConfig"] }
     path("/textEditor/:cId/:inName")    { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
     path("/cookie")                     { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
     path("/diagData")                   { action: [GET: "getDiagData"] }
+    path("/diagCmds/:cmd")             { action: [GET: "execDiagCmds"] }
     path("/diagDataJson")               { action: [GET: "getDiagDataJson"] }
 }
 
@@ -1370,6 +1371,7 @@ private refreshDevCookies() {
     logDebug("Re-Syncing Cookie Data with Devices")
     Boolean isValid = (state?.authValid && getCookieVal() != null && getCsrfVal() != null)
     updateChildAuth(isValid)
+    return isValid
 }
 
 private updateChildAuth(Boolean isValid) {
@@ -1508,6 +1510,7 @@ Boolean validateCookie() {
         httpGet(params) { resp->
             if(resp?.status == 401) {
                 logError("validateCookie Status: (${resp.status})")
+                authValidationEvent(valid, "validateCookie_${resp?.status}")
                 state?.lastCookieChkDt = getDtNow()
                 return false
             }
@@ -1520,6 +1523,7 @@ Boolean validateCookie() {
             }
             state?.lastCookieChkDt = getDtNow()
             // logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-data?.execDt)}ms)")
+            // authValidationEvent(valid, "validateCookie")
             return valid
         }
     } catch(ex) {
@@ -1530,7 +1534,8 @@ Boolean validateCookie() {
 }
 
 private validateCookieAsync(frc=false) {
-    if((!frc && getLastCookieChkSec() <= 1800) || !getCookieVal() || !getCsrfVal()) { return }
+    //Changed amazon auth validation to every 15 min instead of 30
+    if((!frc && getLastCookieChkSec() <= 900) || !getCookieVal() || !getCsrfVal()) { return }
     try {
         def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
         execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
@@ -1544,7 +1549,7 @@ def cookieValidResp(response, data) {
     // logTrace("cookieValidResp...")
     if(response?.status == 401) {
         logError("cookieValidResp Status: (${response.status})")
-        authValidationEvent(false, "cookieValidResp")
+        authValidationEvent(false, "cookieValidResp_${response?.status}")
         state?.lastCookieChkDt = getDtNow()
         return
     }
@@ -1558,7 +1563,8 @@ def cookieValidResp(response, data) {
     state?.lastCookieChkDt = getDtNow()
     def execTime = data?.execDt ? (now()-data?.execDt) : 0
     logDebug("Cookie Validation: (${valid}) | Process Time: (${execTime}ms)")
-    authValidationEvent(valid)
+    log.debug("Cookie Validation: (${valid}) | Process Time: (${execTime}ms)")
+    authValidationEvent(valid, "validateCookieAsync")
 }
 
 private authValidationEvent(Boolean valid, String src=null) {
@@ -1579,13 +1585,13 @@ private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, 
     if(!hasErr && statusCode == 200) {
         return true
     } else if(statusCode == 401) {
-        authValidationEvent(false, "respIsValid")
+        authValidationEvent(false, "respIsValid_${statusCode}")
         return false
     } else {
         if(statusCode > 401 && statusCode < 500) {
             logError("${methodName} Error: ${errMsg ?: null}")
             if(errMsg == "Forbidden") {
-                authValidationEvent(false, "respIsValid")
+                authValidationEvent(false, "respIsValid_${statusCode}")
                 return false
             }
         }
@@ -1924,7 +1930,7 @@ def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     if(response?.status == 401) {
-        authValidationEvent(false, "echoDevicesResponse")
+        authValidationEvent(false, "echoDevicesResponse_${response?.status}")
         return
     }
     try {
@@ -2900,7 +2906,8 @@ private getDiagDataJson() {
                 lastDataUpdDt: state?.lastDevDataUpd,
                 models: state?.deviceStyleCnts ?: [:],
                 warnings: devWarnings,
-                errors: devErrors
+                errors: devErrors,
+                speech: devSpeech
             ],
             hubPlatform: getPlatform(),
             authStatus: [
@@ -2955,11 +2962,11 @@ def getDiagData() {
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
                 <script>
-                    let link = '${getAppEndpointUrl("diagData")}';
+                    let cmdUrl = '${getAppEndpointUrl("diagCmds")}';
                 </script>
             </head>
             <body>
-                <div class="container">
+                <div class="container-fluid">
                     <div class="text-center">
                         <h3 class="mt-4 mb-0">Echo Speaks Diagnostics</h3>
                         <p>(v${appVersion()})</p>
@@ -2970,13 +2977,67 @@ def getDiagData() {
                             <button id="jsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info px-1 my-2 mx-3" type="button"><i class="fas fa-code mr-1"></i>View JSON</button>
                         </div>
                     </div>
+                    <div class="text-center">
+                        <h4 class="my-4">Remote Commands</h4>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-center">
+                            <section class="">
+                                <button id="wakeupServer" data-cmdtype="wakeupServer" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Wakeup Server</button>
+                                <button id="validateAuth" data-cmdtype="validateAuth" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Validate Auth</button>
+                                <button id="clearLogs" data-cmdtype="clearLogs" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Clear Logs</button>
+                                <button id="execUpdate" data-cmdtype="execUpdate" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Execute Update()</button>
+                                <button id="forceDeviceSync" data-cmdtype="forceDeviceSync" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Device Auth Sync</button>
+                            </section>
+                        </div>
+                    </div>
                 </div>
             </body>
             <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
+            <script>
+                \$('.cmd_btn').click(function() {
+                    console.log('cmd_btn type: ', \$(this).attr("data-cmdType"));
+                    execCmd(\$(this).attr("data-cmdType"));
+                });
+                function execCmd(cmd) {
+                    if(!cmd) return;
+                    \$.getJSON(cmdUrl.replace('diagCmds', `diagCmds/\${cmd}`), function(result){ console.log(result); });
+                }
+            </script>
         </html>
     """
     render contentType: "text/html", data: html, status: 200
 }
+
+def execDiagCmds() {
+    String dcmd = params?.cmd
+    Boolean status = false
+    log.debug "dcmd: ${dcmd}"
+    if(dcmd) {
+        switch(dcmd) {
+            case "clearLogs":
+                status = clearDiagLogs()
+                break
+            case "validateAuth":
+                status = validateCookie();
+                break
+            case "wakeupServer":
+                wakeupServer()
+                status = true
+                break
+            case "forceDeviceSync":
+                status = refreshDevCookies()
+                break
+            case "execUpdate":
+                updated()
+                status = true
+                break
+        }
+    }
+    def json = new JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersion()])
+    render contentType: "application/json", data: json, status: 200
+}
+
 
 /******************************************
 |    Time and Date Conversion Functions
@@ -4077,6 +4138,21 @@ private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${
 private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
 private logError(msg) {if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 15); }
 
+def clearDiagLogs(type="all") {
+    // log.debug "clearDiagLogs($type)"
+    if(type=="all") {
+        clearLogHistory()
+        getActionApps()?.each { ca-> ca?.clearLogHistory() }
+        (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.clearLogHistory() }
+        return true
+    }
+    return false
+}
+
 Map getLogHistory() {
     return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
+}
+void clearLogHistory() {
+    atomicState?.warnHistory = []
+    atomicState?.errorHistory = []
 }
