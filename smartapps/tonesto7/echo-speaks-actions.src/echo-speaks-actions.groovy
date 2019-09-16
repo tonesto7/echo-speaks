@@ -17,8 +17,8 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.1.0" }
-String appModified()  { return "2019-09-15" }
+String appVersion()  { return "3.0.1.1" }
+String appModified()  { return "2019-09-16" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -109,7 +109,7 @@ private def buildTriggerEnum() {
     }
     // buildItems["Weather Events"] = ["Weather":"Weather"]
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide"]?.sort{ it?.key }
-    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "button":"Buttons", "thermostat":"Thermostat"]?.sort{ it?.key }
+    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.key }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
     if(isST()) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
@@ -328,6 +328,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt("lock")) {
+                //TODO: Add lock code triggers
                 trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", "any"], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++)
             }
 
@@ -832,8 +833,8 @@ def actionsPage() {
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
                         Map playbackOpts = [
-                            "pause":"Pause", "stop":"Stop", "play": "Play", "nextTrack": "Next Track", "previousTrack":"Previous Track",
-                            "mute":"Mute"
+                            "pause":"Pause", "stop":"Stop", "play":"Play", "nextTrack":"Next Track", "previousTrack":"Previous Track",
+                            "mute":"Mute", "volume":"Volume"
                         ]
                         section(sTS("Playback Config:")) {
                             input "act_playback_cmd", "enum", title: inTS("Select Playback Action", getAppImg("command", true)), description: "", options: playbackOpts, required: true, submitOnChange: true, image: getAppImg("command")
@@ -3169,6 +3170,10 @@ private logError(msg) { if(settings?.logError != false) { log.error "Actions (v$
 
 Map getLogHistory() {
     return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
+}
+void clearLogHistory() {
+    atomicState?.warnHistory = []
+    atomicState?.errorHistory = []
 }
 
 String convMusicProvider(String prov) {
