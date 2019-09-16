@@ -1803,8 +1803,9 @@ def checkGuardSupportResponse(response, data) {
     //TODO: Maybe we can use the server to get the required ID needed to make guard requests
     def resp = parseJson(response?.data?.toString())
     Boolean guardSupported = false
-    if(isST() && resp?.toString()?.length > 500000) { state?.guardDataOverMaxSize = true }
-    if(resp && resp?.networkDetail) {
+    if(isST() && resp && resp?.toString()?.length > 500000) {
+        state?.guardDataOverMaxSize = true
+    } else if(resp && resp?.networkDetail) {
         def details = parseJson(resp?.networkDetail as String)
         def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
         if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
