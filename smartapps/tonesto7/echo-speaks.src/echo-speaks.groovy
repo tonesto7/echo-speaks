@@ -1509,6 +1509,7 @@ Boolean validateCookie() {
         httpGet(params) { resp->
             if(resp?.status == 401) {
                 logError("validateCookie Status: (${resp.status})")
+                authValidationEvent(valid, "validateCookie_${resp?.status}")
                 state?.lastCookieChkDt = getDtNow()
                 return false
             }
@@ -1521,6 +1522,7 @@ Boolean validateCookie() {
             }
             state?.lastCookieChkDt = getDtNow()
             // logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-data?.execDt)}ms)")
+            // authValidationEvent(valid, "validateCookie")
             return valid
         }
     } catch(ex) {
@@ -1531,7 +1533,8 @@ Boolean validateCookie() {
 }
 
 private validateCookieAsync(frc=false) {
-    if((!frc && getLastCookieChkSec() <= 1800) || !getCookieVal() || !getCsrfVal()) { return }
+    //Changed amazon auth validation to every 15 min instead of 30
+    if((!frc && getLastCookieChkSec() <= 900) || !getCookieVal() || !getCsrfVal()) { return }
     try {
         def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
         execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
@@ -1545,7 +1548,7 @@ def cookieValidResp(response, data) {
     // logTrace("cookieValidResp...")
     if(response?.status == 401) {
         logError("cookieValidResp Status: (${response.status})")
-        authValidationEvent(false, "cookieValidResp")
+        authValidationEvent(false, "cookieValidResp_${response?.status}")
         state?.lastCookieChkDt = getDtNow()
         return
     }
@@ -1559,7 +1562,8 @@ def cookieValidResp(response, data) {
     state?.lastCookieChkDt = getDtNow()
     def execTime = data?.execDt ? (now()-data?.execDt) : 0
     logDebug("Cookie Validation: (${valid}) | Process Time: (${execTime}ms)")
-    authValidationEvent(valid)
+    log.debug("Cookie Validation: (${valid}) | Process Time: (${execTime}ms)")
+    authValidationEvent(valid, "validateCookieAsync")
 }
 
 private authValidationEvent(Boolean valid, String src=null) {
@@ -1580,13 +1584,13 @@ private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, 
     if(!hasErr && statusCode == 200) {
         return true
     } else if(statusCode == 401) {
-        authValidationEvent(false, "respIsValid")
+        authValidationEvent(false, "respIsValid_${statusCode}")
         return false
     } else {
         if(statusCode > 401 && statusCode < 500) {
             logError("${methodName} Error: ${errMsg ?: null}")
             if(errMsg == "Forbidden") {
-                authValidationEvent(false, "respIsValid")
+                authValidationEvent(false, "respIsValid_${statusCode}")
                 return false
             }
         }
@@ -1925,7 +1929,7 @@ def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     if(response?.status == 401) {
-        authValidationEvent(false, "echoDevicesResponse")
+        authValidationEvent(false, "echoDevicesResponse_${response?.status}")
         return
     }
     try {
