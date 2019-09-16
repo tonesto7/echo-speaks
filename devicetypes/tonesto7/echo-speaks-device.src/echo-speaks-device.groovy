@@ -17,8 +17,8 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.1.0"}
-String devModified()  { return "2019-09-15" }
+String devVersion()  { return "3.0.1.1"}
+String devModified()  { return "2019-09-16" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -2801,6 +2801,11 @@ private logError(msg) { if(settings?.logError != false) { log.error "Echo (v${de
 
 Map getLogHistory() {
     return [ warnings: state?.warnHistory ?: [], errors: state?.errorHistory ?: [], speech: state?.speechHistory ?: [] ]
+}
+public clearLogHistory() {
+    state?.warnHistory = []
+    state?.errorHistory = []
+    state?.speechHistory = []
 }
 
 private incrementCntByKey(String key) {
