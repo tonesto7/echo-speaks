@@ -1,8 +1,9 @@
  ══════════
-   Main App (v3.0.1.2)
+   Main App (v3.0.1.3)
    September 16th, 2019
  ══════════
   • ADDED: Support for the server (v2.3.0) to get Alexa Guard info for Alexa Accounts with 100+ smarthome devices attached (SmartThings only).
+  • UPDATED: diagnostic items and cleaned up some of the log collection.
 
   ══════════
    Server (v2.3.0)
