@@ -98,7 +98,9 @@ def mainPage() {
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
                     href "alexaGuardPage", title: inTS("Alexa Guard Control", getAppImg(gStateIcon, true)), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? "complete" : null,
                             description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : ""}\n\nTap to proceed..."
-                } else { paragraph "Alexa Guard is not enabled or supported by any of your Echo Devices", image: getAppImg(gStateIcon) }
+                } else if (state?.guardDataOverMaxSize == true) {
+                    paragraph pTS("Alexa Guard will not work for you at this time. Because of the number devices attached to your alexa account the response size is greater than ST allows.  A solution is being worked on...", null, false, "gray"), image: getAppImg(gStateIcon)
+                } else { paragraph pTS("Alexa Guard is not enabled or supported by any of your Echo Devices", getAppImg(gStateIcon, true), false, "gray"), image: getAppImg(gStateIcon) }
             }
 
             section(sTS("Alexa Devices:")) {
@@ -1801,6 +1803,7 @@ def checkGuardSupportResponse(response, data) {
     //TODO: Maybe we can use the server to get the required ID needed to make guard requests
     def resp = parseJson(response?.data?.toString())
     Boolean guardSupported = false
+    if(isST() && resp?.toString()?.length > 500000) { state?.guardDataOverMaxSize = true }
     if(resp && resp?.networkDetail) {
         def details = parseJson(resp?.networkDetail as String)
         def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
@@ -2925,7 +2928,8 @@ private getDiagDataJson() {
             ],
             alexaGuard: [
                 supported: state?.alexaGuardSupported,
-                status: state?.alexaGuardState
+                status: state?.alexaGuardState,
+                respSizeMax: (state?.guardDataOverMaxSize == true)
             ],
             server: [
                 version: state?.codeVersions?.server ?: null,
