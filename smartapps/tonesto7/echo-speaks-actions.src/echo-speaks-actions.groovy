@@ -23,6 +23,7 @@ String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 // TODO: Create export to JSON for Importing? Web Based Exporter?
+// TODO: Finish the button trigger logic
 definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
