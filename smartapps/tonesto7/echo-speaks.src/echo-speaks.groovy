@@ -17,8 +17,8 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.1.1" }
-String appModified()   { return "2019-09-16" }
+String appVersion()   { return "3.0.1.2" }
+String appModified()  { return "2019-09-16" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -100,8 +100,8 @@ def mainPage() {
                     href "alexaGuardPage", title: inTS("Alexa Guard Control", getAppImg(gStateIcon, true)), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? "complete" : null,
                             description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : ""}\n\nTap to proceed..."
                 } else if (state?.guardDataOverMaxSize == true) {
-                    paragraph pTS("Alexa Guard will not work for you at this time. Because of the number devices attached to your alexa account the response size is greater than ST allows.  A solution is being worked on...", null, false, "gray"), image: getAppImg(gStateIcon)
-                } else { paragraph pTS("Alexa Guard is not enabled or supported by any of your Echo Devices", getAppImg(gStateIcon, true), false, "gray"), image: getAppImg(gStateIcon) }
+                    paragraph pTS("Because you have a lot of devices attached to your Alexa account the response size is larger than ST allows.  The request is being made using your server... On next page load you should see the status.\n\nPlease make sure you are running server version 2.3 or higher.", null, false, "gray")
+                } else { paragraph pTS("Alexa Guard is not enabled or supported by any of your Echo Devices", null, false, "gray") }
             }
 
             section(sTS("Alexa Devices:")) {
@@ -1203,7 +1203,7 @@ mappings {
     path("/textEditor/:cId/:inName")    { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
     path("/cookie")                     { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
     path("/diagData")                   { action: [GET: "getDiagData"] }
-    path("/diagCmds/:cmd")             { action: [GET: "execDiagCmds"] }
+    path("/diagCmds/:cmd")              { action: [GET: "execDiagCmds"] }
     path("/diagDataJson")               { action: [GET: "getDiagDataJson"] }
 }
 
@@ -1702,7 +1702,6 @@ private getMusicProviders() {
 private getOtherData() {
     getBluetoothDevices()
     getDoNotDisturb()
-    checkGuardSupport()
 }
 
 private getBluetoothDevices() {
@@ -1811,6 +1810,8 @@ def executeRoutineById(String routineId) {
     }
 }
 
+Integer getLastGuardSupportCheckSec() { return !state?.lastGuardSupportCheck ? 3600 : GetTimeDiffSeconds(state?.lastGuardSupportCheck, "getLastGuardSupportCheckSec").toInteger() }
+
 def checkGuardSupport() {
     if(!isAuthValid("checkGuardSupport")) { return }
     def params = [
@@ -1827,12 +1828,16 @@ def checkGuardSupport() {
 def checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
     //TODO: This will fail on ST platform if the json file size returned is greater than 500Kb
-    //TODO: Maybe we can use the server to get the required ID needed to make guard requests
     def resp = parseJson(response?.data?.toString())
     Boolean guardSupported = false
     // log.debug "resp length: ${resp?.toString()?.length()}"
-    if(isST() && resp && resp?.toString()?.length() > 500000) {
+    Boolean pastStLimit = (resp && isST() && resp?.toString()?.length() > 500000)
+    if(resp && pastStLimit) {
+        Map minUpdMap = getMinVerUpdsRequired()
+        if(!minUpdMap?.keySet()?.contains("server")) { runIn(2, checkGuardSupportFromServer) }
+        logInfo("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
         state?.guardDataOverMaxSize = true
+        return
     } else if(resp && resp?.networkDetail) {
         def details = parseJson(resp?.networkDetail as String)
         def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
@@ -1851,6 +1856,35 @@ def checkGuardSupportResponse(response, data) {
         }
     } else { logError("checkGuardSupportResponse Error | No data received...") }
     state?.alexaGuardSupported = guardSupported
+    state?.lastGuardSupportCheck = getDtNow()
+    state?.guardDataSrc = "app"
+    if(guardSupported) getGuardState()
+}
+
+def checkGuardSupportFromServer() {
+    if(!isAuthValid("checkGuardSupportFromServer")) { return }
+    def params = [
+        uri: getServerHostURL(),
+        path: "/agsData",
+        requestContentType: "application/json",
+        contentType: "application/json",
+    ]
+    execAsyncCmd("get", "checkGuardSupportServerResponse", params, [execDt: now()])
+}
+
+def checkGuardSupportServerResponse(response, data) {
+    Boolean guardSupported = false
+    def resp = response?.json ?: null
+    // log.debug "response: ${resp}"
+    if(resp && resp?.guardData) {
+        // log.debug "AGS Server Resp: ${resp?.guardData}"
+        state?.guardData = resp?.guardData
+        guardSupported = true
+    } else { logError("checkGuardSupportServerResponse Error | No data received...") }
+    state?.alexaGuardSupported = guardSupported
+    state?.guardDataOverMaxSize = guardSupported
+    state?.guardDataSrc = "server"
+    state?.lastGuardSupportCheck = getDtNow()
     if(guardSupported) getGuardState()
 }
 
@@ -1873,6 +1907,7 @@ private getGuardState() {
                 state?.alexaGuardState = guardStateData?.value[0] ? guardStateData?.value[0] : guardStateData?.value
                 settingUpdate("alexaGuardAwayToggle", ((state?.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
                 logDebug("Alexa Guard State: (${state?.alexaGuardState})")
+                state?.lastGuardStateCheck = getDtNow()
             }
             // log.debug "GuardState resp: ${respData}"
         }
@@ -1921,6 +1956,7 @@ def setGuardStateResponse(response, data) {
     if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
         logInfo("Alexa Guard set to (${data?.requestedState}) Successfully!!!")
         state?.alexaGuardState = data?.requestedState
+        state?.lastGuardStateUpd = getDtNow()
     } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
 }
 
@@ -2374,6 +2410,8 @@ private healthCheck() {
     validateCookieAsync()
     if(getLastCookieRefreshSec() > cookieRefreshSeconds()) {
         runCookieRefresh()
+    } else if (getLastGuardSupportCheckSec() > 43200) {
+        checkGuardSupport()
     } else if(getLastServerWakeSec() > 86400) { wakeupServer() }
 
     if(!getOk2Notify()) { return }
@@ -2951,7 +2989,7 @@ private getDiagDataJson() {
                 cookieValidHistory: state?.authValidHistory,
                 cookieLastRefreshDate: state?.lastCookieRefresh ?: null,
                 cookieLastRefreshDur: seconds2Duration(getLastCookieRefreshSec()),
-                cookieInvalidReason: (state?.authValid != true && state.authEvtClearReason) ? state?.authEvtClearReason : "Not Defined",
+                cookieInvalidReason: (state?.authValid != true && state.authEvtClearReason) ? state?.authEvtClearReason : null,
                 cookieRefreshDays: settings?.refreshCookieDays,
                 hasCookie: (state?.cookieData && state?.cookieData?.localCookie),
                 hasCSRF: (state?.cookieData && state?.cookieData?.csrf)
@@ -2959,7 +2997,11 @@ private getDiagDataJson() {
             alexaGuard: [
                 supported: state?.alexaGuardSupported,
                 status: state?.alexaGuardState,
-                respSizeMax: (state?.guardDataOverMaxSize == true)
+                dataSrc: state?.guardDataSrc,
+                lastSupportCheck: state?.lastGuardSupportCheck,
+                lastStateCheck: state?.lastGuardStateCheck,
+                lastStateUpd: state?.lastGuardStateUpd,
+                stRespLimit: (state?.guardDataOverMaxSize == true)
             ],
             server: [
                 version: state?.codeVersions?.server ?: null,
@@ -3007,8 +3049,8 @@ def getDiagData() {
                     </div>
                     <div class="px-0">
                         <div class="d-flex justify-content-center">
-                            <button id="emailBtn" onclick="location.href='mailto:${ema?.toString()}?subject=Echo%20Speaks%20Diagnostics&body=${getAppEndpointUrl("diagData")}'" class="btn btn-sm btn-success px-1 my-2 mx-3" type="button"><i class="fas fa-envelope mr-1"></i>Send as Email</button>
-                            <button id="jsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info px-1 my-2 mx-3" type="button"><i class="fas fa-code mr-1"></i>View JSON</button>
+                            <button id="emailBtn" onclick="location.href='mailto:${ema?.toString()}?subject=Echo%20Speaks%20Diagnostics&body=${getAppEndpointUrl("diagData")}'" class="btn btn-sm btn-success px-3 my-2 mx-3" type="button"><i class="fas fa-envelope mr-1"></i>Email Link to Dev</button>
+                            <button id="jsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info px-3 my-2 mx-3" type="button"><i class="fas fa-code mr-1"></i>View JSON</button>
                         </div>
                     </div>
                     <div class="text-center">
@@ -3017,11 +3059,11 @@ def getDiagData() {
                     <div>
                         <div class="d-flex justify-content-center">
                             <section class="">
-                                <button id="wakeupServer" data-cmdtype="wakeupServer" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Wakeup Server</button>
-                                <button id="validateAuth" data-cmdtype="validateAuth" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Validate Auth</button>
-                                <button id="clearLogs" data-cmdtype="clearLogs" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Clear Logs</button>
-                                <button id="execUpdate" data-cmdtype="execUpdate" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Execute Update()</button>
-                                <button id="forceDeviceSync" data-cmdtype="forceDeviceSync" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Device Auth Sync</button>
+                                <button id="wakeupServer" data-cmdtype="wakeupServer" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Wakeup Server</button>
+                                <button id="validateAuth" data-cmdtype="validateAuth" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Validate Auth</button>
+                                <button id="clearLogs" data-cmdtype="clearLogs" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Clear Logs</button>
+                                <button id="execUpdate" data-cmdtype="execUpdate" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Execute Update()</button>
+                                <button id="forceDeviceSync" data-cmdtype="forceDeviceSync" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Device Auth Sync</button>
                             </section>
                         </div>
                     </div>
@@ -3029,14 +3071,8 @@ def getDiagData() {
             </body>
             <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
             <script>
-                \$('.cmd_btn').click(function() {
-                    console.log('cmd_btn type: ', \$(this).attr("data-cmdType"));
-                    execCmd(\$(this).attr("data-cmdType"));
-                });
-                function execCmd(cmd) {
-                    if(!cmd) return;
-                    \$.getJSON(cmdUrl.replace('diagCmds', `diagCmds/\${cmd}`), function(result){ console.log(result); });
-                }
+                \$('.cmd_btn').click(function() { console.log('cmd_btn type: ', \$(this).attr("data-cmdtype")); execCmd(\$(this).attr("data-cmdtype")); });
+                function execCmd(cmd) { if(!cmd) return; \$.getJSON(cmdUrl.replace('diagCmds', `diagCmds/\${cmd}`), function(result){ console.log(result); }); }
             </script>
         </html>
     """
@@ -3046,7 +3082,7 @@ def getDiagData() {
 def execDiagCmds() {
     String dcmd = params?.cmd
     Boolean status = false
-    log.debug "dcmd: ${dcmd}"
+    // log.debug "dcmd: ${dcmd}"
     if(dcmd) {
         switch(dcmd) {
             case "clearLogs":
