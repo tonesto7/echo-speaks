@@ -1803,7 +1803,8 @@ def checkGuardSupportResponse(response, data) {
     //TODO: Maybe we can use the server to get the required ID needed to make guard requests
     def resp = parseJson(response?.data?.toString())
     Boolean guardSupported = false
-    if(isST() && resp && resp?.toString()?.length > 500000) {
+    // log.debug "resp length: ${resp?.toString()?.length()}"
+    if(isST() && resp && resp?.toString()?.length() > 500000) {
         state?.guardDataOverMaxSize = true
     } else if(resp && resp?.networkDetail) {
         def details = parseJson(resp?.networkDetail as String)
