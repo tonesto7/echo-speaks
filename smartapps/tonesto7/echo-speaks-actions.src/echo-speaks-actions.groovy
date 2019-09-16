@@ -2079,7 +2079,7 @@ Map getRandomTrigEvt() {
         routineExecuted: isST() ? getRandomItem(getLocationRoutines()) : null
     ]
     if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: "", value: attVal[trig], date: new Date(), deviceId: trigItem?.id ?: null] }
-    log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
+    // log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
 

@@ -1173,7 +1173,7 @@ def deviceActivityHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "deviceActivityHandler")) {return}
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("deviceActivityHandler Exception: ${ex?.message}") }
+    catch(ex) { logError("deviceActivityHandler Exception: ${ex}") }
     Boolean wasLastDevice = false
     def actTS = null
     if (sData && sData?.activities != null) {
