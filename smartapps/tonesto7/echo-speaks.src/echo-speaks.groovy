@@ -3167,6 +3167,12 @@ String getActionsDesc() {
     return str
 }
 
+String getZoneDesc() {
+    def zones = getZoneApps()
+    String str = ""
+    return str
+}
+
 String getServInfoDesc() {
     Map rData = state?.nodeServiceInfo
     String str = ""
