@@ -1,120 +1,181 @@
-V2.6.0 (July 10th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: timeOfDayIsBetween error.
- • FIXED: Other bugs resolved.
- • UPDATED: Added new speech testing and updated the announcement tests.
+ ══════════
+   Main App (v3.0.1.0)
+   September 15th, 2019
+ ══════════
+  • NEW: public release
+  • ADDED: Updated diagnostic page to include link to directly email developer.
+  • UPDATED: Logging tweaks.
 
-Device:
- • REMOVED: attributes *Supported attributes
- • ADDED: New attribute 'permissions' to list features available.
- • UPDATED: Made adjustments to help eliminate timeouts.
- • ADDED: Sequence command added 'email' to read your email (Only non passcode protected email)
- • Other stuff i'm not remembering
+ ══════════
+   Actions App (v3.0.1.0)
+   September 15th, 2019
+ ══════════
+  • NEW: public release
 
-V2.5.1 (June 27th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
- Device (v2.5.3):
- • UPDATED: Device Icons where fixed for echo auto, vobot
- • ADDED: Support for Echo Show 5
+ ════════════
+   Device (v3.0.1.0)
+   September 15th, 2019
+ ════════════
+  • NEW: public release
 
-V2.5.1 (June 21st, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
- App:
- • UPDATED: Set minimum server version requirement to v2.2.2
- • ADDED: New Developer notices section to top of app so I can share any outages or issues.
+-------------------------------------------------------------------
 
-V2.5.0 (June 7th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Significantly reduced the number of web requests made to Amazon by centralizing the Bluetooth and DoNotDisturb calls in the App.
+ ══════════
+   Main App (v3.0.0.8)
+   September 9th, 2019
+ ══════════
+  • ADDED: Added notification devices to the notification options
 
-Device:
- • FIXED: getBluetoothDevices() and getDoNotDisturb() handlers
- • FIXED: Significantly reduced the number of web requests made to Amazon by centralizing the Bluetooth and DoNotDisturb calls in the App.
- • ADDED: Echo Auto device support.
- • FIXED: setVolumeSpeakRestore() command not setting current value after execution
- • ADDED: Device recognition for the Vobot Bunny
+ ═════════════
+   Actions App (v3.0.0.9)
+   September 9th, 2019
+ ═════════════
+  • ADDED: Added notification devices to the notification options
+  • UPDATED: Actions config flow to be easier to follow.
 
-V2.4.1 (May 1st, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Bug Fixes.
+ ══════════
+   Main App (v3.0.0.7)
+   September 6th, 2019
+ ══════════
+  • ADDED: Added daily server wakeups to the healthcheck method.  To help prevent heroku servers for going into a deep sleep.
+  • UPDATED: All logs now include "EchoApp (v3.0.0.x) | prefix.
+  • UPDATED: Changelogs will only be shown now when version is changed.
+  • FIXED: Bugs squashed.
 
-Device:
- • FIXED: Various bugs
- • ADDED: Lenovo SmartTab Support.
- • ADDED: togglePlayback() command.
- • ADDED: wifiNetwork and followUpMode attributes
+ ═════════════
+   Actions App (v3.0.0.7)
+   September 6th, 2019
+ ═════════════
+  • ADDED: New Unit variable %unit%.
+  • ADDED: Action notifications using SMS, push, Pushover (Requires my Pushover manager solution), Alexa Mobile App push message (still has bugs).
+  • UPDATED: Toggle to use the numeric average of multiple devices as the value.
+  • UPDATED: All logs now include "Actions (v3.0.0.x) | prefix.
+  • UPDATED: Added last spoken to device to the top of the Echo device list (@TonyFleisher).
+  • FIXED: Illuminance triggers were missing so I made sure they were added.
+  • FIXED: Made sure the Test execution now handles non-device triggers.
+  • FIXED: Using multiple responses with the default (global) text responses.
+  • FIXED: Refactored code to simplify response item generation.  Should speed up the action execution some.
+  • FIXED: Bugs squashed.
 
-V2.4.0 (January 26th, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Echo Device Filter not stopping selected devices from being created.
- • FIXED: Updated the UI some for devices.  It's easy to distinguish between unsupported and devices ignored by user.
- • UPDATED: Rewrote the broadcast test logic it works extremely well now.  Devices that are shown to not support TTS are not selectable in the list.
- • UPDATED: Also rewrote the announcement test logic it works extremely well now.  Devices that are shown to not support TTS are not selectable in the list.
- • UPDATED: Echo Device Filter not stopping selected devices from being created.
- • UPDATED: Streamlined the new install flow in the app to reduce page changes. (Update the documentation as well)
+ ════════════
+   Device (v3.0.0.7)
+   September 6th, 2019
+ ════════════
+  • UPDATED: All logs now include "EchoDevice (v3.0.0.x) | prefix.
 
-Device:
- • FIXED: Speaking long text on ST would through exception
- • FIXED: fixed broken attributes `lastVoiceActivity` and `lastSpokenToTime` from last update.
- • FIXED: wait sequence command was breaking the whole sequence (Multiple waits are having issues).
- • FIXED: Made changes to address the random exception errors on async responses.
- • UPDATED: Speak commands now handle long strings but splitting them into multiple sequence commands and playing them 1 by 1
- • ADDED: Music search available in the sequence commands.
- • ADDED: Speak command now cleans the strings of unnecessary characters.
- • ADDED: Speak command will attempt to transform items like temperature `19F` to 19 degrees and directions `SSW` to south southwest. (This can be disabled under each device)
+-------------------------------------------------------------------
 
-V2.3.2 (January 23rd, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Echo Device Filter not stopping selected devices from being created.
- • FIXED: Made changes to address the random exception errors on async responses.
+ ══════════
+   Main App (v3.0.0.5)
+   September 3rd, 2019
+ ══════════
+  • UPDATED: Response designer to format SSML properly on save
+  • FIXED: recent change caused Exceptions on saving history.
 
-Device:
- • FIXED: Broken sequence commands from v2.3+
- • FIXED: wait sequence command was breaking the whole sequence.
- • FIXED: Made changes to address the random exception errors on async responses.
- • UPDATED: Speak commands now handle long strings but splitting them into multiple sequence commands and playing them 1 by 1
+ ══════════
+   Actions App (v3.0.0.5)
+   September 3rd, 2019
+ ══════════
+  • FIXED: recent change caused Exceptions on saving history.
 
-V2.3.1 (January 23rd, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Significantly reduced the icon sizes by 80-90% to speed up image loading
- • UPDATED: Support for the new required executeSequenceCommand() split character from `,` to `,,`
- Important Note: I've been seeing more Async Function errors on the Hubitat recently.  I will continue to investigate the issue.
+ ══════════
+   Device (v3.0.0.5)
+   September 3rd, 2019
+ ══════════
+  • FIXED: recent change caused Exceptions on saving history.
 
-Device:
- • FIXED: Broken tile buttons fixed
- • FIXED: Significantly reduced the icon sizes by 80-90% to speed up icon and tile image loading.
- • ADDED: sayCompliment button
- • UPDATED: Modified the required executeSequenceCommand() split character from `,` to `,,`
+-------------------------------------------------------------------
 
-V2.3.0 (January 22nd, 2019):
-▔▔▔▔▔▔▔▔▔▔▔
-App:
- • FIXED: Lot's of little bugs squashed and some minor UI tweaks.
- • FIXED: Metrics collection was broken in the last release.
- • FIXED: Broadcast test page should now work correctly again.
- • UPDATED: Overhauled the device detection logic. You will see more devices shown now.
- • UPDATED: Modifed the Device Test page to include testing of Broadcasts, Announcements, and Sequence Commands.
- • ADDED: New Unrecognized devices section in the app.  It will show you which devices are being ignored and why.
- • ADDED: Ability to override blocked device because they show unsupported.
- • ADDED: Notification option for successful cookie refreshes.
- • ADDED: Local server support (Hubitat only).
+ ═════════
+   Main App (v3.0.0.3)
+   August 30th, 2019
+ ═════════
+  • ADDED: Collection of the last 5 errors and warning messages for each device.
+  • ADDED: Under the logging page in the main app you can share your diagnostic data with the developer when you are having issues.
 
- Important Note: I've been seeing more Async Function errors on the Hubitat recently.  I will continue to investigate the issue.
+ ══════════
+   Actions App (v3.0.0.3)
+   August 30th, 2019
+ ══════════
+  • ADDED: Collection of the last 5 errors and warning messages for each device.
 
-Device:
- • FIXED: TTS Queue has been broken for sometime apparently. Should work as designed now
- • ADDED: New executeSequenceCommand() see documentation for details
- • ADDED: last command spoken date/time attribute on the device in the attribute `lastSpokenToTime`.
- • ADDED: say****() commands for canned tts messages.
- • ADDED: added trackImgHtml attribute with html <img></img> for dashboards.
+ ═════════
+   Device (v3.0.0.3)
+   August 30th, 2019
+ ═════════
+  • ADDED: Collection of the last 5 errors and warning messages for each device.
 
-Server:
- • FIXED: Minor bug fixes.
- • UPDATED: Restored local install support for Hubitat.
- • UPDATED: AlexaCookie library updated to v2.0.1
+ ═════════
+   Main App (v3.0.0.1)
+   August 29th, 2019
+ ═════════
+  • NEW: Login Status page now available.  It will list each item and run a validation test and give you the response realtime.
+  • NEW: You can force the devices to sync there cookies with the main app (in the rare occassion they get messed up).
+  • NEW: Setting to define how often your cookie refreshes (in days). Between 1 to 5 days. Refreshes attempted before 24hours are now blocked.
+  • NEW: Pause/Unpause all actions from the Main App actions page.
+  • FIXED: Other bugs resolved.
+  • UPDATED: UI polishing.
+
+ ══════════
+   Actions App (v3.0.0.1)
+   August 29th, 2019
+ ══════════
+  • NEW: Version number updates.
+
+ ═════════
+   Device (v3.0.0.1)
+   August 29th, 2019
+ ═════════
+  • UPDATED: Modified the synchronization of Cookie data with the app.
+
+ ═════════
+   Main App (v3.0.0)
+   August 27th, 2019
+ ═════════
+  • NEW: Automation child app called Echo Speaks - Actions to eliminate the need for 3rd party apps to use all of Echo Speaks functionality.
+  • NEW: Support/automation for Alexa Guard (Please note.  If you have a large quantity of smart home devices attached to alexa this will prevent guard data from being loaded under ST).
+  • NEW: Ability to remove 'Echo - ' prefix from device names.
+  • NEW: Issues section at top of the app UI.  It will show any authentication, code updates/version issues.
+  • NEW: Child App and Devices now verify that they meet the minimum version required and stop processing if they don't.
+  • NEW: importUrl header param for Hubitat users to quickly import code.
+  • NEW: Checks are now made to make sure you can't install Actions app from the marketplace.
+  • NEW: Log filtering options to reducing log output.
+  • NEW: Three strikes rule for authentication failures. Instead of clearing auth on the first failed attempt it will wait for 3 consectutive failures.
+  • NEW: Speech testing has been added to the device testing section.
+  • FIXED: Repaired issue with Bluetooth status requests.
+  • FIXED: Device rename issue on Hubitat.
+  • FIXED: Authentication handling tweaks and optimizations.
+  • FIXED: Other bugs resolved.
+  • UPDATED: Streamlined the mainPage to be less cluttered and overwhelming.
+  • UPDATED: Rebuilt the announcement tests function.
+
+ ══════════
+   Actions App (v3.0.0)
+   August 27th, 2019
+ ══════════
+  • NEW: importUrl header param for Hubitat users to quickly import code.
+  • NEW: Alexa Routine Execution (Only those with custom voice triggers).
+  • NEW: Subscribe to just about any location and device events.
+  • NEW: Create responses for each trigger type (Means 1 action can accomodate a large number of events).
+  • NEW: Monitor devices for changes and speak after so many seconds then repeat every x seconds until it changes to desired state.
+  • NEW: Define different responses for the repeat events.
+  • NEW: Define multiple responses and have a random response for each event.
+  • NEW: Web Based reponse builder.
+  • NEW: Log filtering options to reducing log output.
+  • NEW: Much more.
+
+ ═════════
+   Device (v3.0.0)
+   August 27th, 2019
+ ═════════
+  • NEW: importUrl header param for Hubitat users to quickly import code.
+  • NEW: SSML Support for Speech commands.
+  • NEW: Better version checks for devices to prevent compatibility issues.
+  • NEW: alexaGuardStatus attribute.
+  • NEW: Log filtering options to reducing log output.
+  • FIXED: All web calls have been reworked to eliminate the JSON error in the logs.
+  • FIXED: setLevel type mismatch issues.
+  • FIXED: Extensive queue testing and optimizations.
+  • FIXED: Authentication handling tweaks and optimizations.
+  • FIXED: Other stuff i'm not remembering.
+  • UPDATED: Tweaked and optimized the Queue system in the device to be much more resilient and reliable.
