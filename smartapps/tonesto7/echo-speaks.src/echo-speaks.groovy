@@ -1804,7 +1804,7 @@ def checkGuardSupportResponse(response, data) {
     def resp = parseJson(response?.data?.toString())
     Boolean guardSupported = false
     // log.debug "resp length: ${resp?.toString()?.length()}"
-    Boolean pastStLimit = true //(resp && isST() && resp?.toString()?.length() > 500000)
+    Boolean pastStLimit = (resp && isST() && resp?.toString()?.length() > 500000)
     if(resp && pastStLimit) {
         Map minUpdMap = getMinVerUpdsRequired()
         if(!minUpdMap?.keySet()?.contains("server")) { runIn(2, checkGuardSupportFromServer) }
