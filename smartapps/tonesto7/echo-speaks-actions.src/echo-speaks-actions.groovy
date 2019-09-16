@@ -17,7 +17,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.1.1" }
+String appVersion()  { return "3.0.1.2" }
 String appModified()  { return "2019-09-16" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
@@ -3157,8 +3157,9 @@ String getAppDebugDesc() {
 private addToLogHistory(String logKey, msg, Integer max=10) {
     Boolean ssOk = (stateSizePerc() > 70)
     List eData = atomicState[logKey as String] ?: []
+    if(eData?.find { it?.message == msg }) { return; }
     eData.push([dt: getDtNow(), message: msg])
-    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
+    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
     atomicState[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Actions (v${appVersion()}) | ${msg}" } }

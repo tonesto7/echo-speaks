@@ -17,7 +17,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.1.1"}
+String devVersion()  { return "3.0.1.2"}
 String devModified()  { return "2019-09-16" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -2781,16 +2781,20 @@ Boolean ok2Notify() {
 }
 
 private logSpeech(msg, status, error=null) {
-    addToLogHistory("speechHistory", msg, [status: status, error: error], 5)
+    Map o = [:]
+    if(status) o?.code = status
+    if(error) o?.error = error
+    addToLogHistory("speechHistory", msg, o, 5)
 }
 Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
 private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
     Boolean ssOk = (stateSizePerc() > 70)
     List eData = state?.containsKey(logKey as String) ? state[logKey as String] : []
+    if(eData?.find { it?.message == msg }) { return; }
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
-	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
+	if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
 	state[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersion()}) | ${msg}" } }
