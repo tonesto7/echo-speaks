@@ -1170,10 +1170,11 @@ void settingRemove(String name) {
 mappings {
     path("/renderMetricData")           { action: [GET: "renderMetricData"] }
     path("/receiveData")                { action: [POST: "processData"] }
-    path("/config")                      { action: [GET: "renderConfig"] }
+    path("/config")                     { action: [GET: "renderConfig"] }
     path("/textEditor/:cId/:inName")    { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
     path("/cookie")                     { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
     path("/diagData")                   { action: [GET: "getDiagData"] }
+    path("/clearDiagLogs/:type")        { action: [GET: "clearDiagLogs"] }
     path("/diagDataJson")               { action: [GET: "getDiagDataJson"] }
 }
 
@@ -2900,7 +2901,8 @@ private getDiagDataJson() {
                 lastDataUpdDt: state?.lastDevDataUpd,
                 models: state?.deviceStyleCnts ?: [:],
                 warnings: devWarnings,
-                errors: devErrors
+                errors: devErrors,
+                speech: devSpeech
             ],
             hubPlatform: getPlatform(),
             authStatus: [
@@ -2955,7 +2957,7 @@ def getDiagData() {
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
                 <script>
-                    let link = '${getAppEndpointUrl("diagData")}';
+                    let logLink = '${getAppEndpointUrl("clearDiagLogs/all")}';
                 </script>
             </head>
             <body>
@@ -2968,11 +2970,19 @@ def getDiagData() {
                         <div class="d-flex justify-content-center">
                             <button id="emailBtn" onclick="location.href='mailto:${ema?.toString()}?subject=Echo%20Speaks%20Diagnostics&body=${getAppEndpointUrl("diagData")}'" class="btn btn-sm btn-success px-1 my-2 mx-3" type="button"><i class="fas fa-envelope mr-1"></i>Send as Email</button>
                             <button id="jsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info px-1 my-2 mx-3" type="button"><i class="fas fa-code mr-1"></i>View JSON</button>
+                            <button id="clrAllLogsBtn" class="btn btn-sm btn-error px-1 my-2 mx-3" type="button"><i class="fas fa-error mr-1"></i>Clear Logs</button>
                         </div>
                     </div>
                 </div>
             </body>
             <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
+            <script>
+                \$("#clrAllLogsBtn").click(function(){
+                    \$.getJSON(logLink, function(result){
+                        console.log(result);
+                    });
+                });
+            </script>
         </html>
     """
     render contentType: "text/html", data: html, status: 200
@@ -4077,6 +4087,22 @@ private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${
 private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
 private logError(msg) {if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 15); }
 
+def clearDiagLogs() {
+    String lt = params?.type as String
+    // log.debug "clearDiagLogs($lt)"
+    if(lt=="all") {
+        clearLogHistory()
+        getActionApps()?.each { ca-> ca?.clearLogHistory() }
+        (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.clearLogHistory() }
+    }
+    def json = new JsonOutput().toJson([message: "ok", version: appVersion()])
+    render contentType: "application/json", data: json, status: 200
+}
+
 Map getLogHistory() {
     return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
+}
+void clearLogHistory() {
+    atomicState?.warnHistory = []
+    atomicState?.errorHistory = []
 }
