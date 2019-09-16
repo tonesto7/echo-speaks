@@ -17,12 +17,11 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.0.9" }
-String appModified() { return "2019-09-15" }
+String appVersion()  { return "3.0.1.0" }
+String appModified()  { return "2019-09-15" }
 String appAuthor()   { return "Anthony S." }
-Boolean isBeta()     { return true }
+Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-// TODO: Change importURL back to master branch
 // TODO: Create export to JSON for Importing? Web Based Exporter?
 definition(
     name: "Echo Speaks - Actions",
@@ -34,7 +33,7 @@ definition(
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
-    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
+    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
     pausable: true)
 
 preferences {

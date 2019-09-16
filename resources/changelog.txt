@@ -1,23 +1,22 @@
  ══════════
-   Main App (v3.0.0.9)
+   Main App (v3.0.1.0)
    September 15th, 2019
  ══════════
-  • ADDED: Auth failure reason to the diagnostic info.
+  • NEW: public release
   • ADDED: Updated diagnostic page to include link to directly email developer.
   • UPDATED: Logging tweaks.
 
  ══════════
-   Actions App (v3.0.0.9)
+   Actions App (v3.0.1.0)
    September 15th, 2019
  ══════════
-  • UPDATED: Logging tweaks.
+  • NEW: public release
 
  ════════════
-   Device (v3.0.0.9)
+   Device (v3.0.1.0)
    September 15th, 2019
  ════════════
-  • ADDED: TTS Delay adjustment to each device setting page. Default is 2 seconds per every 14 characters.
-  • UPDATED: Logging tweaks.
+  • NEW: public release
 
 -------------------------------------------------------------------
 

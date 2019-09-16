@@ -17,14 +17,12 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.0.9" }
-String appModified()  { return "2019-09-15" }
+String appVersion()   { return "3.0.1.0" }
+String appModified()   { return "2019-09-15" }
 String appAuthor()    { return "Anthony S." }
-Boolean isBeta()      { return true }
+Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3008, actionApp: 3008, server: 222] } //These values define the minimum versions of code this app will work with.
-// TODO: Change importURL back to master branch
-// TODO: Change docs link to public docs for release
+Map minVersions()     { return [echoDevice: 3010, actionApp: 3010, server: 222] } //These values define the minimum versions of code this app will work with.
 // TODO: Add in Actions to the metrics
 // TODO: Add the ability to duplicate an existing action (Web based?)
 definition(
@@ -36,7 +34,7 @@ definition(
     iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${state?.updateAvailable ? "_update" : ""}.png",
     iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${state?.updateAvailable ? "_update" : ""}.png",
     iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${state?.updateAvailable ? "_update" : ""}.png",
-    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
+    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
     oauth       : true,
     pausable    : true
 )
@@ -2536,7 +2534,7 @@ String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t
 String inTS(String t, String i = null, color=null, under=true) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
 
 String actChildName(){ return "Echo Speaks - Actions" }
-String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs2" }
+String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def updateDocsInput() { href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")}
 
