@@ -17,7 +17,7 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.1.0" }
+String appVersion()   { return "3.0.1.1" }
 String appModified()   { return "2019-09-15" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
@@ -48,6 +48,7 @@ preferences {
     page(name: "newSetupPage")
     page(name: "authStatusPage")
     page(name: "actionsPage")
+    page(name: "zonesPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
     page(name: "unrecogDevicesPage")
@@ -110,6 +111,12 @@ def mainPage() {
                     if(remDevs?.size()) { paragraph pTS("Removable Devices:\n${remDevs?.sort()?.join("\n")}", null, false, "red"), required: true, state: null }
                     href "deviceManagePage", title: inTS("Manage Devices:", getAppImg("devices", true)), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
                 } else { paragraph "Device Management will be displayed after install is complete" }
+            }
+
+            def zones = getZoneApps()
+            section(sTS("Zones:")) {
+                paragraph pTS("Create automation triggers from device/location events and perform advanced functions using your Alexa devices.", null, false, "#2784D9")
+                href "zonesPage", title: inTS("Manage Zones", getAppImg("es_groups", true)), description: getZoneDesc(), state: (zones?.size() ? "complete" : null), image: getAppImg("es_groups")
             }
 
             def acts = getActionApps()
@@ -431,6 +438,22 @@ def actionsPage() {
                 input "reinitChildActions", "bool", title: inTS("Force Refresh all actions?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 if(settings?.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUpdate"); }
             }
+        }
+        state.childInstallOkFlag = true
+    }
+}
+
+def zonesPage() {
+    return dynamicPage(name: "zonesPage", nextPage: "mainPage", uninstall: false, install: false) {
+        List zApps = getZoneApps()
+        if(zApps) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started")
+            }
+        }
+        section() {
+            app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
         }
         state.childInstallOkFlag = true
     }
@@ -1148,6 +1171,10 @@ def uninstalled() {
 
 def getActionApps() {
     return getAllChildApps()?.findAll { it?.name == actChildName() }
+}
+
+def getZoneApps() {
+    return getAllChildApps()?.findAll { it?.name == zoneChildName() }
 }
 
 def onAppTouch(evt) {
@@ -2534,6 +2561,7 @@ String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t
 String inTS(String t, String i = null, color=null, under=true) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
 
 String actChildName(){ return "Echo Speaks - Actions" }
+String zoneChildName(){ return "Echo Speaks - Zones" }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def updateDocsInput() { href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")}
