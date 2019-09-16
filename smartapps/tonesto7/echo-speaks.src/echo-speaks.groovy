@@ -17,12 +17,12 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.1.2" }
+String appVersion()   { return "3.0.1.3" }
 String appModified()  { return "2019-09-16" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3011, actionApp: 3011, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3012, actionApp: 3012, server: 222] } //These values define the minimum versions of code this app will work with.
 // TODO: Add in Actions to the metrics
 // TODO: Add the ability to duplicate an existing action (Web based?)
 definition(
@@ -1387,6 +1387,7 @@ def clearCookieData(src=null) {
     state?.authValid = false
     state?.remove("cookie")
     state?.remove("cookieData")
+    state?.remove("lastCookieChkDt")
     state?.remove("lastCookieRefresh")
     unschedule("getEchoDevices")
     unschedule("getOtherData")
@@ -1429,7 +1430,7 @@ private authEvtHandler(Boolean isAuth, String src=null) {
 
 Boolean isAuthValid(methodName) {
     if(state?.authValid == false) {
-        logWarn("Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!! | Method: (${methodName})")
+        logWarn("Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!! | Method: (${methodName})", true)
         return false
     }
     return true
@@ -1552,7 +1553,7 @@ Boolean validateCookie() {
             }
             state?.lastCookieChkDt = getDtNow()
             // logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-data?.execDt)}ms)")
-            // authValidationEvent(valid, "validateCookie")
+            authValidationEvent(valid, "validateCookie")
             return valid
         }
     } catch(ex) {
@@ -1600,7 +1601,7 @@ private authValidationEvent(Boolean valid, String src=null) {
 	Integer listSize = 3
     List eList = atomicState?.authValidHistory ?: [true, true, true]
     eList.push(valid)
-	if(eList?.size() > listSize) { eList = eList?.drop( (eList?.size()-listSize)+1 ) }
+	if(eList?.size() > listSize) { eList = eList?.drop( eList?.size()-listSize ) }
 	atomicState?.authValidHistory = eList
     if(eList?.every { it == false }) {
         logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
@@ -2982,17 +2983,26 @@ private getDiagDataJson() {
             ],
             hubPlatform: getPlatform(),
             authStatus: [
-                cookieUpdated: state?.lastCookieRefresh ?: null,
-                cookieUpdatedDur: seconds2Duration(getLastCookieRefreshSec()) ?: null,
                 cookieValidationState: (state?.authValid == true),
                 cookieValidDate: state?.lastCookieChkDt ?: null,
+                cookieValidDur: state?.lastCookieChkDt ? seconds2Duration(getLastCookieChkSec()) : null,
                 cookieValidHistory: state?.authValidHistory,
                 cookieLastRefreshDate: state?.lastCookieRefresh ?: null,
-                cookieLastRefreshDur: seconds2Duration(getLastCookieRefreshSec()),
+                cookieLastRefreshDur: state?.lastCookieRefresh ? seconds2Duration(getLastCookieRefreshSec()) : null,
                 cookieInvalidReason: (state?.authValid != true && state.authEvtClearReason) ? state?.authEvtClearReason : null,
                 cookieRefreshDays: settings?.refreshCookieDays,
-                hasCookie: (state?.cookieData && state?.cookieData?.localCookie),
-                hasCSRF: (state?.cookieData && state?.cookieData?.csrf)
+                cookieItems: [
+                    hasLocalCookie: (state?.cookieData && state?.cookieData?.localCookie),
+                    hasCSRF: (state?.cookieData && state?.cookieData?.csrf),
+                    hasDeviceId: (state?.cookieData && state?.cookieData?.deviceId),
+                    hasDeviceSerial: (state?.cookieData && state?.cookieData?.deviceSerial),
+                    hasLoginCookie: (state?.cookieData && state?.cookieData?.loginCookie),
+                    hasRefreshToken: (state?.cookieData && state?.cookieData?.refreshToken),
+                    hasFrc: (state?.cookieData && state?.cookieData?.frc),
+                    amazonPage: (state?.cookieData && state?.cookieData?.amazonPage) ? state?.cookieData?.amazonPage : null,
+                    refreshDt: (state?.cookieData && state?.cookieData?.refreshDt) ? state?.cookieData?.refreshDt : null,
+                    tokenDate: (state?.cookieData && state?.cookieData?.tokenDate) ? state?.cookieData?.tokenDate : null,
+                ]
             ],
             alexaGuard: [
                 supported: state?.alexaGuardSupported,
@@ -3008,6 +3018,7 @@ private getDiagDataJson() {
                 amazonDomain: settings?.amazonDomain,
                 amazonLocale: settings?.regionLocale,
                 lastServerWakeDt: state?.lastServerWakeDt,
+                lastServerWakeDur: state?.lastServerWakeDt ? seconds2Duration(getLastServerWakeSec()) : null,
                 serverPlatform: state?.onHeroku ? "Cloud" : "Local",
                 randomName: state?.generatedHerokuName
             ]
@@ -3064,6 +3075,7 @@ def getDiagData() {
                                 <button id="clearLogs" data-cmdtype="clearLogs" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Clear Logs</button>
                                 <button id="execUpdate" data-cmdtype="execUpdate" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Execute Update()</button>
                                 <button id="forceDeviceSync" data-cmdtype="forceDeviceSync" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Device Auth Sync</button>
+                                <button id="cookieRefresh" data-cmdtype="cookieRefresh" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Refresh Cookie</button>
                             </section>
                         </div>
                     </div>
@@ -3094,6 +3106,9 @@ def execDiagCmds() {
             case "wakeupServer":
                 wakeupServer()
                 status = true
+                break
+            case "cookieRefresh":
+                status = runCookieRefresh()
                 break
             case "forceDeviceSync":
                 status = refreshDevCookies()
@@ -4204,8 +4219,9 @@ String getAppDebugDesc() {
 private addToLogHistory(String logKey, msg, Integer max=10) {
     Boolean ssOk = (stateSizePerc() > 70)
     List eData = atomicState[logKey as String] ?: []
+    if(eData?.find { it?.message == msg }) { return; }
     eData?.push([dt: getDtNow(), message: msg])
-	if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
+	if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
 	atomicState[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
