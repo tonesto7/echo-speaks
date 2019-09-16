@@ -1174,7 +1174,7 @@ mappings {
     path("/textEditor/:cId/:inName")    { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
     path("/cookie")                     { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
     path("/diagData")                   { action: [GET: "getDiagData"] }
-    path("/clearDiagLogs/:type")        { action: [GET: "clearDiagLogs"] }
+    path("/diagCmds/:cmd")             { action: [GET: "execDiagCmds"] }
     path("/diagDataJson")               { action: [GET: "getDiagDataJson"] }
 }
 
@@ -1371,6 +1371,7 @@ private refreshDevCookies() {
     logDebug("Re-Syncing Cookie Data with Devices")
     Boolean isValid = (state?.authValid && getCookieVal() != null && getCsrfVal() != null)
     updateChildAuth(isValid)
+    return isValid
 }
 
 private updateChildAuth(Boolean isValid) {
@@ -2961,11 +2962,11 @@ def getDiagData() {
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
                 <script>
-                    let logLink = '${getAppEndpointUrl("clearDiagLogs/all")}';
+                    let cmdUrl = '${getAppEndpointUrl("diagCmds")}';
                 </script>
             </head>
             <body>
-                <div class="container">
+                <div class="container-fluid">
                     <div class="text-center">
                         <h3 class="mt-4 mb-0">Echo Speaks Diagnostics</h3>
                         <p>(v${appVersion()})</p>
@@ -2974,23 +2975,69 @@ def getDiagData() {
                         <div class="d-flex justify-content-center">
                             <button id="emailBtn" onclick="location.href='mailto:${ema?.toString()}?subject=Echo%20Speaks%20Diagnostics&body=${getAppEndpointUrl("diagData")}'" class="btn btn-sm btn-success px-1 my-2 mx-3" type="button"><i class="fas fa-envelope mr-1"></i>Send as Email</button>
                             <button id="jsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info px-1 my-2 mx-3" type="button"><i class="fas fa-code mr-1"></i>View JSON</button>
-                            <button id="clrAllLogsBtn" class="btn btn-sm btn-error px-1 my-2 mx-3" type="button"><i class="fas fa-error mr-1"></i>Clear Logs</button>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <h4 class="my-4">Remote Commands</h4>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-center">
+                            <section class="">
+                                <button id="wakeupServer" data-cmdtype="wakeupServer" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Wakeup Server</button>
+                                <button id="validateAuth" data-cmdtype="validateAuth" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Validate Auth</button>
+                                <button id="clearLogs" data-cmdtype="clearLogs" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Clear Logs</button>
+                                <button id="execUpdate" data-cmdtype="execUpdate" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Execute Update()</button>
+                                <button id="forceDeviceSync" data-cmdtype="forceDeviceSync" class="btn btn-sm btn-error px-1 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Device Auth Sync</button>
+                            </section>
                         </div>
                     </div>
                 </div>
             </body>
             <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
             <script>
-                \$("#clrAllLogsBtn").click(function(){
-                    \$.getJSON(logLink, function(result){
-                        console.log(result);
-                    });
+                \$('.cmd_btn').click(function() {
+                    console.log('cmd_btn type: ', \$(this).attr("data-cmdType"));
+                    execCmd(\$(this).attr("data-cmdType"));
                 });
+                function execCmd(cmd) {
+                    if(!cmd) return;
+                    \$.getJSON(cmdUrl.replace('diagCmds', `diagCmds/\${cmd}`), function(result){ console.log(result); });
+                }
             </script>
         </html>
     """
     render contentType: "text/html", data: html, status: 200
 }
+
+def execDiagCmds() {
+    String dcmd = params?.cmd
+    Boolean status = false
+    log.debug "dcmd: ${dcmd}"
+    if(dcmd) {
+        switch(dcmd) {
+            case "clearLogs":
+                status = clearDiagLogs()
+                break
+            case "validateAuth":
+                status = validateCookie();
+                break
+            case "wakeupServer":
+                wakeupServer()
+                status = true
+                break
+            case "forceDeviceSync":
+                status = refreshDevCookies()
+                break
+            case "execUpdate":
+                updated()
+                status = true
+                break
+        }
+    }
+    def json = new JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersion()])
+    render contentType: "application/json", data: json, status: 200
+}
+
 
 /******************************************
 |    Time and Date Conversion Functions
@@ -4091,16 +4138,15 @@ private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${
 private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
 private logError(msg) {if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 15); }
 
-def clearDiagLogs() {
-    String lt = params?.type as String
-    // log.debug "clearDiagLogs($lt)"
-    if(lt=="all") {
+def clearDiagLogs(type="all") {
+    // log.debug "clearDiagLogs($type)"
+    if(type=="all") {
         clearLogHistory()
         getActionApps()?.each { ca-> ca?.clearLogHistory() }
         (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.clearLogHistory() }
+        return true
     }
-    def json = new JsonOutput().toJson([message: "ok", version: appVersion()])
-    render contentType: "application/json", data: json, status: 200
+    return false
 }
 
 Map getLogHistory() {
