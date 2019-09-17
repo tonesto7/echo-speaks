@@ -1,6 +1,18 @@
  ══════════
-   Main App (v3.0.1.5)
+   Main App (v3.0.2.0)
    September 17th, 2019
  ══════════
   • FIXED: Guard Automation page error on ST Android clients.
   • FIXED: Guard data support using server to collect the data.
+
+ ══════════
+   Actions App (v3.0.2.0)
+   September 17th, 2019
+ ══════════
+  • FIXED: Minor bug fixes.
+
+ ══════════
+   Device (v3.0.2.0)
+   September 17th, 2019
+ ══════════
+  • FIXED: Minor bug fixes.

@@ -17,7 +17,7 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.1.5" }
+String appVersion()   { return "3.0.2.0" }
 String appModified()  { return "2019-09-17" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
@@ -1825,18 +1825,18 @@ def checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
     Boolean guardSupported = false
     def respLen = response?.data?.toString()?.length() ?: null
-    def resp = response?.data ?: null
-    // log.debug "GuardSupport Response Length: ${respLen}"
-    Boolean pastStLimit = (respLen && respLen > 450000 && isST())
-    if(resp && pastStLimit) {
+    logDebug("GuardSupport Response Length: ${respLen}")
+    if(isST() && response?.data && respLen && respLen > 490000) {
         Map minUpdMap = getMinVerUpdsRequired()
         if(!minUpdMap?.keySet()?.contains("Echo Speaks Server")) {
             wakeupServer(false, true)
-            logInfo("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
+            logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
         }
         state?.guardDataOverMaxSize = true
         return
-    } else if(resp && resp?.networkDetail) {
+    }
+    def resp = parseJson(response?.data?.toString()) ?: null
+    if(resp && resp?.networkDetail) {
         def details = parseJson(resp?.networkDetail as String)
         def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
         if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
