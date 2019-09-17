@@ -1,4 +1,10 @@
  ══════════
+   Main App (v3.0.2.1)
+   September 17th, 2019
+ ══════════
+  • FIXED: app header warnings for updates and issues
+
+ ══════════
    Main App (v3.0.2.0)
    September 17th, 2019
  ══════════
