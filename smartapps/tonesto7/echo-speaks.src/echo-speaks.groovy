@@ -3023,6 +3023,10 @@ private getDiagDataJson() {
                 lastServerWakeDur: state?.lastServerWakeDt ? seconds2Duration(getLastServerWakeSec()) : null,
                 serverPlatform: state?.onHeroku ? "Cloud" : "Local",
                 randomName: state?.generatedHerokuName
+            ],
+            versionChecks: [
+                minVersionUpdates: getMinVerUpdsRequired(),
+                updateItemsOther: codeUpdateItems()
             ]
         ]
         def json = new groovy.json.JsonOutput().toJson(output)
