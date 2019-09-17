@@ -1,56 +1,18 @@
  ══════════
-   Main App (v3.0.1.3)
-   September 16th, 2019
+   Main App (v3.0.2.0)
+   September 17th, 2019
  ══════════
-  • ADDED: Support for the server (v2.3.0) to get Alexa Guard info for Alexa Accounts with 100+ smarthome devices attached (SmartThings only).
-  • UPDATED: diagnostic items and cleaned up some of the log collection.
-
-  ══════════
-   Server (v2.3.0)
-   September 16th, 2019
- ══════════
-  • ADDED: Helps collect required info needed for Alexa Guard on Alexa Accounts with 100+ smarthome devices attached (SmartThings only).
+  • FIXED: Guard Automation page error on ST Android clients.
+  • FIXED: Guard data support using server to collect the data.
 
  ══════════
-   Main App (v3.0.1.1)
-   September 16th, 2019
+   Actions App (v3.0.2.0)
+   September 17th, 2019
  ══════════
-  • ADDED: reset diagnostic logs via diagnostic page so I can make sure i'm starting with fresh logs when necessary.
-  • UPDATED: Authentication valid history fixes.
+  • FIXED: Minor bug fixes.
 
  ══════════
-   Actions App (v3.0.1.0)
-   September 15th, 2019
+   Device (v3.0.2.0)
+   September 17th, 2019
  ══════════
-  • REMOVED: button triggers removed until I can repair the logic.
-  • UPDATED: diagnostic logs tweaks.
-
- ════════════
-   Device (v3.0.1.0)
-   September 15th, 2019
- ════════════
-  • UPDATED: diagnostic logs tweaks.
-
--------------------------------------------------------------------
-
- ══════════
-   Main App (v3.0.1.0)
-   September 15th, 2019
- ══════════
-  • NEW: public release
-  • ADDED: Updated diagnostic page to include link to directly email developer.
-  • UPDATED: Logging tweaks.
-
- ══════════
-   Actions App (v3.0.1.0)
-   September 15th, 2019
- ══════════
-  • NEW: public release
-
- ════════════
-   Device (v3.0.1.0)
-   September 15th, 2019
- ════════════
-  • NEW: public release
-
--------------------------------------------------------------------
+  • FIXED: Minor bug fixes.

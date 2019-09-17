@@ -17,8 +17,8 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.1.4" }
-String appModified()  { return "2019-09-16" }
+String appVersion()   { return "3.0.2.0" }
+String appModified()  { return "2019-09-17" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -322,14 +322,18 @@ def alexaGuardPage() {
 
 def alexaGuardAutoPage() {
     return dynamicPage(name: "alexaGuardAutoPage", uninstall: false, install: false) {
-        section(sTS("Set Guard using ${getAlarmSystemName(true)}")) {
-            input "guardHomeAlarm", "enum", title: inTS("Home in ${getAlarmSystemName(true)} modes.", getAppImg("alarm_home", true)), description: "Tap to select...", options: getAlarmModeOpts(), required: (settings?.guardAwayAlarm), multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
-            input "guardAwayAlarm", "enum", title: inTS("Away in ${getAlarmSystemName(true)} modes.", getAppImg("alarm_away", true)), description: "Tap to select...", options: getAlarmModeOpts(), required: (settings?.guardHomeAlarm), multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
+        String asn = getAlarmSystemName(true)
+        List amo = getAlarmModes()
+        Boolean alarmReq = (settings?.guardAwayAlarm || settings?.guardHomeAlarm)
+        Boolean modeReq = (settings?.guardAwayModes || settings?.guardHomeModes)
+        section(sTS("Set Guard using ${asn}")) {
+            input "guardHomeAlarm", "enum", title: inTS("Home in ${asn} modes.", getAppImg("alarm_home", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
+            input "guardAwayAlarm", "enum", title: inTS("Away in ${asn} modes.", getAppImg("alarm_away", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
         }
 
         section(sTS("Set Guard using Modes")) {
-            input "guardHomeModes", "mode", title: inTS("Home in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardAwayModes), multiple: true, submitOnChange: true, image: getAppImg("mode")
-            input "guardAwayModes", "mode", title: inTS("Away in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: (settings?.guardHomeModes), multiple: true, submitOnChange: true, image: getAppImg("mode")
+            input "guardHomeModes", "mode", title: inTS("Home in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
+            input "guardAwayModes", "mode", title: inTS("Away in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
         }
         section(sTS("Set Guard using Presence")) {
             input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when all of these Sensors are away?", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
@@ -1185,6 +1189,23 @@ def onAppTouch(evt) {
     updated()
 }
 
+private getTimeSeconds(k, d, m) {
+	def t0 = getTsVal(timeKey)
+	return !t0 ? d : GetTimeDiffSeconds(t0, null, m).toInteger()
+}
+
+void updTsMap(key, dt=null) {
+	def data = atomicState?.tsDtMap ?: [:]
+	if(key) { data[key] = dt }
+	atomicState?.tsDtMap = data
+}
+
+def getTsVal(val) {
+	def tsMap = atomicState?.tsDtMap
+	if(val && tsMap && tsMap[val]) { return tsMap[val] }
+	return null
+}
+
 void settingUpdate(name, value, type=null) {
     if(name && type) {
         app?.updateSetting("$name", [type: "$type", value: value])
@@ -1322,10 +1343,9 @@ private reInitChildApps() {
 
 private updCodeVerMap(key, val) {
     Map cv = atomicState?.codeVersions ?: [:]
-    if(!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val)) {
-        cv[key as String] = val
-        atomicState?.codeVersions = cv
-    }
+    if(!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val)) { cv[key as String] = val }
+    else if (cv?.containsKey(key) && val == null) { cv?.remove(key) }
+    atomicState?.codeVersions = cv
 }
 
 String getRandAppName() {
@@ -1462,14 +1482,14 @@ def clearServerAuth() {
 
 Integer getLastServerWakeSec() { return !state?.lastServerWakeDt ? 500000 : GetTimeDiffSeconds(state?.lastServerWakeDt, "getLastServerWakeSec").toInteger() }
 
-private wakeupServer(refreshCookie=false) {
+private wakeupServer(c=false, g=false) {
     Map params = [
         uri: getServerHostURL(),
         path: "/config",
         contentType: "text/html",
         requestContentType: "text/html"
     ]
-    execAsyncCmd("get", "wakeupServerResp", params, [execDt: now(), refreshCookie: refreshCookie])
+    execAsyncCmd("get", "wakeupServerResp", params, [execDt: now(), refreshCookie: c, updateGuard: g])
 }
 
 private runCookieRefresh() {
@@ -1490,6 +1510,7 @@ def wakeupServerResp(response, data) {
         state?.lastServerWakeDt = getDtNow()
         logInfo("wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
+        if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
     }
 }
 
@@ -1662,8 +1683,8 @@ public childInitiatedRefresh() {
 public updChildVers() {
     def cApps = getActionApps()
     def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
-    if(cApps?.size()) { updCodeVerMap("actionApp", cApps[0]?.appVersion()) }
-    if(cDevs?.size()) { updCodeVerMap("echoDevice", cDevs[0]?.devVersion()) }
+    updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
+    updCodeVerMap("echoDevice", cDevs?.size() ? cDevs[0]?.devVersion() : null)
 }
 
 private getEchoDevices() {
@@ -1829,18 +1850,20 @@ def checkGuardSupport() {
 
 def checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
-    //TODO: This will fail on ST platform if the json file size returned is greater than 500Kb
-    def resp = parseJson(response?.data?.toString())
     Boolean guardSupported = false
-    // log.debug "resp length: ${resp?.toString()?.length()}"
-    Boolean pastStLimit = (resp && isST() && resp?.toString()?.length() > 500000)
-    if(resp && pastStLimit) {
+    def respLen = response?.data?.toString()?.length() ?: null
+    logDebug("GuardSupport Response Length: ${respLen}")
+    if(isST() && response?.data && respLen && respLen > 490000) {
         Map minUpdMap = getMinVerUpdsRequired()
-        if(!minUpdMap?.keySet()?.contains("server")) { runIn(2, checkGuardSupportFromServer) }
-        logInfo("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
+        if(!minUpdMap?.keySet()?.contains("Echo Speaks Server")) {
+            wakeupServer(false, true)
+            logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
+        }
         state?.guardDataOverMaxSize = true
         return
-    } else if(resp && resp?.networkDetail) {
+    }
+    def resp = parseJson(response?.data?.toString()) ?: null
+    if(resp && resp?.networkDetail) {
         def details = parseJson(resp?.networkDetail as String)
         def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
         if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
@@ -1877,7 +1900,7 @@ def checkGuardSupportFromServer() {
 def checkGuardSupportServerResponse(response, data) {
     Boolean guardSupported = false
     def resp = response?.json ?: null
-    // log.debug "response: ${resp}"
+    // log.debug "GuardSupport Server Response: ${resp}"
     if(resp && resp?.guardData) {
         // log.debug "AGS Server Resp: ${resp?.guardData}"
         state?.guardData = resp?.guardData
@@ -3022,6 +3045,7 @@ private getDiagDataJson() {
                 lastServerWakeDt: state?.lastServerWakeDt,
                 lastServerWakeDur: state?.lastServerWakeDt ? seconds2Duration(getLastServerWakeSec()) : null,
                 serverPlatform: state?.onHeroku ? "Cloud" : "Local",
+                hostUrl: getServerHostURL(),
                 randomName: state?.generatedHerokuName
             ],
             versionChecks: [
@@ -4142,7 +4166,7 @@ String getAlarmSystemName(abbr=false) {
     return isST() ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 
-List getAlarmModeOpts() {
+List getAlarmModes() {
     return isST() ? ["off", "stay", "away"] : ["disarm", "armNight", "armHome", "armAway"]
 }
 
