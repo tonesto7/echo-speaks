@@ -66,6 +66,7 @@ preferences {
     page(name: "announcePage")
     page(name: "sequencePage")
     page(name: "setNotificationTimePage")
+    page(name: "actionDuplicationPage")
     page(name: "uninstallPage")
 }
 
@@ -162,6 +163,7 @@ def mainPage() {
             }
         }
         state.ok2InstallActionFlag = false
+        clearDuplicationItems()
     }
 }
 
@@ -427,6 +429,12 @@ def actionsPage() {
         }
         section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
+            if(actApps?.size()) {
+                input "actionDuplicateSelect", "enum", title: inTS("Duplicate Existing Action", getAppImg("es_actions", true)), description: "Tap to select...", options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
+                if(settings?.actionDuplicateSelect) {
+                    href "actionDuplicationPage", title: inTS("Create Duplicate Action?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
+                }
+            }
         }
 
         if(actApps?.size()) {
@@ -446,7 +454,39 @@ def actionsPage() {
             }
         }
         state.childInstallOkFlag = true
+        state?.actionDuplicated = false
     }
+}
+
+def actionDuplicationPage() {
+    return dynamicPage(name: "actionDuplicationPage", nextPage: "actionsPage", uninstall: false, install: false) {
+        section() {
+            def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
+            if(state?.actionDuplicated) {
+                paragraph pTS("Action Already duplicated... Return to main page to ", null, true, "red"), required: true, state: null
+            } else {
+                if(act) {
+                    Map actData = act?.getActDuplSettingData()
+                    actData?.settings["duplicateFlag"] = [type: "bool", value: true]
+                    addChildApp("tonesto7", actChildName(), actData?.label, [settings: actData?.settings])
+                    paragraph pTS("Action Duplicated... Return to Action Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
+                } else {
+                    paragraph pTS("Action Not Found", null, true, "red"), required: true, state: null
+                }
+                state?.actionDuplicated = true
+            }
+        }
+    }
+}
+
+public clearDuplicationItems() {
+    state?.actionDuplicated = false
+    settingRemove("actionDuplicateSelect")
+}
+
+public getDupActionStateData() {
+    def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
+    return act?.getActDuplStateData() ?: null
 }
 
 def zonesPage() {
@@ -459,7 +499,7 @@ def zonesPage() {
             }
         }
         section() {
-            app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
+            app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
         }
         state.childInstallOkFlag = true
     }

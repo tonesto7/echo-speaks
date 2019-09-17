@@ -18,7 +18,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 
 String appVersion()  { return "3.0.3.0" }
-String appModified()  { return "2019-09-17" }
+String appModified() { return "2019-09-17" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -124,6 +124,12 @@ def mainPage() {
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: (newInstall == true), install: !newInstall) {
         appInfoSect()
         Boolean paused = isPaused()
+        Boolean dup = (state?.dupPendingSetup == true)
+        if(dup) {
+            section() {
+                paragraph pTS("This Action was just created from an existing action.  Please review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
+            }
+        }
         if(paused) {
             section() {
                 paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
@@ -1292,22 +1298,35 @@ def updated() {
     log.debug "Updated with settings: ${settings}"
     unsubscribe()
     unschedule()
+    state?.dupPendingSetup = false
     initialize()
 }
 
 def initialize() {
+    if(state?.dupPendingSetup == false && settings?.duplicateFlag == true) {
+        settingUpdate("duplicateFlag", "false", "bool")
+    } else if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
+        app?.updateLabel("${app?.getLabel()}${!app?.getLabel()?.contains("(Dup)") ? " (Dup)" : ""}")
+        state?.dupPendingSetup = true
+        def dupState = parent?.getDupActionStateData()
+        if(dupState?.size()) {
+            dupState?.each {k,v-> state[k] = v }
+            parent?.clearDuplicationItems()
+        }
+        logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
+        return
+    }
     unsubscribe()
     state?.isInstalled = true
-    state?.setupComplete = true
     updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
     updConfigStatusMap()
-    appCleanup()
 }
 
 private updAppLabel() {
     String newLbl = "${settings?.appLbl}${isPaused() ? " | (Paused)" : ""}"
+    newLbl = newLbl?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -1334,25 +1353,19 @@ private getConfStatusItem(item) {
     return (state?.configStatusMap?.containsKey(item) && state?.configStatusMap[item] == true)
 }
 
-private appCleanup() {
+private actionCleanup() {
     // State Cleanup
     List items = ["afterEvtMap", "afterEvtChkSchedMap", "afterCheckActiveScheduleId", "afterEvtChkSchedId"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
-    // Settings Cleanup
-    List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest"]
-    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
-    // Performs the Setting Removal
-    setItems?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
-}
-
-private actionCleanup() {
     //Cleans up unused action setting items
     List setItems = ["act_set_volume", "act_restore_volume"]
     List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_EchoDevices"]
     if(settings?.actionType) { settings?.each { si-> if(si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && !(si?.key in setIgn)) { setItems?.push(si?.key as String) } } }
     // if(settings?.actionType in ["bluetooth", "wakeword"]) { cleanupDevSettings("act_${settings?.actionType}_device_") }
     // TODO: Cleanup unselected trigger types
+    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     // Performs the Setting Removal
+    setItems = setItems +  ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
     setItems?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
@@ -2237,7 +2250,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "announcement":
                 if(actConf[actType]) {
                     String txt = getResponseItem(evt, allDevsResp, isRptAct, testMode) ?: null
-                    log.debug "txt: $txt"
+                    // log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
                     if(actType == "speak") {
@@ -3305,3 +3318,71 @@ def searchTuneInResultsPage() {
         }
     }
 }
+
+//*******************************************************************
+//    CLONE ACTION Logic
+//*******************************************************************
+public getActDuplSettingData() {
+    Map typeObj = [
+        s: [
+            bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace"],
+            enum: [ "triggerEvents", "act_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard" ],
+            mode: ["cond_mode", "trig_mode"],
+            number: [],
+            text: ["appLbl"]
+        ],
+        e: [
+            bool: ["_all", "_avg", "_once", "_send_push", "_use_custom"],
+            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months"],
+            number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset"],
+            text: ["_txt", "_sms_numbers"],
+            time: ["_time_start", "_time_stop", "_scheduled_time"]
+        ],
+        caps: [
+            _battery: "battery",
+            _contact: "contactSensor",
+            _door: "garageDoorControl",
+            _temperature: "temperatureMeasurement",
+            _illuminance: "illuminanceMeasurement",
+            _humidity: "relativeHumidityMeasurement",
+            _motion: "motionSensor",
+            _level: "switchLevel",
+            _presence: "presenceSensor",
+            _switch: "switch",
+            _power: "powerMeter",
+            _shade: "windowShades",
+            _water: "waterSensor",
+            _valve: "valve",
+            _thermostat: "thermostat",
+            _carbonMonoxide: "carbonMonoxideDetector",
+            _smoke: "smokeDetector",
+            _lock: "lock"
+        ],
+        dev: [
+            _scene: "sceneActivator"
+        ]
+    ]
+    Map setObjs = [:]
+    typeObj?.s?.each { sk,sv->
+        sv?.each { svi-> if(settings?.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi]] } }
+    }
+    typeObj?.e?.each { ek,ev->
+        ev?.each { evi-> settings?.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }
+    }
+    typeObj?.caps?.each { ck,cv->
+        settings?.findAll { it?.key?.endsWith(ck) }?.each { fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id as String }] }
+    }
+    typeObj?.dev?.each { dk,dv->
+        settings?.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
+    }
+    Map data = [:]
+    data?.label = app?.getLabel()?.toString()?.replace(" | (Paused)", "")
+    data?.settings = setObjs
+    return data
+}
+
+public getActDuplStateData() {
+    List stskip = ["isInstalled", "isParent", "lastActNotifMsgDt", "lastActionNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory"]
+    return state?.findAll { !(it?.key in stskip) }
+}
+
