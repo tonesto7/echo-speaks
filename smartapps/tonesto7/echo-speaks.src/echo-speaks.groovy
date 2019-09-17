@@ -18,7 +18,7 @@ import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 String appVersion()   { return "3.0.1.5" }
-String appModified()  { return "2019-09-16" }
+String appModified()  { return "2019-09-17" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -319,7 +319,6 @@ def alexaGuardAutoPage() {
         List amo = getAlarmModes()
         Boolean alarmReq = (settings?.guardAwayAlarm || settings?.guardHomeAlarm)
         Boolean modeReq = (settings?.guardAwayModes || settings?.guardHomeModes)
-        log.debug "asn: $asn | amo: $amo | alarmReq: $alarmReq"
         section(sTS("Set Guard using ${asn}")) {
             input "guardHomeAlarm", "enum", title: inTS("Home in ${asn} modes.", getAppImg("alarm_home", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
             input "guardAwayAlarm", "enum", title: inTS("Away in ${asn} modes.", getAppImg("alarm_away", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
@@ -1827,15 +1826,13 @@ def checkGuardSupportResponse(response, data) {
     Boolean guardSupported = false
     def respLen = response?.data?.toString()?.length() ?: null
     def resp = response?.data ?: null
-    log.debug "GuardSupport Response Length: ${respLen}"
-    Boolean pastStLimit = true//(respLen && respLen > 450000 && isST())
+    // log.debug "GuardSupport Response Length: ${respLen}"
+    Boolean pastStLimit = (respLen && respLen > 450000 && isST())
     if(resp && pastStLimit) {
         Map minUpdMap = getMinVerUpdsRequired()
         if(!minUpdMap?.keySet()?.contains("Echo Speaks Server")) {
             wakeupServer(false, true)
-            // runIn(10, checkGuardSupportFromServer)
             logInfo("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
-            log.info("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
         }
         state?.guardDataOverMaxSize = true
         return
@@ -1876,7 +1873,7 @@ def checkGuardSupportFromServer() {
 def checkGuardSupportServerResponse(response, data) {
     Boolean guardSupported = false
     def resp = response?.json ?: null
-    log.debug "GuardSupport Server Response: ${resp}"
+    // log.debug "GuardSupport Server Response: ${resp}"
     if(resp && resp?.guardData) {
         // log.debug "AGS Server Resp: ${resp?.guardData}"
         state?.guardData = resp?.guardData
