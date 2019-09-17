@@ -25,7 +25,7 @@
             "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
             "published": true,
             "oAuth": true,
-            "version": "3.0.1.3",
+            "version": "3.0.1.5",
             "appSettings": {},
             "appUrl": "smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy"
         },
