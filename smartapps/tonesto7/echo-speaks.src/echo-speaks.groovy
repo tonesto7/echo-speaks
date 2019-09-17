@@ -17,7 +17,7 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.1.3" }
+String appVersion()   { return "3.0.1.4" }
 String appModified()  { return "2019-09-16" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
@@ -534,6 +534,7 @@ def settingsPage() {
         }
         section(sTS("Diagnostic Data:")) {
             paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", null, false, "gray")
+            input "diagShareSensitveData", "bool", title: inTS("Share Cookie Data?", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
             href url: getAppEndpointUrl("diagData"), style: "external", title: inTS("Diagnostic Data"), description: "Tap to view"
         }
     }
@@ -2974,7 +2975,8 @@ private getDiagDataJson() {
                     amazonPage: (state?.cookieData && state?.cookieData?.amazonPage) ? state?.cookieData?.amazonPage : null,
                     refreshDt: (state?.cookieData && state?.cookieData?.refreshDt) ? state?.cookieData?.refreshDt : null,
                     tokenDate: (state?.cookieData && state?.cookieData?.tokenDate) ? state?.cookieData?.tokenDate : null,
-                ]
+                ],
+                cookieData: (settings?.diagShareSensitveData == true) ? state?.cookieData ?: null : "Not Shared"
             ],
             alexaGuard: [
                 supported: state?.alexaGuardSupported,
