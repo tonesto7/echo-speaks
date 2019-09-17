@@ -1933,6 +1933,7 @@ private getGuardState() {
                 settingUpdate("alexaGuardAwayToggle", ((state?.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
                 logDebug("Alexa Guard State: (${state?.alexaGuardState})")
                 state?.lastGuardStateCheck = getDtNow()
+                updGuardActionTrig()
             }
             // log.debug "GuardState resp: ${respData}"
         }
@@ -1982,6 +1983,7 @@ def setGuardStateResponse(response, data) {
         logInfo("Alexa Guard set to (${data?.requestedState}) Successfully!!!")
         state?.alexaGuardState = data?.requestedState
         state?.lastGuardStateUpd = getDtNow()
+        updGuardActionTrig()
     } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
 }
 
@@ -1991,6 +1993,11 @@ String getAlexaGuardStatus() {
 
 Boolean getAlexaGuardSupported() {
     return (state?.alexaGuardSupported == true) ? true : false
+}
+
+public updGuardActionTrig() {
+    def acts = getActionApps()
+    if(acts?.size()) { acts?.each { aa-> aa?.guardEventHandler(state?.alexaGuardState) } }
 }
 
 public setGuardHome() {

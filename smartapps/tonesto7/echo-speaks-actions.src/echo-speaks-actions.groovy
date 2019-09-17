@@ -17,7 +17,7 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.2.0" }
+String appVersion()  { return "3.0.2.1" }
 String appModified()  { return "2019-09-17" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
@@ -108,7 +108,8 @@ private def buildTriggerEnum() {
         // buildItems?.Location?.scene = "Scenes"
     }
     // buildItems["Weather Events"] = ["Weather":"Weather"]
-    buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide"]?.sort{ it?.key }
+    buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.key }
+    if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.key }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
     if(isST()) {
@@ -266,6 +267,15 @@ def triggersPage() {
                     // if("alerts" in trig_alarm) {
                     //     input "trig_alarm_alerts_clear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
                     // }
+                }
+            }
+
+            if (valTrigEvt("guard")) {
+                section (sTS("Alexa Guard Events"), hideable: true) {
+                    input "trig_guard", "enum", title: inTS("Alexa Guard Modes", getAppImg("alarm_home", true)), options: ["ARMED_STAY", "ARMED_AWAY", "any"], multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
+                    if(trig_alarm) {
+                        triggerVariableDesc("guard", false, trigItemCnt++)
+                    }
                 }
             }
 
@@ -531,7 +541,7 @@ Boolean scheduleTriggers() {
 }
 
 Boolean locationTriggers() {
-    return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted || settings?.trig_scene)
+    return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted || settings?.trig_scene || settings?.trig_guard)
 }
 
 Boolean deviceTriggers() {
@@ -1024,6 +1034,10 @@ def actionsPage() {
                     input "act_delay", "number", title: inTS("Delay Action in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                     paragraph "This does not work on Hubitat yet..."
                 }
+                section(sTS("Control Devices:")) {
+                    input "act_switches_on", "capability.switch", title: inTS("Turn on these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+                    input "act_switches_off", "capability.switch", title: inTS("Turn off these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+                }
                 actionSimulationSect()
                 section("") {
                     paragraph pTS("You're all done with this step.  Press Done/Save", getAppImg("done", true)), state: "complete", image: getAppImg("done")
@@ -1032,13 +1046,17 @@ def actionsPage() {
 
                 actionExecMap?.delay = settings?.act_delay
                 actionExecMap?.configured = true
-
+                updConfigStatusMap()
                 //TODO: Add Cleanup of non selected inputs
             } else { actionExecMap = [configured: false] }
         }
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
         logDebug("actionExecMap: ${atomicState?.actionExecMap}")
     }
+}
+
+Boolean isActDevContConfigured() {
+    return (settings?.act_switches_off || settings?.act_switches_on)
 }
 
 def actionSimulationSect() {
@@ -1051,6 +1069,7 @@ def actionSimulationSect() {
 
 Boolean customMsgRequired() { return ((settings?.actionType in ["speak", "announcement"]) != true) }
 Boolean customMsgConfigured() { return (settings?.notif_use_custom && settings?.notif_custom_message) }
+
 def actNotifPage() {
     return dynamicPage(name: "actNotifPage", title: "Action Notifications", install: false, uninstall: false) {
         section (sTS("Message Customization:")) {
@@ -1292,6 +1311,17 @@ private updAppLabel() {
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
+public guardEventHandler(guardState) {
+    if(!state?.alexaGuardState || state?.alexaGuardState != guardState) {
+        state?.alexaGuardState = guardState
+        def evt = [name: "guard", displayName: "Alexa Guard", value: state?.guardState, date: new Date(), deviceId: null]
+        logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
+        if(state?.handleGuardEvents) {
+            executeAction(evt, false, "guardEventHandler", false, false)
+        }
+    }
+}
+
 private updConfigStatusMap() {
     Map sMap = atomicState?.configStatusMap ?: [:]
     sMap?.triggers = triggersConfigured()
@@ -1389,6 +1419,8 @@ private subscribeToEvts() {
         if(settings?.trig_alarm) { subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", alarmEvtHandler) }
         if(!isST() && settings?.trig_alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
     }
+
+    state?.handleGuardEvents = valTrigEvt("guard")
 
     // Location Mode Events
     if(valTrigEvt("mode") && settings?.trig_mode) { subscribe(location, "mode", modeEvtHandler) }
@@ -2077,6 +2109,7 @@ Map getRandomTrigEvt() {
         thermostat: getRandomItem(["cooling is "]),
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
+        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
         routineExecuted: isST() ? getRandomItem(getLocationRoutines()) : null
     ]
     if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: "", value: attVal[trig], date: new Date(), deviceId: trigItem?.id ?: null] }
@@ -2095,7 +2128,7 @@ String convEvtType(type) {
 
 String decodeVariables(evt, str) {
     if(evt && str) {
-        log.debug "str: ${str} | vars: ${(str =~ /%[a-z]+%/)}"
+        // log.debug "str: ${str} | vars: ${(str =~ /%[a-z]+%/)}"
         if(str?.contains("%type%") && str?.contains("%name%")) {
             str = (str?.contains("%type%") && evt?.name) ? str?.replaceAll("%type%", !evt?.displayName?.toLowerCase()?.contains(evt?.name) ? convEvtType(evt?.name) : "") : str
             str = (str?.contains("%name%")) ? str?.replaceAll("%name%", evt?.displayName) : str
@@ -2143,31 +2176,25 @@ String getResponseItem(evt, evtAd=false, isRepeat=false, testMode=false) {
                 case "coolSetpoint":
                 case "heatSetpoint":
                     return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} ${evt?.name} is ${evt?.value} ${postfix}"
-                    break
                 case "mode":
                     return  "The location mode is now set to ${evt?.value}"
-                    break
                 case "routine":
                     return  "The ${evt?.value} routine was just executed!."
-                    break
                 case "scene":
                     return  "The ${evt?.value} scene was just executed!."
-                    break
                 case "alarm":
                 case "hsmStatus":
                 case "alarmSystemStatus":
                     return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
-                    break
+                case "guard":
+                    return "Alexa Guard is now set to ${evt?.value}"
                 case "hsmAlert":
                     return "A ${getAlarmSystemName()} ${evt?.displayName} alert with ${evt?.value} has occurred."
-                    break
                 case "sunriseTime":
                 case "sunsetTime":
                     return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
-                    break
                 case "schedule":
                     return "Your scheduled event has occurred at ${evt?.value}"
-                    break
                 default:
                     if(evtAd && devs?.size()>1) {
                         return "All ${devs?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
@@ -2361,6 +2388,10 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             if(ok2SendNotif && actMsgTxt) {
                 if(sendNotifMsg(app?.getLabel() as String, actMsgTxt as String, alexaMsgDev, false)) { logDebug("Sent Action Notification...") }
             }
+        }
+        if(isActDevContConfigured()) {
+            if(settings?.act_switches_off) settings?.act_switches_off?.off()
+            if(settings?.act_switches_on) settings?.act_switches_on?.on()
         }
     }
     logDebug("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
