@@ -36,9 +36,18 @@ definition(
 preferences {
     page(name: "startPage")
     page(name: "uhOhPage")
-    page(name: "mainPage")
-    page(name: "namePage")
+    page(name: "codeUpdatePage")
+    page(name: "mainPage", install: false, uninstall: false)
+    page(name: "prefsPage")
+    page(name: "triggersPage")
+    page(name: "conditionsPage")
+    page(name: "condTimePage")
+    page(name: "actionsPage")
+    page(name: "actNotifPage")
+    page(name: "actNotifTimePage")
+    page(name: "searchTuneInResultsPage")
     page(name: "uninstallPage")
+    page(name: "namePage")
 }
 
 def installed() {
@@ -88,14 +97,116 @@ def uhOhPage () {
     }
 }
 
+List cleanedTriggerList() {
+    List newList = []
+    settings?.triggerTypes?.each {
+        newList?.push(it?.toString()?.split("::")[0] as String)
+    }
+    return newList?.unique()
+}
+
+String selTriggerTypes(type) {
+    return settings?.triggerTypes?.findAll { it?.startsWith(type as String) }?.collect { it?.toString()?.split("::")[1] }?.join(", ")
+}
+
+private def buildTriggerEnum() {
+    List enumOpts = []
+    Map buildItems = [:]
+    buildItems["Date/Time"] = ["scheduled":"Scheduled Time"]?.sort{ it?.key }
+    buildItems["Location"] = ["mode":"Modes", "routineExecuted":"Routines"]?.sort{ it?.key }
+    if(!isST()) {
+        buildItems?.Location?.remove("routineExecuted")
+        //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
+        // buildItems?.Location?.scene = "Scenes"
+    }
+    // buildItems["Weather Events"] = ["Weather":"Weather"]
+    buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.key }
+    if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
+    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.key }
+    buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
+    if(isST()) {
+        buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
+        // log.debug "enumOpts: $enumOpts"
+        return enumOpts
+    } else { return buildItems?.collectEntries { it?.value } }
+}
+
 def mainPage() {
-    Boolean newInstall = !state?.isInstalled
-    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
+    Boolean newInstall = (state?.isInstalled != true)
+    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: (newInstall == true), install: !newInstall) {
         appInfoSect()
-        state?.echoDeviceMap = parent?.state?.echoDeviceMap
-        section(sTS("Device Preferences:")) {
-            Map devs = getDeviceList(true, false)
-            input "echoGroupDevices", "enum", title: inTS("Devices in Group", getAppImg("devices", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("devices")
+        Boolean paused = isPaused()
+        Boolean dup = (state?.dupPendingSetup == true)
+        if(dup) {
+            section() {
+                paragraph pTS("This Zone was just created from an existing action.  Please review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
+            }
+        }
+        if(paused) {
+            section() {
+                paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
+            }
+        } else {
+            Boolean trigConf = triggersConfigured()
+            Boolean condConf = conditionsConfigured()
+            Boolean actConf = executionConfigured()
+            section(sTS("Configuration: Part 1")) {
+                Map actionOpts = [
+                    "speak":"Speak (SSML Supported)", "announcement":"Announcement (SSML Supported)", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
+                    "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
+                    "bluetooth":"Bluetooth Control", "wakeword":"Wake Word", "alexaroutine": "Execute Alexa Routine(s)"
+                ]
+                input "actionType", "enum", title: inTS("Action Type", getAppImg("list", true)), description: "", options: actionOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
+            }
+            section (sTS("Configuration: Part 2")) {
+                if(settings?.actionType) {
+                    href "triggersPage", title: inTS("Action Triggers", getAppImg("trigger", true)), description: getTriggersDesc(), state: (trigConf ? "complete" : ""), required: true, image: getAppImg("trigger")
+                } else { paragraph pTS("These options will be shown once the action type is configured.", getAppImg("info", true)) }
+            }
+            section(sTS("Configuration: Part 3")) {
+                if(settings?.actionType && trigConf) {
+                    href "conditionsPage", title: inTS("Condition/Restrictions\n(Optional)", getAppImg("conditions", true)), description: getConditionsDesc(), state: (condConf ? "complete": ""), image: getAppImg("conditions")
+                } else { paragraph pTS("These options will be shown once the triggers are configured.", getAppImg("info", true)) }
+            }
+            section(sTS("Configuration: Part 4")) {
+                if(settings?.actionType && trigConf) {
+                    href "actionsPage", title: inTS("Execution Config", getAppImg("es_actions", true)), description: getActionDesc(), state: (actConf ? "complete" : ""), required: true, image: getAppImg("es_actions")
+                } else { paragraph pTS("These options will be shown once the triggers are configured.", getAppImg("info", true)) }
+            }
+            if(settings?.actionType && trigConf && actConf) {
+                section(sTS("Notifications:")) {
+                    def t0 = getAppNotifDesc()
+                    href "actNotifPage", title: inTS("Send Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
+                }
+            }
+        }
+
+        section(sTS("Preferences")) {
+            if(!paused) {
+                href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
+            }
+            if(state?.isInstalled) {
+                input "actionPause", "bool", title: inTS("Pause Action?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                if(actionPause) { unsubscribe() }
+                if(!paused) {
+                    input "actTestRun", "bool", title: inTS("Test this action?", getAppImg("testing", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
+                    if(actTestRun) { executeActTest() }
+                }
+            }
+        }
+        if(state?.isInstalled) {
+            section(sTS("Name this Action:")) {
+                input "appLbl", "text", title: inTS("Action Name", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
+            }
+            section(sTS("Remove Action:")) {
+                href "uninstallPage", title: inTS("Remove this Action", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
+            }
+            section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
+                def issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28BUG%29+"
+                def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BFeature+Request%5D"
+                href url: featUrl, style: "external", required: false, title: inTS("New Feature Request", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
+                href url: issueUrl, style: "external", required: false, title: inTS("Report an Issue", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
+            }
         }
     }
 }
