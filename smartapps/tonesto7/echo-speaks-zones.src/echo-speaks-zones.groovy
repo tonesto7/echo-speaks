@@ -114,12 +114,6 @@ private def buildTriggerEnum() {
     Map buildItems = [:]
     buildItems["Date/Time"] = ["scheduled":"Scheduled Time"]?.sort{ it?.key }
     buildItems["Location"] = ["mode":"Modes", "routineExecuted":"Routines"]?.sort{ it?.key }
-    if(!isST()) {
-        buildItems?.Location?.remove("routineExecuted")
-        //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
-        // buildItems?.Location?.scene = "Scenes"
-    }
-    // buildItems["Weather Events"] = ["Weather":"Weather"]
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.key }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.key }
