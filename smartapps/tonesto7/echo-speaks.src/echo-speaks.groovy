@@ -17,12 +17,12 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.2.1" }
+String appVersion()   { return "3.0.3.0" }
 String appModified()  { return "2019-09-17" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3020, actionApp: 3020, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3020, actionApp: 3030, server: 230] } //These values define the minimum versions of code this app will work with.
 // TODO: Add in Actions to the metrics
 // TODO: Add the ability to duplicate an existing action (Web based?)
 definition(
