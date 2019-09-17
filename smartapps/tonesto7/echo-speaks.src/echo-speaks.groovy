@@ -17,12 +17,12 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.2.0" }
+String appVersion()   { return "3.0.2.1" }
 String appModified()  { return "2019-09-17" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3012, actionApp: 3012, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3020, actionApp: 3020, server: 230] } //These values define the minimum versions of code this app will work with.
 // TODO: Add in Actions to the metrics
 // TODO: Add the ability to duplicate an existing action (Web based?)
 definition(
@@ -340,7 +340,7 @@ def alexaGuardAutoPage() {
         }
         if(guardAutoConfigured()) {
             section(sTS("Delay:")) {
-                input "guardAwayDelay", "number", title: inTS("Delay before activating Guard?", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
+                input "guardAwayDelay", "number", title: inTS("Delay before activating?\n(in seconds)", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
             }
         }
         section(sTS("Restrict Guard Changes (Optional):")) {
@@ -1855,7 +1855,7 @@ def checkGuardSupportResponse(response, data) {
     logDebug("GuardSupport Response Length: ${respLen}")
     if(isST() && response?.data && respLen && respLen > 490000) {
         Map minUpdMap = getMinVerUpdsRequired()
-        if(!minUpdMap?.keySet()?.contains("Echo Speaks Server")) {
+        if(minUpdMap && minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server")) {
             wakeupServer(false, true)
             logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
         }
@@ -2213,17 +2213,12 @@ def receiveEventData(Map evtData, String src) {
     }
 }
 
-private Map getMinVerUpdsRequired(devOnly) {
+private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
     ["server":"Echo Speaks Server", "echoDevice":"Echo Speaks Device", "actionApp":"Echo Speaks Actions"]?.each { k,v->
         Map codeVers = state?.codeVersions
-        if(codeVers && codeVers[k as String] && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) {
-            if(devOnly && k == "echoDevice") {
-                updRequired = true
-                updItems?.push("$v")
-            }
-        }
+        if(codeVers && codeVers?.containsKey(k) && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) { updRequired = true; updItems?.push("$v"); }
     }
     return [updRequired: updRequired, updItems: updItems]
 }
@@ -2495,17 +2490,17 @@ private appUpdateNotify() {
     }
 }
 
-private List codeUpdateItems() {
+private List codeUpdateItems(shrt=false) {
     Boolean appUpd = isAppUpdateAvail()
     Boolean actUpd = isActionAppUpdateAvail()
     Boolean devUpd = isEchoDevUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
     List updItems = []
     if(appUpd || actUpd || devUpd || servUpd) {
-        if(appUpd) updItems.push("\nEcho Speaks App: (v${state?.appData?.versions?.mainApp?.ver?.toString()})")
-        if(actUpd) updItems.push("\nEcho Speaks - Actions: (v${state?.appData?.versions?.actionApp?.ver?.toString()})")
-        if(devUpd) updItems.push("\nEcho Speaks Device: (v${state?.appData?.versions?.echoDevice?.ver?.toString()})")
-        if(servUpd) updItems.push("\nServer: (v${state?.appData?.versions?.server?.ver?.toString()})")
+        if(appUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}App: (v${state?.appData?.versions?.mainApp?.ver?.toString()})")
+        if(actUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Actions: (v${state?.appData?.versions?.actionApp?.ver?.toString()})")
+        if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Device: (v${state?.appData?.versions?.echoDevice?.ver?.toString()})")
+        if(servUpd) updItems.push("${!shrt ? "\n" : ""}Server: (v${state?.appData?.versions?.server?.ver?.toString()})")
     }
     return updItems
 }
@@ -3374,23 +3369,25 @@ def appInfoSect()	{
             paragraph pTS("--NEW Install--", null, true, "#2784D9"), state: "complete"
         } else {
             if(!state?.noticeData) { getNoticeData() }
+            Boolean showDocs = false
             Map minUpdMap = getMinVerUpdsRequired()
-            List codeUpdItems = codeUpdateItems()
+            List codeUpdItems = codeUpdateItems(true)
             List remDevs = getRemovableDevs()
             if(codeUpdItems?.size()) {
                 isNote=true
                 String str2 = "Code Updates Available for:"
                 codeUpdItems?.each { item-> str2 += bulletItem(str2, item) }
                 paragraph pTS(str2, null, false, "#2784D9"), required: true, state: null
-                updateDocsInput()
+                showDocs = true
             }
-            if(minUpdMap?.updRequired) {
+            if(minUpdMap?.updRequired && minUpdMap?.updItems?.size()) {
                 isNote=true
                 String str3 = "Updates Required for:"
                 minUpdMap?.updItems?.each { item-> str3 += bulletItem(str3, item)  }
                 paragraph pTS(str3, null, true, "red"), required: true, state: null
-                updateDocsInput()
+                showDocs = true
             }
+            if(showDocs) { updateDocsInput() }
             if(!state?.authValid && !state?.resumeConfig) { isNote = true; paragraph pTS("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", null, false, "red"), required: true, state: null }
             if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
                 isNote = true
