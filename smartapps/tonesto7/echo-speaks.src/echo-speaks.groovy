@@ -1163,6 +1163,23 @@ def onAppTouch(evt) {
     updated()
 }
 
+private getTimeSeconds(k, d, m) {
+	def t0 = getTsVal(timeKey)
+	return !t0 ? d : GetTimeDiffSeconds(t0, null, m).toInteger()
+}
+
+void updTsMap(key, dt=null) {
+	def data = atomicState?.tsDtMap ?: [:]
+	if(key) { data[key] = dt }
+	atomicState?.tsDtMap = data
+}
+
+def getTsVal(val) {
+	def tsMap = atomicState?.tsDtMap
+	if(val && tsMap && tsMap[val]) { return tsMap[val] }
+	return null
+}
+
 void settingUpdate(name, value, type=null) {
     if(name && type) {
         app?.updateSetting("$name", [type: "$type", value: value])
