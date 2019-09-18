@@ -2,13 +2,13 @@
     "appDataVer": "2.0",
     "versions": {
         "mainApp": {
-            "ver": "3.0.1.5"
+            "ver": "3.0.2.1"
         },
         "actionApp": {
-            "ver": "3.0.1.2"
+            "ver": "3.0.2.0"
         },
         "echoDevice": {
-            "ver": "3.0.1.2"
+            "ver": "3.0.2.0"
         },
         "server": {
             "ver": "2.2.2"
@@ -401,6 +401,14 @@
             "caps": [
                 "a",
                 "t"
+            ]
+        },
+        "A17LGWINFBUTZZ": {
+            "name": "Anker Roav Viva",
+            "image": "roav_viva",
+            "caps": [
+                "t",
+                "a"
             ]
         }
     }
