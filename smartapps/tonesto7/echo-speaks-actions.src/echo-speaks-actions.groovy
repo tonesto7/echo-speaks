@@ -1974,11 +1974,11 @@ Boolean checkDeviceCondOk(type) {
 Boolean checkDeviceNumCondOk(type) {
     List devs = settings?."cond_${type}" ?: null
     String cmd = settings?."cond_${type}_cmd" ?: null
-    Double cdv = settings?."cond_${type}"
-    Double dcl = settings?."cond_${type}_low"
-    Double dch = settings?."cond_${type}_high"
-    Double dce = settings?."cond_${type}_equal"
-    Double dca = settings?."cond_${type}_all"
+    Double cdv = settings?."cond_${type}" ?: null
+    Double dcl = settings?."cond_${type}_low" ?: null
+    Double dch = settings?."cond_${type}_high" ?: null
+    Double dce = settings?."cond_${type}_equal" ?: null
+    Boolean dca = settings?."cond_${type}_all" ?: false
     if( !(type && devs && cmd) ) { return true }
 
     switch(cmd) {
@@ -3334,7 +3334,7 @@ public getActDuplSettingData() {
         e: [
             bool: ["_all", "_avg", "_once", "_send_push", "_use_custom"],
             enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months"],
-            number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset"],
+            number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat"],
             text: ["_txt", "_sms_numbers"],
             time: ["_time_start", "_time_stop", "_scheduled_time"]
         ],
