@@ -95,7 +95,7 @@ def mainPage() {
             deviceDetectOpts()
         } else {
             section(sTS("Alexa Guard:")) {
-                if(state?.alexaGuardSupported) {
+                if(state?.alexaGuardSupported == true) {
                     String gState = state?.alexaGuardState ? (state?.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
                     href "alexaGuardPage", title: inTS("Alexa Guard Control", getAppImg(gStateIcon, true)), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? "complete" : null,
@@ -1893,11 +1893,14 @@ def checkGuardSupportResponse(response, data) {
     Boolean guardSupported = false
     def respLen = response?.data?.toString()?.length() ?: null
     logDebug("GuardSupport Response Length: ${respLen}")
+    log.debug "GuardSupport Response Length: ${respLen}"
     if(isST() && response?.data && respLen && respLen > 490000) {
         Map minUpdMap = getMinVerUpdsRequired()
         if(minUpdMap && minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server")) {
             wakeupServer(false, true)
             logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
+        } else {
+            logWarn("Can't check for Guard Support because server version is out of date...  Please update to the latest version...")
         }
         state?.guardDataOverMaxSize = true
         return
