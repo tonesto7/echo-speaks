@@ -17,14 +17,14 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.0.8"}
-String devModified() { return "2019-09-09" }
-Boolean isBeta()     { return true }
+String devVersion()  { return "3.0.2.0"}
+String devModified()  { return "2019-09-17" }
+Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 // TODO: Change importURL back to master branch
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/devicetypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy") {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/devicetypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy") {
         //capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
         capability "Audio Volume"
@@ -446,6 +446,7 @@ metadata {
             input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
             input "disableTextTransform", "bool", required: false, title: "Disable Text Transform?", description: "This will attempt to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false
             input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
+            input "ttsWordDelay", "number", required: true, title: "Speech queue delay (per character)", description: "Currently there is a 2 second delay per every 14 characters.", defaultValue: 2
         }
     }
 }
@@ -1172,7 +1173,7 @@ def deviceActivityHandler(response, data) {
     if(!respIsValid(response?.status, hasErr, errMsg, "deviceActivityHandler")) {return}
     def sData = null
     try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("deviceActivityHandler Exception: ${ex?.message}") }
+    catch(ex) { logError("deviceActivityHandler Exception: ${ex}") }
     Boolean wasLastDevice = false
     def actTS = null
     if (sData && sData?.activities != null) {
@@ -2390,8 +2391,9 @@ def executeSequenceCommand(String seqStr) {
 Integer getRecheckDelay(Integer msgLen=null, addRandom=false) {
     def random = new Random()
     Integer randomInt = random?.nextInt(5) //Was using 7
+    Integer twd = ttsWordDelay ? ttsWordDelay?.toInteger() : 2
     if(!msgLen) { return 30 }
-    def v = (msgLen <= 14 ? 2 : (msgLen / 14)) as Integer
+    def v = (msgLen <= 14 ? twd : (msgLen / 14)) as Integer
     // logTrace("getRecheckDelay($msgLen) | delay: $v + $randomInt")
     return addRandom ? (v + randomInt) : v+2
 }
@@ -2779,24 +2781,35 @@ Boolean ok2Notify() {
 }
 
 private logSpeech(msg, status, error=null) {
-    addToLogHistory("speechHistory", msg, [status: status, error: error], 5)
+    Map o = [:]
+    if(status) o?.code = status
+    if(error) o?.error = error
+    addToLogHistory("speechHistory", msg, o, 5)
 }
-
+Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
+Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
 private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
+    Boolean ssOk = (stateSizePerc() > 70)
     List eData = state?.containsKey(logKey as String) ? state[logKey as String] : []
+    if(eData?.find { it?.message == msg }) { return; }
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
-	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
+	if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
 	state[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersion()}) | ${msg}" } }
 private logInfo(msg) { if(settings?.logInfo != false) { log.info " Echo (v${devVersion()}) | ${msg}" } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Echo (v${devVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 10); } }
-private logError(msg) { if(settings?.logError != false) { log.error "Echo (v${devVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, null, 10); }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
+private logError(msg) { if(settings?.logError != false) { log.error "Echo (v${devVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, null, 15); }
 
 Map getLogHistory() {
     return [ warnings: state?.warnHistory ?: [], errors: state?.errorHistory ?: [], speech: state?.speechHistory ?: [] ]
+}
+public clearLogHistory() {
+    state?.warnHistory = []
+    state?.errorHistory = []
+    state?.speechHistory = []
 }
 
 private incrementCntByKey(String key) {

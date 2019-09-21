@@ -17,12 +17,11 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.0.8" }
-String appModified() { return "2019-09-09" }
+String appVersion()  { return "3.0.2.0" }
+String appModified()  { return "2019-09-17" }
 String appAuthor()   { return "Anthony S." }
-Boolean isBeta()     { return true }
+Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-// TODO: Change importURL back to master branch
 // TODO: Create export to JSON for Importing? Web Based Exporter?
 definition(
     name: "Echo Speaks - Actions",
@@ -34,7 +33,7 @@ definition(
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
-    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
+    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
     pausable: true)
 
 preferences {
@@ -109,7 +108,7 @@ private def buildTriggerEnum() {
     }
     // buildItems["Weather Events"] = ["Weather":"Weather"]
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide"]?.sort{ it?.key }
-    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "button":"Buttons", "thermostat":"Thermostat"]?.sort{ it?.key }
+    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.key }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
     if(isST()) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
@@ -328,6 +327,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt("lock")) {
+                //TODO: Add lock code triggers
                 trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", "any"], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++)
             }
 
@@ -832,8 +832,8 @@ def actionsPage() {
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
                         Map playbackOpts = [
-                            "pause":"Pause", "stop":"Stop", "play": "Play", "nextTrack": "Next Track", "previousTrack":"Previous Track",
-                            "mute":"Mute"
+                            "pause":"Pause", "stop":"Stop", "play":"Play", "nextTrack":"Next Track", "previousTrack":"Previous Track",
+                            "mute":"Mute", "volume":"Volume"
                         ]
                         section(sTS("Playback Config:")) {
                             input "act_playback_cmd", "enum", title: inTS("Select Playback Action", getAppImg("command", true)), description: "", options: playbackOpts, required: true, submitOnChange: true, image: getAppImg("command")
@@ -2079,7 +2079,7 @@ Map getRandomTrigEvt() {
         routineExecuted: isST() ? getRandomItem(getLocationRoutines()) : null
     ]
     if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: "", value: attVal[trig], date: new Date(), deviceId: trigItem?.id ?: null] }
-    log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
+    // log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
 
@@ -3155,19 +3155,25 @@ String getAppDebugDesc() {
 }
 
 private addToLogHistory(String logKey, msg, Integer max=10) {
+    Boolean ssOk = (stateSizePerc() > 70)
     List eData = atomicState[logKey as String] ?: []
+    if(eData?.find { it?.message == msg }) { return; }
     eData.push([dt: getDtNow(), message: msg])
-	if(eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
-	atomicState[logKey as String] = eData
+    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+    atomicState[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Actions (v${appVersion()}) | ${msg}" } }
 private logInfo(msg) { if(settings?.logInfo != false) { log.info " Actions (v${appVersion()}) | ${msg}" } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Actions (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Actions (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 10); } }
-private logError(msg) { if(settings?.logError != false) { log.error "Actions (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 10); }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Actions (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg) { if(settings?.logError != false) { log.error "Actions (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 15); }
 
 Map getLogHistory() {
     return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
+}
+void clearLogHistory() {
+    atomicState?.warnHistory = []
+    atomicState?.errorHistory = []
 }
 
 String convMusicProvider(String prov) {
