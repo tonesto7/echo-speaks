@@ -716,7 +716,7 @@ void updateDeviceStatus(Map devData) {
         // state?.fullRefreshOk = true
         schedDataRefresh()
     // } catch(ex) {
-    //     logError( "updateDeviceStatus Error: ${ex?.message}")
+    //     logError( "updateDeviceStatus Error: ${ex}")
     // }
 }
 
@@ -789,258 +789,243 @@ public setOnlineStatus(Boolean isOnline) {
     }
 }
 
-private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
-    statusCode = statusCode as Integer
-    if(!hasErr && statusCode == 200) {
-        return true
-    } else if(statusCode == 401) {
-        // setAuthState(false)
-        return false
-    } else {
-        if(statusCode > 401 && statusCode < 500) {
-            logError("${methodName} Error: ${errMsg ?: null}")
-            if(errMsg == "Forbidden") {
-                // setAuthState(false)
-                return false
-            }
-        }
-    }
-    if(hasErr && falseOnErr) { return false }
-    return true
-}
+// private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
+//     statusCode = statusCode as Integer
+//     if(!hasErr && statusCode == 200) {
+//         return true
+//     } else if(statusCode == 401) {
+//         // setAuthState(false)
+//         return false
+//     } else {
+//         if(statusCode > 401 && statusCode < 500) {
+//             logError("${methodName} Error: ${errMsg ?: null}")
+//             if(errMsg == "Forbidden") {
+//                 // setAuthState(false)
+//                 return false
+//             }
+//         }
+//     }
+//     if(hasErr && falseOnErr) { return false }
+//     return true
+// }
 
 private getPlaybackState() {
-    execAsyncCmd("get", "getPlaybackStateHandler", [
+    Map params = [
         uri: getAmazonUrl(),
         path: "/api/np/player",
-        query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType, screenWidth: 2560, _: new Date().getTime() ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
-        contentType: "application/json",
-    ], null)
-}
+        query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType, screenWidth: 2560, _: new Date()?.getTime() ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        contentType: "application/json"
+    ]
+    try {
+        httpGet(params) { response->
+            Boolean isPlayStateChange = false
+            def sData = response?.data?.playerInfo ?: [:]
+            if (state?.isGroupPlaying && !isGroupResponse) {
+                log.debug "ignoring getPlaybackState because group is playing here"
+                return
+            }
+            // logTrace("getPlaybackState: ${sData}")
+            String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
+            String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
+            // log.debug "deviceStatus: ${deviceStatus}"
+            if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
+                logTrace("Status Changed to ${playState}")
+                isPlayStateChange = true
+                if (isGroupResponse) {
+                    state?.isGroupPlaying = (sData?.state == 'PLAYING')
+                }
+                sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
+                sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
+            }
+            //Track Title
+            String title = sData?.infoText?.title ?: ""
+            if(isStateChange(device, "trackDescription", title?.toString())) {
+                sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
+            }
+            //Track Sub-Text2
+            String subText1 = sData?.infoText?.subText1 ?: "Idle"
+            if(isStateChange(device, "currentAlbum", subText1?.toString())) {
+                sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
+            }
+            //Track Sub-Text2
+            String subText2 = sData?.infoText?.subText2 ?: "Idle"
+            if(isStateChange(device, "currentStation", subText2?.toString())) {
+                sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
+            }
 
-def getPlaybackStateHandler(response, data, isGroupResponse=false) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "getPlaybackStateHandler", true)) {return}
-    Boolean isPlayStateChange = false
-    def sData = [:]
-    try { sData = response?.data ? response?.json ?: [:] : [:] }
-    catch(ex) { logError("getPlaybackStateHandler Exception: ${ex?.message}") }
-    sData = sData?.playerInfo ?: [:]
-    if (state?.isGroupPlaying && !isGroupResponse) {
-        log.debug "ignoring getPlaybackState because group is playing here"
-        return
-    }
-    // logTrace("getPlaybackState: ${sData}")
-    String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
-    String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
-    // log.debug "deviceStatus: ${deviceStatus}"
-    if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
-        logTrace("Status Changed to ${playState}")
-        isPlayStateChange = true
-        if (isGroupResponse) {
-            state?.isGroupPlaying = (sData?.state == 'PLAYING')
-        }
-        sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
-        sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
-    }
-    //Track Title
-    String title = sData?.infoText?.title ?: ""
-    if(isStateChange(device, "trackDescription", title?.toString())) {
-        sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
-    }
-    //Track Sub-Text2
-    String subText1 = sData?.infoText?.subText1 ?: "Idle"
-    if(isStateChange(device, "currentAlbum", subText1?.toString())) {
-        sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
-    }
-    //Track Sub-Text2
-    String subText2 = sData?.infoText?.subText2 ?: "Idle"
-    if(isStateChange(device, "currentStation", subText2?.toString())) {
-        sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
-    }
+            //Track Art Imager
+            String trackImg = sData?.mainArt?.url ?: ""
+            if(isStateChange(device, "trackImage", trackImg?.toString())) {
+                sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
+            }
+            if(isStateChange(device, "trackImageHtml", """<img src="${trackImg?.toString()}"/>""")) {
+                sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)
+            }
 
-    //Track Art Imager
-    String trackImg = sData?.mainArt?.url ?: ""
-    if(isStateChange(device, "trackImage", trackImg?.toString())) {
-        sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
-    }
-    if(isStateChange(device, "trackImageHtml", """<img src="${trackImg?.toString()}"/>""")) {
-        sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)
-    }
-
-    // Group response data never has valida data for volume
-    if(!isGroupResponse && sData?.volume) {
-        if(sData?.volume?.volume != null) {
-            Integer level = sData?.volume?.volume
-            if(level < 0) { level = 0 }
-            if(level > 100) { level = 100 }
-            if(isStateChange(device, "level", level?.toString()) || isStateChange(device, "volume", level?.toString())) {
-                logDebug("Volume Level Set to ${level}%")
-                sendEvent(name: "level", value: level, display: false, displayed: false)
-                sendEvent(name: "volume", value: level, display: false, displayed: false)
+            // Group response data never has valida data for volume
+            if(!isGroupResponse && sData?.volume) {
+                if(sData?.volume?.volume != null) {
+                    Integer level = sData?.volume?.volume
+                    if(level < 0) { level = 0 }
+                    if(level > 100) { level = 100 }
+                    if(isStateChange(device, "level", level?.toString()) || isStateChange(device, "volume", level?.toString())) {
+                        logDebug("Volume Level Set to ${level}%")
+                        sendEvent(name: "level", value: level, display: false, displayed: false)
+                        sendEvent(name: "volume", value: level, display: false, displayed: false)
+                    }
+                }
+                if(sData?.volume?.muted != null) {
+                    String muteState = (sData?.volume?.muted == true) ? "muted" : "unmuted"
+                    if(isStateChange(device, "mute", muteState?.toString())) {
+                        logDebug("Mute Changed to ${muteState}")
+                        sendEvent(name: "mute", value: muteState, descriptionText: "Volume has been ${muteState}", display: true, displayed: true)
+                    }
+                }
+            }
+            // Update cluster (unless we remain paused)
+            if (state?.hasClusterMembers && (sData?.state == 'PLAYING' || isPlayStateChange)) {
+                parent?.sendPlaybackStateToClusterMembers(state?.serialNumber, response, data)
             }
         }
-        if(sData?.volume?.muted != null) {
-            String muteState = (sData?.volume?.muted == true) ? "muted" : "unmuted"
-            if(isStateChange(device, "mute", muteState?.toString())) {
-                logDebug("Mute Changed to ${muteState}")
-                sendEvent(name: "mute", value: muteState, descriptionText: "Volume has been ${muteState}", display: true, displayed: true)
-            }
-        }
-    }
-    // Update cluster (unless we remain paused)
-    if (state?.hasClusterMembers && (sData?.state == 'PLAYING' || isPlayStateChange)) {
-        parent.sendPlaybackStateToClusterMembers(state?.serialNumber, response, data)
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("getPlaybackState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+        } else { logError("getPlaybackState Exception: ${ex}") }
     }
 }
 
 private getAlarmVolume() {
-    execAsyncCmd("get", "getAlarmVolumeHandler", [
+    Map params = [
         uri: getAmazonUrl(),
         path: "/api/device-notification-state/${state?.deviceType}/${device.currentValue("firmwareVer") as String}/${state.serialNumber}",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         query: [_: new Date().getTime()],
-        requestContentType: "application/json",
         contentType: "application/json",
-    ])
-}
-
-def getAlarmVolumeHandler(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "getAlarmVolumeHandler")) {return}
-    def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("getAlarmVolumeHandler Exception: ${ex?.message}") }
-    // logTrace("getAlarmVolume: $sData")
-    if(sData && isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
-        logDebug("Alarm Volume Changed to ${(sData?.volumeLevel ?: 0)}")
-        sendEvent(name: "alarmVolume", value: (sData?.volumeLevel ?: 0), display: false, displayed: false)
+    ]
+    try {
+        httpGet(params) { response->
+            def sData = response?.data ?: null
+            // logTrace("getAlarmVolume: $sData")
+            if(sData && isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
+                logDebug("Alarm Volume Changed to ${(sData?.volumeLevel ?: 0)}")
+                sendEvent(name: "alarmVolume", value: (sData?.volumeLevel ?: 0), display: false, displayed: false)
+            }
+        }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("getAlarmVolume Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+        } else { logError("getAlarmVolume Exception: ${ex}") }
     }
 }
 
 private getWakeWord() {
-    execAsyncCmd("get", "getWakeWordHandler", [
+    Map params = [
         uri: getAmazonUrl(),
         path: "/api/wake-word",
         query: [cached: true, _: new Date().getTime()],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
-    ])
-}
-
-def getWakeWordHandler(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "getWakeWordHandler", true)) {return}
-    def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("getWakeWordHandler Exception: ${ex?.message}") }
-    // log.debug "sData: $sData"
-    if(sData) {
-        def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
-        // logTrace("getWakeWord: ${wakeWord?.wakeWord}")
-        if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
-            logDebug("Wake Word Changed to ${(wakeWord?.wakeWord)}")
-            sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
+    ]
+    try {
+        httpGet(params) { response->
+            def sData = response?.data ?: null
+            // log.debug "sData: $sData"
+            if(sData && sData?.wakeWords) {
+                def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
+                // logTrace("getWakeWord: ${wakeWord?.wakeWord}")
+                if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
+                    logDebug("Wake Word Changed to ${(wakeWord?.wakeWord)}")
+                    sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
+                }
+            }
         }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("getWakeWord Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+        } else { logError("getWakeWord Exception: ${ex}") }
     }
 }
 
 private getWifiDetails() {
-    execAsyncCmd("get", "getWifiDetailsHandler", [
+    Map params = [
         uri: getAmazonUrl(),
         path: "/api/device-wifi-details",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        query: [
-            cached: true,
-            _: new Date().getTime(),
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType
-        ],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType ],
         contentType: "application/json",
-    ])
-}
-
-def getWifiDetailsHandler(response, data) {
-    Boolean hasErr = (!(response.status >= 200) || !(response.status <= 299) || response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "getWifiDetailsHandler", true)) {return}
-    def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("getWifiDetailsHandler Exception: ${ex?.message}") }
-    // log.debug "sData: $sData"
-    def wifiSsid = sData?.essid
-    // logTrace("getWifiDetails: ${wifiSsid}")
-    if(isStateChange(device, "wifiNetwork", wifiSsid?.toString())) {
-        logDebug("WiFi SSID Changed to ${(wifiSsid)}")
-        sendEvent(name: "wifiNetwork", value: wifiSsid, display: false, displayed: false)
+    ]
+    try {
+        httpGet(params) { response->
+            def sData = response?.data ?: null
+            // log.debug "sData: $sData"
+            if(sData && sData?.wakeWords) {
+                def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
+                // logTrace("getWakeWord: ${wakeWord?.wakeWord}")
+                if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
+                    logDebug("Wake Word Changed to ${(wakeWord?.wakeWord)}")
+                    sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
+                }
+            }
+        }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("getWifiDetails Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+        } else { logError("getWifiDetails Exception: ${ex}") }
     }
 }
 
 private getDeviceSettings() {
-    execAsyncCmd("get", "getDeviceSettingsHandler", [
+    Map params = [
         uri: getAmazonUrl(),
         path: "/api/device-preferences",
         query: [cached: true, _: new Date().getTime()],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
-    ])
-}
-
-def getDeviceSettingsHandler(response, data) {
-    Boolean hasErr = (!(response.status >= 200) || !(response.status <= 299) || response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "getDeviceSettingsHandler", true)) {return}
-    def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("getDeviceSettingsHandler Exception: ${ex?.message}") }
-    def devData = sData?.devicePreferences?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
-    state?.devicePreferences = devData ?: [:]
-    // log.debug "devData: $devData"
-    def fupMode = (devData?.goldfishEnabled == true)
-    if(isStateChange(device, "followUpMode", fupMode?.toString())) {
-        logDebug("FollowUp Mode Changed to ${(fupMode)}")
-        sendEvent(name: "followUpMode", value: fupMode, display: false, displayed: false)
+    ]
+    try {
+        httpGet(params) { response->
+            Map sData = response?.data ?: null
+            // log.debug "sData: $sData"
+            def devData = sData?.devicePreferences?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
+            state?.devicePreferences = devData ?: [:]
+            // log.debug "devData: $devData"
+            def fupMode = (devData?.goldfishEnabled == true)
+            if(isStateChange(device, "followUpMode", fupMode?.toString())) {
+                logDebug("FollowUp Mode Changed to ${(fupMode)}")
+                sendEvent(name: "followUpMode", value: fupMode, display: false, displayed: false)
+            }
+            // logTrace("getDeviceSettingsHandler: ${sData}")
+        }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("getAvailableWakeWords Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+        } else { logError("getAvailableWakeWords Exception: ${ex}") }
     }
-    // logTrace("getDeviceSettingsHandler: ${sData}")
 }
 
 private getAvailableWakeWords() {
-    execAsyncCmd("get", "getAvailableWakeWordsHandler", [
+    Map params = [
         uri: getAmazonUrl(),
         path: "/api/wake-words-locale",
-        query: [
-            cached: true,
-            _: new Date().getTime(),
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            softwareVersion: device.currentValue('firmwareVer')
-        ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType, softwareVersion: device.currentValue('firmwareVer') ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
-    ])
-}
-
-def getAvailableWakeWordsHandler(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "getAvailableWakeWordsHandler", true)) {return}
-    def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("getAvailableWakeWordsHandler Exception: ${ex?.message}") }
-    // log.debug "sData: $sData"
-    def wakeWords = sData?.wakeWords ? sData?.wakeWords?.join(",") : null
-    // logTrace("getAvailableWakeWords: ${wakeWords}")
-    if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
-        sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
+    ]
+    try {
+        httpGet(params) { response->
+            Map sData = response?.data ?: null
+            // log.debug "sData: $sData"
+            String wakeWords = (sData && sData?.wakeWords) ? sData?.wakeWords?.join(",") : null
+            logTrace("getAvailableWakeWords: ${wakeWords}")
+            if(isStateChange(device, "wakeWords", wakeWords?.toString())) {
+                sendEvent(name: "wakeWords", value: wakeWords, display: false, displayed: false)
+            }
+        }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("getAvailableWakeWords Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+        } else { logError("getAvailableWakeWords Exception: ${ex}") }
     }
 }
 
@@ -1050,7 +1035,7 @@ def getBluetoothDevices() {
     Map btObjs = btData?.btObjs ?: [:]
     // logDebug("Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
-    String pairedNames = btData?.pairedNames ? btData?.pairedNames?.join(",") : null
+    String pairedNames = (btData && btData?.pairedNames) ? btData?.pairedNames?.join(",") : null
     // if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
         // log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
@@ -1088,117 +1073,105 @@ private getDoNotDisturb() {
 }
 
 private getPlaylists() {
-    execAsyncCmd("get", "getPlaylistsHandler", [
+    Map params = [
         uri: getAmazonUrl(),
         path: "/api/cloudplayer/playlists",
-        query: [
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            mediaOwnerCustomerId: state?.deviceOwnerCustomerId,
-            screenWidth: 2560
-        ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType, mediaOwnerCustomerId: state?.deviceOwnerCustomerId, screenWidth: 2560 ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
         contentType: "application/json"
-    ])
-}
-
-def getPlaylistsHandler(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "getPlaylistsHandler")) {return}
-    def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("getPlaylistsHandler Exception: ${ex?.message}") }
-    // logTrace("getPlaylistsHandler: ${sData}")
-    Map playlists = sData ? sData?.playlists : "{}"
-    if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
-        // log.trace "Alexa Playlists Changed to ${playlists}"
-        sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
+    ]
+    try {
+        httpGet(params) { response->
+            def sData = response?.data ?: null
+            // logTrace("getPlaylistsHandler: ${sData}")
+            Map playlists = sData ? sData?.playlists : "{}"
+            if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
+                // log.trace "Alexa Playlists Changed to ${playlists}"
+                sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
+            }
+        }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("getPlaylists Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+        } else { logError("getPlaylists Exception: ${ex}") }
     }
 }
 
 private getNotifications() {
-    execAsyncCmd("get", "getNotificationsHandler", [
+    Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications",
         query: [ cached: true ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json"
-    ])
-}
-
-def getNotificationsHandler(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "getNotificationsHandler")) {return}
-    List newList = []
-    def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("getNotificationsHandler Exception: ${ex?.message}") }
-    if(sData) {
-        List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
-        items?.each { item->
-            Map li = [:]
-            item?.keySet().each { key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration']) { li[key] = item[key] } }
-            newList?.push(li)
+    ]
+    try {
+        httpGet(params) { response->
+            List newList = []
+            def sData = response?.data ?: null
+            if(sData?.size()) {
+                List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
+                items?.each { item->
+                    Map li = [:]
+                    item?.keySet().each { key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration']) { li[key] = item[key] } }
+                    newList?.push(li)
+                }
+            }
+            if(isStateChange(device, "alexaNotifications", newList?.toString())) {
+                sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
+            }
+            // log.trace "notifications: $newList"
         }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("getNotifications Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+        } else { logError("getNotifications Exception: ${ex}") }
     }
-    if(isStateChange(device, "alexaNotifications", newList?.toString())) {
-        sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
-    }
-    // log.trace "notifications: $newList"
 }
 
 private getDeviceActivity() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/activities",
-        query: [
-            startTime:"",
-            size:"50",
-            offset:"-1"
-        ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        query: [ startTime:"", size:"50", offset:"-1" ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json"
     ]
-    execAsyncCmd("GET", "deviceActivityHandler", params)
-}
-
-def deviceActivityHandler(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "deviceActivityHandler")) {return}
-    def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("deviceActivityHandler Exception: ${ex}") }
-    Boolean wasLastDevice = false
-    def actTS = null
-    if (sData && sData?.activities != null) {
-        def lastCommand = sData?.activities?.find {
-            (it?.domainAttributes == null || it?.domainAttributes.startsWith("{")) &&
-            it?.activityStatus.equals("SUCCESS") &&
-            it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType)
-        }
-        if (lastCommand) {
-            def lastDescription = new JsonSlurper().parseText(lastCommand?.description)
-            def spokenText = lastDescription?.summary
-            def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
-            if(lastDevice?.serialNumber == state?.serialNumber) {
-                wasLastDevice = true
-                if(isStateChange(device, "lastVoiceActivity", spokenText?.toString())) {
-                    sendEvent(name: "lastVoiceActivity", value: spokenText?.toString(), display: false, displayed: false)
+    try {
+        httpGet(params) { response->
+            List newList = []
+            def sData = response?.data ?: null
+            Boolean wasLastDevice = false
+            def actTS = null
+            if (sData && sData?.activities != null) {
+                def lastCommand = sData?.activities?.find {
+                    (it?.domainAttributes == null || it?.domainAttributes.startsWith("{")) &&
+                    it?.activityStatus?.equals("SUCCESS") &&
+                    it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType)
                 }
-                if(isStateChange(device, "lastSpokenToTime", lastCommand?.creationTimestamp?.toString())) {
-                    sendEvent(name: "lastSpokenToTime", value: lastCommand?.creationTimestamp, display: false, displayed: false)
+                if (lastCommand) {
+                    def lastDescription = new JsonSlurper().parseText(lastCommand?.description)
+                    def spokenText = lastDescription?.summary
+                    def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
+                    if(lastDevice?.serialNumber == state?.serialNumber) {
+                        wasLastDevice = true
+                        if(isStateChange(device, "lastVoiceActivity", spokenText?.toString())) {
+                            sendEvent(name: "lastVoiceActivity", value: spokenText?.toString(), display: false, displayed: false)
+                        }
+                        if(isStateChange(device, "lastSpokenToTime", lastCommand?.creationTimestamp?.toString())) {
+                            sendEvent(name: "lastSpokenToTime", value: lastCommand?.creationTimestamp, display: false, displayed: false)
+                        }
+                    }
+                }
+                if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
+                    sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
                 }
             }
         }
-        if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
-            sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
-        }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("getDeviceActivity Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+        } else { logError("getDeviceActivity Exception: ${ex}") }
     }
 }
 
@@ -1210,15 +1183,11 @@ String getCsrfVal() { return (state?.cookie && state?.cookie?.csrf) ? state?.coo
 *******************************************************************/
 
 private sendAmazonBasicCommand(String cmdType) {
-    execAsyncCmd("post", "amazonCommandResp", [
+    sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/np/command",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        query: [
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType
-        ],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType ],
         contentType: "application/json",
         body: [type: cmdType]
     ], [cmdDesc: cmdType])
@@ -1235,24 +1204,40 @@ private execAsyncCmd(String method, String callbackHandler, Map params, Map othe
 }
 
 private sendAmazonCommand(String method, Map params, Map otherData=null) {
-    execAsyncCmd(method, "amazonCommandResp", params, otherData)
-}
-
-def amazonCommandResp(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    if(hasErr) log.debug "hasError: $hasErr | status: ${response?.status}"
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
-    def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
-    catch(ex) { logError("amazonCommandResp Exception: ${ex?.message}") }
-    if(response?.status == 200) {
-        if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
+    try {
+        def rData = null
+        def rStatus = null
+        switch(method) {
+            case "post":
+            case "POST":
+                httpPost(params) { response->
+                    rData = response?.data ?: null
+                    rStatus = response?.status
+                }
+                break
+            case "put":
+            case "PUT":
+                httpPut(params) { response->
+                    rData = response?.data ?: null
+                    rStatus = response?.status
+                }
+                break
+            case "delete":
+            case "DELETE":
+                httpDelete(params) { response->
+                    rData = response?.data ?: null
+                    rStatus = response?.status
+                }
+                break
+        }
+        if (otherData?.cmdDesc?.startsWith("connectBluetooth") || otherData?.cmdDesc?.startsWith("disconnectBluetooth") || otherData?.cmdDesc?.startsWith("removeBluetooth")) {
             triggerDataRrsh()
-        } else if(data?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
-        logDebug("amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!")
-    } else {
-        // logWarn("amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
+        } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
+        logDebug("sendAmazonCommand | Status: (${response?.status})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("sendAmazonCommand Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+        } else { logError("sendAmazonCommand Exception: ${ex}") }
     }
 }
 
@@ -1262,8 +1247,7 @@ private sendSequenceCommand(type, command, value) {
     sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
         body: new JsonOutput().toJson(seqObj)
     ], [cmdDesc: "SequenceCommand (${type})"])
@@ -1329,7 +1313,6 @@ def pause() {
 }
 
 def stop() {
-    log.debug "stop..."
     logTrace("stop() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("PauseCommand")
@@ -1443,8 +1426,7 @@ def setAlarmVolume(vol) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/device-notification-state/${state?.deviceType}/${state?.softwareVersion}/${state?.serialNumber}",
-            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-            requestContentType: "application/json",
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
             contentType: "application/json",
             body: [
                 deviceSerialNumber: state?.serialNumber,
@@ -1506,8 +1488,7 @@ def setDoNotDisturb(Boolean val) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/dnd/status",
-            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-            requestContentType: "application/json",
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
             contentType: "application/json",
             body: [
                 deviceSerialNumber: state?.serialNumber,
@@ -1527,8 +1508,7 @@ def setFollowUpMode(Boolean val) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/device-preferences/${state?.serialNumber}",
-            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-            requestContentType: "application/json",
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
             contentType: "application/json",
             body: [
                 deviceSerialNumber: state?.serialNumber,
@@ -1916,8 +1896,7 @@ private Map validateMusicSearch(searchPhrase, providerId, sleepSeconds=null) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/operation/validate",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
         body: new JsonOutput().toJson(validObj)
     ]
@@ -1967,8 +1946,7 @@ def setWakeWord(String newWord) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/wake-word/${state?.serialNumber}",
-            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-            requestContentType: "application/json",
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
             contentType: "application/json",
             body: [
                 active: true,
@@ -2004,7 +1982,7 @@ def createReminder(String remLbl, String remDate, String remTime) {
         if(remLbl && remDate && remTime) {
             createNotification("Reminder", [
                 cmdType: "CreateReminder",
-                label: remLbl?.toString(),//?.replaceAll(" ", ""),
+                label: remLbl?.toString(),
                 date: remDate,
                 time: remTime,
                 type: "Reminder"
@@ -2021,8 +1999,7 @@ def removeNotification(String id) {
             sendAmazonCommand("delete", [
                 uri: getAmazonUrl(),
                 path: "/api/notifications/${id}",
-                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-                requestContentType: "application/json",
+                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                 contentType: "application/json",
                 body: []
             ], [cmdDesc: "RemoveNotification"])
@@ -2040,8 +2017,7 @@ private createNotification(type, options) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications/create${type}",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
         body: [
             type: type,
@@ -2077,8 +2053,7 @@ def renameDevice(newName) {
     sendAmazonCommand("put", [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device/${state?.serialNumber}",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
         body: [
             serialNumber: state?.serialNumber,
@@ -2098,8 +2073,7 @@ def connectBluetooth(String btNameOrAddr) {
             sendAmazonCommand("post", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/pair-sink/${state?.deviceType}/${state?.serialNumber}",
-                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-                requestContentType: "application/json",
+                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                 contentType: "application/json",
                 body: [ bluetoothDeviceAddress: curBtAddr ]
             ], [cmdDesc: "connectBluetooth($btNameOrAddr)"])
@@ -2117,8 +2091,7 @@ def disconnectBluetooth() {
             sendAmazonCommand("post", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/disconnect-sink/${state?.deviceType}/${state?.serialNumber}",
-                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-                requestContentType: "application/json",
+                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                 contentType: "application/json",
                 body: [ bluetoothDeviceAddress: curBtAddr ]
             ], [cmdDesc: "disconnectBluetooth"])
@@ -2135,8 +2108,7 @@ def removeBluetooth(String btNameOrAddr) {
             sendAmazonCommand("post", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/unpair-sink/${state?.deviceType}/${state?.serialNumber}",
-                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-                requestContentType: "application/json",
+                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                 contentType: "application/json",
                 body: [ bluetoothDeviceAddress: curBtAddr, bluetoothDeviceClass: "OTHER" ]
             ], [cmdDesc: "removeBluetooth(${btNameOrAddr})"])
@@ -2657,15 +2629,26 @@ private speechCmd(headers=[:], isQueueCmd=false) {
                 uri: getAmazonUrl(),
                 path: "/api/behaviors/preview",
                 headers: headerMap,
-                requestContentType: "application/json",
                 contentType: "application/json",
                 body: bodyObj
             ]
-            execAsyncCmd("post", "asyncSpeechHandler", params, [
+            Map extData = [
                 cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
                 message: (headerMap?.message ? (isST() && msgLen > 700 ? headerMap?.message?.take(700) : headerMap?.message) : null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null),
                 qId: (headerMap?.qId ?: null)
-            ])
+            ]
+            httpPost(params) { response->
+                def sData = null
+                try {
+                    sData = response?.data ?: null
+                } catch (groovyx.net.http.HttpResponseException hre) {
+                    sData = hre?.getMessage() ?: null
+                } catch (ex) {
+                    logError("speechCmd Exception: ${ex}")
+                }
+                extData["amznReqId"] = response?.headers["x-amz-rid"] ?: null
+                postCmdProcess(sData, response?.status, extData)
+            }
         } catch (e) {
             logError("something went wrong: ${e?.message}")
             incrementCntByKey("err_cloud_command")
@@ -2674,24 +2657,9 @@ private speechCmd(headers=[:], isQueueCmd=false) {
         logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
         processLogItems("debug", logItems)
     } catch (ex) {
-        logError("speechCmd Exception: ${ex?.message}")
+        logError("speechCmd Exception: ${ex}")
         incrementCntByKey("err_cloud_command")
     }
-}
-
-def asyncSpeechHandler(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    def sData = null
-    if(!respIsValid(response?.status, hasErr, errMsg, "asyncSpeechHandler", true)) {
-        sData = response?.errorJson ?: null
-    } else {
-        try { sData = response?.data ? response?.json ?: null : null }
-        catch(ex) { logError("asyncSpeechHandler Exception: ${ex?.message}") }
-    }
-    data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-    // logTrace("asyncSpeechHandler | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}"
-    postCmdProcess(sData, response?.status, data)
 }
 
 private postCmdProcess(resp, statusCode, data) {
@@ -3032,7 +3000,7 @@ Map createSequenceNode(command, value) {
         }
         return seqNode
     } catch (ex) {
-        logError("createSequenceNode Exception: ${ex?.message}")
+        logError("createSequenceNode Exception: ${ex}")
         return [:]
     }
 }

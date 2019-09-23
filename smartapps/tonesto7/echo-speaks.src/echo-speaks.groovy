@@ -17,12 +17,16 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.2.1" }
-String appModified()  { return "2019-09-17" }
+String appVersion()   { return "3.0.3.0" }
+String appModified()  { return "2019-09-23" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
 Map minVersions()     { return [echoDevice: 3020, actionApp: 3020, server: 230] } //These values define the minimum versions of code this app will work with.
+
+// TODO: Rework validate cookie to only run every 1 hour instead of on every request Move to async under health check.
+// TODO: Collect device data for reason of cleared cookie.
+// TODO: Add the ability to duplicate an existing action (Web based?)
 // TODO: Add in Actions to the metrics
 // TODO: Add the ability to duplicate an existing action (Web based?)
 definition(
@@ -48,6 +52,7 @@ preferences {
     page(name: "newSetupPage")
     page(name: "authStatusPage")
     page(name: "actionsPage")
+    // page(name: "zonesPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
     page(name: "unrecogDevicesPage")
@@ -113,6 +118,12 @@ def mainPage() {
                     href "deviceManagePage", title: inTS("Manage Devices:", getAppImg("devices", true)), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
+
+            // def zones = getZoneApps()
+            // section(sTS("Zones:")) {
+            //     paragraph pTS("Create automation triggers from device/location events and perform advanced functions using your Alexa devices.", null, false, "#2784D9")
+            //     href "zonesPage", title: inTS("Manage Zones", getAppImg("es_groups", true)), description: getZoneDesc(), state: (zones?.size() ? "complete" : null), image: getAppImg("es_groups")
+            // }
 
             def acts = getActionApps()
             section(sTS("Actions:")) {
@@ -1128,7 +1139,7 @@ def initialize() {
         }
     }
     if(!state?.resumeConfig) {
-        validateCookieAsync(true)
+        validateCookie(true)
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
@@ -1215,6 +1226,7 @@ def clearCloudConfig() {
     }
     state?.serviceConfigured = false
     state?.resumeConfig = true
+    if(!state?.authValid) { clearCookieData("clearCloudConfig") }
 }
 
 String getEnvParamsStr() {
@@ -1269,8 +1281,7 @@ private checkIfCodeUpdated() {
         }
     }
     if(codeUpdated) {
-        log.debug "Code Version Change! Re-Initializing SmartApp in 5 seconds... | Chgs: ${chgs}"
-        logInfo("Code Version Change! Re-Initializing SmartApp in 5 seconds...")
+        logInfo("Code Version Change Detected... | Re-Initializing SmartApp in 5 seconds | Changes: ${chgs}")
         runIn(5, "postCodeUpdated", [overwrite: false])
         return true
     } else {
@@ -1298,6 +1309,7 @@ private appCleanup() {
     setItems?.each { sI->
         if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
     }
+    cleanUpdVerMap()
 }
 
 private resetQueues() {
@@ -1316,8 +1328,16 @@ private reInitChildApps() {
 
 private updCodeVerMap(key, val) {
     Map cv = atomicState?.codeVersions ?: [:]
-    if(!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val)) { cv[key as String] = val }
-    else if (cv?.containsKey(key) && val == null) { cv?.remove(key) }
+    if(val && (!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val))) { cv[key as String] = val }
+    if (cv?.containsKey(key) && val == null) { cv?.remove(key) }
+    atomicState?.codeVersions = cv
+}
+
+private cleanUpdVerMap() {
+    Map cv = atomicState?.codeVersions ?: [:]
+    def ri = ["groupApp"]
+    cv?.each { k, v-> if(v == null) ri?.push(k) }
+    ri?.each { cv?.remove(it) }
     atomicState?.codeVersions = cv
 }
 
@@ -1368,7 +1388,7 @@ def storeCookieData() {
     // log.debug "csrf: ${state?.cookieData?.csrf}"
     if(state?.cookieData?.localCookie && state?.cookieData?.csrf != null) {
         logInfo("Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds...")
-        validateCookieAsync(true)
+        validateCookie(true)
         state?.serviceConfigured = true
         state?.lastCookieRefresh = getDtNow()
         runIn(10, "initialize", [overwrite: true])
@@ -1472,12 +1492,9 @@ private runCookieRefresh() {
 }
 
 def wakeupServerResp(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "wakeupServerResp")) {return}
     def rData = null
     try { rData = response?.data ?: null }
-    catch(ex) { logError("wakeupServerResp Exception: ${ex?.message}") }
+    catch(ex) { logError("wakeupServerResp Exception: ${ex}") }
     if (rData) {
         // log.debug "rData: $rData"
         state?.lastServerWakeDt = getDtNow()
@@ -1495,17 +1512,15 @@ private cookieRefresh() {
     }
     Map params = [
         uri: getServerHostURL(),
-        path: "/refreshCookie"
+        path: "/refreshCookie",
+        contentType: "application/json"
     ]
     execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
 }
 
 def cookieRefreshResp(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "cookieRefreshResp")) {return}
     Map rData = null
-    try { rData = response?.data ? response?.json ?: [:] : [:] }
+    try { rData = response?.data ?: [:] }
     catch(ex) { logError("cookieRefreshResp Exception: ${ex}") }
     // log.debug "rData: $rData"
     if (rData && rData?.result && rData?.result?.size()) {
@@ -1517,7 +1532,13 @@ def cookieRefreshResp(response, data) {
 
 private apiHealthCheck(frc=false) {
     try {
-        Map params = [uri: getAmazonUrl(), path: "/api/ping", query: ["_": ""], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "plain/text"]
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/ping",
+            query: ["_": ""],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+            contentType: "plain/text"
+        ]
         httpGet(params) { resp->
             logDebug("API Health Check Resp: (${resp?.getData()})")
             return (resp?.getData().toString() == "healthy")
@@ -1528,10 +1549,17 @@ private apiHealthCheck(frc=false) {
     }
 }
 
-Boolean validateCookie() {
+Boolean validateCookie(frc=false) {
     try {
+        if((!frc && getLastCookieChkSec() <= 900) || !getCookieVal() || !getCsrfVal()) { return }
         def execDt = now()
-        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/bootstrap",
+            query: ["version": 0],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+            contentType: "application/json"
+        ]
         httpGet(params) { resp->
             if(resp?.status == 401) {
                 logError("validateCookie Status: (${resp.status})")
@@ -1539,7 +1567,7 @@ Boolean validateCookie() {
                 state?.lastCookieChkDt = getDtNow()
                 return false
             }
-            Map aData = resp?.data?.authentication ?: [:]
+            Map aData = resp?.data?.authentication ?: null
             Boolean valid = false
             if (aData) {
                 if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
@@ -1547,49 +1575,17 @@ Boolean validateCookie() {
                 valid = (resp?.data?.authentication?.authenticated != false)
             }
             state?.lastCookieChkDt = getDtNow()
-            // logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-data?.execDt)}ms)")
+            log.debug ("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
             authValidationEvent(valid, "validateCookie")
             return valid
         }
     } catch(ex) {
+        if(ex instanceof  groovyx.net.http.HttpResponseException ) {
+            logError("There was an error while parsing the validateCookie Response: ${ex}")
+        } else { logError("validateCookie Exception: ${ex}") }
         incrementCntByKey("err_app_cookieValidCnt")
-        logError("validateCookie() Exception: ${ex.message}")
         return false
     }
-}
-
-private validateCookieAsync(frc=false) {
-    //Changed amazon auth validation to every 15 min instead of 30
-    if((!frc && getLastCookieChkSec() <= 900) || !getCookieVal() || !getCsrfVal()) { return }
-    try {
-        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
-        execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
-    } catch(ex) {
-        incrementCntByKey("err_app_cookieValidCnt")
-        logError("validateCookieAsync() Exception: ${ex.message}")
-    }
-}
-
-def cookieValidResp(response, data) {
-    // logTrace("cookieValidResp...")
-    if(response?.status == 401) {
-        logError("cookieValidResp Status: (${response.status})")
-        authValidationEvent(false, "cookieValidResp_${response?.status}")
-        state?.lastCookieChkDt = getDtNow()
-        return
-    }
-    Map aData = response?.json?.authentication ?: [:]
-    Boolean valid = false
-    if (aData) {
-        if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
-        if(aData?.customerName) { state?.customerName = aData?.customerName }
-        valid = (resp?.data?.authentication?.authenticated != false)
-    }
-    state?.lastCookieChkDt = getDtNow()
-    def execTime = data?.execDt ? (now()-data?.execDt) : 0
-    logDebug("Cookie Validation: (${valid}) | Process Time: (${execTime}ms)")
-    log.debug("Cookie Validation: (${valid}) | Process Time: (${execTime}ms)")
-    authValidationEvent(valid, "validateCookieAsync")
 }
 
 private authValidationEvent(Boolean valid, String src=null) {
@@ -1612,11 +1608,14 @@ private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, 
     } else if(statusCode == 401) {
         authValidationEvent(false, "respIsValid_${statusCode}")
         return false
+    } else if(statusCode == 400) {
+        logWarn("${methodName} | Rate-Limiting Active by Amazon...")
+        return false
     } else {
         if(statusCode > 401 && statusCode < 500) {
             logError("${methodName} Error: ${errMsg ?: null}")
             if(errMsg == "Forbidden") {
-                authValidationEvent(false, "respIsValid_${statusCode}")
+                authValidationEvent(false, "respIsValid_${methodName}_${statusCode}")
                 return false
             }
         }
@@ -1634,9 +1633,9 @@ def makeSyncHttpReq(Map params, String method="get", String src, Boolean strInJs
             return resp?.data ?: null
         }
     } catch (ex) {
-        if(ex instanceof  groovyx.net.http.ResponseParseException) {
-            logError("There was an error while parsing the response: ${ex.message}")
-        } else { logError("makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}") }
+        if(ex instanceof  groovyx.net.http.HttpResponseException ) {
+            logError("${src} Response Exception | Status: (${ex?.getResponse()?.getStatus() ?: null}) | Message: ${ex?.getMessage() ?: null}")
+        } else { logError("makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex}") }
         return null
     }
 }
@@ -1666,9 +1665,8 @@ private getEchoDevices() {
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
-        contentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        contentType: "application/json"
     ]
     state?.deviceRefreshInProgress = true
     state?.refreshDeviceData = false
@@ -1680,8 +1678,7 @@ private getMusicProviders() {
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
-        headers: ["Routines-Version": "1.1.210292", cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1", "Routines-Version": "1.1.210292" ],
         contentType: "application/json"
     ]
     Map items = [:]
@@ -1698,6 +1695,12 @@ private getMusicProviders() {
 private getOtherData() {
     getBluetoothDevices()
     getDoNotDisturb()
+    validateCookie(true)
+    checkIfCodeUpdated()
+    Map updReqMap = getMinVerUpdsRequired()
+    Boolean updRequired = updReqMap?.updRequired
+    List updRequiredItems = updReqMap?.updItems
+    log.debug "updRequired: ${updRequired} | items: ${updRequiredItems}"
 }
 
 private getBluetoothDevices() {
@@ -1706,8 +1709,7 @@ private getBluetoothDevices() {
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
         query: [cached: true, _: new Date().getTime()],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json"
     ]
     def btResp = makeSyncHttpReq(params, "get", "getBluetoothDevices") ?: null
@@ -1735,8 +1737,7 @@ private getDoNotDisturb() {
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
         query: [_: new Date().getTime()],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
     ]
     def dndResp = makeSyncHttpReq(params, "get", "getDoNotDisturb") ?: null
@@ -1755,8 +1756,7 @@ public def getAlexaRoutines(autoId=null, utterOnly=false) {
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
         query: [ limit: 100 ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json"
     ]
     try {
@@ -1809,13 +1809,13 @@ def executeRoutineById(String routineId) {
 Integer getLastGuardSupportCheckSec() { return !state?.lastGuardSupportCheck ? 3600 : GetTimeDiffSeconds(state?.lastGuardSupportCheck, "getLastGuardSupportCheckSec").toInteger() }
 
 def checkGuardSupport() {
+    def execDt = now()
     if(!isAuthValid("checkGuardSupport")) { return }
     def params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
     ]
     execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
@@ -1895,8 +1895,7 @@ private getGuardState() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
         body: [ stateRequests: [ [entityId: state?.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
@@ -1913,13 +1912,14 @@ private getGuardState() {
             // log.debug "GuardState resp: ${respData}"
         }
     } catch (ex) {
-        if(ex instanceof  groovyx.net.http.ResponseParseException) {
-            logError("There was an error while parsing the response: ${ex.message}")
-        } else { logError("makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}") }
+        if(ex instanceof  groovyx.net.http.HttpResponseException) {
+            logError("getGuardState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else { logError("getGuardState Exception: ${ex}") }
     }
 }
 
 private setGuardState(guardState) {
+    def execTime = now()
     if(!isAuthValid("setGuardState")) { return }
     if(!state?.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return; }
     guardState = guardStateConv(guardState)
@@ -1927,12 +1927,25 @@ private setGuardState(guardState) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
         body: [ controlRequests: [ [ entityId: state?.guardData?.applianceId, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ]
     ]
-    execAsyncCmd("put", "setGuardStateResponse", params, [execDt: now(), requestedState: guardState ])
+    try {
+        httpPut(params) { response ->
+            def resp = response?.data ?: null
+            if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
+                logInfo("Alexa Guard set to (${data?.requestedState}) Successfully | ((now()-execTime)ms)")
+                state?.alexaGuardState = data?.requestedState
+                state?.lastGuardStateUpd = getDtNow()
+                updGuardActionTrig()
+            } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
+        }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("setGuardState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else { logError("setGuardState Exception: ${ex}") }
+    }
 }
 
 private guardStateConv(gState) {
@@ -1949,16 +1962,6 @@ private guardStateConv(gState) {
         default:
             return "ARMED_STAY"
     }
-}
-
-def setGuardStateResponse(response, data) {
-    def resp = response?.json
-    // log.debug "resp: ${resp}"
-    if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
-        logInfo("Alexa Guard set to (${data?.requestedState}) Successfully!!!")
-        state?.alexaGuardState = data?.requestedState
-        state?.lastGuardStateUpd = getDtNow()
-    } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
 }
 
 String getAlexaGuardStatus() {
@@ -2021,7 +2024,8 @@ def echoDevicesResponse(response, data) {
         // log.debug "echoDevices: ${echoDevices}"
         receiveEventData([echoDevices: echoDevices, musicProviders: getMusicProviders(), execDt: data?.execDt], "Groovy")
     } catch (ex) {
-        logError("echoDevicesResponse Exception: ${ex.message}")
+        // logError("echoDevicesResponse Exception: ${ex}")
+        log.error("echoDevicesResponse Exception: ${ex}")
     }
 }
 
@@ -2150,7 +2154,7 @@ def receiveEventData(Map evtData, String src) {
                                 logInfo("Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)${(settings?.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : "" }")
                                 childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
                             } catch(ex) {
-                                logError("AddDevice Error! | ${ex.message}")
+                                logError("AddDevice Error! | ${ex}")
                             }
                         }
                     } else {
@@ -2184,7 +2188,8 @@ def receiveEventData(Map evtData, String src) {
             if(state?.installData?.sentMetrics != true) { runIn(900, "sendInstallData", [overwrite: false]) }
         }
     } catch(ex) {
-        logError("receiveEventData Error: ${ex.message}")
+        // logError("receiveEventData Error: ${ex}")
+        log.error("receiveEventData Error: ${ex}")
         incrementCntByKey("appErrorCnt")
     }
 }
@@ -2192,9 +2197,10 @@ def receiveEventData(Map evtData, String src) {
 private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
-    ["server":"Echo Speaks Server", "echoDevice":"Echo Speaks Device", "actionApp":"Echo Speaks Actions"]?.each { k,v->
-        Map codeVers = state?.codeVersions
-        if(codeVers && codeVers?.containsKey(k) && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) { updRequired = true; updItems?.push("$v"); }
+    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", actionApp: "Echo Speaks Actions"]
+    Map codeVers = state?.codeVersions ?: [:]
+    codeVers?.each { k,v->
+        if(codeItems?.containsKey(k as String) && v != null && (versionStr2Int(v) < minVersions()[k as String])) { updRequired = true; updItems?.push(codeItems[k]); }
     }
     return [updRequired: updRequired, updItems: updItems]
 }
@@ -2261,7 +2267,7 @@ private removeDevices(all=false) {
             Boolean isST = isST()
             items?.each {  isST ? deleteChildDevice(it as String, true) : deleteChildDevice(it as String) }
         }
-    } catch (ex) { logError("Device Removal Failed: ${ex.message}") }
+    } catch (ex) { logError("Device Removal Failed: ${ex}") }
 }
 
 Map sequenceBuilder(cmd, val) {
@@ -2329,7 +2335,7 @@ Map createSequenceNode(command, value, Map deviceData = [:]) {
         // log.debug "seqNode: $seqNode"
         return seqNode
     } catch (ex) {
-        logError("createSequenceNode Exception: ${ex?.message}")
+        logError("createSequenceNode Exception: ${ex}")
         return [:]
     }
 }
@@ -2351,6 +2357,7 @@ private sendAmazonCommand(String method, Map params, Map otherData) {
 def amazonCommandResp(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
+    Boolean isJson = (response?.headers?."Content-Type" == "application/json")
     if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
     try {} catch (ex) { }
     def resp = response?.data ? response?.getJson() : null
@@ -2366,8 +2373,7 @@ private sendSequenceCommand(type, command, value) {
     sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
         body: seqObj
     ], [cmdDesc: "SequenceCommand (${type})"])
@@ -2403,7 +2409,7 @@ private healthCheck() {
         logWarn("Code Version Change Detected... Health Check will occur on next cycle.")
         return
     }
-    validateCookieAsync()
+    validateCookie()
     if(getLastCookieRefreshSec() > cookieRefreshSeconds()) {
         runCookieRefresh()
     } else if (getLastGuardSupportCheckSec() > 43200) {
@@ -2593,7 +2599,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
         }
     } catch (ex) {
         incrementCntByKey("appErrorCnt")
-        logError("sendMsg $sentstr Exception: ${ex.message}")
+        logError("sendMsg $sentstr Exception: ${ex}")
     }
     return sent
 }
@@ -2691,7 +2697,7 @@ def queueFirebaseData(url, path, data, cmdType=null, type=null) {
             result = true
         } else { logWarn("queueFirebaseData UNKNOWN cmdType: ${cmdType}") }
 
-    } catch(ex) { logError("queueFirebaseData (type: $typeDesc) Exception: ${ex.message}") }
+    } catch(ex) { logError("queueFirebaseData (type: $typeDesc) Exception: ${ex}") }
     return result
 }
 
@@ -2703,10 +2709,10 @@ def removeFirebaseData(pathVal) {
             logDebug("Remove Firebase | resp: ${resp?.status}")
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.ResponseParseException) {
-            logError("removeFirebaseData: Response: ${ex?.message}")
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("removeFirebaseData Response Exception: ${ex}")
         } else {
-            logError("removeFirebaseData: Response: ${ex?.message}")
+            logError("removeFirebaseData Exception: ${ex}")
             result = false
         }
     }
@@ -2730,7 +2736,7 @@ def processFirebaseResponse(resp, data) {
         } else { logWarn("processFirebaseResponse: 'Unexpected' Response: ${resp?.status}") }
         if (isST() && resp?.hasError()) { logError("processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}") }
     } catch(ex) {
-        logError("processFirebaseResponse (type: $typeDesc) Exception: ${ex.message}")
+        logError("processFirebaseResponse (type: $typeDesc) Exception: ${ex}")
     }
 }
 
@@ -2738,7 +2744,7 @@ def renderMetricData() {
     try {
         def json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
         render contentType: "application/json", data: json
-    } catch (ex) { logError("renderMetricData Exception: ${ex.message}") }
+    } catch (ex) { logError("renderMetricData Exception: ${ex}") }
 }
 
 private Map getSkippedDevsAnon() {
@@ -2784,7 +2790,7 @@ private createMetricsDataJson(rendAsMap=false) {
         def json = new groovy.json.JsonOutput().toJson(dataObj)
         return json
     } catch (ex) {
-        logError("createMetricsDataJson: Exception: ${ex.message}")
+        logError("createMetricsDataJson: Exception: ${ex}")
     }
 }
 
@@ -2796,9 +2802,9 @@ private incrementCntByKey(String key) {
     state?."${key}" = evtCnt?.toLong()
 }
 
-/******************************************
-|    APP/DEVICE Version Functions
-*******************************************/
+// ******************************************
+//      APP/DEVICE Version Functions
+// ******************************************
 Boolean isCodeUpdateAvailable(String newVer, String curVer, String type) {
     Boolean result = false
     def latestVer
@@ -2892,7 +2898,7 @@ private getWebData(params, desc, text=true) {
         incrementCntByKey("appErrorCnt")
         if(ex instanceof groovyx.net.http.HttpResponseException) {
             logWarn("${desc} file not found")
-        } else { logError("getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex.message}") }
+        } else { logError("getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex}") }
         return "${label} info not found"
     }
 }
@@ -3026,8 +3032,8 @@ private getDiagDataJson() {
         def json = new groovy.json.JsonOutput().toJson(output)
         render contentType: "application/json", data: json, status: 200
     } catch (ex) {
-        logError("getDiagData: Exception: ${ex.message}")
-        render contentType: "application/json", data: [status: "failed", error: ex?.message], status: 500
+        logError("getDiagData: Exception: ${ex}")
+        render contentType: "application/json", data: [status: "failed", error: ex], status: 500
     }
 }
 
@@ -3180,7 +3186,7 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         def diff = (int) (long) (stop - start) / 1000
         return diff
     } catch (ex) {
-        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex.message}")
+        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex}")
         return 10000
     }
 }
@@ -3390,7 +3396,7 @@ Boolean getAccessToken() {
         if(!state?.accessToken) { state?.accessToken = createAccessToken() }
         else { return true }
     } catch (ex) {
-        logError("getAccessToken Exception: ${ex.message}")
+        logError("getAccessToken Exception: ${ex}")
         return false
     }
 }
