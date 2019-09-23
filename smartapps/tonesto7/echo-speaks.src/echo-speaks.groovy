@@ -18,13 +18,16 @@ import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 String appVersion()   { return "3.0.3.0" }
-String appModified()  { return "2019-09-17" }
+String appModified()  { return "2019-09-22" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
 Map minVersions()     { return [echoDevice: 3020, actionApp: 3030, server: 230] } //These values define the minimum versions of code this app will work with.
-// TODO: Add in Actions to the metrics
+
+// TODO: Rework validate cookie to only run every 1 hour instead of on every request Move to async under health check.
+// TODO: Collect device data for reason of cleared cookie.
 // TODO: Add the ability to duplicate an existing action (Web based?)
+// TODO: Add in Actions to the metrics
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -1591,7 +1594,7 @@ private apiHealthCheck(frc=false) {
         }
     } catch(ex) {
         incrementCntByKey("err_app_apiHealthCnt")
-        logError("apiHealthCheck() Exception: ${ex.message}")
+        logError("apiHealthCheck() Exception: ${ex}")
     }
 }
 
@@ -1629,7 +1632,14 @@ private validateCookieAsync(frc=false) {
     //Changed amazon auth validation to every 15 min instead of 30
     if((!frc && getLastCookieChkSec() <= 900) || !getCookieVal() || !getCsrfVal()) { return }
     try {
-        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/bootstrap",
+            query: ["version": 0],
+            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+            contentType: "application/json",
+            requestContentType: "application/json; charset=UTF-8"
+        ]
         execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
     } catch(ex) {
         incrementCntByKey("err_app_cookieValidCnt")
@@ -1645,9 +1655,13 @@ def cookieValidResp(response, data) {
         state?.lastCookieChkDt = getDtNow()
         return
     }
-    Map aData = response?.json?.authentication ?: [:]
+    Boolean isJson = (response?.contentType == "application/json")
+    Map aData = null
+    //TODO: Catch non-200 responses...
+    try { aData = isJson && response?.json ? response?.json?.authentication : [:] }
+    catch(ex) { logError("cookieValidResp Exception: ${ex}") }
     Boolean valid = false
-    if (aData) {
+    if (aData?.size()) {
         if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
         if(aData?.customerName) { state?.customerName = aData?.customerName }
         valid = (resp?.data?.authentication?.authenticated != false)
@@ -1733,9 +1747,9 @@ private getEchoDevices() {
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
-        contentType: "application/json",
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
+        requestContentType: "application/json; charset=UTF-8",
+        contentType: "application/json"
     ]
     state?.deviceRefreshInProgress = true
     state?.refreshDeviceData = false
@@ -1748,7 +1762,7 @@ private getMusicProviders() {
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
         headers: ["Routines-Version": "1.1.210292", cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        requestContentType: "application/json; charset=UTF-8",
         contentType: "application/json"
     ]
     Map items = [:]
@@ -1774,7 +1788,7 @@ private getBluetoothDevices() {
         path: "/api/bluetooth",
         query: [cached: true, _: new Date().getTime()],
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        requestContentType: "application/json; charset=UTF-8",
         contentType: "application/json"
     ]
     def btResp = makeSyncHttpReq(params, "get", "getBluetoothDevices") ?: null
@@ -1803,7 +1817,7 @@ private getDoNotDisturb() {
         path: "/api/dnd/device-status-list",
         query: [_: new Date().getTime()],
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        requestContentType: "application/json; charset=UTF-8",
         contentType: "application/json",
     ]
     def dndResp = makeSyncHttpReq(params, "get", "getDoNotDisturb") ?: null
@@ -1823,7 +1837,7 @@ public def getAlexaRoutines(autoId=null, utterOnly=false) {
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
         query: [ limit: 100 ],
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        requestContentType: "application/json; charset=UTF-8",
         contentType: "application/json"
     ]
     try {
@@ -1877,12 +1891,12 @@ Integer getLastGuardSupportCheckSec() { return !state?.lastGuardSupportCheck ? 3
 
 def checkGuardSupport() {
     if(!isAuthValid("checkGuardSupport")) { return }
-    def params = [
+    Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix",
         query: [ cached: true, _: new Date().getTime() ],
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        requestContentType: "application/json; charset=UTF-8",
         contentType: "application/json",
     ]
     execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
@@ -1934,7 +1948,7 @@ def checkGuardSupportFromServer() {
     def params = [
         uri: getServerHostURL(),
         path: "/agsData",
-        requestContentType: "application/json",
+        requestContentType: "application/json; charset=UTF-8",
         contentType: "application/json",
     ]
     execAsyncCmd("get", "checkGuardSupportServerResponse", params, [execDt: now()])
@@ -1942,6 +1956,7 @@ def checkGuardSupportFromServer() {
 
 def checkGuardSupportServerResponse(response, data) {
     Boolean guardSupported = false
+
     def resp = response?.json ?: null
     // log.debug "GuardSupport Server Response: ${resp}"
     if(resp && resp?.guardData) {
@@ -2020,7 +2035,8 @@ private guardStateConv(gState) {
 }
 
 def setGuardStateResponse(response, data) {
-    def resp = response?.json
+
+    def resp = response?.json ?: null
     // log.debug "resp: ${resp}"
     if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
         logInfo("Alexa Guard set to (${data?.requestedState}) Successfully!!!")
@@ -2425,12 +2441,29 @@ private sendAmazonCommand(String method, Map params, Map otherData) {
 def amazonCommandResp(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
+    Boolean isJson = (response?.type == "application/json")
     if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
-    try {} catch (ex) { }
-    def resp = response?.data ? response?.getJson() : null
+    def resp = null
+    try { resp = response?.data ? response?.json ?: [:] : [:] }
+    catch(ex) { logError("amazonCommandResp Exception: ${ex}") }
     // logDebug("amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
     if(response?.status == 200) {
         logDebug("amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!")
+    }
+}
+
+def asyncRespHandler(response, data) {
+    Boolean hasErr = (response?.hasError() == true)
+    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
+    Boolean isJson = (response?.contentType == "application/json")
+
+    try {
+
+
+    } catch (groovyx.net.http.HttpResponseException hre) {
+
+    } catch (ex) {
+
     }
 }
 

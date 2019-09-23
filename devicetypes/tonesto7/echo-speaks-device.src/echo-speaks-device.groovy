@@ -18,10 +18,10 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.2.0"}
-String devModified()  { return "2019-09-17" }
+String devModified()  { return "2019-09-22" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-
+// TODO: Collect reason for clearing cookie
 // TODO: Change importURL back to master branch
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/devicetypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy") {
@@ -824,9 +824,10 @@ def getPlaybackStateHandler(response, data, isGroupResponse=false) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getPlaybackStateHandler", true)) {return}
+    Boolean isJson = (response?.contentType == "application/json")
     Boolean isPlayStateChange = false
     def sData = [:]
-    try { sData = response?.data ? response?.json ?: [:] : [:] }
+    try { sData = (isJson ? response?.json : response?.data ?: [:]) }
     catch(ex) { logError("getPlaybackStateHandler Exception: ${ex?.message}") }
     sData = sData?.playerInfo ?: [:]
     if (state?.isGroupPlaying && !isGroupResponse) {
@@ -912,8 +913,9 @@ def getAlarmVolumeHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getAlarmVolumeHandler")) {return}
+    Boolean isJson = (response?.contentType == "application/json")
     def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
+    try { sData = (isJson ? response?.json : response?.data ?: null) }
     catch(ex) { logError("getAlarmVolumeHandler Exception: ${ex?.message}") }
     // logTrace("getAlarmVolume: $sData")
     if(sData && isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
@@ -937,8 +939,9 @@ def getWakeWordHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getWakeWordHandler", true)) {return}
+    Boolean isJson = (response?.contentType == "application/json")
     def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
+    try { sData = (isJson ? response?.json : response?.data ?: null) }
     catch(ex) { logError("getWakeWordHandler Exception: ${ex?.message}") }
     // log.debug "sData: $sData"
     if(sData) {
@@ -971,8 +974,9 @@ def getWifiDetailsHandler(response, data) {
     Boolean hasErr = (!(response.status >= 200) || !(response.status <= 299) || response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getWifiDetailsHandler", true)) {return}
+    Boolean isJson = (response?.contentType == "application/json")
     def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
+    try { sData = (isJson ? response?.json : response?.data ?: null) }
     catch(ex) { logError("getWifiDetailsHandler Exception: ${ex?.message}") }
     // log.debug "sData: $sData"
     def wifiSsid = sData?.essid
@@ -998,8 +1002,9 @@ def getDeviceSettingsHandler(response, data) {
     Boolean hasErr = (!(response.status >= 200) || !(response.status <= 299) || response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getDeviceSettingsHandler", true)) {return}
+    Boolean isJson = (response?.contentType == "application/json")
     def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
+    try { sData = (isJson ? response?.json : response?.data ?: null) }
     catch(ex) { logError("getDeviceSettingsHandler Exception: ${ex?.message}") }
     def devData = sData?.devicePreferences?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
     state?.devicePreferences = devData ?: [:]
@@ -1033,8 +1038,9 @@ def getAvailableWakeWordsHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getAvailableWakeWordsHandler", true)) {return}
+    Boolean isJson = (response?.contentType == "application/json")
     def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
+    try { sData = (isJson ? response?.json : response?.data ?: null) }
     catch(ex) { logError("getAvailableWakeWordsHandler Exception: ${ex?.message}") }
     // log.debug "sData: $sData"
     def wakeWords = sData?.wakeWords ? sData?.wakeWords?.join(",") : null
@@ -1097,7 +1103,7 @@ private getPlaylists() {
             mediaOwnerCustomerId: state?.deviceOwnerCustomerId,
             screenWidth: 2560
         ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
         requestContentType: "application/json",
         contentType: "application/json"
     ])
@@ -1107,8 +1113,9 @@ def getPlaylistsHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getPlaylistsHandler")) {return}
+    Boolean isJson = (response?.contentType == "application/json")
     def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
+    try { sData = (isJson ? response?.json : response?.data ?: null) }
     catch(ex) { logError("getPlaylistsHandler Exception: ${ex?.message}") }
     // logTrace("getPlaylistsHandler: ${sData}")
     Map playlists = sData ? sData?.playlists : "{}"
@@ -1133,9 +1140,10 @@ def getNotificationsHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "getNotificationsHandler")) {return}
+    Boolean isJson = (response?.contentType == "application/json")
     List newList = []
     def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
+    try { sData = (isJson ? response?.json : response?.data ?: null) }
     catch(ex) { logError("getNotificationsHandler Exception: ${ex?.message}") }
     if(sData) {
         List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
@@ -1160,7 +1168,7 @@ private getDeviceActivity() {
             size:"50",
             offset:"-1"
         ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
         requestContentType: "application/json",
         contentType: "application/json"
     ]
@@ -1171,8 +1179,9 @@ def deviceActivityHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "deviceActivityHandler")) {return}
+    Boolean isJson = (response?.contentType == "application/json")
     def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
+    try { sData = (isJson ? response?.json : response?.data ?: null) }
     catch(ex) { logError("deviceActivityHandler Exception: ${ex}") }
     Boolean wasLastDevice = false
     def actTS = null
@@ -1213,7 +1222,7 @@ private sendAmazonBasicCommand(String cmdType) {
     execAsyncCmd("post", "amazonCommandResp", [
         uri: getAmazonUrl(),
         path: "/api/np/command",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
         query: [
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType
@@ -1243,8 +1252,9 @@ def amazonCommandResp(response, data) {
     if(hasErr) log.debug "hasError: $hasErr | status: ${response?.status}"
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
     if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
+    Boolean isJson = (response?.contentType == "application/json")
     def sData = null
-    try { sData = response?.data ? response?.json ?: null : null }
+    try { sData = (isJson ? response?.json : response?.data ?: null) }
     catch(ex) { logError("amazonCommandResp Exception: ${ex?.message}") }
     if(response?.status == 200) {
         if (data?.cmdDesc?.startsWith("connectBluetooth") || data?.cmdDesc?.startsWith("disconnectBluetooth") || data?.cmdDesc?.startsWith("removeBluetooth")) {
@@ -1262,7 +1272,7 @@ private sendSequenceCommand(type, command, value) {
     sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
         requestContentType: "application/json",
         contentType: "application/json",
         body: new JsonOutput().toJson(seqObj)
@@ -1443,7 +1453,7 @@ def setAlarmVolume(vol) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/device-notification-state/${state?.deviceType}/${state?.softwareVersion}/${state?.serialNumber}",
-            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+            headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
             requestContentType: "application/json",
             contentType: "application/json",
             body: [
@@ -1506,7 +1516,7 @@ def setDoNotDisturb(Boolean val) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/dnd/status",
-            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+            headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
             requestContentType: "application/json",
             contentType: "application/json",
             body: [
@@ -1527,7 +1537,7 @@ def setFollowUpMode(Boolean val) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/device-preferences/${state?.serialNumber}",
-            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+            headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
             requestContentType: "application/json",
             contentType: "application/json",
             body: [
@@ -1916,7 +1926,7 @@ private Map validateMusicSearch(searchPhrase, providerId, sleepSeconds=null) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/operation/validate",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
         requestContentType: "application/json",
         contentType: "application/json",
         body: new JsonOutput().toJson(validObj)
@@ -1967,7 +1977,7 @@ def setWakeWord(String newWord) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/wake-word/${state?.serialNumber}",
-            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+            headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
             requestContentType: "application/json",
             contentType: "application/json",
             body: [
@@ -2021,7 +2031,7 @@ def removeNotification(String id) {
             sendAmazonCommand("delete", [
                 uri: getAmazonUrl(),
                 path: "/api/notifications/${id}",
-                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+                headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
                 requestContentType: "application/json",
                 contentType: "application/json",
                 body: []
@@ -2040,7 +2050,7 @@ private createNotification(type, options) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications/create${type}",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
         requestContentType: "application/json",
         contentType: "application/json",
         body: [
@@ -2077,7 +2087,7 @@ def renameDevice(newName) {
     sendAmazonCommand("put", [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device/${state?.serialNumber}",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
         requestContentType: "application/json",
         contentType: "application/json",
         body: [
@@ -2098,7 +2108,7 @@ def connectBluetooth(String btNameOrAddr) {
             sendAmazonCommand("post", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/pair-sink/${state?.deviceType}/${state?.serialNumber}",
-                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+                headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
                 requestContentType: "application/json",
                 contentType: "application/json",
                 body: [ bluetoothDeviceAddress: curBtAddr ]
@@ -2117,7 +2127,7 @@ def disconnectBluetooth() {
             sendAmazonCommand("post", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/disconnect-sink/${state?.deviceType}/${state?.serialNumber}",
-                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+                headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
                 requestContentType: "application/json",
                 contentType: "application/json",
                 body: [ bluetoothDeviceAddress: curBtAddr ]
@@ -2135,7 +2145,7 @@ def removeBluetooth(String btNameOrAddr) {
             sendAmazonCommand("post", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/unpair-sink/${state?.deviceType}/${state?.serialNumber}",
-                headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+                headers: [cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
                 requestContentType: "application/json",
                 contentType: "application/json",
                 body: [ bluetoothDeviceAddress: curBtAddr, bluetoothDeviceClass: "OTHER" ]
@@ -2652,7 +2662,8 @@ private speechCmd(headers=[:], isQueueCmd=false) {
             seqCmds = seqCmds + msgSeqBuilder(headerMap?.message)
             if(headerMap?.oldVolume) { seqCmds?.push([command: "volume", value: headerMap?.oldVolume]) }
             bodyObj = new JsonOutput().toJson(multiSequenceBuilder(seqCmds))
-
+            headerMap?.Connection = "keep-alive"
+            headerMap?.DNT = "1"
             Map params = [
                 uri: getAmazonUrl(),
                 path: "/api/behaviors/preview",
@@ -2682,11 +2693,12 @@ private speechCmd(headers=[:], isQueueCmd=false) {
 def asyncSpeechHandler(response, data) {
     Boolean hasErr = (response?.hasError() == true)
     String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
+    Boolean isJson = (response?.contentType == "application/json")
     def sData = null
     if(!respIsValid(response?.status, hasErr, errMsg, "asyncSpeechHandler", true)) {
         sData = response?.errorJson ?: null
     } else {
-        try { sData = response?.data ? response?.json ?: null : null }
+        try { sData = (isJson ? response?.json : response?.data ?: null) }
         catch(ex) { logError("asyncSpeechHandler Exception: ${ex?.message}") }
     }
     data["amznReqId"] = response?.headers["x-amz-rid"] ?: null
