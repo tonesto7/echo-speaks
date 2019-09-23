@@ -1696,11 +1696,6 @@ private getOtherData() {
     getBluetoothDevices()
     getDoNotDisturb()
     validateCookie(true)
-    checkIfCodeUpdated()
-    Map updReqMap = getMinVerUpdsRequired()
-    Boolean updRequired = updReqMap?.updRequired
-    List updRequiredItems = updReqMap?.updItems
-    log.debug "updRequired: ${updRequired} | items: ${updRequiredItems}"
 }
 
 private getBluetoothDevices() {
@@ -2238,7 +2233,7 @@ private getDevicesFromSerialList(serialNumberList) {
 }
 
 // This is called by the device handler to send playback data to cluster members
-public sendPlaybackStateToClusterMembers(whaKey, response, data) {
+public sendPlaybackStateToClusterMembers(whaKey, data) {
     //logTrace("sendPlaybackStateToClusterMembers: key: ${ whaKey}")
     def echoDeviceMap = state?.echoDeviceMap
     def whaMap = echoDeviceMap[whaKey]
@@ -2246,7 +2241,7 @@ public sendPlaybackStateToClusterMembers(whaKey, response, data) {
 
     if (clusterMembers) {
         def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
-        clusterMemberDevices?.each { it?.getPlaybackStateHandler(response, data, true) }
+        clusterMemberDevices?.each { it?.getPlaybackStateHandler(data, true) }
     } else {
         // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
         //log.debug "sendPlaybackStateToClusterMembers: no data found for ${whaKey} (first refresh?)"

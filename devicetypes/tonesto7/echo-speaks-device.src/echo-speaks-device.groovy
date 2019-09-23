@@ -809,7 +809,7 @@ public setOnlineStatus(Boolean isOnline) {
 //     return true
 // }
 
-private getPlaybackState() {
+private getPlaybackState(isGroupResponse=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/np/player",
@@ -817,82 +817,95 @@ private getPlaybackState() {
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json"
     ]
+    Map playerInfo = [:]
     try {
         httpGet(params) { response->
             Boolean isPlayStateChange = false
-            def sData = response?.data?.playerInfo ?: [:]
-            if (state?.isGroupPlaying && !isGroupResponse) {
-                log.debug "ignoring getPlaybackState because group is playing here"
-                return
-            }
-            // logTrace("getPlaybackState: ${sData}")
-            String playState = sData?.state == 'PLAYING' ? "playing" : "stopped"
-            String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
-            // log.debug "deviceStatus: ${deviceStatus}"
-            if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
-                logTrace("Status Changed to ${playState}")
-                isPlayStateChange = true
-                if (isGroupResponse) {
-                    state?.isGroupPlaying = (sData?.state == 'PLAYING')
-                }
-                sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
-                sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
-            }
-            //Track Title
-            String title = sData?.infoText?.title ?: ""
-            if(isStateChange(device, "trackDescription", title?.toString())) {
-                sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
-            }
-            //Track Sub-Text2
-            String subText1 = sData?.infoText?.subText1 ?: "Idle"
-            if(isStateChange(device, "currentAlbum", subText1?.toString())) {
-                sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
-            }
-            //Track Sub-Text2
-            String subText2 = sData?.infoText?.subText2 ?: "Idle"
-            if(isStateChange(device, "currentStation", subText2?.toString())) {
-                sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
-            }
-
-            //Track Art Imager
-            String trackImg = sData?.mainArt?.url ?: ""
-            if(isStateChange(device, "trackImage", trackImg?.toString())) {
-                sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
-            }
-            if(isStateChange(device, "trackImageHtml", """<img src="${trackImg?.toString()}"/>""")) {
-                sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)
-            }
-
-            // Group response data never has valida data for volume
-            if(!isGroupResponse && sData?.volume) {
-                if(sData?.volume?.volume != null) {
-                    Integer level = sData?.volume?.volume
-                    if(level < 0) { level = 0 }
-                    if(level > 100) { level = 100 }
-                    if(isStateChange(device, "level", level?.toString()) || isStateChange(device, "volume", level?.toString())) {
-                        logDebug("Volume Level Set to ${level}%")
-                        sendEvent(name: "level", value: level, display: false, displayed: false)
-                        sendEvent(name: "volume", value: level, display: false, displayed: false)
-                    }
-                }
-                if(sData?.volume?.muted != null) {
-                    String muteState = (sData?.volume?.muted == true) ? "muted" : "unmuted"
-                    if(isStateChange(device, "mute", muteState?.toString())) {
-                        logDebug("Mute Changed to ${muteState}")
-                        sendEvent(name: "mute", value: muteState, descriptionText: "Volume has been ${muteState}", display: true, displayed: true)
-                    }
-                }
-            }
-            // Update cluster (unless we remain paused)
-            if (state?.hasClusterMembers && (sData?.state == 'PLAYING' || isPlayStateChange)) {
-                parent?.sendPlaybackStateToClusterMembers(state?.serialNumber, response, data)
-            }
+            Map sData = response?.data ?: [:]
+            playerInfo = sData?.playerInfo ?: null
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getPlaybackState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            def errMsg = ex?.getResponse()?.getData()
+            if(errMsg?.message == null) {
+                log.error "${errMsg}"
+            } else {
+                logError("getPlaybackState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            }
         } else { logError("getPlaybackState Exception: ${ex}") }
     }
+    playbackStateHandler(playerInfo)
+}
+
+def playbackStateHandler(playerInfo, isGroupResponse=false) {
+    log.debug "playerInfo: ${playerInfo}"
+    if (state?.isGroupPlaying && !isGroupResponse) {
+        log.debug "ignoring getPlaybackState because group is playing here"
+        return
+    }
+    // logTrace("getPlaybackState: ${playerInfo}")
+    String playState = playerInfo?.state == 'PLAYING' ? "playing" : "stopped"
+    String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
+    // log.debug "deviceStatus: ${deviceStatus}"
+    if(isStateChange(device, "status", playState?.toString()) || isStateChange(device, "deviceStatus", deviceStatus?.toString())) {
+        logTrace("Status Changed to ${playState}")
+        isPlayStateChange = true
+        if (isGroupResponse) {
+            state?.isGroupPlaying = (playerInfo?.state == 'PLAYING')
+        }
+        sendEvent(name: "status", value: playState?.toString(), descriptionText: "Player Status is ${playState}", display: true, displayed: true)
+        sendEvent(name: "deviceStatus", value: deviceStatus?.toString(), display: false, displayed: false)
+    }
+    //Track Title
+    String title = playerInfo?.infoText?.title ?: ""
+    if(isStateChange(device, "trackDescription", title?.toString())) {
+        sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
+    }
+    //Track Sub-Text2
+    String subText1 = playerInfo?.infoText?.subText1 ?: "Idle"
+    if(isStateChange(device, "currentAlbum", subText1?.toString())) {
+        sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
+    }
+    //Track Sub-Text2
+    String subText2 = playerInfo?.infoText?.subText2 ?: "Idle"
+    if(isStateChange(device, "currentStation", subText2?.toString())) {
+        sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
+    }
+
+    //Track Art Imager
+    String trackImg = playerInfo?.mainArt?.url ?: ""
+    if(isStateChange(device, "trackImage", trackImg?.toString())) {
+        sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
+    }
+    if(isStateChange(device, "trackImageHtml", """<img src="${trackImg?.toString()}"/>""")) {
+        sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)
+    }
+
+    // Group response data never has valida data for volume
+    if(!isGroupResponse && playerInfo?.volume) {
+        if(playerInfo?.volume?.volume != null) {
+            Integer level = playerInfo?.volume?.volume
+            if(level < 0) { level = 0 }
+            if(level > 100) { level = 100 }
+            if(isStateChange(device, "level", level?.toString()) || isStateChange(device, "volume", level?.toString())) {
+                logDebug("Volume Level Set to ${level}%")
+                sendEvent(name: "level", value: level, display: false, displayed: false)
+                sendEvent(name: "volume", value: level, display: false, displayed: false)
+            }
+        }
+        if(playerInfo?.volume?.muted != null) {
+            String muteState = (playerInfo?.volume?.muted == true) ? "muted" : "unmuted"
+            if(isStateChange(device, "mute", muteState?.toString())) {
+                logDebug("Mute Changed to ${muteState}")
+                sendEvent(name: "mute", value: muteState, descriptionText: "Volume has been ${muteState}", display: true, displayed: true)
+            }
+        }
+    }
+    // Update cluster (unless we remain paused)
+    if (state?.hasClusterMembers && (playerInfo?.state == 'PLAYING' || isPlayStateChange)) {
+        parent?.sendPlaybackStateToClusterMembers(state?.serialNumber, response, data)
+    }
+
 }
 
 private getAlarmVolume() {
@@ -914,7 +927,7 @@ private getAlarmVolume() {
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getAlarmVolume Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            logError("getAlarmVolume Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("getAlarmVolume Exception: ${ex}") }
     }
 }
@@ -942,7 +955,7 @@ private getWakeWord() {
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getWakeWord Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            logError("getWakeWord Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("getWakeWord Exception: ${ex}") }
     }
 }
@@ -970,7 +983,7 @@ private getWifiDetails() {
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getWifiDetails Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            logError("getWifiDetails Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("getWifiDetails Exception: ${ex}") }
     }
 }
@@ -999,7 +1012,7 @@ private getDeviceSettings() {
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getAvailableWakeWords Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            logError("getAvailableWakeWords Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("getAvailableWakeWords Exception: ${ex}") }
     }
 }
@@ -1024,7 +1037,7 @@ private getAvailableWakeWords() {
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getAvailableWakeWords Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            logError("getAvailableWakeWords Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("getAvailableWakeWords Exception: ${ex}") }
     }
 }
@@ -1092,7 +1105,7 @@ private getPlaylists() {
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getPlaylists Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            logError("getPlaylists Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("getPlaylists Exception: ${ex}") }
     }
 }
@@ -1124,7 +1137,7 @@ private getNotifications() {
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getNotifications Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            logError("getNotifications Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("getNotifications Exception: ${ex}") }
     }
 }
@@ -1170,7 +1183,7 @@ private getDeviceActivity() {
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getDeviceActivity Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            logError("getDeviceActivity Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("getDeviceActivity Exception: ${ex}") }
     }
 }
@@ -1236,7 +1249,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
         logDebug("sendAmazonCommand | Status: (${response?.status})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("sendAmazonCommand Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
+            logError("sendAmazonCommand Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("sendAmazonCommand Exception: ${ex}") }
     }
 }
