@@ -22,6 +22,7 @@ String devModified() { return "2019-09-24" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
+//TODO: Add a timer that runs after the last speak cmd that will clean up the queue and any stale items.
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/devicetypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy") {
         //capability "Audio Mute" // Not Compatible with Hubitat
@@ -446,6 +447,7 @@ metadata {
             input "disableTextTransform", "bool", required: false, title: "Disable Text Transform?", description: "This will attempt to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false
             input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
             input "ttsWordDelay", "number", required: true, title: "Speech queue delay (per character)", description: "Currently there is a 2 second delay per every 14 characters.", defaultValue: 2
+            input "autoResetQueue", "number", required: false, title: "Auto reset queue (xx seconds) after last speak command", description: "This will reset the queue 3 minutes after last message sent.", defaultValue: 180
         }
     }
 }
@@ -890,13 +892,6 @@ private getAlarmVolume() {
         }
     } catch (ex) {
         respExceptionHandler(ex, "getAlarmVolume")
-        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
-        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getAlarmVolume", ex?.getMessage())
-        // } else if(ex instanceof java.net.SocketTimeoutException) {
-        //     logError("getAlarmVolume Response Timeout...")
-        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        //     logError("getAlarmVolume Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        // } else { logError("getAlarmVolume Exception: ${ex}") }
     }
 }
 
@@ -923,13 +918,6 @@ private getWakeWord() {
         }
     } catch (ex) {
         respExceptionHandler(ex, "getWakeWord")
-        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
-        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getWakeWord", ex?.getMessage())
-        // } else if(ex instanceof java.net.SocketTimeoutException) {
-        //     logError("getWakeWord Response Timeout...")
-        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        //     logError("getWakeWord Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        // } else { logError("getWakeWord Exception: ${ex}") }
     }
 }
 
@@ -956,13 +944,6 @@ private getWifiDetails() {
         }
     } catch (ex) {
         respExceptionHandler(ex, "getWifiDetails")
-        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
-        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getWifiDetails", ex?.getMessage())
-        // } else if(ex instanceof java.net.SocketTimeoutException) {
-        //     logError("getWifiDetails Response Timeout...")
-        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        //     logError("getWifiDetails Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        // } else { logError("getWifiDetails Exception: ${ex}") }
     }
 }
 
@@ -990,13 +971,6 @@ private getDeviceSettings() {
         }
     } catch (ex) {
         respExceptionHandler(ex, "getDeviceSettings")
-        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
-        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getDeviceSettings", ex?.getMessage())
-        // } else if(ex instanceof java.net.SocketTimeoutException) {
-        //     logError("getDeviceSettings Response Timeout...")
-        // }  else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        //     logError("getDeviceSettings Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        // } else { logError("getDeviceSettings Exception: ${ex}") }
     }
 }
 
@@ -1020,13 +994,6 @@ private getAvailableWakeWords() {
         }
     } catch (ex) {
         respExceptionHandler(ex, "getAvailableWakeWords")
-        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
-        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getAvailableWakeWords", ex?.getMessage())
-        // } else if(ex instanceof java.net.SocketTimeoutException) {
-        //     logError("getAvailableWakeWords Response Timeout...")
-        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        //     logError("getAvailableWakeWords Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        // } else { logError("getAvailableWakeWords Exception: ${ex}") }
     }
 }
 
@@ -1167,13 +1134,6 @@ private getDeviceActivity() {
         }
     } catch (ex) {
         respExceptionHandler(ex, "getDeviceActivity")
-        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
-        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getDeviceActivity", ex?.getMessage())
-        // } else if(ex instanceof java.net.SocketTimeoutException) {
-        //     logError("getDeviceActivity Response Timeout...")
-        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        //     logError("getDeviceActivity Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        // } else { logError("getDeviceActivity Exception: ${ex}") }
     }
 }
 
@@ -1237,14 +1197,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
         } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
         logDebug("sendAmazonCommand | Status: (${response?.status})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
     } catch (ex) {
-        respExceptionHandler(ex, "${otherData?.cmdDesc}")
-        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
-        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "${otherData?.cmdDesc}", ex?.getMessage())
-        // } else if(ex instanceof java.net.SocketTimeoutException) {
-        //     logError("${otherData?.cmdDesc} Response Timeout...")
-        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        //     logError("${otherData?.cmdDesc} Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        // } else { logError("${otherData?.cmdDesc} Exception: ${ex}") }
+        respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
     }
 }
 
@@ -1948,14 +1901,18 @@ private Map validateMusicSearch(searchPhrase, providerId, sleepSeconds=null) {
         body: new JsonOutput().toJson(validObj)
     ]
     Map result = null
-    httpPost(params) { resp->
-        Map rData = resp?.data ?: null
-        if(resp?.status == 200) {
-            if (rData?.result != "VALID") {
-                logError("Amazon the Music Search Request as Invalid | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})")
-                result = null
-            } else { result = rData }
-        } else { logError("validateMusicSearch Request failed with status: (${resp?.status}) | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})") }
+    try {
+        httpPost(params) { resp->
+            Map rData = resp?.data ?: null
+            if(resp?.status == 200) {
+                if (rData?.result != "VALID") {
+                    logError("Amazon the Music Search Request as Invalid | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})")
+                    result = null
+                } else { result = rData }
+            } else { logError("validateMusicSearch Request failed with status: (${resp?.status}) | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})") }
+        }
+    } catch (ex) {
+        respExceptionHandler(ex, "validateMusicSearch")
     }
     return result
 }
@@ -2453,8 +2410,8 @@ private stateCleanup() {
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
 }
 
-def resetQueue(showLog=true) {
-    if(showLog) { logTrace("resetQueue()") }
+def resetQueue() {
+    logTrace("resetQueue()")
     Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("qItem_") }
     cmdQueue?.each { cmdKey, cmdData -> state?.remove(cmdKey) }
     unschedule("queueCheck")
@@ -2544,7 +2501,7 @@ private queueCheck(data) {
                 schedQueueCheck(delay, true, null, "queueCheck(filling)")
             } else {
                 logWarn("queueCheck | Queue Item Count (${qSize}) is abnormally high... Resetting Queue", true)
-                resetQueue(false)
+                resetQueue()
                 return
             }
         } else { state?.q_blocked = false }
@@ -2557,7 +2514,7 @@ private queueCheck(data) {
         return
     } else {
         logDebug("queueCheck | Nothing in the Queue | Performing Queue Reset...")
-        resetQueue(false)
+        resetQueue()
         return
     }
 }
@@ -2645,6 +2602,7 @@ private speechCmd(headers=[:], isQueueCmd=false) {
         // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
             queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
+            runIn((settings?.autoResetQueue ?: 180), "resetQueue")
             if(!isFirstCmd) { return }
         }
     }

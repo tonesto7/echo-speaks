@@ -28,6 +28,7 @@
    Device (v3.1.0.0)
    September 24th, 2019
  ══════════
+  • ADDED: Follow up Auto Reset Queue (xx seconds) after last speech command.  Adjust each device under the devices setting page. Default is 180 sec.
   • UPDATED: Massive overhaul of the web request response and exception handling.
   • UPDATED: Converted most async commands back to synchronous calls for speed.
   • UPDATED: log output cleanups.
