@@ -9,18 +9,19 @@
   • UPDATED: Notices for upcoming SMS support removal from Hubitat and SmartThings (UK) platforms.
   • FIXED: Device test fixes.
   • ADDED: Duplicate existing Actions. (ST only at the moment)
+  • ADDED: Support for actions guard triggers.
   • UPDATED: log output cleanups.
 
  ══════════
    Actions App (v3.1.0.0)
    September 24th, 2019
  ══════════
-  • ADDED: Alexa Guard Triggers.
+  • ADDED: Guard Trigger events.
+  • ADDED: Control switches (on/off) when executing action.
   • FIXED: notification capable device support.
   • FIXED: Alexa Mobile notifications should now work.
   • FIXED: Action test would not run on new incomplete actions.
   • ADDED: Support for Duplicating existing Actions.
-  • ADDED: Control Switches when Actions are executed.
   • UPDATED: Notices for upcoming SMS support removal from Hubitat and SmartThings (UK) platforms.
 
  ══════════
