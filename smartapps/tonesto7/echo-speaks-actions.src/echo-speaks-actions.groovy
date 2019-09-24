@@ -17,12 +17,12 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.3.0" }
-String appModified() { return "2019-09-17" }
+String appVersion()  { return "3.1.0.0" }
+String appModified() { return "2019-09-24" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-// TODO: Create export to JSON for Importing? Web Based Exporter?
+
 // TODO: Finish the button trigger logic
 definition(
     name: "Echo Speaks - Actions",
@@ -1092,10 +1092,11 @@ def actNotifPage() {
         }
         section (sTS("Text Messages:"), hideWhenEmpty: true) {
             paragraph pTS("To send to multiple numbers separate the number by a comma\n\nE.g. 8045551122,8046663344", getAppImg("info", true), false, "gray")
+            paragraph pTS("SMS Support will soon be removed from Hubitat and SmartThings (UK)", getAppImg("info", true), false, "gray")
             input "notif_sms_numbers", "text", title: inTS("Send SMS Text to...", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
         }
         section (sTS("Notification Devices:")) {
-            input "notif_devs", "device.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
+            input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
         }
         section (sTS("Alexa Mobile Notification:")) {
             paragraph pTS("This will send a push notification the Alexa Mobile app.", null, false, "gray")
@@ -1306,7 +1307,8 @@ def initialize() {
     if(state?.dupPendingSetup == false && settings?.duplicateFlag == true) {
         settingUpdate("duplicateFlag", "false", "bool")
     } else if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
-        app?.updateLabel("${app?.getLabel()}${!app?.getLabel()?.contains("(Dup)") ? " (Dup)" : ""}")
+        String newLbl = app?.getLabel() + app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"
+        app?.updateLabel(newLbl)
         state?.dupPendingSetup = true
         def dupState = parent?.getDupActionStateData()
         if(dupState?.size()) {
@@ -1333,7 +1335,7 @@ private updAppLabel() {
 public guardEventHandler(guardState) {
     if(!state?.alexaGuardState || state?.alexaGuardState != guardState) {
         state?.alexaGuardState = guardState
-        def evt = [name: "guard", displayName: "Alexa Guard", value: state?.guardState, date: new Date(), deviceId: null]
+        def evt = [name: "guard", displayName: "Alexa Guard", value: state?.alexaGuardState, date: new Date(), deviceId: null]
         logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
         if(state?.handleGuardEvents) {
             executeAction(evt, false, "guardEventHandler", false, false)
@@ -1410,8 +1412,8 @@ def scheduleTrigEvt() {
 }
 
 private subscribeToEvts() {
-    if(checkMinVersion()) { log.error "CODE UPDATE required to RESUME operation.  No events will be monitored."; return; }
-    if(isPaused()) { log.warn "Action is PAUSED... No Events will be subscribed to or scheduled...."; return; }
+    if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
+    if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
     //SCHEDULING
     if (valTrigEvt("scheduled") && (settings?.trig_scheduled_time || settings?.trig_scheduled_sunState)) {
         if(settings?.trig_scheduled_sunState) {
@@ -1814,9 +1816,9 @@ def thermostatEvtHandler(evt) {
 }
 
 String evtValueCleanup(val) {
-    log.debug "val(in): ${val}"
+    // log.debug "val(in): ${val}"
     val = (val?.isNumber() && val?.toString()?.endsWith(".0")) ? val?.toDouble()?.round(0) : val
-    log.debug "val(out): ${val}"
+    // log.debug "val(out): ${val}"
     return val
 }
 
@@ -2224,20 +2226,20 @@ String getResponseItem(evt, evtAd=false, isRepeat=false, testMode=false) {
 private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, isRptAct=false) {
     def startTime = now()
     logTrace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
-    if(isPaused()) { log.warn "Action is PAUSED... Skipping Action Execution..."; return; }
+    if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return; }
     Boolean condOk = allConditionsOk()
     Boolean actOk = getConfStatusItem("actions")
     Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
-    def actDevices = parent?.getDevicesFromList(settings?.act_EchoDevices)
+    List actDevices = parent?.getDevicesFromList(settings?.act_EchoDevices) ?: []
     String actMsgTxt = null
     String actType = settings?.actionType
     if(actOk && actType) {
         def alexaMsgDev = actDevices?.size() && settings?.notif_alexa_mobile ? actDevices[0] : null
-        if(!condOk) { log.warn "Skipping Execution because set conditions have not been met"; return; }
-        if(!actMap || !actMap?.size()) { log.error "executeAction Error | The ActionExecutionMap is not found or is empty"; return; }
-        if(!actDevices?.size()) { log.error "executeAction Error | Echo Device List not found or is empty"; return; }
-        if(!actMap?.actionType) { log.error "executeAction Error | The ActionType is missing or is empty"; return; }
+        if(!condOk) { logWarn("Skipping Execution because set conditions have not been met", true); return; }
+        if(!actMap || !actMap?.size()) { logError("executeAction Error | The ActionExecutionMap is not found or is empty", true); return; }
+        if(!actDevices?.size()) { logError("executeAction Error | Echo Device List not found or is empty", true); return; }
+        if(!actMap?.actionType) { logError("executeAction Error | The ActionType is missing or is empty", true); return; }
         Map actConf = actMap?.config
         Integer actDelay = actMap?.delay ?: 0
         Integer actDelayMs = actMap?.delay ? (actMap?.delay*1000) : 0
@@ -2543,13 +2545,14 @@ Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3
 Boolean getOk2Notify() {
     Boolean smsOk = (settings?.notif_sms_numbers?.toString()?.length()>=10)
     Boolean pushOk = settings?.notif_send_push
+    Boolean alexaMsg = (settings?.notif_alexa_mobile)
     Boolean pushOver = (settings?.notif_pushover && settings?.notif_pushover_devices)
     Boolean notifDevsOk = (settings?.notif_devs?.size())
     Boolean daysOk = settings?.notif_days ? (isDayOfWeek(settings?.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = settings?.notif_mode ? (isInMode(settings?.notif_mode)) : true
-    logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
-    if(!(smsOk || pushOk || notifDevsOk || pushOver)) { return false }
+    logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
     return true
 }
@@ -2593,9 +2596,7 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
                 sendSrc?.push("Push Message")
                 if(showEvt) {
                     sendPush(newMsg)	// sends push and notification feed
-                } else {
-                    sendPushMessage(newMsg)	// sends push
-                }
+                } else { sendPushMessage(newMsg) } // sends push
                 sent = true
             }
             if(settings?.notif_pushover && settings?.notif_pushover_devices) {
@@ -2612,9 +2613,7 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
                     String t0 = newMsg.take(140)
                     if(showEvt) {
                         sendSms(phone?.trim(), t0)	// send SMS and notification feed
-                    } else {
-                        sendSmsMessage(phone?.trim(), t0)	// send SMS
-                    }
+                    } else { sendSmsMessage(phone?.trim(), t0) } // send SMS
                 }
                 sentSrc?.push("SMS Message to [${phones}]")
                 sent = true
@@ -3211,7 +3210,7 @@ private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Actions (v${
 private logInfo(msg) { if(settings?.logInfo != false) { log.info " Actions (v${appVersion()}) | ${msg}" } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Actions (v${appVersion()}) | ${msg}" } }
 private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Actions (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg) { if(settings?.logError != false) { log.error "Actions (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 15); }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Actions (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 Map getLogHistory() {
     return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
@@ -3364,7 +3363,7 @@ public getActDuplSettingData() {
     ]
     Map setObjs = [:]
     typeObj?.s?.each { sk,sv->
-        sv?.each { svi-> if(settings?.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi]] } }
+        sv?.each { svi-> if(settings?.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi] ] } }
     }
     typeObj?.e?.each { ek,ev->
         ev?.each { evi-> settings?.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }

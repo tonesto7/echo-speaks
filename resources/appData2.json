@@ -1,14 +1,14 @@
 {
-    "appDataVer": "2.0",
+    "appDataVer": "3.0",
     "versions": {
         "mainApp": {
-            "ver": "3.0.2.1"
+            "ver": "3.1.0.0"
         },
         "actionApp": {
-            "ver": "3.0.2.0"
+            "ver": "3.1.0.0"
         },
         "echoDevice": {
-            "ver": "3.0.2.0"
+            "ver": "3.1.0.0"
         },
         "server": {
             "ver": "2.2.2"
@@ -32,7 +32,15 @@
             "A1X7HJX9QL16M5",
             "A2T0P32DY3F7VB",
             "A3H674413M2EKB",
-            "AILBSA2LNTOYL"
+            "AILBSA2LNTOYL",
+            "A2WN1FJ2HG09UN",
+            "A2RJLFEH0UEKI9",
+            "A2LH725P8DQR2A",
+            "A3B50IC5QPZPWP",
+            "ADQRVG6LYK4LQ",
+            "A1VZJGJYCRI78V",
+            "ABP0V5EHO8A4U",
+            "A2TOXM6L8SFS8A"
         ]
     },
     "deviceFamilies": {
@@ -410,6 +418,11 @@
                 "t",
                 "a"
             ]
+        },
+        "AP1F6KUH00XPV": {
+            "name": "Stereo/Subwoofer Pair",
+            "blocked": true,
+            "caps": []
         }
     }
 }
