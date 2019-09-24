@@ -1,24 +1,36 @@
  ══════════
-   Main App (v3.0.2.1)
-   September 17th, 2019
+   Main App (v3.1.0.0)
+   September 24th, 2019
  ══════════
-  • FIXED: app header warnings for updates and issues
+  • UPDATED: Massive overhaul of the web request response and exception handling.
+  • FIXED: Required updates message for actions app.  Even after pressing Done.
+  • UPDATED: Optimized and reduced the amount of repetitive web calls.
+  • UPDATED: Converted most async commands back to synchronous calls for speed.
+  • FIXED: Notifications device support
+  • UPDATED: Notices for upcoming SMS support removal from Hubitat and SmartThings (UK) platforms.
+  • FIXED: Device test fixes.
+  • ADDED: Duplicate existing Actions. (ST only at the moment)
+  • ADDED: Support for actions guard triggers.
+  • UPDATED: log output cleanups.
 
  ══════════
-   Main App (v3.0.2.0)
-   September 17th, 2019
+   Actions App (v3.1.0.0)
+   September 24th, 2019
  ══════════
-  • FIXED: Guard Automation page error on ST Android clients.
-  • FIXED: Guard data support using server to collect the data.
+  • ADDED: Guard Trigger events.
+  • ADDED: Control switches (on/off) when executing action.
+  • FIXED: notification capable device support.
+  • FIXED: Alexa Mobile notifications should now work.
+  • FIXED: Action test would not run on new incomplete actions.
+  • ADDED: Support for Duplicating existing Actions.
+  • UPDATED: Notices for upcoming SMS support removal from Hubitat and SmartThings (UK) platforms.
 
  ══════════
-   Actions App (v3.0.2.0)
-   September 17th, 2019
+   Device (v3.1.0.0)
+   September 24th, 2019
  ══════════
-  • FIXED: Minor bug fixes.
-
- ══════════
-   Device (v3.0.2.0)
-   September 17th, 2019
- ══════════
+  • ADDED: Follow up Auto Reset Queue (xx seconds) after last speech command.  Adjust each device under the devices setting page. Default is 180 sec.
+  • UPDATED: Massive overhaul of the web request response and exception handling.
+  • UPDATED: Converted most async commands back to synchronous calls for speed.
+  • UPDATED: log output cleanups.
   • FIXED: Minor bug fixes.
