@@ -24,11 +24,8 @@ Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
 Map minVersions()     { return [echoDevice: 3100, actionApp: 3100, server: 222] } //These values define the minimum versions of code this app will work with.
 
-// TODO: Rework validate cookie to only run every 1 hour instead of on every request Move to async under health check.
 // TODO: Collect device data for reason of cleared cookie.
-// TODO: Add the ability to duplicate an existing action (Web based?)
 // TODO: Add in Actions to the metrics
-// TODO: Add the ability to duplicate an existing action (Web based?)
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -177,7 +174,7 @@ def authStatusPage() {
             Integer lastChkSec = getLastCookieRefreshSec()
             Boolean pastDayChkOk = (lastChkSec > 86400)
             section(sTS("Cookie Status:")) {
-                Boolean cookieValid = (validateCookie() == true)
+                Boolean cookieValid = (validateCookie(true) == true)
                 Boolean chk1 = (state?.cookieData && state?.cookieData?.localCookie)
                 Boolean chk2 = (state?.cookieData && state?.cookieData?.csrf)
                 Boolean chk3 = (lastChkSec < 432000)
@@ -1564,13 +1561,22 @@ private cookieRefresh() {
 
 def cookieRefreshResp(response, data) {
     Map rData = null
-    try { rData = response?.data ?: [:] }
-    catch(ex) { logError("cookieRefreshResp Exception: ${ex}") }
-    // log.debug "rData: $rData"
-    if (rData && rData?.result && rData?.result?.size()) {
-        logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
-        if(settings?.sendCookieRefreshMsg == true) { sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!") }
-        // log.debug "refreshAlexaCookie Response: ${rData?.result}"
+    try {
+        rData = response?.data ? parseJson(response?.data?.toString()) : null
+        // log.debug "rData: $rData"
+        if (rData && rData?.result && rData?.result?.size()) {
+            logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
+            if(settings?.sendCookieRefreshMsg == true) { sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!") }
+            // log.debug "refreshAlexaCookie Response: ${rData?.result}"
+        }
+    } catch(ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("cookieRefreshResp Exception: ${ex}")
+        } else if(ex instanceof java.net.SocketTimeoutException) {
+            logError("cookieRefreshResp Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+            logError("cookieRefreshResp Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else { logError("cookieRefreshResp Exception: ${ex}") }
     }
 }
 
@@ -3183,7 +3189,7 @@ def execDiagCmds() {
                 status = clearDiagLogs()
                 break
             case "validateAuth":
-                status = validateCookie();
+                status = validateCookie(true);
                 break
             case "wakeupServer":
                 wakeupServer()
