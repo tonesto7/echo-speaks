@@ -166,6 +166,7 @@ def mainPage() {
             }
         }
         state.ok2InstallActionFlag = false
+        clearDuplicationItems()
     }
 }
 
@@ -431,6 +432,12 @@ def actionsPage() {
         }
         section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
+            if(actApps?.size()) {
+                input "actionDuplicateSelect", "enum", title: inTS("Duplicate Existing Action", getAppImg("es_actions", true)), description: "Tap to select...", options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
+                if(settings?.actionDuplicateSelect) {
+                    href "actionDuplicationPage", title: inTS("Create Duplicate Action?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
+                }
+            }
         }
 
         if(actApps?.size()) {
@@ -448,6 +455,54 @@ def actionsPage() {
                 input "reinitChildActions", "bool", title: inTS("Force Refresh all actions?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 if(settings?.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUpdate"); }
             }
+        }
+        state.childInstallOkFlag = true
+        state?.actionDuplicated = false
+    }
+}
+
+def actionDuplicationPage() {
+    return dynamicPage(name: "actionDuplicationPage", nextPage: "actionsPage", uninstall: false, install: false) {
+        section() {
+            def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
+            if(state?.actionDuplicated) {
+                paragraph pTS("Action Already duplicated... Return to main page to ", null, true, "red"), required: true, state: null
+            } else {
+                if(act) {
+                    Map actData = act?.getActDuplSettingData()
+                    actData?.settings["duplicateFlag"] = [type: "bool", value: true]
+                    addChildApp("tonesto7", actChildName(), actData?.label, [settings: actData?.settings])
+                    paragraph pTS("Action Duplicated... Return to Action Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
+                } else {
+                    paragraph pTS("Action Not Found", null, true, "red"), required: true, state: null
+                }
+                state?.actionDuplicated = true
+            }
+        }
+    }
+}
+
+public clearDuplicationItems() {
+    state?.actionDuplicated = false
+    settingRemove("actionDuplicateSelect")
+}
+
+public getDupActionStateData() {
+    def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
+    return act?.getActDuplStateData() ?: null
+}
+
+def zonesPage() {
+    return dynamicPage(name: "zonesPage", nextPage: "mainPage", uninstall: false, install: false) {
+        List zApps = getZoneApps()
+        if(zApps) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started")
+            }
+        }
+        section() {
+            app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
         }
         state.childInstallOkFlag = true
     }
@@ -663,7 +718,7 @@ def notifPrefPage() {
             input "smsNumbers", "text", title: inTS("Send SMS to Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
         }
         section (sTS("Notification Devices:")) {
-            input "notif_devs", "device.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
+            input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
         }
         section(sTS("Pushover Support:")) {
             input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
@@ -1166,6 +1221,10 @@ def uninstalled() {
 
 def getActionApps() {
     return getAllChildApps()?.findAll { it?.name == actChildName() }
+}
+
+def getZoneApps() {
+    return getAllChildApps()?.findAll { it?.name == zoneChildName() }
 }
 
 def onAppTouch(evt) {
@@ -1969,6 +2028,11 @@ Boolean getAlexaGuardSupported() {
     return (state?.alexaGuardSupported == true) ? true : false
 }
 
+public updGuardActionTrig() {
+    def acts = getActionApps()
+    if(acts?.size()) { acts?.each { aa-> aa?.guardEventHandler(state?.alexaGuardState) } }
+}
+
 public setGuardHome() {
     setGuardState("ARMED_STAY")
 }
@@ -2622,6 +2686,7 @@ String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t
 String inTS(String t, String i = null, color=null, under=true) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
 
 String actChildName(){ return "Echo Speaks - Actions" }
+String zoneChildName(){ return "Echo Speaks - Zones" }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def updateDocsInput() { href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")}
@@ -2872,7 +2937,7 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
 
 private getConfigData() {
     Map params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData2.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData3.json",
         contentType: "application/json"
     ]
     def data = getWebData(params, "appData", false)
@@ -3298,6 +3363,12 @@ String getActionsDesc() {
     str += active?.size() ? "(${active?.size()}) Active\n" : ""
     str += paused?.size() ? "(${paused?.size()}) Paused\n" : ""
     str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to configure"
+    return str
+}
+
+String getZoneDesc() {
+    def zones = getZoneApps()
+    String str = ""
     return str
 }
 

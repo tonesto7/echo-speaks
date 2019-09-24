@@ -1,24 +1,17 @@
  ══════════
-   Main App (v3.0.2.1)
-   September 17th, 2019
+   Main App (v3.1.0.0)
+   September 24th, 2019
  ══════════
-  • FIXED: app header warnings for updates and issues
+  • FIXED: Notifications device support
 
  ══════════
-   Main App (v3.0.2.0)
-   September 17th, 2019
- ══════════
-  • FIXED: Guard Automation page error on ST Android clients.
-  • FIXED: Guard data support using server to collect the data.
-
- ══════════
-   Actions App (v3.0.2.0)
-   September 17th, 2019
+   Actions App (v3.1.0.0)
+   September 24th, 2019
  ══════════
   • FIXED: Minor bug fixes.
 
  ══════════
-   Device (v3.0.2.0)
-   September 17th, 2019
+   Device (v3.1.0.0)
+   September 24th, 2019
  ══════════
   • FIXED: Minor bug fixes.
