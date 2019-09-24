@@ -2,6 +2,7 @@
    Main App (v3.1.0.0)
    September 24th, 2019
  ══════════
+  • FIXED: Fixed Alexa guard support check for ST.
   • UPDATED: Massive overhaul of the web request response and exception handling.
   • FIXED: Required updates message for actions app.  Even after pressing Done.
   • UPDATED: Optimized and reduced the amount of repetitive web calls.
