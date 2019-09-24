@@ -3,6 +3,7 @@
    September 24th, 2019
  ══════════
   • UPDATED: Massive overhaul of the web request response and exception handling.
+  • FIXED: Required updates message for actions app.  Even after pressing Done.
   • UPDATED: Optimized and reduced the amount of repetitive web calls.
   • UPDATED: Converted most async commands back to synchronous calls for speed.
   • FIXED: Notifications device support
