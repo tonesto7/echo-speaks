@@ -17,14 +17,15 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.2.1" }
-String appModified()  { return "2019-09-17" }
+String appVersion()   { return "3.1.0.0" }
+String appModified()  { return "2019-09-24" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3020, actionApp: 3020, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3100, actionApp: 3100, server: 222] } //These values define the minimum versions of code this app will work with.
+
+// TODO: Collect device data for reason of cleared cookie.
 // TODO: Add in Actions to the metrics
-// TODO: Add the ability to duplicate an existing action (Web based?)
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -48,6 +49,7 @@ preferences {
     page(name: "newSetupPage")
     page(name: "authStatusPage")
     page(name: "actionsPage")
+    // page(name: "zonesPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
     page(name: "unrecogDevicesPage")
@@ -61,10 +63,10 @@ preferences {
     page(name: "deviceTestPage")
     page(name: "donationPage")
     page(name: "speechPage")
-    page(name: "broadcastPage")
     page(name: "announcePage")
     page(name: "sequencePage")
     page(name: "setNotificationTimePage")
+    page(name: "actionDuplicationPage")
     page(name: "uninstallPage")
 }
 
@@ -114,6 +116,12 @@ def mainPage() {
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
+            // def zones = getZoneApps()
+            // section(sTS("Zones:")) {
+            //     paragraph pTS("Create automation triggers from device/location events and perform advanced functions using your Alexa devices.", null, false, "#2784D9")
+            //     href "zonesPage", title: inTS("Manage Zones", getAppImg("es_groups", true)), description: getZoneDesc(), state: (zones?.size() ? "complete" : null), image: getAppImg("es_groups")
+            // }
+
             def acts = getActionApps()
             section(sTS("Actions:")) {
                 paragraph pTS("Create automation triggers from device/location events and perform advanced functions using your Alexa devices.", null, false, "#2784D9")
@@ -123,7 +131,6 @@ def mainPage() {
             section(sTS("Alexa Login Service:")) {
                 def ls = getLoginStatusDesc()
                 href "authStatusPage", title: inTS("Login Status | Service Management", getAppImg("settings", true)), description: (ls ? "${ls}\n\nTap to modify" : "Tap to configure"), state: (ls ? "complete" : null), image: getAppImg("settings")
-                // href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
             }
             if(!state?.shownDevSharePage) { showDevSharePrefs() }
             section(sTS("Notifications:")) {
@@ -155,6 +162,7 @@ def mainPage() {
             }
         }
         state.ok2InstallActionFlag = false
+        clearDuplicationItems()
     }
 }
 
@@ -166,7 +174,7 @@ def authStatusPage() {
             Integer lastChkSec = getLastCookieRefreshSec()
             Boolean pastDayChkOk = (lastChkSec > 86400)
             section(sTS("Cookie Status:")) {
-                Boolean cookieValid = (validateCookie() == true)
+                Boolean cookieValid = (validateCookie(true) == true)
                 Boolean chk1 = (state?.cookieData && state?.cookieData?.localCookie)
                 Boolean chk2 = (state?.cookieData && state?.cookieData?.csrf)
                 Boolean chk3 = (lastChkSec < 432000)
@@ -363,7 +371,7 @@ def guardTriggerEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
 	logDebug("${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     if(!guardRestrictOk()) {
-        log.debug "guardTriggerEvtHandler | Skipping Changes because restriction filter is active"
+        logDebug("guardTriggerEvtHandler | Skipping Guard Changes because Restriction are Active.")
         return
     }
     String newState = null
@@ -420,6 +428,12 @@ def actionsPage() {
         }
         section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
+            if(actApps?.size() && isST()) {
+                input "actionDuplicateSelect", "enum", title: inTS("Duplicate Existing Action", getAppImg("es_actions", true)), description: "Tap to select...", options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
+                if(settings?.actionDuplicateSelect) {
+                    href "actionDuplicationPage", title: inTS("Create Duplicate Action?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
+                }
+            }
         }
 
         if(actApps?.size()) {
@@ -439,6 +453,54 @@ def actionsPage() {
             }
         }
         state.childInstallOkFlag = true
+        state?.actionDuplicated = false
+    }
+}
+
+def actionDuplicationPage() {
+    return dynamicPage(name: "actionDuplicationPage", nextPage: "actionsPage", uninstall: false, install: false) {
+        section() {
+            if(state?.actionDuplicated) {
+                paragraph pTS("Action already duplicated...\n\nReturn to action page and select it", null, true, "red"), required: true, state: null
+            } else {
+                def act = getActionApps()?.find { it?.id?.toString() == settings?.actionDuplicateSelect?.toString() }
+                if(act) {
+                    Map actData = act?.getActDuplSettingData()
+                    actData?.settings["duplicateFlag"] = [type: "bool", value: true]
+                    addChildApp("tonesto7", actChildName(), actData?.label, [settings: actData?.settings])
+                    paragraph pTS("Action Duplicated... Return to Action Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
+                } else {
+                    paragraph pTS("Action Not Found", null, true, "red"), required: true, state: null
+                }
+                state?.actionDuplicated = true
+            }
+        }
+    }
+}
+
+public clearDuplicationItems() {
+    state?.actionDuplicated = false
+    settingRemove("actionDuplicateSelect")
+}
+
+public getDupActionStateData() {
+    def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
+    return act?.getActDuplStateData() ?: null
+}
+
+def zonesPage() {
+    return dynamicPage(name: "zonesPage", nextPage: "mainPage", uninstall: false, install: false) {
+        List zApps = getZoneApps()
+        if(zApps) { /*Nothing to add here yet*/ }
+        else {
+            section("") {
+                paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started")
+            }
+        }
+        section() {
+            app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
+        }
+        state?.childInstallOkFlag = true
     }
 }
 
@@ -652,7 +714,7 @@ def notifPrefPage() {
             input "smsNumbers", "text", title: inTS("Send SMS to Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
         }
         section (sTS("Notification Devices:")) {
-            input "notif_devs", "device.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
+            input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
         }
         section(sTS("Pushover Support:")) {
             input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
@@ -745,7 +807,6 @@ def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
         section("") {
             href "speechPage", title: inTS("Speech Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
-            // href "broadcastPage", title: inTS("Broadcast Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
             href "announcePage", title: inTS("Announcement Test", getAppImg("announcement", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("announcement")
             href "sequencePage", title: inTS("Sequence Creator Test", getAppImg("sequence", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("sequence")
         }
@@ -766,26 +827,6 @@ def speechPage() {
             section() {
                 input "speechTestRun", "bool", title: inTS("Perform the Speech Test?"), description: "", required: false, defaultValue: false, submitOnChange: true
                 if(speechTestRun) { executeSpeechTest() }
-            }
-        }
-    }
-}
-
-def broadcastPage() {
-    return dynamicPage(name: "broadcastPage", uninstall: false, install: false) {
-        section("") {
-            paragraph "This feature is not supported by all Alexa devices so using unsupported device may cause it not work"
-            Map devs = getDeviceList(true, [tts])
-            input "broadcastDevices", "enum", title: inTS("Select Devices to Test the Broadcast"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
-            input "broadcastVolume", "number", title: inTS("Broadcast at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
-            input "broadcastRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
-            input "broadcastMessage", "text", title: inTS("Message to broadcast"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
-            input "broadcastParallel", "bool", title: inTS("Execute commands in Parallel?"), description: "", required: false, defaultValue: true, submitOnChange: true
-        }
-        if(settings?.broadcastDevices) {
-            section() {
-                input "broadcastRun", "bool", title: inTS("Perform the Broadcast?"), description: "", required: false, defaultValue: false, submitOnChange: true
-                if(broadcastRun) { executeBroadcast() }
             }
         }
     }
@@ -868,8 +909,8 @@ def sequencePage() {
             paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
         }
         section(sTS("Sequence Test Config:")) {
-            input "sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: "Tap to select", multiple: false, required: false, submitOnChange: true
-            input "sequenceString", "text", title: inTS("Sequence String to Use"), defaultValue: "", required: false, submitOnChange: true
+            input "sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: "Tap to select", multiple: false, required: (settings?.sequenceString != null), submitOnChange: true
+            input "sequenceString", "text", title: inTS("Sequence String to Use"), required: (settings?.sequenceDevice != null), submitOnChange: true
         }
         if(settings?.sequenceDevice && settings?.sequenceString) {
             section() {
@@ -976,7 +1017,14 @@ private executeTuneInSearch() {
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-    Map results = makeSyncHttpReq(params, "get", "tuneInSearch") ?: [:]
+    Map results = [:]
+    try {
+        httpGet(params) { response ->
+            results = response?.data ?: [:]
+        }
+    } catch (ex) {
+        respExceptionHandler(ex, "executeTuneInSearch")
+    }
     return results
 }
 
@@ -1128,7 +1176,7 @@ def initialize() {
         }
     }
     if(!state?.resumeConfig) {
-        validateCookieAsync(true)
+        validateCookie(true)
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
@@ -1157,14 +1205,13 @@ def getActionApps() {
     return getAllChildApps()?.findAll { it?.name == actChildName() }
 }
 
+def getZoneApps() {
+    return getAllChildApps()?.findAll { it?.name == zoneChildName() }
+}
+
 def onAppTouch(evt) {
     // logTrace("appTouch...")
     updated()
-}
-
-private getTimeSeconds(k, d, m) {
-	def t0 = getTsVal(timeKey)
-	return !t0 ? d : GetTimeDiffSeconds(t0, null, m).toInteger()
 }
 
 void updTsMap(key, dt=null) {
@@ -1177,6 +1224,11 @@ def getTsVal(val) {
 	def tsMap = atomicState?.tsDtMap
 	if(val && tsMap && tsMap[val]) { return tsMap[val] }
 	return null
+}
+
+Integer getLastTsValSecs(val) {
+	def tsMap = atomicState?.tsDtMap
+	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : 1000000
 }
 
 void settingUpdate(name, value, type=null) {
@@ -1215,6 +1267,7 @@ def clearCloudConfig() {
     }
     state?.serviceConfigured = false
     state?.resumeConfig = true
+    if(!state?.authValid) { clearCookieData("clearCloudConfig") }
 }
 
 String getEnvParamsStr() {
@@ -1269,8 +1322,7 @@ private checkIfCodeUpdated() {
         }
     }
     if(codeUpdated) {
-        log.debug "Code Version Change! Re-Initializing SmartApp in 5 seconds... | Chgs: ${chgs}"
-        logInfo("Code Version Change! Re-Initializing SmartApp in 5 seconds...")
+        logInfo("Code Version Change Detected... | Re-Initializing SmartApp in 5 seconds | Changes: ${chgs}")
         runIn(5, "postCodeUpdated", [overwrite: false])
         return true
     } else {
@@ -1298,6 +1350,7 @@ private appCleanup() {
     setItems?.each { sI->
         if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
     }
+    cleanUpdVerMap()
 }
 
 private resetQueues() {
@@ -1316,8 +1369,16 @@ private reInitChildApps() {
 
 private updCodeVerMap(key, val) {
     Map cv = atomicState?.codeVersions ?: [:]
-    if(!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val)) { cv[key as String] = val }
-    else if (cv?.containsKey(key) && val == null) { cv?.remove(key) }
+    if(val && (!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val))) { cv[key as String] = val }
+    if (cv?.containsKey(key) && val == null) { cv?.remove(key) }
+    atomicState?.codeVersions = cv
+}
+
+private cleanUpdVerMap() {
+    Map cv = atomicState?.codeVersions ?: [:]
+    def ri = ["groupApp"]
+    cv?.each { k, v-> if(v == null) ri?.push(k) }
+    ri?.each { cv?.remove(it) }
     atomicState?.codeVersions = cv
 }
 
@@ -1368,7 +1429,7 @@ def storeCookieData() {
     // log.debug "csrf: ${state?.cookieData?.csrf}"
     if(state?.cookieData?.localCookie && state?.cookieData?.csrf != null) {
         logInfo("Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds...")
-        validateCookieAsync(true)
+        validateCookie(true)
         state?.serviceConfigured = true
         state?.lastCookieRefresh = getDtNow()
         runIn(10, "initialize", [overwrite: true])
@@ -1467,17 +1528,14 @@ private wakeupServer(c=false, g=false) {
 
 private runCookieRefresh() {
     settingUpdate("refreshCookie", "false", "bool")
-    if(getLastCookieRefreshSec() < 86400) { log.error "Cookie Refresh is blocked... | Last refresh was less than 24 hours ago."; return; }
+    if(getLastCookieRefreshSec() < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return; }
     wakeupServer(true)
 }
 
 def wakeupServerResp(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "wakeupServerResp")) {return}
     def rData = null
     try { rData = response?.data ?: null }
-    catch(ex) { logError("wakeupServerResp Exception: ${ex?.message}") }
+    catch(ex) { logError("wakeupServerResp Exception: ${ex}") }
     if (rData) {
         // log.debug "rData: $rData"
         state?.lastServerWakeDt = getDtNow()
@@ -1495,51 +1553,64 @@ private cookieRefresh() {
     }
     Map params = [
         uri: getServerHostURL(),
-        path: "/refreshCookie"
+        path: "/refreshCookie",
+        contentType: "application/json"
     ]
     execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
 }
 
 def cookieRefreshResp(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "cookieRefreshResp")) {return}
     Map rData = null
-    try { rData = response?.data ? response?.json ?: [:] : [:] }
-    catch(ex) { logError("cookieRefreshResp Exception: ${ex}") }
-    // log.debug "rData: $rData"
-    if (rData && rData?.result && rData?.result?.size()) {
-        logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
-        if(settings?.sendCookieRefreshMsg == true) { sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!") }
-        // log.debug "refreshAlexaCookie Response: ${rData?.result}"
+    try {
+        rData = response?.data ? parseJson(response?.data?.toString()) : null
+        // log.debug "rData: $rData"
+        if (rData && rData?.result && rData?.result?.size()) {
+            logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
+            if(settings?.sendCookieRefreshMsg == true) { sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!") }
+            // log.debug "refreshAlexaCookie Response: ${rData?.result}"
+        }
+    } catch(ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("cookieRefreshResp Exception: ${ex}")
+        } else if(ex instanceof java.net.SocketTimeoutException) {
+            logError("cookieRefreshResp Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+            logError("cookieRefreshResp Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else { logError("cookieRefreshResp Exception: ${ex}") }
     }
 }
 
 private apiHealthCheck(frc=false) {
     try {
-        Map params = [uri: getAmazonUrl(), path: "/api/ping", query: ["_": ""], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "plain/text"]
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/ping",
+            query: ["_": ""],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            contentType: "plain/text"
+        ]
         httpGet(params) { resp->
             logDebug("API Health Check Resp: (${resp?.getData()})")
             return (resp?.getData().toString() == "healthy")
         }
     } catch(ex) {
-        incrementCntByKey("err_app_apiHealthCnt")
-        logError("apiHealthCheck() Exception: ${ex.message}")
+        respExceptionHandler(ex, "apiHealthCheck")
     }
 }
 
-Boolean validateCookie() {
+Boolean validateCookie(frc=false) {
     try {
+        if((!frc && getLastCookieChkSec() <= 900) || !getCookieVal() || !getCsrfVal()) { return }
         def execDt = now()
-        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/bootstrap",
+            query: ["version": 0],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            contentType: "application/json"
+        ]
         httpGet(params) { resp->
-            if(resp?.status == 401) {
-                logError("validateCookie Status: (${resp.status})")
-                authValidationEvent(valid, "validateCookie_${resp?.status}")
-                state?.lastCookieChkDt = getDtNow()
-                return false
-            }
-            Map aData = resp?.data?.authentication ?: [:]
+            Map aData = resp?.data?.authentication ?: null
             Boolean valid = false
             if (aData) {
                 if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
@@ -1547,49 +1618,16 @@ Boolean validateCookie() {
                 valid = (resp?.data?.authentication?.authenticated != false)
             }
             state?.lastCookieChkDt = getDtNow()
-            // logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-data?.execDt)}ms)")
+            logInfo("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
             authValidationEvent(valid, "validateCookie")
             return valid
         }
     } catch(ex) {
+        respExceptionHandler(ex, "validateCookie", true)
+        state?.lastCookieChkDt = getDtNow()
         incrementCntByKey("err_app_cookieValidCnt")
-        logError("validateCookie() Exception: ${ex.message}")
         return false
     }
-}
-
-private validateCookieAsync(frc=false) {
-    //Changed amazon auth validation to every 15 min instead of 30
-    if((!frc && getLastCookieChkSec() <= 900) || !getCookieVal() || !getCsrfVal()) { return }
-    try {
-        def params = [uri: getAmazonUrl(), path: "/api/bootstrap", query: ["version": 0], headers: [cookie: getCookieVal(), csrf: getCsrfVal()], contentType: "application/json"]
-        execAsyncCmd("get", "cookieValidResp", params, [execDt: now()])
-    } catch(ex) {
-        incrementCntByKey("err_app_cookieValidCnt")
-        logError("validateCookieAsync() Exception: ${ex.message}")
-    }
-}
-
-def cookieValidResp(response, data) {
-    // logTrace("cookieValidResp...")
-    if(response?.status == 401) {
-        logError("cookieValidResp Status: (${response.status})")
-        authValidationEvent(false, "cookieValidResp_${response?.status}")
-        state?.lastCookieChkDt = getDtNow()
-        return
-    }
-    Map aData = response?.json?.authentication ?: [:]
-    Boolean valid = false
-    if (aData) {
-        if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
-        if(aData?.customerName) { state?.customerName = aData?.customerName }
-        valid = (resp?.data?.authentication?.authenticated != false)
-    }
-    state?.lastCookieChkDt = getDtNow()
-    def execTime = data?.execDt ? (now()-data?.execDt) : 0
-    logDebug("Cookie Validation: (${valid}) | Process Time: (${execTime}ms)")
-    log.debug("Cookie Validation: (${valid}) | Process Time: (${execTime}ms)")
-    authValidationEvent(valid, "validateCookieAsync")
 }
 
 private authValidationEvent(Boolean valid, String src=null) {
@@ -1605,41 +1643,7 @@ private authValidationEvent(Boolean valid, String src=null) {
     } else { authEvtHandler(true) }
 }
 
-private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
-    statusCode = statusCode as Integer
-    if(!hasErr && statusCode == 200) {
-        return true
-    } else if(statusCode == 401) {
-        authValidationEvent(false, "respIsValid_${statusCode}")
-        return false
-    } else {
-        if(statusCode > 401 && statusCode < 500) {
-            logError("${methodName} Error: ${errMsg ?: null}")
-            if(errMsg == "Forbidden") {
-                authValidationEvent(false, "respIsValid_${statusCode}")
-                return false
-            }
-        }
-    }
-    if(hasErr && falseOnErr) { return false }
-    return true
-}
-
 private noAuthReminder() { logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...") }
-
-def makeSyncHttpReq(Map params, String method="get", String src, Boolean strInJsonResp=false, Boolean showLogs=false) {
-    try {
-        "http${method?.toString()?.toLowerCase()?.capitalize()}"(params) { resp ->
-            if(showLogs) { log.debug "makeSyncHttpReq(Src: $src) | Status: ${resp?.status}: ${resp?.data}" }
-            return resp?.data ?: null
-        }
-    } catch (ex) {
-        if(ex instanceof  groovyx.net.http.ResponseParseException) {
-            logError("There was an error while parsing the response: ${ex.message}")
-        } else { logError("makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}") }
-        return null
-    }
-}
 
 public childInitiatedRefresh() {
     Integer lastRfsh = getLastChildInitRefreshSec()
@@ -1660,44 +1664,38 @@ public updChildVers() {
     updCodeVerMap("echoDevice", cDevs?.size() ? cDevs[0]?.devVersion() : null)
 }
 
-private getEchoDevices() {
-    if(!isAuthValid("getEchoDevices")) { return }
-    def params = [
-        uri: getAmazonUrl(),
-        path: "/api/devices-v2/device",
-        query: [ cached: true, _: new Date().getTime() ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
-        contentType: "application/json",
-    ]
-    state?.deviceRefreshInProgress = true
-    state?.refreshDeviceData = false
-    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
-}
-
 private getMusicProviders() {
+    if(state?.musicProviders || getLastTsValSecs("musicProviderDt") < 3600) { return state?.musicProviders }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
-        headers: ["Routines-Version": "1.1.210292", cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1", "Routines-Version": "1.1.210292" ],
         contentType: "application/json"
     ]
     Map items = [:]
-    List musicResp = makeSyncHttpReq(params, "get", "getMusicProviders") ?: []
-    if(musicResp?.size()) {
-        musicResp?.findAll { it?.availability == "AVAILABLE" }?.each { item->
-            items[item?.id] = item?.displayName
+    try {
+        httpGet(params) { response ->
+            List rData = response?.data ?: []
+            if(rData?.size()) {
+                rData?.findAll { it?.availability == "AVAILABLE" }?.each { item->
+                    items[item?.id] = item?.displayName
+                }
+            }
+            // log.debug "Music Providers: ${items}"
+            if(!state?.musicProviders || items != state?.musicProviders) { state?.musicProviders = items }
+            updTsMap("musicProviderDt")
         }
+    } catch (ex) {
+        respExceptionHandler(ex, "getMusicProviders", true)
     }
-    // log.debug "Music Providers: ${items}"
     return items
 }
 
 private getOtherData() {
     getBluetoothDevices()
     getDoNotDisturb()
+    getMusicProviders()
 }
 
 private getBluetoothDevices() {
@@ -1705,13 +1703,21 @@ private getBluetoothDevices() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
-        query: [cached: true, _: new Date().getTime()],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        query: [cached: true, _: new Date()?.getTime()],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
         contentType: "application/json"
     ]
-    def btResp = makeSyncHttpReq(params, "get", "getBluetoothDevices") ?: null
-    state?.bluetoothData = btResp ?: [:]
+    Map btResp = [:]
+    try {
+        httpGet(params) { response ->
+            btResp = response?.data ?: [:]
+            // log.debug "Bluetooth Items: ${btResp}"
+            state?.bluetoothData = btResp
+        }
+    } catch (ex) {
+        respExceptionHandler(ex, "getBluetoothDevices", true)
+        if(!state?.bluetoothData) { state?.bluetoothData = [:] }
+    }
 }
 
 def getBluetoothData(serialNumber) {
@@ -1735,12 +1741,21 @@ private getDoNotDisturb() {
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
         query: [_: new Date().getTime()],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
     ]
-    def dndResp = makeSyncHttpReq(params, "get", "getDoNotDisturb") ?: null
-    state?.dndData = dndResp ?: [:]
+    Map dndResp = [:]
+    try {
+        httpGet(params) { response ->
+            dndResp = response?.data ?: [:]
+            // log.debug "DoNotDisturb Data: ${dndResp}"
+            state?.dndData = dndResp
+        }
+    } catch (ex) {
+        respExceptionHandler(ex, "getDoNotDisturb", true)
+        if(!state?.dndData) { state?.dndData = dndResp }
+    }
+
 }
 
 def getDndEnabled(serialNumber) {
@@ -1750,47 +1765,53 @@ def getDndEnabled(serialNumber) {
     return (dndData && dndData?.enabled == true)
 }
 
-public def getAlexaRoutines(autoId=null, utterOnly=false) {
+public getAlexaRoutines(autoId=null, utterOnly=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
         query: [ limit: 100 ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json"
     ]
+
+    def rtResp = [:]
     try {
-        def routineResp = makeSyncHttpReq(params, "get", "getAlexaRoutines") ?: [:]
-        // log.debug "routineResp: $routineResp"
-        if(routineResp) {
-            if(autoId) {
-                return routineResp
-            } else {
-                Map items = [:]
-                Integer cnt = 1
-                if(routineResp?.size()) {
-                    routineResp?.findAll { it?.status == "ENABLED" }?.each { item->
-                        if(utterOnly) {
-                            if(item?.triggers?.size()) {
-                                item?.triggers?.each { trg->
-                                    if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
-                                        items[item?.automationId] = trg?.payload?.utterance as String
-                                    } else {
-                                        items[item?.automationId] = "Unlabeled Routine ($cnt)"
-                                        cnt++
+        httpGet(params) { response ->
+            rtResp = response?.data ?: [:]
+            // log.debug "alexaRoutines: $rtResp"
+            if(rtResp) {
+                if(autoId) {
+                    return rtResp
+                } else {
+                    Map items = [:]
+                    Integer cnt = 1
+                    if(rtResp?.size()) {
+                        rtResp?.findAll { it?.status == "ENABLED" }?.each { item->
+                            if(utterOnly) {
+                                if(item?.triggers?.size()) {
+                                    item?.triggers?.each { trg->
+                                        if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
+                                            items[item?.automationId] = trg?.payload?.utterance as String
+                                        } else {
+                                            items[item?.automationId] = "Unlabeled Routine ($cnt)"
+                                            cnt++
+                                        }
                                     }
                                 }
+                            } else {
+                                items[item?.automationId] = item?.name
                             }
-                        } else {
-                            items[item?.automationId] = item?.name
                         }
                     }
+                    // log.debug "routine items: $items"
+                    return items
                 }
-                // log.debug "routine items: $items"
-                return items
             }
         }
-    } catch(ex) { logError("getAlexaRoutines Error: ${ex}"); return [:]; }
+    } catch (ex) {
+        respExceptionHandler(ex, "getAlexaRoutines", true)
+        return rtResp
+    }
 }
 
 def executeRoutineById(String routineId) {
@@ -1809,13 +1830,13 @@ def executeRoutineById(String routineId) {
 Integer getLastGuardSupportCheckSec() { return !state?.lastGuardSupportCheck ? 3600 : GetTimeDiffSeconds(state?.lastGuardSupportCheck, "getLastGuardSupportCheckSec").toInteger() }
 
 def checkGuardSupport() {
+    def execDt = now()
     if(!isAuthValid("checkGuardSupport")) { return }
     def params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
         contentType: "application/json",
     ]
     execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
@@ -1825,8 +1846,7 @@ def checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
     Boolean guardSupported = false
     def respLen = response?.data?.toString()?.length() ?: null
-    logDebug("GuardSupport Response Length: ${respLen}")
-    log.debug "GuardSupport Response Length: ${respLen}"
+    logInfo("GuardSupport Response Length: ${respLen}")
     if(isST() && response?.data && respLen && respLen > 490000) {
         Map minUpdMap = getMinVerUpdsRequired()
         if(minUpdMap && minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server")) {
@@ -1895,13 +1915,12 @@ private getGuardState() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
         body: [ stateRequests: [ [entityId: state?.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
     try {
-        httpPost(params) { resp ->
+        httpPostJson(params) { resp ->
             Map respData = resp?.data ?: null
             if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
                 def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
@@ -1913,13 +1932,12 @@ private getGuardState() {
             // log.debug "GuardState resp: ${respData}"
         }
     } catch (ex) {
-        if(ex instanceof  groovyx.net.http.ResponseParseException) {
-            logError("There was an error while parsing the response: ${ex.message}")
-        } else { logError("makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex.message}") }
+        respExceptionHandler(ex, "getGuardState", true)
     }
 }
 
 private setGuardState(guardState) {
+    def execTime = now()
     if(!isAuthValid("setGuardState")) { return }
     if(!state?.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return; }
     guardState = guardStateConv(guardState)
@@ -1928,11 +1946,53 @@ private setGuardState(guardState) {
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
         contentType: "application/json",
         body: [ controlRequests: [ [ entityId: state?.guardData?.applianceId, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ]
     ]
-    execAsyncCmd("put", "setGuardStateResponse", params, [execDt: now(), requestedState: guardState ])
+    try {
+        httpPutJson(params) { response ->
+            def resp = response?.data ?: null
+            if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
+                logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
+                state?.alexaGuardState = guardState
+                state?.lastGuardStateUpd = getDtNow()
+                updGuardActionTrig()
+            } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
+        }
+    } catch (ex) {
+        respExceptionHandler(ex, "setGuardState", true)
+    }
+}
+
+def respExceptionHandler(ex, String mName, ignOn401=false, ignNullMsg=false) {
+    if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        Integer sCode = ex?.getResponse()?.getStatus()
+        def rData = ex?.getResponse()?.getData()
+        def errMsg = ex?.getMessage()
+        if(sCode == 401) {
+            if(ignOn401) authValidationEvent(false, "${mName}_${status}")
+        } else if (sCode == 400) {
+            switch(errMsg) {
+                case "Bad Request":
+                    logError("${mName} | Improperly formatted request sent to Amazon | Message: ${errMsg}")
+                    break
+                case "Rate Exceeded":
+                    logError("${mName} | Amazon is currently rate-limiting your requests | Message: ${errMsg}")
+                    break
+                default:
+                    logError("${mName} | 400 Error | Message: ${errMsg}")
+                    break
+            }
+        } else if(sCode == 429) {
+            logWarn("${mName} | Too Many Requests Made to Amazon | Message: ${errMsg}")
+        } else {
+            logError("${mName} Response Exception | Status: (${sCode}) | Message: ${errMsg}")
+        }
+    } else if(ex instanceof java.net.SocketTimeoutException) {
+        logError("${mName} Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+    } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+        logError("${mName} Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+    } else { logError("${mName} Exception: ${ex}") }
 }
 
 private guardStateConv(gState) {
@@ -1951,22 +2011,17 @@ private guardStateConv(gState) {
     }
 }
 
-def setGuardStateResponse(response, data) {
-    def resp = response?.json
-    // log.debug "resp: ${resp}"
-    if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
-        logInfo("Alexa Guard set to (${data?.requestedState}) Successfully!!!")
-        state?.alexaGuardState = data?.requestedState
-        state?.lastGuardStateUpd = getDtNow()
-    } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
-}
-
 String getAlexaGuardStatus() {
     return state?.alexaGuardState ?: null
 }
 
 Boolean getAlexaGuardSupported() {
     return (state?.alexaGuardSupported == true) ? true : false
+}
+
+public updGuardActionTrig() {
+    def acts = getActionApps()
+    if(acts?.size()) { acts?.each { aa-> aa?.guardEventHandler(state?.alexaGuardState) } }
 }
 
 public setGuardHome() {
@@ -1995,13 +2050,23 @@ Map isFamilyAllowed(String family) {
     return [ok: false, reason: "Unknown Reason"]
 }
 
+private getEchoDevices() {
+    if(!isAuthValid("getEchoDevices")) { return }
+    def params = [
+        uri: getAmazonUrl(),
+        path: "/api/devices-v2/device",
+        query: [ cached: true, _: new Date().getTime() ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
+        contentType: "application/json"
+    ]
+    state?.deviceRefreshInProgress = true
+    state?.refreshDeviceData = false
+    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
+}
+
 def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
-    if(response?.status == 401) {
-        authValidationEvent(false, "echoDevicesResponse_${response?.status}")
-        return
-    }
     try {
         // log.debug "json response is: ${response.json}"
         state?.deviceRefreshInProgress=false
@@ -2009,19 +2074,18 @@ def echoDevicesResponse(response, data) {
         Map echoDevices = [:]
         if(eDevData?.size()) {
             eDevData?.each { eDevice->
-                String serialNumber = eDevice?.serialNumber;
-                // if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.contains("Alexa App") && !eDevice?.accountName?.startsWith("This Device")) {
                 if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.startsWith("This Device")) {
                     removeKeys?.each { rk-> eDevice?.remove(rk as String) }
                     if (eDevice?.deviceOwnerCustomerId != null) { state?.deviceOwnerCustomerId = eDevice?.deviceOwnerCustomerId }
-                    echoDevices[serialNumber] = eDevice
+                    echoDevices[eDevice?.serialNumber] = eDevice
                 }
             }
         }
         // log.debug "echoDevices: ${echoDevices}"
-        receiveEventData([echoDevices: echoDevices, musicProviders: getMusicProviders(), execDt: data?.execDt], "Groovy")
+        def musicProvs = state?.musicProviders ?: getMusicProviders(true)
+        receiveEventData([echoDevices: echoDevices, musicProviders: musicProvs, execDt: data?.execDt], "Groovy")
     } catch (ex) {
-        logError("echoDevicesResponse Exception: ${ex.message}")
+        respExceptionHandler(ex, "echoDevicesResponse")
     }
 }
 
@@ -2150,7 +2214,7 @@ def receiveEventData(Map evtData, String src) {
                                 logInfo("Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)${(settings?.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : "" }")
                                 childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
                             } catch(ex) {
-                                logError("AddDevice Error! | ${ex.message}")
+                                logError("AddDevice Error! | ${ex}")
                             }
                         }
                     } else {
@@ -2184,7 +2248,7 @@ def receiveEventData(Map evtData, String src) {
             if(state?.installData?.sentMetrics != true) { runIn(900, "sendInstallData", [overwrite: false]) }
         }
     } catch(ex) {
-        logError("receiveEventData Error: ${ex.message}")
+        logError("receiveEventData Error: ${ex}")
         incrementCntByKey("appErrorCnt")
     }
 }
@@ -2192,9 +2256,10 @@ def receiveEventData(Map evtData, String src) {
 private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
-    ["server":"Echo Speaks Server", "echoDevice":"Echo Speaks Device", "actionApp":"Echo Speaks Actions"]?.each { k,v->
-        Map codeVers = state?.codeVersions
-        if(codeVers && codeVers?.containsKey(k) && (versionStr2Int(codeVers[k as String]) < minVersions()[k as String])) { updRequired = true; updItems?.push("$v"); }
+    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", actionApp: "Echo Speaks Actions"]
+    Map codeVers = state?.codeVersions ?: [:]
+    codeVers?.each { k,v->
+        if(codeItems?.containsKey(k as String) && v != null && (versionStr2Int(v) < minVersions()[k as String])) { updRequired = true; updItems?.push(codeItems[k]); }
     }
     return [updRequired: updRequired, updItems: updItems]
 }
@@ -2232,7 +2297,7 @@ private getDevicesFromSerialList(serialNumberList) {
 }
 
 // This is called by the device handler to send playback data to cluster members
-public sendPlaybackStateToClusterMembers(whaKey, response, data) {
+public sendPlaybackStateToClusterMembers(whaKey, data) {
     //logTrace("sendPlaybackStateToClusterMembers: key: ${ whaKey}")
     def echoDeviceMap = state?.echoDeviceMap
     def whaMap = echoDeviceMap[whaKey]
@@ -2240,7 +2305,7 @@ public sendPlaybackStateToClusterMembers(whaKey, response, data) {
 
     if (clusterMembers) {
         def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
-        clusterMemberDevices?.each { it?.getPlaybackStateHandler(response, data, true) }
+        clusterMemberDevices?.each { it?.playbackStateHandler(data, true) }
     } else {
         // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
         //log.debug "sendPlaybackStateToClusterMembers: no data found for ${whaKey} (first refresh?)"
@@ -2261,7 +2326,7 @@ private removeDevices(all=false) {
             Boolean isST = isST()
             items?.each {  isST ? deleteChildDevice(it as String, true) : deleteChildDevice(it as String) }
         }
-    } catch (ex) { logError("Device Removal Failed: ${ex.message}") }
+    } catch (ex) { logError("Device Removal Failed: ${ex}") }
 }
 
 Map sequenceBuilder(cmd, val) {
@@ -2284,13 +2349,14 @@ Map multiSequenceBuilder(commands, parallel=false) {
 
 Map createSequenceNode(command, value, Map deviceData = [:]) {
     try {
+        Boolean remDevSpecifics = false
         Map seqNode = [
             "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
-            "operationPayload": [
-                "deviceType": deviceData?.deviceType,
-                "deviceSerialNumber": deviceData?.serialNumber,
-                "locale": (settings?.regionLocale ?: "en-US"),
-                "customerId": state?.deviceOwnerCustomerId
+            operationPayload: [
+                deviceType: deviceData?.deviceType ?: null,
+                deviceSerialNumber: deviceData?.serialNumber ?: null,
+                locale: (settings?.regionLocale ?: "en-US"),
+                customerId: state?.deviceOwnerCustomerId
             ]
         ]
         switch (command) {
@@ -2326,10 +2392,15 @@ Map createSequenceNode(command, value, Map deviceData = [:]) {
             default:
                 return
         }
+        if(remDevSpecifics) {
+            seqNode?.operationPayload?.remove('deviceType')
+            seqNode?.operationPayload?.remove('deviceSerialNumber')
+            seqNode?.operationPayload?.remove('locale')
+        }
         // log.debug "seqNode: $seqNode"
         return seqNode
     } catch (ex) {
-        logError("createSequenceNode Exception: ${ex?.message}")
+        logError("createSequenceNode Exception: ${ex}")
         return [:]
     }
 }
@@ -2344,19 +2415,36 @@ private execAsyncCmd(String method, String callbackHandler, Map params, Map othe
     } else { logError("execAsyncCmd Error | Missing a required parameter") }
 }
 
-private sendAmazonCommand(String method, Map params, Map otherData) {
-    execAsyncCmd(method, "amazonCommandResp", params, otherData)
-}
-
-def amazonCommandResp(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
-    try {} catch (ex) { }
-    def resp = response?.data ? response?.getJson() : null
-    // logDebug("amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
-    if(response?.status == 200) {
-        logDebug("amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!")
+private sendAmazonCommand(String method, Map params, Map otherData=null) {
+    try {
+        def rData = null
+        def rStatus = null
+        switch(method) {
+            case "post":
+            case "POST":
+                httpPost(params) { response->
+                    rData = response?.data ?: null
+                    rStatus = response?.status
+                }
+                break
+            case "put":
+            case "PUT":
+                httpPut(params) { response->
+                    rData = response?.data ?: null
+                    rStatus = response?.status
+                }
+                break
+            case "delete":
+            case "DELETE":
+                httpDelete(params) { response->
+                    rData = response?.data ?: null
+                    rStatus = response?.status
+                }
+                break
+        }
+        logDebug("sendAmazonCommand | Status: (${response?.status})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+    } catch (ex) {
+        respExceptionHandler(ex, "${otherData?.cmdDesc}")
     }
 }
 
@@ -2366,11 +2454,10 @@ private sendSequenceCommand(type, command, value) {
     sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        requestContentType: "application/json",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
         body: seqObj
-    ], [cmdDesc: "SequenceCommand (${type})"])
+    ], [cmdDesc: "SequenceCommand_${type}"])
 }
 
 private sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=false) {
@@ -2403,7 +2490,7 @@ private healthCheck() {
         logWarn("Code Version Change Detected... Health Check will occur on next cycle.")
         return
     }
-    validateCookieAsync()
+    validateCookie()
     if(getLastCookieRefreshSec() > cookieRefreshSeconds()) {
         runCookieRefresh()
     } else if (getLastGuardSupportCheckSec() > 43200) {
@@ -2593,7 +2680,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
         }
     } catch (ex) {
         incrementCntByKey("appErrorCnt")
-        logError("sendMsg $sentstr Exception: ${ex.message}")
+        logError("sendMsg $sentstr Exception: ${ex}")
     }
     return sent
 }
@@ -2606,6 +2693,7 @@ String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t
 String inTS(String t, String i = null, color=null, under=true) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
 
 String actChildName(){ return "Echo Speaks - Actions" }
+String zoneChildName(){ return "Echo Speaks - Zones" }
 String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def updateDocsInput() { href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")}
@@ -2691,7 +2779,7 @@ def queueFirebaseData(url, path, data, cmdType=null, type=null) {
             result = true
         } else { logWarn("queueFirebaseData UNKNOWN cmdType: ${cmdType}") }
 
-    } catch(ex) { logError("queueFirebaseData (type: $typeDesc) Exception: ${ex.message}") }
+    } catch(ex) { logError("queueFirebaseData (type: $typeDesc) Exception: ${ex}") }
     return result
 }
 
@@ -2703,10 +2791,10 @@ def removeFirebaseData(pathVal) {
             logDebug("Remove Firebase | resp: ${resp?.status}")
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.ResponseParseException) {
-            logError("removeFirebaseData: Response: ${ex?.message}")
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("removeFirebaseData Response Exception: ${ex}")
         } else {
-            logError("removeFirebaseData: Response: ${ex?.message}")
+            logError("removeFirebaseData Exception: ${ex}")
             result = false
         }
     }
@@ -2730,7 +2818,7 @@ def processFirebaseResponse(resp, data) {
         } else { logWarn("processFirebaseResponse: 'Unexpected' Response: ${resp?.status}") }
         if (isST() && resp?.hasError()) { logError("processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}") }
     } catch(ex) {
-        logError("processFirebaseResponse (type: $typeDesc) Exception: ${ex.message}")
+        logError("processFirebaseResponse (type: $typeDesc) Exception: ${ex}")
     }
 }
 
@@ -2738,7 +2826,7 @@ def renderMetricData() {
     try {
         def json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
         render contentType: "application/json", data: json
-    } catch (ex) { logError("renderMetricData Exception: ${ex.message}") }
+    } catch (ex) { logError("renderMetricData Exception: ${ex}") }
 }
 
 private Map getSkippedDevsAnon() {
@@ -2784,7 +2872,7 @@ private createMetricsDataJson(rendAsMap=false) {
         def json = new groovy.json.JsonOutput().toJson(dataObj)
         return json
     } catch (ex) {
-        logError("createMetricsDataJson: Exception: ${ex.message}")
+        logError("createMetricsDataJson: Exception: ${ex}")
     }
 }
 
@@ -2796,9 +2884,9 @@ private incrementCntByKey(String key) {
     state?."${key}" = evtCnt?.toLong()
 }
 
-/******************************************
-|    APP/DEVICE Version Functions
-*******************************************/
+// ******************************************
+//      APP/DEVICE Version Functions
+// ******************************************
 Boolean isCodeUpdateAvailable(String newVer, String curVer, String type) {
     Boolean result = false
     def latestVer
@@ -2863,7 +2951,7 @@ private getConfigData() {
     if(data) {
         state?.appData = data
         state?.lastVerUpdDt = getDtNow()
-        logInfo("Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo...")
+        logDebug("Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo...")
     }
 }
 
@@ -2875,7 +2963,7 @@ private getNoticeData() {
     def data = getWebData(params, "noticeData", false)
     if(data) {
         state?.noticeData = data
-        logInfo("Successfully Retrieved Developer Notices from GitHub Repo...")
+        logDebug("Successfully Retrieved Developer Notices from GitHub Repo...")
     }
 }
 
@@ -2892,7 +2980,7 @@ private getWebData(params, desc, text=true) {
         incrementCntByKey("appErrorCnt")
         if(ex instanceof groovyx.net.http.HttpResponseException) {
             logWarn("${desc} file not found")
-        } else { logError("getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex.message}") }
+        } else { logError("getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex}") }
         return "${label} info not found"
     }
 }
@@ -3026,8 +3114,8 @@ private getDiagDataJson() {
         def json = new groovy.json.JsonOutput().toJson(output)
         render contentType: "application/json", data: json, status: 200
     } catch (ex) {
-        logError("getDiagData: Exception: ${ex.message}")
-        render contentType: "application/json", data: [status: "failed", error: ex?.message], status: 500
+        logError("getDiagData: Exception: ${ex}")
+        render contentType: "application/json", data: [status: "failed", error: ex], status: 500
     }
 }
 
@@ -3101,7 +3189,7 @@ def execDiagCmds() {
                 status = clearDiagLogs()
                 break
             case "validateAuth":
-                status = validateCookie();
+                status = validateCookie(true);
                 break
             case "wakeupServer":
                 wakeupServer()
@@ -3180,7 +3268,7 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         def diff = (int) (long) (stop - start) / 1000
         return diff
     } catch (ex) {
-        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex.message}")
+        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex}")
         return 10000
     }
 }
@@ -3282,6 +3370,12 @@ String getActionsDesc() {
     str += active?.size() ? "(${active?.size()}) Active\n" : ""
     str += paused?.size() ? "(${paused?.size()}) Paused\n" : ""
     str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to configure"
+    return str
+}
+
+String getZoneDesc() {
+    def zones = getZoneApps()
+    String str = ""
     return str
 }
 
@@ -3390,7 +3484,7 @@ Boolean getAccessToken() {
         if(!state?.accessToken) { state?.accessToken = createAccessToken() }
         else { return true }
     } catch (ex) {
-        logError("getAccessToken Exception: ${ex.message}")
+        logError("getAccessToken Exception: ${ex}")
         return false
     }
 }
@@ -4224,7 +4318,7 @@ private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${
 private logInfo(msg) { if(settings?.logInfo != false) {  log.info " EchoApp (v${appVersion()}) | ${msg}" } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
 private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg) {if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 15); }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 def clearDiagLogs(type="all") {
     // log.debug "clearDiagLogs($type)"
