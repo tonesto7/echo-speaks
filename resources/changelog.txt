@@ -8,7 +8,9 @@
    Actions App (v3.1.0.0)
    September 24th, 2019
  ══════════
-  • FIXED: Minor bug fixes.
+  • ADDED: Alexa Guard Triggers.
+  • FIXED: Notifications device support.
+  • FIXED: Action test would not run on new incomplete actions.
 
  ══════════
    Device (v3.1.0.0)

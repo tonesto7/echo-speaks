@@ -1333,7 +1333,7 @@ private updAppLabel() {
 public guardEventHandler(guardState) {
     if(!state?.alexaGuardState || state?.alexaGuardState != guardState) {
         state?.alexaGuardState = guardState
-        def evt = [name: "guard", displayName: "Alexa Guard", value: state?.guardState, date: new Date(), deviceId: null]
+        def evt = [name: "guard", displayName: "Alexa Guard", value: state?.alexaGuardState, date: new Date(), deviceId: null]
         logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
         if(state?.handleGuardEvents) {
             executeAction(evt, false, "guardEventHandler", false, false)

@@ -1753,7 +1753,7 @@ private getBluetoothDevices() {
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
         query: [cached: true, _: new Date().getTime()],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
         contentType: "application/json"
     ]
     def btResp = makeSyncHttpReq(params, "get", "getBluetoothDevices") ?: null
@@ -1869,8 +1869,7 @@ def checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
     Boolean guardSupported = false
     def respLen = response?.data?.toString()?.length() ?: null
-    logDebug("GuardSupport Response Length: ${respLen}")
-    log.debug "GuardSupport Response Length: ${respLen}"
+    logInfo("GuardSupport Response Length: ${respLen}")
     if(isST() && response?.data && respLen && respLen > 490000) {
         Map minUpdMap = getMinVerUpdsRequired()
         if(minUpdMap && minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server")) {
@@ -1941,7 +1940,6 @@ private getGuardState() {
         path: "/api/phoenix/state",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
-        requestContentType: "application/json",
         body: [ stateRequests: [ [entityId: state?.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
     try {
@@ -1980,28 +1978,17 @@ private setGuardState(guardState) {
         httpPutJson(params) { response ->
             def resp = response?.data ?: null
             if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
-                logInfo("Alexa Guard set to (${data?.requestedState}) Successfully | ((now()-execTime)ms)")
-                state?.alexaGuardState = data?.requestedState
+                logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
+                state?.alexaGuardState = guardState
                 state?.lastGuardStateUpd = getDtNow()
                 updGuardActionTrig()
-            } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
+            } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
             logError("setGuardState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("setGuardState Exception: ${ex}") }
     }
-    // execAsyncCmd("put", "setGuardStateResponse", params, [execDt: now(), requestedState: guardState ])
-}
-
-def setGuardStateResponse(response, data) {
-    def resp = response?.json
-    // log.debug "resp: ${resp}"
-    if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
-        logInfo("Alexa Guard set to (${data?.requestedState}) Successfully!!!")
-        state?.alexaGuardState = data?.requestedState
-        state?.lastGuardStateUpd = getDtNow()
-    } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
 }
 
 private guardStateConv(gState) {
