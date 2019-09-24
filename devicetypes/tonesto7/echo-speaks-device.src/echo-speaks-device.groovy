@@ -17,12 +17,11 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.0.2.0"}
+String devVersion()  { return "3.1.0.0"}
 String devModified() { return "2019-09-24" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
-// TODO: Change importURL back to master branch
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/devicetypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy") {
         //capability "Audio Mute" // Not Compatible with Hubitat
@@ -2716,12 +2715,13 @@ private postCmdProcess(resp, statusCode, data) {
             }
             def pi = "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"}"
             pi += data?.isSSML ? " (SSML)" : ""
-            pi += " Sent Successfully"
-            pi += " | Message (${data?.message})"
+            pi += " Sent"
+            pi += " | (${data?.message})"
             pi += logDebug && !logInfo && data?.msgLen ? " | Length: (${data?.msgLen}) " : ""
             pi += data?.msgDelay ? " | Runtime: (${data?.msgDelay} sec)" : ""
             pi += logDebug && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""
-            pi += logDebug && data?.qId ? " | QueueID: (${data?.qId}) | QueueItems: (${getQueueSize()})" : ""
+            pi += logDebug && data?.qId ? " | QueueID: (${data?.qId})" : ""
+            pi += " | QueueItems: (${getQueueSize()})"
             pi += " | Execution Time: (${execTime}ms)"
             logInfo("${pi}")
 

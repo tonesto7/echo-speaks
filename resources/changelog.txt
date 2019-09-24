@@ -6,7 +6,10 @@
   • UPDATED: Optimized and reduced the amount of repetitive web calls.
   • UPDATED: Converted most async commands back to synchronous calls for speed.
   • FIXED: Notifications device support
+  • UPDATED: Notices for upcoming SMS support removal from Hubitat and SmartThings (UK) platforms.
   • FIXED: Device test fixes.
+  • ADDED: Duplicate existing Actions. (ST only at the moment)
+  • UPDATED: log output cleanups.
 
  ══════════
    Actions App (v3.1.0.0)
@@ -16,6 +19,9 @@
   • FIXED: notification capable device support.
   • FIXED: Alexa Mobile notifications should now work.
   • FIXED: Action test would not run on new incomplete actions.
+  • ADDED: Support for Duplicating existing Actions.
+  • ADDED: Control Switches when Actions are executed.
+  • UPDATED: Notices for upcoming SMS support removal from Hubitat and SmartThings (UK) platforms.
 
  ══════════
    Device (v3.1.0.0)
@@ -23,4 +29,5 @@
  ══════════
   • UPDATED: Massive overhaul of the web request response and exception handling.
   • UPDATED: Converted most async commands back to synchronous calls for speed.
+  • UPDATED: log output cleanups.
   • FIXED: Minor bug fixes.

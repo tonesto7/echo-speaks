@@ -17,12 +17,12 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.2.0" }
-String appModified()  { return "2019-09-24" }
+String appVersion()  { return "3.1.0.0" }
+String appModified() { return "2019-09-24" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
-// TODO: Create export to JSON for Importing? Web Based Exporter?
+
 // TODO: Finish the button trigger logic
 definition(
     name: "Echo Speaks - Actions",
@@ -1307,7 +1307,8 @@ def initialize() {
     if(state?.dupPendingSetup == false && settings?.duplicateFlag == true) {
         settingUpdate("duplicateFlag", "false", "bool")
     } else if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
-        app?.updateLabel("${app?.getLabel()}${!app?.getLabel()?.contains("(Dup)") ? " (Dup)" : ""}")
+        String newLbl = app?.getLabel() + app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"
+        app?.updateLabel(newLbl)
         state?.dupPendingSetup = true
         def dupState = parent?.getDupActionStateData()
         if(dupState?.size()) {
@@ -3362,7 +3363,7 @@ public getActDuplSettingData() {
     ]
     Map setObjs = [:]
     typeObj?.s?.each { sk,sv->
-        sv?.each { svi-> if(settings?.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi]] } }
+        sv?.each { svi-> if(settings?.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi] ] } }
     }
     typeObj?.e?.each { ek,ev->
         ev?.each { evi-> settings?.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }

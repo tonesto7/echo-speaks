@@ -17,12 +17,12 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.0.3.0" }
-String appModified()  { return "2019-09-23" }
+String appVersion()   { return "3.1.0.0" }
+String appModified()  { return "2019-09-24" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3020, actionApp: 3020, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3100, actionApp: 3100, server: 222] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Rework validate cookie to only run every 1 hour instead of on every request Move to async under health check.
 // TODO: Collect device data for reason of cleared cookie.
@@ -69,6 +69,7 @@ preferences {
     page(name: "announcePage")
     page(name: "sequencePage")
     page(name: "setNotificationTimePage")
+    page(name: "actionDuplicationPage")
     page(name: "uninstallPage")
 }
 
@@ -133,7 +134,6 @@ def mainPage() {
             section(sTS("Alexa Login Service:")) {
                 def ls = getLoginStatusDesc()
                 href "authStatusPage", title: inTS("Login Status | Service Management", getAppImg("settings", true)), description: (ls ? "${ls}\n\nTap to modify" : "Tap to configure"), state: (ls ? "complete" : null), image: getAppImg("settings")
-                // href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("settings")
             }
             if(!state?.shownDevSharePage) { showDevSharePrefs() }
             section(sTS("Notifications:")) {
@@ -431,7 +431,7 @@ def actionsPage() {
         }
         section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
-            if(actApps?.size()) {
+            if(actApps?.size() && isST()) {
                 input "actionDuplicateSelect", "enum", title: inTS("Duplicate Existing Action", getAppImg("es_actions", true)), description: "Tap to select...", options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
                 if(settings?.actionDuplicateSelect) {
                     href "actionDuplicationPage", title: inTS("Create Duplicate Action?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
@@ -463,10 +463,10 @@ def actionsPage() {
 def actionDuplicationPage() {
     return dynamicPage(name: "actionDuplicationPage", nextPage: "actionsPage", uninstall: false, install: false) {
         section() {
-            def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
             if(state?.actionDuplicated) {
-                paragraph pTS("Action Already duplicated... Return to main page to ", null, true, "red"), required: true, state: null
+                paragraph pTS("Action already duplicated...\n\nReturn to action page and select it", null, true, "red"), required: true, state: null
             } else {
+                def act = getActionApps()?.find { it?.id?.toString() == settings?.actionDuplicateSelect?.toString() }
                 if(act) {
                     Map actData = act?.getActDuplSettingData()
                     actData?.settings["duplicateFlag"] = [type: "bool", value: true]
@@ -503,7 +503,7 @@ def zonesPage() {
         section() {
             app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
         }
-        state.childInstallOkFlag = true
+        state?.childInstallOkFlag = true
     }
 }
 
