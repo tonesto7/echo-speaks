@@ -22,7 +22,7 @@ String appModified()  { return "2019-09-24" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3100, actionApp: 3100, server: 222] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3100, actionApp: 3100, server: 230] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Collect device data for reason of cleared cookie.
 // TODO: Add in Actions to the metrics
@@ -1571,7 +1571,7 @@ def cookieRefreshResp(response, data) {
         }
     } catch(ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("cookieRefreshResp Exception: ${ex}")
+            logError("cookieRefreshResp Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else if(ex instanceof java.net.SocketTimeoutException) {
             logError("cookieRefreshResp Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
@@ -1845,37 +1845,47 @@ def checkGuardSupport() {
 def checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
     Boolean guardSupported = false
-    def respLen = response?.data?.toString()?.length() ?: null
-    logInfo("GuardSupport Response Length: ${respLen}")
-    if(isST() && response?.data && respLen && respLen > 490000) {
-        Map minUpdMap = getMinVerUpdsRequired()
-        if(minUpdMap && minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server")) {
-            wakeupServer(false, true)
-            logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
-        } else {
-            logWarn("Can't check for Guard Support because server version is out of date...  Please update to the latest version...")
+    try {
+        def respLen = response?.data?.toString()?.length() ?: null
+        logInfo("GuardSupport Response Length: ${respLen}")
+        if(isST() && response?.data && respLen && respLen > 485000) {
+            Map minUpdMap = getMinVerUpdsRequired()
+            if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
+                wakeupServer(false, true)
+                logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
+            } else {
+                logWarn("Can't check for Guard Support because server version is out of date...  Please update to the latest version...")
+            }
+            state?.guardDataOverMaxSize = true
+            return
         }
-        state?.guardDataOverMaxSize = true
-        return
+        def resp = response?.data ? parseJson(response?.data?.toString()) : null
+        if(resp && resp?.networkDetail) {
+            def details = parseJson(resp?.networkDetail as String)
+            def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
+            if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
+                def guardKey = locDetails?.applianceDetails?.applianceDetails?.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+                def guardData = locDetails?.applianceDetails?.applianceDetails[guardKey?.key]
+                // log.debug "Guard: ${guardData}"
+                if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
+                    state?.guardData = [
+                        entityId: guardData?.entityId,
+                        applianceId: guardData?.applianceId,
+                        friendlyName: guardData?.friendlyName,
+                    ]
+                    guardSupported = true
+                } else { logError("checkGuardSupportResponse Error | No data received...") }
+            }
+        } else { logError("checkGuardSupportResponse Error | No data received...") }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("checkGuardSupportResponse Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else if(ex instanceof java.net.SocketTimeoutException) {
+            logError("checkGuardSupportResponse Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+            logError("checkGuardSupportResponse Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else { logError("checkGuardSupportResponse Exception: ${ex}") }
     }
-    def resp = parseJson(response?.data?.toString()) ?: null
-    if(resp && resp?.networkDetail) {
-        def details = parseJson(resp?.networkDetail as String)
-        def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
-        if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
-            def guardKey = locDetails?.applianceDetails?.applianceDetails?.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
-            def guardData = locDetails?.applianceDetails?.applianceDetails[guardKey?.key]
-            // log.debug "Guard: ${guardData}"
-            if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
-                state?.guardData = [
-                    entityId: guardData?.entityId,
-                    applianceId: guardData?.applianceId,
-                    friendlyName: guardData?.friendlyName,
-                ]
-                guardSupported = true
-            } else { logError("checkGuardSupportResponse Error | No data received...") }
-        }
-    } else { logError("checkGuardSupportResponse Error | No data received...") }
     state?.alexaGuardSupported = guardSupported
     state?.lastGuardSupportCheck = getDtNow()
     state?.guardDataSrc = "app"
@@ -1895,13 +1905,23 @@ def checkGuardSupportFromServer() {
 
 def checkGuardSupportServerResponse(response, data) {
     Boolean guardSupported = false
-    def resp = response?.json ?: null
-    // log.debug "GuardSupport Server Response: ${resp}"
-    if(resp && resp?.guardData) {
-        // log.debug "AGS Server Resp: ${resp?.guardData}"
-        state?.guardData = resp?.guardData
-        guardSupported = true
-    } else { logError("checkGuardSupportServerResponse Error | No data received...") }
+    try {
+        def resp = response?.data ? parseJson(response?.data?.toString()) : null
+        // log.debug "GuardSupport Server Response: ${resp}"
+        if(resp && resp?.guardData) {
+            // log.debug "AGS Server Resp: ${resp?.guardData}"
+            state?.guardData = resp?.guardData
+            guardSupported = true
+        } else { logError("checkGuardSupportServerResponse Error | No data received...") }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("checkGuardSupportServerResponse Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else if(ex instanceof java.net.SocketTimeoutException) {
+            logError("checkGuardSupportServerResponse Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+            logError("checkGuardSupportServerResponse Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else { logError("checkGuardSupportServerResponse Exception: ${ex}") }
+    }
     state?.alexaGuardSupported = guardSupported
     state?.guardDataOverMaxSize = guardSupported
     state?.guardDataSrc = "server"
