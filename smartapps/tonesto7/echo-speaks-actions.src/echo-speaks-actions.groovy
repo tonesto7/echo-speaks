@@ -17,12 +17,13 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.0.2.0" }
-String appModified()  { return "2019-09-17" }
+String appVersion()  { return "3.0.3.0" }
+String appModified() { return "2019-09-17" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 // TODO: Create export to JSON for Importing? Web Based Exporter?
+// TODO: Finish the button trigger logic
 definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
@@ -107,7 +108,8 @@ private def buildTriggerEnum() {
         // buildItems?.Location?.scene = "Scenes"
     }
     // buildItems["Weather Events"] = ["Weather":"Weather"]
-    buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide"]?.sort{ it?.key }
+    buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.key }
+    if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.key }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
     if(isST()) {
@@ -122,6 +124,12 @@ def mainPage() {
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: (newInstall == true), install: !newInstall) {
         appInfoSect()
         Boolean paused = isPaused()
+        Boolean dup = (state?.dupPendingSetup == true)
+        if(dup) {
+            section() {
+                paragraph pTS("This Action was just created from an existing action.  Please review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
+            }
+        }
         if(paused) {
             section() {
                 paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
@@ -265,6 +273,15 @@ def triggersPage() {
                     // if("alerts" in trig_alarm) {
                     //     input "trig_alarm_alerts_clear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
                     // }
+                }
+            }
+
+            if (valTrigEvt("guard")) {
+                section (sTS("Alexa Guard Events"), hideable: true) {
+                    input "trig_guard", "enum", title: inTS("Alexa Guard Modes", getAppImg("alarm_home", true)), options: ["ARMED_STAY", "ARMED_AWAY", "any"], multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
+                    if(trig_alarm) {
+                        triggerVariableDesc("guard", false, trigItemCnt++)
+                    }
                 }
             }
 
@@ -530,7 +547,7 @@ Boolean scheduleTriggers() {
 }
 
 Boolean locationTriggers() {
-    return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted || settings?.trig_scene)
+    return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted || settings?.trig_scene || settings?.trig_guard)
 }
 
 Boolean deviceTriggers() {
@@ -1023,6 +1040,10 @@ def actionsPage() {
                     input "act_delay", "number", title: inTS("Delay Action in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                     paragraph "This does not work on Hubitat yet..."
                 }
+                section(sTS("Control Devices:")) {
+                    input "act_switches_on", "capability.switch", title: inTS("Turn on these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+                    input "act_switches_off", "capability.switch", title: inTS("Turn off these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+                }
                 actionSimulationSect()
                 section("") {
                     paragraph pTS("You're all done with this step.  Press Done/Save", getAppImg("done", true)), state: "complete", image: getAppImg("done")
@@ -1031,13 +1052,17 @@ def actionsPage() {
 
                 actionExecMap?.delay = settings?.act_delay
                 actionExecMap?.configured = true
-
+                updConfigStatusMap()
                 //TODO: Add Cleanup of non selected inputs
             } else { actionExecMap = [configured: false] }
         }
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
         logDebug("actionExecMap: ${atomicState?.actionExecMap}")
     }
+}
+
+Boolean isActDevContConfigured() {
+    return (settings?.act_switches_off || settings?.act_switches_on)
 }
 
 def actionSimulationSect() {
@@ -1050,6 +1075,7 @@ def actionSimulationSect() {
 
 Boolean customMsgRequired() { return ((settings?.actionType in ["speak", "announcement"]) != true) }
 Boolean customMsgConfigured() { return (settings?.notif_use_custom && settings?.notif_custom_message) }
+
 def actNotifPage() {
     return dynamicPage(name: "actNotifPage", title: "Action Notifications", install: false, uninstall: false) {
         section (sTS("Message Customization:")) {
@@ -1272,23 +1298,47 @@ def updated() {
     log.debug "Updated with settings: ${settings}"
     unsubscribe()
     unschedule()
+    state?.dupPendingSetup = false
     initialize()
 }
 
 def initialize() {
+    if(state?.dupPendingSetup == false && settings?.duplicateFlag == true) {
+        settingUpdate("duplicateFlag", "false", "bool")
+    } else if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
+        app?.updateLabel("${app?.getLabel()}${!app?.getLabel()?.contains("(Dup)") ? " (Dup)" : ""}")
+        state?.dupPendingSetup = true
+        def dupState = parent?.getDupActionStateData()
+        if(dupState?.size()) {
+            dupState?.each {k,v-> state[k] = v }
+            parent?.clearDuplicationItems()
+        }
+        logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
+        return
+    }
     unsubscribe()
     state?.isInstalled = true
-    state?.setupComplete = true
     updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
     updConfigStatusMap()
-    appCleanup()
 }
 
 private updAppLabel() {
     String newLbl = "${settings?.appLbl}${isPaused() ? " | (Paused)" : ""}"
+    newLbl = newLbl?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
+}
+
+public guardEventHandler(guardState) {
+    if(!state?.alexaGuardState || state?.alexaGuardState != guardState) {
+        state?.alexaGuardState = guardState
+        def evt = [name: "guard", displayName: "Alexa Guard", value: state?.guardState, date: new Date(), deviceId: null]
+        logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
+        if(state?.handleGuardEvents) {
+            executeAction(evt, false, "guardEventHandler", false, false)
+        }
+    }
 }
 
 private updConfigStatusMap() {
@@ -1303,25 +1353,19 @@ private getConfStatusItem(item) {
     return (state?.configStatusMap?.containsKey(item) && state?.configStatusMap[item] == true)
 }
 
-private appCleanup() {
+private actionCleanup() {
     // State Cleanup
     List items = ["afterEvtMap", "afterEvtChkSchedMap", "afterCheckActiveScheduleId", "afterEvtChkSchedId"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
-    // Settings Cleanup
-    List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest"]
-    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
-    // Performs the Setting Removal
-    setItems?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
-}
-
-private actionCleanup() {
     //Cleans up unused action setting items
     List setItems = ["act_set_volume", "act_restore_volume"]
     List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_EchoDevices"]
     if(settings?.actionType) { settings?.each { si-> if(si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && !(si?.key in setIgn)) { setItems?.push(si?.key as String) } } }
     // if(settings?.actionType in ["bluetooth", "wakeword"]) { cleanupDevSettings("act_${settings?.actionType}_device_") }
     // TODO: Cleanup unselected trigger types
+    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     // Performs the Setting Removal
+    setItems = setItems +  ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
     setItems?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
@@ -1388,6 +1432,8 @@ private subscribeToEvts() {
         if(settings?.trig_alarm) { subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", alarmEvtHandler) }
         if(!isST() && settings?.trig_alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
     }
+
+    state?.handleGuardEvents = valTrigEvt("guard")
 
     // Location Mode Events
     if(valTrigEvt("mode") && settings?.trig_mode) { subscribe(location, "mode", modeEvtHandler) }
@@ -1928,11 +1974,11 @@ Boolean checkDeviceCondOk(type) {
 Boolean checkDeviceNumCondOk(type) {
     List devs = settings?."cond_${type}" ?: null
     String cmd = settings?."cond_${type}_cmd" ?: null
-    Double cdv = settings?."cond_${type}"
-    Double dcl = settings?."cond_${type}_low"
-    Double dch = settings?."cond_${type}_high"
-    Double dce = settings?."cond_${type}_equal"
-    Double dca = settings?."cond_${type}_all"
+    Double cdv = settings?."cond_${type}" ?: null
+    Double dcl = settings?."cond_${type}_low" ?: null
+    Double dch = settings?."cond_${type}_high" ?: null
+    Double dce = settings?."cond_${type}_equal" ?: null
+    Boolean dca = settings?."cond_${type}_all" ?: false
     if( !(type && devs && cmd) ) { return true }
 
     switch(cmd) {
@@ -2076,6 +2122,7 @@ Map getRandomTrigEvt() {
         thermostat: getRandomItem(["cooling is "]),
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
+        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
         routineExecuted: isST() ? getRandomItem(getLocationRoutines()) : null
     ]
     if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: "", value: attVal[trig], date: new Date(), deviceId: trigItem?.id ?: null] }
@@ -2094,7 +2141,7 @@ String convEvtType(type) {
 
 String decodeVariables(evt, str) {
     if(evt && str) {
-        log.debug "str: ${str} | vars: ${(str =~ /%[a-z]+%/)}"
+        // log.debug "str: ${str} | vars: ${(str =~ /%[a-z]+%/)}"
         if(str?.contains("%type%") && str?.contains("%name%")) {
             str = (str?.contains("%type%") && evt?.name) ? str?.replaceAll("%type%", !evt?.displayName?.toLowerCase()?.contains(evt?.name) ? convEvtType(evt?.name) : "") : str
             str = (str?.contains("%name%")) ? str?.replaceAll("%name%", evt?.displayName) : str
@@ -2142,31 +2189,25 @@ String getResponseItem(evt, evtAd=false, isRepeat=false, testMode=false) {
                 case "coolSetpoint":
                 case "heatSetpoint":
                     return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} ${evt?.name} is ${evt?.value} ${postfix}"
-                    break
                 case "mode":
                     return  "The location mode is now set to ${evt?.value}"
-                    break
                 case "routine":
                     return  "The ${evt?.value} routine was just executed!."
-                    break
                 case "scene":
                     return  "The ${evt?.value} scene was just executed!."
-                    break
                 case "alarm":
                 case "hsmStatus":
                 case "alarmSystemStatus":
                     return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
-                    break
+                case "guard":
+                    return "Alexa Guard is now set to ${evt?.value}"
                 case "hsmAlert":
                     return "A ${getAlarmSystemName()} ${evt?.displayName} alert with ${evt?.value} has occurred."
-                    break
                 case "sunriseTime":
                 case "sunsetTime":
                     return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
-                    break
                 case "schedule":
                     return "Your scheduled event has occurred at ${evt?.value}"
-                    break
                 default:
                     if(evtAd && devs?.size()>1) {
                         return "All ${devs?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
@@ -2209,7 +2250,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "announcement":
                 if(actConf[actType]) {
                     String txt = getResponseItem(evt, allDevsResp, isRptAct, testMode) ?: null
-                    log.debug "txt: $txt"
+                    // log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
                     if(actType == "speak") {
@@ -2360,6 +2401,10 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             if(ok2SendNotif && actMsgTxt) {
                 if(sendNotifMsg(app?.getLabel() as String, actMsgTxt as String, alexaMsgDev, false)) { logDebug("Sent Action Notification...") }
             }
+        }
+        if(isActDevContConfigured()) {
+            if(settings?.act_switches_off) settings?.act_switches_off?.off()
+            if(settings?.act_switches_on) settings?.act_switches_on?.on()
         }
     }
     logDebug("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
@@ -3273,3 +3318,71 @@ def searchTuneInResultsPage() {
         }
     }
 }
+
+//*******************************************************************
+//    CLONE ACTION Logic
+//*******************************************************************
+public getActDuplSettingData() {
+    Map typeObj = [
+        s: [
+            bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace"],
+            enum: [ "triggerEvents", "act_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard" ],
+            mode: ["cond_mode", "trig_mode"],
+            number: [],
+            text: ["appLbl"]
+        ],
+        e: [
+            bool: ["_all", "_avg", "_once", "_send_push", "_use_custom"],
+            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months"],
+            number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat"],
+            text: ["_txt", "_sms_numbers"],
+            time: ["_time_start", "_time_stop", "_scheduled_time"]
+        ],
+        caps: [
+            _battery: "battery",
+            _contact: "contactSensor",
+            _door: "garageDoorControl",
+            _temperature: "temperatureMeasurement",
+            _illuminance: "illuminanceMeasurement",
+            _humidity: "relativeHumidityMeasurement",
+            _motion: "motionSensor",
+            _level: "switchLevel",
+            _presence: "presenceSensor",
+            _switch: "switch",
+            _power: "powerMeter",
+            _shade: "windowShades",
+            _water: "waterSensor",
+            _valve: "valve",
+            _thermostat: "thermostat",
+            _carbonMonoxide: "carbonMonoxideDetector",
+            _smoke: "smokeDetector",
+            _lock: "lock"
+        ],
+        dev: [
+            _scene: "sceneActivator"
+        ]
+    ]
+    Map setObjs = [:]
+    typeObj?.s?.each { sk,sv->
+        sv?.each { svi-> if(settings?.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi]] } }
+    }
+    typeObj?.e?.each { ek,ev->
+        ev?.each { evi-> settings?.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }
+    }
+    typeObj?.caps?.each { ck,cv->
+        settings?.findAll { it?.key?.endsWith(ck) }?.each { fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id as String }] }
+    }
+    typeObj?.dev?.each { dk,dv->
+        settings?.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
+    }
+    Map data = [:]
+    data?.label = app?.getLabel()?.toString()?.replace(" | (Paused)", "")
+    data?.settings = setObjs
+    return data
+}
+
+public getActDuplStateData() {
+    List stskip = ["isInstalled", "isParent", "lastActNotifMsgDt", "lastActionNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory"]
+    return state?.findAll { !(it?.key in stskip) }
+}
+

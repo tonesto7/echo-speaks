@@ -781,26 +781,6 @@ public setOnlineStatus(Boolean isOnline) {
     }
 }
 
-// private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
-//     statusCode = statusCode as Integer
-//     if(!hasErr && statusCode == 200) {
-//         return true
-//     } else if(statusCode == 401) {
-//         // setAuthState(false)
-//         return false
-//     } else {
-//         if(statusCode > 401 && statusCode < 500) {
-//             logError("${methodName} Error: ${errMsg ?: null}")
-//             if(errMsg == "Forbidden") {
-//                 // setAuthState(false)
-//                 return false
-//             }
-//         }
-//     }
-//     if(hasErr && falseOnErr) { return false }
-//     return true
-// }
-
 private getPlaybackState(isGroupResponse=false) {
     Map params = [
         uri: getAmazonUrl(),

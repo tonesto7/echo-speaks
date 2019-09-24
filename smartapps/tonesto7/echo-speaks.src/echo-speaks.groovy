@@ -1880,12 +1880,13 @@ private getGuardState() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
+        requestContentType: "application/json",
         body: [ stateRequests: [ [entityId: state?.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
     try {
-        httpPost(params) { resp ->
+        httpPostJson(params) { resp ->
             Map respData = resp?.data ?: null
             if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
                 def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
@@ -1897,7 +1898,7 @@ private getGuardState() {
             // log.debug "GuardState resp: ${respData}"
         }
     } catch (ex) {
-        if(ex instanceof  groovyx.net.http.HttpResponseException) {
+        if(ex instanceof groovyx.net.http.HttpResponseException) {
             logError("getGuardState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else { logError("getGuardState Exception: ${ex}") }
     }
@@ -1916,22 +1917,22 @@ private setGuardState(guardState) {
         contentType: "application/json",
         body: [ controlRequests: [ [ entityId: state?.guardData?.applianceId, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ]
     ]
-    execAsyncCmd("put", "setGuardStateResponse", params, [execDt: now(), requestedState: guardState ])
-    // try {
-    //     httpPut(params) { response ->
-    //         def resp = response?.data ?: null
-    //         if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
-    //             logInfo("Alexa Guard set to (${guardState}) Successfully | ((now()-execTime)ms)")
-    //             state?.alexaGuardState = guardState
-    //             state?.lastGuardStateUpd = getDtNow()
-    //             updGuardActionTrig()
-    //         } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
-    //     }
-    // } catch (ex) {
-    //     if(ex instanceof groovyx.net.http.HttpResponseException ) {
-    //         logError("setGuardState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-    //     } else { logError("setGuardState Exception: ${ex}") }
-    // }
+    try {
+        httpPutJson(params) { response ->
+            def resp = response?.data ?: null
+            if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
+                logInfo("Alexa Guard set to (${data?.requestedState}) Successfully | ((now()-execTime)ms)")
+                state?.alexaGuardState = data?.requestedState
+                state?.lastGuardStateUpd = getDtNow()
+                updGuardActionTrig()
+            } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
+        }
+    } catch (ex) {
+        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+            logError("setGuardState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        } else { logError("setGuardState Exception: ${ex}") }
+    }
+    // execAsyncCmd("put", "setGuardStateResponse", params, [execDt: now(), requestedState: guardState ])
 }
 
 def setGuardStateResponse(response, data) {
@@ -2181,7 +2182,7 @@ def receiveEventData(Map evtData, String src) {
                     }
                     curDevFamily.push(echoValue?.deviceStyle?.name)
                 }
-                logInfo("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
+                logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
                 state?.lastDevDataUpd = getDtNow()
                 state?.echoDeviceMap = echoDeviceMap
                 state?.allEchoDevices = allEchoDevices
