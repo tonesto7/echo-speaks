@@ -66,7 +66,6 @@ preferences {
     page(name: "deviceTestPage")
     page(name: "donationPage")
     page(name: "speechPage")
-    page(name: "broadcastPage")
     page(name: "announcePage")
     page(name: "sequencePage")
     page(name: "setNotificationTimePage")
@@ -375,7 +374,7 @@ def guardTriggerEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
 	logDebug("${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     if(!guardRestrictOk()) {
-        log.debug "guardTriggerEvtHandler | Skipping Changes because restriction filter is active"
+        logDebug("guardTriggerEvtHandler | Skipping Guard Changes because Restriction are Active.")
         return
     }
     String newState = null
@@ -811,7 +810,6 @@ def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
         section("") {
             href "speechPage", title: inTS("Speech Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
-            // href "broadcastPage", title: inTS("Broadcast Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("broadcast")
             href "announcePage", title: inTS("Announcement Test", getAppImg("announcement", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("announcement")
             href "sequencePage", title: inTS("Sequence Creator Test", getAppImg("sequence", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("sequence")
         }
@@ -832,26 +830,6 @@ def speechPage() {
             section() {
                 input "speechTestRun", "bool", title: inTS("Perform the Speech Test?"), description: "", required: false, defaultValue: false, submitOnChange: true
                 if(speechTestRun) { executeSpeechTest() }
-            }
-        }
-    }
-}
-
-def broadcastPage() {
-    return dynamicPage(name: "broadcastPage", uninstall: false, install: false) {
-        section("") {
-            paragraph "This feature is not supported by all Alexa devices so using unsupported device may cause it not work"
-            Map devs = getDeviceList(true, [tts])
-            input "broadcastDevices", "enum", title: inTS("Select Devices to Test the Broadcast"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
-            input "broadcastVolume", "number", title: inTS("Broadcast at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
-            input "broadcastRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
-            input "broadcastMessage", "text", title: inTS("Message to broadcast"), defaultValue: "This is a test of the Echo speaks broadcast system!!!", required: true, submitOnChange: true
-            input "broadcastParallel", "bool", title: inTS("Execute commands in Parallel?"), description: "", required: false, defaultValue: true, submitOnChange: true
-        }
-        if(settings?.broadcastDevices) {
-            section() {
-                input "broadcastRun", "bool", title: inTS("Perform the Broadcast?"), description: "", required: false, defaultValue: false, submitOnChange: true
-                if(broadcastRun) { executeBroadcast() }
             }
         }
     }
@@ -934,8 +912,8 @@ def sequencePage() {
             paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: "complete"
         }
         section(sTS("Sequence Test Config:")) {
-            input "sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: "Tap to select", multiple: false, required: false, submitOnChange: true
-            input "sequenceString", "text", title: inTS("Sequence String to Use"), defaultValue: "", required: false, submitOnChange: true
+            input "sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: "Tap to select", multiple: false, required: (settings?.sequenceString != null), submitOnChange: true
+            input "sequenceString", "text", title: inTS("Sequence String to Use"), required: (settings?.sequenceDevice != null), submitOnChange: true
         }
         if(settings?.sequenceDevice && settings?.sequenceString) {
             section() {
@@ -1042,7 +1020,14 @@ private executeTuneInSearch() {
         requestContentType: "application/json",
         contentType: "application/json"
     ]
-    Map results = makeSyncHttpReq(params, "get", "tuneInSearch") ?: [:]
+    Map results = [:]
+    try {
+        httpGet(params) { response ->
+            results = response?.data ?: [:]
+        }
+    } catch (ex) {
+        respExceptionHandler(ex, "executeTuneInSearch")
+    }
     return results
 }
 
@@ -1546,7 +1531,7 @@ private wakeupServer(c=false, g=false) {
 
 private runCookieRefresh() {
     settingUpdate("refreshCookie", "false", "bool")
-    if(getLastCookieRefreshSec() < 86400) { log.error "Cookie Refresh is blocked... | Last refresh was less than 24 hours ago."; return; }
+    if(getLastCookieRefreshSec() < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return; }
     wakeupServer(true)
 }
 
@@ -1595,7 +1580,7 @@ private apiHealthCheck(frc=false) {
             uri: getAmazonUrl(),
             path: "/api/ping",
             query: ["_": ""],
-            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
             contentType: "plain/text"
         ]
         httpGet(params) { resp->
@@ -1603,8 +1588,7 @@ private apiHealthCheck(frc=false) {
             return (resp?.getData().toString() == "healthy")
         }
     } catch(ex) {
-        incrementCntByKey("err_app_apiHealthCnt")
-        logError("apiHealthCheck() Exception: ${ex.message}")
+        respExceptionHandler(ex, "apiHealthCheck")
     }
 }
 
@@ -1616,16 +1600,10 @@ Boolean validateCookie(frc=false) {
             uri: getAmazonUrl(),
             path: "/api/bootstrap",
             query: ["version": 0],
-            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
             contentType: "application/json"
         ]
         httpGet(params) { resp->
-            if(resp?.status == 401) {
-                logError("validateCookie Status: (${resp.status})")
-                authValidationEvent(valid, "validateCookie_${resp?.status}")
-                state?.lastCookieChkDt = getDtNow()
-                return false
-            }
             Map aData = resp?.data?.authentication ?: null
             Boolean valid = false
             if (aData) {
@@ -1639,9 +1617,8 @@ Boolean validateCookie(frc=false) {
             return valid
         }
     } catch(ex) {
-        if(ex instanceof  groovyx.net.http.HttpResponseException ) {
-            logError("There was an error while parsing the validateCookie Response: ${ex}")
-        } else { logError("validateCookie Exception: ${ex}") }
+        respExceptionHandler(ex, "validateCookie", true)
+        state?.lastCookieChkDt = getDtNow()
         incrementCntByKey("err_app_cookieValidCnt")
         return false
     }
@@ -1660,44 +1637,7 @@ private authValidationEvent(Boolean valid, String src=null) {
     } else { authEvtHandler(true) }
 }
 
-private respIsValid(statusCode, Boolean hasErr, errMsg=null, String methodName, Boolean falseOnErr=false) {
-    statusCode = statusCode as Integer
-    if(!hasErr && statusCode == 200) {
-        return true
-    } else if(statusCode == 401) {
-        authValidationEvent(false, "respIsValid_${statusCode}")
-        return false
-    } else if(statusCode == 400) {
-        logWarn("${methodName} | Rate-Limiting Active by Amazon...")
-        return false
-    } else {
-        if(statusCode > 401 && statusCode < 500) {
-            logError("${methodName} Error: ${errMsg ?: null}")
-            if(errMsg == "Forbidden") {
-                authValidationEvent(false, "respIsValid_${methodName}_${statusCode}")
-                return false
-            }
-        }
-    }
-    if(hasErr && falseOnErr) { return false }
-    return true
-}
-
 private noAuthReminder() { logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...") }
-
-def makeSyncHttpReq(Map params, String method="get", String src, Boolean strInJsonResp=false, Boolean showLogs=false) {
-    try {
-        "http${method?.toString()?.toLowerCase()?.capitalize()}"(params) { resp ->
-            if(showLogs) { log.debug "makeSyncHttpReq(Src: $src) | Status: ${resp?.status}: ${resp?.data}" }
-            return resp?.data ?: null
-        }
-    } catch (ex) {
-        if(ex instanceof  groovyx.net.http.HttpResponseException ) {
-            logError("${src} Response Exception | Status: (${ex?.getResponse()?.getStatus() ?: null}) | Message: ${ex?.getMessage() ?: null}")
-        } else { logError("makeSyncHttpReq(Method: ${method}, Src: ${src}) Exception: ${ex}") }
-        return null
-    }
-}
 
 public childInitiatedRefresh() {
     Integer lastRfsh = getLastChildInitRefreshSec()
@@ -1728,15 +1668,21 @@ private getMusicProviders() {
         contentType: "application/json"
     ]
     Map items = [:]
-    List musicResp = makeSyncHttpReq(params, "get", "getMusicProviders") ?: []
-    if(musicResp?.size()) {
-        musicResp?.findAll { it?.availability == "AVAILABLE" }?.each { item->
-            items[item?.id] = item?.displayName
+    try {
+        httpGet(params) { response ->
+            List rData = response?.data ?: []
+            if(rData?.size()) {
+                rData?.findAll { it?.availability == "AVAILABLE" }?.each { item->
+                    items[item?.id] = item?.displayName
+                }
+            }
+            // log.debug "Music Providers: ${items}"
+            if(!state?.musicProviders || items != state?.musicProviders) { state?.musicProviders = items }
+            updTsMap("musicProviderDt")
         }
+    } catch (ex) {
+        respExceptionHandler(ex, "getMusicProviders", true)
     }
-    // log.debug "Music Providers: ${items}"
-    if(!state?.musicProviders || items != state?.musicProviders) { state?.musicProviders = items }
-    updTsMap("musicProviderDt")
     return items
 }
 
@@ -1744,7 +1690,6 @@ private getOtherData() {
     getBluetoothDevices()
     getDoNotDisturb()
     getMusicProviders()
-    validateCookie(true)
 }
 
 private getBluetoothDevices() {
@@ -1752,12 +1697,21 @@ private getBluetoothDevices() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
-        query: [cached: true, _: new Date().getTime()],
+        query: [cached: true, _: new Date()?.getTime()],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
         contentType: "application/json"
     ]
-    def btResp = makeSyncHttpReq(params, "get", "getBluetoothDevices") ?: null
-    state?.bluetoothData = btResp ?: [:]
+    Map btResp = [:]
+    try {
+        httpGet(params) { response ->
+            btResp = response?.data ?: [:]
+            // log.debug "Bluetooth Items: ${btResp}"
+            state?.bluetoothData = btResp
+        }
+    } catch (ex) {
+        respExceptionHandler(ex, "getBluetoothDevices", true)
+        if(!state?.bluetoothData) { state?.bluetoothData = [:] }
+    }
 }
 
 def getBluetoothData(serialNumber) {
@@ -1781,11 +1735,21 @@ private getDoNotDisturb() {
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
         query: [_: new Date().getTime()],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
     ]
-    def dndResp = makeSyncHttpReq(params, "get", "getDoNotDisturb") ?: null
-    state?.dndData = dndResp ?: [:]
+    Map dndResp = [:]
+    try {
+        httpGet(params) { response ->
+            dndResp = response?.data ?: [:]
+            // log.debug "DoNotDisturb Data: ${dndResp}"
+            state?.dndData = dndResp
+        }
+    } catch (ex) {
+        respExceptionHandler(ex, "getDoNotDisturb", true)
+        if(!state?.dndData) { state?.dndData = dndResp }
+    }
+
 }
 
 def getDndEnabled(serialNumber) {
@@ -1795,46 +1759,53 @@ def getDndEnabled(serialNumber) {
     return (dndData && dndData?.enabled == true)
 }
 
-public def getAlexaRoutines(autoId=null, utterOnly=false) {
+public getAlexaRoutines(autoId=null, utterOnly=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
         query: [ limit: 100 ],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json"
     ]
+
+    def rtResp = [:]
     try {
-        def routineResp = makeSyncHttpReq(params, "get", "getAlexaRoutines") ?: [:]
-        // log.debug "routineResp: $routineResp"
-        if(routineResp) {
-            if(autoId) {
-                return routineResp
-            } else {
-                Map items = [:]
-                Integer cnt = 1
-                if(routineResp?.size()) {
-                    routineResp?.findAll { it?.status == "ENABLED" }?.each { item->
-                        if(utterOnly) {
-                            if(item?.triggers?.size()) {
-                                item?.triggers?.each { trg->
-                                    if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
-                                        items[item?.automationId] = trg?.payload?.utterance as String
-                                    } else {
-                                        items[item?.automationId] = "Unlabeled Routine ($cnt)"
-                                        cnt++
+        httpGet(params) { response ->
+            rtResp = response?.data ?: [:]
+            // log.debug "alexaRoutines: $rtResp"
+            if(rtResp) {
+                if(autoId) {
+                    return rtResp
+                } else {
+                    Map items = [:]
+                    Integer cnt = 1
+                    if(rtResp?.size()) {
+                        rtResp?.findAll { it?.status == "ENABLED" }?.each { item->
+                            if(utterOnly) {
+                                if(item?.triggers?.size()) {
+                                    item?.triggers?.each { trg->
+                                        if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
+                                            items[item?.automationId] = trg?.payload?.utterance as String
+                                        } else {
+                                            items[item?.automationId] = "Unlabeled Routine ($cnt)"
+                                            cnt++
+                                        }
                                     }
                                 }
+                            } else {
+                                items[item?.automationId] = item?.name
                             }
-                        } else {
-                            items[item?.automationId] = item?.name
                         }
                     }
+                    // log.debug "routine items: $items"
+                    return items
                 }
-                // log.debug "routine items: $items"
-                return items
             }
         }
-    } catch(ex) { logError("getAlexaRoutines Error: ${ex}"); return [:]; }
+    } catch (ex) {
+        respExceptionHandler(ex, "getAlexaRoutines", true)
+        return rtResp
+    }
 }
 
 def executeRoutineById(String routineId) {
@@ -1859,7 +1830,7 @@ def checkGuardSupport() {
         uri: getAmazonUrl(),
         path: "/api/phoenix",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
         contentType: "application/json",
     ]
     execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
@@ -1955,9 +1926,7 @@ private getGuardState() {
             // log.debug "GuardState resp: ${respData}"
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException) {
-            logError("getGuardState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("getGuardState Exception: ${ex}") }
+        respExceptionHandler(ex, "getGuardState", true)
     }
 }
 
@@ -1985,10 +1954,39 @@ private setGuardState(guardState) {
             } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("setGuardState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("setGuardState Exception: ${ex}") }
+        respExceptionHandler(ex, "setGuardState", true)
     }
+}
+
+def respExceptionHandler(ex, String mName, ignOn401=false, ignNullMsg=false) {
+    if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        Integer sCode = ex?.getResponse()?.getStatus()
+        def rData = ex?.getResponse()?.getData()
+        def errMsg = ex?.getMessage()
+        if(sCode == 401) {
+            if(ignOn401) authValidationEvent(false, "${mName}_${status}")
+        } else if (sCode == 400) {
+            switch(errMsg) {
+                case "Bad Request":
+                    logError("${mName} | Improperly formatted request sent to Amazon | Message: ${errMsg}")
+                    break
+                case "Rate Exceeded":
+                    logError("${mName} | Amazon is currently rate-limiting your requests | Message: ${errMsg}")
+                    break
+                default:
+                    logError("${mName} | 400 Error | Message: ${errMsg}")
+                    break
+            }
+        } else if(sCode == 429) {
+            logWarn("${mName} | Too Many Requests Made to Amazon | Message: ${errMsg}")
+        } else {
+            logError("${mName} Response Exception | Status: (${sCode}) | Message: ${errMsg}")
+        }
+    } else if(ex instanceof java.net.SocketTimeoutException) {
+        logError("${mName} Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+    } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+        logError("${mName} Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+    } else { logError("${mName} Exception: ${ex}") }
 }
 
 private guardStateConv(gState) {
@@ -2052,7 +2050,7 @@ private getEchoDevices() {
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json"
     ]
     state?.deviceRefreshInProgress = true
@@ -2063,10 +2061,6 @@ private getEchoDevices() {
 def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
-    if(response?.status == 401) {
-        authValidationEvent(false, "echoDevicesResponse_${response?.status}")
-        return
-    }
     try {
         // log.debug "json response is: ${response.json}"
         state?.deviceRefreshInProgress=false
@@ -2085,8 +2079,7 @@ def echoDevicesResponse(response, data) {
         def musicProvs = state?.musicProviders ?: getMusicProviders(true)
         receiveEventData([echoDevices: echoDevices, musicProviders: musicProvs, execDt: data?.execDt], "Groovy")
     } catch (ex) {
-        // logError("echoDevicesResponse Exception: ${ex}")
-        log.error("echoDevicesResponse Exception: ${ex}")
+        respExceptionHandler(ex, "echoDevicesResponse")
     }
 }
 
@@ -2249,8 +2242,7 @@ def receiveEventData(Map evtData, String src) {
             if(state?.installData?.sentMetrics != true) { runIn(900, "sendInstallData", [overwrite: false]) }
         }
     } catch(ex) {
-        // logError("receiveEventData Error: ${ex}")
-        log.error("receiveEventData Error: ${ex}")
+        logError("receiveEventData Error: ${ex}")
         incrementCntByKey("appErrorCnt")
     }
 }
@@ -2351,13 +2343,14 @@ Map multiSequenceBuilder(commands, parallel=false) {
 
 Map createSequenceNode(command, value, Map deviceData = [:]) {
     try {
+        Boolean remDevSpecifics = false
         Map seqNode = [
             "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
-            "operationPayload": [
-                "deviceType": deviceData?.deviceType,
-                "deviceSerialNumber": deviceData?.serialNumber,
-                "locale": (settings?.regionLocale ?: "en-US"),
-                "customerId": state?.deviceOwnerCustomerId
+            operationPayload: [
+                deviceType: deviceData?.deviceType ?: null,
+                deviceSerialNumber: deviceData?.serialNumber ?: null,
+                locale: (settings?.regionLocale ?: "en-US"),
+                customerId: state?.deviceOwnerCustomerId
             ]
         ]
         switch (command) {
@@ -2393,6 +2386,11 @@ Map createSequenceNode(command, value, Map deviceData = [:]) {
             default:
                 return
         }
+        if(remDevSpecifics) {
+            seqNode?.operationPayload?.remove('deviceType')
+            seqNode?.operationPayload?.remove('deviceSerialNumber')
+            seqNode?.operationPayload?.remove('locale')
+        }
         // log.debug "seqNode: $seqNode"
         return seqNode
     } catch (ex) {
@@ -2411,20 +2409,36 @@ private execAsyncCmd(String method, String callbackHandler, Map params, Map othe
     } else { logError("execAsyncCmd Error | Missing a required parameter") }
 }
 
-private sendAmazonCommand(String method, Map params, Map otherData) {
-    execAsyncCmd(method, "amazonCommandResp", params, otherData)
-}
-
-def amazonCommandResp(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    Boolean isJson = (response?.headers?."Content-Type" == "application/json")
-    if(!respIsValid(response?.status, hasErr, errMsg, "amazonCommandResp", true)) {return}
-    try {} catch (ex) { }
-    def resp = response?.data ? response?.getJson() : null
-    // logDebug("amazonCommandResp | Status: (${response?.status}) | Response: ${resp} | PassThru-Data: ${data}")
-    if(response?.status == 200) {
-        logDebug("amazonCommandResp | Status: (${response?.status})${resp != null ? " | Response: ${resp}" : ""} | ${data?.cmdDesc} was Successfully Sent!!!")
+private sendAmazonCommand(String method, Map params, Map otherData=null) {
+    try {
+        def rData = null
+        def rStatus = null
+        switch(method) {
+            case "post":
+            case "POST":
+                httpPost(params) { response->
+                    rData = response?.data ?: null
+                    rStatus = response?.status
+                }
+                break
+            case "put":
+            case "PUT":
+                httpPut(params) { response->
+                    rData = response?.data ?: null
+                    rStatus = response?.status
+                }
+                break
+            case "delete":
+            case "DELETE":
+                httpDelete(params) { response->
+                    rData = response?.data ?: null
+                    rStatus = response?.status
+                }
+                break
+        }
+        logDebug("sendAmazonCommand | Status: (${response?.status})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+    } catch (ex) {
+        respExceptionHandler(ex, "${otherData?.cmdDesc}")
     }
 }
 
@@ -2434,10 +2448,10 @@ private sendSequenceCommand(type, command, value) {
     sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
         body: seqObj
-    ], [cmdDesc: "SequenceCommand (${type})"])
+    ], [cmdDesc: "SequenceCommand_${type}"])
 }
 
 private sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=false) {
@@ -2931,7 +2945,7 @@ private getConfigData() {
     if(data) {
         state?.appData = data
         state?.lastVerUpdDt = getDtNow()
-        logInfo("Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo...")
+        logDebug("Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo...")
     }
 }
 
@@ -2943,7 +2957,7 @@ private getNoticeData() {
     def data = getWebData(params, "noticeData", false)
     if(data) {
         state?.noticeData = data
-        logInfo("Successfully Retrieved Developer Notices from GitHub Repo...")
+        logDebug("Successfully Retrieved Developer Notices from GitHub Repo...")
     }
 }
 
@@ -4298,7 +4312,7 @@ private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${
 private logInfo(msg) { if(settings?.logInfo != false) {  log.info " EchoApp (v${appVersion()}) | ${msg}" } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
 private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg) {if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 15); }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 def clearDiagLogs(type="all") {
     // log.debug "clearDiagLogs($type)"

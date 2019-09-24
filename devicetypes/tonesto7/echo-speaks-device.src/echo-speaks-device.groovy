@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.2.0"}
-String devModified()  { return "2019-09-23" }
+String devModified() { return "2019-09-24" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -430,7 +430,7 @@ metadata {
             "playJoke", "sayWelcomeHome", "sayGoodMorning", "sayGoodNight", "sayCompliment", "resetQueue",
             "playCalendarToday", "playCalendarTomorrow", "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll",
             "currentAlbum", "currentStation",
-            "alarmVolume",  "btDeviceConnected", "btDevicesPaired", "deviceStyle", "onlineStatus", "alexaWakeWord", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt", "lastVoiceActivity",
+            "alarmVolume", "btDeviceConnected", "btDevicesPaired", "deviceStyle", "onlineStatus", "alexaWakeWord", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt", "lastVoiceActivity",
             "permissions"
         ])
     }
@@ -776,7 +776,7 @@ public setOnlineStatus(Boolean isOnline) {
         sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), displayed: false, isStateChange: true)
     }
     if(isStateChange(device, "onlineStatus", onlStatus?.toString())) {
-        log.debug "OnlineStatus has changed to (${onlStatus})"
+        logDebug("OnlineStatus has changed to (${onlStatus})")
         sendEvent(name: "onlineStatus", value: onlStatus?.toString(), displayed: true, isStateChange: true)
     }
 }
@@ -792,27 +792,20 @@ private getPlaybackState(isGroupResponse=false) {
     Map playerInfo = [:]
     try {
         httpGet(params) { response->
-            Boolean isPlayStateChange = false
             Map sData = response?.data ?: [:]
             playerInfo = sData?.playerInfo ?: null
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            def errMsg = ex?.getResponse()?.getData()
-            if(errMsg?.message == null) {
-                // log.error "${errMsg}"
-            } else {
-                logError("getPlaybackState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
-            }
-        } else { logError("getPlaybackState Exception: ${ex}") }
+        respExceptionHandler(ex, "getPlaybackState", false, true)
     }
     playbackStateHandler(playerInfo)
 }
 
 def playbackStateHandler(playerInfo, isGroupResponse=false) {
     // log.debug "playerInfo: ${playerInfo}"
+    Boolean isPlayStateChange = false
     if (state?.isGroupPlaying && !isGroupResponse) {
-        log.debug "ignoring getPlaybackState because group is playing here"
+        logDebug("ignoring getPlaybackState because group is playing here")
         return
     }
     // logTrace("getPlaybackState: ${playerInfo}")
@@ -877,7 +870,6 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
     if (state?.hasClusterMembers && (playerInfo?.state == 'PLAYING' || isPlayStateChange)) {
         parent?.sendPlaybackStateToClusterMembers(state?.serialNumber, response, data)
     }
-
 }
 
 private getAlarmVolume() {
@@ -898,9 +890,14 @@ private getAlarmVolume() {
             }
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getAlarmVolume Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("getAlarmVolume Exception: ${ex}") }
+        respExceptionHandler(ex, "getAlarmVolume")
+        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getAlarmVolume", ex?.getMessage())
+        // } else if(ex instanceof java.net.SocketTimeoutException) {
+        //     logError("getAlarmVolume Response Timeout...")
+        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+        //     logError("getAlarmVolume Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        // } else { logError("getAlarmVolume Exception: ${ex}") }
     }
 }
 
@@ -926,9 +923,14 @@ private getWakeWord() {
             }
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getWakeWord Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("getWakeWord Exception: ${ex}") }
+        respExceptionHandler(ex, "getWakeWord")
+        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getWakeWord", ex?.getMessage())
+        // } else if(ex instanceof java.net.SocketTimeoutException) {
+        //     logError("getWakeWord Response Timeout...")
+        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+        //     logError("getWakeWord Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        // } else { logError("getWakeWord Exception: ${ex}") }
     }
 }
 
@@ -954,9 +956,14 @@ private getWifiDetails() {
             }
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getWifiDetails Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("getWifiDetails Exception: ${ex}") }
+        respExceptionHandler(ex, "getWifiDetails")
+        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getWifiDetails", ex?.getMessage())
+        // } else if(ex instanceof java.net.SocketTimeoutException) {
+        //     logError("getWifiDetails Response Timeout...")
+        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+        //     logError("getWifiDetails Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        // } else { logError("getWifiDetails Exception: ${ex}") }
     }
 }
 
@@ -983,9 +990,14 @@ private getDeviceSettings() {
             // logTrace("getDeviceSettingsHandler: ${sData}")
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getAvailableWakeWords Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("getAvailableWakeWords Exception: ${ex}") }
+        respExceptionHandler(ex, "getDeviceSettings")
+        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getDeviceSettings", ex?.getMessage())
+        // } else if(ex instanceof java.net.SocketTimeoutException) {
+        //     logError("getDeviceSettings Response Timeout...")
+        // }  else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+        //     logError("getDeviceSettings Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        // } else { logError("getDeviceSettings Exception: ${ex}") }
     }
 }
 
@@ -1008,9 +1020,14 @@ private getAvailableWakeWords() {
             }
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getAvailableWakeWords Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("getAvailableWakeWords Exception: ${ex}") }
+        respExceptionHandler(ex, "getAvailableWakeWords")
+        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getAvailableWakeWords", ex?.getMessage())
+        // } else if(ex instanceof java.net.SocketTimeoutException) {
+        //     logError("getAvailableWakeWords Response Timeout...")
+        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+        //     logError("getAvailableWakeWords Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        // } else { logError("getAvailableWakeWords Exception: ${ex}") }
     }
 }
 
@@ -1076,9 +1093,7 @@ private getPlaylists() {
             }
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getPlaylists Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("getPlaylists Exception: ${ex}") }
+        respExceptionHandler(ex, "getPlaylists")
     }
 }
 
@@ -1108,9 +1123,7 @@ private getNotifications() {
             // log.trace "notifications: $newList"
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getNotifications Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("getNotifications Exception: ${ex}") }
+        respExceptionHandler(ex, "getNotifications")
     }
 }
 
@@ -1154,9 +1167,14 @@ private getDeviceActivity() {
             }
         }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("getDeviceActivity Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("getDeviceActivity Exception: ${ex}") }
+        respExceptionHandler(ex, "getDeviceActivity")
+        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "getDeviceActivity", ex?.getMessage())
+        // } else if(ex instanceof java.net.SocketTimeoutException) {
+        //     logError("getDeviceActivity Response Timeout...")
+        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+        //     logError("getDeviceActivity Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        // } else { logError("getDeviceActivity Exception: ${ex}") }
     }
 }
 
@@ -1220,9 +1238,14 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
         } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
         logDebug("sendAmazonCommand | Status: (${response?.status})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("sendAmazonCommand Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("sendAmazonCommand Exception: ${ex}") }
+        respExceptionHandler(ex, "${otherData?.cmdDesc}")
+        // if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        //     respExceptionHandler(ex?.getResponse()?.getStatus(), "${otherData?.cmdDesc}", ex?.getMessage())
+        // } else if(ex instanceof java.net.SocketTimeoutException) {
+        //     logError("${otherData?.cmdDesc} Response Timeout...")
+        // } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+        //     logError("${otherData?.cmdDesc} Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        // } else { logError("${otherData?.cmdDesc} Exception: ${ex}") }
     }
 }
 
@@ -1248,6 +1271,46 @@ private sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=fals
     }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     sendSequenceCommand("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}", seqJson, null)
+}
+
+def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
+    if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        Integer sCode = ex?.getResponse()?.getStatus()
+        def respData = ex?.getResponse()?.getData()
+        def errMsg = ex?.getMessage()
+        if(sCode == 401) {
+            // logError("${mName} | Amazon Authentication is no longer valid | Message: ${errMsg}")
+            if(clearOn401) { setAuthState(false) }
+        } else if (sCode == 400) {
+            switch(errMsg) {
+                case "Bad Request":
+                    if(respData && respData?.message == null && ignNullMsg) {
+                        // Ignoring Null message
+                    } else {
+                        logError("${mName} | Improperly formatted request sent to Amazon | Message: ${errMsg}")
+                    }
+                    break
+                case "Rate Exceeded":
+                    logError("${mName} | Amazon is currently rate-limiting your requests | Message: ${errMsg}")
+                    break
+                default:
+                    if(respData && respData?.message == null && ignNullMsg) {
+                        // Ignoring Null message
+                    } else {
+                        logError("${mName} | 400 Error | Message: ${errMsg}")
+                    }
+                    break
+            }
+        } else if(sCode == 429) {
+            logWarn("${mName} | Too Many Requests Made to Amazon | Message: ${errMsg}")
+        } else {
+            logError("${mName} Response Exception | Status: (${sCode}) | Message: ${errMsg}")
+        }
+    } else if(ex instanceof java.net.SocketTimeoutException) {
+        logError("${mName} Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+    } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
+        logError("${mName} Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+    } else { logError("${mName} Exception: ${ex}") }
 }
 
 def searchTest() {
@@ -1555,7 +1618,7 @@ private restoreLastVolume() {
         setVolume(lastVol as Integer)
         sendEvent(name: "level", value: lastVol, display: false, displayed: false)
         sendEvent(name: "volume", value: lastVol, display: false, displayed: false)
-    } else { log.warn "Unable to restore Last Volume!!! restoreVolume State Value not found..." }
+    } else { logWarn("Unable to restore Last Volume!!! restoreVolume State Value not found...", true) }
 }
 
 def sayWelcomeHome(volume=null, restoreVolume=null) {
@@ -1615,9 +1678,9 @@ def sayGoodbye(volume=null, restoreVolume=null) {
 def executeRoutineId(String rId) {
     def execDt = now()
     logTrace("executeRoutineId($rId) command received...")
-    if(!rId) { log.warn "No Routine ID sent with executeRoutineId($rId) command" }
+    if(!rId) { logWarn("No Routine ID sent with executeRoutineId($rId) command", true) }
     if(parent?.executeRoutineById(rId as String)) {
-        log.debug "Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${rId}"
+        logDebug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${rId}", true)
         incrementCntByKey("use_cnt_executeRoutine")
     }
 }
@@ -1760,7 +1823,7 @@ def searchMusic(String searchPhrase, String providerId, volume=null, sleepSecond
     // logTrace("searchMusic(${searchPhrase}, ${providerId})")
     if(isCommandTypeAllowed(getCommandTypeForProvider(providerId))) {
         doSearchMusicCmd(searchPhrase, providerId, volume, sleepSeconds)
-    } else { log.warn "searchMusic not supported for ${providerId}" }
+    } else { logWarn("searchMusic not supported for ${providerId}", true) }
 }
 
 String getCommandTypeForProvider(String providerId) {
@@ -1854,14 +1917,14 @@ private doSequenceCmd(cmdType, seqCmd, seqVal="") {
     if(state?.serialNumber) {
         logDebug("Sending (${cmdType}) | Command: ${seqCmd} | Value: ${seqVal}")
         sendSequenceCommand(cmdType, seqCmd, seqVal)
-    } else { log.warn "doSequenceCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}" }
+    } else { logWarn("doSequenceCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber}", true) }
 }
 
 private doSearchMusicCmd(searchPhrase, musicProvId, volume=null, sleepSeconds=null) {
     if(state?.serialNumber && searchPhrase && musicProvId) {
         playMusicProvider(searchPhrase, musicProvId, volume, sleepSeconds)
         // incrementCntByKey("use_cnt_searchMusic")
-    } else { log.warn "doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} | searchPhrase: ${searchPhrase} | musicProvider: ${musicProvId}" }
+    } else { logWarn("doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${state?.serialNumber} | searchPhrase: ${searchPhrase} | musicProvider: ${musicProvId}", true) }
 }
 
 private Map validateMusicSearch(searchPhrase, providerId, sleepSeconds=null) {
@@ -1926,7 +1989,7 @@ def setWakeWord(String newWord) {
     logTrace("setWakeWord($newWord) command received...")
     String oldWord = device?.currentValue('alexaWakeWord')
     def wwList = device?.currentValue('wakeWords') ?: []
-    log.debug "newWord: $newWord | oldWord: $oldWord | wwList: $wwList (${wwList?.contains(newWord.toString()?.toUpperCase())})"
+    logDebug("newWord: $newWord | oldWord: $oldWord | wwList: $wwList (${wwList?.contains(newWord.toString()?.toUpperCase())})", true)
     if(oldWord && newWord && wwList && wwList?.contains(newWord.toString()?.toUpperCase())) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
@@ -1944,7 +2007,7 @@ def setWakeWord(String newWord) {
         ], [cmdDesc: "SetWakeWord(${newWord})"])
         incrementCntByKey("use_cnt_setWakeWord")
         sendEvent(name: "alexaWakeWord", value: newWord?.toString()?.toUpperCase(), display: true, displayed: true)
-    } else { log.warn "setWakeWord is Missing a Required Parameter!!!" }
+    } else { logWarn("setWakeWord is Missing a Required Parameter!!!", true) }
 }
 
 def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
@@ -1958,7 +2021,7 @@ def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
             type: "Alarm"
         ])
         incrementCntByKey("use_cnt_createAlarm")
-    } else { log.warn "createAlarm is Missing a Required Parameter!!!" }
+    } else { logWarn("createAlarm is Missing a Required Parameter!!!", true) }
 }
 
 def createReminder(String remLbl, String remDate, String remTime) {
@@ -1973,7 +2036,7 @@ def createReminder(String remLbl, String remDate, String remTime) {
                 type: "Reminder"
             ])
             incrementCntByKey("use_cnt_createReminder")
-        } else { log.warn "createReminder is Missing the Required (id) Parameter!!!" }
+        } else { logWarn("createReminder is Missing the Required (id) Parameter!!!", true) }
     }
 }
 
@@ -1989,7 +2052,7 @@ def removeNotification(String id) {
                 body: []
             ], [cmdDesc: "RemoveNotification"])
             incrementCntByKey("use_cnt_removeNotification")
-        } else { log.warn "removeNotification is Missing the Required (id) Parameter!!!" }
+        } else { logWarn("removeNotification is Missing the Required (id) Parameter!!!", true) }
     }
 }
 
@@ -1998,7 +2061,7 @@ private createNotification(type, options) {
     def createdDate = now.getTime()
     def addSeconds = new Date(createdDate + 1 * 60000);
     def alarmTime = type != "Timer" ? addSeconds.getTime() : 0
-    log.debug "addSeconds: $addSeconds | alarmTime: $alarmTime"
+    // log.debug "addSeconds: $addSeconds | alarmTime: $alarmTime"
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications/create${type}",
@@ -2103,7 +2166,7 @@ def removeBluetooth(String btNameOrAddr) {
 }
 
 def sendAlexaAppNotification(String text) {
-    log.debug "sendAlexaAppNotification(${text})"
+    // log.debug "sendAlexaAppNotification(${text})"
     doSequenceCmd("AlexaAppNotification", "pushnotification", text)
     incrementCntByKey("use_cnt_alexaAppNotification")
 }
@@ -2215,7 +2278,7 @@ def speechTest(ttsMsg) {
 def speak(String msg) {
     logTrace("speak() command received...")
     if(isCommandTypeAllowed("TTS")) {
-        if(!msg) { log.warn "No Message sent with speak($msg) command" }
+        if(!msg) { logWarn("No Message sent with speak($msg) command", true) }
         // msg = cleanString(msg, true)
         speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state?.newVolume ?: null), oldVolume: (state?.oldVolume ?: null), cmdDt: now()])
         incrementCntByKey("use_cnt_speak")
@@ -2273,6 +2336,10 @@ def sendTestAnnouncement() {
 
 def sendTestAnnouncementAll() {
     playAnnouncementAll("Echo Speaks Announcement Test on All devices")
+}
+
+def sendTestAlexaMsg() {
+    sendAlexaAppNotification("Test Alexa Notification from ${device?.displayName}")
 }
 
 Map seqItemsAvail() {
@@ -2474,10 +2541,10 @@ private queueCheck(data) {
         if(qSize && qSize >= 10) {
             state?.q_blocked = true
             if (qSize < 20) {
-                log.warn "queueCheck | Queue Item Count (${qSize}) is filling up... Blocking Queue Additions Until Queue Size Drops below 10!!!"
+                logWarn("queueCheck | Queue Item Count (${qSize}) is filling up... Blocking Queue Additions Until Queue Size Drops below 10!!!", true)
                 schedQueueCheck(delay, true, null, "queueCheck(filling)")
             } else {
-                log.warn "queueCheck | Queue Item Count (${qSize}) is abnormally high... Resetting Queue"
+                logWarn("queueCheck | Queue Item Count (${qSize}) is abnormally high... Resetting Queue", true)
                 resetQueue(false)
                 return
             }
@@ -2623,27 +2690,19 @@ private speechCmd(headers=[:], isQueueCmd=false) {
                 qId: (headerMap?.qId ?: null)
             ]
             httpPost(params) { response->
-                def sData = null
-                try {
-                    sData = response?.data ?: null
-                } catch (groovyx.net.http.HttpResponseException hre) {
-                    sData = hre?.getMessage() ?: null
-                } catch (ex) {
-                    logError("speechCmd Exception: ${ex}")
-                }
+                def sData = response?.data ?: null
                 extData["amznReqId"] = response?.headers["x-amz-rid"] ?: null
                 postCmdProcess(sData, response?.status, extData)
             }
-        } catch (e) {
-            logError("something went wrong: ${e?.message}")
-            incrementCntByKey("err_cloud_command")
+        } catch (ex) {
+            respExceptionHandler(ex, "speechCmd")
+            incrementCntByKey("err_speech_command")
         }
-
         logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : ""} ────────")
         processLogItems("debug", logItems)
     } catch (ex) {
         logError("speechCmd Exception: ${ex}")
-        incrementCntByKey("err_cloud_command")
+        incrementCntByKey("err_speech_command")
     }
 }
 
@@ -2754,7 +2813,7 @@ private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${dev
 private logInfo(msg) { if(settings?.logInfo != false) { log.info " Echo (v${devVersion()}) | ${msg}" } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Echo (v${devVersion()}) | ${msg}" } }
 private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
-private logError(msg) { if(settings?.logError != false) { log.error "Echo (v${devVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, null, 15); }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Echo (v${devVersion()}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
 
 Map getLogHistory() {
     return [ warnings: state?.warnHistory ?: [], errors: state?.errorHistory ?: [], speech: state?.speechHistory ?: [] ]
@@ -2805,12 +2864,12 @@ public Map getDeviceMetrics() {
 }
 
 private getPlatform() {
-    def p = "SmartThings"
+    String p = "SmartThings"
     if(state?.hubPlatform == null) {
         try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
         // if (location?.hubs[0]?.id?.toString()?.length() > 5) { p = "SmartThings" } else { p = "Hubitat" }
         state?.hubPlatform = p
-        log.debug "hubPlatform: (${state?.hubPlatform})"
+        logDebug("hubPlatform: (${state?.hubPlatform})")
     }
     return state?.hubPlatform
 }
@@ -2963,9 +3022,10 @@ Map createSequenceNode(command, value) {
             case "pushnotification":
                 remDevSpecifics = true
                 seqNode?.type = "Alexa.Notifications.SendMobilePush"
+                seqNode?.skillId = "amzn1.ask.1p.alexanotifications"
                 seqNode?.operationPayload?.notificationMessage = value as String
                 seqNode?.operationPayload?.alexaUrl = "#v2/behaviors"
-                seqNode?.operationPayload?.title = "Amazon Alexa"
+                seqNode?.operationPayload?.title = "Echo Speaks"
                 break
             case "email":
                 seqNode?.type = "Alexa.Operation.SkillConnections.Email.EmailSummary"

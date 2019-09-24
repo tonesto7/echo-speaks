@@ -2,18 +2,25 @@
    Main App (v3.1.0.0)
    September 24th, 2019
  ══════════
+  • UPDATED: Massive overhaul of the web request response and exception handling.
+  • UPDATED: Optimized and reduced the amount of repetitive web calls.
+  • UPDATED: Converted most async commands back to synchronous calls for speed.
   • FIXED: Notifications device support
+  • FIXED: Device test fixes.
 
  ══════════
    Actions App (v3.1.0.0)
    September 24th, 2019
  ══════════
   • ADDED: Alexa Guard Triggers.
-  • FIXED: Notifications device support.
+  • FIXED: notification capable device support.
+  • FIXED: Alexa Mobile notifications should now work.
   • FIXED: Action test would not run on new incomplete actions.
 
  ══════════
    Device (v3.1.0.0)
    September 24th, 2019
  ══════════
+  • UPDATED: Massive overhaul of the web request response and exception handling.
+  • UPDATED: Converted most async commands back to synchronous calls for speed.
   • FIXED: Minor bug fixes.
