@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.0.2.0"}
-String devModified()  { return "2019-09-17" }
+String devModified()  { return "2019-09-23" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
@@ -631,93 +631,86 @@ Boolean permissionOk(type) {
 }
 
 void updateDeviceStatus(Map devData) {
-    // try {
-        Boolean isOnline = false
-        if(devData?.size()) {
-            isOnline = (devData?.online != false)
-            // log.debug "isOnline: ${isOnline}"
-            // log.debug "deviceFamily: ${devData?.deviceFamily} | deviceType: ${devData?.deviceType}"  // UNCOMMENT to identify unidentified devices
+    Boolean isOnline = false
+    if(devData?.size()) {
+        isOnline = (devData?.online != false)
+        // log.debug "isOnline: ${isOnline}"
+        // log.debug "deviceFamily: ${devData?.deviceFamily} | deviceType: ${devData?.deviceType}"  // UNCOMMENT to identify unidentified devices
 
-            // NOTE: These allow you to log all device data items
-            // devData?.each { k,v ->
-            //     if(!(k in ["playerState", "capabilities", "deviceAccountId"])) {
-            //         log.debug("$k: $v")
-            //     }
-            // }
-            // devData?.playerState?.each { k,v ->
-            //     if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
-            //         logDebug("$k: $v")
-            //     }
-            // }
-            state?.isSupportedDevice = (devData?.unsupported != true)
-            state?.serialNumber = devData?.serialNumber
-            state?.deviceType = devData?.deviceType
-            state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
-            state?.deviceAccountId = devData?.deviceAccountId
-            state?.softwareVersion = devData?.softwareVersion
-            state?.cookie = devData?.cookie
-            state?.authValid = (devData?.authValid == true)
-            state?.amazonDomain = devData?.amazonDomain
-            state?.regionLocale = devData?.regionLocale
-            Map permissions = state?.permissions ?: [:]
-            devData?.permissionMap?.each {k,v -> permissions[k] = v }
-            state?.permissions = permissions
-            state?.hasClusterMembers = devData?.hasClusterMembers
-            //log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
-            // log.trace "permissions: ${state?.permissions}"
-            List permissionList = permissions?.findAll { it?.value == true }?.collect { it?.key }
-            if(isStateChange(device, "permissions", permissionList?.toString())) {
-                sendEvent(name: "permissions", value: permissionList, display: false, displayed: false)
-            }
-            Map deviceStyle = devData?.deviceStyle
-            state?.deviceStyle = devData?.deviceStyle
-            // logInfo("deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
-            state?.deviceImage = deviceStyle?.image as String
-            if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
-                sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
-            }
-
-            String firmwareVer = devData?.softwareVersion ?: "Not Set"
-            if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
-                sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
-            }
-
-            String devFamily = devData?.deviceFamily ?: ""
-            if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
-                sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
-            }
-
-            String devType = devData?.deviceType ?: ""
-            if(isStateChange(device, "deviceType", devType?.toString())) {
-                sendEvent(name: "deviceType", value: devType?.toString(), display: false, displayed: false)
-            }
-
-            Map musicProviders = devData?.musicProviders ?: [:]
-            String lItems = musicProviders?.collect{ it?.value }?.sort()?.join(", ")
-            if(isStateChange(device, "supportedMusic", lItems?.toString())) {
-                sendEvent(name: "supportedMusic", value: lItems?.toString(), display: false, displayed: false)
-            }
-            if(isStateChange(device, "alexaMusicProviders", musicProviders?.toString())) {
-                // log.trace "Alexa Music Providers Changed to ${musicProviders}"
-                sendEvent(name: "alexaMusicProviders", value: musicProviders?.toString(), display: false, displayed: false)
-            }
-            // if(devData?.guardStatus) { updGuardStatus(devData?.guardStatus) }
-            if(isOnline) {
-                refreshData(true)
-            } else {
-                sendEvent(name: "mute", value: "unmuted")
-                sendEvent(name: "status", value: "stopped")
-                sendEvent(name: "deviceStatus", value: "stopped_${state?.deviceStyle?.image}")
-                sendEvent(name: "trackDescription", value: "")
-            }
+        // NOTE: These allow you to log all device data items
+        // devData?.each { k,v ->
+        //     if(!(k in ["playerState", "capabilities", "deviceAccountId"])) {
+        //         log.debug("$k: $v")
+        //     }
+        // }
+        // devData?.playerState?.each { k,v ->
+        //     if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
+        //         logDebug("$k: $v")
+        //     }
+        // }
+        state?.isSupportedDevice = (devData?.unsupported != true)
+        state?.serialNumber = devData?.serialNumber
+        state?.deviceType = devData?.deviceType
+        state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
+        state?.deviceAccountId = devData?.deviceAccountId
+        state?.softwareVersion = devData?.softwareVersion
+        state?.cookie = devData?.cookie
+        state?.authValid = (devData?.authValid == true)
+        state?.amazonDomain = devData?.amazonDomain
+        state?.regionLocale = devData?.regionLocale
+        Map permissions = state?.permissions ?: [:]
+        devData?.permissionMap?.each {k,v -> permissions[k] = v }
+        state?.permissions = permissions
+        state?.hasClusterMembers = devData?.hasClusterMembers
+        //log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
+        // log.trace "permissions: ${state?.permissions}"
+        List permissionList = permissions?.findAll { it?.value == true }?.collect { it?.key }
+        if(isStateChange(device, "permissions", permissionList?.toString())) {
+            sendEvent(name: "permissions", value: permissionList, display: false, displayed: false)
         }
-        setOnlineStatus(isOnline)
-        sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false , displayed: false)
-        // state?.fullRefreshOk = true
-        schedDataRefresh()
-    // } catch(ex) {
-    //     logError( "updateDeviceStatus Error: ${ex}")
-    // }
+        Map deviceStyle = devData?.deviceStyle
+        state?.deviceStyle = devData?.deviceStyle
+        // logInfo("deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
+        state?.deviceImage = deviceStyle?.image as String
+        if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
+            sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
+        }
+
+        String firmwareVer = devData?.softwareVersion ?: "Not Set"
+        if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
+            sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
+        }
+
+        String devFamily = devData?.deviceFamily ?: ""
+        if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
+            sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
+        }
+
+        String devType = devData?.deviceType ?: ""
+        if(isStateChange(device, "deviceType", devType?.toString())) {
+            sendEvent(name: "deviceType", value: devType?.toString(), display: false, displayed: false)
+        }
+
+        Map musicProviders = devData?.musicProviders ?: [:]
+        String lItems = musicProviders?.collect{ it?.value }?.sort()?.join(", ")
+        if(isStateChange(device, "supportedMusic", lItems?.toString())) {
+            sendEvent(name: "supportedMusic", value: lItems?.toString(), display: false, displayed: false)
+        }
+        if(isStateChange(device, "alexaMusicProviders", musicProviders?.toString())) {
+            // log.trace "Alexa Music Providers Changed to ${musicProviders}"
+            sendEvent(name: "alexaMusicProviders", value: musicProviders?.toString(), display: false, displayed: false)
+        }
+        // if(devData?.guardStatus) { updGuardStatus(devData?.guardStatus) }
+        if(!isOnline) {
+            sendEvent(name: "mute", value: "unmuted")
+            sendEvent(name: "status", value: "stopped")
+            sendEvent(name: "deviceStatus", value: "stopped_${state?.deviceStyle?.image}")
+            sendEvent(name: "trackDescription", value: "")
+        } else { state?.fullRefreshOk = true; triggerDataRrsh(); }
+    }
+    setOnlineStatus(isOnline)
+    sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false, displayed: false)
+    schedDataRefresh()
 }
 
 void refresh() {
@@ -727,9 +720,7 @@ void refresh() {
 }
 
 private triggerDataRrsh(parentRefresh=false) {
-    if(parentRefresh) {
-        runIn(4, "refresh", [overwrite: true])
-    } else { runIn(4, "refreshData", [overwrite: true]) }
+    runIn(4, parentRefresh ? "refresh" : "refreshData")
 }
 
 public schedDataRefresh(frc) {
@@ -752,7 +743,8 @@ private refreshData(full=false) {
         getPlaybackState()
         getPlaylists()
     }
-    if(full) {
+    if(full || state?.fullRefreshOk) {
+        state?.fullRefreshOk = false
         getWifiDetails()
         getDeviceSettings()
     }
@@ -828,7 +820,7 @@ private getPlaybackState(isGroupResponse=false) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
             def errMsg = ex?.getResponse()?.getData()
             if(errMsg?.message == null) {
-                log.error "${errMsg}"
+                // log.error "${errMsg}"
             } else {
                 logError("getPlaybackState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex}")
             }
@@ -838,7 +830,7 @@ private getPlaybackState(isGroupResponse=false) {
 }
 
 def playbackStateHandler(playerInfo, isGroupResponse=false) {
-    log.debug "playerInfo: ${playerInfo}"
+    // log.debug "playerInfo: ${playerInfo}"
     if (state?.isGroupPlaying && !isGroupResponse) {
         log.debug "ignoring getPlaybackState because group is playing here"
         return

@@ -1173,11 +1173,6 @@ def onAppTouch(evt) {
     updated()
 }
 
-private getTimeSeconds(k, d, m) {
-	def t0 = getTsVal(timeKey)
-	return !t0 ? d : GetTimeDiffSeconds(t0, null, m).toInteger()
-}
-
 void updTsMap(key, dt=null) {
 	def data = atomicState?.tsDtMap ?: [:]
 	if(key) { data[key] = dt }
@@ -1188,6 +1183,11 @@ def getTsVal(val) {
 	def tsMap = atomicState?.tsDtMap
 	if(val && tsMap && tsMap[val]) { return tsMap[val] }
 	return null
+}
+
+Integer getLastTsValSecs(val) {
+	def tsMap = atomicState?.tsDtMap
+	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : 1000000
 }
 
 void settingUpdate(name, value, type=null) {
@@ -1575,7 +1575,7 @@ Boolean validateCookie(frc=false) {
                 valid = (resp?.data?.authentication?.authenticated != false)
             }
             state?.lastCookieChkDt = getDtNow()
-            log.debug ("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
+            logInfo("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
             authValidationEvent(valid, "validateCookie")
             return valid
         }
@@ -1659,21 +1659,8 @@ public updChildVers() {
     updCodeVerMap("echoDevice", cDevs?.size() ? cDevs[0]?.devVersion() : null)
 }
 
-private getEchoDevices() {
-    if(!isAuthValid("getEchoDevices")) { return }
-    def params = [
-        uri: getAmazonUrl(),
-        path: "/api/devices-v2/device",
-        query: [ cached: true, _: new Date().getTime() ],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-        contentType: "application/json"
-    ]
-    state?.deviceRefreshInProgress = true
-    state?.refreshDeviceData = false
-    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
-}
-
 private getMusicProviders() {
+    if(state?.musicProviders || getLastTsValSecs("musicProviderDt") < 3600) { return state?.musicProviders }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
@@ -1689,12 +1676,15 @@ private getMusicProviders() {
         }
     }
     // log.debug "Music Providers: ${items}"
+    if(!state?.musicProviders || items != state?.musicProviders) { state?.musicProviders = items }
+    updTsMap("musicProviderDt")
     return items
 }
 
 private getOtherData() {
     getBluetoothDevices()
     getDoNotDisturb()
+    getMusicProviders()
     validateCookie(true)
 }
 
@@ -1922,25 +1912,36 @@ private setGuardState(guardState) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         contentType: "application/json",
         body: [ controlRequests: [ [ entityId: state?.guardData?.applianceId, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ]
     ]
-    try {
-        httpPut(params) { response ->
-            def resp = response?.data ?: null
-            if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
-                logInfo("Alexa Guard set to (${data?.requestedState}) Successfully | ((now()-execTime)ms)")
-                state?.alexaGuardState = data?.requestedState
-                state?.lastGuardStateUpd = getDtNow()
-                updGuardActionTrig()
-            } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
-        }
-    } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("setGuardState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
-        } else { logError("setGuardState Exception: ${ex}") }
-    }
+    execAsyncCmd("put", "setGuardStateResponse", params, [execDt: now(), requestedState: guardState ])
+    // try {
+    //     httpPut(params) { response ->
+    //         def resp = response?.data ?: null
+    //         if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
+    //             logInfo("Alexa Guard set to (${guardState}) Successfully | ((now()-execTime)ms)")
+    //             state?.alexaGuardState = guardState
+    //             state?.lastGuardStateUpd = getDtNow()
+    //             updGuardActionTrig()
+    //         } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
+    //     }
+    // } catch (ex) {
+    //     if(ex instanceof groovyx.net.http.HttpResponseException ) {
+    //         logError("setGuardState Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+    //     } else { logError("setGuardState Exception: ${ex}") }
+    // }
+}
+
+def setGuardStateResponse(response, data) {
+    def resp = response?.json
+    // log.debug "resp: ${resp}"
+    if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
+        logInfo("Alexa Guard set to (${data?.requestedState}) Successfully!!!")
+        state?.alexaGuardState = data?.requestedState
+        state?.lastGuardStateUpd = getDtNow()
+    } else { logError("Failed to set Alexa Guard to (${data?.requestedState}) | Reason: ${resp?.errors ?: null}") }
 }
 
 private guardStateConv(gState) {
@@ -1993,6 +1994,20 @@ Map isFamilyAllowed(String family) {
     return [ok: false, reason: "Unknown Reason"]
 }
 
+private getEchoDevices() {
+    if(!isAuthValid("getEchoDevices")) { return }
+    def params = [
+        uri: getAmazonUrl(),
+        path: "/api/devices-v2/device",
+        query: [ cached: true, _: new Date().getTime() ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+        contentType: "application/json"
+    ]
+    state?.deviceRefreshInProgress = true
+    state?.refreshDeviceData = false
+    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
+}
+
 def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
@@ -2007,17 +2022,16 @@ def echoDevicesResponse(response, data) {
         Map echoDevices = [:]
         if(eDevData?.size()) {
             eDevData?.each { eDevice->
-                String serialNumber = eDevice?.serialNumber;
-                // if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.contains("Alexa App") && !eDevice?.accountName?.startsWith("This Device")) {
                 if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.startsWith("This Device")) {
                     removeKeys?.each { rk-> eDevice?.remove(rk as String) }
                     if (eDevice?.deviceOwnerCustomerId != null) { state?.deviceOwnerCustomerId = eDevice?.deviceOwnerCustomerId }
-                    echoDevices[serialNumber] = eDevice
+                    echoDevices[eDevice?.serialNumber] = eDevice
                 }
             }
         }
         // log.debug "echoDevices: ${echoDevices}"
-        receiveEventData([echoDevices: echoDevices, musicProviders: getMusicProviders(), execDt: data?.execDt], "Groovy")
+        def musicProvs = state?.musicProviders ?: getMusicProviders(true)
+        receiveEventData([echoDevices: echoDevices, musicProviders: musicProvs, execDt: data?.execDt], "Groovy")
     } catch (ex) {
         // logError("echoDevicesResponse Exception: ${ex}")
         log.error("echoDevicesResponse Exception: ${ex}")
@@ -2167,7 +2181,7 @@ def receiveEventData(Map evtData, String src) {
                     }
                     curDevFamily.push(echoValue?.deviceStyle?.name)
                 }
-                logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
+                logInfo("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
                 state?.lastDevDataUpd = getDtNow()
                 state?.echoDeviceMap = echoDeviceMap
                 state?.allEchoDevices = allEchoDevices
@@ -2241,7 +2255,7 @@ public sendPlaybackStateToClusterMembers(whaKey, data) {
 
     if (clusterMembers) {
         def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
-        clusterMemberDevices?.each { it?.getPlaybackStateHandler(data, true) }
+        clusterMemberDevices?.each { it?.playbackStateHandler(data, true) }
     } else {
         // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
         //log.debug "sendPlaybackStateToClusterMembers: no data found for ${whaKey} (first refresh?)"
