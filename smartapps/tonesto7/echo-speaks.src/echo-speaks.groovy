@@ -17,12 +17,12 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.1.0.0" }
+String appVersion()   { return "3.1.0.1" }
 String appModified()  { return "2019-09-24" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3100, actionApp: 3100, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3101, actionApp: 3100, server: 230] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Collect device data for reason of cleared cookie.
 // TODO: Add in Actions to the metrics
@@ -1571,11 +1571,13 @@ def cookieRefreshResp(response, data) {
         }
     } catch(ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("cookieRefreshResp Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("cookieRefreshResp Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof java.net.SocketTimeoutException) {
-            logError("cookieRefreshResp Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("cookieRefreshResp Response Socket Timeout | Msg: ${ex?.getMessage()}")
+        } else if(ex instanceof java.net.UnknownHostException) {
+            logError("cookieRefreshResp HostName Not Found | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-            logError("cookieRefreshResp Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("cookieRefreshResp Request Timeout | Msg: ${ex?.getMessage()}")
         } else { logError("cookieRefreshResp Exception: ${ex}") }
     }
 }
@@ -1879,11 +1881,13 @@ def checkGuardSupportResponse(response, data) {
         } else { logError("checkGuardSupportResponse Error | No data received...") }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("checkGuardSupportResponse Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("checkGuardSupportResponse Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof java.net.SocketTimeoutException) {
-            logError("checkGuardSupportResponse Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("checkGuardSupportResponse Response Socket Timeout | Msg: ${ex?.getMessage()}")
+        } else if(ex instanceof java.net.UnknownHostException) {
+            logError("checkGuardSupportResponse HostName Not Found | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-            logError("checkGuardSupportResponse Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("checkGuardSupportResponse Request Timeout | Msg: ${ex?.getMessage()}")
         } else { logError("checkGuardSupportResponse Exception: ${ex}") }
     }
     state?.alexaGuardSupported = guardSupported
@@ -1915,11 +1919,13 @@ def checkGuardSupportServerResponse(response, data) {
         } else { logError("checkGuardSupportServerResponse Error | No data received...") }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("checkGuardSupportServerResponse Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("checkGuardSupportServerResponse Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof java.net.SocketTimeoutException) {
-            logError("checkGuardSupportServerResponse Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("checkGuardSupportServerResponse Response Socket Timeout | Msg: ${ex?.getMessage()}")
+        } else if(ex instanceof java.net.UnknownHostException) {
+            logError("checkGuardSupportServerResponse HostName Not Found | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-            logError("checkGuardSupportServerResponse Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("checkGuardSupportServerResponse Request Timeout | Msg: ${ex?.getMessage()}")
         } else { logError("checkGuardSupportServerResponse Exception: ${ex}") }
     }
     state?.alexaGuardSupported = guardSupported
@@ -1994,24 +2000,26 @@ def respExceptionHandler(ex, String mName, ignOn401=false, ignNullMsg=false) {
         } else if (sCode == 400) {
             switch(errMsg) {
                 case "Bad Request":
-                    logError("${mName} | Improperly formatted request sent to Amazon | Message: ${errMsg}")
+                    logError("${mName} | Improperly formatted request sent to Amazon | Msg: ${errMsg}")
                     break
                 case "Rate Exceeded":
-                    logError("${mName} | Amazon is currently rate-limiting your requests | Message: ${errMsg}")
+                    logError("${mName} | Amazon is currently rate-limiting your requests | Msg: ${errMsg}")
                     break
                 default:
-                    logError("${mName} | 400 Error | Message: ${errMsg}")
+                    logError("${mName} | 400 Error | Msg: ${errMsg}")
                     break
             }
         } else if(sCode == 429) {
-            logWarn("${mName} | Too Many Requests Made to Amazon | Message: ${errMsg}")
+            logWarn("${mName} | Too Many Requests Made to Amazon | Msg: ${errMsg}")
         } else {
-            logError("${mName} Response Exception | Status: (${sCode}) | Message: ${errMsg}")
+            logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        logError("${mName} Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        logError("${mName} Response Socket Timeout | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        logError("${mName} Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        logError("${mName} Request Timeout | Msg: ${ex?.getMessage()}")
+    } else if(ex instanceof java.net.UnknownHostException) {
+        logError("${mName} HostName Not Found | Msg: ${ex?.getMessage()}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
