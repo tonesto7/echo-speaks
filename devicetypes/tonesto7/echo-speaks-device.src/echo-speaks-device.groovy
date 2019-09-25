@@ -17,7 +17,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.1.0.0"}
+String devVersion()  { return "3.1.0.1"}
 String devModified() { return "2019-09-24" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1259,9 +1259,9 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
             logError("${mName} Response Exception | Status: (${sCode}) | Message: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        logError("${mName} Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        logError("${mName} Response Socket Timeout | Message: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        logError("${mName} Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        logError("${mName} Request Timeout | Message: ${ex?.getMessage()}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 

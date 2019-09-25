@@ -17,12 +17,12 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.1.0.0" }
+String appVersion()   { return "3.1.0.1" }
 String appModified()  { return "2019-09-24" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3100, actionApp: 3100, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3101, actionApp: 3100, server: 230] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Collect device data for reason of cleared cookie.
 // TODO: Add in Actions to the metrics
@@ -1573,9 +1573,9 @@ def cookieRefreshResp(response, data) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
             logError("cookieRefreshResp Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else if(ex instanceof java.net.SocketTimeoutException) {
-            logError("cookieRefreshResp Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("cookieRefreshResp Response Socket Timeout | Message: ${ex?.getMessage()}")
         } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-            logError("cookieRefreshResp Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("cookieRefreshResp Request Timeout | Message: ${ex?.getMessage()}")
         } else { logError("cookieRefreshResp Exception: ${ex}") }
     }
 }
@@ -1881,9 +1881,9 @@ def checkGuardSupportResponse(response, data) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
             logError("checkGuardSupportResponse Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else if(ex instanceof java.net.SocketTimeoutException) {
-            logError("checkGuardSupportResponse Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("checkGuardSupportResponse Response Socket Timeout | Message: ${ex?.getMessage()}")
         } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-            logError("checkGuardSupportResponse Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("checkGuardSupportResponse Request Timeout | Message: ${ex?.getMessage()}")
         } else { logError("checkGuardSupportResponse Exception: ${ex}") }
     }
     state?.alexaGuardSupported = guardSupported
@@ -1917,9 +1917,9 @@ def checkGuardSupportServerResponse(response, data) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
             logError("checkGuardSupportServerResponse Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
         } else if(ex instanceof java.net.SocketTimeoutException) {
-            logError("checkGuardSupportServerResponse Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("checkGuardSupportServerResponse Response Socket Timeout | Message: ${ex?.getMessage()}")
         } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-            logError("checkGuardSupportServerResponse Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+            logError("checkGuardSupportServerResponse Request Timeout | Message: ${ex?.getMessage()}")
         } else { logError("checkGuardSupportServerResponse Exception: ${ex}") }
     }
     state?.alexaGuardSupported = guardSupported
@@ -2009,9 +2009,9 @@ def respExceptionHandler(ex, String mName, ignOn401=false, ignNullMsg=false) {
             logError("${mName} Response Exception | Status: (${sCode}) | Message: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        logError("${mName} Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        logError("${mName} Response Socket Timeout | Message: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        logError("${mName} Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        logError("${mName} Request Timeout | Message: ${ex?.getMessage()}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
