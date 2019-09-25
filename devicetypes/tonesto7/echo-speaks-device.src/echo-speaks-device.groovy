@@ -17,7 +17,7 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.1.0.0"}
+String devVersion()  { return "3.1.0.1"}
 String devModified() { return "2019-09-24" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1231,7 +1231,7 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
         def respData = ex?.getResponse()?.getData()
         def errMsg = ex?.getMessage()
         if(sCode == 401) {
-            // logError("${mName} | Amazon Authentication is no longer valid | Message: ${errMsg}")
+            // logError("${mName} | Amazon Authentication is no longer valid | Msg: ${errMsg}")
             if(clearOn401) { setAuthState(false) }
         } else if (sCode == 400) {
             switch(errMsg) {
@@ -1239,29 +1239,31 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
                     if(respData && respData?.message == null && ignNullMsg) {
                         // Ignoring Null message
                     } else {
-                        logError("${mName} | Improperly formatted request sent to Amazon | Message: ${errMsg}")
+                        logError("${mName} | Improperly formatted request sent to Amazon | Msg: ${errMsg}")
                     }
                     break
                 case "Rate Exceeded":
-                    logError("${mName} | Amazon is currently rate-limiting your requests | Message: ${errMsg}")
+                    logError("${mName} | Amazon is currently rate-limiting your requests | Msg: ${errMsg}")
                     break
                 default:
                     if(respData && respData?.message == null && ignNullMsg) {
                         // Ignoring Null message
                     } else {
-                        logError("${mName} | 400 Error | Message: ${errMsg}")
+                        logError("${mName} | 400 Error | Msg: ${errMsg}")
                     }
                     break
             }
         } else if(sCode == 429) {
-            logWarn("${mName} | Too Many Requests Made to Amazon | Message: ${errMsg}")
+            logWarn("${mName} | Too Many Requests Made to Amazon | Msg: ${errMsg}")
         } else {
-            logError("${mName} Response Exception | Status: (${sCode}) | Message: ${errMsg}")
+            logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        logError("${mName} Response Socket Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        logError("${mName} Response Socket Timeout | Msg: ${ex?.getMessage()}")
+    } else if(ex instanceof java.net.UnknownHostException) {
+        logError("${mName} HostName Not Found | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        logError("${mName} Request Timeout | Status: (${ex?.getResponse()?.getStatus()}) | Message: ${ex?.getMessage()}")
+        logError("${mName} Request Timeout | Msg: ${ex?.getMessage()}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
@@ -2562,7 +2564,7 @@ private speechCmd(headers=[:], isQueueCmd=false) {
     //TODO: Look into adding an expiration timestamp for automatic removal from the queue
     // if(isQueueCmd) log.warn "Blocked: ${state?.q_blocked} | cycleCnt: ${state?.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
     state?.q_speakingNow = true
-    def tr = "speechCmd (${headers?.cmdDesc}) | Message: ${headers?.message}"
+    def tr = "speechCmd (${headers?.cmdDesc}) | Msg: ${headers?.message}"
     tr += headers?.newVolume ? " | SetVolume: (${headers?.newVolume})" : ""
     tr += headers?.oldVolume ? " | Restore Volume: (${headers?.oldVolume})" : ""
     tr += headers?.msgDelay  ? " | RecheckSeconds: (${headers?.msgDelay})" : ""
@@ -2704,7 +2706,7 @@ private postCmdProcess(resp, statusCode, data) {
             logSpeech(data?.message, statusCode, resp?.message)
             return
         } else {
-            logError("postCmdProcess Error | status: ${statusCode} | message: ${resp?.message}")
+            logError("postCmdProcess Error | status: ${statusCode} | Msg: ${resp?.message}")
             logSpeech(data?.message, statusCode, resp?.message)
             incrementCntByKey("err_cloud_commandPost")
             resetQueue()
