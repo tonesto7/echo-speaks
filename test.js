@@ -15,7 +15,8 @@ class AlexaWsMqtt extends EventEmitter {
         this.stop = false;
         let serialArr = null;
         this.cookie = cookie;
-        if (cookie) serialArr = cookie.match(/ubid-[a-z]+=([^;]+);/);
+        if (cookie)
+            serialArr = cookie.match(/ubid-[a-z]+=([^;]+);/);
         if (!serialArr || !serialArr[1]) {
             this._options.logger && this._options.logger('Alexa-Remote WS-MQTT: Cookie incomplete : ' + JSON.stringify(serialArr));
             return undefined;
@@ -34,31 +35,30 @@ class AlexaWsMqtt extends EventEmitter {
     connect() {
         const urlTime = Date.now();
         let amazonPage = '.' + this._options.amazonPage;
-        if (amazonPage === '.amazon.com') amazonPage = '-js.amazon.com'; // Special Handling for US!
+        if (amazonPage === '.amazon.com')
+            amazonPage = '-js.amazon.com'; // Special Handling for US!
         const url = `https://dp-gw-na${amazonPage}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${this.accountSerial}-${urlTime}`;
         try {
-            this.websocket = new WebSocket(url, [],
-                {
-                    'perMessageDeflate': true,
-                    'protocolVersion': 13,
+            this.websocket = new WebSocket(url, [], {
+                'perMessageDeflate': true,
+                'protocolVersion': 13,
 
-                    'headers': {
-                        'Connection': 'keep-alive, Upgrade',
-                        'Upgrade': 'websocket',
-                        'Host': 'dp-gw-na.' + this._options.amazonPage,
-                        'Origin': 'https://alexa.' + this._options.amazonPage,
-                        'Pragma': 'no-cache',
-                        'Cache-Control': 'no-cache',
-                        //'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        //'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
-                        //'Sec-WebSocket-Key': 'aV/ud2q+G4pTtOhlt/Amww==',
-                        //'Sec-WebSocket-Extensions': 'permessage-deflate', // 'x-webkit-deflate-frame',
-                        //'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77 PitanguiBridge/2.2.219248.0-[HARDWARE=iPhone10_4][SOFTWARE=11.4.1]',
-                        'Cookie': this.cookie,
-                    }
-                });
-        }
-        catch (err) {
+                'headers': {
+                    'Connection': 'keep-alive, Upgrade',
+                    'Upgrade': 'websocket',
+                    'Host': 'dp-gw-na.' + this._options.amazonPage,
+                    'Origin': 'https://alexa.' + this._options.amazonPage,
+                    'Pragma': 'no-cache',
+                    'Cache-Control': 'no-cache',
+                    //'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    //'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+                    //'Sec-WebSocket-Key': 'aV/ud2q+G4pTtOhlt/Amww==',
+                    //'Sec-WebSocket-Extensions': 'permessage-deflate', // 'x-webkit-deflate-frame',
+                    //'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77 PitanguiBridge/2.2.219248.0-[HARDWARE=iPhone10_4][SOFTWARE=11.4.1]',
+                    'Cookie': this.cookie,
+                }
+            });
+        } catch (err) {
             this.emit('error', err);
             return;
         }
@@ -108,7 +108,8 @@ class AlexaWsMqtt extends EventEmitter {
                 return;
             }
             let retryDelay = this.errorRetryCounter * 5 + 5;
-            if (retryDelay > 60) retryDelay = 60;
+            if (retryDelay > 60)
+                retryDelay = 60;
             this._options.logger && this._options.logger('Alexa-Remote WS-MQTT: Retry Connection in ' + retryDelay + 's');
             this.emit('disconnect', true, 'Retry Connection in ' + retryDelay + 's');
             this.reconnectTimeout = setTimeout(() => {
@@ -134,8 +135,7 @@ class AlexaWsMqtt extends EventEmitter {
                     if (message.content.protocolName !== 'A:H') {
                         this._options.logger && this._options.logger('Alexa-Remote WS-MQTT: Server requests unknown protocol: ' + message.content.protocolName);
                     }
-                }
-                else {
+                } else {
                     this._options.logger && this._options.logger('Alexa-Remote WS-MQTT: Unexpected Response: ' + JSON.stringify(message));
                 }
                 let msg = new Buffer('0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE');
@@ -146,8 +146,7 @@ class AlexaWsMqtt extends EventEmitter {
                 //console.log('SEND: ' + msg.toString('ascii'));
                 this.websocket.send(msg);
                 this._options.logger && this._options.logger('Alexa-Remote WS-MQTT: Initialization Msg 2+3 sent');
-            }
-            else if (msgCounter === 1) {
+            } else if (msgCounter === 1) {
                 //let msg = new Buffer('MSG 0x00000362 0x0e414e46 f 0x00000001 0xf904b9f5 0x00000109 GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE');
                 let msg = this.encodeGWRegister();
                 this._options.logger && this._options.logger('Alexa-Remote WS-MQTT: Initialization Msg 4 (Register Connection) sent');
@@ -193,8 +192,7 @@ class AlexaWsMqtt extends EventEmitter {
                 }
                 this.connectionActive = true;
                 return;
-            }
-            else if (message.content.payload) {
+            } else if (message.content.payload) {
                 let command = message.content.payload.command;
                 let payload = message.content.payload.payload;
 
@@ -209,10 +207,11 @@ class AlexaWsMqtt extends EventEmitter {
 
 
     encodeNumber(val, byteLen) {
-        if (!byteLen) byteLen = 8;
+        if (!byteLen)
+            byteLen = 8;
         let str = val.toString(16);
         while (str.length < byteLen) str = '0' + str;
-        return '0x' +str;
+        return '0x' + str;
     }
 
     generateUUID() {
@@ -222,8 +221,7 @@ class AlexaWsMqtt extends EventEmitter {
                 var d = Math.floor(16 * Math.random());
                 "s" === c && (d = d & 3 | 8);
                 a.push(d.toString(16));
-            }
-            else a.push(c);
+            } else a.push(c);
         }
         return a.join("");
     }
@@ -280,7 +278,7 @@ class AlexaWsMqtt extends EventEmitter {
         let idx1 = msg.length;
         msg += '0x00000000 '; // Checksum!
         let idx2 = msg.length;
-        msg+= '0x00000062 '; // length content
+        msg += '0x00000062 '; // length content
 
         let completeBuffer = Buffer.alloc(0x62, 0);
         let startBuffer = Buffer.from(msg, 'ascii');
@@ -331,7 +329,8 @@ class AlexaWsMqtt extends EventEmitter {
             return a;
         }
 
-        if (k < f) throw "Invalid checksum exclusion window!";
+        if (k < f)
+            throw "Invalid checksum exclusion window!";
         a = new Uint8Array(a);
         for (var h = 0, l = 0, e = 0; e < a.length; e++) e != f ? (l += c(a[e] << ((e & 3 ^ 3) << 3)), h += b(l, 32), l = c(l & 4294967295)) : e = k - 1;
         for (; h;) l += h, h = b(l, 32), l &= 4294967295;
@@ -341,7 +340,8 @@ class AlexaWsMqtt extends EventEmitter {
     parseIncomingMessage(data) {
         function readHex(index, length) {
             let str = data.toString('ascii', index, index + length);
-            if (str.startsWith('0x')) str = str.substr(2);
+            if (str.startsWith('0x'))
+                str = str.substr(2);
             return parseInt(str, 16);
         }
 
@@ -362,11 +362,9 @@ class AlexaWsMqtt extends EventEmitter {
             if (message.content.startsWith('{') && message.content.endsWith('}')) {
                 try {
                     message.content = JSON.parse(message.content);
-                }
-                catch (e) {}
+                } catch (e) {}
             }
-        }
-        else if (message.service === 'FABE') {
+        } else if (message.service === 'FABE') {
             message.messageType = readString(idx, 3);
             idx += 4;
             message.channel = readHex(idx, 10);
@@ -404,8 +402,7 @@ class AlexaWsMqtt extends EventEmitter {
                     message.content.timestampACK = readHex(idx, 18);
                     idx += 19; // 18 + delimiter;
                 }
-            }
-            else if (message.channel === 0x362) { // GW_CHANNEL
+            } else if (message.channel === 0x362) { // GW_CHANNEL
                 if (message.content.messageType === 'GWM') {
                     message.content.subMessageType = readString(idx, 3);
                     idx += 4;
@@ -435,13 +432,11 @@ class AlexaWsMqtt extends EventEmitter {
                                 if (message.content.payload && message.content.payload.payload && typeof message.content.payload.payload === 'string') {
                                     message.content.payload.payload = JSON.parse(message.content.payload.payload);
                                 }
-                            }
-                            catch (e) {}
+                            } catch (e) {}
                         }
                     }
                 }
-            }
-            else if (message.channel === 0x65) { // CHANNEL_FOR_HEARTBEAT
+            } else if (message.channel === 0x65) { // CHANNEL_FOR_HEARTBEAT
                 idx -= 1; // no delimiter!
                 message.content.payloadData = data.slice(idx, data.length - 4);
             }

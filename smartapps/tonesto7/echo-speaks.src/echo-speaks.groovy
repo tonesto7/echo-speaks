@@ -18,11 +18,11 @@ import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 String appVersion()   { return "3.1.0.1" }
-String appModified()  { return "2019-09-24" }
+String appModified()  { return "2019-09-25" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3101, actionApp: 3100, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3102, actionApp: 3100, server: 230] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Collect device data for reason of cleared cookie.
 // TODO: Add in Actions to the metrics
@@ -2141,7 +2141,9 @@ def receiveEventData(Map evtData, String src) {
                 Map skippedDevices = [:]
                 List curDevFamily = []
                 Integer cnt = 0
+                String devAcctId = null
                 evtData?.echoDevices?.each { echoKey, echoValue->
+                    devAcctId = echoValue?.deviceAccountId
                     logTrace("echoDevice | $echoKey | ${echoValue}")
                     // logDebug("echoDevice | ${echoValue?.accountName}", false)
                     allEchoDevices[echoKey] = [name: echoValue?.accountName]
@@ -2245,7 +2247,8 @@ def receiveEventData(Map evtData, String src) {
                                 logError("AddDevice Error! | ${ex}")
                             }
                         }
-                    } else {
+                    }
+                    if(childDevice) {
                         //Check and see if name needs a refresh
                         String curLbl = childDevice?.getLabel()
                         if(autoRename && childDevice?.name as String != childHandlerName) { childDevice?.name = childHandlerName as String }
@@ -2258,7 +2261,24 @@ def receiveEventData(Map evtData, String src) {
                         childDevice?.updateDeviceStatus(echoValue)
                         updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
-                    curDevFamily.push(echoValue?.deviceStyle?.name)
+                    curDevFamily?.push(echoValue?.deviceStyle?.name)
+
+                }
+                if(!isST()) {
+                    String wsChildHandlerName = "Echo Speaks WS"
+                    def wsDevice = getChildDevice("echoSpeaks_websocket")
+                    if(!wsDevice) {
+                        addChildDevice("tonesto7", wsChildHandlerName, "echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true])
+                    }
+                    // Map wsVals = [:]
+                    // wsVals["authValid"] = (state?.authValid == true)
+                    // wsVals["amazonDomain"] = (settings?.amazonDomain ?: "amazon.com")
+                    // wsVals["regionLocale"] = (settings?.regionLocale ?: "en-US")
+                    // wsVals["cookie"] = [cookie: getCookieVal(), csrf: getCsrfVal()]
+                    // wsVals["deviceAccountId"] = devAcctId as String ?: null
+                    // wsVals["deviceOwnerCustomerId"] = state?.deviceOwnerCustomerId as String ?: null
+                    // wsDevice?.updateDeviceStatus(wsVals)
+                    updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
                 state?.lastDevDataUpd = getDtNow()
