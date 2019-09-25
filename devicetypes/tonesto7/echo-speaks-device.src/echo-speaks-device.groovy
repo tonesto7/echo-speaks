@@ -17,10 +17,11 @@ import groovy.json.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-String devVersion()  { return "3.1.0.1"}
+String devVersion()  { return "3.1.0.2"}
 String devModified() { return "2019-09-24" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
+Boolean isWS()       { return false }
 
 //TODO: Add a timer that runs after the last speak cmd that will clean up the queue and any stale items.
 metadata {
@@ -1148,7 +1149,7 @@ private sendAmazonBasicCommand(String cmdType) {
     sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/np/command",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
         query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType ],
         contentType: "application/json",
         body: [type: cmdType]
@@ -1172,14 +1173,14 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
         switch(method) {
             case "post":
             case "POST":
-                httpPost(params) { response->
+                httpPostJson(params) { response->
                     rData = response?.data ?: null
                     rStatus = response?.status
                 }
                 break
             case "put":
             case "PUT":
-                httpPut(params) { response->
+                httpPutJson(params) { response->
                     rData = response?.data ?: null
                     rStatus = response?.status
                 }
