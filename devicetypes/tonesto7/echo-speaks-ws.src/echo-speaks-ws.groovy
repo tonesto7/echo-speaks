@@ -164,21 +164,18 @@ def parse(message) {
 
                 sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString())
                 pauseExecution(1000)
-                log.debug "${generateUUID()}"
-                log.debug "${encodeNumber(state?.messageId)}"
-                // def hsMsg = encodeGWHandshake()
+                def hsMsg = encodeGWHandshake()
+                log.debug "hsMsg: $hsMsg"
                 // sendWsMsg(hsMsg)
                 break
         }
     }
 }
 
-def encodeNumber(val, byteLen) {
+def encodeNumber(val, byteLen=null) {
     if (!byteLen) byteLen = 8;
     def str = Integer.toString(val as Integer, 16);
-    log.debug "str: str"
     while (str?.toString()?.length() < byteLen) { str = '0' + str; }
-
     return '0x' +str;
 }
 
@@ -211,17 +208,40 @@ def encodeGWHandshake() {
         msg += encodeNumber(now(), 16);
         msg += ' END FABE';
         log.debug "msg: ${msg}"
-        // def compdefeBuffer = Buffer.from(msg, 'ascii');
+        def compdefeBuffer = Buffer.from(msg, 'ascii');
 
-        // def checksum = computeChecksum(compdefeBuffer, idx1, idx2);
-        // def checksumBuf = Buffer.from(encodeNumber(checksum));
-        // checksumBuf.copy(compdefeBuffer, 39);
-    } catch (ex) {
-        log.error "encodeGWHandshake Exception: ${ex}"
-    }
-    // return compdefeBuffer;
+        def checksum = computeChecksum(compdefeBuffer, idx1, idx2);
+        def checksumBuf = Buffer.from(encodeNumber(checksum));
+        checksumBuf.copy(compdefeBuffer, 39);
+    } catch (ex) { log.error "encodeGWHandshake Exception: ${ex}" }
+    return compdefeBuffer;
 }
 
+def computeChecksum(a, f, k) {
+    if (k < f) throw "Invalid checksum exclusion window!";
+    a = a?.toByteArray();
+    def h = 0
+    def l = 0
+    for (def e = 0; e < a?.toString()?.length(); e++) {
+        if(e != f) {
+            l += c(a[e] << ((e & 3 ^ 3) << 3))
+            h += b(l, 32)
+            l = c(l & 4294967295)
+        } else { e = k - 1 }
+    }
+    for (; h;) l += h; h = b(l, 32); l &= 4294967295;
+    return c(l);
+}
+
+def b(a, b) {
+    for (a = c(a); 0 != b && 0 != a;) a = Math.floor(a / 2); b--;
+    return a;
+}
+
+def c(a) {
+    0 > a && (a = 4294967295 + a + 1);
+    return a;
+}
 // def encodeGWRegister() {
 //     //pubrelBuf = new Buffer('MSG 0x00000362 0x0e414e46 f 0x00000001 0xf904b9f5 0x00000109 GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE');
 //     state?.messageId++;
@@ -405,35 +425,6 @@ def readString(str, index, length) {
 //     //console.log(JSON.stringify(message, null, 4));
 //     return message;
 // }
-
-def computeChecksum(a, f, k) {
-    if (k < f) throw "Invalid checksum exclusion window!";
-    a = a?.toByteArray();
-    def h = 0
-    def l = 0
-    for (def e = 0; e < a?.toString()?.length(); e++) {
-        if(e != f) {
-            l += c(a[e] << ((e & 3 ^ 3) << 3))
-            h += b(l, 32)
-            l = c(l & 4294967295)
-        } else { e = k - 1 }
-    }
-    for (; h;) l += h; h = b(l, 32); l &= 4294967295;
-    return c(l);
-}
-
-def b(a, b) {
-    for (a = c(a); 0 != b && 0 != a;) a = Math.floor(a / 2); b--;
-    return a;
-}
-
-def c(a) {
-    0 > a && (a = 4294967295 + a + 1);
-    return a;
-}
-
-
-
 
 String strToHex(String arg, charset="UTF-8") { return String.format("%x", new BigInteger(1, arg.getBytes(charset))); }
 String strFromHex(str, charset="UTF-8") { return new String(str?.decodeHex()) }
