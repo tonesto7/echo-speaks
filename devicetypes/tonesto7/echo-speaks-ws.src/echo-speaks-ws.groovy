@@ -14,9 +14,11 @@
  */
 
 import groovy.json.*
+import java.util.*
 import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
+import java.security.MessageDigest
 String devVersion()  { return "3.1.0.0"}
 String devModified() { return "2019-09-25" }
 Boolean isBeta()     { return false }
@@ -172,76 +174,78 @@ def parse(message) {
     }
 }
 
-def encodeNumber(val, byteLen=null) {
-    if (!byteLen) byteLen = 8;
-    def str = Integer.toString(val as Integer, 16);
-    while (str?.toString()?.length() < byteLen) { str = '0' + str; }
-    return '0x' +str;
-}
-
-def generateUUID() {
-    def a = []
-    for (def b = 0; 36 > b; b++) {
-        def c = "rrrrrrrr-rrrr-4rrr-srrr-rrrrrrrrrrrr"?.charAt(b);
-        if ("r" == c || "s" == c) {
-            def d = Math.floor(16 * Math.random());
-            if("s" == c) d = d ? 3 : 8;
-            a?.push(Integer.toString(d as Integer, 16));
-        } else a.push(c);
-    }
-    return a.join("");
-}
-
-def encodeGWHandshake() {
+String encodeGWHandshake() {
     //pubrelBuf = new Buffer('MSG 0x00000361 0x0e414e45 f 0x00000001 0xd7c62f29 0x0000009b INI 0x00000003 1.0 0x00000024 ff1c4525-c036-4942-bf6c-a098755ac82f 0x00000164d106ce6b END FABE');
     try {
         state?.messageId++;
+        def now = 1569534310194 // now()
+        def messageId = 377437188;
+        def guid = "51ab9ef5-0d22-4bbf-3a07-e1872ebdceb9";
+
         def msg = 'MSG 0x00000361 '; // Message-type and Channel = GW_HANDSHAKE_CHANNEL;
-        msg += encodeNumber(state?.messageId) + ' f 0x00000001 ';
+        msg += encodeNumber(messageId) + ' f 0x00000001 ';
         def idx1 = msg?.length();
         msg += '0x00000000 '; // Checksum!
         def idx2 = msg?.length();
         msg += '0x0000009b '; // length content
         msg += 'INI 0x00000003 1.0 0x00000024 '; // content part 1
-        msg += generateUUID();
+        msg += guid//generateUUID();
         msg += ' ';
-        msg += encodeNumber(now(), 16);
+        msg += encodeNumber(now, 16);
         msg += ' END FABE';
         log.debug "msg: ${msg}"
-        def compdefeBuffer = Buffer.from(msg, 'ascii');
+        // def completeBuffer = Buffer.from(msg, 'ascii');
+        byte[] completeBuffer = msg?.getBytes("ASCII");
+        def checksum = computeChecksum(msg, idx1, idx2);
+        log.debug "checksum: $checksum"
 
-        def checksum = computeChecksum(compdefeBuffer, idx1, idx2);
-        def checksumBuf = Buffer.from(encodeNumber(checksum));
-        checksumBuf.copy(compdefeBuffer, 39);
+        // def checksumBuf = Buffer.from(encodeNumber(checksum));
+        // byte[] checksumBuf = encodeNumber(checksum)?.getBytes("ASCII");
+        def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
+        def checksumBufStr = new String(encodeNumber(checksum)?.getBytes("UTF-8"))
+        log.debug "checksumBuf(${checksumBuf?.size()}): $checksumBuf"
+        log.debug "checksumBufStr: ${checksumBufStr}"
+
+        System.arraycopy(completeBuffer, 39, checksumBuf, 0, checksumBuf?.size())
+        // checksumBuf.copy(completeBuffer, 39);
+        def out = new String(completeBuffer)
+        log.debug "out: $out"
+        // return completeBuffer;
+        return out
     } catch (ex) { log.error "encodeGWHandshake Exception: ${ex}" }
-    return compdefeBuffer;
+
+    // MSG 0x00000361 0x0b9248d3 f 0x00000001 0x40bd9361 0x0000009b INI 0x00000003 1.0 0x00000024 9730de35-6e92-40ef-ad4e-8fe30efcb00d 0x0000016d6f6fa55e END FABE
+
+}
+
+
+
+def getHexDigest(text) {
+    def md = MessageDigest.getInstance("SHA-256")
+    md.update(text.getBytes())
+    return new String(md.digest())
 }
 
 def computeChecksum(a, f, k) {
     if (k < f) throw "Invalid checksum exclusion window!";
-    a = a?.toByteArray();
+    a = a?.getBytes("UTF-8");
     def h = 0
     def l = 0
-    for (def e = 0; e < a?.toString()?.length(); e++) {
-        if(e != f) {
-            l += c(a[e] << ((e & 3 ^ 3) << 3))
-            h += b(l, 32)
-            l = c(l & 4294967295)
-        } else { e = k - 1 }
+    def t = 0
+    for (def e = 0; e < a?.size(); e++) {
+        if(e != f) { t = a[e] << ((e & 3 ^ 3) << 3); l += c(t); h += b(l, 32); l = c(l & 4294967295); }
+        else { e = k - 1 }
     }
-    for (; h;) l += h; h = b(l, 32); l &= 4294967295;
+    for (; h;) {
+        log.debug "h1: $h | l: $l"
+        l += h; h = b(l, 32); l &= 4294967295;
+        log.debug "h2: $h | l: $l"
+
+    }
     return c(l);
 }
 
-def b(a, b) {
-    for (a = c(a); 0 != b && 0 != a;) a = Math.floor(a / 2); b--;
-    return a;
-}
 
-def c(a) {
-    0 > a && (a = 4294967295 + a + 1);
-    return a;
-}
 // def encodeGWRegister() {
 //     //pubrelBuf = new Buffer('MSG 0x00000362 0x0e414e46 f 0x00000001 0xf904b9f5 0x00000109 GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE');
 //     state?.messageId++;
@@ -425,7 +429,27 @@ def readString(str, index, length) {
 //     //console.log(JSON.stringify(message, null, 4));
 //     return message;
 // }
+String encodeNumber(val, byteLen=null) {
+    if (!byteLen) byteLen = 8;
+    def str = Integer.toString(val as Integer, 16);
+    while (str?.toString()?.length() < byteLen) { str = '0' + str; }
+    return '0x' +str;
+}
 
+String generateUUID() {
+    def a = []
+    for (def b = 0; 36 > b; b++) {
+        def c = "rrrrrrrr-rrrr-4rrr-srrr-rrrrrrrrrrrr"?.charAt(b);
+        if ("r" == c || "s" == c) {
+            def d = Math.floor(16 * Math.random());
+            if("s" == c) d = d ? 3 : 8;
+            a?.push(Integer.toString(d as Integer, 16));
+        } else a.push(c);
+    }
+    return a.join("");
+}
+def b(a, b) { for (a = c(a); 0 != b && 0 != a;) a = Math.floor(a / 2); b--; return a; }
+def c(a) { return (0 > a) ? (4294967295 + a + 1) : a; }
 String strToHex(String arg, charset="UTF-8") { return String.format("%x", new BigInteger(1, arg.getBytes(charset))); }
 String strFromHex(str, charset="UTF-8") { return new String(str?.decodeHex()) }
 String getCookieVal() { return (state?.cookie && state?.cookie?.cookie) ? state?.cookie?.cookie as String : null }
