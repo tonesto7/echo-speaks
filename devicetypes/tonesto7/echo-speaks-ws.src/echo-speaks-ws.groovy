@@ -178,47 +178,36 @@ String encodeGWHandshake() {
     //pubrelBuf = new Buffer('MSG 0x00000361 0x0e414e45 f 0x00000001 0xd7c62f29 0x0000009b INI 0x00000003 1.0 0x00000024 ff1c4525-c036-4942-bf6c-a098755ac82f 0x00000164d106ce6b END FABE');
     try {
         state?.messageId++;
-        def now = 1569534310194 // now()
-        def messageId = 377437188;
-        def guid = "51ab9ef5-0d22-4bbf-3a07-e1872ebdceb9";
-
         def msg = 'MSG 0x00000361 '; // Message-type and Channel = GW_HANDSHAKE_CHANNEL;
-        msg += encodeNumber(messageId) + ' f 0x00000001 ';
+        msg += encodeNumber(state?.messageId) + ' f 0x00000001 ';
         def idx1 = msg?.length();
         msg += '0x00000000 '; // Checksum!
         def idx2 = msg?.length();
         msg += '0x0000009b '; // length content
         msg += 'INI 0x00000003 1.0 0x00000024 '; // content part 1
-        msg += guid//generateUUID();
+        msg += generateUUID();
         msg += ' ';
-        msg += encodeNumber(now, 16);
+        msg += encodeNumber(now(), 16);
         msg += ' END FABE';
-        log.debug "msg: ${msg}"
-        // def completeBuffer = Buffer.from(msg, 'ascii');
-        byte[] completeBuffer = msg?.getBytes("ASCII");
+        // log.debug "msg: ${msg}"
+        byte[] completeBuffer = msg?.getBytes("ASCII")
         def checksum = computeChecksum(msg, idx1, idx2);
-        log.debug "checksum: $checksum"
-
-        // def checksumBuf = Buffer.from(encodeNumber(checksum));
-        // byte[] checksumBuf = encodeNumber(checksum)?.getBytes("ASCII");
         def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
-        def checksumBufStr = new String(encodeNumber(checksum)?.getBytes("UTF-8"))
-        log.debug "checksumBuf(${checksumBuf?.size()}): $checksumBuf"
-        log.debug "checksumBufStr: ${checksumBufStr}"
-
-        System.arraycopy(completeBuffer, 39, checksumBuf, 0, checksumBuf?.size())
-        // checksumBuf.copy(completeBuffer, 39);
+        completeBuffer = copyArrRange(completeBuffer, 39, checksumBuf)
         def out = new String(completeBuffer)
-        log.debug "out: $out"
-        // return completeBuffer;
+        // log.debug "out: $out"
         return out
     } catch (ex) { log.error "encodeGWHandshake Exception: ${ex}" }
-
-    // MSG 0x00000361 0x0b9248d3 f 0x00000001 0x40bd9361 0x0000009b INI 0x00000003 1.0 0x00000024 9730de35-6e92-40ef-ad4e-8fe30efcb00d 0x0000016d6f6fa55e END FABE
-
 }
 
-
+def copyArrRange(arrSrc, Integer arrSrcStrt, arrIn) {
+    def arrSrcSz = arrSrc?.size()
+    def arrInSz = arrIn?.size()
+    if(arrSrc?.size() < arrSrcStrt) { log.error "Array Start Index is larger than Array Size..."; return arrSrc; }
+    Integer s = 0
+    (arrSrcStrt..(arrSrcStrt+arrIn?.size()-1))?.each { arrSrc[it] = arrIn[s]; s++; }
+    return arrSrc
+}
 
 def getHexDigest(text) {
     def md = MessageDigest.getInstance("SHA-256")
