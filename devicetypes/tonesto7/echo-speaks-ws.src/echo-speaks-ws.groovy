@@ -146,7 +146,6 @@ def webSocketStatus(String status){
         log.warn "WebSocket connection closing."
     } else if(status?.startsWith("send error: ")) {
         log.error("send error: $status")
-
     } else {
         log.warn "WebSocket error, reconnecting."
         reconnectWebSocket()
@@ -212,6 +211,7 @@ def encodePing() {
     idx += 4;
     n = encodePayload(n, payload, idx, payload?.length())
     log.debug "n(${n?.size()}): $n"
+    log.debug "msg: ${msg?.length()} | (${msg?.getBytes("ASCII")?.size()})"
 
     buffer = copyArrRange(buffer, msg?.length(), n)
 
@@ -220,12 +220,12 @@ def encodePing() {
 
     buffer = copyArrRange(buffer, msg?.length() + n?.size(), buf2End)
 
-    def checksum = computeRFC1071Checksum(new String(buffer), idx1, idx2);
+    def checksum = rfc1071Checksum(new String(buffer), idx1, idx2);
     // log.debug "checksum: ${checksum}"
 
     def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
     buffer = copyArrRange(buffer, 39, checksumBuf)
-    // log.debug "buffer1: $buffer"
+    log.debug "buffer1: $buffer"
     def out = new String(buffer)
     return out
 
@@ -243,7 +243,6 @@ def encode(arr, b, pos, len, logs=false) {
     //      i++;
     // }
     for (c = 0; c < len; c++) u[c] = b >> 8 * (len - 1 - c) & 255;
-
     return copyArrRange(arr, pos, u)
 }
 
@@ -263,7 +262,7 @@ def copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
     return arrSrc
 }
 
-def computeRFC1071Checksum(a, f, k) {
+def rfc1071Checksum(a, f, k) {
     if (k < f) throw "Invalid checksum exclusion window!";
     if(a instanceof String) { a = a?.getBytes(); }
     def h = 0
@@ -278,10 +277,6 @@ def computeRFC1071Checksum(a, f, k) {
     }
     return c(l);
 }
-
-
-
-
 
 String encodeGWHandshake() {
     //pubrelBuf = new Buffer('MSG 0x00000361 0x0e414e45 f 0x00000001 0xd7c62f29 0x0000009b INI 0x00000003 1.0 0x00000024 ff1c4525-c036-4942-bf6c-a098755ac82f 0x00000164d106ce6b END FABE');
@@ -300,7 +295,7 @@ String encodeGWHandshake() {
         msg += ' END FABE';
         // log.debug "msg: ${msg}"
         byte[] completeBuffer = msg?.getBytes("ASCII")
-        def checksum = computeRFC1071Checksum(msg, idx1, idx2);
+        def checksum = rfc1071Checksum(msg, idx1, idx2);
         def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
         completeBuffer = copyArrRange(completeBuffer, 39, checksumBuf)
         def out = new String(completeBuffer)
@@ -320,14 +315,12 @@ def encodeGWRegister() {
     msg += '0x00000109 '; // length content
     msg += 'GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE';
     byte[] buffer = msg?.getBytes("ASCII")
-    def checksum = computeRFC1071Checksum(msg, idx1, idx2);
+    def checksum = rfc1071Checksum(msg, idx1, idx2);
     def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
     buffer = copyArrRange(buffer, 39, checksumBuf)
     def out = new String(buffer)
     return out
 }
-
-
 
 def readHex(str, index, length) {
     def s = str?.toString('ascii', index, index + length);
@@ -339,12 +332,11 @@ def readString(str, index, length) {
     return str?.toString('ascii', index, index + length);
 }
 
-String encodeNumber(val, byteLen=null) {
-    if (!byteLen) byteLen = 8;
+String encodeNumber(val, len=null) {
+    if (!len) len = 8;
     def str = Integer.toString(val as Integer, 16);
-    while (str?.toString()?.length() < byteLen) {
+    while (str?.length() < len) {
         str = '0' + str;
-        log.debug "str:"
     }
     return '0x' +str;
 }
