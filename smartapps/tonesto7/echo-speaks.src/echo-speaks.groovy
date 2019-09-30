@@ -17,12 +17,12 @@
 import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-String appVersion()   { return "3.1.0.1" }
+String appVersion()   { return "3.1.0.2" }
 String appModified()  { return "2019-09-30" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3101, actionApp: 3102, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3102, actionApp: 3101, server: 230] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Collect device data for reason of cleared cookie.
 // TODO: Add in Actions to the metrics

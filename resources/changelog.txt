@@ -1,4 +1,11 @@
  ══════════
+   Main App (v3.1.0.2)
+   September 30th, 2019
+ ══════════
+  • FIXED: Fixed some actions bugs.
+
+
+ ══════════
    Main App (v3.1.0.0)
    September 24th, 2019
  ══════════
