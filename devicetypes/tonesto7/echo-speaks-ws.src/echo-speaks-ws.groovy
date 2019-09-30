@@ -114,7 +114,7 @@ def close() {
 def reconnectWebSocket() {
     // first delay is 2 seconds, doubles every time
     state.reconnectDelay = (state.reconnectDelay ?: 1) * 2
-    // don't let the delay get too crazy, max it out at 10 minutes
+    // don't def the delay get too crazy, max it out at 10 minutes
     if(state.reconnectDelay > 600) state.reconnectDelay = 600
 
     runIn(state?.reconnectDelay, initialize)
@@ -160,17 +160,179 @@ def parse(message) {
             // log.debug "gwHsMsg: $gwHsMsg"
             sendWsMsg(strToHex(gwHsMsg))
             log.trace("Gateway Handshake Message Sent (Step 2)")
-        }
-        Map stg2Chk = [start: "MSG 0x00000361 " as String, middle: "0x000000b9 ACK 0x00000003 1.0 0x00000024 ${state?.lastUsedGuid as String}", end: " END FABE"]
-        // log.debug "stg2Chk: $stg2Chk"
-        if (newMsg?.startsWith(stg2Chk?.start) && newMsg?.endsWith(stg2Chk?.end)) {
+        } else if (newMsg?.startsWith("MSG 0x00000361 ") && newMsg?.endsWith(" END FABE")) {
             sendWsMsg(strToHex(encodeGWRegister()))
             log.trace("Gateway Registration Message Sent (Step 3)")
             pauseExecution(1000)
             sendWsMsg(strToHex(encodePing()))
             log.trace("Encoded Ping Message Sent (Step 4)")
+        } else {
+            parseIncomingMessage(newMsg as String)
         }
     }
+}
+
+def readHex(str, ind, len) {
+    str = str[ind..ind+len-1]
+    // log.debug "str($ind, $len): ${str}"
+    if (str?.startsWith('0x')) str = str?.substring(2);
+    return Integer.parseInt(str as String, 16);
+}
+
+def readString(str, ind, len) {
+    return str[ind..len]
+}
+
+def parseIncomingMessage(data) {
+    try {
+        Integer idx = 0;
+        Map message = [:]
+        message?.service = readString(data, data?.length() - 4, data?.length()-1)
+        log.debug "Message Service: ${message?.service}"
+
+        if (message.service == "TUNE") {
+            message.checksum = readHex(data, idx, 10);
+            idx += 11; // 10 + delimiter;
+            def contentLength = readHex(data, idx, 10);
+            idx += 11; // 10 + delimiter;
+            message.content = readString(data, idx, contentLength - 4 - idx);
+            if (message.content.startsWith('{') && message.content.endsWith('}')) {
+                try {
+                    message.content = parseJson(message.content?.toString());
+                } catch (e) {}
+            }
+        } else if (message.service == 'FABE') {
+            message.messageType = readString(data, idx, 3);
+            log.debug "messageType: ${message?.messageType}"
+            idx += 4;
+            message.channel = readHex(data, idx, 10);
+            log.debug "channel: ${message?.channel}"
+            idx += 11; // 10 + delimiter;
+            message.messageId = readHex(data, idx, 10);
+            log.debug "messageId: ${message?.messageId}"
+            idx += 11; // 10 + delimiter;
+            message.moreFlag = readString(data, idx, 1);
+            idx += 2; // 1 + delimiter;
+            message.seq = readHex(data, idx, 10);
+            idx += 11; // 10 + delimiter;
+            message.checksum = readHex(data, idx, 10);
+            idx += 11; // 10 + delimiter;
+
+            def contentLength = readHex(data, idx, 10);
+            idx += 11; // 10 + delimiter;
+
+            message.content = [:];
+            message.content.messageType = readString(data, idx, 3);
+            idx += 4;
+
+            if (message.channel == 865) { //0x361 GW_HANDSHAKE_CHANNEL
+                if (message.content.messageType == 'ACK') {
+                    def length = readHex(idx, 10);
+                    idx += 11; // 10 + delimiter;
+                    message.content.protocolVersion = readString(data, idx, length);
+                    idx += length + 1;
+                    length = readHex(idx, 10);
+                    idx += 11; // 10 + delimiter;
+                    message.content.connectionUUID = readString(data, idx, length);
+                    idx += length + 1;
+                    message.content.established = readHex(data, idx, 10);
+                    idx += 11; // 10 + delimiter;
+                    message.content.timestampINI = readHex(data, idx, 18);
+                    idx += 19; // 18 + delimiter;
+                    message.content.timestampACK = readHex(data, idx, 18);
+                    idx += 19; // 18 + delimiter;
+                }
+            } else if (message.channel == 866) { // 0x362 GW_CHANNEL
+                if (message.content.messageType == 'GWM') {
+                    message.content.subMessageType = readString(data, idx, 3);
+                    idx += 4;
+                    message.content.channel = readHex(data, idx, 10);
+                    log.debug "message content channel: ${message?.content?.channel}"
+                    idx += 11; // 10 + delimiter;
+
+                    if (message.content.channel == 46201) { // 0xb479 DEE_WEBSITE_MESSAGING
+                        def length = readHex(data, idx, 10);
+                        idx += 11; // 10 + delimiter;
+                        message.content.destinationIdentityUrn = readString(data, idx, length);
+                        idx += length + 1;
+
+                        length = readHex(data, idx, 10);
+                        idx += 11; // 10 + delimiter;
+                        def idData = readString(data, idx, length);
+                        idx += length + 1;
+
+                        idData = idData.split(' ');
+                        message.content.deviceIdentityUrn = idData[0];
+                        message.content.payload = idData[1];
+                        if (!message.content.payload) {
+                            message.content.payload = readString(data, idx, data.length - 4 - idx);
+                        }
+                        if (message.content.payload.startsWith('{') && message.content.payload.endsWith('}')) {
+                            try {
+                                message.content.payload = parseJson(message.content.payload?.toString());
+                                if (message.content.payload && message.content.payload.payload && message.content.payload.payload instanceof String) {
+                                    message.content.payload.payload = parseJson(message.content.payload.payload?.toString());
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+            } else if (message.channel == 101) { // 0x65 CHANNEL_FOR_HEARTBEAT
+                idx -= 1; // no delimiter!
+                message.content.payloadData = data.slice(idx, data.length - 4);
+            }
+        }
+        //console.log(JSON.stringify(message, null, 4));
+    } catch (ex) {
+        log.error "parseIncomingMessage Exception: $ex"
+    }
+    return message;
+}
+
+
+String encodeGWHandshake() { // We are good up to this point...
+    //pubrelBuf = new Buffer('MSG 0x00000361 0x0e414e45 f 0x00000001 0xd7c62f29 0x0000009b INI 0x00000003 1.0 0x00000024 ff1c4525-c036-4942-bf6c-a098755ac82f 0x00000164d106ce6b END FABE');
+    try {
+        state?.messageId++;
+        def now = now()
+        def msg = 'MSG 0x00000361 '; // Message-type and Channel = GW_HANDSHAKE_CHANNEL;
+        msg += encodeNumber(state?.messageId) + ' f 0x00000001 ';
+        def idx1 = msg?.length();
+        msg += '0x00000000 '; // Checksum!
+        def idx2 = msg?.length();
+        msg += '0x0000009b '; // length content
+        msg += 'INI 0x00000003 1.0 0x00000024 '; // content part 1
+        msg += generateUUID();
+        msg += ' ';
+        msg += encodeNumber(now, 16);
+        msg += ' END FABE';
+        // log.debug "msg: ${msg}"
+        byte[] buffer = msg?.getBytes("ASCII")
+        def checksum = rfc1071Checksum(msg, idx1, idx2);
+        def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
+        buffer = copyArrRange(buffer, 39, checksumBuf)
+        return new String(buffer)
+    } catch (ex) { log.error "encodeGWHandshake Exception: ${ex}" }
+}
+
+def encodeGWRegister() {
+    //pubrelBuf = new Buffer('MSG 0x00000362 0x0e414e46 f 0x00000001 0xf904b9f5 0x00000109 GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE');
+    try {
+        state?.messageId++;
+        def msg = 'MSG 0x00000362 '; // Message-type and Channel = GW_CHANNEL;
+        msg += encodeNumber(state?.messageId) + ' f 0x00000001 ';
+        def idx1 = msg?.length();
+        msg += '0x00000000 '; // Checksum!
+        def idx2 = msg?.length();
+        msg += '0x00000109 '; // length content
+        msg += 'GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE';
+        byte[] buffer = msg?.getBytes("ASCII")
+        def checksum = rfc1071Checksum(msg, idx1, idx2);
+        def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
+        buffer = copyArrRange(buffer, 39, checksumBuf)
+        def out = new String(buffer)
+        return out
+    } catch (ex) { log.error "encodeGWRegister Exception: ${ex}" }
 }
 
 def encodePing() {
@@ -228,51 +390,6 @@ def encodePayload(arr, pay, pos, len) {
     for (def q = 0; q < pay?.length(); q++) { u[q * 2] = 0; u[(q * 2) + 1] = pay?.charAt(q); }
     // log.debug "u: $u"
     return copyArrRange(arr, pos, u)
-}
-
-String encodeGWHandshake() { // We are good up to this point...
-    //pubrelBuf = new Buffer('MSG 0x00000361 0x0e414e45 f 0x00000001 0xd7c62f29 0x0000009b INI 0x00000003 1.0 0x00000024 ff1c4525-c036-4942-bf6c-a098755ac82f 0x00000164d106ce6b END FABE');
-    try {
-        state?.messageId++;
-        def now = now()
-        def msg = 'MSG 0x00000361 '; // Message-type and Channel = GW_HANDSHAKE_CHANNEL;
-        msg += encodeNumber(state?.messageId) + ' f 0x00000001 ';
-        def idx1 = msg?.length();
-        msg += '0x00000000 '; // Checksum!
-        def idx2 = msg?.length();
-        msg += '0x0000009b '; // length content
-        msg += 'INI 0x00000003 1.0 0x00000024 '; // content part 1
-        msg += generateUUID();
-        msg += ' ';
-        msg += encodeNumber(now, 16);
-        msg += ' END FABE';
-        // log.debug "msg: ${msg}"
-        byte[] buffer = msg?.getBytes("ASCII")
-        def checksum = rfc1071Checksum(msg, idx1, idx2);
-        def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
-        buffer = copyArrRange(buffer, 39, checksumBuf)
-        return new String(buffer)
-    } catch (ex) { log.error "encodeGWHandshake Exception: ${ex}" }
-}
-
-def encodeGWRegister() {
-    //pubrelBuf = new Buffer('MSG 0x00000362 0x0e414e46 f 0x00000001 0xf904b9f5 0x00000109 GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE');
-    try {
-        state?.messageId++;
-        def msg = 'MSG 0x00000362 '; // Message-type and Channel = GW_CHANNEL;
-        msg += encodeNumber(state?.messageId) + ' f 0x00000001 ';
-        def idx1 = msg?.length();
-        msg += '0x00000000 '; // Checksum!
-        def idx2 = msg?.length();
-        msg += '0x00000109 '; // length content
-        msg += 'GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE';
-        byte[] buffer = msg?.getBytes("ASCII")
-        def checksum = rfc1071Checksum(msg, idx1, idx2);
-        def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
-        buffer = copyArrRange(buffer, 39, checksumBuf)
-        def out = new String(buffer)
-        return out
-    } catch (ex) { log.error "encodeGWRegister Exception: ${ex}" }
 }
 
 def rfc1071Checksum(a, f, k) {
