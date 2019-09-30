@@ -77,9 +77,9 @@ def initialize() {
     def serArr = state?.cookie =~ /ubid-[a-z]+=([^;]+);/
     state?.wsSerial = serArr?.find() ? serArr[0..-1][0][1] : null
     state?.wsDomain = (state?.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state?.amazonDomain}"
-    // def msgId = 0Math.floor(1E9 * Math.random()) as BigInteger;
+    def msgId = Math.floor(1E9 * Math.random()) as BigInteger;
     // log.debug "messageId: ${msgId}"
-    state?.messageId = state?.messageId ?: 0
+    state?.messageId = state?.messageId ?: msgId
     state?.messageInitCnt = 0
     connect()
 }
@@ -97,11 +97,6 @@ def connect() {
             "Origin": "https://alexa.${state?.amazonDomain}",
             "Pragma": "no-cache",
             "Cache-Control": "no-cache",
-            // "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            // "Accept-Language": "de,en-US;q=0.7,en;q=0.3",
-            // "Sec-WebSocket-Version": 13,
-            // "Sec-WebSocket-Extensions": "permessage-deflate",
-            // "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77 PitanguiBridge/2.2.219248.0-[HARDWARE=iPhone10_4][SOFTWARE=11.4.1]",
             "Cookie": state?.cookie
         ]
         interfaces.webSocket.connect(url, byteInterface: "true", pingInterval: 45, headers: headers)
@@ -153,135 +148,93 @@ def webSocketStatus(String status){
 }
 
 def parse(message) {
-    log.debug "parsed ${message}"
+    // log.debug "parsed ${message}"
     def newMsg = strFromHex(message)
     log.debug "decodedMsg: ${newMsg}"
     if(newMsg) {
-        switch(newMsg) {
-            case """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""":
-                sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString())
-                pauseExecution(1000)
-                def gwHsMsg = encodeGWHandshake()
-                log.debug "gwHsMsg: $gwHsMsg"
-                sendWsMsg(strToHex(gwHsMsg))
+        if(newMsg == """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
+            sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString())
+            pauseExecution(1000)
 
-                def gwRegMsg = encodeGWRegister()
-                log.debug "gwRegMsg: $gwRegMsg"
-                sendWsMsg(strToHex(gwRegMsg))
-                log.trace("Connection Messages Sent (Step 2+3)")
-
-                def pingMsg = encodePing()
-                log.debug "pingMsg: ${pingMsg}"
-                // sendWsMsg(strToHex(pingMsg))
-                log.trace("Connection Messages Sent (Step 4 | Encoded Ping)")
-                break
+            def gwHsMsg = encodeGWHandshake()
+            // log.debug "gwHsMsg: $gwHsMsg"
+            sendWsMsg(strToHex(gwHsMsg))
+            log.trace("Gateway Handshake Message Sent (Step 2)")
+        }
+        Map stg2Chk = [start: "MSG 0x00000361 " as String, middle: "0x000000b9 ACK 0x00000003 1.0 0x00000024 ${state?.lastUsedGuid as String}", end: " END FABE"]
+        // log.debug "stg2Chk: $stg2Chk"
+        if (newMsg?.startsWith(stg2Chk?.start) && newMsg?.endsWith(stg2Chk?.end)) {
+            sendWsMsg(strToHex(encodeGWRegister()))
+            log.trace("Gateway Registration Message Sent (Step 3)")
+            pauseExecution(1000)
+            sendWsMsg(strToHex(encodePing()))
+            log.trace("Encoded Ping Message Sent (Step 4)")
         }
     }
 }
 
 def encodePing() {
     state.messageId++;
+    def now = now()
     String msg = 'MSG 0x00000065 '; // Message-type and Channel = CHANNEL_FOR_HEARTBEAT;
     msg += encodeNumber(state?.messageId) + ' f 0x00000001 ';
     Integer idx1 = msg.length();
     msg += '0x00000000 '; // Checksum!
     Integer idx2 = msg.length();
     msg+= '0x00000062 '; // length content
-
     byte[] buffer = new byte[98]
     buffer = copyArrRange(buffer, 0, msg?.getBytes("ASCII"));
-    log.debug "buffer(${buffer?.size()}): ${buffer}"
     String header = 'PIN';
     String payload = 'Regular';
-
-    byte[] n = new byte[header?.length() + 4 + 8 + 4 + (2 * payload?.length())]
-
-    Integer idx = header?.length();
-
+    byte[] n = new byte[header?.length() + 4 + 8 + 4 + (2 * payload?.length())] // Creates empty byte array with size of 98
+    Integer idx = 0;
     byte[] u = header?.getBytes("UTF-8");
     n = copyArrRange(n, 0, u)
     Integer l = 0;
-
+    idx = header?.length();
     n = encode(n, l, idx, 4);
-    // log.debug "n2(${n?.size()}): $n"
     idx += 4;
-    n = encode(n, now(), idx, 8);
+    n = encode(n, now, idx, 8);
     idx += 8;
     n = encode(n, payload?.length(), idx, 4);
     idx += 4;
     n = encodePayload(n, payload, idx, payload?.length())
-    log.debug "n(${n?.size()}): $n"
-    log.debug "msg: ${msg?.length()} | (${msg?.getBytes("ASCII")?.size()})"
-
     buffer = copyArrRange(buffer, msg?.length(), n)
-
     def buf2End = "FABE"?.getBytes("ASCII")
-    // log.debug "len: ${msg?.length() + n?.size()}"
-
-    buffer = copyArrRange(buffer, msg?.length() + n?.size(), buf2End)
-
-    def checksum = rfc1071Checksum(new String(buffer), idx1, idx2);
-    // log.debug "checksum: ${checksum}"
-
+    def buf2EndPos = msg?.length() + n?.size()
+    buffer = copyArrRange(buffer, buf2EndPos, buf2End)
+    def checksum = rfc1071Checksum(buffer, idx1, idx2);
     def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
     buffer = copyArrRange(buffer, 39, checksumBuf)
-    log.debug "buffer1: $buffer"
     def out = new String(buffer)
     return out
-
     // "MSG 0x00000065 0x0e414e47 f 0x00000001 0xbc2fbb5f 0x00000062 PIN" + 30 + "FABE"
 }
 
 
-def encode(arr, b, pos, len, logs=false) {
-    // Integer i = 0
-    def u = new byte[len]
-    // def arrItems = arr[pos..(pos+len)]
-    // if(logs) log.debug "arrItems: $arrItems"
-    // arrItems?.each {
-    //      arr[it] = b >> (8 * (len - 1 - i)) & 255;
-    //      i++;
-    // }
-    for (c = 0; c < len; c++) u[c] = b >> 8 * (len - 1 - c) & 255;
-    return copyArrRange(arr, pos, u)
+def encode(arr, b, Integer pos, Integer len) {
+    try {
+        def u = new byte[len]
+        for (def c = 0; c < len; c++) { u[c] = b >> ((8 * (len - 1 - c)) & 31) & 255; }
+        return copyArrRange(arr, pos, u)
+    } catch (ex) {
+        log.error "encode: $ex"
+        return arr
+    }
 }
 
 def encodePayload(arr, pay, pos, len) {
-    // byte[] pb = pay?.getBytes("ASCII");
     byte[] u = new byte[len*2]
     for (def q = 0; q < pay?.length(); q++) { u[q * 2] = 0; u[(q * 2) + 1] = pay?.charAt(q); }
     // log.debug "u: $u"
     return copyArrRange(arr, pos, u)
 }
 
-def copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
-    if(arrSrc?.size() < arrSrcStrt) { log.error "Array Start Index is larger than Array Size..."; return arrSrc; }
-    Integer s = 0
-    // log.debug "arrIn: $arrIn"
-    (arrSrcStrt..(arrSrcStrt+arrIn?.size()-1))?.each { arrSrc[it] = arrIn[s]; s++; }
-    return arrSrc
-}
-
-def rfc1071Checksum(a, f, k) {
-    if (k < f) throw "Invalid checksum exclusion window!";
-    if(a instanceof String) { a = a?.getBytes(); }
-    def h = 0
-    def l = 0
-    def t = 0
-    for (def e = 0; e < a?.size(); e++) {
-        if(e != f) { t = a[e] << ((e & 3 ^ 3) << 3); l += c(t); h += b(l, 32); l = c(l & 4294967295); }
-        else { e = k - 1 }
-    }
-    for (; h;) {
-        l += h; h = b(l, 32); l &= 4294967295;
-    }
-    return c(l);
-}
-
-String encodeGWHandshake() {
+String encodeGWHandshake() { // We are good up to this point...
     //pubrelBuf = new Buffer('MSG 0x00000361 0x0e414e45 f 0x00000001 0xd7c62f29 0x0000009b INI 0x00000003 1.0 0x00000024 ff1c4525-c036-4942-bf6c-a098755ac82f 0x00000164d106ce6b END FABE');
     try {
         state?.messageId++;
+        def now = now()
         def msg = 'MSG 0x00000361 '; // Message-type and Channel = GW_HANDSHAKE_CHANNEL;
         msg += encodeNumber(state?.messageId) + ' f 0x00000001 ';
         def idx1 = msg?.length();
@@ -291,58 +244,64 @@ String encodeGWHandshake() {
         msg += 'INI 0x00000003 1.0 0x00000024 '; // content part 1
         msg += generateUUID();
         msg += ' ';
-        msg += encodeNumber(now(), 16);
+        msg += encodeNumber(now, 16);
         msg += ' END FABE';
         // log.debug "msg: ${msg}"
-        byte[] completeBuffer = msg?.getBytes("ASCII")
+        byte[] buffer = msg?.getBytes("ASCII")
         def checksum = rfc1071Checksum(msg, idx1, idx2);
         def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
-        completeBuffer = copyArrRange(completeBuffer, 39, checksumBuf)
-        def out = new String(completeBuffer)
-        // log.debug "out: $out"
-        return out
+        buffer = copyArrRange(buffer, 39, checksumBuf)
+        return new String(buffer)
     } catch (ex) { log.error "encodeGWHandshake Exception: ${ex}" }
 }
 
 def encodeGWRegister() {
     //pubrelBuf = new Buffer('MSG 0x00000362 0x0e414e46 f 0x00000001 0xf904b9f5 0x00000109 GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE');
-    state?.messageId++;
-    def msg = 'MSG 0x00000362 '; // Message-type and Channel = GW_CHANNEL;
-    msg += encodeNumber(state?.messageId) + ' f 0x00000001 ';
-    def idx1 = msg?.length();
-    msg += '0x00000000 '; // Checksum!
-    def idx2 = msg?.length();
-    msg += '0x00000109 '; // length content
-    msg += 'GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE';
-    byte[] buffer = msg?.getBytes("ASCII")
-    def checksum = rfc1071Checksum(msg, idx1, idx2);
-    def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
-    buffer = copyArrRange(buffer, 39, checksumBuf)
-    def out = new String(buffer)
-    return out
+    try {
+        state?.messageId++;
+        def msg = 'MSG 0x00000362 '; // Message-type and Channel = GW_CHANNEL;
+        msg += encodeNumber(state?.messageId) + ' f 0x00000001 ';
+        def idx1 = msg?.length();
+        msg += '0x00000000 '; // Checksum!
+        def idx2 = msg?.length();
+        msg += '0x00000109 '; // length content
+        msg += 'GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE';
+        byte[] buffer = msg?.getBytes("ASCII")
+        def checksum = rfc1071Checksum(msg, idx1, idx2);
+        def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
+        buffer = copyArrRange(buffer, 39, checksumBuf)
+        def out = new String(buffer)
+        return out
+    } catch (ex) { log.error "encodeGWRegister Exception: ${ex}" }
 }
 
-def readHex(str, index, length) {
-    def s = str?.toString('ascii', index, index + length);
-    if (s?.startsWith('0x')) s = s?.substr(2);
-    return parseInt(s, 16);
+def rfc1071Checksum(a, f, k) {
+    if (k < f) throw "Invalid checksum exclusion window!";
+    if(a instanceof String) { a = a?.getBytes("UTF-8"); }
+    def h = 0
+    def l = 0
+    def t = 0
+    for (def e = 0; e < a?.size(); e++) {
+        if(e != f) { t = a[e] << ((e & 3 ^ 3) << 3); l += c(t); h += b(l, 32); l = c(l & 4294967295); }
+        else { e = k - 1; }
+    }
+    for (; h>0;) { l += h; h = b(l, 32); l &= 4294967295; }
+    return c(l);
 }
 
-def readString(str, index, length) {
-    return str?.toString('ascii', index, index + length);
+def copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
+    if(arrSrc?.size() < arrSrcStrt) { log.error "Array Start Index is larger than Array Size..."; return arrSrc; }
+    Integer s = 0
+    (arrSrcStrt..(arrSrcStrt+arrIn?.size()-1))?.each { arrSrc[it] = arrIn[s]; s++; }
+    return arrSrc
 }
 
 String encodeNumber(val, len=null) {
     if (!len) len = 8;
-    def str = Integer.toString(val as Integer, 16);
-    while (str?.length() < len) {
-        str = '0' + str;
-    }
+    def str = new BigInteger(val?.toString())?.toString(16);
+    while (str?.length() < len) { str = "0${str}"; }
     return '0x' +str;
 }
-
-def b(a, b) { for (a = c(a); 0 != b && 0 != a;) a = Math.floor(a / 2); b--; return a; }
-def c(a) { return (0 > a) ? (4294967295 + a + 1) : a; }
 
 String generateUUID() {
     def a = []
@@ -354,9 +313,12 @@ String generateUUID() {
             a?.push(Integer.toString(d as Integer, 16));
         } else a?.push(c);
     }
+    state?.lastUsedGuid = a?.join("")
     return a?.join("");
 }
-
+def b(a, b) { for (a = c(a); 0 != b && 0 != a;) { a = Math.floor(a / 2); b--; }; return (a instanceof Double) ? a?.toInteger() : a; }
+def c(a) { return (0 > a) ? (4294967295 + a + 1) : a; }
+Integer toUInt(byte x) { return ((int) x) & 0xff; }
 String strToHex(String arg, charset="UTF-8") { return String.format("%x", new BigInteger(1, arg.getBytes(charset))); }
 String strFromHex(str, charset="UTF-8") { return new String(str?.decodeHex()) }
 String getCookieVal() { return (state?.cookie && state?.cookie?.cookie) ? state?.cookie?.cookie as String : null }
