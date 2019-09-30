@@ -1846,7 +1846,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
             def dayOk = !once || (once && !isDateToday(prevDt))
-            logDebug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "\u2705" : "\u274C"}) | OnceDaily: (${once}) - Status: (${dayOk ? "\u2705" : "\u274C"})")
+            logDebug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "✓" : "\u274C"}) | OnceDaily: (${once}) - Status: (${dayOk ? "✓" : "\u274C"})")
             ok = (waitOk && dayOk)
         }
     }
@@ -2834,7 +2834,12 @@ def convToDateTime(dt) {
     def d = dateTimeFmt(dt, "EEE, MMM d")
     return "$d, $t"
 }
-
+def okSym() {
+	return "✓"// ☑"
+}
+def notOkSym() {
+	return "✘"
+}
 Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
 String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
@@ -2968,7 +2973,7 @@ String getAppNotifDesc(hide=false) {
         str += settings?.notif_send_push ? " \u2022 (Push Message)\n" : ""
         str += (settings?.notif_pushover && settings?.notif_pushover_devices?.size()) ? " \u2022 Pushover Device${pluralizeStr(settings?.notif_pushover_devices)} (${settings?.notif_pushover_devices?.size()})\n" : ""
         str += settings?.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : ""
-        str += getNotifSchedDesc() ? " \u2022 Restrictions: (${getOk2Notify() ? "\u2705" : "\u274C"})\n" : ""
+        str += getNotifSchedDesc() ? " \u2022 Restrictions: (${getOk2Notify() ? "✓" : "\u274C"})\n" : ""
     }
     return str != "" ? str : null
 }
@@ -3057,28 +3062,28 @@ String getConditionsDesc() {
     def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${allConditionsOk() ? "\u2705" : "\u274C"})\n"
+        String str = "Conditions: (${allConditionsOk() ? "✓" : "\u274C"})\n"
         if(timeCondConfigured()) {
-            str += " • Time Between: (${timeCondOk() ? "\u2705" : "\u274C"})\n"
+            str += " • Time Between: (${timeCondOk() ? "✓" : "\u274C"})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
             str += " • Date:\n"
-            str += settings?.cond_days      ? "    - Days: (${(isDayOfWeek(settings?.cond_days)) ? "\u2705" : "\u274C"})\n" : ""
-            str += settings?.cond_months    ? "    - Months: (${(isMonthOfYear(settings?.cond_months)) ? "\u2705" : "\u274C"})\n"  : ""
+            str += settings?.cond_days      ? "    - Days: (${(isDayOfWeek(settings?.cond_days)) ? "✓" : "\u274C"})\n" : ""
+            str += settings?.cond_months    ? "    - Months: (${(isMonthOfYear(settings?.cond_months)) ? "✓" : "\u274C"})\n"  : ""
         }
         if(settings?.cond_alarm || settings?.cond_mode) {
-            str += " • Location: (${locationCondOk() ? "\u2705" : "\u274C"})\n"
-            str += settings?.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings?.cond_alarm)) ? "\u2705" : "\u274C"})\n" : ""
+            str += " • Location: (${locationCondOk() ? "✓" : "\u274C"})\n"
+            str += settings?.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings?.cond_alarm)) ? "✓" : "\u274C"})\n" : ""
             // str += settings?.cond_alarm ? "    - Current Alarm: (${getAlarmSystemStatus()})\n" : ""
-            str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode)) ? "\u2705" : "\u274C"})\n" : ""
+            str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode)) ? "✓" : "\u274C"})\n" : ""
             // str += settings?.cond_mode ? "    - Current Mode: (${location?.mode})\n" : ""
         }
         if(deviceCondConfigured()) {
-            // str += " • Devices: (${deviceCondOk() ? "\u2705" : "\u274C"})\n"
+            // str += " • Devices: (${deviceCondOk() ? "✓" : "\u274C"})\n"
             ["switch", "motion", "presence", "contact", "lock", "door"]?.each { evt->
                 if(devCondConfigured(evt)) {
-                    str += settings?."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${checkDeviceCondOk(evt) ? "\u2705" : "\u274C"})\n" : ""
+                    str += settings?."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${checkDeviceCondOk(evt) ? "✓" : "\u274C"})\n" : ""
                     str += settings?."${sPre}${evt}_cmd" ? "    - Value: (${settings?."${sPre}${evt}_cmd"})\n" : ""
                     str += settings?."${sPre}${evt}_all" ? "    - Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
                 }
