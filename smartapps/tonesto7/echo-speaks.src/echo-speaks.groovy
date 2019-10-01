@@ -1205,12 +1205,19 @@ def uninstalled() {
 void wsEvtHandler(evt) {
     // log.debug "evt: ${evt}"
     if(evt && evt?.id && (evt?.attributes?.size() || evts?.triggers?.size())) {
-        def eDev = findEchoDevice(evt?.id as String)
-        if(eDev) {
-            evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
-            if(evt?.triggers?.size()) {
-                if("bluetooth" in evt?.triggers) { getBluetoothData() }
-                eDev?.websocketUpdEvt(evt?.triggers)
+        if("bluetooth" in evt?.triggers) { getBluetoothData() }
+        if(evt?.all == true) {
+            getEsDevices()?.each { eDev->
+                if(evt?.attributes?.size()) {
+                    evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
+                }
+                if(evt?.triggers?.size()) { it?.websocketUpdEvt(evt?.triggers) }
+            }
+        } else {
+            def eDev = findEchoDevice(evt?.id as String)
+            if(eDev) {
+                evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
+                if(evt?.triggers?.size()) { eDev?.websocketUpdEvt(evt?.triggers) }
             }
         }
     }

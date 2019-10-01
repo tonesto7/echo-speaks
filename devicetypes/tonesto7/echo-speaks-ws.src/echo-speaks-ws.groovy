@@ -326,6 +326,7 @@ private commandEvtHandler(msg) {
     Boolean sendEvt = false
     Map evt = [:]
     evt?.id = msg?.payload?.dopplerId?.deviceSerialNumber ?: null
+    evt?.all = false
     evt?.type = msg?.command
     evt?.attributes = [:]
     evt?.triggers = []
@@ -335,6 +336,7 @@ private commandEvtHandler(msg) {
             case "PUSH_EQUALIZER_STATE_CHANGE":
                 // Black hole of unwanted events.
                 break
+
             case "PUSH_VOLUME_CHANGE":
                 // log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
                 sendEvt = true
@@ -354,11 +356,23 @@ private commandEvtHandler(msg) {
                         }
                         break
                 }
+                break
             case "PUSH_AUDIO_PLAYER_STATE":
                 log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
                 sendEvt = true
                 evt?.attributes?.status = msg?.payload?.audioPlayerState == "PLAYING" ? "playing" : "stopped"
                 evt?.triggers?.push("media")
+                break
+            case "PUSH_MEDIA_QUEUE_CHANGE":
+                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                sendEvt = true
+                evt?.triggers?.push("queue")
+                break
+            case "PUSH_MEDIA_PROGRESS_CHANGE":
+                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                sendEvt = true
+                evt?.triggers?.push("media")
+                evt?.triggers?.push("queue")
                 break
             case "PUSH_DOPPLER_CONNECTION_CHANGE":
                 log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
@@ -373,7 +387,13 @@ private commandEvtHandler(msg) {
                     sendEvt = true
                     evt?.id = keys[2]
                     evt?.triggers?.push("activity")
+                    evt?.all = true
                 }
+                break
+            case "PUSH_NOTIFICATION_CHANGE":
+                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                sendEvt = true
+                evt?.triggers?.push("notification")
                 break
             default:
                 log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"

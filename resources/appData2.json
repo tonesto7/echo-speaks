@@ -18,8 +18,6 @@
         }
     },
     "settings": {
-        "installNotif": true,
-        "updateNotif": true,
         "sendMetrics": true,
         "database": {
             "metricsUrl": "https://echo-speaks-metrics.firebaseio.com/"
