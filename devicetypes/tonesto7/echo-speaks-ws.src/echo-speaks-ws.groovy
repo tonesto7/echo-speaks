@@ -188,72 +188,70 @@ def parseIncomingMessage(data) {
         Integer idx = 0;
         Map message = [:]
         message?.service = readString(data, data?.length() - 4, data?.length()-1)
-        log.debug "Message Service: ${message?.service}"
+        // log.debug "Message Service: ${message?.service}"
 
-        if (message.service == "TUNE") {
-            message.checksum = readHex(data, idx, 10);
+        if (message?.service == "TUNE") {
+            message?.checksum = readHex(data, idx, 10);
             idx += 11; // 10 + delimiter;
             def contentLength = readHex(data, idx, 10);
             idx += 11; // 10 + delimiter;
-            message.content = readString(data, idx, contentLength - 4 - idx);
-            if (message.content.startsWith('{') && message.content.endsWith('}')) {
+            message?.content = readString(data, idx, contentLength - 4 - idx);
+            if (message?.content?.startsWith('{') && message?.content?.endsWith('}')) {
                 try {
-                    message.content = parseJson(message.content?.toString());
+                    message?.content = parseJson(message?.content?.toString());
                 } catch (e) {}
             }
-        } else if (message.service == 'FABE') {
-            message.messageType = readString(data, idx, 3);
-            log.debug "messageType: ${message?.messageType}"
+        } else if (message?.service == 'FABE') {
+            message?.messageType = readString(data, idx, 3);
             idx += 4;
-            message.channel = readHex(data, idx, 10);
-            log.debug "channel: ${message?.channel}"
+            message?.channel = readHex(data, idx, 10);
             idx += 11; // 10 + delimiter;
-            message.messageId = readHex(data, idx, 10);
-            log.debug "messageId: ${message?.messageId}"
+            message?.messageId = readHex(data, idx, 10);
             idx += 11; // 10 + delimiter;
-            message.moreFlag = readString(data, idx, 1);
+            message?.moreFlag = readString(data, idx, 1);
             idx += 2; // 1 + delimiter;
-            message.seq = readHex(data, idx, 10);
+            message?.seq = readHex(data, idx, 10);
             idx += 11; // 10 + delimiter;
-            message.checksum = readHex(data, idx, 10);
+            message?.checksum = readHex(data, idx, 10);
             idx += 11; // 10 + delimiter;
 
             def contentLength = readHex(data, idx, 10);
             idx += 11; // 10 + delimiter;
-
-            message.content = [:];
-            message.content.messageType = readString(data, idx, 3);
+            log.debug "Service: ${message?.service} | Type: ${message?.messageType} | Channel: ${message?.channel}"
+            message?.content = [:]
+            message?.content?.messageType = readString(data, idx, 3);
             idx += 4;
 
-            if (message.channel == 865) { //0x361 GW_HANDSHAKE_CHANNEL
-                if (message.content.messageType == 'ACK') {
+            if (message?.channel == 865) { //0x361 GW_HANDSHAKE_CHANNEL
+                if (message?.content?.messageType == "ACK") {
                     def length = readHex(idx, 10);
                     idx += 11; // 10 + delimiter;
-                    message.content.protocolVersion = readString(data, idx, length);
+                    message?.content?.protocolVersion = readString(data, idx, length);
                     idx += length + 1;
                     length = readHex(idx, 10);
                     idx += 11; // 10 + delimiter;
-                    message.content.connectionUUID = readString(data, idx, length);
+                    message?.content?.connectionUUID = readString(data, idx, length);
                     idx += length + 1;
-                    message.content.established = readHex(data, idx, 10);
+                    message?.content?.established = readHex(data, idx, 10);
                     idx += 11; // 10 + delimiter;
-                    message.content.timestampINI = readHex(data, idx, 18);
+                    message?.content?.timestampINI = readHex(data, idx, 18);
                     idx += 19; // 18 + delimiter;
-                    message.content.timestampACK = readHex(data, idx, 18);
+                    message?.content?.timestampACK = readHex(data, idx, 18);
                     idx += 19; // 18 + delimiter;
                 }
-            } else if (message.channel == 866) { // 0x362 GW_CHANNEL
-                if (message.content.messageType == 'GWM') {
-                    message.content.subMessageType = readString(data, idx, 3);
+            } else if (message?.channel == 866) { // 0x362 GW_CHANNEL
+                log.debug "contentMsgType: ${message?.content?.messageType}"
+                if (message?.content?.messageType == 'GWM') {
+                    message?.content?.subMessageType = readString(data, idx, 3);
                     idx += 4;
-                    message.content.channel = readHex(data, idx, 10);
+                    message?.content?.channel = readHex(data, idx, 10);
                     log.debug "message content channel: ${message?.content?.channel}"
                     idx += 11; // 10 + delimiter;
 
-                    if (message.content.channel == 46201) { // 0xb479 DEE_WEBSITE_MESSAGING
+                    if (message?.content?.channel == 46201) { // 0xb479 DEE_WEBSITE_MESSAGING
                         def length = readHex(data, idx, 10);
                         idx += 11; // 10 + delimiter;
-                        message.content.destinationIdentityUrn = readString(data, idx, length);
+                        message?.content?.destinationIdentityUrn = readString(data, idx, length);
                         idx += length + 1;
 
                         length = readHex(data, idx, 10);
@@ -261,25 +259,25 @@ def parseIncomingMessage(data) {
                         def idData = readString(data, idx, length);
                         idx += length + 1;
 
-                        idData = idData.split(' ');
-                        message.content.deviceIdentityUrn = idData[0];
-                        message.content.payload = idData[1];
-                        if (!message.content.payload) {
-                            message.content.payload = readString(data, idx, data.length - 4 - idx);
+                        idData = idData?.split(' ');
+                        message?.content?.deviceIdentityUrn = idData[0];
+                        message?.content?.payload = idData[1];
+                        if (!message?.content?.payload) {
+                            message?.content?.payload = readString(data, idx, data?.length() - 4 - idx);
                         }
-                        if (message.content.payload.startsWith('{') && message.content.payload.endsWith('}')) {
+                        if (message?.content?.payload?.startsWith('{') && message?.content?.payload?.endsWith('}')) {
                             try {
-                                message.content.payload = parseJson(message.content.payload?.toString());
-                                if (message.content.payload && message.content.payload.payload && message.content.payload.payload instanceof String) {
-                                    message.content.payload.payload = parseJson(message.content.payload.payload?.toString());
+                                message?.content?.payload = parseJson(message?.content?.payload?.toString());
+                                if (message?.content?.payload && message?.content?.payload?.payload && message?.content?.payload?.payload instanceof String) {
+                                    message?.content?.payload?.payload = parseJson(message?.content?.payload?.payload?.toString());
                                 }
                             } catch (e) {}
                         }
                     }
                 }
-            } else if (message.channel == 101) { // 0x65 CHANNEL_FOR_HEARTBEAT
+            } else if (message?.channel == 101) { // 0x65 CHANNEL_FOR_HEARTBEAT
                 idx -= 1; // no delimiter!
-                message.content.payloadData = data.slice(idx, data.length - 4);
+                message?.content?.payloadData = data.slice(idx, data.length - 4);
             }
         }
         //console.log(JSON.stringify(message, null, 4));
