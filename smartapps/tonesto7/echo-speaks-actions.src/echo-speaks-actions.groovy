@@ -17,8 +17,8 @@
 import groovy.json.*
 import java.text.SimpleDateFormat
 
-String appVersion()  { return "3.1.0.1" }
-String appModified() { return "2019-09-30" }
+String appVersion()  { return "3.1.0.2" }
+String appModified() { return "2019-10-01" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -711,8 +711,8 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
         String str = "Description:\nYou have 3 response options:\n"
         str += " \u2022 1. Leave the text empty below and text will be generated for each ${inType} trigger event.\n"
         str += " \u2022 2. Wait till Step 4 and define a single response for any trigger selected here.\n"
-        str += " \u2022 3. Use the reponse builder below and create custom responses for each trigger type. (Supports randomization when multiple responses are configured)\n\n"
-        str += "Custom Text is only used when Speech or Announcement action type is selected in Step 4."
+        str += " \u2022 3. Use the reponse builder below and create custom responses for each trigger type. (Supports randomization when multiple responses are configured)"
+        // str += "Custom Text is only used when Speech or Announcement action type is selected in Step 4."
         paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
         //Custom Text Options
         href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
@@ -2448,7 +2448,8 @@ Map getInputData(inName) {
         val: settings?."${inName}"?.toString() ?: null,
         desc: """<ul class="pl-3" style="list-style-type: bullet;">${desc}</ul>""",
         title: title,
-        template: template
+        template: template,
+        version: appVersion()
     ]
     return o
 }
