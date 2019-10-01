@@ -2611,15 +2611,17 @@ private appUpdateNotify() {
     Boolean appUpd = isAppUpdateAvail()
     Boolean actUpd = isActionAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
+    Boolean socketUpd = isSocketUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
     logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(state?.updNotifyWaitVal && getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
-        if(on && (appUpd || actUpd || echoDevUpd || servUpd)) {
+        if(on && (appUpd || actUpd || echoDevUpd || socketUpd || servUpd)) {
             state?.updateAvailable = true
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
+            str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state?.appData?.versions?.wsDevice?.ver?.toString()}"
             str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             state?.lastUpdMsgDt = getDtNow()
@@ -3000,6 +3002,11 @@ Boolean isActionAppUpdateAvail() {
 
 Boolean isEchoDevUpdateAvail() {
     if(state?.appData?.versions && state?.codeVersions?.echoDevice && isCodeUpdateAvailable(state?.appData?.versions?.echoDevice?.ver, state?.codeVersions?.echoDevice, "dev")) { return true }
+    return false
+}
+
+Boolean isSocketUpdateAvail() {
+    if(!isST() && state?.appData?.versions && state?.codeVersions?.wsDevice && isCodeUpdateAvailable(state?.appData?.versions?.wsDevice?.ver, state?.codeVersions?.wsDevice, "socket")) { return true }
     return false
 }
 
