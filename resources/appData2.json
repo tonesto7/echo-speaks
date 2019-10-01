@@ -10,6 +10,9 @@
         "echoDevice": {
             "ver": "3.1.0.2"
         },
+        "wsDevice": {
+            "ver": "3.1.0.2"
+        },
         "server": {
             "ver": "2.2.2"
         }
@@ -354,8 +357,11 @@
         "A3F1S88NTZZXS9": {
             "name": "Dash Wand",
             "image": "dash_wand",
-            "caps": [],
-            "blocked": true
+            "caps": [
+                "a",
+                "t"
+            ],
+            "blocked": false
         },
         "A2LH725P8DQR2A": {
             "name": "Fabriq Riff",
