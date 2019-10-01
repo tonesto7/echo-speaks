@@ -1203,7 +1203,21 @@ def uninstalled() {
 }
 
 void wsEvtHandler(evt) {
-    log.debug "evt: ${evt}"
+    // log.debug "evt: ${evt}"
+    if(evt && evt?.id && (evt?.attributes?.size() || evts?.triggers?.size())) {
+        def eDev = findEchoDevice(evt?.id as String)
+        if(eDev) {
+            evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
+            if(evt?.triggers?.size()) {
+                if("bluetooth" in evt?.triggers) { getBluetoothData() }
+                eDev?.websocketUpdEvt(evt?.triggers)
+            }
+        }
+    }
+}
+
+private findEchoDevice(serial) {
+    return getEsDevices()?.find { it?.getDeviceSerial()?.toString() == serial as String } ?: null
 }
 
 void webSocketStatus(Boolean active) {
@@ -1219,6 +1233,7 @@ private updChildSocketStatus() {
     } else {
         runEvery1Minute("getOtherData")
     }
+    updTsMap("lastWebsocketUpdDt", getDtNow())
 }
 
 def getActionApps() {
@@ -1721,7 +1736,7 @@ private getMusicProviders() {
             }
             // log.debug "Music Providers: ${items}"
             if(!state?.musicProviders || items != state?.musicProviders) { state?.musicProviders = items }
-            updTsMap("musicProviderDt")
+            updTsMap("musicProviderDt", getDtNow())
         }
     } catch (ex) {
         respExceptionHandler(ex, "getMusicProviders", true)
@@ -3158,7 +3173,8 @@ private getDiagDataJson() {
                 version: state?.codeVersions?.wsDevice ?: null,
                 warnings: sockWarnings,
                 errors: sockErrors,
-                active: state?.websocketActive
+                active: state?.websocketActive,
+                lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
             ],
             hubPlatform: getPlatform(),
             authStatus: [

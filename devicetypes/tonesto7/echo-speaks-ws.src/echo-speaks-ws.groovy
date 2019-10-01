@@ -209,10 +209,11 @@ def parseIncomingMessage(data) {
             idx += 11; // 10 + delimiter;
             def contentLength = readHex(dStr, idx, 10);
             idx += 11; // 10 + delimiter;
-            message?.content = readString(dStr, idx, contentLength - 4 - idx);
+            message?.content = parseString(dStr, idx, contentLength - 4 - idx);
             if (message?.content?.startsWith('{') && message?.content?.endsWith('}')) {
                 try {
                     message?.content = parseJson(message?.content?.toString());
+                    log.debug "TUNE: ${message?.content}"
                 } catch (e) {}
             }
         } else if (message?.service == 'FABE') {
@@ -233,7 +234,7 @@ def parseIncomingMessage(data) {
             idx += 11; // 10 + delimiter;
             message?.content = [:]
             message?.content?.messageType = parseString(dStr, idx, 3);
-            log.debug "Service: ${message?.service} | Type: ${message?.messageType} | Channel: ${message?.channel} | contentMsgType: ${message?.content?.messageType}"
+            // log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
             idx += 4;
 
             if (message?.channel == 865) { //0x361 GW_HANDSHAKE_CHANNEL
@@ -261,17 +262,18 @@ def parseIncomingMessage(data) {
                 if (message?.content?.messageType == 'GWM') {
                     message?.content?.subMessageType = readString(dStr, idx, 3);
                     idx += 4;
+                    message?.content?.channelStr = parseString(dStr, idx, 10)
                     message?.content?.channel = readHex(dStr, idx, 10);
-                    log.debug "message content channel: ${message?.content?.channel}"
+                    // log.debug "Content Channel: ${message?.content?.channel} | (${message?.content?.channelStr})"
                     idx += 11; // 10 + delimiter;
 
                     if (message?.content?.channel == 46201) { // 0xb479 DEE_WEBSITE_MESSAGING
                         def length = readHex(dStr, idx, 10);
-                        idx += 11; // 10 + delimiter;
+                        idx += 11;
                         message?.content?.destinationIdentityUrn = parseString(dStr, idx, length);
                         idx += length + 1;
                         length = readHex(dStr, idx, 10);
-                        idx += 11; // 10 + delimiter;
+                        idx += 11;
                         def idData = parseString(dStr, idx, length);
                         idx += length + 1;
                         idData = idData?.tokenize(' ');
@@ -288,26 +290,103 @@ def parseIncomingMessage(data) {
                                 message?.content?.payload = parseJson(message?.content?.payload?.toString());
                                 if (message?.content?.payload && message?.content?.payload?.payload && message?.content?.payload?.payload instanceof String) {
                                     message?.content?.payload?.payload = parseJson(message?.content?.payload?.payload?.toString());
-                                    log.debug "Command: ${message?.content?.payload?.command} | Payload: ${message?.content?.payload?.payload}"
-                                    parent?.wsEvtHandler(message?.content?.payload)
+                                    commandEvtHandler(message?.content?.payload)
                                 }
-                            } catch (e) {}
+                            } catch (e) {
+                                logError("payload parse error: $ex")
+                            }
+                        } else {
+                            log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
+                            logWarn("UNKNOWN PAYLOAD FORMAT: ${message?.content?.payload}")
                         }
+                    } else {
+                        log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
+                        logWarn("UNKNOWN CONTENT CHANNEL: ${message?.content?.channel}")
                     }
+                } else {
+                    log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
+                    logWarn("UNKNOWN MESSAGETYPE: ${message?.content?.messageType}")
                 }
             } else if (message?.channel == 101) { // 0x65 CHANNEL_FOR_HEARTBEAT
                 idx -= 1; // no delimiter!
+                log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
                 message?.content?.payloadData = dStr.slice(idx, dLen - 4);
+            } else {
+                log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
+                logWarn("UNKNOWN CHANNEL: ${message?.channel}")
             }
         }
     // } catch (ex) {
     //     log.error "parseIncomingMessage Exception: ${ex.message}"
     // }
-    return message;
+    // return message;
+}
+
+private commandEvtHandler(msg) {
+    Boolean sendEvt = false
+    Map evt = [:]
+    evt?.id = msg?.payload?.dopplerId?.deviceSerialNumber ?: null
+    evt?.type = msg?.command
+    evt?.attributes = [:]
+    evt?.triggers = []
+
+    if(msg && msg?.command && msg?.payload) {
+        switch(msg?.command as String) {
+            case "PUSH_EQUALIZER_STATE_CHANGE":
+                // Black hole of unwanted events.
+                break
+            case "PUSH_VOLUME_CHANGE":
+                // log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                sendEvt = true
+                evt?.attributes?.volume = msg?.payload?.volumeSetting
+                evt?.attributes?.level = msg?.payload?.volumeSetting
+                evt?.attributes?.mute = (isMuted == true) ? "muted" : "unmuted"
+                break
+            case "PUSH_BLUETOOTH_STATE_CHANGE":
+                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                switch(msg?.payload?.bluetoothEvent) {
+                    case "DEVICE_DISCONNECTED":
+                    case "DEVICE_CONNECTED":
+                        if(msg?.payload?.bluetoothEventSuccess == true) {
+                            sendEvt = true
+                            if(msg?.payload?.bluetoothEvent == "DEVICE_DISCONNECTED") { evt?.attributes?.btDeviceConnected = null }
+                            evt?.triggers?.push("bluetooth")
+                        }
+                        break
+                }
+            case "PUSH_AUDIO_PLAYER_STATE":
+                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                sendEvt = true
+                evt?.attributes?.status = msg?.payload?.audioPlayerState == "PLAYING" ? "playing" : "stopped"
+                evt?.triggers?.push("media")
+                break
+            case "PUSH_DOPPLER_CONNECTION_CHANGE":
+                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                sendEvt = true
+                evt?.attributes?.onlineStatus = (msg?.payload?.dopplerConnectionState == "ONLINE") ? "online" : "offline"
+                evt?.triggers?.push(evt?.attributes?.onlineStatus)
+                break
+            case "PUSH_ACTIVITY":
+                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                def keys = msg?.payload?.key?.entityId?.tokenize("#")
+                if(keys?.size() && keys[2]) {
+                    sendEvt = true
+                    evt?.id = keys[2]
+                    evt?.triggers?.push("activity")
+                }
+                break
+            default:
+                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                break
+        }
+    }
+    if(sendEvt) {
+        parent?.wsEvtHandler(evt)
+    }
 }
 
 
-String encodeGWHandshake() { // We are good up to this point...
+String encodeGWHandshake() {
     //pubrelBuf = new Buffer('MSG 0x00000361 0x0e414e45 f 0x00000001 0xd7c62f29 0x0000009b INI 0x00000003 1.0 0x00000024 ff1c4525-c036-4942-bf6c-a098755ac82f 0x00000164d106ce6b END FABE');
     try {
         state?.messageId++;

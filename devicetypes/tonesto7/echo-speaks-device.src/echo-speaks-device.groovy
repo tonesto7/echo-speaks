@@ -497,13 +497,8 @@ public triggerInitialize() {
     runIn(3, "initialize")
 }
 
-String getDeviceType() {
-    return state?.deviceType ?: null
-}
-
-String getDeviceSerial() {
-    return state?.serialNumber ?: null
-}
+String getDeviceType() { return state?.deviceType ?: null }
+String getDeviceSerial() { return state?.serialNumber ?: null }
 
 String getHealthStatus(lower=false) {
 	String res = device?.getStatus()
@@ -717,8 +712,8 @@ void updateDeviceStatus(Map devData) {
 
 public updSocketStatus(active) {
     if(active == true) {
-        unschedule("refreshData")
-        state?.refreshScheduled = false
+        // unschedule("refreshData")
+        // state?.refreshScheduled = false
         state?.websocketActive = true
     } else {
         schedDataRefresh(true)
@@ -726,8 +721,38 @@ public updSocketStatus(active) {
     }
 }
 
-void websocketEvtHandler(evtData) {
-    log.debug "evtData: $evtData"
+void websocketUpdEvt(triggers) {
+    log.debug "triggers: $triggers"
+    if(triggers?.size()) {
+        triggers?.each { k->
+            switch(k) {
+                case "all":
+                    runIn(2, "refreshData")
+                    break
+                case "media":
+                    runIn(2, "getPlaybackState")
+                    runIn(4, "getPlaylists")
+                    break
+                case "notif":
+                    runIn(2, "getNotifications")
+                    break
+                case "bluetooth":
+                    runIn(2, "getBluetoothData")
+                    break
+                case "online":
+                    setOnlineStatus(true)
+                    break
+                case "offline":
+                    setOnlineStatus(false)
+                    break
+                case "activity":
+                    runIn(2, "getDeviceActivity")
+                    break
+
+            }
+            //TODO: BUILD A DATA REFRESH QUEUE System
+        }
+    }
 }
 
 void refresh() {
@@ -854,12 +879,10 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
         sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
     }
 
-    //Track Art Imager
+    //Track Art Image
     String trackImg = playerInfo?.mainArt?.url ?: ""
     if(isStateChange(device, "trackImage", trackImg?.toString())) {
         sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
-    }
-    if(isStateChange(device, "trackImageHtml", """<img src="${trackImg?.toString()}"/>""")) {
         sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)
     }
 
@@ -1032,6 +1055,7 @@ def getBluetoothDevices() {
 }
 
 def updGuardStatus(val=null) {
+    //TODO: Update this because it's not working
     String gState = val ?: (state?.permissions?.guardSupported ? (parent?.getAlexaGuardStatus() ?: "Unknown") : "Not Supported")
     if(isStateChange(device, "alexaGuardStatus", gState?.toString())) {
         sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)
