@@ -18,7 +18,7 @@ import groovy.json.*
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 String appVersion()   { return "3.1.0.2" }
-String appModified()  { return "2019-09-30" }
+String appModified()  { return "2019-10-01" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -3655,6 +3655,7 @@ def renderTextEditPage() {
             </head>
             <body class="m-2">
                 <div class="p-3"><button type="button" class="close" aria-label="Close" onclick="window.open('','_parent',''); window.close();"><span aria-hidden="true">×</span></button></div>
+                <div style="float: left; clear:both;position: fixed; top: 0px;"><small>v${inData?.version}</small></div>
                 <div class="w-100 pt-0">
                     <form>
                         <div class="container px-0">
