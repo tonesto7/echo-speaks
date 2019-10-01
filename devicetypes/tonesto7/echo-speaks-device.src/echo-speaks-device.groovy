@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.1.0.2"}
-String devModified() { return "2019-09-25" }
+String devModified() { return "2019-10-01" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -713,6 +713,21 @@ void updateDeviceStatus(Map devData) {
     setOnlineStatus(isOnline)
     sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false, displayed: false)
     schedDataRefresh()
+}
+
+public updSocketStatus(active) {
+    if(active == true) {
+        unschedule("refreshData")
+        state?.refreshScheduled = false
+        state?.websocketActive = true
+    } else {
+        schedDataRefresh(true)
+        state?.websocketActive = false
+    }
+}
+
+void websocketEvtHandler(evtData) {
+    log.debug "evtData: $evtData"
 }
 
 void refresh() {

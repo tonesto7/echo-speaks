@@ -22,7 +22,7 @@ String appModified()  { return "2019-10-01" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3102, actionApp: 3101, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3102, wsDevice: 3102, actionApp: 3101, server: 230] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Collect device data for reason of cleared cookie.
 // TODO: Add in Actions to the metrics
@@ -562,6 +562,7 @@ private List getRemovableDevs() {
     Map eDevs = state?.echoDeviceMap ?: [:]
     List remDevs = []
     (isST() ? app?.getChildDevices(true) : app?.getChildDevices())?.each { cDev->
+        if(cDev?.deviceNetworkId?.toString() == "echoSpeaks_websocket") { return }
         def dni = cDev?.deviceNetworkId?.tokenize("|")
         if(!eDevs?.containsKey(dni[2])) {
             remDevs?.push(cDev?.getLabel() as String)
@@ -1201,8 +1202,35 @@ def uninstalled() {
     removeDevices(true)
 }
 
+void wsEvtHandler(evt) {
+    log.debug "evt: ${evt}"
+}
+
+void webSocketStatus(Boolean active) {
+    state?.websocketActive = active
+    runIn(3, "updChildSocketStatus")
+}
+
+private updChildSocketStatus() {
+    def active = (state?.websocketActive == true)
+    getEsDevices()?.each { it?.updSocketStatus(active) }
+    if(active == true) {
+        unschedule("getOtherData")
+    } else {
+        runEvery1Minute("getOtherData")
+    }
+}
+
 def getActionApps() {
     return getAllChildApps()?.findAll { it?.name == actChildName() }
+}
+
+def getEsDevices() {
+    return (isST() ? app?.getChildDevices(true) : getChildDevices())?.findAll { it?.isWS() == false }
+}
+
+def getSocketDevice() {
+    return (isST() ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
 }
 
 def getZoneApps() {
@@ -1307,10 +1335,17 @@ private checkIfCodeUpdated() {
             codeUpdated = true
         }
         def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
-        if(cDevs?.size() && state?.codeVersions?.echoDevice != cDevs[0]?.devVersion()) {
+        def echoDev = cDevs?.find { !it?.isWS() }
+        def wsDev = cDevs?.find { it?.isWS() }
+        if(echoDev && state?.codeVersions?.echoDevice != echoDev?.devVersion()) {
             chgs?.push("echoDevice")
             state?.pollBlocked = true
-            updCodeVerMap("echoDevice", cDevs[0]?.devVersion())
+            updCodeVerMap("echoDevice", echoDev?.devVersion())
+            codeUpdated = true
+        }
+        if(wsDev && state?.codeVersions?.wsDevice != wsDev?.devVersion()) {
+            chgs?.push("wsDevice")
+            updCodeVerMap("wsDevice", wsDev?.devVersion())
             codeUpdated = true
         }
         def cApps = getActionApps()
@@ -2270,14 +2305,6 @@ def receiveEventData(Map evtData, String src) {
                     if(!wsDevice) {
                         addChildDevice("tonesto7", wsChildHandlerName, "echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true])
                     }
-                    // Map wsVals = [:]
-                    // wsVals["authValid"] = (state?.authValid == true)
-                    // wsVals["amazonDomain"] = (settings?.amazonDomain ?: "amazon.com")
-                    // wsVals["regionLocale"] = (settings?.regionLocale ?: "en-US")
-                    // wsVals["cookie"] = [cookie: getCookieVal(), csrf: getCsrfVal()]
-                    // wsVals["deviceAccountId"] = devAcctId as String ?: null
-                    // wsVals["deviceOwnerCustomerId"] = state?.deviceOwnerCustomerId as String ?: null
-                    // wsDevice?.updateDeviceStatus(wsVals)
                     updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
@@ -2305,6 +2332,7 @@ private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
     Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", actionApp: "Echo Speaks Actions"]
+    if(!isST()) { codeItems?.wsDevice = "Echo Speaks Websocket" }
     Map codeVers = state?.codeVersions ?: [:]
     codeVers?.each { k,v->
         if(codeItems?.containsKey(k as String) && v != null && (versionStr2Int(v) < minVersions()[k as String])) { updRequired = true; updItems?.push(codeItems[k]); }
@@ -3041,22 +3069,30 @@ private getDiagDataJson() {
     try {
         updChildVers()
         def actApps = getActionApps()
-        def childDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+        def echoDevs = getEsDevices()
+        def wsDev = getSocketDevice()
         List appWarnings = []
         List appErrors = []
         List devWarnings = []
         List devErrors = []
+        List sockWarnings = []
+        List sockErrors = []
         List devSpeech = []
         List actWarnings = []
         List actErrors = []
         def ah = getLogHistory()
         if(ah?.warnings?.size()) { appWarnings = appWarnings + ah?.warnings }
         if(ah?.errors?.size()) { appErrors = appErrors + ah?.errors }
-        childDevs?.each { dev->
+        echoDevs?.each { dev->
             def h = dev?.getLogHistory()
             if(h?.warnings?.size()) { devWarnings = devWarnings + h?.warnings }
             if(h?.errors?.size()) { devErrors = devErrors + h?.errors }
             if(h?.speech?.size()) { devSpeech = devSpeech + h?.speech }
+        }
+        if(wsDev) {
+            def h = dev?.getLogHistory()
+            if(h?.warnings?.size()) { sockWarnings = sockWarnings + h?.warnings }
+            if(h?.errors?.size()) { sockErrors = sockErrors + h?.errors }
         }
         actApps?.each { act->
             def h = act?.getLogHistory()
@@ -3104,12 +3140,18 @@ private getDiagDataJson() {
             ],
             devices: [
                 version: state?.codeVersions?.echoDevice ?: null,
-                count: childDevs?.size() ?: 0,
+                count: echoDevs?.size() ?: 0,
                 lastDataUpdDt: state?.lastDevDataUpd,
                 models: state?.deviceStyleCnts ?: [:],
                 warnings: devWarnings,
                 errors: devErrors,
                 speech: devSpeech
+            ],
+            socket: [
+                version: state?.codeVersions?.wsDevice ?: null,
+                warnings: sockWarnings,
+                errors: sockErrors,
+                active: state?.websocketActive
             ],
             hubPlatform: getPlatform(),
             authStatus: [
@@ -3471,6 +3513,7 @@ def appInfoSect()	{
     if(codeVer && (codeVer?.server || codeVer?.actionApp || codeVer?.echoDevice)) {
         str += (codeVer && codeVer?.actionApp) ? bulletItem(str, "Actions: (v${codeVer?.actionApp})") : ""
         str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
+        str += (!isST() && codeVer && codeVer?.wsDevice) ? bulletItem(str, "Socket: (v${codeVer?.wsDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
         str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
     }
