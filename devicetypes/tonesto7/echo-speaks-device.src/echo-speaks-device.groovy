@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 String devVersion()  { return "3.1.0.2"}
-String devModified() { return "2019-09-24" }
+String devModified() { return "2019-10-01" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -497,13 +497,8 @@ public triggerInitialize() {
     runIn(3, "initialize")
 }
 
-String getDeviceType() {
-    return state?.deviceType ?: null
-}
-
-String getDeviceSerial() {
-    return state?.serialNumber ?: null
-}
+String getDeviceType() { return state?.deviceType ?: null }
+String getDeviceSerial() { return state?.serialNumber ?: null }
 
 String getHealthStatus(lower=false) {
 	String res = device?.getStatus()
@@ -645,11 +640,6 @@ void updateDeviceStatus(Map devData) {
         //         log.debug("$k: $v")
         //     }
         // }
-        // devData?.playerState?.each { k,v ->
-        //     if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
-        //         logDebug("$k: $v")
-        //     }
-        // }
         state?.isSupportedDevice = (devData?.unsupported != true)
         state?.serialNumber = devData?.serialNumber
         state?.deviceType = devData?.deviceType
@@ -664,7 +654,8 @@ void updateDeviceStatus(Map devData) {
         devData?.permissionMap?.each {k,v -> permissions[k] = v }
         state?.permissions = permissions
         state?.hasClusterMembers = devData?.hasClusterMembers
-        //log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
+        state?.isWhaDevice = (devData?.permissionMap?.isMultiroomDevice == true)
+        // log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
         // log.trace "permissions: ${state?.permissions}"
         List permissionList = permissions?.findAll { it?.value == true }?.collect { it?.key }
         if(isStateChange(device, "permissions", permissionList?.toString())) {
@@ -715,6 +706,57 @@ void updateDeviceStatus(Map devData) {
     schedDataRefresh()
 }
 
+public updSocketStatus(active) {
+    if(active == true) {
+        // unschedule("refreshData")
+        // state?.refreshScheduled = false
+        state?.websocketActive = true
+    } else {
+        schedDataRefresh(true)
+        state?.websocketActive = false
+    }
+}
+
+void websocketUpdEvt(triggers) {
+    log.debug "triggers: $triggers"
+    if(state?.isWhaDevice) { return }
+    if(triggers?.size()) {
+        triggers?.each { k->
+            switch(k) {
+                case "all":
+                    state?.fullRefreshOk = true
+                    runIn(2, "refreshData")
+                    break
+                case "media":
+                    runIn(2, "getPlaybackState")
+                    break
+                case "queue":
+                    runIn(4, "getPlaylists")
+                case "notif":
+                    runIn(2, "getNotifications")
+                    break
+                case "bluetooth":
+                    runIn(2, "getBluetoothData")
+                    break
+                case "notification":
+                    runIn(2, "getNotifications")
+                    break
+                case "online":
+                    setOnlineStatus(true)
+                    break
+                case "offline":
+                    setOnlineStatus(false)
+                    break
+                case "activity":
+                    runIn(2, "getDeviceActivity")
+                    break
+
+            }
+            //TODO: BUILD A DATA REFRESH QUEUE System
+        }
+    }
+}
+
 void refresh() {
     logTrace("refresh()")
     parent?.childInitiatedRefresh()
@@ -734,6 +776,8 @@ public schedDataRefresh(frc) {
 
 private refreshData(full=false) {
     // logTrace("trace", "refreshData()...")
+    Boolean socketActive = (state?.websocketActive == true)
+    Boolean isWHA = (state?.isWhaDevice == true)
     if(device?.currentValue("onlineStatus") != "online") {
         logTrace("Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
         return
@@ -741,21 +785,25 @@ private refreshData(full=false) {
     if(!isAuthOk()) {return}
     if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
     // logTrace("permissions: ${state?.permissions}")
-    if(state?.permissions?.mediaPlayer == true) {
+    if(state?.permissions?.mediaPlayer == true && !socketActive) {
         getPlaybackState()
-        getPlaylists()
+        if(!isWHA) { getPlaylists() }
     }
-    if(full || state?.fullRefreshOk) {
+    if(!isWHA && (full || state?.fullRefreshOk)) {
         state?.fullRefreshOk = false
         getWifiDetails()
         getDeviceSettings()
     }
-    if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
-    getDeviceActivity()
-    runIn(3, "refreshStage2")
+
+    if(!isWHA) {
+        if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
+        getDeviceActivity()
+        runIn(3, "refreshStage2")
+    }
 }
 
 private refreshStage2() {
+    Boolean socketActive = (state?.websocketActive == true)
     if(state?.permissions?.wakeWord) {
         getWakeWord()
         getAvailableWakeWords()
@@ -766,7 +814,7 @@ private refreshStage2() {
     }
     // log.debug "bluetoothControl: ${state?.permissions?.bluetoothControl}"
 
-    if(state?.permissions?.bluetoothControl) {
+    if(state?.permissions?.bluetoothControl && !socketActive) {
         getBluetoothDevices()
     }
     updGuardStatus()
@@ -810,6 +858,7 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
         logDebug("ignoring getPlaybackState because group is playing here")
         return
     }
+    // if(isGroupResponse) log.debug "isGroupResponse"
     // logTrace("getPlaybackState: ${playerInfo}")
     String playState = playerInfo?.state == 'PLAYING' ? "playing" : "stopped"
     String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
@@ -839,12 +888,10 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
         sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
     }
 
-    //Track Art Imager
+    //Track Art Image
     String trackImg = playerInfo?.mainArt?.url ?: ""
     if(isStateChange(device, "trackImage", trackImg?.toString())) {
         sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
-    }
-    if(isStateChange(device, "trackImageHtml", """<img src="${trackImg?.toString()}"/>""")) {
         sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)
     }
 
@@ -870,7 +917,7 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
     }
     // Update cluster (unless we remain paused)
     if (state?.hasClusterMembers && (playerInfo?.state == 'PLAYING' || isPlayStateChange)) {
-        parent?.sendPlaybackStateToClusterMembers(state?.serialNumber, response, data)
+        parent?.sendPlaybackStateToClusterMembers(state?.serialNumber, playerInfo)
     }
 }
 
@@ -1017,6 +1064,7 @@ def getBluetoothDevices() {
 }
 
 def updGuardStatus(val=null) {
+    //TODO: Update this because it's not working
     String gState = val ?: (state?.permissions?.guardSupported ? (parent?.getAlexaGuardStatus() ?: "Unknown") : "Not Supported")
     if(isStateChange(device, "alexaGuardStatus", gState?.toString())) {
         sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)

@@ -22,7 +22,7 @@ String appModified()  { return "2019-10-01" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3102, actionApp: 3101, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3102, wsDevice: 3102, actionApp: 3101, server: 230] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Collect device data for reason of cleared cookie.
 // TODO: Add in Actions to the metrics
@@ -562,6 +562,7 @@ private List getRemovableDevs() {
     Map eDevs = state?.echoDeviceMap ?: [:]
     List remDevs = []
     (isST() ? app?.getChildDevices(true) : app?.getChildDevices())?.each { cDev->
+        if(cDev?.deviceNetworkId?.toString() == "echoSpeaks_websocket") { return }
         def dni = cDev?.deviceNetworkId?.tokenize("|")
         if(!eDevs?.containsKey(dni[2])) {
             remDevs?.push(cDev?.getLabel() as String)
@@ -1201,8 +1202,57 @@ def uninstalled() {
     removeDevices(true)
 }
 
+void wsEvtHandler(evt) {
+    // log.debug "evt: ${evt}"
+    if(evt && evt?.id && (evt?.attributes?.size() || evts?.triggers?.size())) {
+        if("bluetooth" in evt?.triggers) { getBluetoothData() }
+        if(evt?.all == true) {
+            getEsDevices()?.each { eDev->
+                if(evt?.attributes?.size()) {
+                    evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
+                }
+                if(evt?.triggers?.size()) { it?.websocketUpdEvt(evt?.triggers) }
+            }
+        } else {
+            def eDev = findEchoDevice(evt?.id as String)
+            if(eDev) {
+                evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
+                if(evt?.triggers?.size()) { eDev?.websocketUpdEvt(evt?.triggers) }
+            }
+        }
+    }
+}
+
+private findEchoDevice(serial) {
+    return getEsDevices()?.find { it?.getDeviceSerial()?.toString() == serial as String } ?: null
+}
+
+void webSocketStatus(Boolean active) {
+    state?.websocketActive = active
+    runIn(3, "updChildSocketStatus")
+}
+
+private updChildSocketStatus() {
+    def active = (state?.websocketActive == true)
+    getEsDevices()?.each { it?.updSocketStatus(active) }
+    if(active == true) {
+        unschedule("getOtherData")
+    } else {
+        runEvery1Minute("getOtherData")
+    }
+    updTsMap("lastWebsocketUpdDt", getDtNow())
+}
+
 def getActionApps() {
     return getAllChildApps()?.findAll { it?.name == actChildName() }
+}
+
+def getEsDevices() {
+    return (isST() ? app?.getChildDevices(true) : getChildDevices())?.findAll { it?.isWS() == false }
+}
+
+def getSocketDevice() {
+    return (isST() ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
 }
 
 def getZoneApps() {
@@ -1307,10 +1357,17 @@ private checkIfCodeUpdated() {
             codeUpdated = true
         }
         def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
-        if(cDevs?.size() && state?.codeVersions?.echoDevice != cDevs[0]?.devVersion()) {
+        def echoDev = cDevs?.find { !it?.isWS() }
+        def wsDev = cDevs?.find { it?.isWS() }
+        if(echoDev && state?.codeVersions?.echoDevice != echoDev?.devVersion()) {
             chgs?.push("echoDevice")
             state?.pollBlocked = true
-            updCodeVerMap("echoDevice", cDevs[0]?.devVersion())
+            updCodeVerMap("echoDevice", echoDev?.devVersion())
+            codeUpdated = true
+        }
+        if(wsDev && state?.codeVersions?.wsDevice != wsDev?.devVersion()) {
+            chgs?.push("wsDevice")
+            updCodeVerMap("wsDevice", wsDev?.devVersion())
             codeUpdated = true
         }
         def cApps = getActionApps()
@@ -1686,7 +1743,7 @@ private getMusicProviders() {
             }
             // log.debug "Music Providers: ${items}"
             if(!state?.musicProviders || items != state?.musicProviders) { state?.musicProviders = items }
-            updTsMap("musicProviderDt")
+            updTsMap("musicProviderDt", getDtNow())
         }
     } catch (ex) {
         respExceptionHandler(ex, "getMusicProviders", true)
@@ -2141,7 +2198,9 @@ def receiveEventData(Map evtData, String src) {
                 Map skippedDevices = [:]
                 List curDevFamily = []
                 Integer cnt = 0
+                String devAcctId = null
                 evtData?.echoDevices?.each { echoKey, echoValue->
+                    devAcctId = echoValue?.deviceAccountId
                     logTrace("echoDevice | $echoKey | ${echoValue}")
                     // logDebug("echoDevice | ${echoValue?.accountName}", false)
                     allEchoDevices[echoKey] = [name: echoValue?.accountName]
@@ -2245,7 +2304,8 @@ def receiveEventData(Map evtData, String src) {
                                 logError("AddDevice Error! | ${ex}")
                             }
                         }
-                    } else {
+                    }
+                    if(childDevice) {
                         //Check and see if name needs a refresh
                         String curLbl = childDevice?.getLabel()
                         if(autoRename && childDevice?.name as String != childHandlerName) { childDevice?.name = childHandlerName as String }
@@ -2258,7 +2318,13 @@ def receiveEventData(Map evtData, String src) {
                         childDevice?.updateDeviceStatus(echoValue)
                         updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
-                    curDevFamily.push(echoValue?.deviceStyle?.name)
+                    curDevFamily?.push(echoValue?.deviceStyle?.name)
+                }
+                if(!isST()) {
+                    String wsChildHandlerName = "Echo Speaks WS"
+                    def wsDevice = getChildDevice("echoSpeaks_websocket")
+                    if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
+                    updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
                 state?.lastDevDataUpd = getDtNow()
@@ -2285,6 +2351,7 @@ private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
     Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", actionApp: "Echo Speaks Actions"]
+    if(!isST()) { codeItems?.wsDevice = "Echo Speaks Websocket" }
     Map codeVers = state?.codeVersions ?: [:]
     codeVers?.each { k,v->
         if(codeItems?.containsKey(k as String) && v != null && (versionStr2Int(v) < minVersions()[k as String])) { updRequired = true; updItems?.push(codeItems[k]); }
@@ -2563,15 +2630,17 @@ private appUpdateNotify() {
     Boolean appUpd = isAppUpdateAvail()
     Boolean actUpd = isActionAppUpdateAvail()
     Boolean echoDevUpd = isEchoDevUpdateAvail()
+    Boolean socketUpd = isSocketUpdateAvail()
     Boolean servUpd = isServerUpdateAvail()
     logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(state?.updNotifyWaitVal && getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
-        if(on && (appUpd || actUpd || echoDevUpd || servUpd)) {
+        if(on && (appUpd || actUpd || echoDevUpd || socketUpd || servUpd)) {
             state?.updateAvailable = true
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
+            str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state?.appData?.versions?.wsDevice?.ver?.toString()}"
             str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             state?.lastUpdMsgDt = getDtNow()
@@ -2955,6 +3024,11 @@ Boolean isEchoDevUpdateAvail() {
     return false
 }
 
+Boolean isSocketUpdateAvail() {
+    if(!isST() && state?.appData?.versions && state?.codeVersions?.wsDevice && isCodeUpdateAvailable(state?.appData?.versions?.wsDevice?.ver, state?.codeVersions?.wsDevice, "socket")) { return true }
+    return false
+}
+
 Boolean isServerUpdateAvail() {
     if(state?.appData?.versions && state?.codeVersions?.server && isCodeUpdateAvailable(state?.appData?.versions?.server?.ver, state?.codeVersions?.server, "server")) { return true }
     return false
@@ -3021,22 +3095,30 @@ private getDiagDataJson() {
     try {
         updChildVers()
         def actApps = getActionApps()
-        def childDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+        def echoDevs = getEsDevices()
+        def wsDev = getSocketDevice()
         List appWarnings = []
         List appErrors = []
         List devWarnings = []
         List devErrors = []
+        List sockWarnings = []
+        List sockErrors = []
         List devSpeech = []
         List actWarnings = []
         List actErrors = []
         def ah = getLogHistory()
         if(ah?.warnings?.size()) { appWarnings = appWarnings + ah?.warnings }
         if(ah?.errors?.size()) { appErrors = appErrors + ah?.errors }
-        childDevs?.each { dev->
+        echoDevs?.each { dev->
             def h = dev?.getLogHistory()
             if(h?.warnings?.size()) { devWarnings = devWarnings + h?.warnings }
             if(h?.errors?.size()) { devErrors = devErrors + h?.errors }
             if(h?.speech?.size()) { devSpeech = devSpeech + h?.speech }
+        }
+        if(wsDev) {
+            def h = dev?.getLogHistory()
+            if(h?.warnings?.size()) { sockWarnings = sockWarnings + h?.warnings }
+            if(h?.errors?.size()) { sockErrors = sockErrors + h?.errors }
         }
         actApps?.each { act->
             def h = act?.getLogHistory()
@@ -3084,12 +3166,19 @@ private getDiagDataJson() {
             ],
             devices: [
                 version: state?.codeVersions?.echoDevice ?: null,
-                count: childDevs?.size() ?: 0,
+                count: echoDevs?.size() ?: 0,
                 lastDataUpdDt: state?.lastDevDataUpd,
                 models: state?.deviceStyleCnts ?: [:],
                 warnings: devWarnings,
                 errors: devErrors,
                 speech: devSpeech
+            ],
+            socket: [
+                version: state?.codeVersions?.wsDevice ?: null,
+                warnings: sockWarnings,
+                errors: sockErrors,
+                active: state?.websocketActive,
+                lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
             ],
             hubPlatform: getPlatform(),
             authStatus: [
@@ -3451,6 +3540,7 @@ def appInfoSect()	{
     if(codeVer && (codeVer?.server || codeVer?.actionApp || codeVer?.echoDevice)) {
         str += (codeVer && codeVer?.actionApp) ? bulletItem(str, "Actions: (v${codeVer?.actionApp})") : ""
         str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
+        str += (!isST() && codeVer && codeVer?.wsDevice) ? bulletItem(str, "Socket: (v${codeVer?.wsDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
         str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
     }

@@ -10,13 +10,14 @@
         "echoDevice": {
             "ver": "3.1.0.2"
         },
+        "wsDevice": {
+            "ver": "3.1.0.2"
+        },
         "server": {
             "ver": "2.2.2"
         }
     },
     "settings": {
-        "installNotif": true,
-        "updateNotif": true,
         "sendMetrics": true,
         "database": {
             "metricsUrl": "https://echo-speaks-metrics.firebaseio.com/"
