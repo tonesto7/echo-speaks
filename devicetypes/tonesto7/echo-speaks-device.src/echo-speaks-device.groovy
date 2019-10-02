@@ -2636,8 +2636,7 @@ private speechCmd(headers=[:], isQueueCmd=false) {
             seqCmds = seqCmds + msgSeqBuilder(headerMap?.message)
             if(headerMap?.oldVolume) { seqCmds?.push([command: "volume", value: headerMap?.oldVolume]) }
             bodyObj = new JsonOutput().toJson(multiSequenceBuilder(seqCmds))
-            headerMap?.Connection = "keep-alive"
-            headerMap?.DNT = "1"
+
             Map params = [
                 uri: getAmazonUrl(),
                 path: "/api/behaviors/preview",

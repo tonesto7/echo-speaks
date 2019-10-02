@@ -1834,7 +1834,7 @@ Integer getLastGuardSupportCheckSec() { return !state?.lastGuardSupportCheck ? 3
 def checkGuardSupport() {
     def execDt = now()
     if(!isAuthValid("checkGuardSupport")) { return }
-    Map params = [
+    def params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix",
         query: [ cached: true, _: new Date().getTime() ],
@@ -1901,7 +1901,7 @@ def checkGuardSupportFromServer() {
     def params = [
         uri: getServerHostURL(),
         path: "/agsData",
-        requestContentType: "application/json; charset=UTF-8",
+        requestContentType: "application/json",
         contentType: "application/json",
     ]
     execAsyncCmd("get", "checkGuardSupportServerResponse", params, [execDt: now()])
@@ -1954,7 +1954,6 @@ private getGuardState() {
                 settingUpdate("alexaGuardAwayToggle", ((state?.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
                 logDebug("Alexa Guard State: (${state?.alexaGuardState})")
                 state?.lastGuardStateCheck = getDtNow()
-                updGuardActionTrig()
             }
             // log.debug "GuardState resp: ${respData}"
         }
@@ -2477,21 +2476,6 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
     }
 }
 
-def asyncRespHandler(response, data) {
-    Boolean hasErr = (response?.hasError() == true)
-    String errMsg = (hasErr && response?.getErrorMessage()) ? response?.getErrorMessage() : null
-    Boolean isJson = (response?.contentType == "application/json")
-
-    try {
-
-
-    } catch (groovyx.net.http.HttpResponseException hre) {
-
-    } catch (ex) {
-
-    }
-}
-
 private sendSequenceCommand(type, command, value) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value", true)
     Map seqObj = sequenceBuilder(command, value)
@@ -2988,7 +2972,7 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
 
 private getConfigData() {
     Map params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData3.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData2.json",
         contentType: "application/json"
     ]
     def data = getWebData(params, "appData", false)
