@@ -2319,14 +2319,11 @@ def receiveEventData(Map evtData, String src) {
                         updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
                     curDevFamily?.push(echoValue?.deviceStyle?.name)
-
                 }
                 if(!isST()) {
                     String wsChildHandlerName = "Echo Speaks WS"
                     def wsDevice = getChildDevice("echoSpeaks_websocket")
-                    if(!wsDevice) {
-                        addChildDevice("tonesto7", wsChildHandlerName, "echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true])
-                    }
+                    if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
                     updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")

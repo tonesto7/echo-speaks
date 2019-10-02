@@ -640,13 +640,7 @@ void updateDeviceStatus(Map devData) {
         //         log.debug("$k: $v")
         //     }
         // }
-        // devData?.playerState?.each { k,v ->
-        //     if(!(k in ["mainArt", "mediaId", "miniArt", "hint", "template", "upNextItems", "queueId", "miniInfoText", "provider"])) {
-        //         logDebug("$k: $v")
-        //     }
-        // }
         state?.isSupportedDevice = (devData?.unsupported != true)
-        state?.isMultiRoomDevice = devData?.isMultiRoomDevice
         state?.serialNumber = devData?.serialNumber
         state?.deviceType = devData?.deviceType
         state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
@@ -660,6 +654,7 @@ void updateDeviceStatus(Map devData) {
         devData?.permissionMap?.each {k,v -> permissions[k] = v }
         state?.permissions = permissions
         state?.hasClusterMembers = devData?.hasClusterMembers
+        state?.isWhaDevice = (devData?.permissionMap?.isMultiroomDevice == true)
         // log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
         // log.trace "permissions: ${state?.permissions}"
         List permissionList = permissions?.findAll { it?.value == true }?.collect { it?.key }
@@ -724,6 +719,7 @@ public updSocketStatus(active) {
 
 void websocketUpdEvt(triggers) {
     log.debug "triggers: $triggers"
+    if(state?.isWhaDevice) { return }
     if(triggers?.size()) {
         triggers?.each { k->
             switch(k) {
@@ -781,7 +777,7 @@ public schedDataRefresh(frc) {
 private refreshData(full=false) {
     // logTrace("trace", "refreshData()...")
     Boolean socketActive = (state?.websocketActive == true)
-    Boolean isWHA = (state?.isMultiRoomDevice == true)
+    Boolean isWHA = (state?.isWhaDevice == true)
     if(device?.currentValue("onlineStatus") != "online") {
         logTrace("Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
         return
