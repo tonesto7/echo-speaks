@@ -49,7 +49,7 @@ preferences {
     page(name: "newSetupPage")
     page(name: "authStatusPage")
     page(name: "actionsPage")
-    // page(name: "zonesPage")
+    page(name: "zonesPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
     page(name: "unrecogDevicesPage")
@@ -67,6 +67,7 @@ preferences {
     page(name: "sequencePage")
     page(name: "setNotificationTimePage")
     page(name: "actionDuplicationPage")
+    page(name: "zoneDuplicationPage")
     page(name: "uninstallPage")
 }
 
@@ -116,16 +117,11 @@ def mainPage() {
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
-            // def zones = getZoneApps()
-            // section(sTS("Zones:")) {
-            //     paragraph pTS("Create automation triggers from device/location events and perform advanced functions using your Alexa devices.", null, false, "#2784D9")
-            //     href "zonesPage", title: inTS("Manage Zones", getAppImg("es_groups", true)), description: getZoneDesc(), state: (zones?.size() ? "complete" : null), image: getAppImg("es_groups")
-            // }
 
-            def acts = getActionApps()
-            section(sTS("Actions:")) {
-                paragraph pTS("Create automation triggers from device/location events and perform advanced functions using your Alexa devices.", null, false, "#2784D9")
-                href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: getActionsDesc(), state: (acts?.size() ? "complete" : null), image: getAppImg("es_actions")
+            section(sTS("Companion Apps:")) {
+                def zones = getZoneApps()
+                href "zonesPage", title: inTS("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > 1 ? "Zones" : "Zone"})" : ""}", getAppImg("es_groups", true)), description: getZoneDesc(), state: (zones?.size() ? "complete" : null), image: getAppImg("es_groups")
+                href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: getActionsDesc(), state: (getActionApps()?.size() ? "complete" : null), image: getAppImg("es_actions")
             }
 
             section(sTS("Alexa Login Service:")) {
@@ -465,7 +461,7 @@ def actionDuplicationPage() {
             } else {
                 def act = getActionApps()?.find { it?.id?.toString() == settings?.actionDuplicateSelect?.toString() }
                 if(act) {
-                    Map actData = act?.getActDuplSettingData()
+                    Map actData = act?.getDuplSettingData()
                     actData?.settings["duplicateFlag"] = [type: "bool", value: true]
                     addChildApp("tonesto7", actChildName(), "${actData?.label} (Dup)", [settings: actData?.settings])
                     paragraph pTS("Action Duplicated... Return to Action Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
@@ -478,14 +474,41 @@ def actionDuplicationPage() {
     }
 }
 
+def zoneDuplicationPage() {
+    return dynamicPage(name: "zoneDuplicationPage", nextPage: "zonePage", uninstall: false, install: false) {
+        section() {
+            if(state?.zoneDuplicated) {
+                paragraph pTS("Action already duplicated...\n\nReturn to action page and select it", null, true, "red"), required: true, state: null
+            } else {
+                def zn = getZoneApps()?.find { it?.id?.toString() == settings?.zoneDuplicateSelect?.toString() }
+                if(zn) {
+                    Map znData = zn?.getDuplSettingData()
+                    znData?.settings["duplicateFlag"] = [type: "bool", value: true]
+                    addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData?.settings])
+                    paragraph pTS("Zone Duplicated... Return to Zone Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
+                } else {
+                    paragraph pTS("Zone Not Found", null, true, "red"), required: true, state: null
+                }
+                state?.zoneDuplicated = true
+            }
+        }
+    }
+}
+
 public clearDuplicationItems() {
     state?.actionDuplicated = false
+    state?.zoneDuplicated = false
     settingRemove("actionDuplicateSelect")
+    settingRemove("zoneDuplicateSelect")
 }
 
 public getDupActionStateData() {
     def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
-    return act?.getActDuplStateData() ?: null
+    return act?.getDuplStateData() ?: null
+}
+public getDupZoneStateData() {
+    def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
+    return act?.getDuplStateData() ?: null
 }
 
 def zonesPage() {
@@ -499,8 +522,15 @@ def zonesPage() {
         }
         section() {
             app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
+            if(zApps?.size() && isST()) {
+                input "zoneDuplicateSelect", "enum", title: inTS("Duplicate Existing Zone", getAppImg("es_groups", true)), description: "Tap to select...", options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
+                if(settings?.zoneDuplicateSelect) {
+                    href "zoneDuplicationPage", title: inTS("Create Duplicate Zone?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
+                }
+            }
         }
         state?.childInstallOkFlag = true
+        state?.zoneDuplicated = false
     }
 }
 
@@ -1243,6 +1273,28 @@ private updChildSocketStatus() {
     updTsMap("lastWebsocketUpdDt", getDtNow())
 }
 
+public updZoneActiveStatus(data) {
+    if(data?.size() && data?.id) {
+        Map zoneMap = atomicState?.zoneStatusMap ?: [:]
+        zoneMap[data?.id] = [name: data?.name, active: data?.active]
+        atomicState?.zoneStatusMap = zoneMap
+    }
+}
+
+public Map getZones() {
+    return atomicState?.zoneStatusMap ?: [:]
+}
+
+public Map getActiveZones() {
+    Map zones = atomicState?.zoneStatusMap ?: [:]
+    return zones?.size() ? zones?.findAll { it?.value?.active == true } : [:]
+}
+
+public List getActiveZoneNames() {
+    Map zones = atomicState?.zoneStatusMap ?: [:]
+    return zones?.size() ? zones?.findAll { it?.value?.active == true }?.collect { it?.value?.name as String } : []
+}
+
 def getActionApps() {
     return getAllChildApps()?.findAll { it?.name == actChildName() }
 }
@@ -1755,6 +1807,7 @@ private getOtherData() {
     getBluetoothDevices()
     getDoNotDisturb()
     getMusicProviders()
+    log.debug "Active Zones: ${getActiveZoneNames()}"
 }
 
 private getBluetoothDevices() {
@@ -3486,13 +3539,19 @@ String getActionsDesc() {
     String str = ""
     str += active?.size() ? "(${active?.size()}) Active\n" : ""
     str += paused?.size() ? "(${paused?.size()}) Paused\n" : ""
-    str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to configure"
+    str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to create actions using device/location events to perform advanced actions using your Alexa devices."
     return str
 }
 
 String getZoneDesc() {
     def zones = getZoneApps()
+    def actZones = getActiveZoneNames()?.sort()?.collect { "\u2022 ${it}" }
+    def paused = zones?.findAll { it?.isPaused() == true }
+    def active = zones?.findAll { it?.isPaused() != true }
     String str = ""
+    str += actZones?.size() ? "Active Zones:\n${actZones?.join("\n")}\n" : ""
+    str += paused?.size() ? "(${paused?.size()}) Paused\n" : ""
+    str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to Create Alexa devices zones based on motion, presence, and other criteria."
     return str
 }
 

@@ -107,7 +107,6 @@ private def buildTriggerEnum() {
         //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
         // buildItems?.Location?.scene = "Scenes"
     }
-    // buildItems["Weather Events"] = ["Weather":"Weather"]
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.key }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.key }
@@ -216,7 +215,7 @@ def prefsPage() {
 }
 
 def namePage() {
-    return dynamicPage(name: "namePage", install: true, uninstall: true) {
+    return dynamicPage(name: "namePage", install: true, uninstall: false) {
         section(sTS("Name this Automation:")) {
             input "appLbl", "text", title: inTS("Label this Action", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
         }
@@ -244,11 +243,11 @@ def triggersPage() {
                         input "trig_scheduled_sunState", "enum", title: inTS("Sunrise or Sunset...", getAppImg("sunrise", true)), options: ["Sunrise", "Sunset"], multiple: false, required: false, submitOnChange: true, image: getAppImg("sunrise")
                         if(settings?.trig_scheduled_sunState) {
                             input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset event this number of minutes (+/-)", getAppImg(settings?.trig_scheduled_sunState?.toString()?.toLowerCase(), true)),
-                                    required: true, image: getPublicImg(settings?.trig_scheduled_sunState?.toString()?.toLowerCase() + "")
+                                    required: true, image: getAppImg(settings?.trig_scheduled_sunState?.toString()?.toLowerCase() + "")
                         }
                     }
                     if(!settings?.trig_scheduled_sunState) {
-                        input "trig_scheduled_time", "time", title: inTS("Time of Day?", getAppImg("clock", true)), required: false, submitOnChange: true, image: getPublicImg("clock")
+                        input "trig_scheduled_time", "time", title: inTS("Time of Day?", getAppImg("clock", true)), required: false, submitOnChange: true, image: getAppImg("clock")
                         if(settings?.trig_scheduled_time || settings?.trig_scheduled_sunState) {
                             input "trig_scheduled_recurrence", "enum", title: inTS("Recurrence?", getAppImg("day_calendar", true)), description: "(Optional)", multiple: false, required: false, submitOnChange: true, options: ["Once", "Daily", "Weekly", "Monthly"], defaultValue: "Once", image: getAppImg("day_calendar")
                             Boolean dayReq = (settings?.trig_scheduled_recurrence in ["Weekly", "Monthly"])
@@ -456,28 +455,6 @@ def triggersPage() {
                     }
                 }
             }
-
-            if (valTrigEvt("weather")) {
-                section(sTS("Weather Events"), hideable: true) {
-                    paragraph pTS("Weather Events are not configured to take actions yet.", getAppImg("weather")), state: null, image: getAppImg("weather")
-                    //TODO: Buildout weather alerts
-                    input "trig_weather_cmd", "enum", title: inTS("Weather Alerts", getAppImg("command", true)), required: true, multiple: true, submitOnChange: true, image: getAppImg("command"),
-                        options: [
-                            "TOR":	"Tornado Warning",
-                            "TOW":	"Tornado Watch",
-                            "WRN":	"Severe Thunderstorm Warning",
-                            "SEW":	"Severe Thunderstorm Watch",
-                            "WIN":	"Winter Weather Advisory",
-                            "FLO":	"Flood Warning",
-                            "WND":	"High Wind Advisoryt",
-                            "HEA":	"Heat Advisory",
-                            "FOG":	"Dense Fog Advisory",
-                            "FIR":	"Fire Weather Advisory",
-                            "VOL":	"Volcanic Activity Statement",
-                            "HWW":	"Hurricane Wind Warning"
-                        ]
-                }
-            }
             if(triggersConfigured()) {
                 section("") {
                     paragraph pTS("You're all done with this step.  Press Done/Save", getAppImg("done", true)), state: "complete", image: getAppImg("done")
@@ -581,18 +558,13 @@ Boolean sensorTriggers() {
     )
 }
 
-Boolean weatherTriggers() {
-    return (settings?.trig_Weather || settings?.myWeather || settings?.myWeatherAlert)
-}
-
 Boolean triggersConfigured() {
     Boolean sched = scheduleTriggers()
     Boolean loc = locationTriggers()
     Boolean dev = deviceTriggers()
     Boolean sen = sensorTriggers()
-    Boolean weath = weatherTriggers()
-    // log.debug "sched: $sched | loc: $loc | dev: $dev | sen: $sen | weath: $weath"
-    return (sched || loc || dev || sen || weath)
+    // log.debug "sched: $sched | loc: $loc | dev: $dev | sen: $sen"
+    return (sched || loc || dev || sen)
 }
 
 /******************************************************************************
@@ -855,6 +827,9 @@ def actionsPage() {
                         section(sTS("Playback Config:")) {
                             input "act_playback_cmd", "enum", title: inTS("Select Playback Action", getAppImg("command", true)), description: "", options: playbackOpts, required: true, submitOnChange: true, image: getAppImg("command")
                         }
+                        if(settings?.act_playback_cmd == "volume") {
+                            actionVolumeInputs(devices)
+                        }
                         actionExecMap?.config?.playback = [cmd: settings?.act_playback_cmd]
                         if(settings?.act_playback_cmd) { done = true } else { done = false }
                     } else { done = false }
@@ -931,8 +906,8 @@ def actionsPage() {
                         section(sTS("Action Type Config:")) {
                             input "act_alarm_label", "text", title: inTS("Alarm Label", getAppImg("name_tag", true)), submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_alarm_date", "text", title: inTS("Alarm Date\n(yyyy-mm-dd)", getAppImg("day_calendar", true)), submitOnChange: true, required: true, image: getAppImg("day_calendar")
-                            input "act_alarm_time", "time", title: inTS("Alarm Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getPublicImg("clock")
-                            // input "act_alarm_remove", "bool", title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false, image: getPublicImg("question")
+                            input "act_alarm_time", "time", title: inTS("Alarm Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getAppImg("clock")
+                            // input "act_alarm_remove", "bool", title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
                         actionVolumeInputs(devices, true)
                         actionExecMap?.config?.alarm = [cmd: "createAlarm", label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: settings?.act_alarm_time, remove: settings?.act_alarm_remove]
@@ -948,8 +923,8 @@ def actionsPage() {
                         section(sTS("Action Type Config:")) {
                             input "act_reminder_label", "text", title: inTS("Reminder Label", getAppImg("name_tag", true)), submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_reminder_date", "text", title: inTS("Reminder Date\n(yyyy-mm-dd)", getAppImg("day_calendar", true)), submitOnChange: true, required: true, image: getAppImg("day_calendar")
-                            input "act_reminder_time", "time", title: inTS("Reminder Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getPublicImg("clock")
-                            // input "act_reminder_remove", "bool", title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getPublicImg("question")
+                            input "act_reminder_time", "time", title: inTS("Reminder Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getAppImg("clock")
+                            // input "act_reminder_remove", "bool", title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
                         actionVolumeInputs(devices, true)
                         actionExecMap?.config?.reminder = [cmd: "createReminder", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: settings?.act_reminder_time, remove: settings?.act_reminder_remove]
@@ -1230,11 +1205,19 @@ Boolean executionConfigured() {
 
 private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
+    Boolean zoneTypeOk = (type in ["TTS", "announce"])
+    Map echoZones = zoneTypeOk ? parent?.getZones() : [:]
+    if(echoZones?.size()) {
+        section(sTS("Echo Speaks Zones:")) {
+            paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves", null, false)
+            input "act_EchoZone", "enum", title: inTS("Zone(s) to Use", getAppImg("es_groups", true)), description: "Select the Zones", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings?.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
+        }
+    }
     section(sTS("Alexa Devices:")) {
         if(echoDevs?.size()) {
             def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == "true")]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-            input "act_EchoDevices", "enum", title: inTS("Echo Speaks Device(s) to Use", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : ""}"] }, multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
-        } else { paragraph "No devices were found with support for ($type)"}
+            input "act_EchoDevices", "enum", title: inTS("Echo Speaks Device(s) to Use", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : ""}"] }, multiple: true, required: (!settings?.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
+        } else { paragraph pTS("No devices were found with support for ($type)", null, true, "red") }
     }
 }
 
@@ -1327,7 +1310,7 @@ def initialize() {
 }
 
 private updAppLabel() {
-    String newLbl = "${settings?.appLbl} (Act)${isPaused() ? " | (Paused)" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings?.appLbl} (Act)${isPaused() ? " | (\u23F8)" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -1511,18 +1494,6 @@ private subscribeToEvts() {
     if (valTrigEvt("thermostat")) {
         if(settings?.trig_thermostat) { subscribe(settings?.trig_thermostat, "thermostat", deviceEvtHandler) }
     }
-
-    // Weather
-    if (valTrigEvt("weather")) {
-        if(settings?.trig_weather && settings?.trig_weather_cmd) { runEvery1Minute("weatherCheckHandler") }
-    }
-
-    // settings?.triggerEvents?.each {
-    //     if(settings?."trig_${it}_after") {
-    //         runEvery1Minute("afterEvtCheckWatcher")
-    //         return
-    //     }
-    // }
 }
 
 private attributeConvert(String attr) {
@@ -1890,16 +1861,6 @@ def modeEvtHandler(evt) {
 def locationEvtHandler(evt) {
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     executeAction(evt, false, "locationEvtHandler", false, false)
-}
-
-def weatherCheckHandler() {
-    // def alerts = getTwcAlerts()
-    // log.debug "alerts: ${alerts}"
-
-    // def alerts = getTwcAlerts()
-    // log.debug "alerts: ${alerts}"
-
-    // executeAction(evt, false, "locationEvtHandler", false, false)
 }
 
 def scheduleAfterCheck(data) {
@@ -2300,8 +2261,10 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                     actDevices?.each { dev->
                         if(isST) {
                             dev?."${actConf[actType]?.cmd}"([delay: actDelayMs])
+                            if(changeVol) { dev?.volume(changeVol, [delay: actDelayMs]) }
                         } else {
                             dev?."${actConf[actType]?.cmd}"()
+                            if(changeVol) { dev?.volume(changeVol) }
                         }
                     }
                     logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
@@ -3245,22 +3208,6 @@ String convMusicProvider(String prov) {
     }
 }
 
-String getObjType(obj) {
-    if(obj instanceof String) {return "String"}
-    else if(obj instanceof GString) {return "GString"}
-    else if(obj instanceof Map) {return "Map"}
-    else if(obj instanceof List) {return "List"}
-    else if(obj instanceof ArrayList) {return "ArrayList"}
-    else if(obj instanceof Integer) {return "Integer"}
-    else if(obj instanceof BigInteger) {return "BigInteger"}
-    else if(obj instanceof Long) {return "Long"}
-    else if(obj instanceof Boolean) {return "Boolean"}
-    else if(obj instanceof BigDecimal) {return "BigDecimal"}
-    else if(obj instanceof Float) {return "Float"}
-    else if(obj instanceof Byte) {return "Byte"}
-    else if(obj instanceof Date) {return "Date"}
-    else { return "unknown"}
-}
 /************************************************
             SEQUENCE TEST LOGIC
 *************************************************/
@@ -3323,9 +3270,9 @@ def searchTuneInResultsPage() {
 }
 
 //*******************************************************************
-//    CLONE ACTION Logic
+//    CLONE CHILD LOGIC
 //*******************************************************************
-public getActDuplSettingData() {
+public getDuplSettingData() {
     Map typeObj = [
         s: [
             bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace"],
@@ -3379,13 +3326,12 @@ public getActDuplSettingData() {
         settings?.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
     }
     Map data = [:]
-    data?.label = app?.getLabel()?.toString()?.replace(" | (Paused)", "")
+    data?.label = app?.getLabel()?.toString()?.replace(" | (\u23F8)", "")
     data?.settings = setObjs
     return data
 }
 
-public getActDuplStateData() {
+public getDuplStateData() {
     List stskip = ["isInstalled", "isParent", "lastActNotifMsgDt", "lastActionNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory"]
     return state?.findAll { !(it?.key in stskip) }
 }
-
