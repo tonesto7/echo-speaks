@@ -17,7 +17,7 @@
 String appVersion()	 { return "3.1.1.1" }
 String appModified() { return "2019-10-03" }
 String appAuthor()	 { return "Anthony S." }
-Boolean isBeta()     { return true }
+Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 definition(
@@ -90,39 +90,48 @@ def mainPage() {
         }
         if(paused) {
             section() {
-                paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
+                paragraph pTS("This Action is currently disabled...\nTo edit the please re-enable it.", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
             }
         } else {
             Boolean condConf = conditionsConfigured()
             section(sTS("Zone Configuration:")) {
-                href "conditionsPage", title: inTS("Zone Activation Conditions\n(Optional)", getAppImg("conditions", true)), description: getConditionsDesc(), required: true, state: (condConf ? "complete": null), image: getAppImg("conditions")
+                href "conditionsPage", title: inTS("Zone Activation Conditions", getAppImg("conditions", true)), description: getConditionsDesc(), required: true, state: (condConf ? "complete": null), image: getAppImg("conditions")
                 if(condConf) {
                     echoDevicesInputByPerm("announce")
                 }
             }
 
             if(settings?.zone_EchoDevices) {
-                section(sTS("Activation Delay:")) {
-                    input "zone_delay", "number", title: inTS("Delay Activation in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
+                section(sTS("Condition Delays:")) {
+                    input "zone_active_delay", "number", title: inTS("Delay Activation in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
+                    input "zone_inactive_delay", "number", title: inTS("Delay Deactivation in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                 }
-                section(sTS("Activation Tasks (Optional):")) {
-                    // Send Notification
-                    // Turn switches on/off based on Activation
+                section(sTS("Zone Active Tasks (Optional):")) {
+                    input "zone_active_switches_on", "capability.switch", title: inTS("Turn on Switches when Zone Active\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+                    input "zone_active_switches_off", "capability.switch", title: inTS("Turn off Switches when Zone Active\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+                }
+                section(sTS("Zone Inactive Tasks (Optional):")) {
+                    input "zone_inactive_switches_on", "capability.switch", title: inTS("Turn on Switches when Zone Inactive\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+                    input "zone_inactive_switches_off", "capability.switch", title: inTS("Turn off Switches when Zone Inactive\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+                }
+                section(sTS("Notifications:")) {
+                    def t0 = getAppNotifDesc()
+                    href "zoneNotifPage", title: inTS("Send Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
                 }
             }
         }
         section(sTS("Preferences")) {
             if(!paused) {
-                href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
+                href "prefsPage", title: inTS("Logging Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
             }
             if(state?.isInstalled) {
-                input "zonePause", "bool", title: inTS("Pause Action?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                input "zonePause", "bool", title: inTS("Disable Zone?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
                 if(zonePause) { unsubscribe() }
             }
         }
         if(state?.isInstalled) {
             section(sTS("Name this Zone:")) {
-                input "appLbl", "text", title: inTS("Action Name", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
+                input "appLbl", "text", title: inTS("Zone Name", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
             }
             section(sTS("Remove Zone:")) {
                 href "uninstallPage", title: inTS("Remove this Action", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
@@ -148,16 +157,12 @@ def prefsPage() {
             input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
             input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
         }
-        section(sTS("Other:")) {
-            input "clrEvtHistory", "bool", title: inTS("Clear Device Event History?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-            if(clrEvtHistory) { clearEvtHistory() }
-        }
     }
 }
 
 def namePage() {
     return dynamicPage(name: "namePage", install: true, uninstall: false) {
-        section(sTS("Name this Automation:")) {
+        section(sTS("Zone Description:")) {
             input "appLbl", "text", title: inTS("Name this Zone", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
         }
     }
@@ -195,23 +200,23 @@ def conditionsPage() {
 
         condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", ["open", "closed"], "are", "garage_door")
 
-        condNumValSect("temperature", "temperatureMeasurement", "Temperature Conditions", "Temperature Sensors", "Temperature", "temperature", true)
+        condNumValSect("temperature", "temperatureMeasurement", "Temperature Conditions", "Temperature Sensors", "Temperature", "temperature")
 
-        condNumValSect("humidity", "relativeHumidityMeasurement", "Humidity Conditions", "Relative Humidity Sensors", "Relative Humidity (%)", "humidity", true)
+        condNumValSect("humidity", "relativeHumidityMeasurement", "Humidity Conditions", "Relative Humidity Sensors", "Relative Humidity (%)", "humidity")
 
-        condNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Conditions", "Illuminance Sensors", "Lux Level (%)", "illuminance", true)
+        condNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Conditions", "Illuminance Sensors", "Lux Level (%)", "illuminance")
 
-        condNumValSect("level", "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level (%)", "speed_knob", true)
+        condNumValSect("level", "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level (%)", "speed_knob")
 
         condNonNumSect("water", "waterSensor", "Water Sensors", "Water Sensors", ["wet", "dry"], "are", "water")
 
-        condNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power", true)
+        condNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power")
 
         condNonNumSect("shade", "windowShades", "Window Shades", "Window Shades", ["open", "closed"], "are", "shade")
 
         condNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed"], "are", "valve")
 
-        condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery", true)
+        condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery")
     }
 }
 
@@ -278,59 +283,58 @@ def condTimePage() {
 def zoneNotifPage() {
     return dynamicPage(name: "zoneNotifPage", title: "Zone Notifications", install: false, uninstall: false) {
         section (sTS("Message Customization:")) {
-            if(customMsgRequired() && !settings?.notif_use_custom) { settingUpdate("notif_use_custom", "true", "bool") }
-            paragraph pTS("When using speak and announcements you can leave this off and a notification will be sent with speech text.  For other zone types a custom message is required", null, false, "gray")
-            input "notif_use_custom", "bool", title: inTS("Send a custom notification...", getAppImg("question", true)), required: false, defaultValue: customMsgRequired(), submitOnChange: true, image: getAppImg("question")
-            if(settings?.notif_use_custom) {
-                input "notif_custom_message", "text", title: inTS("Enter custom message...", getAppImg("text", true)), required: true, submitOnChange: true, image: getAppImg("text")
+            input "notif_active_message", "text", title: inTS("Enter message to send when Active...", getAppImg("text", true)), required: true, submitOnChange: true, image: getAppImg("text")
+            input "notif_inactive_message", "text", title: inTS("Enter message to send when Active...", getAppImg("text", true)), required: true, submitOnChange: true, image: getAppImg("text")
+        }
+        if(settings?.notif_active_message || settings?.notif_inactive_message) {
+            section (sTS("Push Messages:")) {
+                input "notif_send_push", "bool", title: inTS("Send Push Notifications...", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
             }
-        }
-
-        section (sTS("Push Messages:")) {
-            input "notif_send_push", "bool", title: inTS("Send Push Notifications...", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-        }
-        section (sTS("Text Messages:"), hideWhenEmpty: true) {
-            paragraph pTS("To send to multiple numbers separate the number by a comma\n\nE.g. 8045551122,8046663344", getAppImg("info", true), false, "gray")
-            paragraph pTS("SMS Support will soon be removed from Hubitat and SmartThings (UK)", getAppImg("info", true), false, "gray")
-            input "notif_sms_numbers", "text", title: inTS("Send SMS Text to...", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
-        }
-        section (sTS("Notification Devices:")) {
-            input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
-        }
-        section (sTS("Alexa Mobile Notification:")) {
-            paragraph pTS("This will send a push notification the Alexa Mobile app.", null, false, "gray")
-            input "notif_alexa_mobile", "bool", title: inTS("Send message to Alexa App?", getAppImg("notification", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
-        }
-        if(isST()) {
-            section(sTS("Pushover Support:")) {
-                input "notif_pushover", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover_icon", true)), required: false, submitOnChange: true, image: getAppImg("pushover")
-                if(settings?.notif_pushover == true) {
-                    def poDevices = parent?.getPushoverDevices()
-                    if(!poDevices) {
-                        parent?.pushover_init()
-                        paragraph pTS("If this is the first time enabling Pushover than leave this page and come back if the devices list is empty", null, false, "#2784D9"), state: "complete"
-                    } else {
-                        input "notif_pushover_devices", "enum", title: inTS("Select Pushover Devices", getAppImg("select_icon", true)), description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
-                        if(settings?.notif_pushover_devices) {
-                            def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
-                            input "notif_pushover_priority", "enum", title: inTS("Notification Priority (Optional)", getAppImg("priority", true)), description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority")
-                            input "notif_pushover_sound", "enum", title: inTS("Notification Sound (Optional)", getAppImg("sound", true)), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound")
+            section (sTS("Text Messages:"), hideWhenEmpty: true) {
+                paragraph pTS("To send to multiple numbers separate the number by a comma\n\nE.g. 8045551122,8046663344", getAppImg("info", true), false, "gray")
+                paragraph pTS("SMS Support will soon be removed from Hubitat and SmartThings (UK)", getAppImg("info", true), false, "gray")
+                input "notif_sms_numbers", "text", title: inTS("Send SMS Text to...", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+            }
+            section (sTS("Notification Devices:")) {
+                input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
+            }
+            section (sTS("Alexa Mobile Notification:")) {
+                paragraph pTS("This will send a push notification the Alexa Mobile app.", null, false, "gray")
+                input "notif_alexa_mobile", "bool", title: inTS("Send message to Alexa App?", getAppImg("notification", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
+            }
+            if(isST()) {
+                section(sTS("Pushover Support:")) {
+                    input "notif_pushover", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover_icon", true)), required: false, submitOnChange: true, image: getAppImg("pushover")
+                    if(settings?.notif_pushover == true) {
+                        def poDevices = parent?.getPushoverDevices()
+                        if(!poDevices) {
+                            parent?.pushover_init()
+                            paragraph pTS("If this is the first time enabling Pushover than leave this page and come back if the devices list is empty", null, false, "#2784D9"), state: "complete"
+                        } else {
+                            input "notif_pushover_devices", "enum", title: inTS("Select Pushover Devices", getAppImg("select_icon", true)), description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
+                            if(settings?.notif_pushover_devices) {
+                                def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
+                                input "notif_pushover_priority", "enum", title: inTS("Notification Priority (Optional)", getAppImg("priority", true)), description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority")
+                                input "notif_pushover_sound", "enum", title: inTS("Notification Sound (Optional)", getAppImg("sound", true)), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound")
+                            }
                         }
                     }
                 }
             }
+            if(isZoneNotifConfigured()) {
+                section(sTS("Notification Restrictions:")) {
+                    def nsd = getNotifSchedDesc()
+                    href "zoneNotifTimePage", title: inTS("Notification Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
+                }
+                if(!state?.notif_message_tested) {
+                    def actDevices = settings?.notif_alexa_mobile ? parent?.getDevicesFromList(settings?.zone_EchoDevices) : []
+                    def aMsgDev = actDevices?.size() && settings?.notif_alexa_mobile ? actDevices[0] : null
+                    if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state?.notif_message_tested = true }
+                }
+            } else { state?.notif_message_tested = false }
+        } else {
+            paragraph pTS("Configure either an Active or Inactive message to configure remaining notification options.", null, false, "#2784D9"), state: "complete"
         }
-        if(isActNotifConfigured()) {
-            section(sTS("Notification Restrictions:")) {
-                def nsd = getNotifSchedDesc()
-                href "zoneNotifTimePage", title: inTS("Notification Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
-            }
-            if(!state?.notif_message_tested) {
-                def actDevices = settings?.notif_alexa_mobile ? parent?.getDevicesFromList(settings?.zone_EchoDevices) : []
-                def aMsgDev = actDevices?.size() && settings?.notif_alexa_mobile ? actDevices[0] : null
-                if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state?.notif_message_tested = true }
-            }
-        } else { state?.notif_message_tested = false }
     }
 }
 
@@ -710,8 +714,11 @@ def zoneEvtHandler(evt) {
 def checkZoneStatus() {
     Map condStatus = conditionStatus()
     Boolean active = (condStatus?.ok == true)
-    if(settings?.zone_delay) {
-        runIn(settings?.zone_delay as Integer, "updateZoneStatus", [data: [active: active, recheck: true]])
+    Integer delay = null
+    if(active) { delay = settings?.zone_active_delay ?: null }
+    else { delay = settings?.zone_inactive_delay ?: null }
+    if(delay) {
+        runIn(delay as Integer, "updateZoneStatus", [data: [active: active, recheck: true]])
     } else { updateZoneStatus([data: [active: active, recheck: false]]) }
 }
 
@@ -728,6 +735,25 @@ def updateZoneStatus(data) {
         log.debug("Updating Zone Status to (${active ? "Active" : "Inactive"})... ${app?.getLabel()}")
         state?.zoneConditionsOk = active
         sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: active], isStateChange: true)
+        if(isZoneNotifConfigured()) {
+            Boolean ok2Send = true
+            String msgTxt = null
+            if(active) {
+                msgTxt = settings?.notif_active_message ?: null
+            } else { msgTxt = settings?.notif_inactive_message ?: null }
+            if(ok2Send && msgTxt) {
+                def zoneDevices = getZoneDevices()
+                def alexaMsgDev = zoneDevices?.size() && settings?.notif_alexa_mobile ? zoneDevices[0] : null
+                if(sendNotifMsg(app?.getLabel() as String, msgTxt as String, alexaMsgDev, false)) { logDebug("Sent Zone Notification...") }
+            }
+        }
+        if(active) {
+            if(settings?.zone_active_switches_off) settings?.zone_active_switches_off?.off()
+            if(settings?.zone_active_switches_on) settings?.zone_active_switches_on?.on()
+        } else {
+            if(settings?.zone_inactive_switches_off) settings?.zone_inactive_switches_off?.off()
+            if(settings?.zone_inactive_switches_on) settings?.zone_inactive_switches_on?.on()
+        }
     }
 }
 
@@ -778,6 +804,23 @@ public zoneCmdHandler(evt) {
 /******************************************
 |   Restriction validators
 *******************************************/
+
+String attUnit(attr) {
+    switch(attr) {
+        case "humidity":
+        case "level":
+        case "battery":
+            return " percent"
+        case "temperature":
+            return " degrees"
+        case "illuminance":
+            return " lux"
+        case "power":
+            return " watts"
+        default:
+            return ""
+    }
+}
 
 Double getDevValueAvg(devs, attr) {
     List vals = devs?.findAll { it?."current${attr?.capitalize()}"?.isNumber() }?.collect { it?."current${attr?.capitalize()}" as Double }
@@ -1005,6 +1048,7 @@ String unitStr(type) {
         case "temp":
             return "\u00b0${getTemperatureScale() ?: "F"}"
         case "humidity":
+        case "battery":
             return "%"
         default:
             return ""
@@ -1013,7 +1057,7 @@ String unitStr(type) {
 
 String getAppNotifDesc(hide=false) {
     String str = ""
-    if(isActNotifConfigured()) {
+    if(isZoneNotifConfigured()) {
         str += hide ? "" : "Send To:\n"
         str += settings?.notif_sms_numbers ? " \u2022 (${settings?.notif_sms_numbers?.tokenize(",")?.size()} SMS Numbers)\n" : ""
         str += settings?.notif_send_push ? " \u2022 (Push Message)\n" : ""
@@ -1066,8 +1110,23 @@ String getConditionsDesc() {
         if(deviceCondConfigured()) {
             ["switch", "motion", "presence", "contact", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
                 if(devCondConfigured(evt)) {
-                    str += settings?."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${checkDeviceCondOk(evt) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-                    str += settings?."${sPre}${evt}_cmd" ? "    - Value: (${settings?."${sPre}${evt}_cmd"})\n" : ""
+                    def condOk = false
+                    if(evt in ["switch", "motion", "presence", "contact", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
+                    else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
+
+                    str += settings?."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+                    def cmd = settings?."${sPre}${evt}_cmd" ?: null
+                    if(cmd in ["between", "below", "above", "equals"]) {
+                        def cmdLow = settings?."${sPre}${evt}_low" ?: null
+                        def cmdHigh = settings?."${sPre}${evt}_high" ?: null
+                        def cmdEq = settings?."${sPre}${evt}_equal" ?: null
+                        str += (cmd == "equals" && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += (cmd == "between" && cmdLow && cmdHigh) ? "    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += (cmd == "above" && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += (cmd == "below" && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                    } else {
+                        str += cmd ? "    - Value: (${cmd})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                    }
                     str += settings?."${sPre}${evt}_all" ? "    - Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
                 }
             }
@@ -1090,6 +1149,7 @@ String getZoneDesc() {
         return "tap to configure..."
     }
 }
+
 
 String getTimeCondDesc(addPre=true) {
     def sun = getSunriseAndSunset()
@@ -1152,37 +1212,6 @@ void settingRemove(String name) {
     if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
 }
 
-Map notifValEnum(allowCust = true) {
-    Map items = [
-        300:"5 Minutes", 600:"10 Minutes", 900:"15 Minutes", 1200:"20 Minutes", 1500:"25 Minutes",
-        1800:"30 Minutes", 2700:"45 Minutes", 3600:"1 Hour", 7200:"2 Hours", 14400:"4 Hours", 21600:"6 Hours", 43200:"12 Hours", 86400:"24 Hours"
-    ]
-    if(allowCust) { items[100000] = "Custom" }
-    return items
-}
-
-def fanTimeSecEnum() {
-    def vals = [
-        60:"1 Minute", 120:"2 Minutes", 180:"3 Minutes", 240:"4 Minutes", 300:"5 Minutes", 600:"10 Minutes", 900:"15 Minutes", 1200:"20 Minutes"
-    ]
-    return vals
-}
-
-def longTimeSecEnum() {
-    def vals = [
-        0:"Off", 60:"1 Minute", 120:"2 Minutes", 180:"3 Minutes", 240:"4 Minutes", 300:"5 Minutes", 600:"10 Minutes", 900:"15 Minutes", 1200:"20 Minutes", 1500:"25 Minutes",
-        1800:"30 Minutes", 2700:"45 Minutes", 3600:"1 Hour", 7200:"2 Hours", 14400:"4 Hours", 21600:"6 Hours", 43200:"12 Hours", 86400:"24 Hours", 10:"10 Seconds(Testing)"
-    ]
-    return vals
-}
-
-def shortTimeEnum() {
-    def vals = [
-        1:"1 Second", 2:"2 Seconds", 3:"3 Seconds", 4:"4 Seconds", 5:"5 Seconds", 6:"6 Seconds", 7:"7 Seconds",
-        8:"8 Seconds", 9:"9 Seconds", 10:"10 Seconds", 15:"15 Seconds", 30:"30 Seconds", 60:"60 Seconds"
-    ]
-    return vals
-}
 List weekDaysEnum() {
     return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 }
@@ -1310,9 +1339,11 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
     return sent
 }
 
-Boolean isActNotifConfigured() {
-    if(customMsgRequired() && (!settings?.notif_use_custom || settings?.notif_custom_message)) { return false }
-    return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_devs || settings?.notif_alexa_mobile || (isST() && settings?.notif_pushover && settings?.notif_pushover_devices))
+Boolean isZoneNotifConfigured() {
+    return (
+        (settings?.notif_active_message || settings?.notif_inactive_message) &&
+        (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_devs || settings?.notif_alexa_mobile || (isST() && settings?.notif_pushover && settings?.notif_pushover_devices))
+    )
 }
 
 //PushOver-Manager Input Generation Functions

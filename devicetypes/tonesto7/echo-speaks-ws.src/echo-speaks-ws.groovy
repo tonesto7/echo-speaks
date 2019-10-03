@@ -20,8 +20,8 @@ import java.text.SimpleDateFormat
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 import java.security.MessageDigest
-String devVersion()  { return "3.1.1.0"}
-String devModified() { return "2019-10-02" }
+String devVersion()  { return "3.1.1.1"}
+String devModified() { return "2019-10-03" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return true }

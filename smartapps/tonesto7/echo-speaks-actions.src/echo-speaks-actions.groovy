@@ -1308,8 +1308,12 @@ def initialize() {
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
     // Subscribes to Echo Speaks Zone Activation Events...
-    if(settings?.act_EchoZones) { subscribe(location, "es3ZoneState", zoneStateHandler) }
+    updateZoneSubscriptions()
     updConfigStatusMap()
+}
+
+def updateZoneSubscriptions() {
+    if(settings?.act_EchoZones) { subscribe(location, "es3ZoneState", zoneStateHandler) }
 }
 
 private updAppLabel() {
@@ -3020,8 +3024,23 @@ String getConditionsDesc() {
         if(deviceCondConfigured()) {
             ["switch", "motion", "presence", "contact", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
                 if(devCondConfigured(evt)) {
-                    str += settings?."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${checkDeviceCondOk(evt) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-                    str += settings?."${sPre}${evt}_cmd" ? "    - Value: (${settings?."${sPre}${evt}_cmd"})\n" : ""
+                    def condOk = false
+                    if(evt in ["switch", "motion", "presence", "contact", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
+                    else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
+
+                    str += settings?."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+                    def cmd = settings?."${sPre}${evt}_cmd" ?: null
+                    if(cmd in ["between", "below", "above", "equals"]) {
+                        def cmdLow = settings?."${sPre}${evt}_low" ?: null
+                        def cmdHigh = settings?."${sPre}${evt}_high" ?: null
+                        def cmdEq = settings?."${sPre}${evt}_equal" ?: null
+                        str += (cmd == "equals" && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += (cmd == "between" && cmdLow && cmdHigh) ? "    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += (cmd == "above" && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += (cmd == "below" && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                    } else {
+                        str += cmd ? "    - Value: (${cmd})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                    }
                     str += settings?."${sPre}${evt}_all" ? "    - Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
                 }
             }

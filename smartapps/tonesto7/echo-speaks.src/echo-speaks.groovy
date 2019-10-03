@@ -528,6 +528,7 @@ def zonesPage() {
         }
         state?.childInstallOkFlag = true
         state?.zoneDuplicated = false
+        updateZoneSubscriptions()
     }
 }
 
@@ -1184,6 +1185,7 @@ def updated() {
     if(!state?.isInstalled) { state?.isInstalled = true }
     if(!state?.installData) { state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: getDtNow().toString(), shownDonation: false, sentMetrics: false] }
     unsubscribe()
+    state?.zoneEvtsActive = false
     unschedule()
     initialize()
 }
@@ -1203,8 +1205,8 @@ def initialize() {
             subscribe(settings?.guardAwayPresence, "presence", guardTriggerEvtHandler)
         }
     }
-    subscribe(location, "es3ZoneState", zoneStateHandler)
     if(!state?.resumeConfig) {
+        updateZoneSubscriptions()
         validateCookie(true)
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
@@ -1212,6 +1214,13 @@ def initialize() {
         runIn(11, "postInitialize")
         getOtherData()
         getEchoDevices()
+    }
+}
+
+def updateZoneSubscriptions() {
+    if(state?.zoneEvtsActive != true) {
+        subscribe(location, "es3ZoneState", zoneStateHandler)
+        state?.zoneEvtsActive = true
     }
 }
 
@@ -1274,6 +1283,7 @@ private updChildSocketStatus() {
 def zoneStateHandler(evt) {
     String id = evt?.value;
     Map data = evt?.jsonData;
+    log.trace "zone: ${id} | Data: $data"
     if(data && id) {
         Map zoneMap = atomicState?.zoneStatusMap ?: [:]
         zoneMap[id] = [name: data?.name, active: data?.active]
