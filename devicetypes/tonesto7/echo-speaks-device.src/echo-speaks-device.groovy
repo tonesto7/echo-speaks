@@ -13,10 +13,6 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-import groovy.json.*
-import java.text.SimpleDateFormat
-import java.util.regex.Matcher
-import java.util.regex.Pattern
 String devVersion()  { return "3.1.1.1"}
 String devModified() { return "2019-10-03" }
 Boolean isBeta()     { return false }
@@ -501,7 +497,7 @@ def updated() {
 def initialize() {
     logInfo("${device?.displayName} Executing initialize()")
     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
-    sendEvent(name: "DeviceWatch-Enroll", value: new JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), displayed: false)
+    sendEvent(name: "DeviceWatch-Enroll", value: new groovy.json.JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), displayed: false)
     resetQueue()
     stateCleanup()
     if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
@@ -731,8 +727,6 @@ void updateDeviceStatus(Map devData) {
 
 public updSocketStatus(active) {
     if(active == true) {
-        // unschedule("refreshData")
-        // state?.refreshScheduled = false
         state?.websocketActive = true
     } else {
         schedDataRefresh(true)
@@ -859,14 +853,14 @@ private getPlaybackState(isGroupResponse=false) {
         uri: getAmazonUrl(),
         path: "/api/np/player",
         query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType, screenWidth: 2560, _: new Date()?.getTime() ],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json"
     ]
     Map playerInfo = [:]
     try {
         httpGet(params) { response->
             Map sData = response?.data ?: [:]
-            playerInfo = sData?.playerInfo ?: null
+            playerInfo = sData?.playerInfo ?: [:]
         }
     } catch (ex) {
         respExceptionHandler(ex, "getPlaybackState", false, true)
@@ -881,7 +875,6 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
         logDebug("ignoring getPlaybackState because group is playing here")
         return
     }
-    // if(isGroupResponse) log.debug "isGroupResponse"
     // logTrace("getPlaybackState: ${playerInfo}")
     String playState = playerInfo?.state == 'PLAYING' ? "playing" : "stopped"
     String deviceStatus = "${playState}_${state?.deviceStyle?.image}"
@@ -1186,7 +1179,7 @@ private getDeviceActivity() {
                     it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType)
                 }
                 if (lastCommand) {
-                    def lastDescription = new JsonSlurper().parseText(lastCommand?.description)
+                    def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
                     def spokenText = lastDescription?.summary
                     def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
                     if(lastDevice?.serialNumber == state?.serialNumber) {
@@ -1281,7 +1274,7 @@ private sendSequenceCommand(type, command, value) {
         path: "/api/behaviors/preview",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
-        body: new JsonOutput().toJson(seqObj)
+        body: new groovy.json.JsonOutput().toJson(seqObj)
     ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
@@ -1311,7 +1304,9 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
                     if(respData && respData?.message == null && ignNullMsg) {
                         // Ignoring Null message
                     } else {
-                        logError("${mName} | Improperly formatted request sent to Amazon | Msg: ${errMsg}")
+                        if (respData && respData?.message?.startsWith("Music metadata")) {
+                            // Ignoring metadata error message
+                        } else { logError("${mName} | Improperly formatted request sent to Amazon | Msg: ${errMsg} | Data: ${respData}") }
                     }
                     break
                 case "Rate Exceeded":
@@ -1966,13 +1961,13 @@ private Map validateMusicSearch(searchPhrase, providerId, sleepSeconds=null) {
         ]
     ]
     if(sleepSeconds) { validObj?.operationPayload?.waitTimeInSeconds = sleepSeconds }
-    validObj?.operationPayload = new JsonOutput().toJson(validObj?.operationPayload)
+    validObj?.operationPayload = new groovy.json.JsonOutput().toJson(validObj?.operationPayload)
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/operation/validate",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
-        body: new JsonOutput().toJson(validObj)
+        body: new groovy.json.JsonOutput().toJson(validObj)
     ]
     Map result = null
     try {
@@ -2706,7 +2701,7 @@ private speechCmd(headers=[:], isQueueCmd=false) {
             if(headerMap?.newVolume) { seqCmds?.push([command: "volume", value: headerMap?.newVolume]) }
             seqCmds = seqCmds + msgSeqBuilder(headerMap?.message)
             if(headerMap?.oldVolume) { seqCmds?.push([command: "volume", value: headerMap?.oldVolume]) }
-            bodyObj = new JsonOutput().toJson(multiSequenceBuilder(seqCmds))
+            bodyObj = new groovy.json.JsonOutput().toJson(multiSequenceBuilder(seqCmds))
 
             Map params = [
                 uri: getAmazonUrl(),
@@ -2739,6 +2734,8 @@ private speechCmd(headers=[:], isQueueCmd=false) {
 
 private postCmdProcess(resp, statusCode, data) {
     if(data && data?.deviceId && (data?.deviceId == device?.getDeviceNetworkId())) {
+        String respMsg = resp?.message ?: null
+        String respMsgLow = resp?.message ? resp?.message?.toString()?.toLowerCase() : null
         if(statusCode == 200) {
             def execTime = data?.cmdDt ? (now()-data?.cmdDt) : 0
             if(data?.queueKey) {
@@ -2770,16 +2767,24 @@ private postCmdProcess(resp, statusCode, data) {
                 logSpeech(data?.message, statusCode, null)
             }
             return
-        } else if(statusCode.toInteger() == 400 && resp?.message && resp?.message?.toString()?.toLowerCase() == "rate exceeded") {
-            def random = new Random()
-            Integer rDelay = 2//random?.nextInt(5)
-            logWarn("You've been Rate-Limited by Amazon for sending Consectutive Commands to 5+ Device... | Device will retry again in ${rDelay} seconds", true)
-            schedQueueCheck(rDelay, true, [rateLimited: true, delay: data?.msgDelay], "postCmdProcess(Rate-Limited)")
-            logSpeech(data?.message, statusCode, resp?.message)
+        } else if((statusCode?.toInteger() in [400, 429]) && respMsgLow && (respMsgLow in ["rate exceeded", "too many requests"])) {
+            switch(respMsgLow) {
+                case "rate exceeded":
+                    Integer rDelay = 3
+                    logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                    schedQueueCheck(rDelay, true, [rateLimited: true, delay: data?.msgDelay], "postCmdProcess(Rate-Limited)")
+                    break
+                case "too many requests":
+                    Integer rDelay = 5
+                    logWarn("You've sent too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                    schedQueueCheck(rDelay, true, [rateLimited: false, delay: data?.msgDelay], "postCmdProcess(Too-Many-Requests)")
+                    break
+            }
+            logSpeech(data?.message, statusCode, respMsg)
             return
         } else {
-            logError("postCmdProcess Error | status: ${statusCode} | Msg: ${resp?.message}")
-            logSpeech(data?.message, statusCode, resp?.message)
+            logError("postCmdProcess Error | status: ${statusCode} | Msg: ${respMsg}")
+            logSpeech(data?.message, statusCode, respMsg)
             incrementCntByKey("err_cloud_commandPost")
             resetQueue()
             return
@@ -2800,7 +2805,7 @@ def getDtNow() {
 
 def formatDt(dt, mdy = true) {
 	def formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
-	def tf = new SimpleDateFormat(formatVal)
+	def tf = new java.text.SimpleDateFormat(formatVal)
 	if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
 	return tf.format(dt)
 }
@@ -2911,7 +2916,7 @@ Map sequenceBuilder(cmd, val) {
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new JsonOutput().toJson(seqJson) as String, status: "ENABLED"]
+    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new groovy.json.JsonOutput().toJson(seqJson) as String, status: "ENABLED"]
     return seqObj
 }
 

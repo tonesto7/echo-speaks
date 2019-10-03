@@ -14,17 +14,14 @@
  *
  */
 
-import groovy.json.*
-import groovy.time.TimeCategory
-import java.text.SimpleDateFormat
-String appVersion()   { return "3.1.1.0" }
-String appModified()  { return "2019-10-02" }
+String appVersion()   { return "3.1.1.1" }
+String appModified()  { return "2019-10-03" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
 Map minVersions()     { return [echoDevice: 3110, wsDevice: 3110, actionApp: 3110, zoneApp: 3110, server: 230] } //These values define the minimum versions of code this app will work with.
 
-// TODO: Collect device data for reason of cleared cookie.
+// TODO: Fix server install state where server is installed but needs to login.
 // TODO: Add in Actions to the metrics
 definition(
     name        : "Echo Speaks",
@@ -1206,12 +1203,13 @@ def initialize() {
             subscribe(settings?.guardAwayPresence, "presence", guardTriggerEvtHandler)
         }
     }
+    subscribe(location, "es3ZoneState", zoneStateHandler)
     if(!state?.resumeConfig) {
         validateCookie(true)
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
-        runIn(15, "postInitialize")
+        runIn(11, "postInitialize")
         getOtherData()
         getEchoDevices()
     }
@@ -1273,10 +1271,12 @@ private updChildSocketStatus() {
     updTsMap("lastWebsocketUpdDt", getDtNow())
 }
 
-public updZoneActiveStatus(data) {
-    if(data?.size() && data?.id) {
+def zoneStateHandler(evt) {
+    String id = evt?.value;
+    Map data = evt?.jsonData;
+    if(data && id) {
         Map zoneMap = atomicState?.zoneStatusMap ?: [:]
-        zoneMap[data?.id] = [name: data?.name, active: data?.active]
+        zoneMap[id] = [name: data?.name, active: data?.active]
         atomicState?.zoneStatusMap = zoneMap
     }
 }
@@ -1293,16 +1293,6 @@ public Map getActiveZones() {
 public List getActiveZoneNames() {
     Map zones = atomicState?.zoneStatusMap ?: [:]
     return zones?.size() ? zones?.findAll { it?.value?.active == true }?.collect { it?.value?.name as String } : []
-}
-
-public sendZoneCmd(Map cmd) {
-    //[ zones: actZones?.collect { it?.key as String }, cmd: actType, message: txt, changeVol: changeVol, restoreVol: restoreVol ]
-    if(map && map?.zones?.size()) {
-        map?.zones?.each { z->
-            def zn = getZoneById(z)
-            if(zn) { zn?.zoneCmd([cmd: cmd?.cmd, message: cmd?.message, changeVol: cmd?.changeVol, restoreVol: cmd?.restoreVol]) }
-        }
-    }
 }
 
 def getActionApps() {
@@ -1424,23 +1414,32 @@ private checkIfCodeUpdated() {
         }
         def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
         def echoDev = cDevs?.find { !it?.isWS() }
-        def wsDev = cDevs?.find { it?.isWS() }
         if(echoDev && state?.codeVersions?.echoDevice != echoDev?.devVersion()) {
             chgs?.push("echoDevice")
             state?.pollBlocked = true
             updCodeVerMap("echoDevice", echoDev?.devVersion())
             codeUpdated = true
         }
-        if(wsDev && state?.codeVersions?.wsDevice != wsDev?.devVersion()) {
-            chgs?.push("wsDevice")
-            updCodeVerMap("wsDevice", wsDev?.devVersion())
-            codeUpdated = true
+        if(!isST()) {
+            def wsDev = cDevs?.find { it?.isWS() }
+            if(wsDev && state?.codeVersions?.wsDevice != wsDev?.devVersion()) {
+                chgs?.push("wsDevice")
+                updCodeVerMap("wsDevice", wsDev?.devVersion())
+                codeUpdated = true
+            }
         }
         def cApps = getActionApps()
         if(cApps?.size() && state?.codeVersions?.actionApp != cApps[0]?.appVersion()) {
             chgs?.push("actionApp")
             state?.pollBlocked = true
             updCodeVerMap("actionApp", cApps[0]?.appVersion())
+            codeUpdated = true
+        }
+        def zApps = getZoneApps()
+        if(zApps?.size() && state?.codeVersions?.actionApp != zApps[0]?.appVersion()) {
+            chgs?.push("zoneApp")
+            state?.pollBlocked = true
+            updCodeVerMap("zoneApp", zApps[0]?.appVersion())
             codeUpdated = true
         }
     }
@@ -1477,7 +1476,7 @@ private appCleanup() {
 }
 
 private resetQueues() {
-    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.resetQueue() }
+    (isST() ? app?.getChildDevices(true) : getChildDevices())?.findAll { it?.isWS() != true }?.each { it?.resetQueue() }
 }
 
 private reInitChildren() {
@@ -1486,8 +1485,13 @@ private reInitChildren() {
     reInitChildApps()
 }
 
+private reInitZones() {
+    getZoneApps()?.each { it?.triggerInitialize() }
+}
+
 private reInitChildApps() {
     getActionApps()?.each { it?.triggerInitialize() }
+    runIn(3, "reInitZones")
 }
 
 private updCodeVerMap(key, val) {
@@ -1784,9 +1788,16 @@ public childInitiatedRefresh() {
 
 public updChildVers() {
     def cApps = getActionApps()
+    def zApps = getZoneApps()
     def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+    def eDevs = cDevs?.findAll { it?.isWS() != true }
     updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
-    updCodeVerMap("echoDevice", cDevs?.size() ? cDevs[0]?.devVersion() : null)
+    updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
+    updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
+    if(!isST()) {
+        def wDevs = cDevs?.findAll { it?.isWS() == true }
+        updCodeVerMap("wsDevice", wDevs?.size() ? wDevs[0]?.devVersion() : null)
+    }
 }
 
 private getMusicProviders() {
@@ -1821,7 +1832,6 @@ private getOtherData() {
     getBluetoothDevices()
     getDoNotDisturb()
     getMusicProviders()
-    log.debug "Active Zones: ${getActiveZoneNames()}"
 }
 
 private getBluetoothDevices() {
@@ -2417,7 +2427,7 @@ def receiveEventData(Map evtData, String src) {
 private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
-    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", actionApp: "Echo Speaks Actions"]
+    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones"]
     if(!isST()) { codeItems?.wsDevice = "Echo Speaks Websocket" }
     Map codeVers = state?.codeVersions ?: [:]
     codeVers?.each { k,v->
@@ -2496,7 +2506,7 @@ Map sequenceBuilder(cmd, val) {
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new JsonOutput().toJson(seqJson) as String, status: "ENABLED"]
+    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new groovy.json.JsonOutput().toJson(seqJson) as String, status: "ENABLED"]
     return seqObj
 }
 
@@ -2694,18 +2704,20 @@ private missPollNotify(Boolean on, Integer wait) {
 
 private appUpdateNotify() {
     Boolean on = (settings?.sendAppUpdateMsg != false)
-    Boolean appUpd = isAppUpdateAvail()
-    Boolean actUpd = isActionAppUpdateAvail()
-    Boolean echoDevUpd = isEchoDevUpdateAvail()
-    Boolean socketUpd = isSocketUpdateAvail()
-    Boolean servUpd = isServerUpdateAvail()
-    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
+    Boolean appUpd = appUpdAvail()
+    Boolean actUpd = actionUpdAvail()
+    Boolean zoneUpd = zoneUpdAvail()
+    Boolean echoDevUpd = echoDevUpdAvail()
+    Boolean socketUpd = socketUpdAvail()
+    Boolean servUpd = serverUpdAvail()
+    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
     if(state?.updNotifyWaitVal && getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
-        if(on && (appUpd || actUpd || echoDevUpd || socketUpd || servUpd)) {
+        if(on && (appUpd || actUpd || zoneUpd || echoDevUpd || socketUpd || servUpd)) {
             state?.updateAvailable = true
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
+            str += !zoneUpd ? "" : "\nEcho Speaks - Zones: v${state?.appData?.versions?.zoneApp?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
             str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state?.appData?.versions?.wsDevice?.ver?.toString()}"
             str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
@@ -2718,15 +2730,19 @@ private appUpdateNotify() {
 }
 
 private List codeUpdateItems(shrt=false) {
-    Boolean appUpd = isAppUpdateAvail()
-    Boolean actUpd = isActionAppUpdateAvail()
-    Boolean devUpd = isEchoDevUpdateAvail()
-    Boolean servUpd = isServerUpdateAvail()
+    Boolean appUpd = appUpdAvail()
+    Boolean actUpd = actionUpdAvail()
+    Boolean zoneUpd = zoneUpdAvail()
+    Boolean devUpd = echoDevUpdAvail()
+    Boolean socketUpd = socketUpdAvail()
+    Boolean servUpd = serverUpdAvail()
     List updItems = []
-    if(appUpd || actUpd || devUpd || servUpd) {
+    if(appUpd || actUpd || zoneUpd || devUpd || socketUpd || servUpd) {
         if(appUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}App: (v${state?.appData?.versions?.mainApp?.ver?.toString()})")
         if(actUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Actions: (v${state?.appData?.versions?.actionApp?.ver?.toString()})")
+        if(zoneUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Zones: (v${state?.appData?.versions?.zoneApp?.ver?.toString()})")
         if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Device: (v${state?.appData?.versions?.echoDevice?.ver?.toString()})")
+        if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Websocket: (v${state?.appData?.versions?.wsDevice?.ver?.toString()})")
         if(servUpd) updItems.push("${!shrt ? "\n" : ""}Server: (v${state?.appData?.versions?.server?.ver?.toString()})")
     }
     return updItems
@@ -2780,7 +2796,7 @@ Boolean quietTimeOk() {
 
 Boolean quietDaysOk(days) {
     if(days) {
-        def dayFmt = new SimpleDateFormat("EEEE")
+        def dayFmt = new java.text.SimpleDateFormat("EEEE")
         if(location?.timeZone) { dayFmt?.setTimeZone(location?.timeZone) }
         return days?.contains(dayFmt?.format(new Date())) ? false : true
     }
@@ -3022,7 +3038,7 @@ private createMetricsDataJson(rendAsMap=false) {
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
             serverPlatform: state?.onHeroku ? "Cloud" : "Local",
-            versions: [app: appVersion(), server: swVer?.server ?: "N/A", actions: swVer?.actionApp ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
+            versions: [app: appVersion(), server: swVer?.server ?: "N/A", actions: swVer?.actionApp ?: "N/A", zones: swVer?.zoneApp ?: "N/A", device: swVer?.echoDevice ?: "N/A", socket: swVer?.wsDevice ?: "N/A"],
             detections: [skippedDevices: getSkippedDevsAnon()],
             counts: [
                 deviceStyleCnts: state?.deviceStyleCnts ?: [:],
@@ -3051,56 +3067,29 @@ private incrementCntByKey(String key) {
 // ******************************************
 //      APP/DEVICE Version Functions
 // ******************************************
-Boolean isCodeUpdateAvailable(String newVer, String curVer, String type) {
+Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
     Boolean result = false
     def latestVer
     if(newVer && curVer) {
         List versions = [newVer, curVer]
         if(newVer != curVer) {
             latestVer = versions?.max { a, b ->
-                List verA = a?.tokenize('.')
-                List verB = b?.tokenize('.')
-                Integer commonIndices = Math.min(verA?.size(), verB?.size())
-                for (int i = 0; i < commonIndices; ++i) {
-                    //log.debug "comparing $numA and $numB"
-                    if(verA[i]?.toInteger() != verB[i]?.toInteger()) {
-                        return verA[i]?.toInteger() <=> verB[i]?.toInteger()
-                    }
-                }
+                List verA = a?.tokenize('.'); List verB = b?.tokenize('.'); Integer commonIndices = Math.min(verA?.size(), verB?.size());
+                for (int i = 0; i < commonIndices; ++i) { if(verA[i]?.toInteger() != verB[i]?.toInteger()) { return verA[i]?.toInteger() <=> verB[i]?.toInteger() }; }
                 verA?.size() <=> verB?.size()
             }
             result = (latestVer == newVer) ? true : false
         }
     }
-    // logDebug("isCodeUpdateAvailable | type: $type | newVer: $newVer | curVer: $curVer | newestVersion: ${latestVer} | result: $result")
     return result
 }
 
-Boolean isAppUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.mainApp && isCodeUpdateAvailable(state?.appData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "main_app")) { return true }
-    return false
-}
-
-Boolean isActionAppUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.actionApp && isCodeUpdateAvailable(state?.appData?.versions?.actionApp?.ver, state?.codeVersions?.actionApp, "action_app")) { return true }
-    return false
-}
-
-Boolean isEchoDevUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.echoDevice && isCodeUpdateAvailable(state?.appData?.versions?.echoDevice?.ver, state?.codeVersions?.echoDevice, "dev")) { return true }
-    return false
-}
-
-Boolean isSocketUpdateAvail() {
-    if(!isST() && state?.appData?.versions && state?.codeVersions?.wsDevice && isCodeUpdateAvailable(state?.appData?.versions?.wsDevice?.ver, state?.codeVersions?.wsDevice, "socket")) { return true }
-    return false
-}
-
-Boolean isServerUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.server && isCodeUpdateAvailable(state?.appData?.versions?.server?.ver, state?.codeVersions?.server, "server")) { return true }
-    return false
-}
-
+Boolean appUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.mainApp && codeUpdIsAvail(state?.appData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "main_app")) }
+Boolean actionUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.actionApp && codeUpdIsAvail(state?.appData?.versions?.actionApp?.ver, state?.codeVersions?.actionApp, "action_app")) }
+Boolean zoneUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.zoneApp && codeUpdIsAvail(state?.appData?.versions?.zoneApp?.ver, state?.codeVersions?.zoneApp, "zone_app")) }
+Boolean echoDevUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.echoDevice && codeUpdIsAvail(state?.appData?.versions?.echoDevice?.ver, state?.codeVersions?.echoDevice, "dev")) }
+Boolean socketUpdAvail() { return (!isST() && state?.appData?.versions && state?.codeVersions?.wsDevice && codeUpdIsAvail(state?.appData?.versions?.wsDevice?.ver, state?.codeVersions?.wsDevice, "socket")) }
+Boolean serverUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.server && codeUpdIsAvail(state?.appData?.versions?.server?.ver, state?.codeVersions?.server, "server")) }
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 
 private checkVersionData(now = false) { //This reads a JSON file from GitHub with version numbers
@@ -3391,7 +3380,7 @@ def execDiagCmds() {
                 break
         }
     }
-    def json = new JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersion()])
+    def json = new groovy.json.JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersion()])
     render contentType: "application/json", data: json, status: 200
 }
 
@@ -3400,7 +3389,7 @@ def execDiagCmds() {
 |    Time and Date Conversion Functions
 *******************************************/
 def formatDt(dt, tzChg=true) {
-    def tf = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
+    def tf = new java.text.SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
     return tf?.format(dt)
 }
@@ -3417,7 +3406,7 @@ def parseDt(pFormat, dt, tzFmt=true) {
 
 def parseFmtDt(parseFmt, newFmt, dt) {
     def newDt = Date.parse(parseFmt, dt?.toString())
-    def tf = new SimpleDateFormat(newFmt)
+    def tf = new java.text.SimpleDateFormat(newFmt)
     if(location.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf?.format(newDt)
 }
@@ -3428,7 +3417,7 @@ def getDtNow() {
 }
 
 def epochToTime(tm) {
-    def tf = new SimpleDateFormat("h:mm a")
+    def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
     return tf.format(tm)
 }
@@ -4327,7 +4316,7 @@ def textEditProcessing() {
     def resp = request?.JSON ?: null
     def actApp = getTextEditChild(actId)
     Boolean status = (actApp && actApp?.updateTxtEntry(resp))
-    def json = new JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersion()])
+    def json = new groovy.json.JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersion()])
     render contentType: "application/json", data: json, status: 200
 }
 
@@ -4479,9 +4468,6 @@ public JsonElementsParser(root) {
 
 Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
-// String debugStatus() { return (!settings?.appDebug) ? "Off" : "On" }
-String deviceDebugStatus() { return !settings?.childDebug ? "Off" : "On" }
-Boolean isChildDebug() { return (settings?.childDebug == true) }
 
 List logLevels() {
     List lItems = ["logInfo", "logWarn", "logDebug", "logError", "logTrace"]
@@ -4492,8 +4478,6 @@ String getAppDebugDesc() {
     def ll = logLevels()
     def str = ""
     str += ll?.size() ? "App Log Levels: (${ll?.join(", ")})" : ""
-    str += isChildDebug() && str != "" ? "\n" : ""
-    str += isChildDebug() ? "Device Debug: (${deviceDebugStatus()})" : ""
     return (str != "") ? "${str}" : null
 }
 

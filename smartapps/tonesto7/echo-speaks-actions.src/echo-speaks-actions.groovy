@@ -14,16 +14,14 @@
  *
  */
 
-import groovy.json.*
-import java.text.SimpleDateFormat
-
-String appVersion()  { return "3.1.1.0" }
-String appModified() { return "2019-10-02" }
+String appVersion()  { return "3.1.1.1" }
+String appModified() { return "2019-10-03" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 // TODO: Finish the button trigger logic
+// TODO: Add Lock Code triggers
 definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
@@ -605,6 +603,16 @@ def conditionsPage() {
 
         condNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Conditions", "Illuminance Sensors", "Lux Level (%)", "illuminance", true)
 
+        condNumValSect("level", "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level (%)", "speed_knob", true)
+
+        condNonNumSect("water", "waterSensor", "Water Sensors", "Water Sensors", ["wet", "dry"], "are", "water")
+
+        condNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power", true)
+
+        condNonNumSect("shade", "windowShades", "Window Shades", "Window Shades", ["open", "closed"], "are", "shade")
+
+        condNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed"], "are", "valve")
+
         condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery", true)
     }
 }
@@ -735,7 +743,7 @@ def actionsPage() {
                 case "speak":
                     section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("TTS")
-                    if(settings?.act_EchoDevices) {
+                    if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Action Type Config:"), hideable: true) {
                             actionVariableDesc(actionType)
                             href url: parent?.getTextEditorPath(app?.id, "act_speak_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Defaul Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
@@ -751,7 +759,7 @@ def actionsPage() {
                 case "announcement":
                     section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
                     echoDevicesInputByPerm("announce")
-                    if(settings?.act_EchoDevices) {
+                    if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Action Type Config:")) {
                             actionVariableDesc(actionType)
                             href url: parent?.getTextEditorPath(app?.id, "act_announcement_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
@@ -1189,32 +1197,24 @@ Boolean hasUserDefinedTxt() {
     return false
 }
 
-def updateActionExecMap(data) {
-    // logTrace( "updateActionExecMap...")
-    atomicState?.actionExecMap = (data && data?.configured == true) ? data : [configured: false]
-    // log.debug "actionExecMap: ${state?.actionExecMap}"
-}
-
 Boolean executionConfigured() {
     Boolean opts = (state?.actionExecMap && state?.actionExecMap?.configured == true)
-    Boolean devs = (settings?.act_EchoDevices)
+    Boolean devs = (settings?.act_EchoDevices || settings?.act_EchoZones)
     return (opts || devs)
 }
 
 private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
     Boolean zoneTypeOk = (type in ["TTS", "announce"])
-    Map echoZones = zoneTypeOk ? parent?.getZones() : [:]
-    if(echoZones?.size()) {
-        section(sTS("Echo Speaks Zones:")) {
-            paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves", null, false)
+    Map echoZones = zoneTypeOk ? getZones() : [:]
+    section(sTS("Alexa Devices & Zones:")) {
+        if(!settings?.act_EchoDevices && echoZones?.size()) {
+            if(!settings?.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves", null, false) }
             input "act_EchoZones", "enum", title: inTS("Zone(s) to Use", getAppImg("es_groups", true)), description: "Select the Zones", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings?.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
+            if(settings?.act_EchoZones) { paragraph pTS("Depending on your zone settings you may not have any active zones at the time of action execution.  So no message may be played.", null, false) }
         }
-    }
-    if(settings?.act_EchoZones) {
-        paragraph pTS("Depending on your zone settings you may not have any active zones at the time of action execution.", null, false)
-    } else {
-        section(sTS("Alexa Devices:")) {
+
+        if(!settings?.act_EchoZones) {
             if(echoDevs?.size()) {
                 def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == "true")]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
                 input "act_EchoDevices", "enum", title: inTS("Echo Speaks Device(s) to Use", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : ""}"] }, multiple: true, required: (!settings?.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
@@ -1282,13 +1282,13 @@ def installed() {
 
 def updated() {
     log.debug "Updated with settings: ${settings}"
-    unsubscribe()
-    unschedule()
     state?.dupPendingSetup = false
     initialize()
 }
 
 def initialize() {
+    unsubscribe()
+    unschedule()
     if(state?.dupPendingSetup == false && settings?.duplicateFlag == true) {
         settingUpdate("duplicateFlag", "false", "bool")
     } else if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
@@ -1303,16 +1303,17 @@ def initialize() {
         logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
         return
     }
-    unsubscribe()
     state?.isInstalled = true
     updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
+    // Subscribes to Echo Speaks Zone Activation Events...
+    if(settings?.act_EchoZones) { subscribe(location, "es3ZoneState", zoneStateHandler) }
     updConfigStatusMap()
 }
 
 private updAppLabel() {
-    String newLbl = "${settings?.appLbl} (Act)${isPaused() ? " | (\u23F8)" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings?.appLbl} (Act)${isPaused() ? " \u23F8" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -1341,11 +1342,14 @@ private getConfStatusItem(item) {
 
 private actionCleanup() {
     // State Cleanup
-    List items = ["afterEvtMap", "afterEvtChkSchedMap", "afterCheckActiveScheduleId", "afterEvtChkSchedId"]
+    List items = ["afterEvtMap", "afterEvtChkSchedMap"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     //Cleans up unused action setting items
-    List setItems = ["act_set_volume", "act_restore_volume"]
-    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_EchoDevices"]
+    List setItems = []
+    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore"]
+    if(settings?.act_EchoZones) { setIgn?.push("act_EchoZones") }
+    else if(settings?.act_EchoDevices) { setIgn?.push("act_EchoDevices") }
+
     if(settings?.actionType) { settings?.each { si-> if(si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && !(si?.key in setIgn)) { setItems?.push(si?.key as String) } } }
     // if(settings?.actionType in ["bluetooth", "wakeword"]) { cleanupDevSettings("act_${settings?.actionType}_device_") }
     // TODO: Cleanup unselected trigger types
@@ -1430,7 +1434,7 @@ private subscribeToEvts() {
     // Scene (Hubitat Only)
     if(valTrigEvt("scene") && settings?.trig_scene) { subscribe(settings?.trig_scene, "switch", sceneEvtHandler) }
 
-    // ENVIRONMENTAL Sensors
+    // Presence Sensors
     if(valTrigEvt("presence") && settings?.trig_presence) { subscribe(trig_presence, "presence", getDevEvtHandlerName("presence")) }
 
     // Motion Sensors
@@ -1469,33 +1473,23 @@ private subscribeToEvts() {
     // Garage Door Openers
     if(valTrigEvt("door") && settings?.trig_door) { subscribe(settings?.trig_door, "garageDoorControl", getDevEvtHandlerName("door")) }
 
-    //Keypads
+    // Keypads
     if(valTrigEvt("keypad") && settings?.trig_Keypads) { subscribe(settings?.trig_Keypads, "codeEntered", deviceEvtHandler) }
 
-    //Contact Sensors
-    if (valTrigEvt("contact")) {
-        if(settings?.trig_contact) { subscribe(settings?.trig_contact, "contact", getDevEvtHandlerName("contact")) }
-    }
+    // Contact Sensors
+    if(valTrigEvt("contact") && settings?.trig_contact) { subscribe(settings?.trig_contact, "contact", getDevEvtHandlerName("contact")) }
 
     // Outlets, Switches
-    if (valTrigEvt("switch")) {
-        if(settings?.trig_switch) { subscribe(trig_switch, "switch", getDevEvtHandlerName("switch")) }
-    }
+    if(valTrigEvt("switch") && settings?.trig_switch) { subscribe(trig_switch, "switch", getDevEvtHandlerName("switch")) }
 
     // Batteries
-    if (valTrigEvt("battery")) {
-        if(settings?.trig_battery)    { subscribe(settings?.trig_battery, "battery", deviceEvtHandler) }
-    }
+    if(valTrigEvt("battery") && settings?.trig_battery)    { subscribe(settings?.trig_battery, "battery", deviceEvtHandler) }
 
     // Dimmers/Level
-    if (valTrigEvt("level")) {
-        if(settings?.trig_level)    { subscribe(settings?.trig_level, "level", deviceEvtHandler) }
-    }
+    if(valTrigEvt("level") && settings?.trig_level)    { subscribe(settings?.trig_level, "level", deviceEvtHandler) }
 
     // Thermostats
-    if (valTrigEvt("thermostat")) {
-        if(settings?.trig_thermostat) { subscribe(settings?.trig_thermostat, "thermostat", deviceEvtHandler) }
-    }
+    if(valTrigEvt("thermostat") && settings?.trig_thermostat) { subscribe(settings?.trig_thermostat, "thermostat", deviceEvtHandler) }
 }
 
 private attributeConvert(String attr) {
@@ -1507,6 +1501,30 @@ private getDevEvtHandlerName(String type) {
     return (type && settings?."trig_${type}_after") ? "devAfterEvtHandler" : "deviceEvtHandler"
 }
 
+def zoneStateHandler(evt) {
+    String id = evt?.value;
+    Map data = evt?.jsonData;
+    // log.debug "zoneStateHandler: ${id} | data: ${data}"
+    if(settings?.act_EchoZones && id && data && (id in settings?.act_EchoZones)) {
+        Map zoneMap = atomicState?.zoneStatusMap ?: [:]
+        zoneMap[id] = [name: data?.name, active: data?.active]
+        atomicState?.zoneStatusMap = zoneMap
+    }
+}
+
+public Map getZones() {
+    return atomicState?.zoneStatusMap ?: [:]
+}
+
+public Map getActiveZones() {
+    Map zones = atomicState?.zoneStatusMap ?: [:]
+    return zones?.size() ? zones?.findAll { it?.value?.active == true } : [:]
+}
+
+public List getActiveZoneNames() {
+    Map zones = atomicState?.zoneStatusMap ?: [:]
+    return zones?.size() ? zones?.findAll { it?.value?.active == true }?.collect { it?.value?.name as String } : []
+}
 
 /***********************************************************************************************************
     EVENT HANDLER FUNCTIONS
@@ -1983,21 +2001,26 @@ Boolean deviceCondOk() {
     Boolean conDevOk = checkDeviceCondOk("contact")
     Boolean lockDevOk = checkDeviceCondOk("lock")
     Boolean garDevOk = checkDeviceCondOk("door")
+    Boolean shadeDevOk = checkDeviceCondOk("shade")
+    Boolean valveDevOk = checkDeviceCondOk("valve")
     Boolean tempDevOk = checkDeviceNumCondOk("temperature")
     Boolean humDevOk = checkDeviceNumCondOk("humidity")
     Boolean illDevOk = checkDeviceNumCondOk("illuminance")
+    Boolean levelDevOk = checkDeviceNumCondOk("level")
+    Boolean powerDevOk = checkDeviceNumCondOk("illuminance")
     Boolean battDevOk = checkDeviceNumCondOk("battery")
     logDebug("checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk")
-    return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk && tempDevOk && humDevOk && battDevOk && illDevOk)
+    return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk && valveDevOk && shadeDevOk && tempDevOk && humDevOk && battDevOk && illDevOk && levelDevOk && powerDevOk)
 }
 
-def allConditionsOk() {
-    def timeOk = timeCondOk()
-    def dateOk = dateCondOk()
-    def locOk = locationCondOk()
-    def devOk = deviceCondOk()
-    logDebug("Action Conditions Check | Time: ($timeOk) | Date: ($dateOk) | Location: ($locOk) | Devices: ($devOk)")
-    return (timeOk && dateOk && locOk && devOk)
+def conditionStatus() {
+    List blocks = []
+    if(!timeCondOk())        { blocks?.push("time") }
+    if(!dateCondOk())        { blocks?.push("date") }
+    if(!locationCondOk())    { blocks?.push("location") }
+    if(!deviceCondOk())      { blocks?.push("device") }
+    logDebug("Action Conditions Check | Blocks: ${blocks}")
+    return [ok: (blocks?.size() == 0), blocks: blocks]
 }
 
 Boolean devCondConfigured(type) {
@@ -2033,11 +2056,15 @@ Boolean deviceCondConfigured() {
     Boolean conDev = devCondConfigured("contact")
     Boolean lockDev = devCondConfigured("lock")
     Boolean garDev = devCondConfigured("door")
+    Boolean shadeDev = devCondConfigured("shade")
+    Boolean valveDev = devCondConfigured("valve")
     Boolean tempDev = devCondConfigured("temperature")
     Boolean humDev = devCondConfigured("humidity")
     Boolean illDev = devCondConfigured("illuminance")
+    Boolean levelDev = devCondConfigured("level")
+    Boolean powerDev = devCondConfigured("illuminance")
     Boolean battDev = devCondConfigured("battery")
-    return (swDev || motDev || presDev || conDev || lockDev || garDev || tempDev || humDev || illDev || battDev)
+    return (swDev || motDev || presDev || conDev || lockDev || garDev || shadeDev || valveDev || tempDev || humDev || illDev || levelDev || powerDev || battDev)
 }
 
 Boolean conditionsConfigured() {
@@ -2188,21 +2215,20 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     def startTime = now()
     logTrace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
     if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return; }
-    Boolean condOk = allConditionsOk()
+    Map condStatus = conditionStatus()
     Boolean actOk = getConfStatusItem("actions")
     Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
-    List actDevices = parent?.getDevicesFromList(settings?.act_EchoDevices) ?: []
-    Map actZones = settings?.act_EchoZones ? parent?.getActiveZones() : [:]
-    Boolean useZones = (actZones?.size() > 0)
+    List actDevices = settings?.act_EchoDevices ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
+    Map actZones = settings?.act_EchoZones ? getActiveZones() : [:]
     String actMsgTxt = null
     String actType = settings?.actionType
     if(actOk && actType) {
         def alexaMsgDev = actDevices?.size() && settings?.notif_alexa_mobile ? actDevices[0] : null
-        if(!condOk) { logWarn("Skipping Execution because set conditions have not been met", true); return; }
+        if(condStatus?.ok != true) { logWarn("executeAction | Skipping execution because ${condStatus?.blocks} conditions have not been met", true); return; }
         if(!actMap || !actMap?.size()) { logError("executeAction Error | The ActionExecutionMap is not found or is empty", true); return; }
+        if(settings?.act_EchoZones && !actZones?.size()) { logWarn("executeAction | No Active Zones Available", true); return; }
         if(!actDevices?.size() && !settings?.act_EchoZones) { logError("executeAction Error | Echo Device List not found or is empty", true); return; }
-        if(settings?.act_EchoZones && !actZones?.size()) { logWarn("executeAction No Active Zones Available", true); return; }
         if(!actMap?.actionType) { logError("executeAction Error | The ActionType is missing or is empty", true); return; }
         Map actConf = actMap?.config
         Integer actDelay = actMap?.delay ?: 0
@@ -2220,8 +2246,8 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
                     if(actZones?.size()) {
-                        parent?.sendZoneCmd([ zones: actZones?.collect { it?.key as String }, cmd: actType, message: txt, changeVol: changeVol, restoreVol: restoreVol ])
-                        logDebug("Sending Speak Command: (${txt}) to ${actZones?.collect { it?.value?.name }}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: actZones?.collect { it?.key as String }, cmd: actType, message: txt, changeVol: changeVol, restoreVol: restoreVol], isStateChange: true)
+                        logDebug("Sending Speak Command: (${txt}) to Zones (${actZones?.collect { it?.value?.name }})${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else {
                         if(actType == "speak") {
                             //Speak Command Logic
@@ -2237,7 +2263,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                             //Announcement Command Logic
                             if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
                                 //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                                def devJson = new JsonOutput().toJson(actConf[actType]?.deviceObjs)
+                                def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
                                 if(isST) {
                                     actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
                                 } else { actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol) }
@@ -2661,65 +2687,6 @@ List getLocationRoutines() {
     return (isST()) ? location.helloHome?.getPhrases()*.label?.sort() : []
 }
 
-List getClosedContacts(sensors) {
-    return sensors?.findAll { it?.currentContact == "closed" } ?: null
-}
-
-List getOpenContacts(sensors) {
-    return sensors?.findAll { it?.currentContact == "open" } ?: null
-}
-
-List getDryWaterSensors(sensors) {
-    return sensors?.findAll { it?.currentWater == "dry" } ?: null
-}
-
-List getWetWaterSensors(sensors) {
-    return sensors?.findAll { it?.currentWater == "wet" } ?: null
-}
-
-List getPresentSensors(sensors) {
-    return sensors?.findAll { it?.currentPresence == "present" } ?: null
-}
-
-List getAwaySensors(sensors) {
-    return sensors?.findAll { it?.currentPresence != "present" } ?: null
-}
-
-Boolean isContactOpen(sensors) {
-    if(sensors) { sensors?.each { if(sensors?.currentSwitch == "open") { return true } } }
-    return false
-}
-
-Boolean isSwitchOn(devs) {
-    if(devs) { devs?.each { if(it?.currentSwitch == "on") { return true } } }
-    return false
-}
-
-Boolean isSensorPresent(sensors) {
-    if(sensors) { sensors?.each { if(it?.currentPresence == "present") { return true } } }
-    return false
-}
-
-Boolean isSomebodyHome(sensors) {
-    if(sensors) { return (sensors?.findAll { it?.currentPresence == "present" }?.size() > 0) }
-    return false
-}
-
-Boolean isIlluminanceBelow(sensors, val) {
-    if(sensors) { return (sensors?.findAll { it?.currentIlluminance?.integer() < val }?.size() > 0) }
-    return false
-}
-
-Boolean isIlluminanceAbove(sensors, val) {
-    if(sensors) { return (sensors?.findAll { it?.currentIlluminance?.integer() > val }?.size() > 0) }
-    return false
-}
-
-Boolean isWaterWet(sensors) {
-    if(sensors) { return (sensors?.findAll { it?.currentWater == "wet" }?.size() > 0) }
-    return false
-}
-
 Boolean isInMode(modes) {
     return (modes) ? (getCurrentMode() in modes) : false
 }
@@ -2780,13 +2747,13 @@ String getAlarmSystemName(abbr=false) {
 |    Time and Date Conversion Functions
 *******************************************/
 def formatDt(dt, tzChg=true) {
-    def tf = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
+    def tf = new java.text.SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
     return tf?.format(dt)
 }
 
 def dateTimeFmt(dt, fmt) {
-    def tf = new SimpleDateFormat(fmt)
+    def tf = new java.text.SimpleDateFormat(fmt)
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf?.format(dt)
 }
@@ -2832,7 +2799,7 @@ def getDtNow() {
 }
 
 def epochToTime(tm) {
-    def tf = new SimpleDateFormat("h:mm a")
+    def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
     return tf.format(tm)
 }
@@ -3035,7 +3002,7 @@ String getConditionsDesc() {
     def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${allConditionsOk() ? "${okSym()}" : "${notOkSym()}"})\n"
+        String str = "Conditions: (${(conditionStatus()?.ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
         if(timeCondConfigured()) {
             str += " • Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
@@ -3048,13 +3015,10 @@ String getConditionsDesc() {
         if(settings?.cond_alarm || settings?.cond_mode) {
             str += " • Location: (${locationCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += settings?.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings?.cond_alarm)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-            // str += settings?.cond_alarm ? "    - Current Alarm: (${getAlarmSystemStatus()})\n" : ""
             str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-            // str += settings?.cond_mode ? "    - Current Mode: (${location?.mode})\n" : ""
         }
         if(deviceCondConfigured()) {
-            // str += " • Devices: (${deviceCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
-            ["switch", "motion", "presence", "contact", "lock", "door"]?.each { evt->
+            ["switch", "motion", "presence", "contact", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
                 if(devCondConfigured(evt)) {
                     str += settings?."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${checkDeviceCondOk(evt) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
                     str += settings?."${sPre}${evt}_cmd" ? "    - Value: (${settings?."${sPre}${evt}_cmd"})\n" : ""
@@ -3076,11 +3040,13 @@ String getActionDesc() {
     if(settings?.actionType && confd) {
         String str = ""
         def eDevs = parent?.getDevicesFromList(settings?.act_EchoDevices)
-        str += eDevs?.size() ? "Alexa Devices used:\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
-        str += settings?.act_volume_change ? " • Set Volume: (${settings?.act_volume_change})\n" : ""
-        str += settings?.act_volume_restore ? " • Restore Volume: (${settings?.act_volume_restore})\n" : ""
-        str += settings?.act_delay ? " • Delay: (${settings?.act_delay})\n" : ""
-        str += settings?."act_${settings?.actionType}_txt" ? " • Using Default Response: (True)\n" : ""
+        def zones = settings?.act_EchoZones?.size() ? getZones() : [:]
+        str += eDevs?.size() ? "Alexa Devices:\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
+        str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n" : ""
+        str += settings?.act_volume_change ? "New Volume: (${settings?.act_volume_change})\n" : ""
+        str += settings?.act_volume_restore ? "Restore Volume: (${settings?.act_volume_restore})\n" : ""
+        str += settings?.act_delay ? "Delay: (${settings?.act_delay})\n" : ""
+        str += settings?."act_${settings?.actionType}_txt" ? "Using Default Response: (True)\n" : ""
         str += "\nTap to modify..."
         return str
     } else {
@@ -3285,14 +3251,14 @@ def searchTuneInResultsPage() {
 //*******************************************************************
 public getDuplSettingData() {
     Map typeObj = [
-        s: [
+        stat: [
             bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace"],
-            enum: [ "triggerEvents", "act_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard" ],
+            enum: [ "triggerEvents", "act_EchoDevices", "act_EchoZones", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard" ],
             mode: ["cond_mode", "trig_mode"],
             number: [],
             text: ["appLbl"]
         ],
-        e: [
+        ends: [
             bool: ["_all", "_avg", "_once", "_send_push", "_use_custom"],
             enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months"],
             number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat"],
@@ -3324,10 +3290,10 @@ public getDuplSettingData() {
         ]
     ]
     Map setObjs = [:]
-    typeObj?.s?.each { sk,sv->
+    typeObj?.stat?.each { sk,sv->
         sv?.each { svi-> if(settings?.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi] ] } }
     }
-    typeObj?.e?.each { ek,ev->
+    typeObj?.ends?.each { ek,ev->
         ev?.each { evi-> settings?.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }
     }
     typeObj?.caps?.each { ck,cv->
