@@ -14,13 +14,7 @@
  */
  // This is based on the Amazon WebSocket used on Alexa.amazon.com and is ported from Javascript to Groovy and inspired from the work of @Apollon77 Alexa-Remote
 
-import groovy.json.*
-import java.util.*
-import java.text.SimpleDateFormat
-import java.util.regex.Matcher
-import java.util.regex.Pattern
-import java.security.MessageDigest
-String devVersion()  { return "3.1.1.1"}
+String devVersion()  { return "3.1.2.0"}
 String devModified() { return "2019-10-03" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }

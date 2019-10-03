@@ -14,7 +14,7 @@
  *
  */
 
-String appVersion()  { return "3.1.1.1" }
+String appVersion()  { return "3.1.2.0" }
 String appModified() { return "2019-10-03" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
@@ -343,6 +343,18 @@ def triggersPage() {
             if (valTrigEvt("lock")) {
                 //TODO: Add lock code triggers
                 trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", "any"], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++)
+                // section (sTS("Lock CodeEvents"), hideable: true) {
+                //     input "trig_lockCode", "capability.lockCodes", title: inTS("Carbon Monoxide Sensors", getAppImg("co", true)), required: !(settings?.trig_smoke), multiple: true, submitOnChange: true, image: getAppImg("co")
+                //     if (settings?.trig_carbonMonoxide) {
+                //         input "trig_carbonMonoxide_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["detected", "clear", "any"], required: false, submitOnChange: true, image: getAppImg("command")
+                //         if(settings?.trig_carbonMonoxide_cmd) {
+                //             if (settings?.trig_carbonMonoxide?.size() > 1 && settings?.trig_carbonMonoxide_cmd != "any") {
+                //                 input "trig_carbonMonoxide_all", "bool", title: inTS("Require ALL Smoke Detectors to be (${settings?.trig_carbonMonoxide_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+                //             }
+                //             triggerVariableDesc("carbonMonoxide", false, trigItemCnt++)
+                //         }
+                //     }
+                // }
             }
 
             if (valTrigEvt("temperature")) {

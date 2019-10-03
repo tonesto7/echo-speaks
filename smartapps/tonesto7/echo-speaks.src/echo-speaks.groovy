@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.1.1.1" }
+String appVersion()   { return "3.1.2.0" }
 String appModified()  { return "2019-10-03" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3110, wsDevice: 3110, actionApp: 3110, zoneApp: 3110, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3120, wsDevice: 3120, actionApp: 3120, zoneApp: 3120, server: 230] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Fix server install state where server is installed but needs to login.
 // TODO: Add in Actions to the metrics
