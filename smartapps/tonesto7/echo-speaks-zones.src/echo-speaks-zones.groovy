@@ -720,7 +720,16 @@ def zoneActivationEvt(data) {
     }
 }
 
+public zoneCmd(cmd) {
+    if(cmd?.cmd && cmd?.message) {
+        switch(cmd?.cmd) {
+            case "speak":
 
+                break
+        }
+        [cmd: cmd?.cmd, message: cmd?.message, changeVol: cmd?.changeVol, restoreVol: cmd?.restoreVol]
+    }
+}
 /******************************************
 |   Restriction validators
 *******************************************/

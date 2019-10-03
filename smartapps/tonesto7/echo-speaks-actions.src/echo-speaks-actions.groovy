@@ -1196,10 +1196,8 @@ def updateActionExecMap(data) {
 }
 
 Boolean executionConfigured() {
-    // Boolean type = (settings?.actionType)
     Boolean opts = (state?.actionExecMap && state?.actionExecMap?.configured == true)
     Boolean devs = (settings?.act_EchoDevices)
-    // log.debug "Options: $opts | devs: $devs"
     return (opts || devs)
 }
 
@@ -1210,14 +1208,18 @@ private echoDevicesInputByPerm(type) {
     if(echoZones?.size()) {
         section(sTS("Echo Speaks Zones:")) {
             paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves", null, false)
-            input "act_EchoZone", "enum", title: inTS("Zone(s) to Use", getAppImg("es_groups", true)), description: "Select the Zones", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings?.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
+            input "act_EchoZones", "enum", title: inTS("Zone(s) to Use", getAppImg("es_groups", true)), description: "Select the Zones", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings?.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
         }
     }
-    section(sTS("Alexa Devices:")) {
-        if(echoDevs?.size()) {
-            def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == "true")]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-            input "act_EchoDevices", "enum", title: inTS("Echo Speaks Device(s) to Use", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : ""}"] }, multiple: true, required: (!settings?.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
-        } else { paragraph pTS("No devices were found with support for ($type)", null, true, "red") }
+    if(settings?.act_EchoZones) {
+        paragraph pTS("Depending on your zone settings you may not have any active zones at the time of action execution.", null, false)
+    } else {
+        section(sTS("Alexa Devices:")) {
+            if(echoDevs?.size()) {
+                def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == "true")]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
+                input "act_EchoDevices", "enum", title: inTS("Echo Speaks Device(s) to Use", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : ""}"] }, multiple: true, required: (!settings?.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
+            } else { paragraph pTS("No devices were found with support for ($type)", null, true, "red") }
+        }
     }
 }
 
@@ -2191,13 +2193,16 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
     List actDevices = parent?.getDevicesFromList(settings?.act_EchoDevices) ?: []
+    Map actZones = settings?.act_EchoZones ? parent?.getActiveZones() : [:]
+    Boolean useZones = (actZones?.size() > 0)
     String actMsgTxt = null
     String actType = settings?.actionType
     if(actOk && actType) {
         def alexaMsgDev = actDevices?.size() && settings?.notif_alexa_mobile ? actDevices[0] : null
         if(!condOk) { logWarn("Skipping Execution because set conditions have not been met", true); return; }
         if(!actMap || !actMap?.size()) { logError("executeAction Error | The ActionExecutionMap is not found or is empty", true); return; }
-        if(!actDevices?.size()) { logError("executeAction Error | Echo Device List not found or is empty", true); return; }
+        if(!actDevices?.size() && !settings?.act_EchoZones) { logError("executeAction Error | Echo Device List not found or is empty", true); return; }
+        if(settings?.act_EchoZones && !actZones?.size()) { logWarn("executeAction No Active Zones Available", true); return; }
         if(!actMap?.actionType) { logError("executeAction Error | The ActionType is missing or is empty", true); return; }
         Map actConf = actMap?.config
         Integer actDelay = actMap?.delay ?: 0
@@ -2214,31 +2219,37 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                     // log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
-                    if(actType == "speak") {
-                        //Speak Command Logic
-                        if(changeVol || restoreVol) {
-                            actDevices?.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) }
-                        } else {
-                            actDevices?.each { dev-> dev?.speak(txt) }
-                        }
-                        logDebug("Sending Speak Command: (${txt}) to ${actDevices}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
-                    }
-                    else if (actType == "announcement") {
-                        //Announcement Command Logic
-                        if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
-                            //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                            def devJson = new JsonOutput().toJson(actConf[actType]?.deviceObjs)
-                            if(isST) {
-                                actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
-                            } else { actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol) }
-                            logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
-                        } else {
-                            actDevices?.each { dev->
-                                if(isST) {
-                                    dev?.playAnnouncement(txt, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol, [delay: actDelayMs])
-                                } else { dev?.playAnnouncement(txt, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol) }
+                    if(actZones?.size()) {
+                        parent?.sendZoneCmd([ zones: actZones?.collect { it?.key as String }, cmd: actType, message: txt, changeVol: changeVol, restoreVol: restoreVol ])
+                        logDebug("Sending Speak Command: (${txt}) to ${actZones?.collect { it?.value?.name }}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                    } else {
+                        if(actType == "speak") {
+                            //Speak Command Logic
+                            if(!actZones?.size() && actDevices?.size()) {
+                                if(changeVol || restoreVol) {
+                                    actDevices?.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) }
+                                } else {
+                                    actDevices?.each { dev-> dev?.speak(txt) }
+                                }
+                                logDebug("Sending Speak Command: (${txt}) to ${actDevices}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                             }
-                            logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                        } else if (actType == "announcement") {
+                            //Announcement Command Logic
+                            if(actDevices?.size() > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
+                                //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
+                                def devJson = new JsonOutput().toJson(actConf[actType]?.deviceObjs)
+                                if(isST) {
+                                    actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
+                                } else { actDevices[0]?.sendAnnouncementToDevices(txt, (app?.getLabel() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol) }
+                                logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                            } else {
+                                actDevices?.each { dev->
+                                    if(isST) {
+                                        dev?.playAnnouncement(txt, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol, [delay: actDelayMs])
+                                    } else { dev?.playAnnouncement(txt, (app?.getLabel() ?: "Echo Speaks Action"), changeVol, restoreVol) }
+                                }
+                                logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                            }
                         }
                     }
                 }

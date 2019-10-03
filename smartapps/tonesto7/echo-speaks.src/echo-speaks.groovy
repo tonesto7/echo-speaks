@@ -1295,6 +1295,16 @@ public List getActiveZoneNames() {
     return zones?.size() ? zones?.findAll { it?.value?.active == true }?.collect { it?.value?.name as String } : []
 }
 
+public sendZoneCmd(Map cmd) {
+    //[ zones: actZones?.collect { it?.key as String }, cmd: actType, message: txt, changeVol: changeVol, restoreVol: restoreVol ]
+    if(map && map?.zones?.size()) {
+        map?.zones?.each { z->
+            def zn = getZoneById(z)
+            if(zn) { zn?.zoneCmd([cmd: cmd?.cmd, message: cmd?.message, changeVol: cmd?.changeVol, restoreVol: cmd?.restoreVol]) }
+        }
+    }
+}
+
 def getActionApps() {
     return getAllChildApps()?.findAll { it?.name == actChildName() }
 }
@@ -1309,6 +1319,10 @@ def getSocketDevice() {
 
 def getZoneApps() {
     return getAllChildApps()?.findAll { it?.name == zoneChildName() }
+}
+
+def getZoneById(String id) {
+    return getZoneApps()?.find { it?.id?.toString() == id }
 }
 
 def onAppTouch(evt) {
