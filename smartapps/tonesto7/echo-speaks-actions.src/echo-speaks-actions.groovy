@@ -722,7 +722,7 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
 
 String actionTypeDesc() {
     Map descs = [
-        speak: "Speak any message choose on your Echo Devices",
+        speak: "Speak any message you choose on you're Echo Devices.",
         announcement: "Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.",
         sequence: "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.",
         weather: "Plays a very basic weather report.",
@@ -748,12 +748,9 @@ def actionsPage() {
             actionExecMap?.actionType = actionType
             actionExecMap?.config = [:]
             List devices = parent?.getDevicesFromList(settings?.act_EchoDevices)
-            section(sTS("Action Type:")) {
-                paragraph pTS("${settings?.actionType}", null, false, "#2678D9")
-            }
             switch(actionType) {
                 case "speak":
-                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Action Type Config:"), hideable: true) {
@@ -769,7 +766,7 @@ def actionsPage() {
                     break
 
                 case "announcement":
-                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("announce")
                     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Action Type Config:")) {
@@ -790,7 +787,7 @@ def actionsPage() {
                     break
 
                 case "sequence":
-                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Sequence Options Legend:"), hideable: true, hidden: false) {
@@ -827,7 +824,7 @@ def actionsPage() {
                     break
 
                 case "weather":
-                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         actionVolumeInputs(devices)
@@ -837,7 +834,7 @@ def actionsPage() {
                     break
 
                 case "playback":
-                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
                         Map playbackOpts = [
@@ -856,7 +853,7 @@ def actionsPage() {
                     break
 
                 case "builtin":
-                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         Map builtinOpts = [
@@ -874,7 +871,7 @@ def actionsPage() {
                     break
 
                 case "music":
-                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings?.act_EchoDevices) {
                         List musicProvs = devices[0]?.hasAttribute("supportedMusic") ? devices[0]?.currentValue("supportedMusic")?.split(",")?.collect { "${it?.toString()?.trim()}"} : []
@@ -905,7 +902,7 @@ def actionsPage() {
                     break
 
                 case "calendar":
-                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
@@ -920,7 +917,7 @@ def actionsPage() {
 
                 case "alarm":
                     //TODO: Offer to remove alarm after event.
-                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("alarms")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
@@ -937,7 +934,7 @@ def actionsPage() {
 
                 case "reminder":
                     //TODO: Offer to remove reminder after event.
-                    section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("reminders")
                     if(settings?.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
@@ -956,7 +953,7 @@ def actionsPage() {
                     echoDevicesInputByPerm("doNotDisturb")
                     if(settings?.act_EchoDevices) {
                         Map dndOpts = ["doNotDisturbOn":"Enable", "doNotDisturbOff":"Disable"]
-                        section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                        section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                         section(sTS("Action Type Config:")) {
                             input "act_dnd_cmd", "enum", title: inTS("Select Do Not Disturb Action", getAppImg("command", true)), description: "", options: dndOpts, required: true, submitOnChange: true, image: getAppImg("command")
                         }
@@ -968,7 +965,7 @@ def actionsPage() {
                 case "alexaroutine":
                     echoDevicesInputByPerm("wakeWord")
                     if(settings?.act_EchoDevices) {
-                        section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                        section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                         def routinesAvail = parent?.getAlexaRoutines(null, true) ?: [:]
                         logDebug("routinesAvail: $routinesAvail")
                         section(sTS("Action Type Config:")) {
@@ -984,7 +981,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
                         List devsObj = []
-                        section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                        section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                         if(devsCnt >= 1) {
                             List wakeWords = devices[0]?.hasAttribute("wakeWords") ? devices[0]?.currentValue("wakeWords")?.replaceAll('"', "")?.split(",") : []
                             // logDebug("WakeWords: ${wakeWords}")
@@ -1010,7 +1007,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices) {
                         Integer devsCnt = settings?.act_EchoDevices?.size() ?: 0
                         List devsObj = []
-                        section(sTS("Action Description:")) { paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info") }
+                        section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                         if(devsCnt >= 1) {
                             devices?.each { cDev->
                                 List btDevs = cDev?.hasAttribute("btDevicesPaired") ? cDev?.currentValue("btDevicesPaired")?.split(",") : []
@@ -1218,7 +1215,8 @@ Boolean executionConfigured() {
 private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
     Boolean zoneTypeOk = (type in ["TTS", "announce"])
-    Map echoZones = zoneTypeOk ? getZones() : [:]
+    Map echoZones = zoneTypeOk ? parent?.getZones() : [:]
+    log.debug "echoZones: $echoZones"
     section(sTS("Alexa Devices & Zones:")) {
         if(!settings?.act_EchoDevices && echoZones?.size()) {
             if(!settings?.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves", null, false) }
@@ -3071,7 +3069,7 @@ String getActionDesc() {
     if(settings?.actionType && confd) {
         String str = ""
         def eDevs = parent?.getDevicesFromList(settings?.act_EchoDevices)
-        def zones = settings?.act_EchoZones?.size() ? getZones() : [:]
+        def zones = settings?.act_EchoZones?.size() ? parent?.getZones() : [:]
         str += eDevs?.size() ? "Alexa Devices:\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
         str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n" : ""
         str += settings?.act_volume_change ? "New Volume: (${settings?.act_volume_change})\n" : ""
