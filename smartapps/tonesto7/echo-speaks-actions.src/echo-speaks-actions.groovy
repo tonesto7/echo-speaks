@@ -707,13 +707,13 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
         // str += "Custom Text is only used when Speech or Announcement action type is selected in Step 4."
         paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
         //Custom Text Options
-        href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
+        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
                 description: settings?."trig_${inType}_txt" ?: "Open Response Designer...", image: getAppImg("text")
         if(showRepInputs) {
             if(settings?."trig_${inType}_after_repeat") {
                 //Custom Repeat Text Options
                 paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                href url: parent?.getTextEditorPath(app?.id, "trig_${inType}_after_repeat_txt"), style: (isST() ? "embedded" : "external"), title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
+                href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: (isST() ? "embedded" : "external"), title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
                         description: settings?."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings?."trig_${inType}_after_repeat_txt" ? "complete" : '') , submitOnChange: true, required: false, image: getAppImg("text")
             }
         }
@@ -758,7 +758,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Action Type Config:"), hideable: true) {
                             actionVariableDesc(actionType)
-                            href url: parent?.getTextEditorPath(app?.id, "act_speak_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Defaul Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
+                            href url: parent?.getTextEditorPath(app?.id as String, "act_speak_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Defaul Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
                                     description: settings?."act_speak_txt" ?: "Open Response Designer...", image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
@@ -774,7 +774,7 @@ def actionsPage() {
                     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Action Type Config:")) {
                             actionVariableDesc(actionType)
-                            href url: parent?.getTextEditorPath(app?.id, "act_announcement_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
+                            href url: parent?.getTextEditorPath(app?.id as String, "act_announcement_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
                                     description: settings?."act_announcement_txt" ?: "Open Response Designer...", image: getAppImg("text")
                         }
                         actionVolumeInputs(devices)
@@ -993,7 +993,7 @@ def actionsPage() {
                                     if(wakeWords?.size()) {
                                         paragraph "Current Wake Word: ${cDev?.hasAttribute("alexaWakeWord") ? cDev?.currentValue("alexaWakeWord") : "Unknown"}"
                                         input "act_wakeword_device_${cDev?.id}", "enum", title: inTS("New Wake Word", getAppImg("list", true)), description: "", options: wakeWords, required: true, submitOnChange: true, image: getAppImg("list")
-                                        devsObj?.push([device: cDev?.id, wakeword: settings?."act_wakeword_device_${cDev?.id}", cmd: "setWakeWord"])
+                                        devsObj?.push([device: cDev?.id as String, wakeword: settings?."act_wakeword_device_${cDev?.id}", cmd: "setWakeWord"])
                                     } else { paragraph "Oops...\nNo Wake Words have been found!  Please Remove the device from selection.", state: null, required: true }
                                 }
                             }
@@ -1019,7 +1019,7 @@ def actionsPage() {
                                     if(btDevs?.size()) {
                                         input "act_bluetooth_device_${cDev?.id}", "enum", title: inTS("BT device to use", getAppImg("bluetooth", true)), description: "", options: btDevs, required: true, submitOnChange: true, image: getAppImg("bluetooth")
                                         input "act_bluetooth_action_${cDev?.id}", "enum", title: inTS("BT action to take", getAppImg("command", true)), description: "", options: ["connectBluetooth":"connect", "disconnectBluetooth":"disconnect"], required: true, submitOnChange: true, image: getAppImg("command")
-                                        devsObj?.push([device: cDev?.id, btDevice: settings?."act_bluetooth_device_${cDev?.id}", cmd: settings?."act_bluetooth_action_${cDev?.id}"])
+                                        devsObj?.push([device: cDev?.id as String, btDevice: settings?."act_bluetooth_device_${cDev?.id}", cmd: settings?."act_bluetooth_action_${cDev?.id}"])
                                     } else { paragraph "Oops...\nNo Bluetooth devices are paired to this Echo Device!  Please Remove the device from selection.", state: null, required: true }
                                 }
                             }
@@ -1901,10 +1901,10 @@ def locationEvtHandler(evt) {
 
 def scheduleAfterCheck(data) {
     Integer val = data?.val ? (data?.val < 2 ? 2 : data?.val) : 60
-    String id = data?.id ?: null
+    String id = data?.id?.toString() ?: null
     Boolean rep = (data?.repeat == true)
     Map aSchedMap = atomicState?.afterEvtChkSchedMap ?: null
-    if(aSchedMap && aSchedMap?.id && id && aSchedMap?.id == id) {
+    if(aSchedMap && aSchedMap?.id?.toString() && id && aSchedMap?.id?.toString() == id) {
         // log.debug "Active Schedule Id (${aSchedMap?.id}) is the same as the requested schedule ${id}."
     }
     runIn(val, "afterEvtCheckHandler")
@@ -2108,7 +2108,7 @@ Map getRandomTrigEvt() {
     String trig = getRandomItem(settings?.triggerEvents?.collect { it as String })
     List trigItems = settings?."trig_${trig}" ?: null
     def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
-    def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] : (trigItems?.size() ? trigItems?.find { it?.id == randItem?.id } : [displayName: null, id: null])) : null
+    def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] : (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
     // log.debug "trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}"
     Map attVal = [
         "switch": getRandomItem(["on", "off"]),
@@ -2131,7 +2131,7 @@ Map getRandomTrigEvt() {
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
         routineExecuted: isST() ? getRandomItem(getLocationRoutines()) : null
     ]
-    if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: "", value: attVal[trig], date: new Date(), deviceId: trigItem?.id ?: null] }
+    if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: "", value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
     // log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
@@ -2379,7 +2379,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "wakeword":
                 if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
                     actConf[actType]?.devices?.each { d->
-                        def aDev = actDevices?.find { it?.id == d?.device }
+                        def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
                         if(aDev) {
                             if(isST) {
                                 aDev?."${d?.cmd}"(d?.wakeword, [delay: actDelayMs])
@@ -2393,7 +2393,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "bluetooth":
                 if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
                     actConf[actType]?.devices?.each { d->
-                        def aDev = actDevices?.find { it?.id == d?.device }
+                        def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
                         if(aDev) {
                             if(d?.cmd == "disconnectBluetooth") {
                                 if(isST) {
