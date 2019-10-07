@@ -2702,11 +2702,11 @@ private healthCheck() {
     } else if (getLastGuardSupportCheckSec() > 43200) {
         checkGuardSupport()
     } else if(getLastServerWakeSec() > 86400) { wakeupServer() }
-
+    if(!isST() && getSocketDevice()?.isSocketActive() != true) { getSocketDevice()?.triggerInitialize() }
+    if(state?.isInstalled && getLastMetricUpdSec() > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
-    if(state?.isInstalled && getLastMetricUpdSec() > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
 }
 
 private missPollNotify(Boolean on, Integer wait) {

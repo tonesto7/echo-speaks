@@ -666,7 +666,7 @@ void updateDeviceStatus(Map devData) {
         state?.deviceAccountId = devData?.deviceAccountId
         state?.softwareVersion = devData?.softwareVersion
         state?.mainAccountCommsId = devData?.mainAccountCommsId ?: null
-        log.debug "mainAccountCommsId: ${state?.mainAccountCommsId}"
+        // log.debug "mainAccountCommsId: ${state?.mainAccountCommsId}"
         state?.cookie = devData?.cookie
         state?.authValid = (devData?.authValid == true)
         state?.amazonDomain = devData?.amazonDomain
@@ -795,7 +795,7 @@ public schedDataRefresh(frc) {
 
 private refreshData(full=false) {
     // logTrace("trace", "refreshData()...")
-    Boolean socketActive = (state?.websocketActive == true)
+    Boolean wsActive = (state?.websocketActive == true)
     Boolean isWHA = (state?.isWhaDevice == true)
     if(device?.currentValue("onlineStatus") != "online") {
         logTrace("Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
@@ -804,7 +804,7 @@ private refreshData(full=false) {
     if(!isAuthOk()) {return}
     if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
     // logTrace("permissions: ${state?.permissions}")
-    if(state?.permissions?.mediaPlayer == true && !socketActive) {
+    if(state?.permissions?.mediaPlayer == true && !wsActive) {
         getPlaybackState()
         if(!isWHA) { getPlaylists() }
     }
@@ -822,7 +822,7 @@ private refreshData(full=false) {
 }
 
 private refreshStage2() {
-    Boolean socketActive = (state?.websocketActive == true)
+    Boolean wsActive = (state?.websocketActive == true)
     if(state?.permissions?.wakeWord) {
         getWakeWord()
         getAvailableWakeWords()
@@ -831,9 +831,8 @@ private refreshStage2() {
         if(state?.permissions?.alarms == true) { getAlarmVolume() }
         getNotifications()
     }
-    // log.debug "bluetoothControl: ${state?.permissions?.bluetoothControl}"
 
-    if(state?.permissions?.bluetoothControl && !socketActive) {
+    if(state?.permissions?.bluetoothControl && !wsActive) {
         getBluetoothDevices()
     }
     updGuardStatus()
@@ -908,6 +907,7 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
 
     //Track Art Image
     String trackImg = playerInfo?.mainArt?.url ?: ""
+    log.debug "trackImg: ${trackImg}"
     if(isStateChange(device, "trackImage", trackImg?.toString())) {
         sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
         sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)

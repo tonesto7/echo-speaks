@@ -37,9 +37,13 @@ preferences {
 void updateDeviceStatus(Map devData) {
     Boolean isOnline = false
     if(devData?.size()) {
-
+        if(!isSocketActive()) {
+            triggerInitialize()
+        }
     }
 }
+
+def isSocketActive() { return (state?.connectionActive == true) }
 
 def logsOff(){
     log.warn "debug logging disabled..."
@@ -50,7 +54,7 @@ def refresh() {
     log.info "refresh() called"
 }
 
-def triggerInitialize() {}
+def triggerInitialize() { runIn(3, "updated") }
 def resetQueue() {}
 
 def installed() {
@@ -73,18 +77,13 @@ def initialize() {
     state?.wsSerial = serArr?.find() ? serArr[0..-1][0][1] : null
     state?.wsDomain = (state?.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state?.amazonDomain}"
     def msgId = Math.floor(1E9 * Math.random()) as BigInteger;
-    // log.debug "messageId: ${msgId}"
     state?.messageId = state?.messageId ?: msgId
     state?.messageInitCnt = 0
     connect()
 }
 
 def connect() {
-    //Connect to Alexa API WebSocket
     try {
-        def ts = now()
-        String url = "https://dp-gw-na${state?.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state?.wsSerial}-${ts}"
-        log.debug "url: ${url}"
         Map headers = [
             "Connection": "keep-alive, Upgrade",
             "Upgrade": "websocket",
@@ -94,10 +93,9 @@ def connect() {
             "Cache-Control": "no-cache",
             "Cookie": state?.cookie
         ]
-        interfaces.webSocket.connect(url, byteInterface: "true", pingInterval: 45, headers: headers)
-    }
-    catch(e) {
-        log.error "WebSocket connect failed"
+        interfaces.webSocket.connect("https://dp-gw-na${state?.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state?.wsSerial}-${now()}", byteInterface: "true", pingInterval: 45, headers: headers)
+    } catch(ex) {
+        logError("WebSocket connect failed | ${ex}")
     }
 }
 
@@ -111,12 +109,12 @@ def reconnectWebSocket() {
     state.reconnectDelay = (state.reconnectDelay ?: 1) * 2
     // don't def the delay get too crazy, max it out at 10 minutes
     if(state.reconnectDelay > 600) state.reconnectDelay = 600
-
+    state?.connectionActive = false
     runIn(state?.reconnectDelay, initialize)
 }
 
 def sendWsMsg(String s) {
-    interfaces.webSocket.sendMessage(s)
+    interfaces?.webSocket?.sendMessage(s as String)
 }
 
 def webSocketStatus(String status){
@@ -130,11 +128,13 @@ def webSocketStatus(String status){
         // success! reset reconnect delay
         pauseExecution(1000)
         state.reconnectDelay = 1
+        state?.connectionActive = true
         // log.trace("Connection Initiation (Step 1)")
         sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE")?.toString())
     } else if (status == "status: closing"){
         logWarn("WebSocket connection closing.")
         parent?.webSocketStatus(false)
+        state?.connectionActive = false
     } else if(status?.startsWith("send error: ")) {
         logError("Websocket Send Error: $status")
     } else {
@@ -207,7 +207,7 @@ def parseIncomingMessage(data) {
             if (message?.content?.startsWith('{') && message?.content?.endsWith('}')) {
                 try {
                     message?.content = parseJson(message?.content?.toString());
-                    log.debug "TUNE: ${message?.content}"
+                    // log.debug "TUNE: ${message?.content}"
                 } catch (e) {}
             }
         } else if (message?.service == 'FABE') {
@@ -251,6 +251,7 @@ def parseIncomingMessage(data) {
                     state?.wsAckData = message?.content
                     logInfo("WebSocket Connection Established...")
                     parent?.webSocketStatus(true)
+                    state?.connectionActive = true
                 }
             } else if (message?.channel == 866) { // 0x362 GW_CHANNEL
                 if (message?.content?.messageType == 'GWM') {
@@ -559,6 +560,41 @@ String getCsrfVal() { return (state?.cookie && state?.cookie?.csrf) ? state?.coo
 
 Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
+
+Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
+Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVersions()["echoDevice"]) }
+def getDtNow() {
+	def now = new Date()
+	return formatDt(now, false)
+}
+
+def getIsoDtNow() {
+    def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf.format(new Date());
+}
+
+def formatDt(dt, mdy = true) {
+	def formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
+	def tf = new java.text.SimpleDateFormat(formatVal)
+	if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+	return tf.format(dt)
+}
+
+def GetTimeDiffSeconds(strtDate, stpDate=null) {
+	if((strtDate && !stpDate) || (strtDate && stpDate)) {
+		def now = new Date()
+		def stopVal = stpDate ? stpDate.toString() : formatDt(now, false)
+		def start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate)?.getTime()
+		def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal)?.getTime()
+		def diff = (int) (long) (stop - start) / 1000
+		return diff
+	} else { return null }
+}
+
+def parseDt(dt, dtFmt) {
+    return Date.parse(dtFmt, dt)
+}
 private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
     Boolean ssOk = (stateSizePerc() > 70)
     List eData = state?.containsKey(logKey as String) ? state[logKey as String] : []
