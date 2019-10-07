@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.1.2.0"}
-String devModified() { return "2019-10-03" }
+String devVersion()  { return "3.1.3.0"}
+String devModified() { return "2019-10-07" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -122,7 +122,6 @@ metadata {
         command "volumeDown"
         command "speechTest"
         command "sendTestAnnouncement"
-        command "sendEchoNotification", ["string"]
         command "sendTestAnnouncementAll"
         command "getDeviceActivity"
         command "getBluetoothDevices"
@@ -814,7 +813,6 @@ private refreshData(full=false) {
         getWifiDetails()
         getDeviceSettings()
     }
-    sendEchoNotification()
 
     if(!isWHA) {
         if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
@@ -2124,32 +2122,6 @@ private createNotification(type, options) {
     sendAmazonCommand("put", params, [cmdDesc: "Create${type}"])
 }
 
-def sendEchoNotification(msg) {
-    String convId = "amzn1.comms.messaging.id.conversationV2~${UUID.randomUUID().toString()}"
-    String clientMsgId = UUID.randomUUID().toString()
-    List body = [[
-        conversationId: convId,
-        clientMessageId: clientMsgId,
-        messageId: 0.001,
-        time: getIsoDtNow(),
-        sender: state?.mainAccountCommsId as String,
-        type: 'message/text',
-        payload: [
-            text: msg
-        ],
-        status: 1
-    ]]
-    log.debug "body: $body"
-    // sendAmazonCommand("post", [
-    //     uri: "https://alexa-comms-mobile-service.${getAmazonDomain()}",
-    //     path: "/users/${state?.mainAccountCommsId}/conversations/${convId}/messages",
-    //     headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
-    //     contentType: "application/json",
-    //     body: body
-    // ], [cmdDesc: "sendEchoNotification()"])
-    // incrementCntByKey("use_cnt_sendEchoNotification")
-}
-
 def renameDevice(newName) {
     logTrace("renameDevice($newName) command received...")
     if(!state?.deviceAccountId) { logError("renameDevice Failed because deviceAccountId is not found..."); return; }
@@ -2834,7 +2806,7 @@ def getDtNow() {
 }
 
 def getIsoDtNow() {
-    def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'T");
+    def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf.format(new Date());
 }

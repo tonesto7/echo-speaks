@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.1.2.0" }
-String appModified()  { return "2019-10-03" }
+String appVersion()   { return "3.1.3.0" }
+String appModified()  { return "2019-10-07" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3120, wsDevice: 3120, actionApp: 3120, zoneApp: 3120, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3130, wsDevice: 3130, actionApp: 3130, zoneApp: 3130, server: 230] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Fix server install state where server is installed but needs to login.
 // TODO: Add in Actions to the metrics
@@ -1439,16 +1439,17 @@ private checkIfCodeUpdated() {
             }
         }
         def cApps = getActionApps()
-        if(cApps?.size() && state?.codeVersions?.actionApp != cApps[0]?.appVersion()) {
+        if(cApps?.size() && state?.codeVersions?.actionApp && state?.codeVersions?.actionApp != cApps[0]?.appVersion()) {
             chgs?.push("actionApp")
             state?.pollBlocked = true
             updCodeVerMap("actionApp", cApps[0]?.appVersion())
             codeUpdated = true
         }
         def zApps = getZoneApps()
-        if(zApps?.size() && state?.codeVersions?.actionApp != zApps[0]?.appVersion()) {
+        if(zApps?.size() && state?.codeVersions?.zoneApp && state?.codeVersions?.zoneApp != zApps[0]?.appVersion()) {
             chgs?.push("zoneApp")
             state?.pollBlocked = true
+            log.debug "zoneVer: ${zApps[0]?.appVersion()}"
             updCodeVerMap("zoneApp", zApps[0]?.appVersion())
             codeUpdated = true
         }
@@ -1752,7 +1753,7 @@ Boolean validateCookie(frc=false) {
             Map aData = resp?.data?.authentication ?: null
             Boolean valid = false
             if (aData) {
-                log.debug "aData: $aData"
+                // log.debug "aData: $aData"
                 if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
                 if(aData?.customerName) { state?.customerName = aData?.customerName }
                 valid = (resp?.data?.authentication?.authenticated != false)

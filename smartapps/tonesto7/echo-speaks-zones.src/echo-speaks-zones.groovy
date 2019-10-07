@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()	 { return "3.1.2.0" }
-String appModified() { return "2019-10-03" }
+String appVersion()	 { return "3.1.3.0" }
+String appModified() { return "2019-10-07" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -175,7 +175,7 @@ def namePage() {
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
         section() {
-            paragraph pTS("Notice:\nAll selected conditions must pass before this zone will be marked active.", null, false, "#2784D9"), state: "complete"
+            paragraph pTS("Notice:\n${settings?.cond_require_all != false ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
         }
         section(sTS("Time/Date")) {
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getAppImg("clock")
@@ -217,6 +217,10 @@ def conditionsPage() {
         condNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed"], "are", "valve")
 
         condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery")
+
+        if(multipleConditions()) {
+            input "cond_require_all", "bool", title: inTS("Require All Conditions to met?", getAppImg("checkbox", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("checkbox")
+        }
     }
 }
 
@@ -645,13 +649,15 @@ Boolean deviceCondOk() {
 }
 
 def conditionStatus() {
+    Boolean allReq = (settings?.cond_require_all != false)
     List blocks = []
     if(!timeCondOk())        { blocks?.push("time") }
     if(!dateCondOk())        { blocks?.push("date") }
     if(!locationCondOk())    { blocks?.push("location") }
     if(!deviceCondOk())      { blocks?.push("device") }
-    logDebug("Action Conditions Check | Blocks: ${blocks}")
-    return [ok: (blocks?.size() == 0), blocks: blocks]
+    Boolean ok = ((allReq && blocks?.size() == 0) || !allReq && blocks?.size() < 4)
+    logDebug("Action Conditions Check | Status: ${ok} | Blocks: ${blocks}")
+    return [ok: ok, blocks: blocks]
 }
 
 Boolean devCondConfigured(type) {
@@ -681,25 +687,30 @@ Boolean locationCondConfigured() {
 }
 
 Boolean deviceCondConfigured() {
-    Boolean swDev = devCondConfigured("switch")
-    Boolean motDev = devCondConfigured("motion")
-    Boolean presDev = devCondConfigured("presence")
-    Boolean conDev = devCondConfigured("contact")
-    Boolean lockDev = devCondConfigured("lock")
-    Boolean garDev = devCondConfigured("door")
-    Boolean shadeDev = devCondConfigured("shade")
-    Boolean valveDev = devCondConfigured("valve")
-    Boolean tempDev = devCondConfigured("temperature")
-    Boolean humDev = devCondConfigured("humidity")
-    Boolean illDev = devCondConfigured("illuminance")
-    Boolean levelDev = devCondConfigured("level")
-    Boolean powerDev = devCondConfigured("illuminance")
-    Boolean battDev = devCondConfigured("battery")
-    return (swDev || motDev || presDev || conDev || lockDev || garDev || shadeDev || valveDev || tempDev || humDev || illDev || levelDev || powerDev || battDev)
+    List devConds = ["switch", "motion", "presence", "contact", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+    List items = []
+    devConds?.each { dc-> if(devCondConfigured(dc)) { items?.push(dc) } }
+    return (item?.size() > 0)
+}
+
+Integer deviceCondCount() {
+    List devConds = ["switch", "motion", "presence", "contact", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+    List items = []
+    devConds?.each { dc-> if(devCondConfigured(dc)) { items?.push(dc) } }
+    return items?.size() ?: 0
 }
 
 Boolean conditionsConfigured() {
     return (timeCondConfigured() || dateCondConfigured() || locationCondConfigured() || deviceCondConfigured())
+}
+
+Boolean multipleConditions() {
+    Integer cnt = 0
+    if(timeCondConfigured()) cnt++
+    if(dateCondConfigured()) cnt++
+    if(locationCondConfigured()) cnt++
+    cnt = cnt + deviceCondCount()
+    return (cnt>1)
 }
 
 /***********************************************************************************************************
