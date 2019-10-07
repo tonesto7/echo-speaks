@@ -23,6 +23,7 @@ Map minVersions()     { return [echoDevice: 3130, wsDevice: 3130, actionApp: 313
 
 // TODO: Fix server install state where server is installed but needs to login.
 // TODO: Add in Actions to the metrics
+// TODO: collect hubitat hub software version
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
