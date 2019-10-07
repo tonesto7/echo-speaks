@@ -665,7 +665,7 @@ void updateDeviceStatus(Map devData) {
         state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
         state?.deviceAccountId = devData?.deviceAccountId
         state?.softwareVersion = devData?.softwareVersion
-        state?.mainAccountCommsId = devData?.mainAccountCommsId ?: null
+        // state?.mainAccountCommsId = devData?.mainAccountCommsId ?: null
         // log.debug "mainAccountCommsId: ${state?.mainAccountCommsId}"
         state?.cookie = devData?.cookie
         state?.authValid = (devData?.authValid == true)
@@ -728,12 +728,8 @@ void updateDeviceStatus(Map devData) {
 }
 
 public updSocketStatus(active) {
-    if(active == true) {
-        state?.websocketActive = true
-    } else {
-        schedDataRefresh(true)
-        state?.websocketActive = false
-    }
+    if(active != true) { schedDataRefresh(true) }
+    state?.websocketActive = active
 }
 
 void websocketUpdEvt(triggers) {
@@ -853,7 +849,7 @@ private getPlaybackState(isGroupResponse=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/np/player",
-        query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType, screenWidth: 2560, _: new Date()?.getTime() ],
+        query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType, screenWidth: 2560, _: now() ],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json"
     ]
@@ -906,8 +902,7 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
     }
 
     //Track Art Image
-    String trackImg = playerInfo?.mainArt?.url ?: ""
-    log.debug "trackImg: ${trackImg}"
+    String trackImg = (playerInfo && playerInfo?.mainArt && playerInfo?.mainArt?.url) ? playerInfo?.mainArt?.url : ""
     if(isStateChange(device, "trackImage", trackImg?.toString())) {
         sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
         sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)

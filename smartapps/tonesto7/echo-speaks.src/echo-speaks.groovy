@@ -164,7 +164,7 @@ def authStatusPage() {
     Boolean resumeConf = (state?.resumeConfig == true)
     return dynamicPage(name: "authStatusPage", install: false, nextPage: "mainPage", uninstall: false) {
         if(state?.authValid) {
-            Integer lastChkSec = getLastCookieRefreshSec()
+            Integer lastChkSec = getLastTsValSecs("lastCookieRrshDt")
             Boolean pastDayChkOk = (lastChkSec > 86400)
             section(sTS("Cookie Status:")) {
                 Boolean cookieValid = (validateCookie(true) == true)
@@ -177,7 +177,7 @@ def authStatusPage() {
                 paragraph pTS("Session Value: (${chk1 ? "OK" : "Missing"})", null, false, chk1 ? "#2784D9" : "red"), state: (chk1 ? "complete" : null), required: true
                 paragraph pTS("CSRF Value: (${chk2 ? "OK" : "Missing"})", null, false, chk2 ? "#2784D9" : "red"), state: (chk2 ? "complete" : null), required: true
                 paragraph pTS("Validated: (${chk4 ? "OK" : "Invalid"})", null, false, chk4 ? "#2784D9" : "red"), state: (chk4 ? "complete" : null), required: true
-                paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastCookieRefreshSec())})", null, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : null), required: true
+                paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", null, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : null), required: true
                 paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", null, false, "#2784D9"), state: "complete", required: true
             }
 
@@ -1187,6 +1187,7 @@ def updated() {
     unsubscribe()
     state?.zoneEvtsActive = false
     unschedule()
+    if(!state?.tsMapConverted) { tsMapMigration() }
     initialize()
 }
 
@@ -1272,12 +1273,7 @@ void webSocketStatus(Boolean active) {
 private updChildSocketStatus() {
     def active = (state?.websocketActive == true)
     getEsDevices()?.each { it?.updSocketStatus(active) }
-    if(active == true) {
-        unschedule("getOtherData")
-    } else {
-        runEvery1Minute("getOtherData")
-    }
-    updTsMap("lastWebsocketUpdDt", getDtNow())
+    updTsVal("lastWebsocketUpdDt", getDtNow())
 }
 
 def zoneStateHandler(evt) {
@@ -1330,10 +1326,20 @@ def onAppTouch(evt) {
     updated()
 }
 
-void updTsMap(key, dt=null) {
+private updTsVal(key, dt=null) {
 	def data = atomicState?.tsDtMap ?: [:]
 	if(key) { data[key] = dt }
 	atomicState?.tsDtMap = data
+}
+
+private remTsVal(key) {
+	def data = atomicState?.tsDtMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.tsDtMap = data
+    }
 }
 
 def getTsVal(val) {
@@ -1342,9 +1348,19 @@ def getTsVal(val) {
 	return null
 }
 
-Integer getLastTsValSecs(val) {
+private tsMapMigration() {
+    Map items = [
+        "musicProviderUpdDt":"musicProviderUpdDt", "lastCookieChkDt":"lastCookieChkDt", "lastServerWakeDt":"lastServerWakeDt", "lastChildInitRefreshDt":"lastChildInitRefreshDt",
+        "lastCookieRefresh":"lastCookieRrshDt", "lastVerUpdDt":"lastAppDataUpdDt", "lastGuardSupportCheck":"lastGuardSupChkDt", "lastGuardStateUpd":"lastGuardStateUpdDt",
+        "lastGuardStateCheck":"lastGuardStateChkDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt"
+    ]
+    items?.each { k, v-> if(state?.containsKey(k)) { updTsVal(v as String, state[k as String]); state?.remove(k as String); } }
+    state?.tsMapConverted = true
+}
+
+Integer getLastTsValSecs(val, nullVal=1000000) {
 	def tsMap = atomicState?.tsDtMap
-	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : 1000000
+	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : nullVal
 }
 
 void settingUpdate(name, value, type=null) {
@@ -1544,7 +1560,7 @@ def processData() {
 def getCookieData() {
     logTrace("getCookieData() Request Received...")
     Map resp = state?.cookieData ?: [:]
-    resp["refreshDt"] = state?.lastCookieRefresh ?: null
+    resp["refreshDt"] = getTsVal("lastCookieRrshDt") ?: null
     def json = new groovy.json.JsonOutput().toJson(resp)
     incrementCntByKey("getCookieCnt")
     render contentType: "application/json", data: json
@@ -1569,7 +1585,7 @@ def storeCookieData() {
         logInfo("Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds...")
         validateCookie(true)
         state?.serviceConfigured = true
-        state?.lastCookieRefresh = getDtNow()
+        updTsVal("lastCookieRrshDt", getDtNow())
         runIn(10, "initialize", [overwrite: true])
     }
 }
@@ -1580,8 +1596,7 @@ def clearCookieData(src=null) {
     state?.authValid = false
     state?.remove("cookie")
     state?.remove("cookieData")
-    state?.remove("lastCookieChkDt")
-    state?.remove("lastCookieRefresh")
+    remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
     unschedule("getOtherData")
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
@@ -1637,7 +1652,6 @@ String getServerHostURL() {
     return (state?.isLocal && state?.serverHost) ? (state?.serverHost ? "${state?.serverHost}" : null) : "https://${getRandAppName()}.herokuapp.com"
 }
 
-Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 500000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
 Integer cookieRefreshSeconds() { return (settings?.refreshCookieDays ?: 5)*86400 as Integer }
 
 def clearServerAuth() {
@@ -1652,8 +1666,6 @@ def clearServerAuth() {
     }
 }
 
-Integer getLastServerWakeSec() { return !state?.lastServerWakeDt ? 500000 : GetTimeDiffSeconds(state?.lastServerWakeDt, "getLastServerWakeSec").toInteger() }
-
 private wakeupServer(c=false, g=false) {
     Map params = [
         uri: getServerHostURL(),
@@ -1666,7 +1678,7 @@ private wakeupServer(c=false, g=false) {
 
 private runCookieRefresh() {
     settingUpdate("refreshCookie", "false", "bool")
-    if(getLastCookieRefreshSec() < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return; }
+    if(getLastTsValSecs("lastCookieRrshDt", 500000) < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return; }
     wakeupServer(true)
 }
 
@@ -1676,7 +1688,7 @@ def wakeupServerResp(response, data) {
     catch(ex) { logError("wakeupServerResp Exception: ${ex}") }
     if (rData) {
         // log.debug "rData: $rData"
-        state?.lastServerWakeDt = getDtNow()
+        updTsVal("lastServerWakeDt", getDtNow())
         logInfo("wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
         if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
@@ -1739,8 +1751,9 @@ private apiHealthCheck(frc=false) {
 }
 
 Boolean validateCookie(frc=false) {
+    Boolean valid = false
     try {
-        if((!frc && getLastCookieChkSec() <= 900) || !getCookieVal() || !getCsrfVal()) { return }
+        if((!frc && getLastTsValSecs("lastCookieChkDt", 3600) <= 900) || !getCookieVal() || !getCsrfVal()) { return }
         def execDt = now()
         Map params = [
             uri: getAmazonUrl(),
@@ -1751,23 +1764,46 @@ Boolean validateCookie(frc=false) {
         ]
         httpGet(params) { resp->
             Map aData = resp?.data?.authentication ?: null
-            Boolean valid = false
             if (aData) {
                 // log.debug "aData: $aData"
                 if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
                 if(aData?.customerName) { state?.customerName = aData?.customerName }
                 valid = (resp?.data?.authentication?.authenticated != false)
             }
-            state?.lastCookieChkDt = getDtNow()
             logInfo("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
             authValidationEvent(valid, "validateCookie")
-            return valid
         }
     } catch(ex) {
         respExceptionHandler(ex, "validateCookie", true)
-        state?.lastCookieChkDt = getDtNow()
         incrementCntByKey("err_app_cookieValidCnt")
-        return false
+    }
+    updTsVal("lastCookieChkDt", getDtNow())
+    return valid
+}
+
+private getCustomerData(frc=false) {
+    try {
+        if(!frc && state?.amazonCustomerData && getLastTsValSecs("lastCustDataUpdDt") < 3600) { return state?.amazonCustomerData }
+        def execDt = now()
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/get-customer-pfm",
+            query: [_: now()],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            contentType: "application/json"
+        ]
+        httpGet(params) { resp->
+            Map pData = resp?.data ?: null
+            if (pData) {
+                Map d = [:]
+                if(pData?.marketPlaceLocale) { d["marketPlaceLocale"] = pData?.marketPlaceLocale }
+                if(pData?.marketPlaceId) { d["marketPlaceId"] = pData?.marketPlaceId }
+                state?.amazonCustomerData = d
+            }
+        }
+    } catch(ex) {
+        respExceptionHandler(ex, "getCustomerData", true)
+        updTsVal("lastCustDataUpdDt", getDtNow())
     }
 }
 
@@ -1790,7 +1826,6 @@ private userCommIds() {
     }
 }
 
-
 private authValidationEvent(Boolean valid, String src=null) {
 	Integer listSize = 3
     List eList = atomicState?.authValidHistory ?: [true, true, true]
@@ -1807,10 +1842,10 @@ private authValidationEvent(Boolean valid, String src=null) {
 private noAuthReminder() { logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...") }
 
 public childInitiatedRefresh() {
-    Integer lastRfsh = getLastChildInitRefreshSec()
+    Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)
     if(state?.deviceRefreshInProgress != true && lastRfsh > 120) {
         logDebug("A Child Device is requesting a Device List Refresh...")
-        state?.lastChildInitRefreshDt = getDtNow()
+        updTsVal("lastChildInitRefreshDt", getDtNow())
         getOtherData()
         runIn(3, "getEchoDevices")
     } else {
@@ -1833,7 +1868,7 @@ public updChildVers() {
 }
 
 private getMusicProviders() {
-    if(state?.musicProviders || getLastTsValSecs("musicProviderDt") < 3600) { return state?.musicProviders }
+    if(state?.musicProviders && getLastTsValSecs("musicProviderUpdDt") < 3600) { return state?.musicProviders }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
@@ -1852,7 +1887,7 @@ private getMusicProviders() {
             }
             // log.debug "Music Providers: ${items}"
             if(!state?.musicProviders || items != state?.musicProviders) { state?.musicProviders = items }
-            updTsMap("musicProviderDt", getDtNow())
+            updTsVal("musicProviderUpdDt", getDtNow())
         }
     } catch (ex) {
         respExceptionHandler(ex, "getMusicProviders", true)
@@ -1861,14 +1896,15 @@ private getMusicProviders() {
 }
 
 private getOtherData() {
-    userCommIds()
-    getBluetoothDevices()
     getDoNotDisturb()
+    getBluetoothDevices()
     getMusicProviders()
+    // getCustomerData()
+    // getAlexaSkills()
 }
 
 private getBluetoothDevices() {
-    // logTrace("getBluetoothDevices")
+    if(state?.websocketActive && state?.bluetoothData && getLastTsValSecs("bluetoothUpdDt") < 3600) { return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
@@ -1882,6 +1918,7 @@ private getBluetoothDevices() {
             btResp = response?.data ?: [:]
             // log.debug "Bluetooth Items: ${btResp}"
             state?.bluetoothData = btResp
+            updTsVal("bluetoothUpdDt", getDtNow())
         }
     } catch (ex) {
         respExceptionHandler(ex, "getBluetoothDevices", true)
@@ -1909,7 +1946,7 @@ private getDoNotDisturb() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
-        query: [_: new Date().getTime()],
+        query: [_: now()],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
     ]
@@ -1996,8 +2033,6 @@ def executeRoutineById(String routineId) {
     }
 }
 
-Integer getLastGuardSupportCheckSec() { return !state?.lastGuardSupportCheck ? 3600 : GetTimeDiffSeconds(state?.lastGuardSupportCheck, "getLastGuardSupportCheckSec").toInteger() }
-
 def checkGuardSupport() {
     def execDt = now()
     if(!isAuthValid("checkGuardSupport")) { return }
@@ -2058,7 +2093,7 @@ def checkGuardSupportResponse(response, data) {
         } else { logError("checkGuardSupportResponse Exception: ${ex}") }
     }
     state?.alexaGuardSupported = guardSupported
-    state?.lastGuardSupportCheck = getDtNow()
+    updTsVal("lastGuardSupChkDt", getDtNow())
     state?.guardDataSrc = "app"
     if(guardSupported) getGuardState()
 }
@@ -2098,7 +2133,7 @@ def checkGuardSupportServerResponse(response, data) {
     state?.alexaGuardSupported = guardSupported
     state?.guardDataOverMaxSize = guardSupported
     state?.guardDataSrc = "server"
-    state?.lastGuardSupportCheck = getDtNow()
+    updTsVal("lastGuardSupChkDt", getDtNow())
     if(guardSupported) getGuardState()
 }
 
@@ -2120,7 +2155,7 @@ private getGuardState() {
                 state?.alexaGuardState = guardStateData?.value[0] ? guardStateData?.value[0] : guardStateData?.value
                 settingUpdate("alexaGuardAwayToggle", ((state?.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
                 logDebug("Alexa Guard State: (${state?.alexaGuardState})")
-                state?.lastGuardStateCheck = getDtNow()
+                updTsVal("lastGuardStateChkDt", getDtNow())
             }
             // log.debug "GuardState resp: ${respData}"
         }
@@ -2148,12 +2183,42 @@ private setGuardState(guardState) {
             if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
                 logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
                 state?.alexaGuardState = guardState
-                state?.lastGuardStateUpd = getDtNow()
+                updTsVal("lastGuardStateUpdDt", getDtNow())
                 updGuardActionTrig()
             } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
         }
     } catch (ex) {
         respExceptionHandler(ex, "setGuardState", true)
+    }
+}
+
+private getAlexaSkills() {
+    def execDt = now()
+    log.debug "getAlexaSkills"
+    if(!isAuthValid("getAlexaSkills") || state?.amazonCustomerData) { return }
+    if(state?.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
+    Map params = [
+        uri: "https://skills-store.${getAmazonDomain()}",
+        path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state?.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${now()}",
+        headers: [
+            Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
+            Origin: getAmazonUrl(),
+            cookie: getCookieVal(),
+            csrf: getCsrfVal()
+        ],
+        contentType: "application/json",
+    ]
+    try {
+        httpGet(params) { response->
+            def respData = response?.data ?: null
+            log.debug "respData: $respData"
+            // log.debug respData[3]?.contents[3]?.contents?.products
+
+            // updTsVal("skillDataUpdDt", getDtNow())
+        }
+    } catch (ex) {
+        log.error "getAlexaSkills Exception: ${ex}"
+        // respExceptionHandler(ex, "getAlexaSkills", true)
     }
 }
 
@@ -2390,7 +2455,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
-                    echoValue["mainAccountCommsId"] = state?.accountCommIds?.find { it?.value?.signedInUser == true && it?.value?.isChild == false }?.key as String ?: null
+                    // echoValue["mainAccountCommsId"] = state?.accountCommIds?.find { it?.value?.signedInUser == true && it?.value?.isChild == false }?.key as String ?: null
                     // logWarn("Device Permisions | Name: ${echoValue?.accountName} | $permissions")
 
                     echoDeviceMap[echoKey] = [
@@ -2438,7 +2503,7 @@ def receiveEventData(Map evtData, String src) {
                     updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
-                state?.lastDevDataUpd = getDtNow()
+                updTsVal("lastDevDataUpdDt", getDtNow())
                 state?.echoDeviceMap = echoDeviceMap
                 state?.allEchoDevices = allEchoDevices
                 state?.skippedDevices = skippedDevices
@@ -2697,13 +2762,13 @@ private healthCheck() {
         return
     }
     validateCookie()
-    if(getLastCookieRefreshSec() > cookieRefreshSeconds()) {
+    if(getLastTsValSecs("lastCookieRrshDt") > cookieRefreshSeconds()) {
         runCookieRefresh()
-    } else if (getLastGuardSupportCheckSec() > 43200) {
+    } else if (getLastTsValSecs("lastGuardSupChkDt") > 43200) {
         checkGuardSupport()
-    } else if(getLastServerWakeSec() > 86400) { wakeupServer() }
+    } else if(getLastTsValSecs("lastServerWakeDt") > 86400) { wakeupServer() }
     if(!isST() && getSocketDevice()?.isSocketActive() != true) { getSocketDevice()?.triggerInitialize() }
-    if(state?.isInstalled && getLastMetricUpdSec() > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
+    if(state?.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
@@ -2786,10 +2851,7 @@ Boolean pushStatus() { return (settings?.smsNumbers?.toString()?.length()>=10 ||
 Integer getLastMsgSec() { return !state?.lastMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMsgDt, "getLastMsgSec").toInteger() }
 Integer getLastUpdMsgSec() { return !state?.lastUpdMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastUpdMsgDt, "getLastUpdMsgSec").toInteger() }
 Integer getLastMisPollMsgSec() { return !state?.lastMisPollMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMisPollMsgDt, "getLastMisPollMsgSec").toInteger() }
-Integer getLastVerUpdSec() { return !state?.lastVerUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastVerUpdDt, "getLastVerUpdSec").toInteger() }
 Integer getLastDevicePollSec() { return !state?.lastDevDataUpd ? 840 : GetTimeDiffSeconds(state?.lastDevDataUpd, "getLastDevicePollSec").toInteger() }
-Integer getLastCookieChkSec() { return !state?.lastCookieChkDt ? 3600 : GetTimeDiffSeconds(state?.lastCookieChkDt, "getLastCookieChkSec").toInteger() }
-Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state?.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 Boolean getOk2Notify() {
     Boolean smsOk = (settings?.smsNumbers?.toString()?.length()>=10)
     Boolean pushOk = settings?.usePush
@@ -2971,7 +3033,6 @@ def changeLogPage() {
 |    METRIC Logic
 ******************************************/
 String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com" }
-Integer getLastMetricUpdSec() { return !state?.lastMetricUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastMetricUpdDt, "getLastMetricUpdSec").toInteger() }
 Boolean metricsOk() { (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
 private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID().toString() } }
 private sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), "/clients/${state?.appGuid}.json", createMetricsDataJson(), "put", "heartbeat"); } }
@@ -3022,7 +3083,7 @@ def processFirebaseResponse(resp, data) {
     try {
         if(resp?.status == 200) {
             logDebug("processFirebaseResponse: ${typeDesc} Data Sent SUCCESSFULLY")
-            if(typeDesc?.toString() == "heartbeat") { state?.lastMetricUpdDt = getDtNow() }
+            if(typeDesc?.toString() == "heartbeat") { updTsVal("lastMetricUpdDt", getDtNow()) }
             def iData = atomicState?.installData ?: [:]
             iData["sentMetrics"] = true
             atomicState?.installData = iData
@@ -3127,8 +3188,9 @@ Boolean serverUpdAvail() { return (state?.appData?.versions && state?.codeVersio
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 
 private checkVersionData(now = false) { //This reads a JSON file from GitHub with version numbers
-    if (now || !state?.appData || (getLastVerUpdSec() > (3600*6))) {
-        if(now && (getLastVerUpdSec() < 300)) { return }
+    def lastUpd = getLastTsValSecs("lastAppDataUpdDt")
+    if (now || !state?.appData || (lastUpd > (3600*6))) {
+        if(now && (lastUpd < 300)) { return }
         getConfigData()
         getNoticeData()
     }
@@ -3142,7 +3204,7 @@ private getConfigData() {
     def data = getWebData(params, "appData", false)
     if(data) {
         state?.appData = data
-        state?.lastVerUpdDt = getDtNow()
+        updTsVal("lastAppDataUpdDt", getDtNow())
         logDebug("Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo...")
     }
 }
@@ -3222,7 +3284,7 @@ private getDiagDataJson() {
                 installed: state?.installData?.dt,
                 updated: state?.installData?.updatedDt,
                 timeZone: location?.timeZone?.ID?.toString(),
-                lastVersionUpdDt: state?.lastVerUpdDt,
+                lastVersionUpdDt: getTsVal("lastAppDataUpdDt"),
                 flags: [
                     pollBlocked: (state?.pollBlocked == true),
                     resumeConfig: state?.resumeConfig,
@@ -3257,7 +3319,7 @@ private getDiagDataJson() {
             devices: [
                 version: state?.codeVersions?.echoDevice ?: null,
                 count: echoDevs?.size() ?: 0,
-                lastDataUpdDt: state?.lastDevDataUpd,
+                lastDataUpdDt: updTsVal("lastDevDataUpdDt"),
                 models: state?.deviceStyleCnts ?: [:],
                 warnings: devWarnings,
                 errors: devErrors,
@@ -3273,11 +3335,11 @@ private getDiagDataJson() {
             hubPlatform: getPlatform(),
             authStatus: [
                 cookieValidationState: (state?.authValid == true),
-                cookieValidDate: state?.lastCookieChkDt ?: null,
-                cookieValidDur: state?.lastCookieChkDt ? seconds2Duration(getLastCookieChkSec()) : null,
+                cookieValidDate: getTsVal("lastCookieChkDt") ?: null,
+                cookieValidDur: getTsVal("lastCookieChkDt") ? seconds2Duration(getLastTsValSecs("lastCookieChkDt")) : null,
                 cookieValidHistory: state?.authValidHistory,
-                cookieLastRefreshDate: state?.lastCookieRefresh ?: null,
-                cookieLastRefreshDur: state?.lastCookieRefresh ? seconds2Duration(getLastCookieRefreshSec()) : null,
+                cookieLastRefreshDate: getTsVal("lastCookieRrshDt") ?: null,
+                cookieLastRefreshDur: getTsVal("lastCookieRrshDt") ? seconds2Duration(getLastTsValSecs("lastCookieRrshDt")) : null,
                 cookieInvalidReason: (state?.authValid != true && state.authEvtClearReason) ? state?.authEvtClearReason : null,
                 cookieRefreshDays: settings?.refreshCookieDays,
                 cookieItems: [
@@ -3298,17 +3360,17 @@ private getDiagDataJson() {
                 supported: state?.alexaGuardSupported,
                 status: state?.alexaGuardState,
                 dataSrc: state?.guardDataSrc,
-                lastSupportCheck: state?.lastGuardSupportCheck,
-                lastStateCheck: state?.lastGuardStateCheck,
-                lastStateUpd: state?.lastGuardStateUpd,
+                lastSupportCheck: getTsVal("lastGuardSupChkDt"),
+                lastStateCheck: getTsVal("lastGuardStateChkDt"),
+                lastStateUpd: getTsVal("lastGuardStateUpdDt"),
                 stRespLimit: (state?.guardDataOverMaxSize == true)
             ],
             server: [
                 version: state?.codeVersions?.server ?: null,
                 amazonDomain: settings?.amazonDomain,
                 amazonLocale: settings?.regionLocale,
-                lastServerWakeDt: state?.lastServerWakeDt,
-                lastServerWakeDur: state?.lastServerWakeDt ? seconds2Duration(getLastServerWakeSec()) : null,
+                lastServerWakeDt: getTsVal("lastServerWakeDt"),
+                lastServerWakeDur: getTsVal("lastServerWakeDt") ? seconds2Duration(getLastTsValSecs("lastServerWakeDt")) : null,
                 serverPlatform: state?.onHeroku ? "Cloud" : "Local",
                 hostUrl: getServerHostURL(),
                 randomName: state?.generatedHerokuName
@@ -3499,9 +3561,10 @@ private seconds2Duration(Integer timeSec, postfix=true, tk=2, asMap=false) {
 
 private nextCookieRefreshDur() {
     Integer days = settings?.refreshCookieDays ?: 5
-    if(!state?.lastCookieRefresh) { return "Not Sure"}
+    def lastCookieRfsh = getTsVal("lastCookieRrshDt")
+    if(!lastCookieRfsh) { return "Not Sure"}
     Date now = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", getDtNow())))
-    Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", state?.lastCookieRefresh)))
+    Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", lastCookieRfsh)))
     Date nextDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt + days))
     def diff = ((long) (nextDt?.getTime() - now?.getTime()) / 1000) as Integer
     def dur = seconds2Duration(diff, false, 3)
@@ -3557,7 +3620,7 @@ String getServiceConfDesc() {
 
 String getLoginStatusDesc() {
     def s = "Login Status: (${state?.authValid ? "Valid" : "Invalid"})"
-    s += (state?.lastCookieRefresh) ? "\nCookie Updated:\n(${seconds2Duration(getLastCookieRefreshSec())})" : ""
+    s += (getTsVal("lastCookieRrshDt")) ? "\nCookie Updated:\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})" : ""
     return s
 }
 

@@ -25,29 +25,30 @@ metadata {
         capability "Initialize"
         capability "Refresh"
         capability "Actuator"
-        //command "sendMsg", ["String"]
-        attribute "Activity","String"
     }
 }
 
 preferences {
-    input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
-}
-
-void updateDeviceStatus(Map devData) {
-    Boolean isOnline = false
-    if(devData?.size()) {
-        if(!isSocketActive()) {
-            triggerInitialize()
-        }
-    }
+    input "logInfo", "bool", title: "Show Info Logs?",  required: false, defaultValue: true
+    input "logWarn", "bool", title: "Show Warning Logs?", required: false, defaultValue: true
+    input "logError", "bool", title: "Show Error Logs?",  required: false, defaultValue: true
+    input "logDebug", "bool", title: "Show Debug Logs?", description: "Only leave on when required", required: false, defaultValue: false
+    input "logTrace", "bool", title: "Show Detailed Logs?", description: "Only Enabled when asked by the developer", required: false, defaultValue: false
+    input "autoConnectWs", "bool", required: false, title: "Auto Connect on Initialize?", defaultValue: true
 }
 
 def isSocketActive() { return (state?.connectionActive == true) }
 
-def logsOff(){
-    log.warn "debug logging disabled..."
-    device.updateSetting("logEnable",[value:"false",type:"bool"])
+public updateCookies(cookies) {
+    logWarn("Cookies Update by Parent.  Re-Initializing Device in 5 Seconds...")
+    state?.cookie = cookies
+    runIn(10, "initialize")
+}
+
+public removeCookies(isParent=false) {
+    logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
+    close()
+    state?.cookie = null
 }
 
 def refresh() {
@@ -73,13 +74,17 @@ def initialize() {
     close()
     state?.amazonDomain = parent?.getAmazonDomain()
     state?.cookie = parent?.getCookieVal()
-    def serArr = state?.cookie =~ /ubid-[a-z]+=([^;]+);/
-    state?.wsSerial = serArr?.find() ? serArr[0..-1][0][1] : null
-    state?.wsDomain = (state?.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state?.amazonDomain}"
-    def msgId = Math.floor(1E9 * Math.random()) as BigInteger;
-    state?.messageId = state?.messageId ?: msgId
-    state?.messageInitCnt = 0
-    connect()
+    if(state?.cookie && settings?.autoConnectWs != false) {
+        def serArr = state?.cookie =~ /ubid-[a-z]+=([^;]+);/
+        state?.wsSerial = serArr?.find() ? serArr[0..-1][0][1] : null
+        state?.wsDomain = (state?.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state?.amazonDomain}"
+        def msgId = Math.floor(1E9 * Math.random()) as BigInteger;
+        state?.messageId = state?.messageId ?: msgId
+        state?.messageInitCnt = 0
+        connect()
+    } else {
+        logDebug("Skipping Socket Open... Cookie Data is Missing")
+    }
 }
 
 def connect() {
@@ -117,11 +122,16 @@ def sendWsMsg(String s) {
     interfaces?.webSocket?.sendMessage(s as String)
 }
 
+def updSocketStatus(Boolean active) {
+    parent?.webSocketStatus(false)
+    state?.connectionActive = active
+}
+
 def webSocketStatus(String status){
     logDebug("Websocket Status Event | ${status}")
     if(status.startsWith('failure: ')) {
         logWarn("Websocket Failure Message: ${status}")
-        parent?.webSocketStatus(false)
+
         reconnectWebSocket()
     } else if(status == 'status: open') {
         logInfo("Alexa WS Connection is Open")
