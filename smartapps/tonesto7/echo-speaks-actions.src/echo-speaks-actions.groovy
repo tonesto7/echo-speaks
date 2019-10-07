@@ -22,6 +22,7 @@ Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 // TODO: Finish the button trigger logic
 // TODO: Add Lock Code triggers
+// TODO: add tiered response action.  ask how many tiers, then build a Ui for each with a delay and message text.  
 definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
@@ -137,7 +138,8 @@ def mainPage() {
             Boolean actConf = executionConfigured()
             section(sTS("Configuration: Part 1")) {
                 Map actionOpts = [
-                    "speak":"Speak (SSML Supported)", "announcement":"Announcement (SSML Supported)", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
+                    "speak":"Speak (SSML Supported)", 
+                    "announcement":"Announcement (SSML Supported)", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
                     "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
                     "bluetooth":"Bluetooth Control", "wakeword":"Wake Word", "alexaroutine": "Execute Alexa Routine(s)"
                 ]
