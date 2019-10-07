@@ -1407,7 +1407,7 @@ def scheduleTrigEvt() {
     if(dOk && wOk && mOk) {
         sTripMap?.lastRun = dateMap
         atomicState?.schedTrigMap = sTrigMap
-        Date dt = new Date()
+        def dt = dateTimeFmt(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         executeAction([name: "Schedule", displayName: "Scheduled Trigger", value: time2Str(dt?.toString()), date: dt, deviceId: null], false, "scheduleTrigEvt", false, false)
     }
 }
@@ -3061,6 +3061,18 @@ String getConditionsDesc() {
     }
 }
 
+def getZoneStatus() {
+    def actZones = settings?.act_EchoZones ?: []
+    def res = [:]
+    if(actZones?.size()) {
+        def allZones = parent?.getZones()
+        actZones?.each { k ->
+            if(allZones?.containsKey(k)) res[k] = allZones[k]
+        }
+        return res
+    }
+}
+
 String getActionDesc() {
     Boolean confd = executionConfigured()
     def time = null
@@ -3068,7 +3080,7 @@ String getActionDesc() {
     if(settings?.actionType && confd) {
         String str = ""
         def eDevs = parent?.getDevicesFromList(settings?.act_EchoDevices)
-        def zones = settings?.act_EchoZones?.size() ? parent?.getZones() : [:]
+        def zones = getZoneStatus()
         str += eDevs?.size() ? "Alexa Devices:\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
         str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n" : ""
         str += settings?.act_volume_change ? "New Volume: (${settings?.act_volume_change})\n" : ""

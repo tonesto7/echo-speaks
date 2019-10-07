@@ -14,7 +14,7 @@
  *
  */
 
-String appVersion()   { return "3.1.3.0" }
+String appVersion()   { return "3.1.4.0" }
 String appModified()  { return "2019-10-07" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
@@ -1348,6 +1348,28 @@ def getTsVal(val) {
 	return null
 }
 
+private updBoolVal(key, dt=null) {
+	def data = atomicState?.appFlagsMap ?: [:]
+	if(key) { data[key] = dt }
+	atomicState?.tsDtMap = data
+}
+
+private remBoolVal(key) {
+	def data = atomicState?.appFlagsMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.appFlagsMap = data
+    }
+}
+
+def getBoolVal(val) {
+	def flagMap = atomicState?.appFlagsMap
+	if(val && flagMap && flagMap[val]) { return flagMap[val] }
+	return false
+}
+
 private tsMapMigration() {
     Map items = [
         "musicProviderUpdDt":"musicProviderUpdDt", "lastCookieChkDt":"lastCookieChkDt", "lastServerWakeDt":"lastServerWakeDt", "lastChildInitRefreshDt":"lastChildInitRefreshDt",
@@ -1356,6 +1378,14 @@ private tsMapMigration() {
     ]
     items?.each { k, v-> if(state?.containsKey(k)) { updTsVal(v as String, state[k as String]); state?.remove(k as String); } }
     state?.tsMapConverted = true
+}
+
+private flagMapMigration() {
+    Map items = [
+        "musicProviderUpdDt":"musicProviderUpdDt"
+    ]
+    items?.each { k, v-> if(state?.containsKey(k)) { updBoolVal(v as String, state[k as String]); state?.remove(k as String); } }
+    state?.appFlagsMapConverted = true
 }
 
 Integer getLastTsValSecs(val, nullVal=1000000) {
