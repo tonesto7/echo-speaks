@@ -1261,7 +1261,7 @@ void wsEvtHandler(evt) {
 }
 
 private findEchoDevice(serial) {
-    return getEsDevices()?.find { it?.getDeviceSerial()?.toString() == serial as String } ?: null
+    return getEsDevices()?.find { it?.getEchoSerial()?.toString() == serial as String } ?: null
 }
 
 void webSocketStatus(Boolean active) {
@@ -1283,7 +1283,7 @@ private updChildSocketStatus() {
 def zoneStateHandler(evt) {
     String id = evt?.value;
     Map data = evt?.jsonData;
-    log.trace "zone: ${id} | Data: $data"
+    // log.trace "zone: ${id} | Data: $data"
     if(data && id) {
         Map zoneMap = atomicState?.zoneStatusMap ?: [:]
         zoneMap[id] = [name: data?.name, active: data?.active]
@@ -1752,6 +1752,7 @@ Boolean validateCookie(frc=false) {
             Map aData = resp?.data?.authentication ?: null
             Boolean valid = false
             if (aData) {
+                log.debug "aData: $aData"
                 if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
                 if(aData?.customerName) { state?.customerName = aData?.customerName }
                 valid = (resp?.data?.authentication?.authenticated != false)
@@ -1768,6 +1769,26 @@ Boolean validateCookie(frc=false) {
         return false
     }
 }
+
+private userCommIds() {
+    try {
+        Map params = [
+            uri: "https://alexa-comms-mobile-service.${getAmazonDomain()}",
+            path: "/accounts",
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            contentType: "application/json"
+        ]
+        httpGet(params) { response->
+            List resp = response?.data ?: []
+            Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == "true" }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
+            state?.accountCommIds = accItems
+            logDebug("Amazon User CommId's: (${accItems})")
+        }
+    } catch(ex) {
+        respExceptionHandler(ex, "userCommIds")
+    }
+}
+
 
 private authValidationEvent(Boolean valid, String src=null) {
 	Integer listSize = 3
@@ -1839,6 +1860,7 @@ private getMusicProviders() {
 }
 
 private getOtherData() {
+    userCommIds()
     getBluetoothDevices()
     getDoNotDisturb()
     getMusicProviders()
@@ -2367,6 +2389,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
+                    echoValue["mainAccountCommsId"] = state?.accountCommIds?.find { it?.value?.signedInUser == true && it?.value?.isChild == false }?.key as String ?: null
                     // logWarn("Device Permisions | Name: ${echoValue?.accountName} | $permissions")
 
                     echoDeviceMap[echoKey] = [

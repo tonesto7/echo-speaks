@@ -122,6 +122,7 @@ metadata {
         command "volumeDown"
         command "speechTest"
         command "sendTestAnnouncement"
+        command "sendEchoNotification", ["string"]
         command "sendTestAnnouncementAll"
         command "getDeviceActivity"
         command "getBluetoothDevices"
@@ -516,8 +517,8 @@ public triggerInitialize() {
     runIn(3, "initialize")
 }
 
-String getDeviceType() { return state?.deviceType ?: null }
-String getDeviceSerial() { return state?.serialNumber ?: null }
+String getEchoDeviceType() { return state?.deviceType ?: null }
+String getEchoSerial() { return state?.serialNumber ?: null }
 
 String getHealthStatus(lower=false) {
 	String res = device?.getStatus()
@@ -665,6 +666,8 @@ void updateDeviceStatus(Map devData) {
         state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
         state?.deviceAccountId = devData?.deviceAccountId
         state?.softwareVersion = devData?.softwareVersion
+        state?.mainAccountCommsId = devData?.mainAccountCommsId ?: null
+        log.debug "mainAccountCommsId: ${state?.mainAccountCommsId}"
         state?.cookie = devData?.cookie
         state?.authValid = (devData?.authValid == true)
         state?.amazonDomain = devData?.amazonDomain
@@ -811,6 +814,7 @@ private refreshData(full=false) {
         getWifiDetails()
         getDeviceSettings()
     }
+    sendEchoNotification()
 
     if(!isWHA) {
         if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
@@ -2120,6 +2124,32 @@ private createNotification(type, options) {
     sendAmazonCommand("put", params, [cmdDesc: "Create${type}"])
 }
 
+def sendEchoNotification(msg) {
+    String convId = "amzn1.comms.messaging.id.conversationV2~${UUID.randomUUID().toString()}"
+    String clientMsgId = UUID.randomUUID().toString()
+    List body = [[
+        conversationId: convId,
+        clientMessageId: clientMsgId,
+        messageId: 0.001,
+        time: getIsoDtNow(),
+        sender: state?.mainAccountCommsId as String,
+        type: 'message/text',
+        payload: [
+            text: msg
+        ],
+        status: 1
+    ]]
+    log.debug "body: $body"
+    // sendAmazonCommand("post", [
+    //     uri: "https://alexa-comms-mobile-service.${getAmazonDomain()}",
+    //     path: "/users/${state?.mainAccountCommsId}/conversations/${convId}/messages",
+    //     headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
+    //     contentType: "application/json",
+    //     body: body
+    // ], [cmdDesc: "sendEchoNotification()"])
+    // incrementCntByKey("use_cnt_sendEchoNotification")
+}
+
 def renameDevice(newName) {
     logTrace("renameDevice($newName) command received...")
     if(!state?.deviceAccountId) { logError("renameDevice Failed because deviceAccountId is not found..."); return; }
@@ -2801,6 +2831,12 @@ Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVe
 def getDtNow() {
 	def now = new Date()
 	return formatDt(now, false)
+}
+
+def getIsoDtNow() {
+    def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'T");
+    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf.format(new Date());
 }
 
 def formatDt(dt, mdy = true) {

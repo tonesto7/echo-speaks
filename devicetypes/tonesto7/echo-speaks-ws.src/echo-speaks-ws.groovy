@@ -389,6 +389,12 @@ private commandEvtHandler(msg) {
                 sendEvt = true
                 evt?.triggers?.push("notification")
                 break
+            // case 'PUSH_TODO_CHANGE':
+            // case 'PUSH_LIST_ITEM_CHANGE':
+            // case 'PUSH_LIST_CHANGE':
+
+            // case 'PUSH_MICROPHONE_STATE':
+            // case 'PUSH_DELETE_DOPPLER_ACTIVITIES':
             default:
                 log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
                 break

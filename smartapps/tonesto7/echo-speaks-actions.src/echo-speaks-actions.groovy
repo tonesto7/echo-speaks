@@ -1216,7 +1216,6 @@ private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
     Boolean zoneTypeOk = (type in ["TTS", "announce"])
     Map echoZones = zoneTypeOk ? parent?.getZones() : [:]
-    log.debug "echoZones: $echoZones"
     section(sTS("Alexa Devices & Zones:")) {
         if(!settings?.act_EchoDevices && echoZones?.size()) {
             if(!settings?.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves", null, false) }
