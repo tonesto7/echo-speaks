@@ -96,9 +96,7 @@ def mainPage() {
             Boolean condConf = conditionsConfigured()
             section(sTS("Zone Configuration:")) {
                 href "conditionsPage", title: inTS("Zone Activation Conditions", getAppImg("conditions", true)), description: getConditionsDesc(), required: true, state: (condConf ? "complete": null), image: getAppImg("conditions")
-                if(condConf) {
-                    echoDevicesInputByPerm("announce")
-                }
+                if(condConf) { echoDevicesInputByPerm("announce") }
             }
 
             if(settings?.zone_EchoDevices) {
@@ -690,7 +688,7 @@ Boolean deviceCondConfigured() {
     List devConds = ["switch", "motion", "presence", "contact", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
     List items = []
     devConds?.each { dc-> if(devCondConfigured(dc)) { items?.push(dc) } }
-    return (item?.size() > 0)
+    return (items?.size() > 0)
 }
 
 Integer deviceCondCount() {
