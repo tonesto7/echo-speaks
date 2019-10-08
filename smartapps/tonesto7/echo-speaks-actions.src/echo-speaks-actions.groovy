@@ -22,7 +22,7 @@ Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 // TODO: Finish the button trigger logic
 // TODO: Add Lock Code triggers
-// TODO: add tiered response action.  ask how many tiers, then build a Ui for each with a delay and message text.  
+// TODO: add tiered response action.  ask how many tiers, then build a Ui for each with a delay and message text.
 definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
@@ -46,6 +46,8 @@ preferences {
     page(name: "conditionsPage")
     page(name: "condTimePage")
     page(name: "actionsPage")
+    page(name: "actionTiersPage")
+    page(name: "actionTiersConfigPage")
     page(name: "actNotifPage")
     page(name: "actNotifTimePage")
     page(name: "searchTuneInResultsPage")
@@ -138,10 +140,20 @@ def mainPage() {
             Boolean actConf = executionConfigured()
             section(sTS("Configuration: Part 1")) {
                 Map actionOpts = [
-                    "speak":"Speak (SSML Supported)", 
-                    "announcement":"Announcement (SSML Supported)", "sequence":"Execute Sequence", "weather":"Weather Report", "playback":"Playback Control",
-                    "builtin":"Sing, Jokes, Story, etc.", "music":"Play Music", "calendar":"Calendar Events", "alarm":"Create Alarm", "reminder":"Create Reminder", "dnd":"Do Not Disturb",
-                    "bluetooth":"Bluetooth Control", "wakeword":"Wake Word", "alexaroutine": "Execute Alexa Routine(s)"
+                    "speak":"Speak (SSML Supported)",
+                    "announcement":"Announcement (SSML Supported)",
+                    "sequence":"Execute Sequence",
+                    "weather":"Weather Report",
+                    "playback":"Playback Control",
+                    "builtin":"Sing, Jokes, Story, etc.",
+                    "music":"Play Music",
+                    "calendar":"Calendar Events",
+                    "alarm":"Create Alarm",
+                    "reminder":"Create Reminder",
+                    "dnd":"Do Not Disturb",
+                    "bluetooth":"Bluetooth Control",
+                    "wakeword":"Wake Word",
+                    "alexaroutine": "Execute Alexa Routine(s)"
                 ]
                 input "actionType", "enum", title: inTS("Action Type", getAppImg("list", true)), description: "", options: actionOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
             }
@@ -269,9 +281,6 @@ def triggersPage() {
                     if(trig_alarm) {
                         triggerVariableDesc("alarm", false, trigItemCnt++)
                     }
-                    // if("alerts" in trig_alarm) {
-                    //     input "trig_alarm_alerts_clear", "bool", title: "Send the update when Alerts are cleared.", required: false, defaultValue: false, submitOnChange: true
-                    // }
                 }
             }
 
@@ -742,6 +751,32 @@ String actionTypeDesc() {
     return descs?.containsKey(settings?.actionType) ? descs[settings?.actionType] as String : "No Description Found..."
 }
 
+def actionTiersPage() {
+    return dynamicPage(name: "actionTiersPage", title: "", install: false, uninstall: false) {
+        section() {
+            input "act_tier_item_cnt", "number", title: inTS("# of Tiers", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+            if(settings?.act_tier_item_cnt) {
+                href "actionTiersConfigPage", title: inTS("Configure Tiered Responses"), description: "Tap to modify...", params: ["sNum":schNum], state: "complete"
+            }
+        }
+    }
+}
+
+def actionTiersConfigPage() {
+    return dynamicPage(name: "actionTiersConfigPage", title: "", install: false, uninstall: false) {
+        Integer tierCnt = settings?.act_tier_item_cnt as Integer
+        [1..tierCnt]?.each { ti->
+            section(sTS("Tier Item (${ti}) Config:")) {
+                input "act_tier_item_${ti}_delay", "number", title: inTS("# of Tiers", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+                if(settings?."act_tier_item_${ti}_delay") {
+                    href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Tier Item ${ti} Reponse", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
+                                description: settings?."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg("text")
+                }
+            }
+        }
+    }
+}
+
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
         Boolean done = false
@@ -757,8 +792,13 @@ def actionsPage() {
                     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Action Type Config:"), hideable: true) {
                             actionVariableDesc(actionType)
-                            href url: parent?.getTextEditorPath(app?.id as String, "act_speak_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Defaul Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
-                                    description: settings?."act_speak_txt" ?: "Open Response Designer...", image: getAppImg("text")
+                            input "act_tiered_resp", "bool", title: inTS("Enable Tiered Responses?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+                            if(settings?.act_tiered_resp) {
+                                href "actionTiersPage", title: inTS("Create Tiered Responses?"), description: "Tap to modify...", params: ["sNum":schNum], state: "complete"
+                            } else {
+                                href url: parent?.getTextEditorPath(app?.id as String, "act_speak_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
+                                        description: settings?."act_speak_txt" ?: "Open Response Designer...", image: getAppImg("text")
+                            }
                         }
                         actionVolumeInputs(devices)
                         // log.debug "showSpeakEvtVars: ${state?.showSpeakEvtVars} | txt: ${settings?.act_speak_txt} | userDefinedTxt: ${hasUserDefinedTxt()}"
@@ -2454,6 +2494,12 @@ Map getInputData(inName) {
                     desc = "<li>Add custom responses for ${i[1]?.toString()?.capitalize()} trigger events.</li>${vDesc}"
                     template = '%name% %type% is now %value% %unit%'
                 }
+            }
+            else if(inName?.startsWith("act_tier_item_") && inName?.endsWith("_txt")) {
+                def i = inName?.tokenize("_")
+                title = "Tier Response (${i[3]})"
+                desc = "<li>Add custom responses to use when this action is executed.</li>"
+                template = '%name% %type% is now %value% %unit%'
             }
             break
     }
