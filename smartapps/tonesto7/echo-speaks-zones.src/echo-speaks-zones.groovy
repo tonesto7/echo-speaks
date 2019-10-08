@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()	 { return "3.1.3.0" }
-String appModified() { return "2019-10-07" }
+String appVersion()	 { return "3.1.4.0" }
+String appModified() { return "2019-10-08" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -792,21 +792,63 @@ public zoneCmdHandler(evt) {
     // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
     if(cmd && data && data?.zones && data?.zones?.contains(app?.getId()) && data?.message) {
         def zoneDevs = getZoneDevices()
-        if(zoneDevs?.devices?.size() > 2) { cmd = "announcement" }
+        Integer delay = data?.delay ?: null
+        if(cmd == "speak" && zoneDevs?.devices?.size() > 2) { cmd = "announcement" }
         switch(cmd) {
             case "speak":
-                log.debug("Sending Speak Command: (${data?.message}) to Zone (${app?.getLabel()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}")
+                logDebug("Sending Speak Command: (${data?.message}) to Zone (${app?.getLabel()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 if(data?.changeVol || data?.restoreVol) {
-                    zoneDevs?.devices?.each { dev-> dev?.setVolumeSpeakAndRestore(data?.changeVol, data?.message, data?.restoreVol) }
+                    zoneDevs?.devices?.each { dev->
+                        if(isST() && delay) {
+                            dev?.setVolumeSpeakAndRestore(data?.changeVol, data?.message, data?.restoreVol, [delay: delay])
+                        } else { dev?.setVolumeSpeakAndRestore(data?.changeVol, data?.message, data?.restoreVol) }
+                    }
                 } else {
-                    zoneDevs?.devices?.each { dev-> dev?.speak(data?.message) }
+                    zoneDevs?.devices?.each { dev->
+                        if(isST() && delay) {
+                            dev?.speak(data?.message, [delay: delay])
+                        } else { dev?.speak(data?.message) }
+                    }
                 }
                 break
             case "announcement":
                 if(zoneDevs?.devices?.size() > 0 && zoneDevs?.json) {
-                    log.debug("Sending Announcement Command: (${data?.message}) to Zone (${app?.getLabel()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}")
+                    logDebug("Sending Announcement Command: (${data?.message}) to Zone (${app?.getLabel()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                    zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (app?.getLabel() ?: "Echo Speaks Zone"), zoneDevs?.json, data?.changeVol, data?.restoreVol)
+                    if(isST() && delay) {
+                        zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (app?.getLabel() ?: "Echo Speaks Zone"), zoneDevs?.json, data?.changeVol, data?.restoreVol)
+                    } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (app?.getLabel() ?: "Echo Speaks Zone"), zoneDevs?.json, data?.changeVol, data?.restoreVol, [delay: delay]) }
+                }
+                break
+            case "sequence":
+                logDebug("Sending Sequence Command: (${data?.message}) to Zone (${app?.getLabel()})${delay ? " | Delay: (${delay})" : ""}")
+                zoneDevs?.devices?.each { dev->
+                    if(isST() && delay) {
+                        dev?.executeSequenceCommand(data?.message, [delay: delay])
+                    } else { dev?.executeSequenceCommand(data?.message) }
+                }
+                break
+            case "builtin":
+            case "calendar":
+            case "weather":
+            case "playback":
+                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${app?.getLabel()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                zoneDevs?.devices?.each { dev->
+                    if(isST() && delay) {
+                        dev?."${cmd}"([delay: delay])
+                        if(data?.changeVol) { dev?.volume(data?.changeVol, [delay: delay]) }
+                    } else {
+                        dev?."${cmd}"()
+                        if(data?.changeVol) { dev?.volume(data?.changeVol) }
+                    }
+                }
+                break
+            case "music":
+                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${app?.getLabel()}) | Provider: ${data?.provider} | Search: ${data?.search}${delay ? " | Delay: (${delay})" : ""}${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}")
+                if(isST() && delay) {
+                    dev?."${cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol, [delay: delay])
+                } else {
+                    dev?."${cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol)
                 }
                 break
         }

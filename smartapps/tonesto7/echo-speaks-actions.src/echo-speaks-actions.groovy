@@ -14,15 +14,14 @@
  *
  */
 
-String appVersion()  { return "3.1.3.0" }
-String appModified() { return "2019-10-07" }
+String appVersion()  { return "3.1.4.0" }
+String appModified() { return "2019-10-08" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 // TODO: Finish the button trigger logic
 // TODO: Add Lock Code triggers
-// TODO: add tiered response action.  ask how many tiers, then build a Ui for each with a delay and message text.
 definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
@@ -754,26 +753,77 @@ String actionTypeDesc() {
 def actionTiersPage() {
     return dynamicPage(name: "actionTiersPage", title: "", install: false, uninstall: false) {
         section() {
-            input "act_tier_item_cnt", "number", title: inTS("# of Tiers", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
-            if(settings?.act_tier_item_cnt) {
-                href "actionTiersConfigPage", title: inTS("Configure Tiered Responses"), description: "Tap to modify...", params: ["sNum":schNum], state: "complete"
+            input "act_tier_cnt", "number", title: inTS("Number of Tiers", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+        }
+        if(settings?.act_tier_cnt) {
+            Integer tierCnt = settings?.act_tier_cnt as Integer
+            (1..tierCnt)?.each { ti->
+                section(sTS("Tier Item (${ti}) Config:")) {
+                    if(ti > 1) {
+                        input "act_tier_item_${ti}_delay", "number", title: inTS("Delay after Tier ${ti-1}\n(seconds)", getAppImg("equal", true)), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true, image: getAppImg("equal")
+                    }
+                    if(ti==1 || settings?."act_tier_item_${ti}_delay") {
+                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Tier Item ${ti} Reponse", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
+                                    description: settings?."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg("text")
+                    }
+                }
             }
         }
     }
 }
 
-def actionTiersConfigPage() {
-    return dynamicPage(name: "actionTiersConfigPage", title: "", install: false, uninstall: false) {
-        Integer tierCnt = settings?.act_tier_item_cnt as Integer
-        [1..tierCnt]?.each { ti->
-            section(sTS("Tier Item (${ti}) Config:")) {
-                input "act_tier_item_${ti}_delay", "number", title: inTS("# of Tiers", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
-                if(settings?."act_tier_item_${ti}_delay") {
-                    href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Tier Item ${ti} Reponse", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
-                                description: settings?."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg("text")
-                }
-            }
+String getTierRespDesc(hide=false) {
+    Map tierMap = getTierMap() ?: [:]
+    String str = ""
+    str += tierMap?.size() ? "Tiered Responses: (${tierMap?.size()})" : ""
+    tierMap?.each { k,v->
+        str += (k > 1 && settings?."act_tier_item_${k}_delay" && settings?."act_tier_item_${k}_txt") ? "\n \u2022 Tier ${k} delay: (${settings?."act_tier_item_${k}_delay"})" : ""
+    }
+    return str != "" ? str : null
+}
+
+Boolean isTierRespConfigured() {
+    Boolean en = (settings?.act_tiered_resp == true)
+    Integer cnt = settings?.act_tier_cnt as Integer
+    List tierKeys = settings?.findAll { it?.key?.startsWith("act_tier_item_") && it?.key?.endsWith("_txt") }?.collect { it?.key as String }
+    return (tierKeys?.size() == cnt)
+}
+
+Map getTierMap() {
+    Map exec = [:]
+    Boolean en = (settings?.act_tiered_resp == true)
+    Integer cnt = settings?.act_tier_cnt as Integer
+    if(en && cnt && isTierRespConfigured()) {
+        List tiers = (1..cnt)
+        tiers?.each { t-> exec[t as Integer] = [message: settings["act_tier_item_${t}_txt"], delay: settings["act_tier_item_${t}_delay"]] }
+    }
+    return (exec?.size()) ? exec : null
+}
+
+private tierItemCleanup() {
+    Integer tierCnt = settings?.act_tier_cnt as Integer
+    Boolean tierEn = (settings?.act_tiered_resp == true)
+    if(!tierEn || !tierCnt) { return }
+    List tierIds = (1..tierCnt) ?: []
+    List rem = []
+    List tierKeys = settings?.findAll { it?.key?.startsWith("act_tier_item_") }?.collect { it?.key as String }
+    tierKeys?.each { k->
+        List id = k?.tokenize("_") ?: []
+        if(!tierEn || (id?.size() && id?.size() < 4) || !id[3]?.isNumber() || !(id[3]?.toInteger() in tierIds)) {
+            log.debug "remove $k"
+            settingRemove(k as String)
         }
+    }
+}
+
+def actionTxtTiersInputs(type) {
+    input "act_tiered_resp", "bool", title: inTS("Enable Tiered Responses?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+    if(settings?.act_tiered_resp) {
+        def tDesc = getTierRespDesc()
+        href "actionTiersPage", title: inTS("Create Tiered Responses?", getAppImg("text", true), (tDesc ? "#2678D9" : null)), description: (tDesc ? "${tDesc}\n\nTap to modify..." : "Tap to configure..."), params: ["sNum":schNum], state: (tDesc ? "complete" : ""), image: getAppImg("text")
+    } else {
+        href url: parent?.getTextEditorPath(app?.id as String, type), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."${type}" ? "complete" : ""),
+                description: settings?."${type}" ?: "Open Response Designer...", image: getAppImg("text")
     }
 }
 
@@ -792,17 +842,11 @@ def actionsPage() {
                     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Action Type Config:"), hideable: true) {
                             actionVariableDesc(actionType)
-                            input "act_tiered_resp", "bool", title: inTS("Enable Tiered Responses?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
-                            if(settings?.act_tiered_resp) {
-                                href "actionTiersPage", title: inTS("Create Tiered Responses?"), description: "Tap to modify...", params: ["sNum":schNum], state: "complete"
-                            } else {
-                                href url: parent?.getTextEditorPath(app?.id as String, "act_speak_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_speak_txt" ? "complete" : ""),
-                                        description: settings?."act_speak_txt" ?: "Open Response Designer...", image: getAppImg("text")
-                            }
+                            actionTxtTiersInputs("act_speak_txt")
                         }
                         actionVolumeInputs(devices)
                         // log.debug "showSpeakEvtVars: ${state?.showSpeakEvtVars} | txt: ${settings?.act_speak_txt} | userDefinedTxt: ${hasUserDefinedTxt()}"
-                        actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
+                        actionExecMap?.config?.speak = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
                         if(state?.showSpeakEvtVars || act_speak_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -813,11 +857,10 @@ def actionsPage() {
                     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Action Type Config:")) {
                             actionVariableDesc(actionType)
-                            href url: parent?.getTextEditorPath(app?.id as String, "act_announcement_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."act_announcement_txt" ? "complete" : ""),
-                                    description: settings?."act_announcement_txt" ?: "Open Response Designer...", image: getAppImg("text")
+                            actionTxtTiersInputs("act_announcement_txt")
                         }
                         actionVolumeInputs(devices)
-                        actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt())]
+                        actionExecMap?.config?.announcement = [text: settings?.act_announcement_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
                         if(settings?.act_EchoDevices?.size() > 1) {
                             List devObj = []
                             devices?.each { devObj?.push([deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]]) }
@@ -831,7 +874,7 @@ def actionsPage() {
                 case "sequence":
                     section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("TTS")
-                    if(settings?.act_EchoDevices) {
+                    if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Sequence Options Legend:"), hideable: true, hidden: false) {
                             String str1 = "Sequence Options:"
                             seqItemsAvail()?.other?.sort()?.each { k, v->
@@ -868,7 +911,7 @@ def actionsPage() {
                 case "weather":
                     section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("TTS")
-                    if(settings?.act_EchoDevices) {
+                    if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         actionVolumeInputs(devices)
                         done = true
                         actionExecMap?.config?.weather = [cmd: "playWeather"]
@@ -878,7 +921,7 @@ def actionsPage() {
                 case "playback":
                     section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("mediaPlayer")
-                    if(settings?.act_EchoDevices) {
+                    if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         Map playbackOpts = [
                             "pause":"Pause", "stop":"Stop", "play":"Play", "nextTrack":"Next Track", "previousTrack":"Previous Track",
                             "mute":"Mute", "volume":"Volume"
@@ -897,7 +940,7 @@ def actionsPage() {
                 case "builtin":
                     section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("TTS")
-                    if(settings?.act_EchoDevices) {
+                    if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         Map builtinOpts = [
                             "playSingASong":"Sing a Song", "playFlashBrief":"Flash Briefing", "playFunFact": "Fun Fact", "playTraffic": "Traffic", "playJoke":"Joke",
                             "playTellStory":"Tell Story", "sayGoodbye": "Say Goodbye", "sayGoodNight": "Say Goodnight", "sayBirthday": "Happy Birthday",
@@ -915,7 +958,7 @@ def actionsPage() {
                 case "music":
                     section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("mediaPlayer")
-                    if(settings?.act_EchoDevices) {
+                    if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         List musicProvs = devices[0]?.hasAttribute("supportedMusic") ? devices[0]?.currentValue("supportedMusic")?.split(",")?.collect { "${it?.toString()?.trim()}"} : []
                         logDebug("Music Providers: ${musicProvs}")
                         if(musicProvs) {
@@ -946,7 +989,7 @@ def actionsPage() {
                 case "calendar":
                     section(sTS("Action Description:")) { paragraph pTS("ActionType: ${settings?.actionType}", null, false, "#2678D9"); paragraph pTS(actionTypeDesc(), getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("TTS")
-                    if(settings?.act_EchoDevices) {
+                    if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         section(sTS("Action Type Config:")) {
                             input "act_calendar_cmd", "enum", title: inTS("Select Calendar Action", getAppImg("command", true)), description: "", options: ["playCalendarToday":"Today", "playCalendarTomorrow":"Tomorrow", "playCalendarNext":"Next Events"],
                                     required: true, submitOnChange: true, image: getAppImg("command")
@@ -1087,6 +1130,7 @@ def actionsPage() {
                 actionExecMap?.delay = settings?.act_delay
                 actionExecMap?.configured = true
                 updConfigStatusMap()
+                tierItemCleanup()
                 //TODO: Add Cleanup of non selected inputs
             } else { actionExecMap = [configured: false] }
         }
@@ -1239,6 +1283,14 @@ Map customTxtItems() {
     return items
 }
 
+Boolean hasRepeatTriggers() {
+    Map items = [:]
+    settings?.triggerEvents?.each { tr->
+        if(settings?."trig_${tr}_after_repeat_txt") { if(!items[tr]) { items[tr] = [:]; };  items[tr]?.repeat = settings?."trig_${tr}_after_repeat_txt"?.toString()?.tokenize(";"); }
+    }
+    return (items?.size())
+}
+
 Boolean hasUserDefinedTxt() {
     List items = []
     settings?.triggerEvents?.each {
@@ -1256,16 +1308,17 @@ Boolean executionConfigured() {
 
 private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
-    Boolean zoneTypeOk = (type in ["TTS", "announce"])
-    Map echoZones = zoneTypeOk ? parent?.getZones() : [:]
-    section(sTS("Alexa Devices & Zones:")) {
+    Boolean capTypeOk = (type in ["TTS", "announce"])
+    Boolean actTypeOk = (settings?.actionTtype in ["speak", "announce", "sequence", "weather", "calendar", "music", "builtin"])
+    Map echoZones = (zoneTypeOk && actTypeOk) ? parent?.getZones() : [:]
+    section(sTS("Alexa Devices${zones?.size() ? " & Zones" : ""}:")) {
         if(!settings?.act_EchoDevices && echoZones?.size()) {
             if(!settings?.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves", null, false) }
             input "act_EchoZones", "enum", title: inTS("Zone(s) to Use", getAppImg("es_groups", true)), description: "Select the Zones", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings?.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
-            if(settings?.act_EchoZones) { paragraph pTS("Depending on your zone settings you may not have any active zones at the time of action execution.  So no message may be played.", null, false) }
+            if(settings?.act_EchoZones) { paragraph pTS("Depending on your zone settings you may not have any active zones at the time of action execution.  So no messages will be played.", null, false) }
         }
 
-        if(!settings?.act_EchoZones) {
+        if(!actTypeOk || !capTypeOk || !settings?.act_EchoZones) {
             if(echoDevs?.size()) {
                 def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == "true")]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
                 input "act_EchoDevices", "enum", title: inTS("Echo Speaks Device(s) to Use", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : ""}"] }, multiple: true, required: (!settings?.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
@@ -1388,6 +1441,7 @@ private updConfigStatusMap() {
     sMap?.triggers = triggersConfigured()
     sMap?.conditions = conditionsConfigured()
     sMap?.actions = executionConfigured()
+    sMap?.tiers = isTierRespConfigured()
     atomicState?.configStatusMap = sMap
 }
 
@@ -1401,16 +1455,16 @@ private actionCleanup() {
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     //Cleans up unused action setting items
     List setItems = []
-    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore"]
+    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_tiered_resp", "act_m"]
     if(settings?.act_EchoZones) { setIgn?.push("act_EchoZones") }
     else if(settings?.act_EchoDevices) { setIgn?.push("act_EchoDevices") }
 
-    if(settings?.actionType) { settings?.each { si-> if(si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && !(si?.key in setIgn)) { setItems?.push(si?.key as String) } } }
+    if(settings?.actionType) { settings?.each { si-> if(si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && !si?.key?.startsWith("act_tier_item_") && !(si?.key in setIgn)) { setItems?.push(si?.key as String) } } }
     // if(settings?.actionType in ["bluetooth", "wakeword"]) { cleanupDevSettings("act_${settings?.actionType}_device_") }
     // TODO: Cleanup unselected trigger types
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     // Performs the Setting Removal
-    setItems = setItems +  ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
+    // setItems = setItems + ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
     setItems?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
@@ -1756,7 +1810,43 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
             break
     }
     if(evtOk && devEvtWaitOk) {
-        executeAction(evt, false, "deviceEvtHandler(${evt?.name})", aftRepEvt, evtAd)
+        if(!aftRepEvt && getConfStatusItem("tiers")) {
+            tierEvtHandler(evt)
+        } else { executeAction(evt, false, "deviceEvtHandler(${evt?.name})", aftRepEvt, evtAd) }
+    }
+}
+
+private tierEvtHandler(evt=null) {
+    Map tierMap = getTierMap() ?: [:]
+    Map tierConf = atomicState?.actTierMap ?: [:]
+    Boolean schedNext = false
+    if(tierMap && tierMap?.size()) {
+        Integer tierSize = tierMap?.size() ?: null
+        Map newEvt = tierConf?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, deviceId: evt?.deviceId]
+        Integer curCycle = tierConf?.cycle ? tierConf?.cycle++ : 1
+        tierConf?.delay = tierMap[curCycle]?.delay ?: null
+        tierConf?.message = tierMap[curCycle]?.message ?: null
+        tierConf?.evt = newEvt
+        log.debug "tierSize: $tierSize | curCycle: $curCycle | newDelay: ${tierConf?.delay} | newMsg: ${tierConf?.message}"
+        if(curCycle <= tierCnt) {
+            schedNext = true
+            tierSchedHandler([delay: sDelay, sched: schedNext, cycle: curCycle, tierMap: tierMap])
+        }
+    }
+    atomicState?.actTierMap = tierMap
+}
+
+private tierSchedHandler(data) {
+    log.debug "data: $data"
+    if(data?.size() && data?.tierMap && data?.cycle) {
+        String msg = data?.tierMap[data?.cycle]?.message ?: null
+        Map evt = data?.tierMap?.evt
+        evt?.date = new Date()
+
+        executeAction(evt, msg, false, "tierSchedHandler()", false, false)
+        if(data?.sched && data?.delay) {
+            runIn(data?.delay, "tierEvtHandler")
+        }
     }
 }
 
@@ -2204,11 +2294,14 @@ String decodeVariables(evt, str) {
     return str
 }
 
-String getResponseItem(evt, evtAd=false, isRepeat=false, testMode=false) {
+String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=false) {
     // log.debug "getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}"
     String glbText = settings?."act_${settings?.actionType}_txt" ?: null
     if(glbText) {
         List eTxtItems = glbText ? glbText?.toString()?.tokenize(";") : []
+        return decodeVariables(evt, getRandomItem(eTxtItems))
+    } else if(tierMsg) {
+        List eTxtItems = tierMsg ? tierMsg?.toString()?.tokenize(";") : []
         return decodeVariables(evt, getRandomItem(eTxtItems))
     } else {
         List devs = settings?."trig_${evt?.name}" ?: []
@@ -2266,9 +2359,9 @@ String getResponseItem(evt, evtAd=false, isRepeat=false, testMode=false) {
     return "Invalid Text Received... Please verify Action configuration..."
 }
 
-private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, isRptAct=false) {
+private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, isRptAct=false, tierMsg=null) {
     def startTime = now()
-    logTrace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
+    log.trace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
     if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return; }
     Map condStatus = conditionStatus()
     Boolean actOk = getConfStatusItem("actions")
@@ -2296,13 +2389,13 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "speak":
             case "announcement":
                 if(actConf[actType]) {
-                    String txt = getResponseItem(evt, allDevsResp, isRptAct, testMode) ?: null
+                    String txt = getResponseItem(evt, tierMsg, allDevsResp, isRptAct, testMode) ?: null
                     // log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
                     if(actZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: actZones?.collect { it?.key as String }, cmd: actType, message: txt, changeVol: changeVol, restoreVol: restoreVol], isStateChange: true)
-                        logDebug("Sending Speak Command: (${txt}) to Zones (${actZones?.collect { it?.value?.name }})${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: actZones?.collect { it?.key as String }, cmd: actType, message: txt, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        logDebug("Sending Speak Command: (${txt}) to Zones (${actZones?.collect { it?.value?.name }})${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}${actDelay ? " | Delay: (${actDelay})" : ""}")
                     } else {
                         if(actType == "speak") {
                             //Speak Command Logic
@@ -2338,28 +2431,38 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
 
             case "sequence":
                 if(actConf[actType] && actConf[actType]?.text) {
-                    actDevices?.each { dev->
-                        if(isST) {
-                            dev?.executeSequenceCommand(actConf[actType]?.text as String, [delay: actDelayMs])
-                        } else { dev?.executeSequenceCommand(actConf[actType]?.text as String) }
+                    if(actZones?.size()) {
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: actZones?.collect { it?.key as String }, cmd: actType, message: actConf[actType]?.text, delay: actDelayMs], isStateChange: true)
+                        logDebug("Sending Sequence Command: (${txt}) to Zones (${actZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}")
+                    } else {
+                        actDevices?.each { dev->
+                            if(isST) {
+                                dev?.executeSequenceCommand(actConf[actType]?.text as String, [delay: actDelayMs])
+                            } else { dev?.executeSequenceCommand(actConf[actType]?.text as String) }
+                        }
+                        logDebug("Sending Sequence Command to Zones: (${actConf[actType]?.text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                     }
-                    logDebug("Sending Sequence Command: (${actConf[actType]?.text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                 }
                 break
 
             case "playback":
             case "dnd":
                 if(actConf[actType] && actConf[actType]?.cmd) {
-                    actDevices?.each { dev->
-                        if(isST) {
-                            dev?."${actConf[actType]?.cmd}"([delay: actDelayMs])
-                            if(changeVol) { dev?.volume(changeVol, [delay: actDelayMs]) }
-                        } else {
-                            dev?."${actConf[actType]?.cmd}"()
-                            if(changeVol) { dev?.volume(changeVol) }
+                    if(actType == "playback" && actZones?.size()) {
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: actZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        logDebug("Sending Sequence Command: (${txt}) to Zones (${actZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}")
+                    } else {
+                        actDevices?.each { dev->
+                            if(isST) {
+                                dev?."${actConf[actType]?.cmd}"([delay: actDelayMs])
+                                if(changeVol) { dev?.volume(changeVol, [delay: actDelayMs]) }
+                            } else {
+                                dev?."${actConf[actType]?.cmd}"()
+                                if(changeVol) { dev?.volume(changeVol) }
+                            }
                         }
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                     }
-                    logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                 }
                 break
 
@@ -2367,20 +2470,25 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "calendar":
             case "weather":
                 if(actConf[actType] && actConf[actType]?.cmd) {
-                    if(changeVol || restoreVol) {
-                        actDevices?.each { dev->
-                            if(isST) {
-                                dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol, [delay: actDelayMs])
-                            } else { dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol) }
-                        }
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                    if(actZones?.size()) {
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: actZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${actZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else {
-                        actDevices?.each { dev->
-                            if(isST) {
-                                dev?."${actConf[actType]?.cmd}"([delay: actDelayMs])
-                            } else { dev?."${actConf[actType]?.cmd}"() }
+                        if(changeVol || restoreVol) {
+                            actDevices?.each { dev->
+                                if(isST) {
+                                    dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol, [delay: actDelayMs])
+                                } else { dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol) }
+                            }
+                            logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                        } else {
+                            actDevices?.each { dev->
+                                if(isST) {
+                                    dev?."${actConf[actType]?.cmd}"([delay: actDelayMs])
+                                } else { dev?."${actConf[actType]?.cmd}"() }
+                            }
+                            logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                         }
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                     }
                 }
                 break
@@ -2399,12 +2507,17 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
 
             case "music":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.provider && actConf[actType]?.search) {
-                    actDevices?.each { dev->
-                        if(isST) {
-                            dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol, [delay: actDelayMs])
-                        } else { dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol) }
+                    if(actZones?.size()) {
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: actZones?.collect { it?.key as String }, cmd: actType, search: actConf[actType]?.search, provider: convMusicProvider(actConf[actType]?.provider), changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${actZones?.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                    } else {
+                        actDevices?.each { dev->
+                            if(isST) {
+                                dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol, [delay: actDelayMs])
+                            } else { dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol) }
+                        }
+                        logDebug("Sending ${actType?.toString()?.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     }
-                    logDebug("Sending ${actType?.toString()?.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                 }
                 break
 
@@ -2499,7 +2612,7 @@ Map getInputData(inName) {
                 def i = inName?.tokenize("_")
                 title = "Tier Response (${i[3]})"
                 desc = "<li>Add custom responses to use when this action is executed.</li>"
-                template = '%name% %type% is now %value% %unit%'
+                template = "Custom tier ${i[3]} message here."
             }
             break
     }
@@ -3129,8 +3242,10 @@ String getActionDesc() {
         String str = ""
         def eDevs = parent?.getDevicesFromList(settings?.act_EchoDevices)
         def zones = getZoneStatus()
+        def tierDesc = getTierRespDesc()
         str += eDevs?.size() ? "Alexa Devices:\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
         str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n" : ""
+        str += tierDesc ? "\n${tierDesc}\n" : ""
         str += settings?.act_volume_change ? "New Volume: (${settings?.act_volume_change})\n" : ""
         str += settings?.act_volume_restore ? "Restore Volume: (${settings?.act_volume_restore})\n" : ""
         str += settings?.act_delay ? "Delay: (${settings?.act_delay})\n" : ""
