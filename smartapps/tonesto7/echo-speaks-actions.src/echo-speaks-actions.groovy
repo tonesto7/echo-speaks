@@ -594,7 +594,7 @@ Boolean triggersConfigured() {
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
         section() {
-            paragraph pTS("Notice:\nAll selected conditions must pass before this action will execute", null, false, "#2784D9"), state: "complete"
+            paragraph pTS("Notice:\n${settings?.cond_require_all != false ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
         }
         section(sTS("Time/Date")) {
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getAppImg("clock")
@@ -636,6 +636,10 @@ def conditionsPage() {
         condNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed"], "are", "valve")
 
         condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery", true)
+
+        if(multipleConditions()) {
+            input "cond_require_all", "bool", title: inTS("Require All Conditions to met?", getAppImg("checkbox", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("checkbox")
+        }
     }
 }
 
@@ -1259,7 +1263,7 @@ def ssmlInfoSection() {
 def cleanupDevSettings(prefix) {
     List cDevs = settings?.act_EchoDevices
     List sets = settings?.findAll { it?.key?.startsWith(prefix) }?.collect { it?.key as String }
-    // log.debug "cDevs: $cDevs | sets: $sets"
+    log.debug "cDevs: $cDevs | sets: $sets"
     List rem = []
     if(sets?.size()) {
         if(cDevs?.size()) {
@@ -1270,7 +1274,7 @@ def cleanupDevSettings(prefix) {
             }
         } else { rem = rem + sets }
     }
-    // log.debug "rem: $rem"
+    log.debug "rem: $rem"
     // rem?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
@@ -1456,17 +1460,21 @@ private actionCleanup() {
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     //Cleans up unused action setting items
     List setItems = []
-    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_tiered_resp", "act_m"]
+    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_tiered_resp", "act_switches_off", "act_switches_on"]
     if(settings?.act_EchoZones) { setIgn?.push("act_EchoZones") }
     else if(settings?.act_EchoDevices) { setIgn?.push("act_EchoDevices") }
 
-    if(settings?.actionType) { settings?.each { si-> if(si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && !si?.key?.startsWith("act_tier_item_") && !(si?.key in setIgn)) { setItems?.push(si?.key as String) } } }
-    // if(settings?.actionType in ["bluetooth", "wakeword"]) { cleanupDevSettings("act_${settings?.actionType}_device_") }
-    // TODO: Cleanup unselected trigger types
+
+    if(settings?.actionType) {
+        settings?.each { si->
+            if(!(si?.key in setIgn) && si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && (!settings?.act_tiered_resp && si?.key?.startsWith("act_tier_item_"))) { setItems?.push(si?.key as String) }
+        }
+    }
+    log.debug "setItems: $setItems"
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     // Performs the Setting Removal
     // setItems = setItems + ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
-    setItems?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
+    setItems?.unique()?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
 public triggerInitialize() {
@@ -1816,34 +1824,37 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
             log.debug "Tier Trigger ${evt?.name} is ${evt?.value}"
             tierEvtHandler(evt)
         } else { executeAction(evt, false, "deviceEvtHandler(${evt?.name})", aftRepEvt, evtAd) }
-    } else if(!evtOk) {
-        if(!aftRepEvt && getConfStatusItem("tiers") && atomicState?.actTierState?.size()) {
-            def tierConf = atomicState?.actTierState?.evt
-            if(tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
-                log.debug "Tier Trigger no longer valid... Clearing TierState and Schedule..."
-                unschedule("tierEvtHandler")
-                atomicState?.actTierState = [:]
-                atomicState?.tierSchedActive = false
-            }
-        }
     }
+    // else if(!evtOk) {
+    //     if(!aftRepEvt && getConfStatusItem("tiers") && atomicState?.actTierState?.size()) {
+    //         def tierConf = atomicState?.actTierState?.evt
+    //         if(tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
+    //             log.debug "Tier Trigger no longer valid... Clearing TierState and Schedule..."
+    //             unschedule("tierEvtHandler")
+    //             atomicState?.actTierState = [:]
+    //             atomicState?.tierSchedActive = false
+    //         }
+    //     }
+    // }
 }
 
 private tierEvtHandler(evt=null) {
+    log.debug "Tier Evt ${evt?.name} is ${evt?.value}"
     Map tierMap = getTierMap() ?: [:]
     Map tierState = atomicState?.actTierState ?: [:]
     Boolean schedNext = false
     if(tierMap && tierMap?.size()) {
         Integer tierSize = tierMap?.size() ?: null
         Map newEvt = tierState?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, deviceId: evt?.deviceId]
-        Integer curPass = tierState?.cycle ? tierState?.cycle++ : 1
+        Boolean firstPass = (!tierState?.cycle)
+        Integer curPass = tierState?.cycle ? tierState?.cycle+1 : 1
 
         if(curPass <= tierSize) {
             schedNext = true
-            tierState?.delay = tierMap[curPass]?.delay ?: null
+            tierState?.nextDelay = tierMap[curPass+1]?.delay ?: null
             tierState?.message = tierMap[curPass]?.message ?: null
             tierState?.evt = newEvt
-            log.debug "tierSize: (${tierSize}) | curPass: (${curPass}) | newDelay: (${tierState?.delay}) | newMsg: (${tierState?.message})"
+            log.debug "tierSize: (${tierSize}) | curPass: (${curPass}) | nextDelay: (${tierState?.nextDelay}) | Message: (${tierState?.message})"
             atomicState?.actTierState = tierState
             tierSchedHandler([sched: schedNext, cycle: curPass as Integer, tierState: tierState])
         } else {
@@ -1860,10 +1871,10 @@ private tierSchedHandler(data) {
         Map evt = data?.tierState?.evt
         evt?.date = new Date()
         // executeAction(evt, false, "tierSchedHandler()", false, false, data?.tierState?.message ?: null)
-        if(data?.sched && data?.tierState?.delay) {
-            log.debug "scheduled tier event for ${data?.tierState?.delay}"
+        if(data?.sched && data?.tierState?.nextDelay) {
+            log.debug "scheduled tier event for ${data?.tierState?.nextDelay}"
+            runIn(data?.tierState?.nextDelay, "tierEvtHandler")
             atomicState?.tierSchedActive = true
-            runIn(tierState?.delay, "tierEvtHandler")
         }
     }
 }
@@ -2213,27 +2224,31 @@ Boolean locationCondConfigured() {
 }
 
 Boolean deviceCondConfigured() {
-    Boolean swDev = devCondConfigured("switch")
-    Boolean motDev = devCondConfigured("motion")
-    Boolean presDev = devCondConfigured("presence")
-    Boolean conDev = devCondConfigured("contact")
-    Boolean lockDev = devCondConfigured("lock")
-    Boolean garDev = devCondConfigured("door")
-    Boolean shadeDev = devCondConfigured("shade")
-    Boolean valveDev = devCondConfigured("valve")
-    Boolean tempDev = devCondConfigured("temperature")
-    Boolean humDev = devCondConfigured("humidity")
-    Boolean illDev = devCondConfigured("illuminance")
-    Boolean levelDev = devCondConfigured("level")
-    Boolean powerDev = devCondConfigured("illuminance")
-    Boolean battDev = devCondConfigured("battery")
-    return (swDev || motDev || presDev || conDev || lockDev || garDev || shadeDev || valveDev || tempDev || humDev || illDev || levelDev || powerDev || battDev)
+    List devConds = ["switch", "motion", "presence", "contact", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+    List items = []
+    devConds?.each { dc-> if(devCondConfigured(dc)) { items?.push(dc) } }
+    return (items?.size() > 0)
+}
+
+Integer deviceCondCount() {
+    List devConds = ["switch", "motion", "presence", "contact", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+    List items = []
+    devConds?.each { dc-> if(devCondConfigured(dc)) { items?.push(dc) } }
+    return items?.size() ?: 0
 }
 
 Boolean conditionsConfigured() {
     return (timeCondConfigured() || dateCondConfigured() || locationCondConfigured() || deviceCondConfigured())
 }
 
+Boolean multipleConditions() {
+    Integer cnt = 0
+    if(timeCondConfigured()) cnt++
+    if(dateCondConfigured()) cnt++
+    if(locationCondConfigured()) cnt++
+    cnt = cnt + deviceCondCount()
+    return (cnt>1)
+}
 
 /***********************************************************************************************************
     ACTION EXECUTION
@@ -3473,8 +3488,8 @@ def searchTuneInResultsPage() {
 public getDuplSettingData() {
     Map typeObj = [
         stat: [
-            bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace"],
-            enum: [ "triggerEvents", "act_EchoDevices", "act_EchoZones", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard" ],
+            bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "act_tiered_resp"],
+            enum: ["triggerEvents", "act_EchoDevices", "act_EchoZones", "zone_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard"],
             mode: ["cond_mode", "trig_mode"],
             number: [],
             text: ["appLbl"]
@@ -3504,7 +3519,9 @@ public getDuplSettingData() {
             _thermostat: "thermostat",
             _carbonMonoxide: "carbonMonoxideDetector",
             _smoke: "smokeDetector",
-            _lock: "lock"
+            _lock: "lock",
+            _switches_off: "switch",
+            _switches_on: "switch"
         ],
         dev: [
             _scene: "sceneActivator"

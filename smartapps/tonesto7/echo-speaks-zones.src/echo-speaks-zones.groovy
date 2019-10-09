@@ -1468,8 +1468,8 @@ private getPlatform() {
 public getDuplSettingData() {
     Map typeObj = [
         stat: [
-            bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace"],
-            enum: [ "triggerEvents", "act_EchoDevices", "act_EchoZones", "zone_EchoDevices" , "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard" ],
+            bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "act_tiered_resp"],
+            enum: ["triggerEvents", "act_EchoDevices", "act_EchoZones", "zone_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard"],
             mode: ["cond_mode", "trig_mode"],
             number: [],
             text: ["appLbl"]
@@ -1499,7 +1499,9 @@ public getDuplSettingData() {
             _thermostat: "thermostat",
             _carbonMonoxide: "carbonMonoxideDetector",
             _smoke: "smokeDetector",
-            _lock: "lock"
+            _lock: "lock",
+            _switches_off: "switch",
+            _switches_on: "switch"
         ],
         dev: [
             _scene: "sceneActivator"
