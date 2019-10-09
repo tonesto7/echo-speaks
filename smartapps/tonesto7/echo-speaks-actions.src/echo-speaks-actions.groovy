@@ -1309,8 +1309,9 @@ Boolean executionConfigured() {
 private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
     Boolean capTypeOk = (type in ["TTS", "announce"])
-    Boolean actTypeOk = (settings?.actionTtype in ["speak", "announce", "sequence", "weather", "calendar", "music", "builtin"])
-    Map echoZones = (zoneTypeOk && actTypeOk) ? parent?.getZones() : [:]
+    Boolean actTypeOk = (settings?.actionType in ["speak", "announce", "sequence", "weather", "calendar", "music", "builtin"])
+    Map echoZones = (capTypeOk && actTypeOk) ? parent?.getZones() : [:]
+    // log.debug "echoZones: ${}"
     section(sTS("Alexa Devices${zones?.size() ? " & Zones" : ""}:")) {
         if(!settings?.act_EchoDevices && echoZones?.size()) {
             if(!settings?.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves", null, false) }
@@ -1811,41 +1812,58 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     }
     if(evtOk && devEvtWaitOk) {
         if(!aftRepEvt && getConfStatusItem("tiers")) {
+            if(atomicState?.actTierState?.size()) { return }
+            log.debug "Tier Trigger ${evt?.name} is ${evt?.value}"
             tierEvtHandler(evt)
         } else { executeAction(evt, false, "deviceEvtHandler(${evt?.name})", aftRepEvt, evtAd) }
+    } else if(!evtOk) {
+        if(!aftRepEvt && getConfStatusItem("tiers") && atomicState?.actTierState?.size()) {
+            def tierConf = atomicState?.actTierState?.evt
+            if(tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
+                log.debug "Tier Trigger no longer valid... Clearing TierState and Schedule..."
+                unschedule("tierEvtHandler")
+                atomicState?.actTierState = [:]
+                atomicState?.tierSchedActive = false
+            }
+        }
     }
 }
 
 private tierEvtHandler(evt=null) {
     Map tierMap = getTierMap() ?: [:]
-    Map tierConf = atomicState?.actTierMap ?: [:]
+    Map tierState = atomicState?.actTierState ?: [:]
     Boolean schedNext = false
     if(tierMap && tierMap?.size()) {
         Integer tierSize = tierMap?.size() ?: null
-        Map newEvt = tierConf?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, deviceId: evt?.deviceId]
-        Integer curCycle = tierConf?.cycle ? tierConf?.cycle++ : 1
-        tierConf?.delay = tierMap[curCycle]?.delay ?: null
-        tierConf?.message = tierMap[curCycle]?.message ?: null
-        tierConf?.evt = newEvt
-        log.debug "tierSize: $tierSize | curCycle: $curCycle | newDelay: ${tierConf?.delay} | newMsg: ${tierConf?.message}"
-        if(curCycle <= tierCnt) {
+        Map newEvt = tierState?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, deviceId: evt?.deviceId]
+        Integer curPass = tierState?.cycle ? tierState?.cycle++ : 1
+
+        if(curPass <= tierSize) {
             schedNext = true
-            tierSchedHandler([delay: sDelay, sched: schedNext, cycle: curCycle, tierMap: tierMap])
+            tierState?.delay = tierMap[curPass]?.delay ?: null
+            tierState?.message = tierMap[curPass]?.message ?: null
+            tierState?.evt = newEvt
+            log.debug "tierSize: (${tierSize}) | curPass: (${curPass}) | newDelay: (${tierState?.delay}) | newMsg: (${tierState?.message})"
+            atomicState?.actTierState = tierState
+            tierSchedHandler([sched: schedNext, cycle: curPass as Integer, tierState: tierState])
+        } else {
+            log.debug "Tier Cycle has completed... Clearing TierState..."
+            atomicState?.actTierState = [:]
+            atomicState?.tierSchedActive = false
         }
     }
-    atomicState?.actTierMap = tierMap
 }
 
 private tierSchedHandler(data) {
-    log.debug "data: $data"
-    if(data?.size() && data?.tierMap && data?.cycle) {
-        String msg = data?.tierMap[data?.cycle]?.message ?: null
-        Map evt = data?.tierMap?.evt
+    log.debug "tierSchedHandler(${data})"
+    if(data?.size() && data?.tierState && data?.cycle) {
+        Map evt = data?.tierState?.evt
         evt?.date = new Date()
-
-        executeAction(evt, msg, false, "tierSchedHandler()", false, false)
-        if(data?.sched && data?.delay) {
-            runIn(data?.delay, "tierEvtHandler")
+        // executeAction(evt, false, "tierSchedHandler()", false, false, data?.tierState?.message ?: null)
+        if(data?.sched && data?.tierState?.delay) {
+            log.debug "scheduled tier event for ${data?.tierState?.delay}"
+            atomicState?.tierSchedActive = true
+            runIn(tierState?.delay, "tierEvtHandler")
         }
     }
 }
@@ -2361,7 +2379,7 @@ String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=
 
 private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, isRptAct=false, tierMsg=null) {
     def startTime = now()
-    log.trace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
+    logTrace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
     if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return; }
     Map condStatus = conditionStatus()
     Boolean actOk = getConfStatusItem("actions")

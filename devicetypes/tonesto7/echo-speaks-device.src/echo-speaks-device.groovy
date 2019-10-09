@@ -1303,6 +1303,8 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
                     } else {
                         if (respData && respData?.message?.startsWith("Music metadata")) {
                             // Ignoring metadata error message
+                        } else if(respData && respData?.message?.startsWith("device not connected")) {
+                            // Ignoring device not connect error
                         } else { logError("${mName} | Improperly formatted request sent to Amazon | Msg: ${errMsg} | Data: ${respData}") }
                     }
                     break
