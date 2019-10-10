@@ -14,8 +14,8 @@
  */
  // This is based on the Amazon WebSocket used on Alexa.amazon.com and is ported from Javascript to Groovy and inspired from the work of @Apollon77 Alexa-Remote
 
-String devVersion()  { return "3.1.3.0"}
-String devModified() { return "2019-10-07" }
+String devVersion()  { return "3.1.5.0"}
+String devModified() { return "2019-10-10" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return true }
