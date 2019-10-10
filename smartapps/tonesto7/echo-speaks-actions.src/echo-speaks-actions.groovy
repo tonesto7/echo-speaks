@@ -1818,45 +1818,46 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
             evtAd = valChk?.evtAd
             break
     }
+    log.debug "Tier Evt ${evt?.name} is ${evt?.value} | evtOk: $evtOk | devEvtWaitOk: ${devEvtWaitOk}"
     if(evtOk && devEvtWaitOk) {
-        if(!aftRepEvt && getConfStatusItem("tiers")) {
-            if(atomicState?.actTierState?.size()) { return }
+        if(getConfStatusItem("tiers")) {
+            if(aftRepEvt || atomicState?.actTierState?.size()) { return }
             log.debug "Tier Trigger ${evt?.name} is ${evt?.value}"
             tierEvtHandler(evt)
         } else { executeAction(evt, false, "deviceEvtHandler(${evt?.name})", aftRepEvt, evtAd) }
     }
-    // else if(!evtOk) {
-    //     if(!aftRepEvt && getConfStatusItem("tiers") && atomicState?.actTierState?.size()) {
-    //         def tierConf = atomicState?.actTierState?.evt
-    //         if(tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
-    //             log.debug "Tier Trigger no longer valid... Clearing TierState and Schedule..."
-    //             unschedule("tierEvtHandler")
-    //             atomicState?.actTierState = [:]
-    //             atomicState?.tierSchedActive = false
-    //         }
-    //     }
-    // }
+    else if(!evtOk) {
+        if(!aftRepEvt && getConfStatusItem("tiers") && atomicState?.actTierState?.size()) {
+            def tierConf = atomicState?.actTierState?.evt
+            if(tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
+                log.debug "Tier Trigger no longer valid... Clearing TierState and Schedule..."
+                unschedule("tierEvtHandler")
+                atomicState?.actTierState = [:]
+                atomicState?.tierSchedActive = false
+            }
+        }
+    }
 }
 
 private tierEvtHandler(evt=null) {
-    log.debug "Tier Evt ${evt?.name} is ${evt?.value}"
+    // log.debug "Tier Evt ${evt?.name} is ${evt?.value}"
     Map tierMap = getTierMap() ?: [:]
     Map tierState = atomicState?.actTierState ?: [:]
+    log.debug "tierState: ${tierState}"
     Boolean schedNext = false
     if(tierMap && tierMap?.size()) {
-        Integer tierSize = tierMap?.size() ?: null
         Map newEvt = tierState?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, deviceId: evt?.deviceId]
-        Boolean firstPass = (!tierState?.cycle)
-        Integer curPass = tierState?.cycle ? tierState?.cycle+1 : 1
+        Integer nextPass = tierState?.cycle ? tierState?.cycle+1 : 1
 
-        if(curPass <= tierSize) {
+        if(nextPass <= tierMap?.size()) {
             schedNext = true
-            tierState?.nextDelay = tierMap[curPass+1]?.delay ?: null
-            tierState?.message = tierMap[curPass]?.message ?: null
+            tierState?.cycle = nextPass
+            tierState?.nextDelay = tierMap[nextPass]?.delay ?: null
+            tierState?.message = tierMap[nextPass]?.message ?: null
             tierState?.evt = newEvt
-            log.debug "tierSize: (${tierSize}) | curPass: (${curPass}) | nextDelay: (${tierState?.nextDelay}) | Message: (${tierState?.message})"
+            log.debug "tierSize: (${tierMap?.size()}) | cycle: ${tierState?.cycle} | nextPass: (${nextPass}) | nextDelay: (${tierState?.nextDelay}) | Message: (${tierState?.message})"
             atomicState?.actTierState = tierState
-            tierSchedHandler([sched: schedNext, cycle: curPass as Integer, tierState: tierState])
+            tierSchedHandler([sched: schedNext, tierState: tierState])
         } else {
             log.debug "Tier Cycle has completed... Clearing TierState..."
             atomicState?.actTierState = [:]
@@ -1867,10 +1868,10 @@ private tierEvtHandler(evt=null) {
 
 private tierSchedHandler(data) {
     log.debug "tierSchedHandler(${data})"
-    if(data?.size() && data?.tierState && data?.cycle) {
+    if(data?.size() && data?.tierState) {
         Map evt = data?.tierState?.evt
         evt?.date = new Date()
-        // executeAction(evt, false, "tierSchedHandler()", false, false, data?.tierState?.message ?: null)
+        executeAction(evt, false, "tierSchedHandler()", false, false, data?.tierState?.message ?: null)
         if(data?.sched && data?.tierState?.nextDelay) {
             log.debug "scheduled tier event for ${data?.tierState?.nextDelay}"
             runIn(data?.tierState?.nextDelay, "tierEvtHandler")
