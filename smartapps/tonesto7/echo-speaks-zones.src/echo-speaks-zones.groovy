@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()	 { return "3.1.4.0" }
-String appModified() { return "2019-10-08" }
+String appVersion()	 { return "3.1.5.0" }
+String appModified() { return "2019-10-10" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -132,7 +132,7 @@ def mainPage() {
                 input "appLbl", "text", title: inTS("Zone Name", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
             }
             section(sTS("Remove Zone:")) {
-                href "uninstallPage", title: inTS("Remove this Action", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
+                href "uninstallPage", title: inTS("Remove this Zone", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
             }
         }
     }
@@ -166,14 +166,25 @@ def namePage() {
     }
 }
 
+def uninstallPage() {
+    return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
+        section("") { paragraph "This will delete this Echo Speaks Zone." }
+        if(isST()) { remove("Remove ${app?.label} Zone", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Action will be removed") }
+    }
+}
+
 /******************************************************************************
     CONDITIONS SELECTION PAGE
 ******************************************************************************/
 
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
-        section() {
-            paragraph pTS("Notice:\n${settings?.cond_require_all != false ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
+        Boolean multiConds = multipleConditions()
+        if(multiConds) {
+            section() {
+                input "cond_require_all", "bool", title: inTS("Require All Conditions to met?", getAppImg("checkbox", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("checkbox")
+                paragraph pTS("Notice:\n${settings?.cond_require_all != false ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
+            }
         }
         section(sTS("Time/Date")) {
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getAppImg("clock")
@@ -215,10 +226,6 @@ def conditionsPage() {
         condNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed"], "are", "valve")
 
         condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery")
-
-        if(multipleConditions()) {
-            input "cond_require_all", "bool", title: inTS("Require All Conditions to met?", getAppImg("checkbox", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("checkbox")
-        }
     }
 }
 
@@ -409,8 +416,10 @@ def initialize() {
     sendZoneStatus()
 }
 
+String getZoneName() { return settings?.appLbl as String }
+
 private updAppLabel() {
-    String newLbl = "${settings?.appLbl}${isPaused() ? " | (\u23F8)" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings?.appLbl} (Zone)${isPaused() ? " | (\u274C)" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -461,6 +470,9 @@ private condItemSet(String key) { return (settings?.containsKey("cond_${key}") &
 private subscribeToEvts() {
     if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
+    state?.handleGuardEvents = false
+    List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "shade", "valve", "door", "contact", "switch", "battery", "level"]
+
     //SCHEDULING
     if (settings?.cond_time_start_type) {
         if(settings?.cond_time_start_type in ["sunrise", "sunset"]) {
@@ -473,71 +485,30 @@ private subscribeToEvts() {
         }
     }
 
-    // Location Alarm Events
-    if(settings?.cond_alarm) { subscribe(location, !isST() ? "hsmStatus" : "alarmSystemStatus", zoneEvtHandler) }
-
-    state?.handleGuardEvents = false
-
-    // Location Mode Events
-    if(settings?.cond_mode)         { subscribe(location, "mode", zoneEvtHandler) }
-
-    // ENVIRONMENTAL Sensors
-    if(settings?.cond_presence)     { subscribe(cond_presence, "presence", zoneEvtHandler) }
-
-    // Motion Sensors
-    if(settings?.cond_motion)       { subscribe(cond_motion, "motion", zoneEvtHandler) }
-
-    // Water Sensors
-    if(settings?.cond_water)        { subscribe(settings?.cond_water, "water", zoneEvtHandler) }
-
-    // Humidity Sensors
-    if(settings?.cond_humidity)     { subscribe(settings?.cond_humidity, "humidity", zoneEvtHandler) }
-
-    // Temperature Sensors
-    if(settings?.cond_temperature)  { subscribe(settings?.cond_temperature, "temperature", zoneEvtHandler) }
-
-    // Illuminance Sensors
-    if(settings?.cond_illuminance)  { subscribe(settings?.cond_illuminance, "illuminance", zoneEvtHandler) }
-
-    // Power Meters
-    if(settings?.cond_power)        { subscribe(cond_power, "power", zoneEvtHandler) }
-
-    // Locks
-    if(settings?.cond_lock)         { subscribe(settings?.cond_lock, "lock", zoneEvtHandler) }
-
-    // Window Shades
-    if(settings?.cond_shade)        { subscribe(settings?.cond_shade, "windowShade", zoneEvtHandler) }
-
-    // Valves
-    if(settings?.cond_valve)        { subscribe(settings?.cond_valve, "valve", zoneEvtHandler) }
-
-    // Garage Door Openers
-    if(settings?.cond_door)         { subscribe(settings?.cond_door, "garageDoorControl", zoneEvtHandler) }
-
-    //Contact Sensors
-    if(settings?.cond_contact)      { subscribe(settings?.cond_contact, "contact", zoneEvtHandler) }
-
-    // Outlets, Switches
-    if(settings?.cond_switch)       { subscribe(cond_switch, "switch", zoneEvtHandler) }
-
-    // Batteries
-    if(settings?.cond_battery)      { subscribe(settings?.cond_battery, "battery", zoneEvtHandler) }
-
-    // Dimmers/Level
-    if(settings?.cond_level)        { subscribe(settings?.cond_level, "level", zoneEvtHandler) }
+    subItems?.each { si->
+        if(settings?."cond_${si}") {
+            switch(si as String) {
+                case "alarm":
+                    subscribe(location, (!isST() ? "hsmStatus" : "alarmSystemStatus"), zoneEvtHandler)
+                    break
+                case "mode":
+                    subscribe(location, si as String, zoneEvtHandler)
+                    break
+                default:
+                    subscribe(settings?."cond_${si}", attributeConvert(si as String), zoneEvtHandler)
+                    break
+            }
+        }
+    }
+    // Subscribes to Zone Location Command from Other Echo Speaks apps.
     subscribe(location, "es3ZoneCmd", zoneCmdHandler)
     subscribe(location, "es3ZoneRefresh", zoneRefreshHandler)
 }
 
-private attributeConvert(String attr) {
-    Map atts = ["door":"garageDoorControl", "carbon":"carbonMonoxide", "shade":"windowShade"]
-    return (atts?.containsKey(attr)) ? atts[attr] : attr
+String attributeConvert(String attr) {
+    Map atts = ["door":"garageDoorControl", "shade":"windowShade"]
+    return (atts?.containsKey(attr as String)) ? atts[attr as String] : attr as String
 }
-
-private getDevEvtHandlerName(String type) {
-    return (type && settings?."cond_${type}_after") ? "devAfterEvtHandler" : "deviceEvtHandler"
-}
-
 
 /***********************************************************************************************************
    CONDITIONS HANDLER
@@ -734,16 +705,16 @@ def checkZoneStatus() {
 def sendZoneStatus() {
     Boolean active = (conditionStatus()?.ok == true)
     state?.zoneConditionsOk = active
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: active], isStateChange: true)
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true)
 }
 
 def updateZoneStatus(data) {
     Boolean active = (data?.active == true)
     if(data?.recheck == true) { active = (conditionStatus()?.ok == true) }
     if(state?.zoneConditionsOk != active) {
-        log.debug("Updating Zone Status to (${active ? "Active" : "Inactive"})... ${app?.getLabel()}")
+        log.debug("Updating Zone Status to (${active ? "Active" : "Inactive"})... ${getZoneName()}")
         state?.zoneConditionsOk = active
-        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: active], isStateChange: true)
+        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true)
         if(isZoneNotifConfigured()) {
             Boolean ok2Send = true
             String msgTxt = null
@@ -753,7 +724,7 @@ def updateZoneStatus(data) {
             if(ok2Send && msgTxt) {
                 def zoneDevices = getZoneDevices()
                 def alexaMsgDev = zoneDevices?.size() && settings?.notif_alexa_mobile ? zoneDevices[0] : null
-                if(sendNotifMsg(app?.getLabel() as String, msgTxt as String, alexaMsgDev, false)) { logDebug("Sent Zone Notification...") }
+                if(sendNotifMsg(getZoneName() as String, msgTxt as String, alexaMsgDev, false)) { logDebug("Sent Zone Notification...") }
             }
         }
         if(active) {
@@ -766,12 +737,11 @@ def updateZoneStatus(data) {
     }
 }
 
-def getZoneDevices() {
+Map getZoneDevices() {
     List devObj = []
     List devices = parent?.getDevicesFromList(settings?.zone_EchoDevices)
-    devices?.each { devObj?.push([deviceTypeId: it?.currentValue("deviceType"), deviceSerialNumber: it?.deviceNetworkId?.toString()?.tokenize("|")[2]]) }
-    // log.debug "devObj: $devObj"
-    return [devices: devices, json: new groovy.json.JsonOutput().toJson(devObj)]
+    devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+    return [devices: devices, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
 
 public zoneRefreshHandler(evt) {
@@ -791,10 +761,10 @@ public zoneCmdHandler(evt) {
     if(cmd && data && data?.zones && data?.zones?.contains(app?.getId()) && data?.message) {
         def zoneDevs = getZoneDevices()
         Integer delay = data?.delay ?: null
-        if(cmd == "speak" && zoneDevs?.devices?.size() > 2) { cmd = "announcement" }
+        if(cmd == "speak" && zoneDevs?.devices?.size() >= 2) { cmd = "announcement" }
         switch(cmd) {
             case "speak":
-                logDebug("Sending Speak Command: (${data?.message}) to Zone (${app?.getLabel()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                logDebug("Sending Speak Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 if(data?.changeVol || data?.restoreVol) {
                     zoneDevs?.devices?.each { dev->
                         if(isST() && delay) {
@@ -810,16 +780,16 @@ public zoneCmdHandler(evt) {
                 }
                 break
             case "announcement":
-                if(zoneDevs?.devices?.size() > 0 && zoneDevs?.json) {
-                    logDebug("Sending Announcement Command: (${data?.message}) to Zone (${app?.getLabel()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                if(zoneDevs?.devices?.size() > 0 && zoneDevs?.jsonStr) {
+                    logDebug("Sending Announcement Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                     if(isST() && delay) {
-                        zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (app?.getLabel() ?: "Echo Speaks Zone"), zoneDevs?.json, data?.changeVol, data?.restoreVol)
-                    } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (app?.getLabel() ?: "Echo Speaks Zone"), zoneDevs?.json, data?.changeVol, data?.restoreVol, [delay: delay]) }
+                        zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (getZoneName() ?: "Echo Speaks Zone"), zoneDevs?.jsonStr, data?.changeVol, data?.restoreVol, [delay: delay])
+                    } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (getZoneName() ?: "Echo Speaks Zone"), zoneDevs?.jsonStr, data?.changeVol, data?.restoreVol) }
                 }
                 break
             case "sequence":
-                logDebug("Sending Sequence Command: (${data?.message}) to Zone (${app?.getLabel()})${delay ? " | Delay: (${delay})" : ""}")
+                logDebug("Sending Sequence Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : ""}")
                 zoneDevs?.devices?.each { dev->
                     if(isST() && delay) {
                         dev?.executeSequenceCommand(data?.message, [delay: delay])
@@ -830,7 +800,7 @@ public zoneCmdHandler(evt) {
             case "calendar":
             case "weather":
             case "playback":
-                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${app?.getLabel()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 zoneDevs?.devices?.each { dev->
                     if(isST() && delay) {
                         dev?."${cmd}"([delay: delay])
@@ -842,7 +812,7 @@ public zoneCmdHandler(evt) {
                 }
                 break
             case "music":
-                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${app?.getLabel()}) | Provider: ${data?.provider} | Search: ${data?.search}${delay ? " | Delay: (${delay})" : ""}${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}")
+                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data?.provider} | Search: ${data?.search}${delay ? " | Delay: (${delay})" : ""}${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}")
                 if(isST() && delay) {
                     dev?."${cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol, [delay: delay])
                 } else {
@@ -1521,7 +1491,7 @@ public getDuplSettingData() {
         settings?.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
     }
     Map data = [:]
-    data?.label = app?.getLabel()?.toString()?.replace(" | (\u23F8)", "")
+    data?.label = app?.getLabel()?.toString()?.replace(" | (\u274C)", "")
     data?.settings = setObjs
     return data
 }
