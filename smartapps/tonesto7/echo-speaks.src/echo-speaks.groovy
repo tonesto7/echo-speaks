@@ -23,7 +23,6 @@ Map minVersions()     { return [echoDevice: 3150, wsDevice: 3150, actionApp: 315
 
 // TODO: Fix server install state where server is installed but needs to login.
 // TODO: Add in Actions to the metrics
-// TODO: collect hubitat hub software version
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -74,7 +73,7 @@ def startPage() {
     checkVersionData(true)
     state?.childInstallOkFlag = false
     if(!state?.resumeConfig && state?.isInstalled) { checkGuardSupport() }
-    if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) { return servPrefPage() }
+    if(state?.resumeConfig || (state?.isInstalled && (!state?.serviceConfigured || !state?.authValid))) { return servPrefPage() }
     else if(showChgLogOk()) { return changeLogPage() }
     else if(showDonationOk()) { return donationPage() }
     else { return mainPage() }
@@ -216,6 +215,7 @@ def servPrefPage() {
     return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : ""), uninstall: (state?.serviceConfigured != true)) {
         Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
         Boolean onHeroku = (isST() || settings?.useHeroku != false)
+        Boolean authValid = (state?.authValid == true)
 
         if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
         if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
@@ -234,6 +234,16 @@ def servPrefPage() {
                 href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
             }
         } else {
+            if(!authValid) {
+                section(sTS("Authentication:")) {
+                    paragraph pTS("You still need to Login to Amazon to complete the setup", null, true, "red"), required: true, state: null
+                    if(state?.onHeroku) {
+                        href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    } else if (state?.isLocal) {
+                        href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    }
+                }
+            }
             if(state?.onHeroku) {
                 section(sTS("Server Management:")) {
                     if(state?.generatedHerokuName) { paragraph title: "Heroku Name:", pTS("${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", null, true, "#2784D9"), state: "complete" }
@@ -1582,10 +1592,15 @@ def processData() {
             state?.serverHost = (data?.serverUrl ?: null)
             logTrace("processData Received | Version: ${data?.version} | onHeroku: ${data?.onHeroku} | serverUrl: ${data?.serverUrl}")
             updCodeVerMap("server", data?.version)
+            state?.serviceConfigured = true
         } else { log.debug "data: $data" }
     }
     def json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersion()])
     render contentType: "application/json", data: json, status: 200
+}
+
+Boolean serverConfigured() {
+    return (state?.onHeroku || state?.isLocal)
 }
 
 def getCookieData() {
@@ -3363,7 +3378,11 @@ private getDiagDataJson() {
                 active: state?.websocketActive,
                 lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
             ],
-            hubPlatform: getPlatform(),
+            hub: [
+                platform: getPlatform(),
+                firmware: location?.hubs[0]?.getFirmwareVersionString() ?: null,
+                type: location?.hubs[0]?.getType() ?: null
+            ],
             authStatus: [
                 cookieValidationState: (state?.authValid == true),
                 cookieValidDate: getTsVal("lastCookieChkDt") ?: null,
