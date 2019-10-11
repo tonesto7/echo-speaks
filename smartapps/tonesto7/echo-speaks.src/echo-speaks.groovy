@@ -1185,6 +1185,7 @@ def updated() {
     unsubscribe()
     state?.zoneEvtsActive = false
     unschedule()
+    // remAppFlag("stateMapConverted")
     if(!getAppFlag("stateMapConverted")) { stateMapMigration() }
     initialize()
 }
@@ -1602,7 +1603,7 @@ def clearServerAuth() {
 private wakeupServer(c=false, g=false) {
     Map params = [
         uri: getServerHostURL(),
-        path: "/config",
+        path: "/",
         contentType: "text/html",
         requestContentType: "text/html"
     ]
@@ -3623,6 +3624,7 @@ private stateMapMigration() {
     //Server Data Migrations
     Map servItems = ["onHeroku":"onHeroku", "serverHost":"serverHost", "isLocal":"isLocal"]
     servItems?.each { k, v-> if(state?.containsKey(k)) { updServerItem(v as String, state[k as String]); state?.remove(k as String); } }
+    if(state?.generatedHerokuName) { state?.herokuName = state?.generatedHerokuName; state?.remove("generatedHerokuName") }
     updAppFlag("stateMapConverted", true)
 }
 
