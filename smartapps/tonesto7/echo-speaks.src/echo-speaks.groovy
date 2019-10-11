@@ -236,22 +236,22 @@ def servPrefPage() {
             if(!authValid) {
                 section(sTS("Authentication:")) {
                     paragraph pTS("You still need to Login to Amazon to complete the setup", null, true, "red"), required: true, state: null
-                    if(state?.onHeroku) {
+                    if(getServerItem("onHeroku")) {
                         href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                    } else if (state?.isLocal) {
+                    } else if (getServerItem("isLocal")) {
                         href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
                     }
                 }
             } else {
-                if(state?.onHeroku) {
+                if(getServerItem("onHeroku")) {
                     section(sTS("Server Management:")) {
-                        if(state?.generatedHerokuName) { paragraph pTS("Heroku Name:\n \u2022 ${state?.generatedHerokuName}", null, true, "#2784D9"), state: "complete" }
+                        if(getServerItem("herokuName")) { paragraph pTS("Heroku Name:\n \u2022 ${getServerItem("herokuName")}", null, true, "#2784D9"), state: "complete" }
                         href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
                         href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
                         href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
                     }
                 }
-                if(state?.isLocal) {
+                if(getServerItem("isLocal")) {
                     section(sTS("Local Server Management:")) {
                         href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
                     }
@@ -373,7 +373,7 @@ String guardAutoDesc() {
 
 def guardTriggerEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-	logDebug("${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    logDebug("${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     if(!guardRestrictOk()) {
         logDebug("guardTriggerEvtHandler | Skipping Guard Changes because Restriction are Active.")
         return
@@ -1186,14 +1186,14 @@ def updated() {
     unsubscribe()
     state?.zoneEvtsActive = false
     unschedule()
-    if(!state?.tsMapConverted) { tsMapMigration() }
+    if(!getAppFlag("stateMapConverted")) { stateMapMigration() }
     initialize()
 }
 
 def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
-    subscribe(app, onAppTouch)
+    if(!state?.resumeConfig) { subscribe(app, onAppTouch) }
     if((settings?.guardHomeAlarm && settings?.guardAwayAlarm) || settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
         if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
             subscribe(location, "${!isST() ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
@@ -1325,91 +1325,6 @@ def onAppTouch(evt) {
     updated()
 }
 
-private updInstData(key, val) {
-    Map iData = atomicState?.installData
-    iData[key] = val
-    atomicState?.installData = iData
-}
-
-private updTsVal(key, dt=null) {
-	def data = atomicState?.tsDtMap ?: [:]
-	if(key) { data[key] = dt ?: getDtNow() }
-	atomicState?.tsDtMap = data
-}
-
-private remTsVal(key) {
-	def data = atomicState?.tsDtMap ?: [:]
-    if(key) {
-        if(key instanceof List) {
-            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
-        } else { if(data?.containsKey(key)) { data?.remove(key) } }
-        atomicState?.tsDtMap = data
-    }
-}
-
-def getTsVal(val) {
-	def tsMap = atomicState?.tsDtMap
-	if(val && tsMap && tsMap[val]) { return tsMap[val] }
-	return null
-}
-
-private updBoolVal(key, dt=null) {
-	def data = atomicState?.appFlagsMap ?: [:]
-	if(key) { data[key] = dt }
-	atomicState?.tsDtMap = data
-}
-
-private remBoolVal(key) {
-	def data = atomicState?.appFlagsMap ?: [:]
-    if(key) {
-        if(key instanceof List) {
-            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
-        } else { if(data?.containsKey(key)) { data?.remove(key) } }
-        atomicState?.appFlagsMap = data
-    }
-}
-
-def getBoolVal(val) {
-	def flagMap = atomicState?.appFlagsMap
-	if(val && flagMap && flagMap[val]) { return flagMap[val] }
-	return false
-}
-
-private tsMapMigration() {
-    Map items = [
-        "musicProviderUpdDt":"musicProviderUpdDt", "lastCookieChkDt":"lastCookieChkDt", "lastServerWakeDt":"lastServerWakeDt", "lastChildInitRefreshDt":"lastChildInitRefreshDt",
-        "lastCookieRefresh":"lastCookieRrshDt", "lastVerUpdDt":"lastAppDataUpdDt", "lastGuardSupportCheck":"lastGuardSupChkDt", "lastGuardStateUpd":"lastGuardStateUpdDt",
-        "lastGuardStateCheck":"lastGuardStateChkDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt"
-    ]
-    items?.each { k, v-> if(state?.containsKey(k)) { updTsVal(v as String, state[k as String]); state?.remove(k as String); } }
-    state?.tsMapConverted = true
-}
-
-private flagMapMigration() {
-    Map items = [
-        "musicProviderUpdDt":"musicProviderUpdDt"
-    ]
-    items?.each { k, v-> if(state?.containsKey(k)) { updBoolVal(v as String, state[k as String]); state?.remove(k as String); } }
-    state?.appFlagsMapConverted = true
-}
-
-Integer getLastTsValSecs(val, nullVal=1000000) {
-	def tsMap = atomicState?.tsDtMap
-	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : nullVal
-}
-
-void settingUpdate(name, value, type=null) {
-    if(name && type) {
-        app?.updateSetting("$name", [type: "$type", value: value])
-    }
-    else if (name && type == null){ app?.updateSetting(name.toString(), value) }
-}
-
-void settingRemove(String name) {
-    logTrace("settingRemove($name)...")
-    if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
-}
-
 mappings {
     path("/renderMetricData")           { action: [GET: "renderMetricData"] }
     path("/receiveData")                { action: [POST: "processData"] }
@@ -1428,10 +1343,8 @@ def clearCloudConfig() {
     logTrace("clearCloudConfig called...")
     settingUpdate("resetService", "false", "bool")
     unschedule("cloudServiceHeartbeat")
-    List remItems = ["generatedHerokuName", "useHeroku", "onHeroku", "nodeServiceInfo", "serverHost", "isLocal"]
-    remItems?.each { rem->
-        state?.remove(rem as String)
-    }
+    remServerItem(["herokuName", "useHeroku", "onHeroku", "serverHost", "isLocal"])
+    //TODO PERFORM Migration to new map
     state?.serviceConfigured = false
     state?.resumeConfig = true
     if(!state?.authValid) { clearCookieData("clearCloudConfig") }
@@ -1443,8 +1356,8 @@ String getEnvParamsStr() {
     envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["hubPlatform"] = "${getPlatform()}"
     envParams["useHeroku"] = (isST() || settings?.useHeroku != false)
-    envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
-    envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
+    envParams["serviceDebug"] = "false"
+    envParams["serviceTrace"] = "false"
     envParams["amazonDomain"] = settings?.amazonDomain as String ?: "amazon.com"
     envParams["regionLocale"] = settings?.regionLocale as String ?: "en-US"
     envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com"
@@ -1521,7 +1434,7 @@ private postCodeUpdated() {
 }
 
 private appCleanup() {
-    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie"]
+    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
@@ -1556,36 +1469,18 @@ private reInitChildApps() {
     runIn(3, "reInitZones")
 }
 
-private updCodeVerMap(key, val) {
-    Map cv = atomicState?.codeVersions ?: [:]
-    if(val && (!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val))) { cv[key as String] = val }
-    if (cv?.containsKey(key) && val == null) { cv?.remove(key) }
-    atomicState?.codeVersions = cv
-}
-
-private cleanUpdVerMap() {
-    Map cv = atomicState?.codeVersions ?: [:]
-    def ri = ["groupApp"]
-    cv?.each { k, v-> if(v == null) ri?.push(k) }
-    ri?.each { cv?.remove(it) }
-    atomicState?.codeVersions = cv
-}
-
-String getRandAppName() {
-    if(!state?.generatedHerokuName && (!state?.isLocal && !state?.serverHost)) { state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(8)}"?.toLowerCase() }
-    return state?.generatedHerokuName as String
-}
-
 def processData() {
     // logTrace("processData() | Data: ${request.JSON}")
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
-            state?.onHeroku = (isST() || data?.onHeroku == true || data?.onHeroku == null || (!data?.isLocal && settings?.useHeroku != false))
-            state?.isLocal = (!isST() && data?.isLocal == true)
-            state?.serverHost = (data?.serverUrl ?: null)
+            Map servData = [:]
+            servData?.onHeroku = (isST() || data?.onHeroku != false || (!data?.isLocal && settings?.useHeroku != false))
+            servData?.isLocal = (!isST() && data?.isLocal == true)
+            servData?.serverHost = (data?.serverUrl ?: null)
             logTrace("processData Received | Version: ${data?.version} | onHeroku: ${data?.onHeroku} | serverUrl: ${data?.serverUrl}")
             updCodeVerMap("server", data?.version)
+            state?.serverDataMap = servData
             state?.serviceConfigured = true
         } else { log.debug "data: $data" }
     }
@@ -1594,7 +1489,8 @@ def processData() {
 }
 
 Boolean serverConfigured() {
-    return (state?.onHeroku || state?.isLocal)
+    Map sData = atomicState?.serverDataMap ?: [:]
+    return (sData && (sData?.onHeroku || sData?.isLocal))
 }
 
 def getCookieData() {
@@ -1608,24 +1504,26 @@ def getCookieData() {
 
 def storeCookieData() {
     logTrace("storeCookieData Request Received...")
-    if(request?.JSON && request?.JSON?.cookieData) {
+    Map data = request?.JSON as Map
+    if(data && data?.cookieData) {
         logTrace("cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
-        Map obj = [:]
-        request?.JSON?.cookieData?.each { k,v->
-            obj[k as String] = v as String
-        }
-        state?.cookieData = obj
-        state?.onHeroku = (isST() || data?.onHeroku == true || data?.onHeroku == null || (!data?.isLocal && settings?.useHeroku != false))
-        state?.isLocal = (!isST() && data?.isLocal == true)
-        state?.serverHost = request?.JSON?.serverUrl ?: null
-        updCodeVerMap("server", request?.JSON?.version)
+        Map cookieItems = [:]
+        Map servData = atomicState?.serverDataMap ?: [:]
+        data?.cookieData?.each { k,v-> cookieItems[k as String] = v as String }
+        state?.cookieData = cookieItems
+        servData?.onHeroku = (isST() || data?.onHeroku != false || (!data?.isLocal && settings?.useHeroku != false))
+        servData?.isLocal = (!isST() && data?.isLocal == true)
+        servData?.serverHost = (data?.serverUrl ?: null)
+        updCodeVerMap("server", data?.version)
+        atomicState?.serverDataMap = servData
     }
     // log.debug "csrf: ${state?.cookieData?.csrf}"
     if(state?.cookieData?.localCookie && state?.cookieData?.csrf != null) {
-        logInfo("Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds...")
+        logInfo("Cookie data was updated | Reinitializing App... | Polling should restart in 10 seconds...")
         validateCookie(true)
         state?.serviceConfigured = true
         updTsVal("lastCookieRrshDt")
+        checkGuardSupport()
         runIn(10, "initialize", [overwrite: true])
     }
 }
@@ -1689,7 +1587,8 @@ String toQueryString(Map m) {
 }
 
 String getServerHostURL() {
-    return (state?.isLocal && state?.serverHost) ? (state?.serverHost ? "${state?.serverHost}" : null) : "https://${getRandAppName()}.herokuapp.com"
+    def srvHost = getServerItem("serverHost")
+    return (getServerItem("isLocal") && srvHost) ? (srvHost as String ?: null) : "https://${getRandAppName()}.herokuapp.com"
 }
 
 Integer cookieRefreshSeconds() { return (settings?.refreshCookieDays ?: 5)*86400 as Integer }
@@ -1867,11 +1766,11 @@ private userCommIds() {
 }
 
 private authValidationEvent(Boolean valid, String src=null) {
-	Integer listSize = 3
+    Integer listSize = 3
     List eList = atomicState?.authValidHistory ?: [true, true, true]
     eList.push(valid)
-	if(eList?.size() > listSize) { eList = eList?.drop( eList?.size()-listSize ) }
-	atomicState?.authValidHistory = eList
+    if(eList?.size() > listSize) { eList = eList?.drop( eList?.size()-listSize ) }
+    atomicState?.authValidHistory = eList
     if(eList?.every { it == false }) {
         logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
         authEvtHandler(false, src)
@@ -2399,7 +2298,7 @@ def receiveEventData(Map evtData, String src) {
         logTrace("evtData(Keys): ${evtData?.keySet()}")
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
-            Boolean onHeroku = (state?.onHeroku == true && state?.isLocal == true)
+            Boolean onHeroku = (getServerItem("onHeroku") == true && !getServerItem("isLocal") == true)
 
             //Check for minimum versions before processing
             Map updReqMap = getMinVerUpdsRequired()
@@ -2530,7 +2429,7 @@ def receiveEventData(Map evtData, String src) {
                             logDebug("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${curLbl})")
                             childDevice?.setLabel(devLabel as String)
                         }
-                        // logInfo("Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
+                        // logInfo("Sending Device Data Update to ${devLabel} | Last Updated (${getLastTsValSecs("lastDevDataUpdDt")}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
                         updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
@@ -2542,7 +2441,7 @@ def receiveEventData(Map evtData, String src) {
                     if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
                     updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
                 }
-                logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
+                logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastTsValSecs("lastDevDataUpdDt")/60).toFloat()?.round(1)} minutes)")
                 updTsVal("lastDevDataUpdDt")
                 state?.echoDeviceMap = echoDeviceMap
                 state?.allEchoDevices = allEchoDevices
@@ -2621,10 +2520,6 @@ public sendPlaybackStateToClusterMembers(whaKey, data) {
         // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
         //log.debug "sendPlaybackStateToClusterMembers: no data found for ${whaKey} (first refresh?)"
     }
-}
-
-public getServiceHostInfo() {
-    return (state?.isLocal && state?.serverHost) ? state?.serverHost : null
 }
 
 private removeDevices(all=false) {
@@ -2820,9 +2715,9 @@ public logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal
 public logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
 
 private missPollNotify(Boolean on, Integer wait) {
-    logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastDevicePollSec()}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastMisPollMsgSec()})")
-    if(!on || !wait || !(getLastDevicePollSec() > (state?.misPollNotifyWaitVal ?: 2700))) { return }
-    if(!(getLastMisPollMsgSec() > wait.toInteger())) {
+    logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastTsValSecs("lastDevDataUpdDt")}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastTsValSecs("lastMissedPollMsgDt")})")
+    if(!on || !wait || !(getLastTsValSecs("lastMissedPollMsgDt") > (state?.misPollNotifyWaitVal ?: 2700))) { return }
+    if(!(getLastTsValSecs("lastMissedPollMsgDt") > wait.toInteger())) {
         state?.missPollRepair = false
         return
     } else {
@@ -2834,11 +2729,11 @@ private missPollNotify(Boolean on, Integer wait) {
         state?.missPollRepair = true
         String msg = ""
         if(state?.authValid) {
-            msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastDevicePollSec()}) seconds.\nThere maybe an issue with the scheduling.  Please open the app and press Done/Save."
+            msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue with the scheduling.  Please open the app and press Done/Save."
         } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
         logWarn("${msg.toString().replaceAll("\n", " ")}")
         if(sendMsg("${app.name} ${state?.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
-            state?.lastMisPollMsgDt = getDtNow()
+            updTsVal("lastMissedPollMsgDt")
         }
         if(state?.authValid) {
             (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
@@ -2854,8 +2749,8 @@ private appUpdateNotify() {
     Boolean echoDevUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
-    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
-    if(state?.updNotifyWaitVal && getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
+    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastTsValSecs("lastUpdMsgDt")} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
+    if(state?.updNotifyWaitVal && getLastTsValSecs("lastUpdMsgDt") > state?.updNotifyWaitVal.toInteger()) {
         if(on && (appUpd || actUpd || zoneUpd || echoDevUpd || socketUpd || servUpd)) {
             state?.updateAvailable = true
             def str = ""
@@ -2864,9 +2759,9 @@ private appUpdateNotify() {
             str += !zoneUpd ? "" : "\nEcho Speaks - Zones: v${state?.appData?.versions?.zoneApp?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
             str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state?.appData?.versions?.wsDevice?.ver?.toString()}"
-            str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
+            str += !servUpd ? "" : "\n${(getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
-            state?.lastUpdMsgDt = getDtNow()
+            updTsVal("lastUpdMsgDt")
             return
         }
         state?.updateAvailable = false
@@ -2893,10 +2788,6 @@ private List codeUpdateItems(shrt=false) {
 }
 
 Boolean pushStatus() { return (settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || settings?.pushoverEnabled) ? ((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
-Integer getLastMsgSec() { return !state?.lastMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMsgDt, "getLastMsgSec").toInteger() }
-Integer getLastUpdMsgSec() { return !state?.lastUpdMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastUpdMsgDt, "getLastUpdMsgSec").toInteger() }
-Integer getLastMisPollMsgSec() { return !state?.lastMisPollMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMisPollMsgDt, "getLastMisPollMsgSec").toInteger() }
-Integer getLastDevicePollSec() { return !state?.lastDevDataUpd ? 840 : GetTimeDiffSeconds(state?.lastDevDataUpd, "getLastDevicePollSec").toInteger() }
 Boolean getOk2Notify() {
     Boolean smsOk = (settings?.smsNumbers?.toString()?.length()>=10)
     Boolean pushOk = settings?.usePush
@@ -2995,7 +2886,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
             }
             if(sent) {
                 state?.lastMsg = flatMsg
-                state?.lastMsgDt = getDtNow()
+                updTsVal("lastMsgDt")
                 logDebug("sendMsg: Sent ${sentstr} (${flatMsg})")
             }
         }
@@ -3044,11 +2935,11 @@ private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||
 Boolean showDonationOk() { return (state?.isInstalled && !atomicState?.installData?.shownDonation && getDaysSinceUpdated() >= 30) ? true : false }
 
 Integer getDaysSinceUpdated() {
-	def updDt = atomicState?.installData?.updatedDt ?: null
-	if(updDt == null || updDt == "Not Set") {
+    def updDt = atomicState?.installData?.updatedDt ?: null
+    if(updDt == null || updDt == "Not Set") {
         updInstData("updatedDt", getDtNow().toString())
-		return 0
-	} else {
+        return 0
+    } else {
         def start = Date.parse("E MMM dd HH:mm:ss z yyyy", updDt)
         def stop = new Date()
         if(start && stop) {	return (stop - start) }
@@ -3171,7 +3062,7 @@ private createMetricsDataJson(rendAsMap=false) {
             authValid: (state?.authValid == true),
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
-            serverPlatform: state?.onHeroku ? "Cloud" : "Local",
+            serverPlatform: (getServerItem("onHeroku") == true) ? "Cloud" : "Local",
             versions: [app: appVersion(), server: swVer?.server ?: "N/A", actions: swVer?.actionApp ?: "N/A", zones: swVer?.zoneApp ?: "N/A", device: swVer?.echoDevice ?: "N/A", socket: swVer?.wsDevice ?: "N/A"],
             detections: [skippedDevices: getSkippedDevsAnon()],
             counts: [
@@ -3415,9 +3306,9 @@ private getDiagDataJson() {
                 amazonLocale: settings?.regionLocale,
                 lastServerWakeDt: getTsVal("lastServerWakeDt"),
                 lastServerWakeDur: getTsVal("lastServerWakeDt") ? seconds2Duration(getLastTsValSecs("lastServerWakeDt")) : null,
-                serverPlatform: state?.onHeroku ? "Cloud" : "Local",
+                serverPlatform: getServerItem("onHeroku") ? "Cloud" : "Local",
                 hostUrl: getServerHostURL(),
-                randomName: state?.generatedHerokuName
+                randomName: getServerItem("herokuName")
             ],
             versionChecks: [
                 minVersionUpdates: getMinVerUpdsRequired(),
@@ -3622,6 +3513,146 @@ List weekDaysEnum() {
 List monthEnum() {
     return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 }
+
+/******************************************
+|   App Helper Utilites
+*******************************************/
+
+private updInstData(key, val) {
+    Map iData = atomicState?.installData
+    iData[key] = val
+    atomicState?.installData = iData
+}
+
+private getInstData(key) {
+    def iMap = atomicState?.installData
+    if(val && iMap && iMap[val]) { return iMap[val] }
+    return null
+}
+
+private updTsVal(key, dt=null) {
+    def data = atomicState?.tsDtMap ?: [:]
+    if(key) { data[key] = dt ?: getDtNow() }
+    atomicState?.tsDtMap = data
+}
+
+private remTsVal(key) {
+    def data = atomicState?.tsDtMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.tsDtMap = data
+    }
+}
+
+def getTsVal(val) {
+    def tsMap = atomicState?.tsDtMap
+    if(val && tsMap && tsMap[val]) { return tsMap[val] }
+    return null
+}
+
+private updServerItem(key, val) {
+    def data = atomicState?.serverDataMap ?: [:]
+    if(key) { data[key] = val }
+    atomicState?.serverDataMap = data
+}
+
+private remServerItem(key) {
+    def data = atomicState?.serverDataMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.serverDataMap = data
+    }
+}
+
+def getServerItem(val) {
+    def sMap = atomicState?.serverDataMap
+    if(val && sMap && sMap[val]) { return sMap[val] }
+    return null
+}
+
+private updAppFlag(key, val) {
+    def data = atomicState?.appFlagsMap ?: [:]
+    if(key) { data[key] = val }
+    atomicState?.appFlagsMap = data
+}
+
+private remAppFlag(key) {
+    def data = atomicState?.appFlagsMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.appFlagsMap = data
+    }
+}
+
+Boolean getAppFlag(val) {
+    def aMap = atomicState?.appFlagsMap
+    if(val && aMap && aMap[val]) { return aMap[val] }
+    return false
+}
+
+private stateMapMigration() {
+    //Timestamp State Migrations
+    Map tsItems = [
+        "musicProviderUpdDt":"musicProviderUpdDt", "lastCookieChkDt":"lastCookieChkDt", "lastServerWakeDt":"lastServerWakeDt", "lastChildInitRefreshDt":"lastChildInitRefreshDt",
+        "lastCookieRefresh":"lastCookieRrshDt", "lastVerUpdDt":"lastAppDataUpdDt", "lastGuardSupportCheck":"lastGuardSupChkDt", "lastGuardStateUpd":"lastGuardStateUpdDt",
+        "lastGuardStateCheck":"lastGuardStateChkDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt", "lastMisPollMsgDt":"lastMissedPollMsgDt",
+        "lastUpdMsgDt":"lastUpdMsgDt", "lastMsgDt":"lastMsgDt"
+    ]
+    tsItems?.each { k, v-> if(state?.containsKey(k)) { updTsVal(v as String, state[k as String]); state?.remove(k as String); } }
+
+    //App Flag Migrations
+    Map flagItems = ["dummy":"dummy"]
+    flagItems?.each { k, v-> if(state?.containsKey(k)) { updAppFlag(v as String, state[k as String]); state?.remove(k as String); } }
+
+    //Server Data Migrations
+    Map servItems = ["generatedHerokuName":"herokuName", "onHeroku":"onHeroku", "serverHost":"serverHost", "isLocal":"isLocal"]
+    servItems?.each { k, v-> if(state?.containsKey(k)) { updServerItem(v as String, state[k as String]); state?.remove(k as String); } }
+    // updAppFlag("stateMapConverted", true)
+}
+
+Integer getLastTsValSecs(val, nullVal=1000000) {
+    def tsMap = atomicState?.tsDtMap
+    return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : nullVal
+}
+
+void settingUpdate(name, value, type=null) {
+    if(name && type) {
+        app?.updateSetting("$name", [type: "$type", value: value])
+    }
+    else if (name && type == null){ app?.updateSetting(name.toString(), value) }
+}
+
+void settingRemove(String name) {
+    logTrace("settingRemove($name)...")
+    if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
+}
+
+private updCodeVerMap(key, val) {
+    Map cv = atomicState?.codeVersions ?: [:]
+    if(val && (!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val))) { cv[key as String] = val }
+    if (cv?.containsKey(key) && val == null) { cv?.remove(key) }
+    atomicState?.codeVersions = cv
+}
+
+private cleanUpdVerMap() {
+    Map cv = atomicState?.codeVersions ?: [:]
+    def ri = ["groupApp"]
+    cv?.each { k, v-> if(v == null) ri?.push(k) }
+    ri?.each { cv?.remove(it) }
+    atomicState?.codeVersions = cv
+}
+
+String getRandAppName() {
+    if(!getServerItem("herokuName") && (!getServerItem("isLocal") && !getServerItem("serverHost"))) { updServerItem("herokuName", "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(8)}"?.toLowerCase()) }
+    return getServerItem("herokuName") as String
+}
+
 /******************************************
 |   App Input Description Functions
 *******************************************/
@@ -3668,8 +3699,8 @@ String getNotifSchedDesc(min=false) {
 
 String getServiceConfDesc() {
     String str = ""
-    str += (state?.generatedHerokuName && state?.onHeroku) ? "Heroku: (Configured)\n" : ""
-    str += (state?.serviceConfigured && state?.isLocal) ? "Local Server: (Configured)\n" : ""
+    str += (getServerItem("herokuName") && getServerItem("onHeroku")) ? "Heroku: (Configured)\n" : ""
+    str += (state?.serviceConfigured && getServerItem("isLocal")) ? "Local Server: (Configured)\n" : ""
     str += (settings?.amazonDomain) ? "Domain: (${settings?.amazonDomain})" : ""
     return str != "" ? str : null
 }
@@ -3709,30 +3740,6 @@ String getZoneDesc() {
     str += paused?.size() ? "(${paused?.size()}) Paused\n" : ""
     str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to Create Alexa devices zones based on motion, presence, and other criteria."
     return str
-}
-
-String getServInfoDesc() {
-    Map rData = state?.nodeServiceInfo
-    String str = ""
-    String dtstr = ""
-    if(rData?.startupDt) {
-        def dt = rData?.startupDt
-        dtstr += dt?.y ? "${dt?.y}yr${dt?.y > 1 ? "s" : ""}, " : ""
-        dtstr += dt?.mn ? "${dt?.mn}mon${dt?.mn > 1 ? "s" : ""}, " : ""
-        dtstr += dt?.d ? "${dt?.d}day${dt?.d > 1 ? "s" : ""}, " : ""
-        dtstr += dt?.h ? "${dt?.h}hr${dt?.h > 1 ? "s" : ""} " : ""
-        dtstr += dt?.m ? "${dt?.m}min${dt?.m > 1 ? "s" : ""} " : ""
-        dtstr += dt?.s ? "${dt?.s}sec" : ""
-    }
-    if(state?.onHeroku) {
-        str += " ├ App Name: (${state?.generatedHerokuName})\n"
-    }
-    str += " ├ IP: (${rData?.ip})"
-    str += "\n ├ Port: (${rData?.port})"
-    str += "\n ├ Version: (v${rData?.version})"
-    str += "\n ${dtstr != "" ? "├" : "└"} Session Events: (${rData?.sessionEvts})"
-    str += dtstr != "" ? "\n └ Uptime: ${dtstr.length() > 20 ? "\n     └ ${dtstr}" : "${dtstr}"}" : ""
-    return str != "" ? str : null
 }
 
 String getInputToStringDesc(inpt, addSpace = null) {
@@ -4503,16 +4510,9 @@ String getObjType(obj) {
 }
 
 private Map amazonDomainOpts() {
-    return [
-        "amazon.com":"Amazon.com",
-        "amazon.ca":"Amazon.ca",
-        "amazon.co.uk":"amazon.co.uk",
-        "amazon.com.au":"amazon.com.au",
-        "amazon.de":"Amazon.de",
-        "amazon.it":"Amazon.it"
-    ]
+    return ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br"]
 }
-private List localeOpts() { return ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU"] }
+private List localeOpts() { return ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR"] }
 
 private getPlatform() {
     def p = "SmartThings"
@@ -4638,8 +4638,8 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
     List eData = atomicState[logKey as String] ?: []
     if(eData?.find { it?.message == msg }) { return; }
     eData?.push([dt: getDtNow(), message: msg])
-	if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
-	atomicState[logKey as String] = eData
+    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+    atomicState[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
 private logInfo(msg) { if(settings?.logInfo != false) {  log.info " EchoApp (v${appVersion()}) | ${msg}" } }

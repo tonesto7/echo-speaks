@@ -2676,13 +2676,13 @@ def getTsVal(val) {
 	return null
 }
 
-private updBoolVal(key, dt=null) {
+private updAppFlag(key, val) {
 	def data = atomicState?.appFlagsMap ?: [:]
-	if(key) { data[key] = dt }
-	atomicState?.tsDtMap = data
+	if(key) { data[key] = val }
+	atomicState?.appFlagsMap = data
 }
 
-private remBoolVal(key) {
+private remAppFlag(key) {
 	def data = atomicState?.appFlagsMap ?: [:]
     if(key) {
         if(key instanceof List) {
@@ -2692,24 +2692,21 @@ private remBoolVal(key) {
     }
 }
 
-def getBoolVal(val) {
-	def flagMap = atomicState?.appFlagsMap
-	if(val && flagMap && flagMap[val]) { return flagMap[val] }
-	return false
+Boolean getAppFlag(val) {
+    def aMap = atomicState?.appFlagsMap
+    if(val && aMap && aMap[val]) { return aMap[val] }
+    return false
 }
 
-private tsMapMigration() {
-    Map items = []
-    items?.each { k, v-> if(state?.containsKey(k)) { updTsVal(v as String, state[k as String]); state?.remove(k as String); } }
-    state?.tsMapConverted = true
-}
+private stateMapMigration() {
+    //Timestamp State Migrations
+    Map tsItems = [:]
+    tsItems?.each { k, v-> if(state?.containsKey(k)) { updTsVal(v as String, state[k as String]); state?.remove(k as String); } }
 
-private flagMapMigration() {
-    Map items = [
-        "musicProviderUpdDt":"musicProviderUpdDt"
-    ]
-    items?.each { k, v-> if(state?.containsKey(k)) { updBoolVal(v as String, state[k as String]); state?.remove(k as String); } }
-    state?.appFlagsMapConverted = true
+    //App Flag Migrations
+    Map flagItems = [:]
+    flagItems?.each { k, v-> if(state?.containsKey(k)) { updAppFlag(v as String, state[k as String]); state?.remove(k as String); } }
+    updAppFlag("stateMapConverted", true)
 }
 
 Integer getLastTsValSecs(val, nullVal=1000000) {
