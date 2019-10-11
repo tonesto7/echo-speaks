@@ -15,7 +15,7 @@
  */
 
 String appVersion()  { return "3.1.5.0" }
-String appModified() { return "2019-10-10" }
+String appModified() { return "2019-10-11" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -181,9 +181,7 @@ def mainPage() {
         }
 
         section(sTS("Preferences")) {
-            if(!paused) {
-                href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
-            }
+            href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
             if(state?.isInstalled) {
                 input "actionPause", "bool", title: inTS("Pause Action?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
                 if(actionPause) { unsubscribe() }
@@ -216,9 +214,10 @@ def prefsPage() {
             input "logInfo", "bool", title: inTS("Show Info Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
             input "logWarn", "bool", title: inTS("Show Warning Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
             input "logError", "bool", title: inTS("Show Error Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
-            input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only enable when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
         }
+        if(advLogsActive()) { logsEnabled() }
         section(sTS("Other:")) {
             input "clrEvtHistory", "bool", title: inTS("Clear Device Event History?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
             if(clrEvtHistory) { clearEvtHistory() }
@@ -1220,7 +1219,7 @@ def actNotifPage() {
         if(isActNotifConfigured()) {
             section(sTS("Notification Restrictions:")) {
                 def nsd = getNotifSchedDesc()
-                href "actNotifTimePage", title: inTS("Notification Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
+                href "actNotifTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
             }
             if(!state?.notif_message_tested) {
                 def actDevices = settings?.notif_alexa_mobile ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
@@ -1252,7 +1251,7 @@ def actNotifTimePage() {
             }
         }
         section(sTS("Quiet Days:")) {
-            input "${pre}_days", "enum", title: inTS("Only on these days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
+            input "${pre}_days", "enum", title: inTS("Only on these week days", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
         }
         section(sTS("Quiet Modes:")) {
             input "${pre}_modes", "mode", title: inTS("When these Modes are Active", getAppImg("mode", true)), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
@@ -1335,12 +1334,12 @@ private echoDevicesInputByPerm(type) {
             input "act_EchoZones", "enum", title: inTS("Zone(s) to Use", getAppImg("es_groups", true)), description: "Select the Zones", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings?.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
         }
         if(settings?.act_EchoZones?.size() && echoDevs?.size()) {
-            paragraph pTS("There may times where no zones are active at the time of action execution.  You can choose echo devices to speak on when no zones are available.", null, false, "#2678D9")
+            paragraph pTS("There may times when none of your zones are active at the time of action execution.\nYou have the option to select devices to use when no zones are available.", null, false, "#2678D9")
         }
         if(echoDevs?.size()) {
             Boolean devsOpt = (settings?.act_EchoZones?.size())
             def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == "true")]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-            input "act_EchoDevices", "enum", title: inTS("Echo Speaks Device(s) to Use${devsOpt ? "\n(OPTIONAL)" : ""}", getAppImg("echo_gen1", true)), description: (devsOpt ? "Use these devices when all zones are inactive" : "Select the devices"), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : ""}"] }, multiple: true, required: (!settings?.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
+            input "act_EchoDevices", "enum", title: inTS("Echo Speaks Devices${devsOpt ? "\n(Optional)" : ""}", getAppImg("echo_gen1", true)), description: (devsOpt ? "These devices are used when all zones are inactive." : "Select your devices"), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : ""}"] }, multiple: true, required: (!settings?.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
         } else { paragraph pTS("No devices were found with support for ($type)", null, true, "red") }
 
     }
@@ -2651,6 +2650,73 @@ public getSettingInputVal(inName) {
    HELPER UTILITES
 ************************************************************************************************************/
 
+Boolean advLogsActive() { return (settings?.logDebug || settings?.logTrace) }
+public logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
+public logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
+
+private updTsVal(key, dt=null) {
+	def data = atomicState?.tsDtMap ?: [:]
+	if(key) { data[key] = dt ?: getDtNow() }
+	atomicState?.tsDtMap = data
+}
+
+private remTsVal(key) {
+	def data = atomicState?.tsDtMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.tsDtMap = data
+    }
+}
+
+def getTsVal(val) {
+	def tsMap = atomicState?.tsDtMap
+	if(val && tsMap && tsMap[val]) { return tsMap[val] }
+	return null
+}
+
+private updBoolVal(key, dt=null) {
+	def data = atomicState?.appFlagsMap ?: [:]
+	if(key) { data[key] = dt }
+	atomicState?.tsDtMap = data
+}
+
+private remBoolVal(key) {
+	def data = atomicState?.appFlagsMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.appFlagsMap = data
+    }
+}
+
+def getBoolVal(val) {
+	def flagMap = atomicState?.appFlagsMap
+	if(val && flagMap && flagMap[val]) { return flagMap[val] }
+	return false
+}
+
+private tsMapMigration() {
+    Map items = []
+    items?.each { k, v-> if(state?.containsKey(k)) { updTsVal(v as String, state[k as String]); state?.remove(k as String); } }
+    state?.tsMapConverted = true
+}
+
+private flagMapMigration() {
+    Map items = [
+        "musicProviderUpdDt":"musicProviderUpdDt"
+    ]
+    items?.each { k, v-> if(state?.containsKey(k)) { updBoolVal(v as String, state[k as String]); state?.remove(k as String); } }
+    state?.appFlagsMapConverted = true
+}
+
+Integer getLastTsValSecs(val, nullVal=1000000) {
+	def tsMap = atomicState?.tsDtMap
+	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : nullVal
+}
+
 void settingUpdate(name, value, type=null) {
     if(name && type) { app?.updateSetting("$name", [type: "$type", value: value]) }
     else if (name && type == null) { app?.updateSetting(name.toString(), value) }
@@ -2693,7 +2759,7 @@ def shortTimeEnum() {
     return vals
 }
 List weekDaysEnum() {
-    return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 }
 
 List monthEnum() {
@@ -2719,7 +2785,7 @@ String getAlarmSystemStatus() {
     } else { return location?.hsmStatus ?: "disarmed" }
 }
 Boolean pushStatus() { return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_pushover) ? ((settings?.notif_send_push || (settings?.notif_pushover && settings?.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : null }
-Integer getLastNotifMsgSec() { return !state?.lastActNotifMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastActNotifMsgDt, "getLastMsgSec").toInteger() }
+Integer getLastNotifMsgSec() { return !state?.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastNotifMsgDt, "getLastMsgSec").toInteger() }
 Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state?.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 Boolean getOk2Notify() {
     Boolean smsOk = (settings?.notif_sms_numbers?.toString()?.length()>=10)
@@ -2808,8 +2874,8 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
                 sent = true
             }
             if(sent) {
-                state?.lastActionNotificationMsg = flatMsg
-                state?.lastActNotifMsgDt = getDtNow()
+                state?.lastNotificationMsg = flatMsg
+                state?.lastNotifMsgDt = getDtNow()
                 logDebug("sendNotifMsg: Sent ${sendSrc} (${flatMsg})")
             }
         }
@@ -2963,7 +3029,7 @@ def notOkSym() {
 Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
 String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
-String pluralizeStr(obj) { return (obj?.size() > 1) ? "(s)" : "" }
+String pluralizeStr(obj, para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : "" }
 
 def parseDt(pFormat, dt, tzFmt=true) {
     def result
@@ -3093,12 +3159,18 @@ String getAppNotifDesc(hide=false) {
         str += settings?.notif_send_push ? " \u2022 (Push Message)\n" : ""
         str += (settings?.notif_pushover && settings?.notif_pushover_devices?.size()) ? " \u2022 Pushover Device${pluralizeStr(settings?.notif_pushover_devices)} (${settings?.notif_pushover_devices?.size()})\n" : ""
         str += settings?.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : ""
-        str += getNotifSchedDesc() ? " \u2022 Restrictions: (${getOk2Notify() ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+        str += getNotifSchedDesc(true) ? " \u2022 Restrictions: (${getOk2Notify() ? "${okSym()}" : "${notOkSym()}"})\n" : ""
     }
     return str != "" ? str : null
 }
 
-String getNotifSchedDesc() {
+List getQuietDays() {
+    List allDays = weekDaysEnum()
+    List curDays = settings?.quietDays ?: []
+    return allDays?.findAll { (!curDays?.contains(it as String)) }
+}
+
+String getNotifSchedDesc(min=false) {
     def sun = getSunriseAndSunset()
     def startInput = settings?.notif_time_start_type
     def startTime = settings?.notif_time_start
@@ -3109,11 +3181,12 @@ String getNotifSchedDesc() {
     def str = ""
     def startLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
     def stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
-    str += (startLbl && stopLbl) ? " • Silent Time: ${startLbl} - ${stopLbl}" : ""
+    str += (startLbl && stopLbl) ? " • Time: ${startLbl} - ${stopLbl}" : ""
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
-    str += days ? "${(startLbl || stopLbl) ? "\n" : ""} • Silent Day${pluralizeStr(dayInput)}: ${days}" : ""
-    str += modes ? "${(startLbl || stopLbl || days) ? "\n" : ""} • Silent Mode${pluralizeStr(modeInput)}: ${modes}" : ""
+    def qDays = getQuietDays()
+    str += days ? "${(startLbl || stopLbl) ? "\n" : ""} • Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
+    str += modes ? "${(startLbl || stopLbl || days) ? "\n" : ""} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
     return (str != "") ? "${str}" : null
 }
 
@@ -3518,6 +3591,6 @@ public getDuplSettingData() {
 }
 
 public getDuplStateData() {
-    List stskip = ["isInstalled", "isParent", "lastActNotifMsgDt", "lastActionNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory"]
+    List stskip = ["isInstalled", "isParent", "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory"]
     return state?.findAll { !(it?.key in stskip) }
 }

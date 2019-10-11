@@ -15,13 +15,12 @@
  */
 
 String appVersion()   { return "3.1.6.0" }
-String appModified()  { return "2019-10-10" }
+String appModified()  { return "2019-10-11" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
 Map minVersions()     { return [echoDevice: 3150, wsDevice: 3150, actionApp: 3150, zoneApp: 3150, server: 230] } //These values define the minimum versions of code this app will work with.
 
-// TODO: Fix server install state where server is installed but needs to login.
 // TODO: Add in Actions to the metrics
 definition(
     name        : "Echo Speaks",
@@ -137,7 +136,7 @@ def mainPage() {
             }
         }
         section(sTS("Documentation & Settings:")) {
-            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")
+            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", image: getAppImg("documentation")
             href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
         }
         if(!newInstall) {
@@ -182,8 +181,8 @@ def authStatusPage() {
             }
 
             section(sTS("Cookie Tools: (Tap to show)"), hideable: true, hidden: true) {
-                String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.  Run no more than once every 24 hours."
-                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every (x) days?", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
+                String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
+                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every?\n(in days)", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
                 if(refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
                 if(refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
                 if(!isST()) { paragraph pTS("in Days (1-5 max)", null, false, "gray") }
@@ -192,10 +191,10 @@ def authStatusPage() {
                 if(!isST()) { paragraph pTS(ckDesc, null, false, pastDayChkOk ? null : "red") }
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
                 // Clears cookies for app and devices
-                input "resetCookies", "bool", title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data from app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(!isST()) { paragraph pTS("This will clear all stored cookie data from app and devices.", null, false, "gray") }
-                input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Forces devices to syncronize the stored cookies with the main app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(!isST()) { paragraph pTS("Forces devices to syncronize their stored cookies with the main app.", null, false, "gray") }
+                input "resetCookies", "bool", title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "Clear all stored cookie data from the app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(!isST()) { paragraph pTS("Clear all stored cookie data from the app and devices.", null, false, "gray") }
+                input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(!isST()) { paragraph pTS("Force devices to synchronize their stored cookies.", null, false, "gray") }
                 if(settings?.refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh"); }
                 if(settings?.resetCookies) { clearCookieData("resetCookieToggle") }
                 if(settings?.refreshDevCookies) { refreshDevCookies() }
@@ -246,7 +245,7 @@ def servPrefPage() {
             } else {
                 if(state?.onHeroku) {
                     section(sTS("Server Management:")) {
-                        if(state?.generatedHerokuName) { paragraph title: "Heroku Name:", pTS("${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", null, true, "#2784D9"), state: "complete" }
+                        if(state?.generatedHerokuName) { paragraph pTS("Heroku Name:\n \u2022 ${state?.generatedHerokuName}", null, true, "#2784D9"), state: "complete" }
                         href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
                         href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
                         href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
@@ -342,16 +341,16 @@ def alexaGuardAutoPage() {
             input "guardAwayModes", "mode", title: inTS("Away in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
         }
         section(sTS("Set Guard using Presence")) {
-            input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when all of these Sensors are away?", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
+            input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when these devices are All away?", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
         }
         if(guardAutoConfigured()) {
             section(sTS("Delay:")) {
-                input "guardAwayDelay", "number", title: inTS("Delay before activating?\n(in seconds)", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
+                input "guardAwayDelay", "number", title: inTS("Delay before arming Away?\n(in seconds)", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
             }
         }
         section(sTS("Restrict Guard Changes (Optional):")) {
-            input "guardRestrictOnSwitch", "capability.switch", title: inTS("Only when these switch(es) are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-            input "guardRestrictOffSwitch", "capability.switch", title: inTS("Only when these switch(es) are Off?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardRestrictOnSwitch", "capability.switch", title: inTS("Only when these are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardRestrictOffSwitch", "capability.switch", title: inTS("Only when these are Off?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
         }
     }
 }
@@ -364,10 +363,10 @@ String guardAutoDesc() {
     String str = ""
     if(guardAutoConfigured()) {
         str += "Guard Triggers:"
-        str += (settings?.guardAwayAlarm && settings?.guardHomeAlarm) ? bulletItem(str, "Using ${getAlarmSystemName()}\n") : ""
-        str += settings?.guardHomeModes ? bulletItem(str, "Home Modes: (${settings?.guardHomeModes?.size()})\n") : ""
-        str += settings?.guardAwayModes ? bulletItem(str, "Away Modes: (${settings?.guardAwayModes?.size()})\n") : ""
-        str += settings?.guardAwayPresence ? bulletItem(str, "Presence Home: (${settings?.guardAwayPresence?.size()})") : ""
+        str += (settings?.guardAwayAlarm && settings?.guardHomeAlarm) ? "\n \u2022 Using ${getAlarmSystemName()}" : ""
+        str += settings?.guardHomeModes ? "\n \u2022 Home Modes: (${settings?.guardHomeModes?.size()})" : ""
+        str += settings?.guardAwayModes ? "\n \u2022 Away Modes: (${settings?.guardAwayModes?.size()})" : ""
+        str += settings?.guardAwayPresence ? "\n \u2022 Presence Home: (${settings?.guardAwayPresence?.size()})" : ""
     }
     return str == "" ? "Tap to configure..." : "${str}\n\nTap to configure..."
 }
@@ -426,11 +425,7 @@ def actionsPage() {
         List activeActions = actApps?.findAll { it?.isPaused() != true }
         List pausedActions = actApps?.findAll { it?.isPaused() == true }
         if(actApps) { /*Nothing to add here yet*/ }
-        else {
-            section("") {
-                paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started")
-            }
-        }
+        else { section("") { paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started") } }
         section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
             if(actApps?.size() && isST()) {
@@ -474,9 +469,7 @@ def actionDuplicationPage() {
                     actData?.settings["duplicateFlag"] = [type: "bool", value: true]
                     addChildApp("tonesto7", actChildName(), "${actData?.label} (Dup)", [settings: actData?.settings])
                     paragraph pTS("Action Duplicated... Return to Action Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
-                } else {
-                    paragraph pTS("Action Not Found", null, true, "red"), required: true, state: null
-                }
+                } else { paragraph pTS("Action not Found", null, true, "red"), required: true, state: null }
                 state?.actionDuplicated = true
             }
         }
@@ -487,7 +480,7 @@ def zoneDuplicationPage() {
     return dynamicPage(name: "zoneDuplicationPage", nextPage: "zonePage", uninstall: false, install: false) {
         section() {
             if(state?.zoneDuplicated) {
-                paragraph pTS("Action already duplicated...\n\nReturn to action page and select it", null, true, "red"), required: true, state: null
+                paragraph pTS("Zone already duplicated...\n\nReturn to zone page and select it", null, true, "red"), required: true, state: null
             } else {
                 def zn = getZoneApps()?.find { it?.id?.toString() == settings?.zoneDuplicateSelect?.toString() }
                 if(zn) {
@@ -495,9 +488,7 @@ def zoneDuplicationPage() {
                     znData?.settings["duplicateFlag"] = [type: "bool", value: true]
                     addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData?.settings])
                     paragraph pTS("Zone Duplicated... Return to Zone Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
-                } else {
-                    paragraph pTS("Zone Not Found", null, true, "red"), required: true, state: null
-                }
+                } else { paragraph pTS("Zone not Found", null, true, "red"), required: true, state: null }
                 state?.zoneDuplicated = true
             }
         }
@@ -525,9 +516,7 @@ def zonesPage() {
         List zApps = getZoneApps()
         if(zApps) { /*Nothing to add here yet*/ }
         else {
-            section("") {
-                paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started")
-            }
+            section("") { paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started") }
         }
         section() {
             app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
@@ -628,17 +617,18 @@ private String devicePrefsDesc() {
 
 def settingsPage() {
     return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
+        section(sTS("App Change Details:")) {
+            href "changeLogPage", title: inTS("View App Revision History", getAppImg("change_log", true)), description: "Tap to view", image: getAppImg("change_log")
+        }
         section(sTS("Logging:")) {
             input "logInfo", "bool", title: inTS("Show Info Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
             input "logWarn", "bool", title: inTS("Show Warning Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
             input "logError", "bool", title: inTS("Show Error Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
-            input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
         }
+        if(advLogsActive()) { logsEnabled() }
         showDevSharePrefs()
-        section(sTS("App Change Details:")) {
-            href "changeLogPage", title: inTS("View App Revision History", getAppImg("change_log", true)), description: "Tap to view", image: getAppImg("change_log")
-        }
         section(sTS("Diagnostic Data:")) {
             paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", null, false, "gray")
             input "diagShareSensitveData", "bool", title: inTS("Share Cookie Data?", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
@@ -751,8 +741,8 @@ def notifPrefPage() {
             input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
         }
         section(sTS("SMS Text Messaging:")) {
-            paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
-            input "smsNumbers", "text", title: inTS("Send SMS to Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+            paragraph pTS("To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344", null, false)
+            input "smsNumbers", "text", title: inTS("Send SMS Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
         }
         section (sTS("Notification Devices:")) {
             input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
@@ -783,7 +773,7 @@ def notifPrefPage() {
             }
             section(sTS("Notification Restrictions:")) {
                 def t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: inTS("Notification Restrictions", getAppImg("restriction", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("restriction")
+                href "setNotificationTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("restriction")
             }
             section(sTS("Missed Poll Alerts:")) {
                 input (name: "sendMissedPollMsg", type: "bool", title: inTS("Send Missed Checkin Alerts?", getAppImg("late", true)), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
@@ -827,9 +817,8 @@ def setNotificationTimePage() {
             if(settings?."qStopInput" == "A specific time") {
                 input "qStopTime", "time", title: inTS("Stop time", getAppImg("stop_time", true)), required: timeReq, image: getAppImg("stop_time")
             }
-            input "quietDays", "enum", title: inTS("Only on these days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"),
-                    options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            input "quietModes", "mode", title: inTS("When these Modes are Active", getAppImg("mode", true)), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
+            input "quietDays", "enum", title: inTS("Only on these week days", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
+            input "quietModes", "mode", title: inTS("When these modes are Active", getAppImg("mode", true)), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
         }
     }
 }
@@ -1178,9 +1167,7 @@ def donationPage() {
             paragraph str, required: true, state: null
             href url: textDonateLink(), style: "external", required: false, title: "Donations", description: "Tap to open in browser", state: "complete", image: getAppImg("donate")
         }
-        def iData = atomicState?.installData
-        iData["shownDonation"] = true
-        atomicState?.installData = iData
+        updInstData("shownDonation", true)
     }
 }
 
@@ -1285,7 +1272,7 @@ void webSocketStatus(Boolean active) {
 private updChildSocketStatus() {
     def active = (state?.websocketActive == true)
     getEsDevices()?.each { it?.updSocketStatus(active) }
-    updTsVal("lastWebsocketUpdDt", getDtNow())
+    updTsVal("lastWebsocketUpdDt")
 }
 
 def zoneStateHandler(evt) {
@@ -1338,9 +1325,15 @@ def onAppTouch(evt) {
     updated()
 }
 
+private updInstData(key, val) {
+    Map iData = atomicState?.installData
+    iData[key] = val
+    atomicState?.installData = iData
+}
+
 private updTsVal(key, dt=null) {
 	def data = atomicState?.tsDtMap ?: [:]
-	if(key) { data[key] = dt }
+	if(key) { data[key] = dt ?: getDtNow() }
 	atomicState?.tsDtMap = data
 }
 
@@ -1632,7 +1625,7 @@ def storeCookieData() {
         logInfo("Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds...")
         validateCookie(true)
         state?.serviceConfigured = true
-        updTsVal("lastCookieRrshDt", getDtNow())
+        updTsVal("lastCookieRrshDt")
         runIn(10, "initialize", [overwrite: true])
     }
 }
@@ -1735,7 +1728,7 @@ def wakeupServerResp(response, data) {
     catch(ex) { logError("wakeupServerResp Exception: ${ex}") }
     if (rData) {
         // log.debug "rData: $rData"
-        updTsVal("lastServerWakeDt", getDtNow())
+        updTsVal("lastServerWakeDt")
         logInfo("wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
         if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
@@ -1824,7 +1817,7 @@ Boolean validateCookie(frc=false) {
         respExceptionHandler(ex, "validateCookie", true)
         incrementCntByKey("err_app_cookieValidCnt")
     }
-    updTsVal("lastCookieChkDt", getDtNow())
+    updTsVal("lastCookieChkDt")
     return valid
 }
 
@@ -1850,7 +1843,7 @@ private getCustomerData(frc=false) {
         }
     } catch(ex) {
         respExceptionHandler(ex, "getCustomerData", true)
-        updTsVal("lastCustDataUpdDt", getDtNow())
+        updTsVal("lastCustDataUpdDt")
     }
 }
 
@@ -1892,7 +1885,7 @@ public childInitiatedRefresh() {
     Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)
     if(state?.deviceRefreshInProgress != true && lastRfsh > 120) {
         logDebug("A Child Device is requesting a Device List Refresh...")
-        updTsVal("lastChildInitRefreshDt", getDtNow())
+        updTsVal("lastChildInitRefreshDt")
         getOtherData()
         runIn(3, "getEchoDevices")
     } else {
@@ -1934,7 +1927,7 @@ private getMusicProviders() {
             }
             // log.debug "Music Providers: ${items}"
             if(!state?.musicProviders || items != state?.musicProviders) { state?.musicProviders = items }
-            updTsVal("musicProviderUpdDt", getDtNow())
+            updTsVal("musicProviderUpdDt")
         }
     } catch (ex) {
         respExceptionHandler(ex, "getMusicProviders", true)
@@ -1965,7 +1958,7 @@ private getBluetoothDevices() {
             btResp = response?.data ?: [:]
             // log.debug "Bluetooth Items: ${btResp}"
             state?.bluetoothData = btResp
-            updTsVal("bluetoothUpdDt", getDtNow())
+            updTsVal("bluetoothUpdDt")
         }
     } catch (ex) {
         respExceptionHandler(ex, "getBluetoothDevices", true)
@@ -2140,7 +2133,7 @@ def checkGuardSupportResponse(response, data) {
         } else { logError("checkGuardSupportResponse Exception: ${ex}") }
     }
     state?.alexaGuardSupported = guardSupported
-    updTsVal("lastGuardSupChkDt", getDtNow())
+    updTsVal("lastGuardSupChkDt")
     state?.guardDataSrc = "app"
     if(guardSupported) getGuardState()
 }
@@ -2180,7 +2173,7 @@ def checkGuardSupportServerResponse(response, data) {
     state?.alexaGuardSupported = guardSupported
     state?.guardDataOverMaxSize = guardSupported
     state?.guardDataSrc = "server"
-    updTsVal("lastGuardSupChkDt", getDtNow())
+    updTsVal("lastGuardSupChkDt")
     if(guardSupported) getGuardState()
 }
 
@@ -2202,7 +2195,7 @@ private getGuardState() {
                 state?.alexaGuardState = guardStateData?.value[0] ? guardStateData?.value[0] : guardStateData?.value
                 settingUpdate("alexaGuardAwayToggle", ((state?.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
                 logDebug("Alexa Guard State: (${state?.alexaGuardState})")
-                updTsVal("lastGuardStateChkDt", getDtNow())
+                updTsVal("lastGuardStateChkDt")
             }
             // log.debug "GuardState resp: ${respData}"
         }
@@ -2230,7 +2223,7 @@ private setGuardState(guardState) {
             if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
                 logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
                 state?.alexaGuardState = guardState
-                updTsVal("lastGuardStateUpdDt", getDtNow())
+                updTsVal("lastGuardStateUpdDt")
                 updGuardActionTrig()
             } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
         }
@@ -2261,7 +2254,7 @@ private getAlexaSkills() {
             log.debug "respData: $respData"
             // log.debug respData[3]?.contents[3]?.contents?.products
 
-            // updTsVal("skillDataUpdDt", getDtNow())
+            // updTsVal("skillDataUpdDt")
         }
     } catch (ex) {
         log.error "getAlexaSkills Exception: ${ex}"
@@ -2550,7 +2543,7 @@ def receiveEventData(Map evtData, String src) {
                     updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
-                updTsVal("lastDevDataUpdDt", getDtNow())
+                updTsVal("lastDevDataUpdDt")
                 state?.echoDeviceMap = echoDeviceMap
                 state?.allEchoDevices = allEchoDevices
                 state?.skippedDevices = skippedDevices
@@ -2819,7 +2812,12 @@ private healthCheck() {
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
+    if(advLogsActive()) { logsDisable() }
 }
+
+Boolean advLogsActive() { return (settings?.logDebug || settings?.logTrace) }
+public logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
+public logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
 
 private missPollNotify(Boolean on, Integer wait) {
     logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastDevicePollSec()}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastMisPollMsgSec()})")
@@ -3048,9 +3046,7 @@ Boolean showDonationOk() { return (state?.isInstalled && !atomicState?.installDa
 Integer getDaysSinceUpdated() {
 	def updDt = atomicState?.installData?.updatedDt ?: null
 	if(updDt == null || updDt == "Not Set") {
-		def iData = atomicState?.installData
-		iData["updatedDt"] = getDtNow().toString()
-		atomicState?.installData = iData
+        updInstData("updatedDt", getDtNow().toString())
 		return 0
 	} else {
         def start = Date.parse("E MMM dd HH:mm:ss z yyyy", updDt)
@@ -3066,13 +3062,11 @@ def changeLogPage() {
     def execTime = now()
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
-            paragraph title: "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""})", pTS(isST() ? "" : "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""})", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
+            paragraph title: "Release Notes", pTS(isST() ? "" : "Release Notes", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
             paragraph pTS(changeLogData(), null, false, "gray")
         }
-        Map iData = atomicState?.installData ?: [:]
         state?.curAppVer = appVersion()
-        iData["shownChgLog"] = true
-        atomicState?.installData = iData
+        updInstData("shownChgLog", true)
     }
 }
 
@@ -3130,10 +3124,8 @@ def processFirebaseResponse(resp, data) {
     try {
         if(resp?.status == 200) {
             logDebug("processFirebaseResponse: ${typeDesc} Data Sent SUCCESSFULLY")
-            if(typeDesc?.toString() == "heartbeat") { updTsVal("lastMetricUpdDt", getDtNow()) }
-            def iData = atomicState?.installData ?: [:]
-            iData["sentMetrics"] = true
-            atomicState?.installData = iData
+            if(typeDesc?.toString() == "heartbeat") { updTsVal("lastMetricUpdDt") }
+            updInstData("sentMetrics", true)
             result = true
         } else if(resp?.status == 400) {
             logError("processFirebaseResponse: 'Bad Request': ${resp?.status}")
@@ -3251,7 +3243,7 @@ private getConfigData() {
     def data = getWebData(params, "appData", false)
     if(data) {
         state?.appData = data
-        updTsVal("lastAppDataUpdDt", getDtNow())
+        updTsVal("lastAppDataUpdDt")
         logDebug("Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo...")
     }
 }
@@ -3332,6 +3324,7 @@ private getDiagDataJson() {
                 updated: state?.installData?.updatedDt,
                 timeZone: location?.timeZone?.ID?.toString(),
                 lastVersionUpdDt: getTsVal("lastAppDataUpdDt"),
+                config: state?.appData?.appDataVer ?: null,
                 flags: [
                     pollBlocked: (state?.pollBlocked == true),
                     resumeConfig: state?.resumeConfig,
@@ -3542,7 +3535,7 @@ def formatDt(dt, tzChg=true) {
 }
 
 String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
-String isPluralString(obj) { return (obj?.size() > 1) ? "(s)" : "" }
+String pluralizeStr(obj, para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : "" }
 String pluralize(itemVal, str) { return (itemVal?.toInteger() > 1) ? "${str}s" : str }
 
 def parseDt(pFormat, dt, tzFmt=true) {
@@ -3622,7 +3615,13 @@ private nextCookieRefreshDur() {
     // log.debug "now: ${now} | lastDt: ${lastDt} | nextDt: ${nextDt} | Days: $days | Wait: $diff | Dur: ${dur}"
     return dur
 }
+List weekDaysEnum() {
+    return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+}
 
+List monthEnum() {
+    return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+}
 /******************************************
 |   App Input Description Functions
 *******************************************/
@@ -3630,19 +3629,24 @@ String getAppNotifConfDesc() {
     String str = ""
     if(pushStatus()) {
         def ap = getAppNotifDesc()
-        def nd = getNotifSchedDesc()
+        def nd = getNotifSchedDesc(true)
         str += (settings?.usePush) ? bulletItem(str, "Sending via: (Push)") : ""
         str += (settings?.pushoverEnabled) ? bulletItem(str, "Pushover: (Enabled)") : ""
         // str += (settings?.pushoverEnabled && settings?.pushoverPriority) ? bulletItem(str, "Priority: (${settings?.pushoverPriority})") : ""
         // str += (settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : ""
         str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : ""
         str += (ap) ? "${str != "" ? "\n\n" : ""}Enabled Alerts:\n${ap}" : ""
-        str += (ap && nd) ? "${str != "" ? "\n" : ""}\nAlert Restrictions:\n${nd}" : ""
+        str += (ap && nd) ? "${str != "" ? "\n" : ""}\nQuiet Restrictions:\n${nd}" : ""
     }
     return str != "" ? str : null
 }
+List getQuietDays() {
+    List allDays = weekDaysEnum()
+    List curDays = settings?.quietDays ?: []
+    return allDays?.findAll { (!curDays?.contains(it as String)) }
+}
 
-String getNotifSchedDesc() {
+String getNotifSchedDesc(min=false) {
     def sun = getSunriseAndSunset()
     def startInput = settings?.qStartInput
     def startTime = settings?.qStartTime
@@ -3653,11 +3657,12 @@ String getNotifSchedDesc() {
     def notifDesc = ""
     def getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
     def getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
-    notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Silent Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl}" : ""
+    notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl}" : ""
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
-    notifDesc += days ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl) ? "\n" : ""} • Silent Day${isPluralString(dayInput)}: ${days}" : ""
-    notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || days) ? "\n" : ""} • Silent Mode${isPluralString(modeInput)}: ${modes}" : ""
+    def qDays = getQuietDays()
+    notifDesc += days ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl) ? "\n" : ""} • Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
+    notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || days) ? "\n" : ""} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
     return (notifDesc != "") ? "${notifDesc}" : null
 }
 
@@ -3677,7 +3682,7 @@ String getLoginStatusDesc() {
 
 String getAppNotifDesc() {
     def str = ""
-    str += settings?.sendMissedPollMsg != false ? bulletItem(str, "Missed Poll Alerts") : ""
+    str += settings?.sendMissedPollMsg != false ? bulletItem(str, "Missed Polls") : ""
     str += settings?.sendAppUpdateMsg != false ? bulletItem(str, "Code Updates") : ""
     str += settings?.sendCookieRefreshMsg == true ? bulletItem(str, "Cookie Refresh") : ""
     return str != "" ? str : null
@@ -3752,7 +3757,6 @@ def appInfoSect()	{
         str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
         str += (!isST() && codeVer && codeVer?.wsDevice) ? bulletItem(str, "Socket: (v${codeVer?.wsDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
-        str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
     }
     section() {
         href "changeLogPage", title: inTS("${app?.name} (v${appVersion()})", getAppImg("echo_speaks_3.2x", true), null, false), description: str, image: getAppImg("echo_speaks_3.2x")
