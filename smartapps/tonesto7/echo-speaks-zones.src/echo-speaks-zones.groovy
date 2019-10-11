@@ -14,7 +14,7 @@
  *
  */
 
-String appVersion()	 { return "3.1.5.0" }
+String appVersion()	 { return "3.1.6.0" }
 String appModified() { return "2019-10-11" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
