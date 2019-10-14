@@ -1469,8 +1469,8 @@ def initialize() {
     updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
-    // runEvery1Minute("scheduleTest")
-    // scheduleTest()
+    // runEvery1Minute("cronBuilder")
+    // cronBuilder()
 
     updateZoneSubscriptions() // Subscribes to Echo Speaks Zone Activation Events...
     updConfigStatusMap()
@@ -1510,11 +1510,17 @@ private actionCleanup() {
     if(settings?.act_EchoZones) { setIgn?.push("act_EchoZones") }
     else if(settings?.act_EchoDevices) { setIgn?.push("act_EchoDevices") }
 
-
     if(settings?.actionType) {
         def isTierAct = isTierAction()
         settings?.each { si->
             if(!(si?.key in setIgn) && si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && (!isTierAct && si?.key?.startsWith("act_tier_item_"))) { setItems?.push(si?.key as String) }
+        }
+    }
+    if(settings?.triggerEvents) {
+        List trigKeys = settings?.findAll { it?.key?.startsWith("trig_") && !(it?.key?.tokenize("_")[1] in settings?.triggerEvents) }?.keySet()?.collect { it?.tokenize("_")[1] as String }?.unique()
+        // log.debug "trigKeys: $trigKeys"
+        if(trigKeys?.size()) {
+            trigKeys?.each { tk-> setItems?.push("trig_${tk}"); ["wait", "all", "cmd", "once", "after", "txt"]?.each { ei-> setItems?.push("trig_${tk}_${ei}"); }; }
         }
     }
     // log.debug "setItems: $setItems"
@@ -1578,14 +1584,13 @@ String cronBuilder() {
     if(time) {
         def hour = fmtTime(time, "hh") ?: "0"
         def minute = fmtTime(time, "mm") ?: "0"
-        def second = "*" //fmtTime(time, "mm") ?: "0"
+        def second = "0" //fmtTime(time, "mm") ?: "0"
         def daysOfWeek = settings?.trig_scheduled_weekdays ? settings?.trig_scheduled_weekdays?.join(",") : null
         def daysOfMonths = settings?.trig_scheduled_daynums?.size() ? (settings?.trig_scheduled_daynums?.size() > 1 ? "${settings?.trig_scheduled_daynums?.first()}-${settings?.trig_scheduled_daynums?.last()}" : settings?.trig_scheduled_daynums[0]) : null
         def weeks = settings?.trig_scheduled_weeks ? settings?.trig_scheduled_weeks?.join(",") : null
         def months = settings?.trig_scheduled_months ? settings?.trig_scheduled_months?.join(",") : null
         // log.debug "hour: ${hour} | m: ${minute} | s: ${second} | daysOfWeek: ${daysOfWeek} | daysOfMonth: ${daysOfMonth} | weeks: ${weeks} | months: ${months}"
-        if(h || m || s) {
-            // cron = cronBuilder(s, m, h, dayNums, months, weekDays)
+        if(hour || minute || second) {
             List cItems = []
             cItems?.push(second ?: "*")
             cItems?.push(minute ?: "0")
@@ -1624,7 +1629,7 @@ private subscribeToEvts() {
                     if (scheduleTriggers()) {
                         if(settings?.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
                         else if(settings?.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
-                        else { schedule(cronBuilder() as String, "scheduleTrigEvt") }
+                        else if(settings?.trig_scheduled_time) { schedule(cronBuilder() as String, "scheduleTrigEvt") }
                     }
                     break
                 case "guard":

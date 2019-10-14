@@ -3810,8 +3810,7 @@ def appInfoSect()	{
             if(showDocs) { updateDocsInput() }
             if(!state?.authValid && !state?.resumeConfig) { isNote = true; paragraph pTS("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", null, false, "red"), required: true, state: null }
             if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
-                isNote = true
-                state?.noticeData?.notices?.each { item-> paragraph pTS(bulletItem(str, item), null, false, "red"), required: true, state: null }
+                isNote = true; state?.noticeData?.notices?.each { item-> paragraph pTS(bulletItem(str, item), null, false, "red"), required: true, state: null; };
             }
             if(remDevs?.size()) {
                 isNote = true
