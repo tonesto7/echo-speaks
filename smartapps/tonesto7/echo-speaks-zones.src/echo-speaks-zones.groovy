@@ -408,7 +408,7 @@ def initialize() {
     updAppLabel()
     runIn(3, "zoneCleanup")
     runIn(7, "subscribeToEvts")
-    runEvery30Minutes("sendZoneStatus")
+    runEvery1Hour("healthCheck")
     updConfigStatusMap()
     sendZoneStatus()
 }
@@ -461,6 +461,11 @@ public updatePauseState(Boolean pause) {
     }
 }
 
+private healthCheck() {
+    // logTrace("healthCheck", true)
+    sendZoneStatus()
+    if(advLogsActive()) { logsDisable() }
+}
 
 private condItemSet(String key) { return (settings?.containsKey("cond_${key}") && settings["cond_${key}"]) }
 

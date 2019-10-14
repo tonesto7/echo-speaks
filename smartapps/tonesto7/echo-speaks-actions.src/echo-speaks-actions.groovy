@@ -1469,9 +1469,7 @@ def initialize() {
     updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
-    // runEvery1Minute("cronBuilder")
-    // cronBuilder()
-
+    runEvery1Hour("healthCheck")
     updateZoneSubscriptions() // Subscribes to Echo Speaks Zone Activation Events...
     updConfigStatusMap()
 }
@@ -1542,6 +1540,11 @@ public updatePauseState(Boolean pause) {
     }
 }
 
+private healthCheck() {
+    // logTrace("healthCheck", true)
+    if(advLogsActive()) { logsDisable() }
+}
+
 String cronBuilder() {
     /****
         Cron Expression Format: (<second> <minute> <hour> <day-of-month> <month> <day-of-week> <?year>)
@@ -1582,7 +1585,7 @@ String cronBuilder() {
     String cron = null
     def time = settings?.trig_scheduled_time ?: null
     if(time) {
-        def hour = fmtTime(time, "hh") ?: "0"
+        def hour = fmtTime(time, "HH") ?: "0"
         def minute = fmtTime(time, "mm") ?: "0"
         def second = "0" //fmtTime(time, "mm") ?: "0"
         def daysOfWeek = settings?.trig_scheduled_weekdays ? settings?.trig_scheduled_weekdays?.join(",") : null
