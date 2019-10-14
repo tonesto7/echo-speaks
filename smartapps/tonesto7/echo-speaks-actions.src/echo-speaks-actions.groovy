@@ -15,7 +15,7 @@
  */
 
 String appVersion()  { return "3.1.6.0" }
-String appModified() { return "2019-10-13" }
+String appModified() { return "2019-10-14" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -272,16 +272,25 @@ def triggersPage() {
                                 input "trig_scheduled_time", "time", title: inTS("Trigger Time?", getAppImg("clock", true)), required: false, submitOnChange: true, image: getAppImg("clock")
                                 if(settings?.trig_scheduled_time && schedType == "Recurring") {
                                     List recurOpts = ["Daily", "Weekly", "Monthly"]
-                                    input "trig_scheduled_recurrence", "enum", title: inTS("Recurrence?", getAppImg("day_calendar", true)), description: "(Optional)", multiple: false, required: false, submitOnChange: true, options: recurOpts, defaultValue: "Once", image: getAppImg("day_calendar")
-                                    Boolean dayReq = (settings?.trig_scheduled_recurrence in ["Weekly", "Monthly"])
-                                    Boolean weekReq = (settings?.trig_scheduled_recurrence in ["Weekly", "Monthly"])
-                                    Boolean monReq = (settings?.trig_scheduled_recurrence in ["Monthly"])
+                                    input "trig_scheduled_recurrence", "enum", title: inTS("Recurrence?", getAppImg("day_calendar", true)), description: "", multiple: false, required: true, submitOnChange: true, options: recurOpts, defaultValue: "Once", image: getAppImg("day_calendar")
                                     if(settings?.trig_scheduled_recurrence) {
-                                        input "trig_scheduled_weekdays", "enum", title: inTS("Week Day(s)", getAppImg("day_calendar", true)), description: (!dayReq ? "(Optional)" : ""), multiple: true, required: dayReq, submitOnChange: true, options: weekDayMap(), image: getAppImg("day_calendar")
-                                        input "trig_scheduled_daynums", "enum", title: inTS("Day Number", getAppImg("day_calendar", true)), description: (!dayReq ? "(Optional)" : ""), multiple: true, required: dayReq, submitOnChange: true, options: (1..31), image: getAppImg("day_calendar")
-                                        Map weekOpts = ["1":"1st Week", "2":"2nd Week", "3":"3rd Week", "4":"4th Week", "5":"5th Week"]
-                                        input "trig_scheduled_weeks", "enum", title: inTS("Weeks(s) Numbers", getAppImg("day_calendar", true)), description: (!weekReq ? "(Optional)" : ""), multiple: true, required: weekReq, submitOnChange: true, options: weekOpts, image: getAppImg("day_calendar")
-                                        input "trig_scheduled_months", "enum", title: inTS("Month(s) of the year", getAppImg("day_calendar", true)), description: (!monReq ? "(Optional)" : ""), multiple: true, required: monReq, submitOnChange: true, options: monthMap(), image: getAppImg("day_calendar")
+                                        switch(settings?.trig_scheduled_recurrence) {
+                                            case "Daily":
+                                                input "trig_scheduled_weekdays", "enum", title: inTS("Only of these Days of the Week?", getAppImg("day_calendar", true)), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: daysOfWeekMap(), image: getAppImg("day_calendar")
+                                                break
+
+                                            case "Weekly":
+                                                input "trig_scheduled_weekdays", "enum", title: inTS("Days of the Week?", getAppImg("day_calendar", true)), description: "", multiple: true, required: true, submitOnChange: true, options: daysOfWeekMap(), image: getAppImg("day_calendar")
+                                                input "trig_scheduled_weeks", "enum", title: inTS("Only these Weeks on the Month?", getAppImg("day_calendar", true)), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: weeksOfMonthMap(), image: getAppImg("day_calendar")
+                                                input "trig_scheduled_months", "enum", title: inTS("Only on these Months?", getAppImg("day_calendar", true)), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: monthMap(), image: getAppImg("day_calendar")
+                                                break
+
+                                            case "Monthly":
+                                                input "trig_scheduled_daynums", "enum", title: inTS("Days of the Month?", getAppImg("day_calendar", true)), description: (!!settings?.trig_scheduled_weeks ? "(Optional)" : ""), multiple: true, required: (!settings?.trig_scheduled_weeks), submitOnChange: true, options: (1..31), image: getAppImg("day_calendar")
+                                                input "trig_scheduled_weeks", "enum", title: inTS("Weeks of the Month?", getAppImg("day_calendar", true)), description: (!!settings?.trig_scheduled_daynums ? "(Optional)" : ""), multiple: true, required: (!settings?.trig_scheduled_daynums), submitOnChange: true, options: weeksOfMonthMap(), image: getAppImg("day_calendar")
+                                                input "trig_scheduled_months", "enum", title: inTS("Only on these Months?", getAppImg("day_calendar", true)), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: monthMap(), image: getAppImg("day_calendar")
+                                                break
+                                        }
                                     }
                                 }
                                 break
@@ -560,12 +569,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
     }
 }
 
-Boolean scheduleTriggers() {
-    if(settings?.trig_scheduled_type in ["Sunrise", "Sunset"]) { return true }
-    if(settings?.trig_scheduled_type == "One-Time" && settings?.trig_scheduled_time) { return true }
-    if(settings?.trig_scheduled_type == "Recurring" && settings?.trig_scheduled_time && settings?.trig_scheduled_recurrence && (settings?.trig_scheduled_weekdays || settings?.trig_scheduled_weeks || settings?.trig_scheduled_months)) { return true }
-    return false
-}
+
 
 Boolean locationTriggers() {
     return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted || settings?.trig_scene || settings?.trig_guard)
@@ -1452,9 +1456,9 @@ def initialize() {
     updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
-    // runEvery1Minute("scheduleBuilder")
-    // Subscribes to Echo Speaks Zone Activation Events...
-    updateZoneSubscriptions()
+    runEvery1Minute("scheduleTest")
+
+    updateZoneSubscriptions() // Subscribes to Echo Speaks Zone Activation Events...
     updConfigStatusMap()
 }
 
@@ -1542,15 +1546,13 @@ def scheduleBuilder() {
         def weeks = settings?.trig_scheduled_weeks ? settings?.trig_scheduled_weeks?.join(",") : null
         def months = settings?.trig_scheduled_months ? settings?.trig_scheduled_months?.join(",") : null
         log.debug "h: ${h} | m: ${m} | s: ${s} | weekDays: ${weekDays} | dayNums: ${dayNums} | weeks: ${weeks} | months: ${months} | recurType: ${recurType}"
-        if(h || m || s) {
-            cron = cronGenerator(s, m, h, dayNums, months, weekDays)
-        }
+        if(h || m || s) { cron = cronGenerator(s, m, h, dayNums, months, weekDays) }
     }
     log.debug "cron: $cron"
     return cron
 }
 
-def cronGenerator(second="0", minute, hour, dayOfMonth=null, month=null, daysOfWeek=null, year=null) {
+String cronGenerator(second="0", minute, hour, dayOfMonth=null, month=null, daysOfWeek=null, year=null) {
     /****
         Cron Expression Format: (<second> <minute> <hour> <day-of-month> <month> <day-of-week> <?year>)
 
@@ -1586,18 +1588,27 @@ def cronGenerator(second="0", minute, hour, dayOfMonth=null, month=null, daysOfW
         At 10 am on the third Monday of every month: (0 0 10 ? * 2#3)
 
         At 12 am midnight on every day for five days starting on the 10th day of the month: (0 0 0 10/5 * ?)
-
     ****/
     List cron = []
-    cron?.push(second ?: "0")
+    cron?.push(second ?: "*")
     cron?.push(minute ?: "0")
     cron?.push(hour ?: "0")
-    cron?.push(dayOfMonth ?: "*")
+    cron?.push(dayOfMonth ?: (!daysOfWeek ? "*" : "?"))
     cron?.push(month ?: "*")
-    cron?.push(dayOfWeek ?: "?")
-    cron?.push(year ? " ${year}": "")
-    // log.debug "cron: ${cron?.join(" ")}"
+    cron?.push(daysOfWeek ? daysOfWeek?.toString()?.replaceAll("\"", "") : "?")
+    if(year) { cron?.push(" ${year}") }
     return cron?.join(" ")
+}
+
+Boolean scheduleTriggers() {
+    if(settings?.trig_scheduled_type in ["Sunrise", "Sunset"]) { return true }
+    if(settings?.trig_scheduled_type == "One-Time" && settings?.trig_scheduled_time) { return true }
+    if(settings?.trig_scheduled_type == "Recurring" && settings?.trig_scheduled_time && settings?.trig_scheduled_recurrence) {
+        if(settings?.trig_scheduled_recurrence == "Daily") { return true }
+        else if (settings?.trig_scheduled_recurrence == "Weekly" && settings?.trig_scheduled_weekdays) { return true }
+        else if (settings?.trig_scheduled_recurrence == "Monthly" && (settings?.trig_scheduled_daynums || settings?.trig_scheduled_weeks)) { return true }
+    }
+    return false
 }
 
 private subscribeToEvts() {
@@ -1612,7 +1623,7 @@ private subscribeToEvts() {
                     if (scheduleTriggers()) {
                         if(settings?.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
                         else if(settings?.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
-                        else { schedule(scheduleBuilder(), scheduleTrigEvt) }
+                        else { schedule(scheduleBuilder() as String, "scheduleTrigEvt") }
                     }
                     break
                 case "guard":
@@ -1656,12 +1667,12 @@ private getDevEvtHandlerName(String type) {
 }
 
 def zoneStateHandler(evt) {
-    String id = evt?.value;
+    String id = evt?.value?.toString()
     Map data = evt?.jsonData;
     // log.debug "zoneStateHandler: ${id} | data: ${data}"
-    if(settings?.act_EchoZones && id && data && (id in settings?.act_EchoZones)) {
+    if(settings?.act_EchoZones && id && data && (id?.toString() in settings?.act_EchoZones)) {
         Map zoneMap = atomicState?.zoneStatusMap ?: [:]
-        zoneMap[id] = [name: data?.name, active: data?.active]
+        zoneMap[id as String] = [name: data?.name, active: data?.active]
         atomicState?.zoneStatusMap = zoneMap
     }
 }
@@ -1684,19 +1695,26 @@ public List getActiveZoneNames() {
     EVENT HANDLER FUNCTIONS
 ************************************************************************************************************/
 
+def scheduleTest() {
+    scheduleTrigEvt(null)
+}
+
 def scheduleTrigEvt(evt=null) {
     Map dateMap = getDateMap()
+    // log.debug "dateMap: $dateMap"
     Map sTrigMap = atomicState?.schedTrigMap ?: [:]
-    String recur = settings?.trig_scheduled_recurrence
-    def days = settings?.trig_scheduled_weekdays
-    def weeks = settings?.trig_scheduled_weeks
-    def months = settings?.trig_scheduled_months
-    Boolean dOk = settings?.trig_scheduled_weekdays ? (isDayOfWeek(days)) : true
-    Boolean wOk = (recur && weeks && recur in ["Weekly"]) ? (dateMap?.wm in weeks && sTrigMap?.lastRun?.wm != dateMap?.wm) : true
-    Boolean mOk = (recur && months && recur in ["Weekly", "Monthly"]) ? (dateMap?.m in months && sTrigMap?.lastRun?.m != dateMap?.m) : true
+    String recur = settings?.trig_scheduled_recurrence ?: null
+    def days = settings?.trig_scheduled_weekdays ?: null
+    def daynums = settings?.trig_scheduled_daynums ?: null
+    def weeks = settings?.trig_scheduled_weeks ?: null
+    def months = settings?.trig_scheduled_months ?: null
+    Boolean wdOk = (days && recur in ["Daily", "Weekly"]) ? (dateMap?.dayNameShort in days && sTrigMap?.lastRun?.dayName != dateMap?.dayNameShort) : true
+    Boolean mdOk = (recur && daynums) ? (dateMap?.day in daynums && sTrigMap?.lastRun?.day != dateMap?.day) : true
+    Boolean wOk = (recur && weeks && recur in ["Weekly"]) ? (dateMap?.week in weeks && sTrigMap?.lastRun?.week != dateMap?.week) : true
+    Boolean mOk = (recur && months && recur in ["Weekly", "Monthly"]) ? (dateMap?.month in months && sTrigMap?.lastRun?.month != dateMap?.month) : true
     // Boolean yOk = (recur && recur in ["Yearly"]) ? (sTrigMap?.lastRun?.y != dateMap?.y) : true
-    logDebug("scheduleTrigEvt | dayOk: $dOk | weekOk: $wOk | monthOk: $mOk")
-    if(dOk && wOk && mOk) {
+    log.debug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
+    if(wdOk && mdOk && wOk && mOk) {
         sTrigMap?.lastRun = dateMap
         atomicState?.schedTrigMap = sTrigMap
         if(evt) {
@@ -2804,9 +2822,10 @@ void settingRemove(String name) {
 }
 
 List weekDaysEnum() { return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] }
-Map weekDayMap() { return ["MON":"Monday", "TUE":"Tuesday", "WED":"Wednesday", "THU":"Thursday", "FRI":"Friday", "SAT":"Saturday", "SUN":"Sunday"] }
-Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 List monthEnum() { return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] }
+Map daysOfWeekMap() { return ["MON":"Monday", "TUE":"Tuesday", "WED":"Wednesday", "THU":"Thursday", "FRI":"Friday", "SAT":"Saturday", "SUN":"Sunday"] }
+Map weeksOfMonthMap() { return ["1":"1st Week", "2":"2nd Week", "3":"3rd Week", "4":"4th Week", "5":"5th Week"] }
+Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 Map getAlarmTrigOpts() {
     if(isST()) { return ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] }
@@ -3125,56 +3144,27 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
     }
 }
 
-def getHour(dt=null) {
-    def df = new java.text.SimpleDateFormat("hh")
-    df.setTimeZone(location?.timeZone)
-    return df.format(dt ?: new Date())
-}
-
-def getMinutes(dt=null) {
-    def df = new java.text.SimpleDateFormat("mm")
-    df.setTimeZone(location?.timeZone)
-    return df.format(dt ?: new Date())
-}
-
-def getWeekDay() {
-    def df = new java.text.SimpleDateFormat("EEEE")
-    df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
-}
-
-def getWeekMonth() {
-    def df = new java.text.SimpleDateFormat("W")
-    df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
-}
-
-def getDay() {
-    def df = new java.text.SimpleDateFormat("D")
-    df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
-}
-
-def getYear() {
-    def df = new java.text.SimpleDateFormat("yyyy")
-    df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
-}
-
-def getMonth() {
-    def df = new java.text.SimpleDateFormat("MMMMM")
-    df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
-}
-
-def getWeekYear() {
-    def df = new java.text.SimpleDateFormat("w")
+def getDateByFmt(String fmt) {
+    def df = new java.text.SimpleDateFormat(fmt)
     df.setTimeZone(location?.timeZone)
     return df.format(new Date())
 }
 
 Map getDateMap() {
-    return [d: getWeekDay(), dm: getDay(), wm: getWeekMonth(), wy: getWeekYear(), m: getMonth(), y: getYear(), h: getHour(), min: getMinutes() ]
+    Map m = [:]
+    m?.dayOfYear = getDateByFmt("DD")
+    m?.dayNameShort = getDateByFmt("EEE")?.toString()?.toUpperCase()
+    m?.dayName = getDateByFmt("EEEE")
+    m?.day = getDateByFmt("d")
+    m?.week = getDateByFmt("W")
+    m?.weekOfYear = getDateByFmt("w")
+    m?.monthName = getDateByFmt("MMMMM")
+    m?.month = getDateByFmt("MM")
+    m?.year = getDateByFmt("yyyy")
+    m?.hour = getDateByFmt("hh")
+    m?.minute = getDateByFmt("mm")
+    m?.second = getDateByFmt("ss")
+    return m
 }
 
 Boolean isDayOfWeek(opts) {
@@ -3254,12 +3244,13 @@ String getTriggersDesc(hideDesc=false) {
             setItem?.each { evt->
                 switch(evt as String) {
                     case "scheduled":
-                        str += " \u2022 ${evt?.capitalize()}${settings?."${sPre}${evt}_recurrence" ? " (${settings?."${sPre}${evt}_recurrence"})" : ""}\n"
+                        str += " \u2022 ${evt?.capitalize()}${settings?."${sPre}${evt}_type" ? " (${settings?."${sPre}${evt}_type"})" : ""}\n"
+                        str += settings?."${sPre}${evt}_recurrence"     ? "    \u25E6 Recurrence: (${settings?."${sPre}${evt}_recurrence"})\n"      : ""
                         str += settings?."${sPre}${evt}_time"     ? "    \u25E6 Time: (${fmtTime(settings?."${sPre}${evt}_time")})\n"      : ""
-                        str += settings?."${sPre}${evt}_sunState" ? "    \u25E6 SunState: (${settings?."${sPre}${evt}_sunState"})\n"       : ""
-                        str += settings?."${sPre}${evt}_days"     ? "    \u25E6 (${settings?."${sPre}${evt}_days"?.size()}) Days\n"      : ""
-                        str += settings?."${sPre}${evt}_weeks"    ? "    \u25E6 (${settings?."${sPre}${evt}_weeks"?.size()}) Weeks\n"    : ""
-                        str += settings?."${sPre}${evt}_months"   ? "    \u25E6 (${settings?."${sPre}${evt}_months"?.size()}) Months\n"  : ""
+                        str += settings?."${sPre}${evt}_weekdays"     ? "    \u25E6 Week Days: (${settings?."${sPre}${evt}_weekdays"?.join(",")})\n"      : ""
+                        str += settings?."${sPre}${evt}_daynums"     ? "    \u25E6 Days of Month: (${settings?."${sPre}${evt}_daynums"?.size()})\n"      : ""
+                        str += settings?."${sPre}${evt}_weeks"    ? "    \u25E6 Weeks of Month: (${settings?."${sPre}${evt}_weeks"?.join(",")})\n" : ""
+                        str += settings?."${sPre}${evt}_months"   ? "    \u25E6 Months: (${settings?."${sPre}${evt}_months"?.join(",")})\n"  : ""
                         break
                     case "alarm":
                         str += " \u2022 ${evt?.capitalize()} (${getAlarmSystemName(true)})${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
@@ -3594,7 +3585,7 @@ public getDuplSettingData() {
         ],
         ends: [
             bool: ["_all", "_avg", "_once", "_send_push", "_use_custom"],
-            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months"],
+            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type"],
             number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat"],
             text: ["_txt", "_sms_numbers"],
             time: ["_time_start", "_time_stop", "_scheduled_time"]

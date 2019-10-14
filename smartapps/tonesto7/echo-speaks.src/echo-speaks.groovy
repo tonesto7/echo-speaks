@@ -15,7 +15,7 @@
  */
 
 String appVersion()   { return "3.1.7.0" }
-String appModified()  { return "2019-10-11" }
+String appModified()  { return "2019-10-14" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -1276,12 +1276,12 @@ private updChildSocketStatus() {
 }
 
 def zoneStateHandler(evt) {
-    String id = evt?.value;
+    String id = evt?.value?.toString()
     Map data = evt?.jsonData;
     // log.trace "zone: ${id} | Data: $data"
     if(data && id) {
         Map zoneMap = atomicState?.zoneStatusMap ?: [:]
-        zoneMap[id] = [name: data?.name, active: data?.active]
+        zoneMap[id as String] = [name: data?.name, active: data?.active]
         atomicState?.zoneStatusMap = zoneMap
     }
 }
