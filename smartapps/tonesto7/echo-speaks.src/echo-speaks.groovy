@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.1.7.0" }
+String appVersion()   { return "3.1.8.0" }
 String appModified()  { return "2019-10-14" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3160, wsDevice: 3160, actionApp: 3160, zoneApp: 3160, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3170, wsDevice: 3170, actionApp: 3170, zoneApp: 3170, server: 230] } //These values define the minimum versions of code this app will work with.
 
 // TODO: Add in Actions to the metrics
 definition(
