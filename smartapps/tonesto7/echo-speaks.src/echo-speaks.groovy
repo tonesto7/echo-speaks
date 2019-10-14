@@ -71,7 +71,7 @@ def startPage() {
     state?.isParent = true
     checkVersionData(true)
     state?.childInstallOkFlag = false
-    if(!state?.resumeConfig && state?.isInstalled) { checkGuardSupport() }
+    if(!state?.resumeConfig && state?.isInstalled) { stateMigrationChk(); checkGuardSupport(); }
     if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) { return servPrefPage() }
     else if(showChgLogOk()) { return changeLogPage() }
     else if(showDonationOk()) { return donationPage() }
@@ -1185,8 +1185,7 @@ def updated() {
     unsubscribe()
     state?.zoneEvtsActive = false
     unschedule()
-    // remAppFlag("stateMapConverted")
-    if(!getAppFlag("stateMapConverted")) { stateMapMigration() }
+    stateMigrationChk()
     initialize()
 }
 
@@ -1216,6 +1215,12 @@ def initialize() {
         getEchoDevices()
     }
 }
+
+private stateMigrationChk() {
+    if(!getAppFlag("stateMapConverted")) { stateMapMigration() }
+    return
+}
+
 
 def updateZoneSubscriptions() {
     if(state?.zoneEvtsActive != true) {
@@ -1830,7 +1835,7 @@ private getMusicProviders() {
 }
 
 private getOtherData() {
-    if(!getAppFlag("stateMapConverted")) { stateMapMigration() }
+    stateMigrationChk()
     getDoNotDisturb()
     getBluetoothDevices()
     getMusicProviders()
@@ -2246,7 +2251,7 @@ Map isFamilyAllowed(String family) {
 }
 
 private getEchoDevices() {
-    if(!getAppFlag("stateMapConverted")) { stateMapMigration() }
+    stateMigrationChk()
     if(!isAuthValid("getEchoDevices")) { return }
     def params = [
         uri: getAmazonUrl(),
