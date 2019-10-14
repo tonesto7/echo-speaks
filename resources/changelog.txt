@@ -1,44 +1,24 @@
  ══════════
-   Main App (v3.1.0.2)
-   September 30th, 2019
+   Main App (v3.2.0.0)
+   October 20th, 2019
  ══════════
-  • FIXED: Fixed some actions bugs.
+  • ADDED: New Zones Companion app.  You can now create groups of echo devices which you can be used in your actions.  They allow you to target speech based on device and location conditions.  So you only speak where your need to.
+  • ADDED: WebSocket support: This only works on Hubitat and requires an additional driver be installed.
+  • ADDED: Locale support for Brazil (amazon.com.br | pt-BR).
+  • ADDED: LogTrace & LogDebug settings are automatically turned off after 6 hours now to reduce platform stress.
 
+  • UPDATED: Guard Support checks are now performed as soon as the server is installed now to help eliminate the not supported or refresh page message.
 
- ══════════
-   Main App (v3.1.0.0)
-   September 24th, 2019
- ══════════
-  • FIXED: Fixed Alexa guard support check for ST.
-  • UPDATED: Massive overhaul of the web request response and exception handling.
-  • FIXED: Required updates message for actions app.  Even after pressing Done.
-  • UPDATED: Optimized and reduced the amount of repetitive web calls.
-  • UPDATED: Converted most async commands back to synchronous calls for speed.
-  • FIXED: Notifications device support
-  • UPDATED: Notices for upcoming SMS support removal from Hubitat and SmartThings (UK) platforms.
-  • FIXED: Device test fixes.
-  • ADDED: Duplicate existing Actions. (ST only at the moment)
-  • ADDED: Support for actions guard triggers.
-  • UPDATED: log output cleanups.
+  • UPDATED: Optimized and reduced the amount of repetitive web calls. I've made alot of state cleanups and consolidations.  Please make sure to open the app and press done immediately after updating your code.
+  • FIXED: Resolved scenario where new server installs would result in the wrong Server preferences page being shown.  The page will show the login page when the server is installed and only login is required.
+
+  • FIXED: Lots of UI text cleanups.
+  • FIXED: Code cleanups and refactors.
 
  ══════════
-   Actions App (v3.1.0.0)
-   September 24th, 2019
+   Actions App (v3.2.0.0)
+   October 20th, 2019
  ══════════
-  • ADDED: Guard Trigger events.
-  • ADDED: Control switches (on/off) when executing action.
-  • FIXED: notification capable device support.
-  • FIXED: Alexa Mobile notifications should now work.
-  • FIXED: Action test would not run on new incomplete actions.
-  • ADDED: Support for Duplicating existing Actions.
-  • UPDATED: Notices for upcoming SMS support removal from Hubitat and SmartThings (UK) platforms.
-
- ══════════
-   Device (v3.1.0.0)
-   September 24th, 2019
- ══════════
-  • ADDED: Follow up Auto Reset Queue (xx seconds) after last speech command.  Adjust each device under the devices setting page. Default is 180 sec.
-  • UPDATED: Massive overhaul of the web request response and exception handling.
-  • UPDATED: Converted most async commands back to synchronous calls for speed.
-  • UPDATED: log output cleanups.
-  • FIXED: Minor bug fixes.
+  • ADDED: LogTrace & LogDebug settings are automatically turned off after 6 hours now to reduce platform stress.
+  • UPDATED: Guard Support checks are now performed as soon as the server is installed now to help eliminate the not supported or refresh page message.
+  • FIXED: Resolved scenario where new server installs would result in the wrong Server preferences page being shown.  The page will show the login page when the server is installed and only login is required.
