@@ -20,6 +20,9 @@ String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
+// TODO: Finish Condition and/or logic in the description text
+// TODO: Reorder Zones above echo devices when used in description
+
 // TODO: Finish the button trigger logic
 // TODO: Add Lock Code triggers
 definition(
@@ -1498,6 +1501,14 @@ private getConfStatusItem(item) {
     return (state?.configStatusMap?.containsKey(item) && state?.configStatusMap[item] == true)
 }
 
+// if(settings?.trig_scheduled_type in ["Sunrise", "Sunset"]) { return true }
+//     if(settings?.trig_scheduled_type == "One-Time" && settings?.trig_scheduled_time) { return true }
+//     if(settings?.trig_scheduled_type == "Recurring" && settings?.trig_scheduled_time && settings?.trig_scheduled_recurrence) {
+//         if(settings?.trig_scheduled_recurrence == "Daily") { return true }
+//         else if (settings?.trig_scheduled_recurrence == "Weekly" && settings?.trig_scheduled_weekdays) { return true }
+//         else if (settings?.trig_scheduled_recurrence == "Monthly" && (settings?.trig_scheduled_daynums || settings?.trig_scheduled_weeks)) { return true }
+//     }
+
 private actionCleanup() {
     // State Cleanup
     List items = ["afterEvtMap", "afterEvtChkSchedMap"]
@@ -1514,6 +1525,8 @@ private actionCleanup() {
             if(!(si?.key in setIgn) && si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && (!isTierAct && si?.key?.startsWith("act_tier_item_"))) { setItems?.push(si?.key as String) }
         }
     }
+
+    // Cleanup Unused Trigger Types...
     if(settings?.triggerEvents) {
         List trigKeys = settings?.findAll { it?.key?.startsWith("trig_") && !(it?.key?.tokenize("_")[1] in settings?.triggerEvents) }?.keySet()?.collect { it?.tokenize("_")[1] as String }?.unique()
         // log.debug "trigKeys: $trigKeys"
@@ -1521,6 +1534,10 @@ private actionCleanup() {
             trigKeys?.each { tk-> setItems?.push("trig_${tk}"); ["wait", "all", "cmd", "once", "after", "txt"]?.each { ei-> setItems?.push("trig_${tk}_${ei}"); }; }
         }
     }
+
+    // Cleanup Unused Schedule Trigger Items
+
+
     // log.debug "setItems: $setItems"
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     // Performs the Setting Removal
@@ -1988,11 +2005,11 @@ private tierEvtHandler(evt=null) {
             tierState?.schedDelay = tierMap[(curPass>1 ? curPass : curPass+1)]?.delay ?: null
             tierState?.message = tierMap[curPass]?.message ?: null
             tierState?.evt = newEvt
-            logTrace("tierSize: (${tierMap?.size()}) | cycle: ${tierState?.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState?.schedDelay}) | Message: (${tierState?.message})")
+            log.trace("tierSize: (${tierMap?.size()}) | cycle: ${tierState?.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState?.schedDelay}) | Message: (${tierState?.message})")
             atomicState?.actTierState = tierState
             tierSchedHandler([sched: schedNext, tierState: tierState])
         } else {
-            logDebug("Tier Cycle has completed... Clearing TierState...")
+            log.debug("Tier Cycle has completed... Clearing TierState...")
             atomicState?.actTierState = [:]
             atomicState?.tierSchedActive = false
         }
@@ -2221,10 +2238,11 @@ Boolean dateCondOk() {
 }
 
 Boolean locationCondOk() {
+    Boolean reqAll = (settings?.cond_require_all != false)
     Boolean mOk = settings?.cond_mode ? (isInMode(settings?.cond_mode)) : true
     Boolean aOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
     logDebug("locationCondOk | modeOk: $mOk | alarmOk: $aOk")
-    return (mOk && aOk)
+    return reqAll ? (mOk && aOk) : (mOk || aOk)
 }
 
 Boolean checkDeviceCondOk(type) {
@@ -2292,17 +2310,23 @@ Boolean deviceCondOk() {
     Boolean powerDevOk = checkDeviceNumCondOk("illuminance")
     Boolean battDevOk = checkDeviceNumCondOk("battery")
     logDebug("checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk")
-    return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk && valveDevOk && shadeDevOk && tempDevOk && humDevOk && battDevOk && illDevOk && levelDevOk && powerDevOk)
+    if(settings?.cond_require_all == false) {
+        return (swDevOk || motDevOk || presDevOk || conDevOk || lockDevOk || garDevOk || valveDevOk || shadeDevOk || tempDevOk || humDevOk || battDevOk || illDevOk || levelDevOk || powerDevOk)
+    } else {
+        return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk && valveDevOk && shadeDevOk && tempDevOk && humDevOk && battDevOk && illDevOk && levelDevOk && powerDevOk)
+    }
 }
 
 def conditionStatus() {
+    Boolean reqAll = (settings?.cond_require_all != false)
     List blocks = []
-    if(!timeCondOk())        { blocks?.push("time") }
-    if(!dateCondOk())        { blocks?.push("date") }
-    if(!locationCondOk())    { blocks?.push("location") }
-    if(!deviceCondOk())      { blocks?.push("device") }
+    List ok = []
+    if(!timeCondOk())        { blocks?.push("time") } else { ok?.push("time") }
+    if(!dateCondOk())        { blocks?.push("date") } else { ok?.push("date") }
+    if(!locationCondOk())    { blocks?.push("location") } else { ok?.push("location") }
+    if(!deviceCondOk())      { blocks?.push("device") } else { ok?.push("device") }
     logDebug("Action Conditions Check | Blocks: ${blocks}")
-    return [ok: (blocks?.size() == 0), blocks: blocks]
+    return [ok: (reqAll ? (ok?.size() >= 1) : (blocks?.size() == 0)), blocks: blocks]
 }
 
 Boolean devCondConfigured(type) {
