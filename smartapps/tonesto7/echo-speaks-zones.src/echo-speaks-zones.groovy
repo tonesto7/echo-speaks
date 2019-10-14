@@ -15,7 +15,7 @@
  */
 
 String appVersion()	 { return "3.1.6.0" }
-String appModified() { return "2019-10-11" }
+String appModified() { return "2019-10-14" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -408,6 +408,7 @@ def initialize() {
     updAppLabel()
     runIn(3, "zoneCleanup")
     runIn(7, "subscribeToEvts")
+    runEvery30Minutes("sendZoneStatus")
     updConfigStatusMap()
     sendZoneStatus()
 }
@@ -753,13 +754,15 @@ public zoneRefreshHandler(evt) {
 public zoneCmdHandler(evt) {
     String cmd = evt?.value;
     Map data = evt?.jsonData;
-    // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
-    if(cmd && data && data?.zones && data?.zones?.contains(app?.getId()) && data?.message) {
+    String appId = app?.getId() as String
+    if(cmd && data && appId && data?.zones && data?.zones?.contains(appId) && data?.cmd) {
+        // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
         def zoneDevs = getZoneDevices()
         Integer delay = data?.delay ?: null
         if(cmd == "speak" && zoneDevs?.devices?.size() >= 2) { cmd = "announcement" }
         switch(cmd) {
             case "speak":
+                if(!data?.message) { logWarning("Zone Command Message is missing", true); return; }
                 logDebug("Sending Speak Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 if(data?.changeVol || data?.restoreVol) {
                     zoneDevs?.devices?.each { dev->
@@ -799,10 +802,10 @@ public zoneCmdHandler(evt) {
                 logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 zoneDevs?.devices?.each { dev->
                     if(isST() && delay) {
-                        dev?."${cmd}"([delay: delay])
+                        dev?."${data?.cmd}"([delay: delay])
                         if(data?.changeVol) { dev?.volume(data?.changeVol, [delay: delay]) }
                     } else {
-                        dev?."${cmd}"()
+                        dev?."${data?.cmd}"()
                         if(data?.changeVol) { dev?.volume(data?.changeVol) }
                     }
                 }
@@ -810,9 +813,9 @@ public zoneCmdHandler(evt) {
             case "music":
                 logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data?.provider} | Search: ${data?.search}${delay ? " | Delay: (${delay})" : ""}${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}")
                 if(isST() && delay) {
-                    dev?."${cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol, [delay: delay])
+                    dev?."${data?.cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol, [delay: delay])
                 } else {
-                    dev?."${cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol)
+                    dev?."${data?.cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol)
                 }
                 break
         }

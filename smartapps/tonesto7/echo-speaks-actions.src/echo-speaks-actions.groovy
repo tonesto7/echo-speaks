@@ -969,9 +969,7 @@ def actionsPage() {
                         section(sTS("Playback Config:")) {
                             input "act_playback_cmd", "enum", title: inTS("Select Playback Action", getAppImg("command", true)), description: "", options: playbackOpts, required: true, submitOnChange: true, image: getAppImg("command")
                         }
-                        if(settings?.act_playback_cmd == "volume") {
-                            actionVolumeInputs(devices)
-                        }
+                        if(settings?.act_playback_cmd == "volume") { actionVolumeInputs(devices, true) }
                         actionExecMap?.config?.playback = [cmd: settings?.act_playback_cmd]
                         if(settings?.act_playback_cmd) { done = true } else { done = false }
                     } else { done = false }
@@ -1051,7 +1049,7 @@ def actionsPage() {
                             input "act_alarm_time", "time", title: inTS("Alarm Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getAppImg("clock")
                             // input "act_alarm_remove", "bool", title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
-                        actionVolumeInputs(devices, true)
+                        actionVolumeInputs(devices, false, true)
                         actionExecMap?.config?.alarm = [cmd: "createAlarm", label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: settings?.act_alarm_time, remove: settings?.act_alarm_remove]
                         if(act_alarm_label && act_alarm_date && act_alarm_time) { done = true } else { done = false }
                     } else { done = false }
@@ -1068,7 +1066,7 @@ def actionsPage() {
                             input "act_reminder_time", "time", title: inTS("Reminder Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getAppImg("clock")
                             // input "act_reminder_remove", "bool", title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
-                        actionVolumeInputs(devices, true)
+                        actionVolumeInputs(devices, false, true)
                         actionExecMap?.config?.reminder = [cmd: "createReminder", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: settings?.act_reminder_time, remove: settings?.act_reminder_remove]
                         if(act_reminder_label && act_reminder_date && act_reminder_time) { done = true } else { done = false }
                     } else { done = false }
@@ -1372,7 +1370,7 @@ private echoDevicesInputByPerm(type) {
     }
 }
 
-private actionVolumeInputs(devices, showAlrmVol=false) {
+private actionVolumeInputs(devices, showVolOnly=false, showAlrmVol=false) {
     if(showAlrmVol) {
         section(sTS("Volume Options:")) {
             input "act_alarm_volume", "number", title: inTS("Alarm Volume\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
@@ -1384,7 +1382,7 @@ private actionVolumeInputs(devices, showAlrmVol=false) {
                 if(volMap?.n?.size() > 0 && volMap?.n?.size() < devices?.size()) { paragraph "Some of the selected devices do not support volume control" }
                 else if(devices?.size() == volMap?.n?.size()) { paragraph "Some of the selected devices do not support volume control"; return; }
                 input "act_volume_change", "number", title: inTS("Volume Level\n(Optional)", getAppImg("speed_knob", true)), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
-                input "act_volume_restore", "number", title: inTS("Restore Volume\n(Optional)", getAppImg("speed_knob", true)), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
+                if(!showVolOnly) { input "act_volume_restore", "number", title: inTS("Restore Volume\n(Optional)", getAppImg("speed_knob", true)), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob") }
             }
         }
     }
@@ -1457,6 +1455,7 @@ def initialize() {
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
     runEvery1Minute("scheduleTest")
+    scheduleTest()
 
     updateZoneSubscriptions() // Subscribes to Echo Speaks Zone Activation Events...
     updConfigStatusMap()
@@ -1545,10 +1544,10 @@ def scheduleBuilder() {
         def dayNums = settings?.trig_scheduled_daynums?.size() ? (settings?.trig_scheduled_daynums?.size() > 1 ? "${settings?.trig_scheduled_daynums?.first()}-${settings?.trig_scheduled_daynums?.last()}" : settings?.trig_scheduled_daynums[0]) : null
         def weeks = settings?.trig_scheduled_weeks ? settings?.trig_scheduled_weeks?.join(",") : null
         def months = settings?.trig_scheduled_months ? settings?.trig_scheduled_months?.join(",") : null
-        log.debug "h: ${h} | m: ${m} | s: ${s} | weekDays: ${weekDays} | dayNums: ${dayNums} | weeks: ${weeks} | months: ${months} | recurType: ${recurType}"
+        // log.debug "h: ${h} | m: ${m} | s: ${s} | weekDays: ${weekDays} | dayNums: ${dayNums} | weeks: ${weeks} | months: ${months} | recurType: ${recurType}"
         if(h || m || s) { cron = cronGenerator(s, m, h, dayNums, months, weekDays) }
     }
-    log.debug "cron: $cron"
+    logInfo("scheduleBuilder | Cron: ${cron}")
     return cron
 }
 
@@ -2464,7 +2463,8 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
     List actDevices = settings?.act_EchoDevices ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
-    Map activeZones = (isTierAction() && settings?.act_EchoZones) ? getActiveZones() : [:]
+    Map activeZones = settings?.act_EchoZones ? getActiveZones() : [:]
+
     String actMsgTxt = null
     String actType = settings?.actionType
     if(actOk && actType) {
@@ -2517,15 +2517,14 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                                 if(isST && actDelayMs) {
                                     actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
                                 } else { actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol) }
-                                logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                             } else {
                                 actDevices?.each { dev->
                                     if(isST && actDelayMs) {
                                         dev?.playAnnouncement(txt, (getActionName() ?: "Echo Speaks Action"), changeVol, restoreVol, [delay: actDelayMs])
                                     } else { dev?.playAnnouncement(txt, (getActionName() ?: "Echo Speaks Action"), changeVol, restoreVol) }
                                 }
-                                logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                             }
+                            logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                         }
                     }
                 }
@@ -2551,19 +2550,19 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "dnd":
                 if(actConf[actType] && actConf[actType]?.cmd) {
                     if(actType == "playback" && activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
                         logDebug("Sending Sequence Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
                             if(isST && actDelayMs) {
-                                dev?."${actConf[actType]?.cmd}"([delay: actDelayMs])
+                                if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
                                 if(changeVol) { dev?.volume(changeVol, [delay: actDelayMs]) }
                             } else {
-                                dev?."${actConf[actType]?.cmd}"()
+                                if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"() }
                                 if(changeVol) { dev?.volume(changeVol) }
                             }
                         }
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}")
                     }
                 }
                 break
@@ -2574,7 +2573,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                 if(actConf[actType] && actConf[actType]?.cmd) {
                     if(activeZones?.size()) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else if(actDevices?.size()) {
                         if(changeVol || restoreVol) {
                             actDevices?.each { dev->
@@ -2582,15 +2581,15 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                                     dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol, [delay: actDelayMs])
                                 } else { dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol) }
                             }
-                            logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+
                         } else {
                             actDevices?.each { dev->
                                 if(isST && actDelayMs) {
                                     dev?."${actConf[actType]?.cmd}"([delay: actDelayMs])
                                 } else { dev?."${actConf[actType]?.cmd}"() }
                             }
-                            logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
                         }
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     }
                 }
                 break
