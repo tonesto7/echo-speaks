@@ -107,10 +107,10 @@ private buildTriggerEnum() {
         //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
         // buildItems?.Location?.scene = "Scenes"
     }
-    buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.key }
+    buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.value }
+    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
+    buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
-    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.key }
-    buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.key }
     if(isST()) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
         // log.debug "enumOpts: $enumOpts"
@@ -125,7 +125,7 @@ private buildActTypeEnum() {
     buildItems["Built-in Responses"] = ["weather":"Weather Report", "builtin":"Birthday, Compliments, Facts, Jokes, Stories, Traffic, and more...", "calendar":"Read Calendar Events"]?.sort{ it?.key }
     buildItems["Media/Playback"] = ["music":"Play Music/Playlists", "playback":"Playback/Volume Control"]?.sort{ it?.key }
     buildItems["Alarms/Reminders"] = ["alarm":"Create Alarm", "reminder":"Create Reminder"]?.sort{ it?.key }
-    buildItems["Devices Settings"] = ["dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control", "wakeword":"Change Wake Word"]?.sort{ it?.key }
+    buildItems["Devices Settings"] = ["wakeword":"Change Wake Word", "dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control"]?.sort{ it?.key }
     buildItems["Custom"] = ["sequence":"Execute Sequence", "alexaroutine": "Execute Alexa Routine(s)"]?.sort{ it?.key }
     if(isST()) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
@@ -273,6 +273,15 @@ def triggersPage() {
                                 if(settings?.trig_scheduled_time && schedType == "Recurring") {
                                     List recurOpts = ["Daily", "Weekly", "Monthly"]
                                     input "trig_scheduled_recurrence", "enum", title: inTS("Recurrence?", getAppImg("day_calendar", true)), description: "", multiple: false, required: true, submitOnChange: true, options: recurOpts, defaultValue: "Once", image: getAppImg("day_calendar")
+                                    // TODO: Build out the scheduling some more with quick items like below
+                                    /*
+                                        At 6 pm on the last day of every month: (0 0 18 L * ?)
+                                        At 6 pm on the 3rd to last day of every month: (0 0 18 L-3 * ?)
+                                        At 10:30 am on the last Thursday of every month: (0 30 10 ? * 5L)
+                                        At 6 pm on the last Friday of every month during the years 2015, 2016 and 2017: (0 0 18 ? * 6L 2015-2017)
+                                        At 10 am on the third Monday of every month: (0 0 10 ? * 2#3)
+                                        At 12 am midnight on every day for five days starting on the 10th day of the month: (0 0 0 10/5 * ?)
+                                    */
                                     if(settings?.trig_scheduled_recurrence) {
                                         switch(settings?.trig_scheduled_recurrence) {
                                             case "Daily":
@@ -307,7 +316,9 @@ def triggersPage() {
             if (valTrigEvt("alarm")) {
                 section (sTS("${getAlarmSystemName()} (${getAlarmSystemName(true)}) Events"), hideable: true) {
                     input "trig_alarm", "enum", title: inTS("${getAlarmSystemName()} Modes", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
-                    if(trig_alarm) {
+                    if(settings?.trig_alarm) {
+                        // input "trig_alarm_once", "bool", title: inTS("Only alert once a day?\n(per mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        // input "trig_alarm_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("alarm", false, trigItemCnt++)
                     }
                 }
@@ -316,7 +327,9 @@ def triggersPage() {
             if (valTrigEvt("guard")) {
                 section (sTS("Alexa Guard Events"), hideable: true) {
                     input "trig_guard", "enum", title: inTS("Alexa Guard Modes", getAppImg("alarm_home", true)), options: ["ARMED_STAY", "ARMED_AWAY", "any"], multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
-                    if(trig_alarm) {
+                    if(settings?.trig_guard) {
+                        // input "trig_guard_once", "bool", title: inTS("Only alert once a day?\n(per mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        // input "trig_guard_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("guard", false, trigItemCnt++)
                     }
                 }
@@ -327,6 +340,7 @@ def triggersPage() {
                     input "trig_mode", "mode", title: inTS("Location Modes", getAppImg("mode", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("mode")
                     if(settings?.trig_mode) {
                         input "trig_mode_once", "bool", title: inTS("Only alert once a day?\n(per mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_mode_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("mode", false, trigItemCnt++)
                     }
                 }
@@ -337,6 +351,7 @@ def triggersPage() {
                     input "trig_routineExecuted", "enum", title: inTS("Routines", getAppImg("routine", true)), options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_routineExecuted) {
                         input "trig_routineExecuted_once", "bool", title: inTS("Only alert once a day?\n(per routine)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_routineExecuted_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("routineExecuted", false, trigItemCnt++)
                     }
                 }
@@ -347,6 +362,7 @@ def triggersPage() {
                     input "trig_scene", "device.sceneActivator", title: inTS("Scene Devices", getAppImg("routine", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_scene) {
                         input "trig_scene_once", "bool", title: inTS("Only alert once a day?\n(per scene)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_scene_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("scene", false, trigItemCnt++)
                     }
                 }
@@ -726,7 +742,7 @@ def actVariableDesc(actType, hideUserTxt=false) {
     Map txtItems = customTxtItems()
     if(!isTierAction()) {
         if(!txtItems?.size() && state?.showSpeakEvtVars && !settings?."act_${actType}_txt") {
-            String str = "NOTICE:\nYou can choose to leave the text field empty and generic text will be generated for each event type or define responses for each trigger under Step 2."
+            String str = "NOTICE:\nYou can choose to leave the response field empty and generic text will be generated for each event type, or return to Step 2 and define responses for each trigger."
             paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
         }
         if(!hideUserTxt) {
@@ -736,7 +752,7 @@ def actVariableDesc(actType, hideUserTxt=false) {
                     i?.value?.each { i2-> str += "\n \u2022 ${i?.key?.toString()?.capitalize()} ${i2?.key?.toString()?.capitalize()}: (${i2?.value?.size()} Responses)" }
                 }
                 paragraph pTS(str, null, true, "#2784D9"), state: "complete"
-                paragraph pTS("NOTICE:\nEntering text in the input below will override the user defined text for each trigger type under Step 2.", null, true, "red"), required: true, state: null
+                paragraph pTS("WARNING:\nEntering text below will override the text you defined for the trigger types under Step 2.", null, true, "red"), required: true, state: null
             }
         }
     }
@@ -745,9 +761,9 @@ def actVariableDesc(actType, hideUserTxt=false) {
 def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
     if(settings?.actionType in ["speak", "announcement"]) {
         String str = "Description:\nYou have 3 response options:\n"
-        str += " \u2022 1. Leave the text empty below and text will be generated for each ${inType} trigger event.\n"
-        str += " \u2022 2. Wait till Step 4 and define a single response for any trigger selected here.\n"
-        str += " \u2022 3. Use the reponse builder below and create custom responses for each trigger type. (Supports randomization when multiple responses are configured)"
+        str += " \u2022 1. Leave the text empty below and text will be generated for each ${inType} trigger event.\n\n"
+        str += " \u2022 2. Wait till Step 4 and define a single response for all triggers selected here.\n\n"
+        str += " \u2022 3. Use the response builder below and create custom responses for each individual trigger type. (Supports randomization when multiple responses are configured)"
         // str += "Custom Text is only used when Speech or Announcement action type is selected in Step 4."
         paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
         //Custom Text Options
@@ -799,7 +815,7 @@ def actionTiersPage() {
                         input "act_tier_item_${ti}_delay", "number", title: inTS("Delay after Tier ${ti-1}\n(seconds)", getAppImg("equal", true)), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true, image: getAppImg("equal")
                     }
                     if(ti==1 || settings?."act_tier_item_${ti}_delay") {
-                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Tier Item ${ti} Reponse", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
+                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Tier Item ${ti} Response", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
                                     description: settings?."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg("text")
                     }
                 }
@@ -859,7 +875,7 @@ def actTextOrTiersInput(type) {
         href "actionTiersPage", title: inTS("Create Tiered Responses?", getAppImg("text", true), (tDesc ? "#2678D9" : "red")), description: (tDesc ? "${tDesc}\n\nTap to modify..." : "Tap to configure..."), required: true, state: (tDesc ? "complete" : null), image: getAppImg("text")
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
-        href url: textUrl, style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Reponse\n(Optional)", getAppImg("text", true)), state: (settings?."${type}" ? "complete" : ""),
+        href url: textUrl, style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Response\n(Optional)", getAppImg("text", true)), state: (settings?."${type}" ? "complete" : ""),
                 description: settings?."${type}" ?: "Open Response Designer...", image: getAppImg("text")
     }
 }
@@ -1454,8 +1470,8 @@ def initialize() {
     updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
-    runEvery1Minute("scheduleTest")
-    scheduleTest()
+    // runEvery1Minute("scheduleTest")
+    // scheduleTest()
 
     updateZoneSubscriptions() // Subscribes to Echo Speaks Zone Activation Events...
     updConfigStatusMap()
@@ -1470,17 +1486,6 @@ String getActionName() { return settings?.appLbl as String }
 private updAppLabel() {
     String newLbl = "${settings?.appLbl} (Act)${isPaused() ? " \u274C" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
-}
-
-public guardEventHandler(guardState) {
-    if(!state?.alexaGuardState || state?.alexaGuardState != guardState) {
-        state?.alexaGuardState = guardState
-        def evt = [name: "guard", displayName: "Alexa Guard", value: state?.alexaGuardState, date: new Date(), deviceId: null]
-        logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
-        if(state?.handleGuardEvents) {
-            executeAction(evt, false, "guardEventHandler", false, false)
-        }
-    }
 }
 
 private updConfigStatusMap() {
@@ -1532,26 +1537,7 @@ public updatePauseState(Boolean pause) {
     }
 }
 
-def scheduleBuilder() {
-    def cron = null
-    def time = settings?.trig_scheduled_time ?: null
-    if(time) {
-        def h = fmtTime(time, "hh") ?: "0"
-        def m = fmtTime(time, "mm") ?: "0"
-        def s = "0" //fmtTime(time, "mm") ?: "0"
-        def recurType = trig_scheduled_recurrence
-        def weekDays = settings?.trig_scheduled_weekdays ? settings?.trig_scheduled_weekdays?.join(",") : null
-        def dayNums = settings?.trig_scheduled_daynums?.size() ? (settings?.trig_scheduled_daynums?.size() > 1 ? "${settings?.trig_scheduled_daynums?.first()}-${settings?.trig_scheduled_daynums?.last()}" : settings?.trig_scheduled_daynums[0]) : null
-        def weeks = settings?.trig_scheduled_weeks ? settings?.trig_scheduled_weeks?.join(",") : null
-        def months = settings?.trig_scheduled_months ? settings?.trig_scheduled_months?.join(",") : null
-        // log.debug "h: ${h} | m: ${m} | s: ${s} | weekDays: ${weekDays} | dayNums: ${dayNums} | weeks: ${weeks} | months: ${months} | recurType: ${recurType}"
-        if(h || m || s) { cron = cronGenerator(s, m, h, dayNums, months, weekDays) }
-    }
-    logInfo("scheduleBuilder | Cron: ${cron}")
-    return cron
-}
-
-String cronGenerator(second="0", minute, hour, dayOfMonth=null, month=null, daysOfWeek=null, year=null) {
+String cronBuilder() {
     /****
         Cron Expression Format: (<second> <minute> <hour> <day-of-month> <month> <day-of-week> <?year>)
 
@@ -1588,15 +1574,32 @@ String cronGenerator(second="0", minute, hour, dayOfMonth=null, month=null, days
 
         At 12 am midnight on every day for five days starting on the 10th day of the month: (0 0 0 10/5 * ?)
     ****/
-    List cron = []
-    cron?.push(second ?: "*")
-    cron?.push(minute ?: "0")
-    cron?.push(hour ?: "0")
-    cron?.push(dayOfMonth ?: (!daysOfWeek ? "*" : "?"))
-    cron?.push(month ?: "*")
-    cron?.push(daysOfWeek ? daysOfWeek?.toString()?.replaceAll("\"", "") : "?")
-    if(year) { cron?.push(" ${year}") }
-    return cron?.join(" ")
+    String cron = null
+    def time = settings?.trig_scheduled_time ?: null
+    if(time) {
+        def hour = fmtTime(time, "hh") ?: "0"
+        def minute = fmtTime(time, "mm") ?: "0"
+        def second = "*" //fmtTime(time, "mm") ?: "0"
+        def daysOfWeek = settings?.trig_scheduled_weekdays ? settings?.trig_scheduled_weekdays?.join(",") : null
+        def daysOfMonths = settings?.trig_scheduled_daynums?.size() ? (settings?.trig_scheduled_daynums?.size() > 1 ? "${settings?.trig_scheduled_daynums?.first()}-${settings?.trig_scheduled_daynums?.last()}" : settings?.trig_scheduled_daynums[0]) : null
+        def weeks = settings?.trig_scheduled_weeks ? settings?.trig_scheduled_weeks?.join(",") : null
+        def months = settings?.trig_scheduled_months ? settings?.trig_scheduled_months?.join(",") : null
+        // log.debug "hour: ${hour} | m: ${minute} | s: ${second} | daysOfWeek: ${daysOfWeek} | daysOfMonth: ${daysOfMonth} | weeks: ${weeks} | months: ${months}"
+        if(h || m || s) {
+            // cron = cronBuilder(s, m, h, dayNums, months, weekDays)
+            List cItems = []
+            cItems?.push(second ?: "*")
+            cItems?.push(minute ?: "0")
+            cItems?.push(hour ?: "0")
+            cItems?.push(daysOfMonth ?: (!daysOfWeek ? "*" : "?"))
+            cItems?.push(months ?: "*")
+            cItems?.push(daysOfWeek ? daysOfWeek?.toString()?.replaceAll("\"", "") : "?")
+            if(year) { cItems?.push(" ${year}") }
+            cron = cItems?.join(" ")
+        }
+    }
+    logInfo("cronBuilder | Cron: ${cron}")
+    return cron
 }
 
 Boolean scheduleTriggers() {
@@ -1622,7 +1625,7 @@ private subscribeToEvts() {
                     if (scheduleTriggers()) {
                         if(settings?.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
                         else if(settings?.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
-                        else { schedule(scheduleBuilder() as String, "scheduleTrigEvt") }
+                        else { schedule(cronBuilder() as String, "scheduleTrigEvt") }
                     }
                     break
                 case "guard":
@@ -1712,7 +1715,6 @@ def scheduleTrigEvt(evt=null) {
     Boolean wOk = (recur && weeks && recur in ["Weekly"]) ? (dateMap?.week in weeks && sTrigMap?.lastRun?.week != dateMap?.week) : true
     Boolean mOk = (recur && months && recur in ["Weekly", "Monthly"]) ? (dateMap?.month in months && sTrigMap?.lastRun?.month != dateMap?.month) : true
     // Boolean yOk = (recur && recur in ["Yearly"]) ? (sTrigMap?.lastRun?.y != dateMap?.y) : true
-    log.debug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
     if(wdOk && mdOk && wOk && mOk) {
         sTrigMap?.lastRun = dateMap
         atomicState?.schedTrigMap = sTrigMap
@@ -1722,12 +1724,18 @@ def scheduleTrigEvt(evt=null) {
             def dt = dateTimeFmt(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
             executeAction([name: "Schedule", displayName: "Scheduled Trigger", value: time2Str(dt?.toString()), date: dt, deviceId: null], false, "scheduleTrigEvt", false, false)
         }
+    } else {
+        log.debug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
     }
 }
 
 def alarmEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    // Boolean dco = (settings?."trig_alarm_once" == true)
+    // Integer dcw = settings?."trig_alarm_wait" ?: null
+    // Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "alarm", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+    // if(!evtWaitOk) { return }
     switch(evt?.name) {
         case "hsmStatus":
         case "alarmSystemStatus":
@@ -1739,8 +1747,27 @@ def alarmEvtHandler(evt) {
     }
 }
 
+public guardEventHandler(guardState) {
+    if(!state?.alexaGuardState || state?.alexaGuardState != guardState) {
+        state?.alexaGuardState = guardState
+        def evt = [name: "guard", displayName: "Alexa Guard", value: state?.alexaGuardState, date: new Date(), deviceId: null]
+        logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
+        if(state?.handleGuardEvents) {
+            // Boolean dco = (settings?."trig_guard_once" == true)
+            // Integer dcw = settings?."trig_guard_wait" ?: null
+            // Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
+            // if(!evtWaitOk) { return }
+            executeAction(evt, false, "guardEventHandler", false, false)
+        }
+    }
+}
+
 def routineEvtHandler(evt) {
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    Boolean dco = (settings?."trig_routineExecuted_once" == true)
+    Integer dcw = settings?."trig_routineExecuted_wait" ?: null
+    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "routineExecuted", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+    if(!evtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, true)
     } else { executeAction(evt, false, "routineEvtHandler", false, false) }
@@ -1748,6 +1775,10 @@ def routineEvtHandler(evt) {
 
 def sceneEvtHandler(evt) {
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    Boolean dco = (settings?."trig_scene_once" == true)
+    Integer dcw = settings?."trig_scene_wait" ?: null
+    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "scene", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+    if(!evtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, true)
     } else { executeAction(evt, false, "sceneEvtHandler", false, false) }
@@ -1755,6 +1786,10 @@ def sceneEvtHandler(evt) {
 
 def modeEvtHandler(evt) {
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    Boolean dco = (settings?."trig_mode_once" == true)
+    Integer dcw = settings?."trig_mode_wait" ?: null
+    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "mode", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+    if(!evtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, true)
     } else { executeAction(evt, false, "modeEvtHandler", false, false) }
@@ -2092,12 +2127,12 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
             def dayOk = !once || (once && !isDateToday(prevDt))
-            logDebug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "${okSym()}" : "${notOkSym()}"}) | OnceDaily: (${once}) - Status: (${dayOk ? "${okSym()}" : "${notOkSym()}"})")
+            log.debug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "${okSym()}" : "${notOkSym()}"}) | OnceDaily: (${once}) - Status: (${dayOk ? "${okSym()}" : "${notOkSym()}"})")
             ok = (waitOk && dayOk)
         }
     }
     if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name as String] }
-    // log.debug "evtWaitRestrictionOk: $ok"
+    log.debug "evtWaitRestrictionOk: $ok"
     atomicState?.valEvtHistory = evtHistMap
     return ok
 }
