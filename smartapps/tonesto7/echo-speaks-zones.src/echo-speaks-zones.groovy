@@ -416,7 +416,7 @@ def initialize() {
 String getZoneName() { return settings?.appLbl as String }
 
 private updAppLabel() {
-    String newLbl = "${settings?.appLbl} (Zone)${isPaused() ? " | (\u274C)" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings?.appLbl}${isPaused() ? " (\u275A\u275A)" : ""} (Zone)"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -1555,7 +1555,7 @@ public getDuplSettingData() {
         settings?.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
     }
     Map data = [:]
-    data?.label = app?.getLabel()?.toString()?.replace(" | (\u274C)", "")
+    data?.label = app?.getLabel()?.toString()?.replace(" (\u275A\u275A)", "")
     data?.settings = setObjs
     return data
 }
