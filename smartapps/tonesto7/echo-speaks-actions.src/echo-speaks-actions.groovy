@@ -318,7 +318,7 @@ def triggersPage() {
                     input "trig_alarm", "enum", title: inTS("${getAlarmSystemName()} Modes", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
                     if(settings?.trig_alarm) {
                         // input "trig_alarm_once", "bool", title: inTS("Only alert once a day?\n(per mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        // input "trig_alarm_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
+                        // input "trig_alarm_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("alarm", false, trigItemCnt++)
                     }
                 }
@@ -329,7 +329,7 @@ def triggersPage() {
                     input "trig_guard", "enum", title: inTS("Alexa Guard Modes", getAppImg("alarm_home", true)), options: ["ARMED_STAY", "ARMED_AWAY", "any"], multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
                     if(settings?.trig_guard) {
                         // input "trig_guard_once", "bool", title: inTS("Only alert once a day?\n(per mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        // input "trig_guard_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
+                        // input "trig_guard_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("guard", false, trigItemCnt++)
                     }
                 }
@@ -340,7 +340,7 @@ def triggersPage() {
                     input "trig_mode", "mode", title: inTS("Location Modes", getAppImg("mode", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("mode")
                     if(settings?.trig_mode) {
                         input "trig_mode_once", "bool", title: inTS("Only alert once a day?\n(per mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        input "trig_mode_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
+                        input "trig_mode_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("mode", false, trigItemCnt++)
                     }
                 }
@@ -351,7 +351,7 @@ def triggersPage() {
                     input "trig_routineExecuted", "enum", title: inTS("Routines", getAppImg("routine", true)), options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_routineExecuted) {
                         input "trig_routineExecuted_once", "bool", title: inTS("Only alert once a day?\n(per routine)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        input "trig_routineExecuted_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
+                        input "trig_routineExecuted_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("routineExecuted", false, trigItemCnt++)
                     }
                 }
@@ -362,7 +362,7 @@ def triggersPage() {
                     input "trig_scene", "device.sceneActivator", title: inTS("Scene Devices", getAppImg("routine", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_scene) {
                         input "trig_scene_once", "bool", title: inTS("Only alert once a day?\n(per scene)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        input "trig_scene_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
+                        input "trig_scene_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("scene", false, trigItemCnt++)
                     }
                 }
@@ -515,7 +515,7 @@ def triggersPage() {
                                 input "trig_thermostat_state_cmd", "enum", title: inTS("Operating State changes to?", getAppImg("command", true)), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true, image: getAppImg("command")
                             }
                             input "trig_thermostat_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                            input "trig_thermostat_wait", "number", title: inTS("Wait between each alert", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
+                            input "trig_thermostat_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                             triggerVariableDesc("thermostat", false, trigItemCnt++)
                         }
                     }
@@ -548,7 +548,7 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                 }
                 if(!settings?."trig_${inType}_after") {
                     input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                    input "trig_${inType}_wait", "number", title: inTS("Wait between each report (xx) seconds\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                    input "trig_${inType}_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                 }
                 triggerVariableDesc(inType, true, trigItemCnt)
             }
@@ -584,8 +584,6 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
         }
     }
 }
-
-
 
 Boolean locationTriggers() {
     return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted || settings?.trig_scene || settings?.trig_guard)
@@ -873,6 +871,7 @@ def actTextOrTiersInput(type) {
     if(isTierAction()) {
         def tDesc = getTierRespDesc()
         href "actionTiersPage", title: inTS("Create Tiered Responses?", getAppImg("text", true), (tDesc ? "#2678D9" : "red")), description: (tDesc ? "${tDesc}\n\nTap to modify..." : "Tap to configure..."), required: true, state: (tDesc ? "complete" : null), image: getAppImg("text")
+        input "act_tier_stop_on_clear", "bool", title: inTS("Stop responses when trigger is cleared?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
         href url: textUrl, style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Response\n(Optional)", getAppImg("text", true)), state: (settings?."${type}" ? "complete" : ""),
@@ -1763,18 +1762,20 @@ public guardEventHandler(guardState) {
 }
 
 def routineEvtHandler(evt) {
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
-    Boolean dco = (settings?."trig_routineExecuted_once" == true)
-    Integer dcw = settings?."trig_routineExecuted_wait" ?: null
-    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "routineExecuted", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
-    if(!evtWaitOk) { return }
-    if(getConfStatusItem("tiers")) {
-        processTierTrigEvt(evt, true)
-    } else { executeAction(evt, false, "routineEvtHandler", false, false) }
+    logTrace( "${evt?.name?.toUpperCase()} Event | Routine: ${evt?.displayName} | with a delay of ${now() - evt?.date?.getTime()}ms")
+    if(evt?.displayName in settings?.trig_routineExecuted) {
+        Boolean dco = (settings?."trig_routineExecuted_once" == true)
+        Integer dcw = settings?."trig_routineExecuted_wait" ?: null
+        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "routineExecuted", value: evt?.displayName, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+        if(!evtWaitOk) { return }
+        if(getConfStatusItem("tiers")) {
+            processTierTrigEvt(evt, true)
+        } else { executeAction(evt, false, "routineEvtHandler", false, false) }
+    }
 }
 
 def sceneEvtHandler(evt) {
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    logTrace( "${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     Boolean dco = (settings?."trig_scene_once" == true)
     Integer dcw = settings?."trig_scene_wait" ?: null
     Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "scene", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
@@ -1785,14 +1786,16 @@ def sceneEvtHandler(evt) {
 }
 
 def modeEvtHandler(evt) {
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
-    Boolean dco = (settings?."trig_mode_once" == true)
-    Integer dcw = settings?."trig_mode_wait" ?: null
-    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "mode", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
-    if(!evtWaitOk) { return }
-    if(getConfStatusItem("tiers")) {
-        processTierTrigEvt(evt, true)
-    } else { executeAction(evt, false, "modeEvtHandler", false, false) }
+    logTrace("${evt?.name?.toUpperCase()} Event | Mode: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    if(evt?.value in settings?.trig_mode) {
+        Boolean dco = (settings?."trig_mode_once" == true)
+        Integer dcw = settings?."trig_mode_wait" ?: null
+        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "mode", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+        if(!evtWaitOk) { return }
+        if(getConfStatusItem("tiers")) {
+            processTierTrigEvt(evt, true)
+        } else { executeAction(evt, false, "modeEvtHandler", false, false) }
+    }
 }
 
 Integer getLastAfterEvtCheck() { return !state?.lastAfterEvtCheck ? 10000000 : GetTimeDiffSeconds(state?.lastAfterEvtCheck, "getLastAfterEvtCheck").toInteger() }
@@ -1944,15 +1947,15 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     } else if (execOk) { executeAction(evt, false, "deviceEvtHandler(${evt?.name})", aftRepEvt, evtAd) }
 }
 
-private processTierTrigEvt(evt, evtOk) {
+private processTierTrigEvt(evt, Boolean evtOk) {
     // log.debug "processTierTrigEvt | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}"
     if (evtOk) {
         if(atomicState?.actTierState?.size()) { return }
         tierEvtHandler(evt)
-    } else {
+    } else if(!evtOk && settings?.act_tier_stop_on_clear == true) {
         def tierConf = atomicState?.actTierState?.evt
         if(tierConf?.size() && tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
-            logDebug("Tier Trigger no longer valid... Clearing TierState and Schedule...")
+            log.debug("Tier Trigger no longer valid... Clearing TierState and Schedule...")
             unschedule("tierEvtHandler")
             atomicState?.actTierState = [:]
             atomicState?.tierSchedActive = false
@@ -2127,12 +2130,12 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
             def dayOk = !once || (once && !isDateToday(prevDt))
-            log.debug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "${okSym()}" : "${notOkSym()}"}) | OnceDaily: (${once}) - Status: (${dayOk ? "${okSym()}" : "${notOkSym()}"})")
+            // logDebug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "${okSym()}" : "${notOkSym()}"}) | OnceDaily: (${once}) - Status: (${dayOk ? "${okSym()}" : "${notOkSym()}"})")
             ok = (waitOk && dayOk)
         }
     }
     if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name as String] }
-    log.debug "evtWaitRestrictionOk: $ok"
+    // log.debug "evtWaitRestrictionOk: $ok"
     atomicState?.valEvtHistory = evtHistMap
     return ok
 }
@@ -2459,8 +2462,8 @@ String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=
                     return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} ${evt?.name} is ${evt?.value} ${postfix}"
                 case "mode":
                     return  "The location mode is now set to ${evt?.value}"
-                case "routine":
-                    return  "The ${evt?.value} routine was just executed!."
+                case "routineExecuted":
+                    return  "The ${evt?.displayName} routine was just executed!."
                 case "scene":
                     return  "The ${evt?.value} scene was just executed!."
                 case "alarm":
@@ -3618,7 +3621,7 @@ public getDuplSettingData() {
             text: ["appLbl"]
         ],
         ends: [
-            bool: ["_all", "_avg", "_once", "_send_push", "_use_custom"],
+            bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear"],
             enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type"],
             number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat"],
             text: ["_txt", "_sms_numbers"],
