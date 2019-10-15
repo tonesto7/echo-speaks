@@ -20,5 +20,10 @@
    October 20th, 2019
  ══════════
   • ADDED: LogTrace & LogDebug settings are automatically turned off after 6 hours now to reduce platform stress.
+  • ADDED: Support for Level, water, power, shade, valve conditions.
+  • ADDED: New Tiered response type.  It allows you to create a multiple response with different delays between each one.
+  • UPDATED: Cleaned up actionTypes input
+  • UPDATED: Rewrote the schedule triggers (This has breaking changes for existing triggers with schedule.
+
   • UPDATED: Guard Support checks are now performed as soon as the server is installed now to help eliminate the not supported or refresh page message.
   • FIXED: Resolved scenario where new server installs would result in the wrong Server preferences page being shown.  The page will show the login page when the server is installed and only login is required.
