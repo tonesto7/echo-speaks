@@ -239,7 +239,7 @@ def namePage() {
 // TODO: Add flag to check for the old schedule settings and pause the action, and notifiy the user.
 private scheduleConvert() {
     if(settings?.trig_scheduled_time || settings?.trig_scheduled_sunState && !settings?.trig_scheduled_type) {
-        if(settings?.trig_scheduled_sunState) { settingUpdate("trig_scheduled_type", "${settings?.trig_scheduled_type}", "enum"); settingRemove("trig_scheduled_sunState"); }
+        if(settings?.trig_scheduled_sunState) { settingUpdate("trig_scheduled_type", "${settings?.trig_scheduled_sunState}", "enum"); settingRemove("trig_scheduled_sunState"); }
         else if(settings?.trig_scheduled_time && settings?.trig_scheduled_recurrence) {
             if(settings?.trig_scheduled_recurrence == "Once") { settingUpdate("trig_scheduled_type", "One-Time", "enum") }
             if(settings?.trig_scheduled_recurrence in ["Daily", "Weekly", "Monthly"]) { settingUpdate("trig_scheduled_type", "Recurring", "enum") }
@@ -2529,6 +2529,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     logTrace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
     if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return; }
     Map condStatus = conditionStatus()
+    log.debug "condStatus: ${condStatus}"
     Boolean actOk = getConfStatusItem("actions")
     Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
@@ -3434,8 +3435,8 @@ String getActionDesc() {
         def eDevs = parent?.getDevicesFromList(settings?.act_EchoDevices)
         def zones = getZoneStatus()
         def tierDesc = getTierRespDesc()
-        str += eDevs?.size() ? "Alexa Devices:\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
         str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n" : ""
+        str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Backup)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
         str += tierDesc ? "\n${tierDesc}\n" : ""
         str += settings?.act_volume_change ? "New Volume: (${settings?.act_volume_change})\n" : ""
         str += settings?.act_volume_restore ? "Restore Volume: (${settings?.act_volume_restore})\n" : ""
