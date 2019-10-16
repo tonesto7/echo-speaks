@@ -10,6 +10,9 @@
         "echoDevice": {
             "ver": "3.1.0.2"
         },
+        "wsDevice": {
+            "ver": "3.1.0.2"
+        },
         "server": {
             "ver": "2.2.2"
         }
@@ -332,8 +335,7 @@
         "A1N9SW0I0LUX5Y": {
             "name": "Ford/Lincoln Alexa App",
             "image": "unknown",
-            "caps": [],
-            "blocked": true
+            "caps": ["t", "a"],
         },
         "A1C66CX2XD756O": {
             "name": "Fire Tablet HD",

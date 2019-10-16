@@ -1976,7 +1976,6 @@ Boolean checkDeviceCondOk(type) {
 Boolean checkDeviceNumCondOk(type) {
     List devs = settings?."cond_${type}" ?: null
     String cmd = settings?."cond_${type}_cmd" ?: null
-    Double cdv = settings?."cond_${type}" ?: null
     Double dcl = settings?."cond_${type}_low" ?: null
     Double dch = settings?."cond_${type}_high" ?: null
     Double dce = settings?."cond_${type}_equal" ?: null

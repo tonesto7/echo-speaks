@@ -34,6 +34,7 @@ metadata {
         capability "Refresh"
         capability "Sensor"
         capability "Speech Synthesis"
+        capability "Audio Track Data" // To support SharpTools.io Album Art feature
 
         attribute "alarmVolume", "number"
         attribute "alexaMusicProviders", "JSON_OBJECT"
@@ -62,6 +63,7 @@ metadata {
         attribute "supportedMusic", "string"
         attribute "trackImage", "string"
         attribute "trackImageHtml", "string"
+        attribute "mediaSource", "string"    
 
         attribute "volume", "number"
         attribute "wakeWords", "enum"
@@ -312,10 +314,13 @@ metadata {
         valueTile("onlineStatus", "device.onlineStatus", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("onlineStatus", label:'Online Status:\n${currentValue}')
         }
-        valueTile("currentStation", "device.currentStation", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
+        valueTile("mediaSource", "device.mediaSource", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
+            state("default", label:'Source:\n${currentValue}')
+        }    
+        valueTile("currentStation", "device.currentStation", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("default", label:'Station:\n${currentValue}')
         }
-        valueTile("currentAlbum", "device.currentAlbum", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
+        valueTile("currentAlbum", "device.currentAlbum", height: 1, width: 2, inactiveLabel: false, decoration: "flat") {
             state("default", label:'Album:\n${currentValue}')
         }
         valueTile("lastSpeakCmd", "device.lastSpeakCmd", height: 2, width: 3, inactiveLabel: false, decoration: "flat") {
@@ -430,7 +435,7 @@ metadata {
             "playWeather", "playSingASong", "playFlashBrief", "playTraffic", "playTellStory", "playFunFact",
             "playJoke", "sayWelcomeHome", "sayGoodMorning", "sayGoodNight", "sayCompliment", "resetQueue",
             "playCalendarToday", "playCalendarTomorrow", "playCalendarNext", "speechTest", "sendTestAnnouncement", "sendTestAnnouncementAll",
-            "currentAlbum", "currentStation",
+            "mediaSource", "currentAlbum", "currentStation",
             "alarmVolume", "btDeviceConnected", "btDevicesPaired", "deviceStyle", "onlineStatus", "alexaWakeWord", "supportedMusic", "lastSpeakCmd", "lastCmdSentDt", "lastVoiceActivity",
             "permissions"
         ])
@@ -465,6 +470,7 @@ def installed() {
     sendEvent(name: "followUpMode", value: false)
     sendEvent(name: "alarmVolume", value: 0)
     sendEvent(name: "alexaWakeWord", value: "ALEXA")
+    sendEvent(name: "mediaSource", value: "")    
     state?.doNotDisturb = false
     initialize()
     runIn(20, "postInstall")
@@ -806,6 +812,7 @@ private getPlaybackState(isGroupResponse=false) {
 def playbackStateHandler(playerInfo, isGroupResponse=false) {
     // log.debug "playerInfo: ${playerInfo}"
     Boolean isPlayStateChange = false
+    Boolean isMediaInfoChange = false    
     if (state?.isGroupPlaying && !isGroupResponse) {
         logDebug("ignoring getPlaybackState because group is playing here")
         return
@@ -826,27 +833,51 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
     //Track Title
     String title = playerInfo?.infoText?.title ?: ""
     if(isStateChange(device, "trackDescription", title?.toString())) {
+        isMediaInfoChange = true    
         sendEvent(name: "trackDescription", value: title?.toString(), descriptionText: "Track Description is ${title}", display: true, displayed: true)
     }
     //Track Sub-Text2
     String subText1 = playerInfo?.infoText?.subText1 ?: "Idle"
     if(isStateChange(device, "currentAlbum", subText1?.toString())) {
+        isMediaInfoChange = true    
         sendEvent(name: "currentAlbum", value: subText1?.toString(), descriptionText: "Album is ${subText1}", display: true, displayed: true)
     }
     //Track Sub-Text2
     String subText2 = playerInfo?.infoText?.subText2 ?: "Idle"
     if(isStateChange(device, "currentStation", subText2?.toString())) {
+        isMediaInfoChange = true    
         sendEvent(name: "currentStation", value: subText2?.toString(), descriptionText: "Station is ${subText2}", display: true, displayed: true)
     }
 
     //Track Art Imager
     String trackImg = playerInfo?.mainArt?.url ?: ""
     if(isStateChange(device, "trackImage", trackImg?.toString())) {
+        isMediaInfoChange = true    
         sendEvent(name: "trackImage", value: trackImg?.toString(), descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
     }
     if(isStateChange(device, "trackImageHtml", """<img src="${trackImg?.toString()}"/>""")) {
         sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)
     }
+        
+    //Media Source Provider
+    String mediaSource = playerInfo?.provider?.providerName ?: ""
+    if(isStateChange(device, "mediaSource", mediaSource?.toString())) {
+    	isMediaInfoChange = true        
+        sendEvent(name: "mediaSource", value: mediaSource?.toString(), descriptionText: "Media Source is ${mediaSource}", display: true, displayed: true)
+    }
+    
+    //Update Audio Track Data       
+    if (isMediaInfoChange){    	    
+    	Map trackData = [
+        	title: title,
+            artist: subText1,
+            album: subText2,
+            albumArtUrl: trackImg,
+            mediaSource: mediaSource
+        ]
+        //log.debug(trackData)
+        sendEvent(name: "audioTrackData", value: new JsonOutput().toJson(trackData), display: false, displayed: false)   
+    }    
 
     // Group response data never has valida data for volume
     if(!isGroupResponse && playerInfo?.volume) {
