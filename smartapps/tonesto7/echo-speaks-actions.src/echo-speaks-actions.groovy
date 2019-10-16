@@ -180,6 +180,7 @@ def mainPage() {
                     def t0 = getAppNotifDesc()
                     href "actNotifPage", title: inTS("Send Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : null), image: getAppImg("notification2")
                 }
+                // getTierStatusSection()
             }
         }
 
@@ -2031,15 +2032,21 @@ Boolean isTierAction() {
     return (settings?.actionType in ["speak_tiered", "announcement_tiered"])
 }
 
-Map getTierStatusMap() {
-    Map s = [:]
-    Map tS = atomicState?.actTierState ?: null
-    s?.schedActive = atomicState?.tierSchedActive
-    s?.lastStartDt = getTsVal("lastTierRespStartDt")
-    s?.lastStopDt = getTsVal("lastTierRespStopDt")
-    s?.curCycle = tS?.cycle ?: null
-    s?.curDelay = tS?.schedDelay ?: null
-    return s
+def getTierStatusSection() {
+    String str = ""
+    if(isTierAction()) {
+        Map tS = atomicState?.actTierState ?: null
+        str += "Tier Size: ${getTierMap()?.size()}\n"
+        str += "Schedule Active: ${atomicState?.tierSchedActive == true}\n"
+        str += tS?.cycle ? "Tier Cycle: ${tS?.cycle}\n" : ""
+        str += tS?.schedDelay ? "Next Delay: ${tS?.schedDelay}\n" : ""
+        str += tS?.lastMsg ? "Is Last Cycle: ${tS?.lastMsg == true}\n" : ""
+        str += getTsVal("lastTierRespStartDt") ? "Last Tier Start: ${getTsVal("lastTierRespStartDt")}\n" : ""
+        str += getTsVal("lastTierRespStopDt") ? "Last Tier Stop: ${getTsVal("lastTierRespStopDt")}\n" : ""
+        section("Tier Response Status: ") {
+            paragraph pTS(str, null, false, "#2678D9"), state: "complete"
+        }
+    }
 }
 
 private tierEvtHandler(evt=null) {
