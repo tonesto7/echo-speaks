@@ -14,7 +14,7 @@
  *
  */
 
-String appVersion()	 { return "3.1.8.0" }
+String appVersion()	 { return "3.1.9.0" }
 String appModified() { return "2019-10-16" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
@@ -922,6 +922,19 @@ Boolean devCapValEqual(List devs, String devId, String cap, val) {
 String getAlarmSystemName(abbr=false) {
     return isST() ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
+
+public Map getActionMetrics() {
+    Map out = [:]
+    out?.version = appVersion()
+    out?.activeDelay = settings?.zone_active_delay ?: 0
+    out?.inactiveDelay = settings?.zone_inactive_delay ?: 0
+    out?.zoneDevices = settings?.zone_EchoDevices ?: []
+    out?.activeSwitchesOnCnt = settings?.zone_active_switches_on ?: []
+    out?.activeSwitchesOffCnt = settings?.zone_active_switches_off ?: []
+    out?.inactiveSwitchesOnCnt = settings?.zone_inactive_switches_on ?: []
+    out?.inactiveSwitchesOffCnt = settings?.zone_inactive_switches_off ?: []
+    return out
+}
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
@@ -1529,6 +1542,7 @@ public getDuplSettingData() {
             _humidity: "relativeHumidityMeasurement",
             _motion: "motionSensor",
             _level: "switchLevel",
+            _button: "button",
             _presence: "presenceSensor",
             _switch: "switch",
             _power: "powerMeter",
@@ -1539,6 +1553,7 @@ public getDuplSettingData() {
             _carbonMonoxide: "carbonMonoxideDetector",
             _smoke: "smokeDetector",
             _lock: "lock",
+            _lock_code: "lock",
             _switches_off: "switch",
             _switches_on: "switch"
         ],

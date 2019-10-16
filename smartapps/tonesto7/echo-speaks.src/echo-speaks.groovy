@@ -14,14 +14,13 @@
  *
  */
 
-String appVersion()   { return "3.1.8.0" }
+String appVersion()   { return "3.1.9.0" }
 String appModified()  { return "2019-10-16" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3170, wsDevice: 3170, actionApp: 3170, zoneApp: 3170, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3180, wsDevice: 3180, actionApp: 3180, zoneApp: 3180, server: 230] } //These values define the minimum versions of code this app will work with.
 
-// TODO: Add in Actions to the metrics
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -3032,6 +3031,10 @@ private createMetricsDataJson(rendAsMap=false) {
             if(obj?.usage?.size()) { obj?.usage?.each { k,v-> deviceUsageMap[k as String] = (deviceUsageMap[k as String] ? deviceUsageMap[k as String] + v : v) } }
             if(obj?.errors?.size()) { obj?.errors?.each { k,v-> deviceErrorMap[k as String] = (deviceErrorMap[k as String] ? deviceErrorMap[k as String] + v : v) } }
         }
+        List actData = []
+        getActionApps()?.each { a-> actData?.push(a?.getActionMetrics()) }
+        List zoneData = []
+        getZoneApps()?.each { a-> zoneData?.push(a?.getZoneMetrics()) }
         Map dataObj = [
             guid: state?.appGuid,
             datetime: getDtNow()?.toString(),
@@ -3045,6 +3048,8 @@ private createMetricsDataJson(rendAsMap=false) {
             serverPlatform: (getServerItem("onHeroku") == true) ? "Cloud" : "Local",
             versions: [app: appVersion(), server: swVer?.server ?: "N/A", actions: swVer?.actionApp ?: "N/A", zones: swVer?.zoneApp ?: "N/A", device: swVer?.echoDevice ?: "N/A", socket: swVer?.wsDevice ?: "N/A"],
             detections: [skippedDevices: getSkippedDevsAnon()],
+            actions: actData,
+            zones: zoneData,
             counts: [
                 deviceStyleCnts: state?.deviceStyleCnts ?: [:],
                 appHeartbeatCnt: state?.appHeartbeatCnt ?: 0,

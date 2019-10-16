@@ -14,7 +14,7 @@
  *
  */
 
-String appVersion()  { return "3.1.8.0" }
+String appVersion()  { return "3.1.9.0" }
 String appModified() { return "2019-10-16" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
@@ -402,16 +402,18 @@ def triggersPage() {
 
             if (valTrigEvt("lock")) {
                 //TODO: Add lock code triggers
-                trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", "any"], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++)
-                // section (sTS("Lock CodeEvents"), hideable: true) {
-                //     input "trig_lockCode", "capability.lockCodes", title: inTS("Carbon Monoxide Sensors", getAppImg("co", true)), required: !(settings?.trig_smoke), multiple: true, submitOnChange: true, image: getAppImg("co")
-                //     if (settings?.trig_carbonMonoxide) {
-                //         input "trig_carbonMonoxide_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["detected", "clear", "any"], required: false, submitOnChange: true, image: getAppImg("command")
-                //         if(settings?.trig_carbonMonoxide_cmd) {
-                //             if (settings?.trig_carbonMonoxide?.size() > 1 && settings?.trig_carbonMonoxide_cmd != "any") {
-                //                 input "trig_carbonMonoxide_all", "bool", title: inTS("Require ALL Smoke Detectors to be (${settings?.trig_carbonMonoxide_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
-                //             }
-                //             triggerVariableDesc("carbonMonoxide", false, trigItemCnt++)
+                trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", "any"], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++, (settings?.trig_lockCode))
+                // section (sTS("Lock Code Events"), hideable: true) {
+                //     input "trig_lockCode", "capability.lock", title: inTS("Monitor Lock Codes", getAppImg("lock", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
+                //     if (settings?.trig_lockCode) {
+                //         def lockCodes = settings?.trig_lockCode?.currentValue("lockCodes") ?: null
+                //         Map codeOpts = lockCodes ? parseJson(lockCodes[0]?.toString()) : [:]
+                //         log.debug "lockCodes: ${codeOpts}"
+                //         input "trig_lockCode_items", "enum", title: inTS("Lock code items...", getAppImg("command", true)), options: codeOpts?.collectEntries { [(it?.key as String): "Code ${it?.key}: (${it?.value})"] }, multiple: true, required: true, submitOnChange: true, image: getAppImg("command")
+                //         if(settings?."trig_lockCode_items") {
+                //             input "trig_lockCode_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                //             input "trig_lockCode_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                //             triggerVariableDesc("Lock Code", true, trigItemCnt)
                 //         }
                 //     }
                 // }
@@ -547,9 +549,9 @@ def triggersPage() {
     }
 }
 
-def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt) {
+def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt, devReq=true) {
     section (sTS(sectStr), hideable: true) {
-        input "trig_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, required: true, submitOnChange: true, image: getAppImg(image)
+        input "trig_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, required: devReq, submitOnChange: true, image: getAppImg(image)
         if (settings?."trig_${inType}") {
             input "trig_${inType}_cmd", "enum", title: inTS("${cmdTitle}...", getAppImg("command", true)), options: cmdOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
             if(settings?."trig_${inType}_cmd") {
@@ -572,9 +574,9 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
     }
 }
 
-def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Integer trigItemCnt) {
+def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Integer trigItemCnt, devReq=true) {
     section (sTS(sectStr), hideable: true) {
-        input "trig_${inType}", "capability.${capType}", tite: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: true, image: getAppImg(image)
+        input "trig_${inType}", "capability.${capType}", tite: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: devReq, image: getAppImg(image)
         if(settings?."trig_${inType}") {
             input "trig_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
             if (settings?."trig_${inType}_cmd") {
@@ -2974,6 +2976,22 @@ String getAlarmSystemStatus() {
         return cur ?: "disarmed"
     } else { return location?.hsmStatus ?: "disarmed" }
 }
+
+public Map getActionMetrics() {
+    Map out = [:]
+    out?.version = appVersion()
+    out?.type = settings?.actionType ?: null
+    out?.delay = settings?.actDelay ?: 0
+    out?.triggers = settings?.triggerEvents ?: []
+    out?.echoZones = settings?.act_EchoZones ?: []
+    out?.echoDevices = settings?.act_EchoDevices ?: []
+    out?.usingCustomText = (settings?.customTxtItems()?.size())
+    Integer tDevCnt = 0
+    settings?.triggerEvents?.each { if(settings?."trig_${it}" && settings?."trig_${it}"?.size()) { tDevCnt = tDevCnt+settings?."trig_${it}"?.size() } }
+    out?.triggerDeviceCnt = tDevCnt
+    return out
+}
+
 Boolean pushStatus() { return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_pushover) ? ((settings?.notif_send_push || (settings?.notif_pushover && settings?.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : null }
 Integer getLastNotifMsgSec() { return !state?.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastNotifMsgDt, "getLastMsgSec").toInteger() }
 Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state?.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
@@ -3729,6 +3747,7 @@ public getDuplSettingData() {
             _humidity: "relativeHumidityMeasurement",
             _motion: "motionSensor",
             _level: "switchLevel",
+            _button: "button",
             _presence: "presenceSensor",
             _switch: "switch",
             _power: "powerMeter",
@@ -3739,6 +3758,7 @@ public getDuplSettingData() {
             _carbonMonoxide: "carbonMonoxideDetector",
             _smoke: "smokeDetector",
             _lock: "lock",
+            _lock_code: "lock",
             _switches_off: "switch",
             _switches_on: "switch"
         ],

@@ -17,7 +17,7 @@
 // NOTICE: This device will not work on SmartThings
 
 
-String devVersion()  { return "3.1.7.0"}
+String devVersion()  { return "3.1.8.0"}
 String devModified() { return "2019-10-16" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
