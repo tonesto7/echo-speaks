@@ -112,6 +112,10 @@ private buildTriggerEnum() {
     }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.value }
     buildItems["Actionable Devices"] = ["lock":"Locks", "button":"Buttons", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
+    if(!isST()) {
+        buildItems["Actionable Devices"]?.remove("button")
+        // buildItems["Button Devices"] = ["pushableButton":"Pushable Buttons", "releasableButton":"Releasable Button", "holdableButton":"Holdable Button", "doubleTapableButton":"Double Tapable Button"]?.sort{ it?.value }
+    }
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     if(isST()) {
@@ -207,7 +211,6 @@ def mainPage() {
                 href url: featUrl, style: "external", required: false, title: inTS("New Feature Request", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
                 href url: issueUrl, style: "external", required: false, title: inTS("Report an Issue", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
             }
-            log.debug "${getTierStatusMap()}"
         }
     }
 }
@@ -417,7 +420,7 @@ def triggersPage() {
                 // }
             }
 
-            if (valTrigEvt("button")) {
+            if (valTrigEvt("button") && isST()) {
                 section (sTS("Button Events"), hideable: true) {
                     input "trig_button", "capability.button", title: inTS("Buttons", getAppImg("button", true)), required: !(settings?.trig_smoke), multiple: true, submitOnChange: true, image: getAppImg("button")
                     if (settings?.trig_button) {
