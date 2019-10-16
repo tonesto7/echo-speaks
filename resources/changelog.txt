@@ -1,6 +1,6 @@
  ══════════
    Main App (v3.2.0.0)
-   October 20th, 2019
+   October 16th, 2019
  ══════════
   • ADDED: New Zones Companion app.  You can now create groups of echo devices which you can be used in your actions.  They allow you to target speech based on device and location conditions.  So you only speak where your need to.
   • ADDED: WebSocket support: This only works on Hubitat and requires an additional driver be installed.
@@ -14,7 +14,7 @@
 
  ══════════
    Actions App (v3.2.0.0)
-   October 20th, 2019
+   October 16th, 2019
  ══════════
   • ADDED: Support for Level, water, power, shade, valve conditions.
   • ADDED: Support for Button trigger events.
@@ -34,14 +34,14 @@
 
  ══════════
    Zones App (v3.2.0.0)
-   October 20th, 2019
+   October 16th, 2019
  ══════════
   • ADDED: Create a new zone that targets certain echo-speaks devices.  It is activated by certain location/device events.  Such as motion, presence, and many other attributes.
   • ADDED: Use this to send your speech/announcements to the devices where people are to hear them
 
  ══════════
    Echo Device (v3.2.0.0)
-   October 20th, 2019
+   October 16th, 2019
  ══════════
   • ADDED: Support for audio track capability (SmartThings Only)
   • ADDED: New tile support for upcoming Studio, Buds, and Show 8 (Once they are released I will add there data to the config file and you will see them).
@@ -55,6 +55,6 @@
 
  ══════════
    Echo Websocket (v3.2.0.0)
-   October 20th, 2019
+   October 16th, 2019
  ══════════
   • ADDED: Opens a web socket directly with Amazon and receives volume, playback, and other events realtime so you Echo Speaks devices are always current and reduces polling.

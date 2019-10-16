@@ -15,16 +15,16 @@
  // This is based on the Amazon WebSocket used on Alexa.amazon.com and is ported from Javascript to Groovy and inspired from the work of @Apollon77 Alexa-Remote
 
 // NOTICE: This device will not work on SmartThings
+//TODO: Restore beta to false and change url to master repo
 
-
-String devVersion()  { return "3.1.8.0"}
+String devVersion()  { return "3.2.0.0"}
 String devModified() { return "2019-10-16" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return true }
 
 metadata {
-    definition (name: "Echo Speaks WS", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/devicetypes/tonesto7/echo-speaks-ws.src/echo-speaks-ws.groovy") {
+    definition (name: "Echo Speaks WS", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/devicetypes/tonesto7/echo-speaks-ws.src/echo-speaks-ws.groovy") {
         capability "Initialize"
         capability "Refresh"
         capability "Actuator"
