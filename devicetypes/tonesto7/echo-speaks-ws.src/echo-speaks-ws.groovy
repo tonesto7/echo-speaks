@@ -304,24 +304,24 @@ def parseIncomingMessage(data) {
                                 logError("payload parse error: $ex")
                             }
                         } else {
-                            log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
-                            logWarn("UNKNOWN PAYLOAD FORMAT: ${message?.content?.payload}")
+                            logDebug("Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})")
+                            // logWarn("UNKNOWN PAYLOAD FORMAT: ${message?.content?.payload}")
                         }
                     } else {
-                        log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
-                        logWarn("UNKNOWN CONTENT CHANNEL: ${message?.content?.channel}")
+                        logDebug("Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})")
+                        // logWarn("UNKNOWN CONTENT CHANNEL: ${message?.content?.channel}")
                     }
                 } else {
-                    log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
-                    logWarn("UNKNOWN MESSAGETYPE: ${message?.content?.messageType}")
+                    logDebug("Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})")
+                    // logWarn("UNKNOWN MESSAGETYPE: ${message?.content?.messageType}")
                 }
             } else if (message?.channel == 101) { // 0x65 CHANNEL_FOR_HEARTBEAT
                 idx -= 1; // no delimiter!
-                log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
+                logDebug("Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})")
                 message?.content?.payloadData = dStr.slice(idx, dLen - 4);
             } else {
-                log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
-                logWarn("UNKNOWN CHANNEL: ${message?.channel}")
+                logDebug("Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})")
+                // logWarn("UNKNOWN CHANNEL: ${message?.channel}")
             }
         }
     // } catch (ex) {
@@ -346,14 +346,14 @@ private commandEvtHandler(msg) {
                 break
 
             case "PUSH_VOLUME_CHANGE":
-                // log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
                 evt?.attributes?.volume = msg?.payload?.volumeSetting
                 evt?.attributes?.level = msg?.payload?.volumeSetting
                 evt?.attributes?.mute = (isMuted == true) ? "muted" : "unmuted"
                 break
             case "PUSH_BLUETOOTH_STATE_CHANGE":
-                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 switch(msg?.payload?.bluetoothEvent) {
                     case "DEVICE_DISCONNECTED":
                     case "DEVICE_CONNECTED":
@@ -366,30 +366,30 @@ private commandEvtHandler(msg) {
                 }
                 break
             case "PUSH_AUDIO_PLAYER_STATE":
-                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
                 evt?.attributes?.status = msg?.payload?.audioPlayerState == "PLAYING" ? "playing" : "stopped"
                 evt?.triggers?.push("media")
                 break
             case "PUSH_MEDIA_QUEUE_CHANGE":
-                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
                 evt?.triggers?.push("queue")
                 break
             case "PUSH_MEDIA_PROGRESS_CHANGE":
-                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
                 evt?.triggers?.push("media")
                 evt?.triggers?.push("queue")
                 break
             case "PUSH_DOPPLER_CONNECTION_CHANGE":
-                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
                 evt?.attributes?.onlineStatus = (msg?.payload?.dopplerConnectionState == "ONLINE") ? "online" : "offline"
                 evt?.triggers?.push(evt?.attributes?.onlineStatus)
                 break
             case "PUSH_ACTIVITY":
-                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 def keys = msg?.payload?.key?.entityId?.tokenize("#")
                 if(keys?.size() && keys[2]) {
                     sendEvt = true
@@ -399,7 +399,7 @@ private commandEvtHandler(msg) {
                 }
                 break
             case "PUSH_NOTIFICATION_CHANGE":
-                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
                 evt?.triggers?.push("notification")
                 break
@@ -410,7 +410,7 @@ private commandEvtHandler(msg) {
             // case 'PUSH_MICROPHONE_STATE':
             // case 'PUSH_DELETE_DOPPLER_ACTIVITIES':
             default:
-                log.debug "Command: ${msg?.command} | Payload: ${msg?.payload}"
+                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 break
         }
     }
