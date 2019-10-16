@@ -6,24 +6,55 @@
   • ADDED: WebSocket support: This only works on Hubitat and requires an additional driver be installed.
   • ADDED: Locale support for Brazil (amazon.com.br | pt-BR).
   • ADDED: LogTrace & LogDebug settings are automatically turned off after 6 hours now to reduce platform stress.
-
   • UPDATED: Guard Support checks are now performed as soon as the server is installed now to help eliminate the not supported or refresh page message.
-
   • UPDATED: Optimized and reduced the amount of repetitive web calls. I've made alot of state cleanups and consolidations.  Please make sure to open the app and press done immediately after updating your code.
   • FIXED: Resolved scenario where new server installs would result in the wrong Server preferences page being shown.  The page will show the login page when the server is installed and only login is required.
-
   • FIXED: Lots of UI text cleanups.
-  • FIXED: Code cleanups and refactors.
+  • FIXED: Minor code cleanups and refactoring.
 
  ══════════
    Actions App (v3.2.0.0)
    October 20th, 2019
  ══════════
-  • ADDED: LogTrace & LogDebug settings are automatically turned off after 6 hours now to reduce platform stress.
   • ADDED: Support for Level, water, power, shade, valve conditions.
-  • ADDED: New Tiered response type.  It allows you to create a multiple response with different delays between each one.
-  • UPDATED: Cleaned up actionTypes input
+  • ADDED: Support for Button trigger events.
+  • ADDED: Support for using the new zones in the action.  If you choose any zones you can choose standalone echos as a fallback should none of the zones be active at the time of the event.
+  • ADDED: New Tiered response type.  It allows you to create a multiple response with different delays between each one. I used it for bedtime announcements for my kids where it has three announcements 1 immediately, the second 15 minutes later, and the third 10 minutes after that.
+  • ADDED: LogTrace & LogDebug settings are automatically turned off after 6 hours now to reduce platform stress.
+  • ADDED: And/Or logic to the conditions/restrictions.  So you can require one condition or all before executing.
+  • ADDED: Schedule and trigger input cleanups should you decide to change an actions types or triggers.
+  • UPDATED: Cleaned up actionTypes input (On SmartThings)
   • UPDATED: Rewrote the schedule triggers (This has breaking changes for existing triggers with schedule.
-
   • UPDATED: Guard Support checks are now performed as soon as the server is installed now to help eliminate the not supported or refresh page message.
-  • FIXED: Resolved scenario where new server installs would result in the wrong Server preferences page being shown.  The page will show the login page when the server is installed and only login is required.
+  • FIXED: Mode, routines should now respect the all or once setting values.
+  • FIXED: Broken Carbon Monoxide & Smoke Trigger events
+  • FIXED: Dozens of other little bugs that were discovered.
+  • FIXED: Minor code cleanups and refactoring.
+  • FIXED: Lots of UI text cleanups.
+
+ ══════════
+   Zones App (v3.2.0.0)
+   October 20th, 2019
+ ══════════
+  • ADDED: Create a new zone that targets certain echo-speaks devices.  It is activated by certain location/device events.  Such as motion, presence, and many other attributes.
+  • ADDED: Use this to send your speech/announcements to the devices where people are to hear them
+
+ ══════════
+   Echo Device (v3.2.0.0)
+   October 20th, 2019
+ ══════════
+  • ADDED: Support for audio track capability (SmartThings Only)
+  • ADDED: New tile support for upcoming Studio, Buds, and Show 8 (Once they are released I will add there data to the config file and you will see them).
+  • ADDED: Support for the new Web Socket (Hubitat only) to reduce polling unless necessary.
+  • FIXED: Speech commands now treat amazon response of Too many requests just like its being rate-limited and will retry the command in a few seconds..
+  • FIXED: Restored playAnnouncement command that accepts only 3 commands.
+  • FIXED: WHA group playback info.
+  • FIXED: Removed unnecessary imports.
+  • FIXED: Minor code cleanups and refactoring.
+  • FIXED: Requests errors with improper request messages.
+
+ ══════════
+   Echo Websocket (v3.2.0.0)
+   October 20th, 2019
+ ══════════
+  • ADDED: Opens a web socket directly with Amazon and receives volume, playback, and other events realtime so you Echo Speaks devices are always current and reduces polling.
