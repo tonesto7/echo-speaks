@@ -13,19 +13,15 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+//TODO: Restore beta to false and change url to master repo
 
-import groovy.json.*
-import groovy.time.TimeCategory
-import java.text.SimpleDateFormat
-String appVersion()   { return "3.1.0.2" }
-String appModified()  { return "2019-09-30" }
+String appVersion()   { return "3.2.0.0" }
+String appModified()  { return "2019-10-16" }
 String appAuthor()    { return "Anthony S." }
-Boolean isBeta()      { return false }
+Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3102, actionApp: 3101, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3200, wsDevice: 3200, actionApp: 3200, zoneApp: 3200, server: 230] } //These values define the minimum versions of code this app will work with.
 
-// TODO: Collect device data for reason of cleared cookie.
-// TODO: Add in Actions to the metrics
 definition(
     name        : "Echo Speaks",
     namespace   : "tonesto7",
@@ -35,7 +31,7 @@ definition(
     iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${state?.updateAvailable ? "_update" : ""}.png",
     iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${state?.updateAvailable ? "_update" : ""}.png",
     iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${state?.updateAvailable ? "_update" : ""}.png",
-    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
+    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
     oauth       : true,
     pausable    : true
 )
@@ -49,7 +45,7 @@ preferences {
     page(name: "newSetupPage")
     page(name: "authStatusPage")
     page(name: "actionsPage")
-    // page(name: "zonesPage")
+    page(name: "zonesPage")
     page(name: "devicePage")
     page(name: "deviceListPage")
     page(name: "unrecogDevicesPage")
@@ -67,6 +63,7 @@ preferences {
     page(name: "sequencePage")
     page(name: "setNotificationTimePage")
     page(name: "actionDuplicationPage")
+    page(name: "zoneDuplicationPage")
     page(name: "uninstallPage")
 }
 
@@ -74,7 +71,7 @@ def startPage() {
     state?.isParent = true
     checkVersionData(true)
     state?.childInstallOkFlag = false
-    if(!state?.resumeConfig && state?.isInstalled) { checkGuardSupport() }
+    if(!state?.resumeConfig && state?.isInstalled) { stateMigrationChk(); checkGuardSupport(); }
     if(state?.resumeConfig || (state?.isInstalled && !state?.serviceConfigured)) { return servPrefPage() }
     else if(showChgLogOk()) { return changeLogPage() }
     else if(showDonationOk()) { return donationPage() }
@@ -116,16 +113,11 @@ def mainPage() {
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
-            // def zones = getZoneApps()
-            // section(sTS("Zones:")) {
-            //     paragraph pTS("Create automation triggers from device/location events and perform advanced functions using your Alexa devices.", null, false, "#2784D9")
-            //     href "zonesPage", title: inTS("Manage Zones", getAppImg("es_groups", true)), description: getZoneDesc(), state: (zones?.size() ? "complete" : null), image: getAppImg("es_groups")
-            // }
 
-            def acts = getActionApps()
-            section(sTS("Actions:")) {
-                paragraph pTS("Create automation triggers from device/location events and perform advanced functions using your Alexa devices.", null, false, "#2784D9")
-                href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: getActionsDesc(), state: (acts?.size() ? "complete" : null), image: getAppImg("es_actions")
+            section(sTS("Companion Apps:")) {
+                def zones = getZoneApps()
+                href "zonesPage", title: inTS("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > 1 ? "Zones" : "Zone"})" : ""}", getAppImg("es_groups", true)), description: getZoneDesc(), state: (zones?.size() ? "complete" : null), image: getAppImg("es_groups")
+                href "actionsPage", title: inTS("Manage Actions", getAppImg("es_actions", true)), description: getActionsDesc(), state: (getActionApps()?.size() ? "complete" : null), image: getAppImg("es_actions")
             }
 
             section(sTS("Alexa Login Service:")) {
@@ -144,7 +136,7 @@ def mainPage() {
             }
         }
         section(sTS("Documentation & Settings:")) {
-            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")
+            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", image: getAppImg("documentation")
             href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
         }
         if(!newInstall) {
@@ -171,7 +163,7 @@ def authStatusPage() {
     Boolean resumeConf = (state?.resumeConfig == true)
     return dynamicPage(name: "authStatusPage", install: false, nextPage: "mainPage", uninstall: false) {
         if(state?.authValid) {
-            Integer lastChkSec = getLastCookieRefreshSec()
+            Integer lastChkSec = getLastTsValSecs("lastCookieRrshDt")
             Boolean pastDayChkOk = (lastChkSec > 86400)
             section(sTS("Cookie Status:")) {
                 Boolean cookieValid = (validateCookie(true) == true)
@@ -184,13 +176,13 @@ def authStatusPage() {
                 paragraph pTS("Session Value: (${chk1 ? "OK" : "Missing"})", null, false, chk1 ? "#2784D9" : "red"), state: (chk1 ? "complete" : null), required: true
                 paragraph pTS("CSRF Value: (${chk2 ? "OK" : "Missing"})", null, false, chk2 ? "#2784D9" : "red"), state: (chk2 ? "complete" : null), required: true
                 paragraph pTS("Validated: (${chk4 ? "OK" : "Invalid"})", null, false, chk4 ? "#2784D9" : "red"), state: (chk4 ? "complete" : null), required: true
-                paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastCookieRefreshSec())})", null, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : null), required: true
+                paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", null, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : null), required: true
                 paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", null, false, "#2784D9"), state: "complete", required: true
             }
 
             section(sTS("Cookie Tools: (Tap to show)"), hideable: true, hidden: true) {
-                String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.  Run no more than once every 24 hours."
-                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every (x) days?", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
+                String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
+                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every?\n(in days)", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
                 if(refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
                 if(refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
                 if(!isST()) { paragraph pTS("in Days (1-5 max)", null, false, "gray") }
@@ -199,10 +191,10 @@ def authStatusPage() {
                 if(!isST()) { paragraph pTS(ckDesc, null, false, pastDayChkOk ? null : "red") }
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
                 // Clears cookies for app and devices
-                input "resetCookies", "bool", title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "This will clear all stored cookie data from app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(!isST()) { paragraph pTS("This will clear all stored cookie data from app and devices.", null, false, "gray") }
-                input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Forces devices to syncronize the stored cookies with the main app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(!isST()) { paragraph pTS("Forces devices to syncronize their stored cookies with the main app.", null, false, "gray") }
+                input "resetCookies", "bool", title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "Clear all stored cookie data from the app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(!isST()) { paragraph pTS("Clear all stored cookie data from the app and devices.", null, false, "gray") }
+                input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(!isST()) { paragraph pTS("Force devices to synchronize their stored cookies.", null, false, "gray") }
                 if(settings?.refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh"); }
                 if(settings?.resetCookies) { clearCookieData("resetCookieToggle") }
                 if(settings?.refreshDevCookies) { refreshDevCookies() }
@@ -222,6 +214,7 @@ def servPrefPage() {
     return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : ""), uninstall: (state?.serviceConfigured != true)) {
         Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
         Boolean onHeroku = (isST() || settings?.useHeroku != false)
+        Boolean authValid = (state?.authValid == true)
 
         if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
         if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
@@ -234,23 +227,34 @@ def servPrefPage() {
                     if(settings?.useHeroku == false) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
                 }
             }
-            section() { paragraph pTS("Tap on Begin Server Setup below to proceed with the server setup", null, true, "#2784D9"), state: "complete" }
+            section() { paragraph pTS("To proceed with the server setup.\nTap on 'Begin Server Setup' below", null, true, "#2784D9"), state: "complete" }
             srvcPrefOpts(true)
             section(sTS("Deploy the Server:")) {
                 href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: "complete", image: getAppImg("upload"))
             }
         } else {
-            if(state?.onHeroku) {
-                section(sTS("Server Management:")) {
-                    if(state?.generatedHerokuName) { paragraph title: "Heroku Name:", pTS("${!isST() ? "Heroku Name:\n" : ""}${state?.generatedHerokuName}", null, true, "#2784D9"), state: "complete" }
-                    href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
-                    href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+            if(!authValid) {
+                section(sTS("Authentication:")) {
+                    paragraph pTS("You still need to Login to Amazon to complete the setup", null, true, "red"), required: true, state: null
+                    if(getServerItem("onHeroku")) {
+                        href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    } else if (getServerItem("isLocal")) {
+                        href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    }
                 }
-            }
-            if(state?.isLocal) {
-                section(sTS("Local Server Management:")) {
-                    href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+            } else {
+                if(getServerItem("onHeroku")) {
+                    section(sTS("Server Management:")) {
+                        if(state?.herokuName) { paragraph pTS("Heroku Name:\n \u2022 ${state?.herokuName}", null, true, "#2784D9"), state: "complete" }
+                        href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                        href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                        href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                    }
+                }
+                if(getServerItem("isLocal")) {
+                    section(sTS("Local Server Management:")) {
+                        href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    }
                 }
             }
             srvcPrefOpts()
@@ -337,16 +341,16 @@ def alexaGuardAutoPage() {
             input "guardAwayModes", "mode", title: inTS("Away in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
         }
         section(sTS("Set Guard using Presence")) {
-            input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when all of these Sensors are away?", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
+            input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when these devices are All away?", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
         }
         if(guardAutoConfigured()) {
             section(sTS("Delay:")) {
-                input "guardAwayDelay", "number", title: inTS("Delay before activating?\n(in seconds)", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
+                input "guardAwayDelay", "number", title: inTS("Delay before arming Away?\n(in seconds)", getAppImg("delay_time", true)), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
             }
         }
         section(sTS("Restrict Guard Changes (Optional):")) {
-            input "guardRestrictOnSwitch", "capability.switch", title: inTS("Only when these switch(es) are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-            input "guardRestrictOffSwitch", "capability.switch", title: inTS("Only when these switch(es) are Off?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardRestrictOnSwitch", "capability.switch", title: inTS("Only when these are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardRestrictOffSwitch", "capability.switch", title: inTS("Only when these are Off?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
         }
     }
 }
@@ -359,17 +363,17 @@ String guardAutoDesc() {
     String str = ""
     if(guardAutoConfigured()) {
         str += "Guard Triggers:"
-        str += (settings?.guardAwayAlarm && settings?.guardHomeAlarm) ? bulletItem(str, "Using ${getAlarmSystemName()}\n") : ""
-        str += settings?.guardHomeModes ? bulletItem(str, "Home Modes: (${settings?.guardHomeModes?.size()})\n") : ""
-        str += settings?.guardAwayModes ? bulletItem(str, "Away Modes: (${settings?.guardAwayModes?.size()})\n") : ""
-        str += settings?.guardAwayPresence ? bulletItem(str, "Presence Home: (${settings?.guardAwayPresence?.size()})") : ""
+        str += (settings?.guardAwayAlarm && settings?.guardHomeAlarm) ? "\n \u2022 Using ${getAlarmSystemName()}" : ""
+        str += settings?.guardHomeModes ? "\n \u2022 Home Modes: (${settings?.guardHomeModes?.size()})" : ""
+        str += settings?.guardAwayModes ? "\n \u2022 Away Modes: (${settings?.guardAwayModes?.size()})" : ""
+        str += settings?.guardAwayPresence ? "\n \u2022 Presence Home: (${settings?.guardAwayPresence?.size()})" : ""
     }
     return str == "" ? "Tap to configure..." : "${str}\n\nTap to configure..."
 }
 
 def guardTriggerEvtHandler(evt) {
     def evtDelay = now() - evt?.date?.getTime()
-	logDebug("${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    logDebug("${evt?.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     if(!guardRestrictOk()) {
         logDebug("guardTriggerEvtHandler | Skipping Guard Changes because Restriction are Active.")
         return
@@ -421,11 +425,7 @@ def actionsPage() {
         List activeActions = actApps?.findAll { it?.isPaused() != true }
         List pausedActions = actApps?.findAll { it?.isPaused() == true }
         if(actApps) { /*Nothing to add here yet*/ }
-        else {
-            section("") {
-                paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started")
-            }
-        }
+        else { section("") { paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started") } }
         section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
             if(actApps?.size() && isST()) {
@@ -465,14 +465,31 @@ def actionDuplicationPage() {
             } else {
                 def act = getActionApps()?.find { it?.id?.toString() == settings?.actionDuplicateSelect?.toString() }
                 if(act) {
-                    Map actData = act?.getActDuplSettingData()
+                    Map actData = act?.getDuplSettingData()
                     actData?.settings["duplicateFlag"] = [type: "bool", value: true]
-                    addChildApp("tonesto7", actChildName(), actData?.label, [settings: actData?.settings])
+                    addChildApp("tonesto7", actChildName(), "${actData?.label} (Dup)", [settings: actData?.settings])
                     paragraph pTS("Action Duplicated... Return to Action Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
-                } else {
-                    paragraph pTS("Action Not Found", null, true, "red"), required: true, state: null
-                }
+                } else { paragraph pTS("Action not Found", null, true, "red"), required: true, state: null }
                 state?.actionDuplicated = true
+            }
+        }
+    }
+}
+
+def zoneDuplicationPage() {
+    return dynamicPage(name: "zoneDuplicationPage", nextPage: "zonePage", uninstall: false, install: false) {
+        section() {
+            if(state?.zoneDuplicated) {
+                paragraph pTS("Zone already duplicated...\n\nReturn to zone page and select it", null, true, "red"), required: true, state: null
+            } else {
+                def zn = getZoneApps()?.find { it?.id?.toString() == settings?.zoneDuplicateSelect?.toString() }
+                if(zn) {
+                    Map znData = zn?.getDuplSettingData()
+                    znData?.settings["duplicateFlag"] = [type: "bool", value: true]
+                    addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData?.settings])
+                    paragraph pTS("Zone Duplicated... Return to Zone Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
+                } else { paragraph pTS("Zone not Found", null, true, "red"), required: true, state: null }
+                state?.zoneDuplicated = true
             }
         }
     }
@@ -480,12 +497,18 @@ def actionDuplicationPage() {
 
 public clearDuplicationItems() {
     state?.actionDuplicated = false
+    state?.zoneDuplicated = false
     settingRemove("actionDuplicateSelect")
+    settingRemove("zoneDuplicateSelect")
 }
 
 public getDupActionStateData() {
     def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
-    return act?.getActDuplStateData() ?: null
+    return act?.getDuplStateData() ?: null
+}
+public getDupZoneStateData() {
+    def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
+    return act?.getDuplStateData() ?: null
 }
 
 def zonesPage() {
@@ -493,14 +516,20 @@ def zonesPage() {
         List zApps = getZoneApps()
         if(zApps) { /*Nothing to add here yet*/ }
         else {
-            section("") {
-                paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started")
-            }
+            section("") { paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started") }
         }
         section() {
             app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
+            if(zApps?.size() && isST()) {
+                input "zoneDuplicateSelect", "enum", title: inTS("Duplicate Existing Zone", getAppImg("es_groups", true)), description: "Tap to select...", options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
+                if(settings?.zoneDuplicateSelect) {
+                    href "zoneDuplicationPage", title: inTS("Create Duplicate Zone?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
+                }
+            }
         }
         state?.childInstallOkFlag = true
+        state?.zoneDuplicated = false
+        updateZoneSubscriptions()
     }
 }
 
@@ -560,12 +589,12 @@ private devCleanupSect() {
 
 private List getRemovableDevs() {
     Map eDevs = state?.echoDeviceMap ?: [:]
+    List cDevs = (isST() ? app?.getChildDevices(true) : app?.getChildDevices())
     List remDevs = []
-    (isST() ? app?.getChildDevices(true) : app?.getChildDevices())?.each { cDev->
+    cDevs?.each { cDev->
+        if(cDev?.deviceNetworkId?.toString() == "echoSpeaks_websocket") { return }
         def dni = cDev?.deviceNetworkId?.tokenize("|")
-        if(!eDevs?.containsKey(dni[2])) {
-            remDevs?.push(cDev?.getLabel() as String)
-        }
+        if(eDevs?.size() && dni[2] && !eDevs?.containsKey(dni[2])) { remDevs?.push(cDev?.getLabel() as String) }
     }
     return remDevs ?: []
 }
@@ -587,17 +616,18 @@ private String devicePrefsDesc() {
 
 def settingsPage() {
     return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
+        section(sTS("App Change Details:")) {
+            href "changeLogPage", title: inTS("View App Revision History", getAppImg("change_log", true)), description: "Tap to view", image: getAppImg("change_log")
+        }
         section(sTS("Logging:")) {
             input "logInfo", "bool", title: inTS("Show Info Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
             input "logWarn", "bool", title: inTS("Show Warning Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
             input "logError", "bool", title: inTS("Show Error Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Only leave on when required", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
-            input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only Enabled when asked by the developer", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
         }
+        if(advLogsActive()) { logsEnabled() }
         showDevSharePrefs()
-        section(sTS("App Change Details:")) {
-            href "changeLogPage", title: inTS("View App Revision History", getAppImg("change_log", true)), description: "Tap to view", image: getAppImg("change_log")
-        }
         section(sTS("Diagnostic Data:")) {
             paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", null, false, "gray")
             input "diagShareSensitveData", "bool", title: inTS("Share Cookie Data?", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
@@ -710,8 +740,8 @@ def notifPrefPage() {
             input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
         }
         section(sTS("SMS Text Messaging:")) {
-            paragraph "To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344"
-            input "smsNumbers", "text", title: inTS("Send SMS to Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+            paragraph pTS("To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344", null, false)
+            input "smsNumbers", "text", title: inTS("Send SMS Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
         }
         section (sTS("Notification Devices:")) {
             input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
@@ -742,7 +772,7 @@ def notifPrefPage() {
             }
             section(sTS("Notification Restrictions:")) {
                 def t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: inTS("Notification Restrictions", getAppImg("restriction", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("restriction")
+                href "setNotificationTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : null), image: getAppImg("restriction")
             }
             section(sTS("Missed Poll Alerts:")) {
                 input (name: "sendMissedPollMsg", type: "bool", title: inTS("Send Missed Checkin Alerts?", getAppImg("late", true)), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
@@ -786,17 +816,16 @@ def setNotificationTimePage() {
             if(settings?."qStopInput" == "A specific time") {
                 input "qStopTime", "time", title: inTS("Stop time", getAppImg("stop_time", true)), required: timeReq, image: getAppImg("stop_time")
             }
-            input "quietDays", "enum", title: inTS("Only on these days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"),
-                    options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            input "quietModes", "mode", title: inTS("When these Modes are Active", getAppImg("mode", true)), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
+            input "quietDays", "enum", title: inTS("Only on these week days", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
+            input "quietModes", "mode", title: inTS("When these modes are Active", getAppImg("mode", true)), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
         }
     }
 }
 
 def uninstallPage() {
     dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
-        section("") { paragraph "This will uninstall the App and All Child Devices.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
-        if(isST()) { remove("Remove ${app?.label} and Devices!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis App and Devices will be removed") }
+        section("") { paragraph "This will remove the app, all devices, all actions, all zones.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
+        if(isST()) { remove("Remove App, Devices, Actions, and Zones!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nAll items will be removed") }
     }
 }
 
@@ -816,6 +845,7 @@ def deviceTestPage() {
 def speechPage() {
     return dynamicPage(name: "speechPage", uninstall: false, install: false) {
         section("") {
+            paragraph pTS("This feature has been known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
             Map devs = getDeviceList(true, [tts])
             input "speechTestDevices", "enum", title: inTS("Select Devices to Test the Speech"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             if(speechDevices?.size() >= 3) { paragraph "Amazon will Rate Limit more than 3 device commands at a time.  There will be a delay in the other devices but they should play the test after a few seconds", state: null}
@@ -835,7 +865,7 @@ def speechPage() {
 def announcePage() {
     return dynamicPage(name: "announcePage", uninstall: false, install: false) {
         section("") {
-            paragraph "This feature is not supported by all Alexa devices so using unsupported device may cause it not work"
+            paragraph pTS("This feature has known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
             Map devs = getDeviceList(true, [announce])
             if(!announceDevices) {
                 input "announceAllDevices", "bool", title: inTS("Test Announcement using All Supported Devices"), defaultValue: false, required: false, submitOnChange: true
@@ -942,29 +972,6 @@ private executeSpeechTest() {
             logError("Speech Test device with serial# (${devSerial} was not located!!!")
         }
     }
-}
-
-private executeBroadcast() {
-    settingUpdate("broadcastRun", "false", "bool")
-    String testMsg = settings?.broadcastMessage
-    Map eDevs = state?.echoDeviceMap
-    List seqItems = []
-    def selectedDevs = settings?.broadcastDevices
-    selectedDevs?.each { dev->
-        seqItems?.push([command: "volume", value: settings?.broadcastVolume as Integer, serial: dev, type: eDevs[dev]?.type])
-        seqItems?.push([command: "speak", value: testMsg, serial: dev, type: eDevs[dev]?.type])
-    }
-    sendMultiSequenceCommand(seqItems, "broadcastTest", settings?.broadcastParallel)
-    // schedules volume restore
-    runIn(getRecheckDelay(testMsg?.length()), "broadcastVolumeRestore")
-}
-
-private broadcastVolumeRestore() {
-    Map eDevs = state?.echoDeviceMap
-    def selectedDevs = settings?.broadcastDevices
-    List seqItems = []
-    selectedDevs?.each { dev-> seqItems?.push([command: "volume", value: (settings?.broadcastRestVolume ?: 30), serial: dev, type: eDevs[dev]?.type]) }
-    sendMultiSequenceCommand(seqItems, "broadcastVolumeRestore", settings?.broadcastParallel)
 }
 
 private announcementVolumeRestore() {
@@ -1137,9 +1144,7 @@ def donationPage() {
             paragraph str, required: true, state: null
             href url: textDonateLink(), style: "external", required: false, title: "Donations", description: "Tap to open in browser", state: "complete", image: getAppImg("donate")
         }
-        def iData = atomicState?.installData
-        iData["shownDonation"] = true
-        atomicState?.installData = iData
+        updInstData("shownDonation", true)
     }
 }
 
@@ -1156,14 +1161,16 @@ def updated() {
     if(!state?.isInstalled) { state?.isInstalled = true }
     if(!state?.installData) { state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: getDtNow().toString(), shownDonation: false, sentMetrics: false] }
     unsubscribe()
+    state?.zoneEvtsActive = false
     unschedule()
+    stateMigrationChk()
     initialize()
 }
 
 def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
-    subscribe(app, onAppTouch)
+    if(!state?.resumeConfig) { subscribe(app, onAppTouch) }
     if((settings?.guardHomeAlarm && settings?.guardAwayAlarm) || settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
         if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
             subscribe(location, "${!isST() ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
@@ -1176,13 +1183,27 @@ def initialize() {
         }
     }
     if(!state?.resumeConfig) {
+        updateZoneSubscriptions()
         validateCookie(true)
         runEvery1Minute("getOtherData")
         runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
         // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
-        runIn(15, "postInitialize")
+        runIn(11, "postInitialize")
         getOtherData()
         getEchoDevices()
+    }
+}
+
+private stateMigrationChk() {
+    if(!getAppFlag("stateMapConverted")) { stateMapMigration() }
+    return
+}
+
+
+def updateZoneSubscriptions() {
+    if(state?.zoneEvtsActive != true) {
+        subscribe(location, "es3ZoneState", zoneStateHandler)
+        state?.zoneEvtsActive = true
     }
 }
 
@@ -1201,46 +1222,90 @@ def uninstalled() {
     removeDevices(true)
 }
 
+void wsEvtHandler(evt) {
+    // log.debug "evt: ${evt}"
+    if(evt && evt?.id && (evt?.attributes?.size() || evts?.triggers?.size())) {
+        if("bluetooth" in evt?.triggers) { getBluetoothData() }
+        if(evt?.all == true) {
+            getEsDevices()?.each { eDev->
+                if(evt?.attributes?.size()) {
+                    evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
+                }
+                if(evt?.triggers?.size()) { it?.websocketUpdEvt(evt?.triggers) }
+            }
+        } else {
+            def eDev = findEchoDevice(evt?.id as String)
+            if(eDev) {
+                evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
+                if(evt?.triggers?.size()) { eDev?.websocketUpdEvt(evt?.triggers) }
+            }
+        }
+    }
+}
+
+private findEchoDevice(serial) {
+    return getEsDevices()?.find { it?.getEchoSerial()?.toString() == serial as String } ?: null
+}
+
+void webSocketStatus(Boolean active) {
+    state?.websocketActive = active
+    runIn(3, "updChildSocketStatus")
+}
+
+private updChildSocketStatus() {
+    def active = (state?.websocketActive == true)
+    getEsDevices()?.each { it?.updSocketStatus(active) }
+    updTsVal("lastWebsocketUpdDt")
+}
+
+def zoneStateHandler(evt) {
+    String id = evt?.value?.toString()
+    Map data = evt?.jsonData;
+    // log.trace "zone: ${id} | Data: $data"
+    if(data && id) {
+        Map zoneMap = atomicState?.zoneStatusMap ?: [:]
+        zoneMap[id as String] = [name: data?.name, active: data?.active]
+        atomicState?.zoneStatusMap = zoneMap
+    }
+}
+
+public Map getZones() {
+    return atomicState?.zoneStatusMap ?: [:]
+}
+
+public Map getActiveZones() {
+    Map zones = atomicState?.zoneStatusMap ?: [:]
+    return zones?.size() ? zones?.findAll { it?.value?.active == true } : [:]
+}
+
+public List getActiveZoneNames() {
+    Map zones = atomicState?.zoneStatusMap ?: [:]
+    return zones?.size() ? zones?.findAll { it?.value?.active == true }?.collect { it?.value?.name as String } : []
+}
+
 def getActionApps() {
     return getAllChildApps()?.findAll { it?.name == actChildName() }
+}
+
+def getEsDevices() {
+    return (isST() ? app?.getChildDevices(true) : getChildDevices())?.findAll { it?.isWS() == false }
+}
+
+def getSocketDevice() {
+    return (isST() ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
 }
 
 def getZoneApps() {
     return getAllChildApps()?.findAll { it?.name == zoneChildName() }
 }
 
+def getZoneById(String id) {
+    return getZoneApps()?.find { it?.id?.toString() == id }
+}
+
 def onAppTouch(evt) {
     // logTrace("appTouch...")
     updated()
-}
-
-void updTsMap(key, dt=null) {
-	def data = atomicState?.tsDtMap ?: [:]
-	if(key) { data[key] = dt }
-	atomicState?.tsDtMap = data
-}
-
-def getTsVal(val) {
-	def tsMap = atomicState?.tsDtMap
-	if(val && tsMap && tsMap[val]) { return tsMap[val] }
-	return null
-}
-
-Integer getLastTsValSecs(val) {
-	def tsMap = atomicState?.tsDtMap
-	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : 1000000
-}
-
-void settingUpdate(name, value, type=null) {
-    if(name && type) {
-        app?.updateSetting("$name", [type: "$type", value: value])
-    }
-    else if (name && type == null){ app?.updateSetting(name.toString(), value) }
-}
-
-void settingRemove(String name) {
-    logTrace("settingRemove($name)...")
-    if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
 }
 
 mappings {
@@ -1261,10 +1326,8 @@ def clearCloudConfig() {
     logTrace("clearCloudConfig called...")
     settingUpdate("resetService", "false", "bool")
     unschedule("cloudServiceHeartbeat")
-    List remItems = ["generatedHerokuName", "useHeroku", "onHeroku", "nodeServiceInfo", "serverHost", "isLocal"]
-    remItems?.each { rem->
-        state?.remove(rem as String)
-    }
+    remServerItem(["useHeroku", "onHeroku", "serverHost", "isLocal"])
+    state?.remove("herokuName")
     state?.serviceConfigured = false
     state?.resumeConfig = true
     if(!state?.authValid) { clearCookieData("clearCloudConfig") }
@@ -1276,8 +1339,8 @@ String getEnvParamsStr() {
     envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["hubPlatform"] = "${getPlatform()}"
     envParams["useHeroku"] = (isST() || settings?.useHeroku != false)
-    envParams["serviceDebug"] = (settings?.serviceDebug == true) ? "true" : "false"
-    envParams["serviceTrace"] = (settings?.serviceTrace == true) ? "true" : "false"
+    envParams["serviceDebug"] = "false"
+    envParams["serviceTrace"] = "false"
     envParams["amazonDomain"] = settings?.amazonDomain as String ?: "amazon.com"
     envParams["regionLocale"] = settings?.regionLocale as String ?: "en-US"
     envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com"
@@ -1307,17 +1370,34 @@ private checkIfCodeUpdated() {
             codeUpdated = true
         }
         def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
-        if(cDevs?.size() && state?.codeVersions?.echoDevice != cDevs[0]?.devVersion()) {
+        def echoDev = cDevs?.find { !it?.isWS() }
+        if(echoDev && codeVersions?.echoDevice && state?.codeVersions?.echoDevice != echoDev?.devVersion()) {
             chgs?.push("echoDevice")
             state?.pollBlocked = true
-            updCodeVerMap("echoDevice", cDevs[0]?.devVersion())
+            updCodeVerMap("echoDevice", echoDev?.devVersion())
             codeUpdated = true
         }
+        if(!isST()) {
+            def wsDev = cDevs?.find { it?.isWS() }
+            if(wsDev && state?.codeVersions?.wsDevice && state?.codeVersions?.wsDevice != wsDev?.devVersion()) {
+                chgs?.push("wsDevice")
+                updCodeVerMap("wsDevice", wsDev?.devVersion())
+                codeUpdated = true
+            }
+        }
         def cApps = getActionApps()
-        if(cApps?.size() && state?.codeVersions?.actionApp != cApps[0]?.appVersion()) {
+        if(cApps?.size() && state?.codeVersions?.actionApp && state?.codeVersions?.actionApp != cApps[0]?.appVersion()) {
             chgs?.push("actionApp")
             state?.pollBlocked = true
             updCodeVerMap("actionApp", cApps[0]?.appVersion())
+            codeUpdated = true
+        }
+        def zApps = getZoneApps()
+        if(zApps?.size() && state?.codeVersions?.zoneApp && state?.codeVersions?.zoneApp != zApps[0]?.appVersion()) {
+            chgs?.push("zoneApp")
+            state?.pollBlocked = true
+            log.debug "zoneVer: ${zApps[0]?.appVersion()}"
+            updCodeVerMap("zoneApp", zApps[0]?.appVersion())
             codeUpdated = true
         }
     }
@@ -1337,7 +1417,7 @@ private postCodeUpdated() {
 }
 
 private appCleanup() {
-    List items = ["availableDevices", "lastMsgDt", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie"]
+    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
@@ -1346,7 +1426,7 @@ private appCleanup() {
     // Settings Cleanup
 
     List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "stHub", "cookieRefreshDays"]
-    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
+    settings?.each { si-> if(si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     setItems?.each { sI->
         if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
     }
@@ -1354,7 +1434,7 @@ private appCleanup() {
 }
 
 private resetQueues() {
-    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.resetQueue() }
+    (isST() ? app?.getChildDevices(true) : getChildDevices())?.findAll { it?.isWS() != true }?.each { it?.resetQueue() }
 }
 
 private reInitChildren() {
@@ -1363,28 +1443,13 @@ private reInitChildren() {
     reInitChildApps()
 }
 
+private reInitZones() {
+    getZoneApps()?.each { it?.triggerInitialize() }
+}
+
 private reInitChildApps() {
     getActionApps()?.each { it?.triggerInitialize() }
-}
-
-private updCodeVerMap(key, val) {
-    Map cv = atomicState?.codeVersions ?: [:]
-    if(val && (!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val))) { cv[key as String] = val }
-    if (cv?.containsKey(key) && val == null) { cv?.remove(key) }
-    atomicState?.codeVersions = cv
-}
-
-private cleanUpdVerMap() {
-    Map cv = atomicState?.codeVersions ?: [:]
-    def ri = ["groupApp"]
-    cv?.each { k, v-> if(v == null) ri?.push(k) }
-    ri?.each { cv?.remove(it) }
-    atomicState?.codeVersions = cv
-}
-
-String getRandAppName() {
-    if(!state?.generatedHerokuName && (!state?.isLocal && !state?.serverHost)) { state?.generatedHerokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(8)}"?.toLowerCase() }
-    return state?.generatedHerokuName as String
+    runIn(3, "reInitZones")
 }
 
 def processData() {
@@ -1392,21 +1457,26 @@ def processData() {
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
-            state?.onHeroku = (isST() || data?.onHeroku == true || data?.onHeroku == null || (!data?.isLocal && settings?.useHeroku != false))
-            state?.isLocal = (!isST() && data?.isLocal == true)
-            state?.serverHost = (data?.serverUrl ?: null)
+            updServerItem("onHeroku", (isST() || data?.onHeroku != false || (!data?.isLocal && settings?.useHeroku != false)))
+            updServerItem("isLocal", (!isST() && data?.isLocal == true))
+            updServerItem("serverHost", (data?.serverUrl ?: null))
             logTrace("processData Received | Version: ${data?.version} | onHeroku: ${data?.onHeroku} | serverUrl: ${data?.serverUrl}")
             updCodeVerMap("server", data?.version)
+            state?.serviceConfigured = true
         } else { log.debug "data: $data" }
     }
     def json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersion()])
     render contentType: "application/json", data: json, status: 200
 }
 
+Boolean serverConfigured() {
+    return (getServerItem("onHeroku") || getServerItem("isLocal"))
+}
+
 def getCookieData() {
     logTrace("getCookieData() Request Received...")
     Map resp = state?.cookieData ?: [:]
-    resp["refreshDt"] = state?.lastCookieRefresh ?: null
+    resp["refreshDt"] = getTsVal("lastCookieRrshDt") ?: null
     def json = new groovy.json.JsonOutput().toJson(resp)
     incrementCntByKey("getCookieCnt")
     render contentType: "application/json", data: json
@@ -1414,24 +1484,24 @@ def getCookieData() {
 
 def storeCookieData() {
     logTrace("storeCookieData Request Received...")
-    if(request?.JSON && request?.JSON?.cookieData) {
+    Map data = request?.JSON as Map
+    if(data && data?.cookieData) {
         logTrace("cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
-        Map obj = [:]
-        request?.JSON?.cookieData?.each { k,v->
-            obj[k as String] = v as String
-        }
-        state?.cookieData = obj
-        state?.onHeroku = (isST() || data?.onHeroku == true || data?.onHeroku == null || (!data?.isLocal && settings?.useHeroku != false))
-        state?.isLocal = (!isST() && data?.isLocal == true)
-        state?.serverHost = request?.JSON?.serverUrl ?: null
-        updCodeVerMap("server", request?.JSON?.version)
+        Map cookieItems = [:]
+        data?.cookieData?.each { k,v-> cookieItems[k as String] = v as String }
+        state?.cookieData = cookieItems
+        updServerItem("onHeroku", (isST() || data?.onHeroku != false || (!data?.isLocal && settings?.useHeroku != false)))
+        updServerItem("isLocal", (!isST() && data?.isLocal == true))
+        updServerItem("serverHost", (data?.serverUrl ?: null))
+        updCodeVerMap("server", data?.version)
     }
     // log.debug "csrf: ${state?.cookieData?.csrf}"
     if(state?.cookieData?.localCookie && state?.cookieData?.csrf != null) {
-        logInfo("Cookie Data has been Updated... Re-Initializing SmartApp and to restart polling in 10 seconds...")
+        logInfo("Cookie data was updated | Reinitializing App... | Polling should restart in 10 seconds...")
         validateCookie(true)
         state?.serviceConfigured = true
-        state?.lastCookieRefresh = getDtNow()
+        updTsVal("lastCookieRrshDt")
+        checkGuardSupport()
         runIn(10, "initialize", [overwrite: true])
     }
 }
@@ -1442,8 +1512,7 @@ def clearCookieData(src=null) {
     state?.authValid = false
     state?.remove("cookie")
     state?.remove("cookieData")
-    state?.remove("lastCookieChkDt")
-    state?.remove("lastCookieRefresh")
+    remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
     unschedule("getOtherData")
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
@@ -1496,10 +1565,10 @@ String toQueryString(Map m) {
 }
 
 String getServerHostURL() {
-    return (state?.isLocal && state?.serverHost) ? (state?.serverHost ? "${state?.serverHost}" : null) : "https://${getRandAppName()}.herokuapp.com"
+    def srvHost = getServerItem("serverHost")
+    return (getServerItem("isLocal") && srvHost) ? (srvHost as String ?: null) : "https://${getRandAppName()}.herokuapp.com"
 }
 
-Integer getLastCookieRefreshSec() { return !state?.lastCookieRefresh ? 500000 : GetTimeDiffSeconds(state?.lastCookieRefresh, "getLastCookieRrshSec").toInteger() }
 Integer cookieRefreshSeconds() { return (settings?.refreshCookieDays ?: 5)*86400 as Integer }
 
 def clearServerAuth() {
@@ -1514,12 +1583,10 @@ def clearServerAuth() {
     }
 }
 
-Integer getLastServerWakeSec() { return !state?.lastServerWakeDt ? 500000 : GetTimeDiffSeconds(state?.lastServerWakeDt, "getLastServerWakeSec").toInteger() }
-
 private wakeupServer(c=false, g=false) {
     Map params = [
         uri: getServerHostURL(),
-        path: "/config",
+        path: "/",
         contentType: "text/html",
         requestContentType: "text/html"
     ]
@@ -1528,7 +1595,7 @@ private wakeupServer(c=false, g=false) {
 
 private runCookieRefresh() {
     settingUpdate("refreshCookie", "false", "bool")
-    if(getLastCookieRefreshSec() < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return; }
+    if(getLastTsValSecs("lastCookieRrshDt", 500000) < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return; }
     wakeupServer(true)
 }
 
@@ -1538,7 +1605,7 @@ def wakeupServerResp(response, data) {
     catch(ex) { logError("wakeupServerResp Exception: ${ex}") }
     if (rData) {
         // log.debug "rData: $rData"
-        state?.lastServerWakeDt = getDtNow()
+        updTsVal("lastServerWakeDt")
         logInfo("wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
         if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
         if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
@@ -1601,8 +1668,9 @@ private apiHealthCheck(frc=false) {
 }
 
 Boolean validateCookie(frc=false) {
+    Boolean valid = false
     try {
-        if((!frc && getLastCookieChkSec() <= 900) || !getCookieVal() || !getCsrfVal()) { return }
+        if((!frc && getLastTsValSecs("lastCookieChkDt", 3600) <= 900) || !getCookieVal() || !getCsrfVal()) { return }
         def execDt = now()
         Map params = [
             uri: getAmazonUrl(),
@@ -1613,31 +1681,74 @@ Boolean validateCookie(frc=false) {
         ]
         httpGet(params) { resp->
             Map aData = resp?.data?.authentication ?: null
-            Boolean valid = false
             if (aData) {
+                // log.debug "aData: $aData"
                 if(aData?.customerId) { state?.deviceOwnerCustomerId = aData?.customerId }
                 if(aData?.customerName) { state?.customerName = aData?.customerName }
                 valid = (resp?.data?.authentication?.authenticated != false)
             }
-            state?.lastCookieChkDt = getDtNow()
             logInfo("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
             authValidationEvent(valid, "validateCookie")
-            return valid
         }
     } catch(ex) {
         respExceptionHandler(ex, "validateCookie", true)
-        state?.lastCookieChkDt = getDtNow()
         incrementCntByKey("err_app_cookieValidCnt")
-        return false
+    }
+    updTsVal("lastCookieChkDt")
+    return valid
+}
+
+private getCustomerData(frc=false) {
+    try {
+        if(!frc && state?.amazonCustomerData && getLastTsValSecs("lastCustDataUpdDt") < 3600) { return state?.amazonCustomerData }
+        def execDt = now()
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/get-customer-pfm",
+            query: [_: now()],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            contentType: "application/json"
+        ]
+        httpGet(params) { resp->
+            Map pData = resp?.data ?: null
+            if (pData) {
+                Map d = [:]
+                if(pData?.marketPlaceLocale) { d["marketPlaceLocale"] = pData?.marketPlaceLocale }
+                if(pData?.marketPlaceId) { d["marketPlaceId"] = pData?.marketPlaceId }
+                state?.amazonCustomerData = d
+            }
+        }
+    } catch(ex) {
+        respExceptionHandler(ex, "getCustomerData", true)
+        updTsVal("lastCustDataUpdDt")
+    }
+}
+
+private userCommIds() {
+    try {
+        Map params = [
+            uri: "https://alexa-comms-mobile-service.${getAmazonDomain()}",
+            path: "/accounts",
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            contentType: "application/json"
+        ]
+        httpGet(params) { response->
+            List resp = response?.data ?: []
+            Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == "true" }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
+            state?.accountCommIds = accItems
+            logDebug("Amazon User CommId's: (${accItems})")
+        }
+    } catch(ex) {
+        respExceptionHandler(ex, "userCommIds")
     }
 }
 
 private authValidationEvent(Boolean valid, String src=null) {
-	Integer listSize = 3
+    Integer listSize = 3
     List eList = atomicState?.authValidHistory ?: [true, true, true]
     eList.push(valid)
-	if(eList?.size() > listSize) { eList = eList?.drop( eList?.size()-listSize ) }
-	atomicState?.authValidHistory = eList
+    if(eList?.size() > listSize) { eList = eList?.drop( eList?.size()-listSize ) }
+    atomicState?.authValidHistory = eList
     if(eList?.every { it == false }) {
         logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
         authEvtHandler(false, src)
@@ -1648,10 +1759,10 @@ private authValidationEvent(Boolean valid, String src=null) {
 private noAuthReminder() { logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...") }
 
 public childInitiatedRefresh() {
-    Integer lastRfsh = getLastChildInitRefreshSec()
+    Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)
     if(state?.deviceRefreshInProgress != true && lastRfsh > 120) {
         logDebug("A Child Device is requesting a Device List Refresh...")
-        state?.lastChildInitRefreshDt = getDtNow()
+        updTsVal("lastChildInitRefreshDt")
         getOtherData()
         runIn(3, "getEchoDevices")
     } else {
@@ -1661,13 +1772,20 @@ public childInitiatedRefresh() {
 
 public updChildVers() {
     def cApps = getActionApps()
+    def zApps = getZoneApps()
     def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+    def eDevs = cDevs?.findAll { it?.isWS() != true }
     updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
-    updCodeVerMap("echoDevice", cDevs?.size() ? cDevs[0]?.devVersion() : null)
+    updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
+    updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
+    if(!isST()) {
+        def wDevs = cDevs?.findAll { it?.isWS() == true }
+        updCodeVerMap("wsDevice", wDevs?.size() ? wDevs[0]?.devVersion() : null)
+    }
 }
 
 private getMusicProviders() {
-    if(state?.musicProviders || getLastTsValSecs("musicProviderDt") < 3600) { return state?.musicProviders }
+    if(state?.musicProviders && getLastTsValSecs("musicProviderUpdDt") < 3600) { return state?.musicProviders }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
@@ -1686,7 +1804,7 @@ private getMusicProviders() {
             }
             // log.debug "Music Providers: ${items}"
             if(!state?.musicProviders || items != state?.musicProviders) { state?.musicProviders = items }
-            updTsMap("musicProviderDt")
+            updTsVal("musicProviderUpdDt")
         }
     } catch (ex) {
         respExceptionHandler(ex, "getMusicProviders", true)
@@ -1695,13 +1813,16 @@ private getMusicProviders() {
 }
 
 private getOtherData() {
-    getBluetoothDevices()
+    stateMigrationChk()
     getDoNotDisturb()
+    getBluetoothDevices()
     getMusicProviders()
+    // getCustomerData()
+    // getAlexaSkills()
 }
 
 private getBluetoothDevices() {
-    // logTrace("getBluetoothDevices")
+    if(state?.websocketActive && state?.bluetoothData && getLastTsValSecs("bluetoothUpdDt") < 3600) { return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
@@ -1715,6 +1836,7 @@ private getBluetoothDevices() {
             btResp = response?.data ?: [:]
             // log.debug "Bluetooth Items: ${btResp}"
             state?.bluetoothData = btResp
+            updTsVal("bluetoothUpdDt")
         }
     } catch (ex) {
         respExceptionHandler(ex, "getBluetoothDevices", true)
@@ -1742,7 +1864,7 @@ private getDoNotDisturb() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
-        query: [_: new Date().getTime()],
+        query: [_: now()],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
     ]
@@ -1829,8 +1951,6 @@ def executeRoutineById(String routineId) {
     }
 }
 
-Integer getLastGuardSupportCheckSec() { return !state?.lastGuardSupportCheck ? 3600 : GetTimeDiffSeconds(state?.lastGuardSupportCheck, "getLastGuardSupportCheckSec").toInteger() }
-
 def checkGuardSupport() {
     def execDt = now()
     if(!isAuthValid("checkGuardSupport")) { return }
@@ -1891,7 +2011,7 @@ def checkGuardSupportResponse(response, data) {
         } else { logError("checkGuardSupportResponse Exception: ${ex}") }
     }
     state?.alexaGuardSupported = guardSupported
-    state?.lastGuardSupportCheck = getDtNow()
+    updTsVal("lastGuardSupChkDt")
     state?.guardDataSrc = "app"
     if(guardSupported) getGuardState()
 }
@@ -1931,7 +2051,7 @@ def checkGuardSupportServerResponse(response, data) {
     state?.alexaGuardSupported = guardSupported
     state?.guardDataOverMaxSize = guardSupported
     state?.guardDataSrc = "server"
-    state?.lastGuardSupportCheck = getDtNow()
+    updTsVal("lastGuardSupChkDt")
     if(guardSupported) getGuardState()
 }
 
@@ -1953,7 +2073,7 @@ private getGuardState() {
                 state?.alexaGuardState = guardStateData?.value[0] ? guardStateData?.value[0] : guardStateData?.value
                 settingUpdate("alexaGuardAwayToggle", ((state?.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
                 logDebug("Alexa Guard State: (${state?.alexaGuardState})")
-                state?.lastGuardStateCheck = getDtNow()
+                updTsVal("lastGuardStateChkDt")
             }
             // log.debug "GuardState resp: ${respData}"
         }
@@ -1981,12 +2101,42 @@ private setGuardState(guardState) {
             if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
                 logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
                 state?.alexaGuardState = guardState
-                state?.lastGuardStateUpd = getDtNow()
+                updTsVal("lastGuardStateUpdDt")
                 updGuardActionTrig()
             } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
         }
     } catch (ex) {
         respExceptionHandler(ex, "setGuardState", true)
+    }
+}
+
+private getAlexaSkills() {
+    def execDt = now()
+    log.debug "getAlexaSkills"
+    if(!isAuthValid("getAlexaSkills") || state?.amazonCustomerData) { return }
+    if(state?.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
+    Map params = [
+        uri: "https://skills-store.${getAmazonDomain()}",
+        path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state?.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${now()}",
+        headers: [
+            Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
+            Origin: getAmazonUrl(),
+            cookie: getCookieVal(),
+            csrf: getCsrfVal()
+        ],
+        contentType: "application/json",
+    ]
+    try {
+        httpGet(params) { response->
+            def respData = response?.data ?: null
+            log.debug "respData: $respData"
+            // log.debug respData[3]?.contents[3]?.contents?.products
+
+            // updTsVal("skillDataUpdDt")
+        }
+    } catch (ex) {
+        log.error "getAlexaSkills Exception: ${ex}"
+        // respExceptionHandler(ex, "getAlexaSkills", true)
     }
 }
 
@@ -2079,6 +2229,7 @@ Map isFamilyAllowed(String family) {
 }
 
 private getEchoDevices() {
+    stateMigrationChk()
     if(!isAuthValid("getEchoDevices")) { return }
     def params = [
         uri: getAmazonUrl(),
@@ -2127,7 +2278,7 @@ def receiveEventData(Map evtData, String src) {
         logTrace("evtData(Keys): ${evtData?.keySet()}")
         if (evtData?.keySet()?.size()) {
             List ignoreTheseDevs = settings?.echoDeviceFilter ?: []
-            Boolean onHeroku = (state?.onHeroku == true && state?.isLocal == true)
+            Boolean onHeroku = (getServerItem("onHeroku") == true && !getServerItem("isLocal") == true)
 
             //Check for minimum versions before processing
             Map updReqMap = getMinVerUpdsRequired()
@@ -2141,7 +2292,9 @@ def receiveEventData(Map evtData, String src) {
                 Map skippedDevices = [:]
                 List curDevFamily = []
                 Integer cnt = 0
+                String devAcctId = null
                 evtData?.echoDevices?.each { echoKey, echoValue->
+                    devAcctId = echoValue?.deviceAccountId
                     logTrace("echoDevice | $echoKey | ${echoValue}")
                     // logDebug("echoDevice | ${echoValue?.accountName}", false)
                     allEchoDevices[echoKey] = [name: echoValue?.accountName]
@@ -2221,6 +2374,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
+                    // echoValue["mainAccountCommsId"] = state?.accountCommIds?.find { it?.value?.signedInUser == true && it?.value?.isChild == false }?.key as String ?: null
                     // logWarn("Device Permisions | Name: ${echoValue?.accountName} | $permissions")
 
                     echoDeviceMap[echoKey] = [
@@ -2245,7 +2399,8 @@ def receiveEventData(Map evtData, String src) {
                                 logError("AddDevice Error! | ${ex}")
                             }
                         }
-                    } else {
+                    }
+                    if(childDevice) {
                         //Check and see if name needs a refresh
                         String curLbl = childDevice?.getLabel()
                         if(autoRename && childDevice?.name as String != childHandlerName) { childDevice?.name = childHandlerName as String }
@@ -2254,14 +2409,20 @@ def receiveEventData(Map evtData, String src) {
                             logDebug("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${curLbl})")
                             childDevice?.setLabel(devLabel as String)
                         }
-                        // logInfo("Sending Device Data Update to ${devLabel} | Last Updated (${getLastDevicePollSec()}sec ago)")
+                        // logInfo("Sending Device Data Update to ${devLabel} | Last Updated (${getLastTsValSecs("lastDevDataUpdDt")}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
                         updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
-                    curDevFamily.push(echoValue?.deviceStyle?.name)
+                    curDevFamily?.push(echoValue?.deviceStyle?.name)
                 }
-                logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastDevicePollSec()/60).toFloat()?.round(1)} minutes)")
-                state?.lastDevDataUpd = getDtNow()
+                if(!isST()) {
+                    String wsChildHandlerName = "Echo Speaks WS"
+                    def wsDevice = getChildDevice("echoSpeaks_websocket")
+                    if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
+                    updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
+                }
+                logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastTsValSecs("lastDevDataUpdDt")/60).toFloat()?.round(1)} minutes)")
+                updTsVal("lastDevDataUpdDt")
                 state?.echoDeviceMap = echoDeviceMap
                 state?.allEchoDevices = allEchoDevices
                 state?.skippedDevices = skippedDevices
@@ -2284,7 +2445,8 @@ def receiveEventData(Map evtData, String src) {
 private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
-    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", actionApp: "Echo Speaks Actions"]
+    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones"]
+    if(!isST()) { codeItems?.wsDevice = "Echo Speaks Websocket" }
     Map codeVers = state?.codeVersions ?: [:]
     codeVers?.each { k,v->
         if(codeItems?.containsKey(k as String) && v != null && (versionStr2Int(v) < minVersions()[k as String])) { updRequired = true; updItems?.push(codeItems[k]); }
@@ -2340,10 +2502,6 @@ public sendPlaybackStateToClusterMembers(whaKey, data) {
     }
 }
 
-public getServiceHostInfo() {
-    return (state?.isLocal && state?.serverHost) ? state?.serverHost : null
-}
-
 private removeDevices(all=false) {
     try {
         settingUpdate("cleanUpDevices", "false", "bool")
@@ -2362,7 +2520,7 @@ Map sequenceBuilder(cmd, val) {
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new JsonOutput().toJson(seqJson) as String, status: "ENABLED"]
+    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new groovy.json.JsonOutput().toJson(seqJson) as String, status: "ENABLED"]
     return seqObj
 }
 
@@ -2519,22 +2677,27 @@ private healthCheck() {
         return
     }
     validateCookie()
-    if(getLastCookieRefreshSec() > cookieRefreshSeconds()) {
+    if(getLastTsValSecs("lastCookieRrshDt") > cookieRefreshSeconds()) {
         runCookieRefresh()
-    } else if (getLastGuardSupportCheckSec() > 43200) {
+    } else if (getLastTsValSecs("lastGuardSupChkDt") > 43200) {
         checkGuardSupport()
-    } else if(getLastServerWakeSec() > 86400) { wakeupServer() }
-
+    } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer() }
+    if(!isST() && getSocketDevice()?.isSocketActive() != true) { getSocketDevice()?.triggerInitialize() }
+    if(state?.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
     appUpdateNotify()
-    if(state?.isInstalled && getLastMetricUpdSec() > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
+    if(advLogsActive()) { logsDisable() }
 }
 
+Boolean advLogsActive() { return (settings?.logDebug || settings?.logTrace) }
+public logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
+public logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
+
 private missPollNotify(Boolean on, Integer wait) {
-    logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastDevicePollSec()}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastMisPollMsgSec()})")
-    if(!on || !wait || !(getLastDevicePollSec() > (state?.misPollNotifyWaitVal ?: 2700))) { return }
-    if(!(getLastMisPollMsgSec() > wait.toInteger())) {
+    logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastTsValSecs("lastDevDataUpdDt")}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastTsValSecs("lastMissedPollMsgDt")})")
+    if(!on || !wait || !(getLastTsValSecs("lastMissedPollMsgDt") > (state?.misPollNotifyWaitVal ?: 2700))) { return }
+    if(!(getLastTsValSecs("lastMissedPollMsgDt") > wait.toInteger())) {
         state?.missPollRepair = false
         return
     } else {
@@ -2546,11 +2709,11 @@ private missPollNotify(Boolean on, Integer wait) {
         state?.missPollRepair = true
         String msg = ""
         if(state?.authValid) {
-            msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastDevicePollSec()}) seconds.\nThere maybe an issue with the scheduling.  Please open the app and press Done/Save."
+            msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue with the scheduling.  Please open the app and press Done/Save."
         } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
         logWarn("${msg.toString().replaceAll("\n", " ")}")
         if(sendMsg("${app.name} ${state?.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
-            state?.lastMisPollMsgDt = getDtNow()
+            updTsVal("lastMissedPollMsgDt")
         }
         if(state?.authValid) {
             (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
@@ -2560,21 +2723,25 @@ private missPollNotify(Boolean on, Integer wait) {
 
 private appUpdateNotify() {
     Boolean on = (settings?.sendAppUpdateMsg != false)
-    Boolean appUpd = isAppUpdateAvail()
-    Boolean actUpd = isActionAppUpdateAvail()
-    Boolean echoDevUpd = isEchoDevUpdateAvail()
-    Boolean servUpd = isServerUpdateAvail()
-    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastUpdMsgSec()} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
-    if(state?.updNotifyWaitVal && getLastUpdMsgSec() > state?.updNotifyWaitVal.toInteger()) {
-        if(on && (appUpd || actUpd || echoDevUpd || servUpd)) {
+    Boolean appUpd = appUpdAvail()
+    Boolean actUpd = actionUpdAvail()
+    Boolean zoneUpd = zoneUpdAvail()
+    Boolean echoDevUpd = echoDevUpdAvail()
+    Boolean socketUpd = socketUpdAvail()
+    Boolean servUpd = serverUpdAvail()
+    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastTsValSecs("lastUpdMsgDt")} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
+    if(state?.updNotifyWaitVal && getLastTsValSecs("lastUpdMsgDt") > state?.updNotifyWaitVal.toInteger()) {
+        if(on && (appUpd || actUpd || zoneUpd || echoDevUpd || socketUpd || servUpd)) {
             state?.updateAvailable = true
             def str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks - Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
+            str += !zoneUpd ? "" : "\nEcho Speaks - Zones: v${state?.appData?.versions?.zoneApp?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
-            str += !servUpd ? "" : "\n${state?.onHeroku ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
+            str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state?.appData?.versions?.wsDevice?.ver?.toString()}"
+            str += !servUpd ? "" : "\n${(getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
-            state?.lastUpdMsgDt = getDtNow()
+            updTsVal("lastUpdMsgDt")
             return
         }
         state?.updateAvailable = false
@@ -2582,28 +2749,25 @@ private appUpdateNotify() {
 }
 
 private List codeUpdateItems(shrt=false) {
-    Boolean appUpd = isAppUpdateAvail()
-    Boolean actUpd = isActionAppUpdateAvail()
-    Boolean devUpd = isEchoDevUpdateAvail()
-    Boolean servUpd = isServerUpdateAvail()
+    Boolean appUpd = appUpdAvail()
+    Boolean actUpd = actionUpdAvail()
+    Boolean zoneUpd = zoneUpdAvail()
+    Boolean devUpd = echoDevUpdAvail()
+    Boolean socketUpd = socketUpdAvail()
+    Boolean servUpd = serverUpdAvail()
     List updItems = []
-    if(appUpd || actUpd || devUpd || servUpd) {
+    if(appUpd || actUpd || zoneUpd || devUpd || socketUpd || servUpd) {
         if(appUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}App: (v${state?.appData?.versions?.mainApp?.ver?.toString()})")
         if(actUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Actions: (v${state?.appData?.versions?.actionApp?.ver?.toString()})")
+        if(zoneUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Zones: (v${state?.appData?.versions?.zoneApp?.ver?.toString()})")
         if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Device: (v${state?.appData?.versions?.echoDevice?.ver?.toString()})")
+        if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Websocket: (v${state?.appData?.versions?.wsDevice?.ver?.toString()})")
         if(servUpd) updItems.push("${!shrt ? "\n" : ""}Server: (v${state?.appData?.versions?.server?.ver?.toString()})")
     }
     return updItems
 }
 
 Boolean pushStatus() { return (settings?.smsNumbers?.toString()?.length()>=10 || settings?.usePush || settings?.pushoverEnabled) ? ((settings?.usePush || (settings?.pushoverEnabled && settings?.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
-Integer getLastMsgSec() { return !state?.lastMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMsgDt, "getLastMsgSec").toInteger() }
-Integer getLastUpdMsgSec() { return !state?.lastUpdMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastUpdMsgDt, "getLastUpdMsgSec").toInteger() }
-Integer getLastMisPollMsgSec() { return !state?.lastMisPollMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastMisPollMsgDt, "getLastMisPollMsgSec").toInteger() }
-Integer getLastVerUpdSec() { return !state?.lastVerUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastVerUpdDt, "getLastVerUpdSec").toInteger() }
-Integer getLastDevicePollSec() { return !state?.lastDevDataUpd ? 840 : GetTimeDiffSeconds(state?.lastDevDataUpd, "getLastDevicePollSec").toInteger() }
-Integer getLastCookieChkSec() { return !state?.lastCookieChkDt ? 3600 : GetTimeDiffSeconds(state?.lastCookieChkDt, "getLastCookieChkSec").toInteger() }
-Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state?.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 Boolean getOk2Notify() {
     Boolean smsOk = (settings?.smsNumbers?.toString()?.length()>=10)
     Boolean pushOk = settings?.usePush
@@ -2644,7 +2808,7 @@ Boolean quietTimeOk() {
 
 Boolean quietDaysOk(days) {
     if(days) {
-        def dayFmt = new SimpleDateFormat("EEEE")
+        def dayFmt = new java.text.SimpleDateFormat("EEEE")
         if(location?.timeZone) { dayFmt?.setTimeZone(location?.timeZone) }
         return days?.contains(dayFmt?.format(new Date())) ? false : true
     }
@@ -2702,7 +2866,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
             }
             if(sent) {
                 state?.lastMsg = flatMsg
-                state?.lastMsgDt = getDtNow()
+                updTsVal("lastMsgDt")
                 logDebug("sendMsg: Sent ${sentstr} (${flatMsg})")
             }
         }
@@ -2751,13 +2915,11 @@ private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||
 Boolean showDonationOk() { return (state?.isInstalled && !atomicState?.installData?.shownDonation && getDaysSinceUpdated() >= 30) ? true : false }
 
 Integer getDaysSinceUpdated() {
-	def updDt = atomicState?.installData?.updatedDt ?: null
-	if(updDt == null || updDt == "Not Set") {
-		def iData = atomicState?.installData
-		iData["updatedDt"] = getDtNow().toString()
-		atomicState?.installData = iData
-		return 0
-	} else {
+    def updDt = atomicState?.installData?.updatedDt ?: null
+    if(updDt == null || updDt == "Not Set") {
+        updInstData("updatedDt", getDtNow().toString())
+        return 0
+    } else {
         def start = Date.parse("E MMM dd HH:mm:ss z yyyy", updDt)
         def stop = new Date()
         if(start && stop) {	return (stop - start) }
@@ -2771,13 +2933,11 @@ def changeLogPage() {
     def execTime = now()
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
-            paragraph title: "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""})", pTS(isST() ? "" : "Release Notes for (v${appVersion()}${isBeta() ? " Beta" : ""})", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
+            paragraph title: "Release Notes", pTS(isST() ? "" : "Release Notes", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
             paragraph pTS(changeLogData(), null, false, "gray")
         }
-        Map iData = atomicState?.installData ?: [:]
         state?.curAppVer = appVersion()
-        iData["shownChgLog"] = true
-        atomicState?.installData = iData
+        updInstData("shownChgLog", true)
     }
 }
 
@@ -2785,7 +2945,6 @@ def changeLogPage() {
 |    METRIC Logic
 ******************************************/
 String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com" }
-Integer getLastMetricUpdSec() { return !state?.lastMetricUpdDt ? 100000 : GetTimeDiffSeconds(state?.lastMetricUpdDt, "getLastMetricUpdSec").toInteger() }
 Boolean metricsOk() { (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
 private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID().toString() } }
 private sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), "/clients/${state?.appGuid}.json", createMetricsDataJson(), "put", "heartbeat"); } }
@@ -2836,10 +2995,8 @@ def processFirebaseResponse(resp, data) {
     try {
         if(resp?.status == 200) {
             logDebug("processFirebaseResponse: ${typeDesc} Data Sent SUCCESSFULLY")
-            if(typeDesc?.toString() == "heartbeat") { state?.lastMetricUpdDt = getDtNow() }
-            def iData = atomicState?.installData ?: [:]
-            iData["sentMetrics"] = true
-            atomicState?.installData = iData
+            if(typeDesc?.toString() == "heartbeat") { updTsVal("lastMetricUpdDt") }
+            updInstData("sentMetrics", true)
             result = true
         } else if(resp?.status == 400) {
             logError("processFirebaseResponse: 'Bad Request': ${resp?.status}")
@@ -2875,6 +3032,12 @@ private createMetricsDataJson(rendAsMap=false) {
             if(obj?.usage?.size()) { obj?.usage?.each { k,v-> deviceUsageMap[k as String] = (deviceUsageMap[k as String] ? deviceUsageMap[k as String] + v : v) } }
             if(obj?.errors?.size()) { obj?.errors?.each { k,v-> deviceErrorMap[k as String] = (deviceErrorMap[k as String] ? deviceErrorMap[k as String] + v : v) } }
         }
+        Map actData = [:]
+        def actCnt = 0
+        getActionApps()?.each { a-> actData[actCnt] = a?.getActionMetrics(); actCnt++ }
+        Map zoneData = [:]
+        def zoneCnt = 0
+        getZoneApps()?.each { a-> zoneData[zoneCnt] = a?.getZoneMetrics(); zoneCnt++ }
         Map dataObj = [
             guid: state?.appGuid,
             datetime: getDtNow()?.toString(),
@@ -2885,9 +3048,11 @@ private createMetricsDataJson(rendAsMap=false) {
             authValid: (state?.authValid == true),
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
-            serverPlatform: state?.onHeroku ? "Cloud" : "Local",
-            versions: [app: appVersion(), server: swVer?.server ?: "N/A", actions: swVer?.actionApp ?: "N/A", device: swVer?.echoDevice ?: "N/A"],
+            serverPlatform: (getServerItem("onHeroku") == true) ? "Cloud" : "Local",
+            versions: [app: appVersion(), server: swVer?.server ?: "N/A", actions: swVer?.actionApp ?: "N/A", zones: swVer?.zoneApp ?: "N/A", device: swVer?.echoDevice ?: "N/A", socket: swVer?.wsDevice ?: "N/A"],
             detections: [skippedDevices: getSkippedDevsAnon()],
+            actions: actData,
+            zones: zoneData,
             counts: [
                 deviceStyleCnts: state?.deviceStyleCnts ?: [:],
                 appHeartbeatCnt: state?.appHeartbeatCnt ?: 0,
@@ -2915,56 +3080,35 @@ private incrementCntByKey(String key) {
 // ******************************************
 //      APP/DEVICE Version Functions
 // ******************************************
-Boolean isCodeUpdateAvailable(String newVer, String curVer, String type) {
+Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
     Boolean result = false
     def latestVer
     if(newVer && curVer) {
         List versions = [newVer, curVer]
         if(newVer != curVer) {
             latestVer = versions?.max { a, b ->
-                List verA = a?.tokenize('.')
-                List verB = b?.tokenize('.')
-                Integer commonIndices = Math.min(verA?.size(), verB?.size())
-                for (int i = 0; i < commonIndices; ++i) {
-                    //log.debug "comparing $numA and $numB"
-                    if(verA[i]?.toInteger() != verB[i]?.toInteger()) {
-                        return verA[i]?.toInteger() <=> verB[i]?.toInteger()
-                    }
-                }
+                List verA = a?.tokenize('.'); List verB = b?.tokenize('.'); Integer commonIndices = Math.min(verA?.size(), verB?.size());
+                for (int i = 0; i < commonIndices; ++i) { if(verA[i]?.toInteger() != verB[i]?.toInteger()) { return verA[i]?.toInteger() <=> verB[i]?.toInteger() }; }
                 verA?.size() <=> verB?.size()
             }
             result = (latestVer == newVer) ? true : false
         }
     }
-    // logDebug("isCodeUpdateAvailable | type: $type | newVer: $newVer | curVer: $curVer | newestVersion: ${latestVer} | result: $result")
     return result
 }
 
-Boolean isAppUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.mainApp && isCodeUpdateAvailable(state?.appData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "main_app")) { return true }
-    return false
-}
-
-Boolean isActionAppUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.actionApp && isCodeUpdateAvailable(state?.appData?.versions?.actionApp?.ver, state?.codeVersions?.actionApp, "action_app")) { return true }
-    return false
-}
-
-Boolean isEchoDevUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.echoDevice && isCodeUpdateAvailable(state?.appData?.versions?.echoDevice?.ver, state?.codeVersions?.echoDevice, "dev")) { return true }
-    return false
-}
-
-Boolean isServerUpdateAvail() {
-    if(state?.appData?.versions && state?.codeVersions?.server && isCodeUpdateAvailable(state?.appData?.versions?.server?.ver, state?.codeVersions?.server, "server")) { return true }
-    return false
-}
-
+Boolean appUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.mainApp && codeUpdIsAvail(state?.appData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "main_app")) }
+Boolean actionUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.actionApp && codeUpdIsAvail(state?.appData?.versions?.actionApp?.ver, state?.codeVersions?.actionApp, "action_app")) }
+Boolean zoneUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.zoneApp && codeUpdIsAvail(state?.appData?.versions?.zoneApp?.ver, state?.codeVersions?.zoneApp, "zone_app")) }
+Boolean echoDevUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.echoDevice && codeUpdIsAvail(state?.appData?.versions?.echoDevice?.ver, state?.codeVersions?.echoDevice, "dev")) }
+Boolean socketUpdAvail() { return (!isST() && state?.appData?.versions && state?.codeVersions?.wsDevice && codeUpdIsAvail(state?.appData?.versions?.wsDevice?.ver, state?.codeVersions?.wsDevice, "socket")) }
+Boolean serverUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.server && codeUpdIsAvail(state?.appData?.versions?.server?.ver, state?.codeVersions?.server, "server")) }
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 
 private checkVersionData(now = false) { //This reads a JSON file from GitHub with version numbers
-    if (now || !state?.appData || (getLastVerUpdSec() > (3600*6))) {
-        if(now && (getLastVerUpdSec() < 300)) { return }
+    def lastUpd = getLastTsValSecs("lastAppDataUpdDt")
+    if (now || !state?.appData || (lastUpd > (3600*6))) {
+        if(now && (lastUpd < 300)) { return }
         getConfigData()
         getNoticeData()
     }
@@ -2978,7 +3122,7 @@ private getConfigData() {
     def data = getWebData(params, "appData", false)
     if(data) {
         state?.appData = data
-        state?.lastVerUpdDt = getDtNow()
+        updTsVal("lastAppDataUpdDt")
         logDebug("Successfully Retrieved (v${data?.appDataVer}) of AppData Content from GitHub Repo...")
     }
 }
@@ -3020,28 +3164,44 @@ private getWebData(params, desc, text=true) {
 private getDiagDataJson() {
     try {
         updChildVers()
+        def echoDevs = getEsDevices()
         def actApps = getActionApps()
-        def childDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+        def zoneApps = getZoneApps()
+        def wsDev = getSocketDevice()
         List appWarnings = []
         List appErrors = []
         List devWarnings = []
         List devErrors = []
+        List sockWarnings = []
+        List sockErrors = []
         List devSpeech = []
         List actWarnings = []
         List actErrors = []
+        List zoneWarnings = []
+        List zoneErrors = []
         def ah = getLogHistory()
         if(ah?.warnings?.size()) { appWarnings = appWarnings + ah?.warnings }
         if(ah?.errors?.size()) { appErrors = appErrors + ah?.errors }
-        childDevs?.each { dev->
+        echoDevs?.each { dev->
             def h = dev?.getLogHistory()
             if(h?.warnings?.size()) { devWarnings = devWarnings + h?.warnings }
             if(h?.errors?.size()) { devErrors = devErrors + h?.errors }
             if(h?.speech?.size()) { devSpeech = devSpeech + h?.speech }
         }
+        if(wsDev) {
+            def h = dev?.getLogHistory()
+            if(h?.warnings?.size()) { sockWarnings = sockWarnings + h?.warnings }
+            if(h?.errors?.size()) { sockErrors = sockErrors + h?.errors }
+        }
         actApps?.each { act->
             def h = act?.getLogHistory()
             if(h?.warnings?.size()) { actWarnings = actWarnings + h?.warnings }
             if(h?.errors?.size()) { actErrors = actErrors + h?.errors }
+        }
+        zoneApps?.each { zn->
+            def h = zn?.getLogHistory()
+            if(h?.warnings?.size()) { zoneWarnings = zoneWarnings + h?.warnings }
+            if(h?.errors?.size()) { zoneErrors = zoneErrors + h?.errors }
         }
         Map output = [
             diagDt: getDtNow()?.toString(),
@@ -3050,7 +3210,8 @@ private getDiagDataJson() {
                 installed: state?.installData?.dt,
                 updated: state?.installData?.updatedDt,
                 timeZone: location?.timeZone?.ID?.toString(),
-                lastVersionUpdDt: state?.lastVerUpdDt,
+                lastVersionUpdDt: getTsVal("lastAppDataUpdDt"),
+                config: state?.appData?.appDataVer ?: null,
                 flags: [
                     pollBlocked: (state?.pollBlocked == true),
                     resumeConfig: state?.resumeConfig,
@@ -3082,23 +3243,40 @@ private getDiagDataJson() {
                 warnings: actWarnings,
                 errors: actErrors
             ],
+            zoness: [
+                version: state?.codeVersions?.zoneApp ?: null,
+                count: zoneApps?.size() ?: 0,
+                warnings: zoneWarnings,
+                errors: zoneErrors
+            ],
             devices: [
                 version: state?.codeVersions?.echoDevice ?: null,
-                count: childDevs?.size() ?: 0,
-                lastDataUpdDt: state?.lastDevDataUpd,
+                count: echoDevs?.size() ?: 0,
+                lastDataUpdDt: updTsVal("lastDevDataUpdDt"),
                 models: state?.deviceStyleCnts ?: [:],
                 warnings: devWarnings,
                 errors: devErrors,
                 speech: devSpeech
             ],
-            hubPlatform: getPlatform(),
+            socket: [
+                version: state?.codeVersions?.wsDevice ?: null,
+                warnings: sockWarnings,
+                errors: sockErrors,
+                active: state?.websocketActive,
+                lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
+            ],
+            hub: [
+                platform: getPlatform(),
+                firmware: location?.hubs[0]?.getFirmwareVersionString() ?: null,
+                type: location?.hubs[0]?.getType() ?: null
+            ],
             authStatus: [
                 cookieValidationState: (state?.authValid == true),
-                cookieValidDate: state?.lastCookieChkDt ?: null,
-                cookieValidDur: state?.lastCookieChkDt ? seconds2Duration(getLastCookieChkSec()) : null,
+                cookieValidDate: getTsVal("lastCookieChkDt") ?: null,
+                cookieValidDur: getTsVal("lastCookieChkDt") ? seconds2Duration(getLastTsValSecs("lastCookieChkDt")) : null,
                 cookieValidHistory: state?.authValidHistory,
-                cookieLastRefreshDate: state?.lastCookieRefresh ?: null,
-                cookieLastRefreshDur: state?.lastCookieRefresh ? seconds2Duration(getLastCookieRefreshSec()) : null,
+                cookieLastRefreshDate: getTsVal("lastCookieRrshDt") ?: null,
+                cookieLastRefreshDur: getTsVal("lastCookieRrshDt") ? seconds2Duration(getLastTsValSecs("lastCookieRrshDt")) : null,
                 cookieInvalidReason: (state?.authValid != true && state.authEvtClearReason) ? state?.authEvtClearReason : null,
                 cookieRefreshDays: settings?.refreshCookieDays,
                 cookieItems: [
@@ -3119,20 +3297,20 @@ private getDiagDataJson() {
                 supported: state?.alexaGuardSupported,
                 status: state?.alexaGuardState,
                 dataSrc: state?.guardDataSrc,
-                lastSupportCheck: state?.lastGuardSupportCheck,
-                lastStateCheck: state?.lastGuardStateCheck,
-                lastStateUpd: state?.lastGuardStateUpd,
+                lastSupportCheck: getTsVal("lastGuardSupChkDt"),
+                lastStateCheck: getTsVal("lastGuardStateChkDt"),
+                lastStateUpd: getTsVal("lastGuardStateUpdDt"),
                 stRespLimit: (state?.guardDataOverMaxSize == true)
             ],
             server: [
                 version: state?.codeVersions?.server ?: null,
                 amazonDomain: settings?.amazonDomain,
                 amazonLocale: settings?.regionLocale,
-                lastServerWakeDt: state?.lastServerWakeDt,
-                lastServerWakeDur: state?.lastServerWakeDt ? seconds2Duration(getLastServerWakeSec()) : null,
-                serverPlatform: state?.onHeroku ? "Cloud" : "Local",
+                lastServerWakeDt: getTsVal("lastServerWakeDt"),
+                lastServerWakeDur: getTsVal("lastServerWakeDt") ? seconds2Duration(getLastTsValSecs("lastServerWakeDt")) : null,
+                serverPlatform: getServerItem("onHeroku") ? "Cloud" : "Local",
                 hostUrl: getServerHostURL(),
-                randomName: state?.generatedHerokuName
+                randomName: getRandAppName()
             ],
             versionChecks: [
                 minVersionUpdates: getMinVerUpdsRequired(),
@@ -3235,7 +3413,7 @@ def execDiagCmds() {
                 break
         }
     }
-    def json = new JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersion()])
+    def json = new groovy.json.JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersion()])
     render contentType: "application/json", data: json, status: 200
 }
 
@@ -3244,13 +3422,13 @@ def execDiagCmds() {
 |    Time and Date Conversion Functions
 *******************************************/
 def formatDt(dt, tzChg=true) {
-    def tf = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
+    def tf = new java.text.SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
     return tf?.format(dt)
 }
 
 String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
-String isPluralString(obj) { return (obj?.size() > 1) ? "(s)" : "" }
+String pluralizeStr(obj, para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : "" }
 String pluralize(itemVal, str) { return (itemVal?.toInteger() > 1) ? "${str}s" : str }
 
 def parseDt(pFormat, dt, tzFmt=true) {
@@ -3261,7 +3439,7 @@ def parseDt(pFormat, dt, tzFmt=true) {
 
 def parseFmtDt(parseFmt, newFmt, dt) {
     def newDt = Date.parse(parseFmt, dt?.toString())
-    def tf = new SimpleDateFormat(newFmt)
+    def tf = new java.text.SimpleDateFormat(newFmt)
     if(location.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf?.format(newDt)
 }
@@ -3272,7 +3450,7 @@ def getDtNow() {
 }
 
 def epochToTime(tm) {
-    def tf = new SimpleDateFormat("h:mm a")
+    def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
     return tf.format(tm)
 }
@@ -3320,14 +3498,162 @@ private seconds2Duration(Integer timeSec, postfix=true, tk=2, asMap=false) {
 
 private nextCookieRefreshDur() {
     Integer days = settings?.refreshCookieDays ?: 5
-    if(!state?.lastCookieRefresh) { return "Not Sure"}
+    def lastCookieRfsh = getTsVal("lastCookieRrshDt")
+    if(!lastCookieRfsh) { return "Not Sure"}
     Date now = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", getDtNow())))
-    Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", state?.lastCookieRefresh)))
+    Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", lastCookieRfsh)))
     Date nextDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt + days))
     def diff = ((long) (nextDt?.getTime() - now?.getTime()) / 1000) as Integer
     def dur = seconds2Duration(diff, false, 3)
     // log.debug "now: ${now} | lastDt: ${lastDt} | nextDt: ${nextDt} | Days: $days | Wait: $diff | Dur: ${dur}"
     return dur
+}
+List weekDaysEnum() {
+    return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+}
+
+List monthEnum() {
+    return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+}
+
+/******************************************
+|   App Helper Utilites
+*******************************************/
+
+private updInstData(key, val) {
+    Map iData = atomicState?.installData
+    iData[key] = val
+    atomicState?.installData = iData
+}
+
+private getInstData(key) {
+    def iMap = atomicState?.installData
+    if(val && iMap && iMap[val]) { return iMap[val] }
+    return null
+}
+
+private updTsVal(key, dt=null) {
+    def data = atomicState?.tsDtMap ?: [:]
+    if(key) { data[key] = dt ?: getDtNow() }
+    atomicState?.tsDtMap = data
+}
+
+private remTsVal(key) {
+    def data = atomicState?.tsDtMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.tsDtMap = data
+    }
+}
+
+def getTsVal(val) {
+    def tsMap = atomicState?.tsDtMap
+    if(val && tsMap && tsMap[val]) { return tsMap[val] }
+    return null
+}
+
+private updServerItem(key, val) {
+    def data = atomicState?.serverDataMap ?: [:]
+    if(key) { data[key] = val }
+    atomicState?.serverDataMap = data
+}
+
+private remServerItem(key) {
+    def data = atomicState?.serverDataMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.serverDataMap = data
+    }
+}
+
+def getServerItem(val) {
+    def sMap = atomicState?.serverDataMap
+    if(val && sMap && sMap[val]) { return sMap[val] }
+    return null
+}
+
+private updAppFlag(key, val) {
+    def data = atomicState?.appFlagsMap ?: [:]
+    if(key) { data[key] = val }
+    atomicState?.appFlagsMap = data
+}
+
+private remAppFlag(key) {
+    def data = atomicState?.appFlagsMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.appFlagsMap = data
+    }
+}
+
+Boolean getAppFlag(val) {
+    def aMap = atomicState?.appFlagsMap
+    if(val && aMap && aMap[val]) { return aMap[val] }
+    return false
+}
+
+private stateMapMigration() {
+    //Timestamp State Migrations
+    Map tsItems = [
+        "musicProviderUpdDt":"musicProviderUpdDt", "lastCookieChkDt":"lastCookieChkDt", "lastServerWakeDt":"lastServerWakeDt", "lastChildInitRefreshDt":"lastChildInitRefreshDt",
+        "lastCookieRefresh":"lastCookieRrshDt", "lastVerUpdDt":"lastAppDataUpdDt", "lastGuardSupportCheck":"lastGuardSupChkDt", "lastGuardStateUpd":"lastGuardStateUpdDt",
+        "lastGuardStateCheck":"lastGuardStateChkDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt", "lastMisPollMsgDt":"lastMissedPollMsgDt",
+        "lastUpdMsgDt":"lastUpdMsgDt", "lastMsgDt":"lastMsgDt"
+    ]
+    tsItems?.each { k, v-> if(state?.containsKey(k)) { updTsVal(v as String, state[k as String]); state?.remove(k as String); } }
+
+    //App Flag Migrations
+    Map flagItems = [:]
+    flagItems?.each { k, v-> if(state?.containsKey(k)) { updAppFlag(v as String, state[k as String]); state?.remove(k as String); } }
+
+    //Server Data Migrations
+    Map servItems = ["onHeroku":"onHeroku", "serverHost":"serverHost", "isLocal":"isLocal"]
+    servItems?.each { k, v-> if(state?.containsKey(k)) { updServerItem(v as String, state[k as String]); state?.remove(k as String); } }
+    if(state?.generatedHerokuName) { state?.herokuName = state?.generatedHerokuName; state?.remove("generatedHerokuName") }
+    updAppFlag("stateMapConverted", true)
+}
+
+Integer getLastTsValSecs(val, nullVal=1000000) {
+    def tsMap = atomicState?.tsDtMap
+    return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : nullVal
+}
+
+void settingUpdate(name, value, type=null) {
+    if(name && type) {
+        app?.updateSetting("$name", [type: "$type", value: value])
+    }
+    else if (name && type == null){ app?.updateSetting(name.toString(), value) }
+}
+
+void settingRemove(String name) {
+    logTrace("settingRemove($name)...")
+    if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
+}
+
+private updCodeVerMap(key, val) {
+    Map cv = atomicState?.codeVersions ?: [:]
+    if(val && (!cv.containsKey(key) || (cv?.containsKey(key) && cv[key] != val))) { cv[key as String] = val }
+    if (cv?.containsKey(key) && val == null) { cv?.remove(key) }
+    atomicState?.codeVersions = cv
+}
+
+private cleanUpdVerMap() {
+    Map cv = atomicState?.codeVersions ?: [:]
+    def ri = ["groupApp"]
+    cv?.each { k, v-> if(v == null) ri?.push(k) }
+    ri?.each { cv?.remove(it) }
+    atomicState?.codeVersions = cv
+}
+
+String getRandAppName() {
+    if(!state?.herokuName && (!getServerItem("isLocal") && !getServerItem("serverHost"))) { state?.herokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(8)}"?.toLowerCase() }
+    return state?.herokuName as String
 }
 
 /******************************************
@@ -3337,19 +3663,24 @@ String getAppNotifConfDesc() {
     String str = ""
     if(pushStatus()) {
         def ap = getAppNotifDesc()
-        def nd = getNotifSchedDesc()
+        def nd = getNotifSchedDesc(true)
         str += (settings?.usePush) ? bulletItem(str, "Sending via: (Push)") : ""
         str += (settings?.pushoverEnabled) ? bulletItem(str, "Pushover: (Enabled)") : ""
         // str += (settings?.pushoverEnabled && settings?.pushoverPriority) ? bulletItem(str, "Priority: (${settings?.pushoverPriority})") : ""
         // str += (settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : ""
         str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : ""
         str += (ap) ? "${str != "" ? "\n\n" : ""}Enabled Alerts:\n${ap}" : ""
-        str += (ap && nd) ? "${str != "" ? "\n" : ""}\nAlert Restrictions:\n${nd}" : ""
+        str += (ap && nd) ? "${str != "" ? "\n" : ""}\nQuiet Restrictions:\n${nd}" : ""
     }
     return str != "" ? str : null
 }
+List getQuietDays() {
+    List allDays = weekDaysEnum()
+    List curDays = settings?.quietDays ?: []
+    return allDays?.findAll { (!curDays?.contains(it as String)) }
+}
 
-String getNotifSchedDesc() {
+String getNotifSchedDesc(min=false) {
     def sun = getSunriseAndSunset()
     def startInput = settings?.qStartInput
     def startTime = settings?.qStartTime
@@ -3360,31 +3691,32 @@ String getNotifSchedDesc() {
     def notifDesc = ""
     def getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
     def getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
-    notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Silent Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl}" : ""
+    notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl}" : ""
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
-    notifDesc += days ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl) ? "\n" : ""} • Silent Day${isPluralString(dayInput)}: ${days}" : ""
-    notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || days) ? "\n" : ""} • Silent Mode${isPluralString(modeInput)}: ${modes}" : ""
+    def qDays = getQuietDays()
+    notifDesc += days ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl) ? "\n" : ""} • Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
+    notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || days) ? "\n" : ""} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
     return (notifDesc != "") ? "${notifDesc}" : null
 }
 
 String getServiceConfDesc() {
     String str = ""
-    str += (state?.generatedHerokuName && state?.onHeroku) ? "Heroku: (Configured)\n" : ""
-    str += (state?.serviceConfigured && state?.isLocal) ? "Local Server: (Configured)\n" : ""
+    str += (state?.herokuName && getServerItem("onHeroku")) ? "Heroku: (Configured)\n" : ""
+    str += (state?.serviceConfigured && getServerItem("isLocal")) ? "Local Server: (Configured)\n" : ""
     str += (settings?.amazonDomain) ? "Domain: (${settings?.amazonDomain})" : ""
     return str != "" ? str : null
 }
 
 String getLoginStatusDesc() {
     def s = "Login Status: (${state?.authValid ? "Valid" : "Invalid"})"
-    s += (state?.lastCookieRefresh) ? "\nCookie Updated:\n(${seconds2Duration(getLastCookieRefreshSec())})" : ""
+    s += (getTsVal("lastCookieRrshDt")) ? "\nCookie Updated:\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})" : ""
     return s
 }
 
 String getAppNotifDesc() {
     def str = ""
-    str += settings?.sendMissedPollMsg != false ? bulletItem(str, "Missed Poll Alerts") : ""
+    str += settings?.sendMissedPollMsg != false ? bulletItem(str, "Missed Polls") : ""
     str += settings?.sendAppUpdateMsg != false ? bulletItem(str, "Code Updates") : ""
     str += settings?.sendCookieRefreshMsg == true ? bulletItem(str, "Cookie Refresh") : ""
     return str != "" ? str : null
@@ -3397,38 +3729,20 @@ String getActionsDesc() {
     String str = ""
     str += active?.size() ? "(${active?.size()}) Active\n" : ""
     str += paused?.size() ? "(${paused?.size()}) Paused\n" : ""
-    str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to configure"
+    str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to create actions using device/location events to perform advanced actions using your Alexa devices."
     return str
 }
 
 String getZoneDesc() {
     def zones = getZoneApps()
+    def actZones = getActiveZoneNames()?.sort()?.collect { "\u2022 ${it}" }
+    def paused = zones?.findAll { it?.isPaused() == true }
+    def active = zones?.findAll { it?.isPaused() != true }
     String str = ""
+    str += actZones?.size() ? "Active Zones:\n${actZones?.join("\n")}\n" : ""
+    str += paused?.size() ? "(${paused?.size()}) Paused\n" : ""
+    str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to create alexa device zones based on motion, presence, and other criteria."
     return str
-}
-
-String getServInfoDesc() {
-    Map rData = state?.nodeServiceInfo
-    String str = ""
-    String dtstr = ""
-    if(rData?.startupDt) {
-        def dt = rData?.startupDt
-        dtstr += dt?.y ? "${dt?.y}yr${dt?.y > 1 ? "s" : ""}, " : ""
-        dtstr += dt?.mn ? "${dt?.mn}mon${dt?.mn > 1 ? "s" : ""}, " : ""
-        dtstr += dt?.d ? "${dt?.d}day${dt?.d > 1 ? "s" : ""}, " : ""
-        dtstr += dt?.h ? "${dt?.h}hr${dt?.h > 1 ? "s" : ""} " : ""
-        dtstr += dt?.m ? "${dt?.m}min${dt?.m > 1 ? "s" : ""} " : ""
-        dtstr += dt?.s ? "${dt?.s}sec" : ""
-    }
-    if(state?.onHeroku) {
-        str += " ├ App Name: (${state?.generatedHerokuName})\n"
-    }
-    str += " ├ IP: (${rData?.ip})"
-    str += "\n ├ Port: (${rData?.port})"
-    str += "\n ├ Version: (v${rData?.version})"
-    str += "\n ${dtstr != "" ? "├" : "└"} Session Events: (${rData?.sessionEvts})"
-    str += dtstr != "" ? "\n └ Uptime: ${dtstr.length() > 20 ? "\n     └ ${dtstr}" : "${dtstr}"}" : ""
-    return str != "" ? str : null
 }
 
 String getInputToStringDesc(inpt, addSpace = null) {
@@ -3449,10 +3763,11 @@ def appInfoSect()	{
     String str = ""
     Boolean isNote = false
     if(codeVer && (codeVer?.server || codeVer?.actionApp || codeVer?.echoDevice)) {
-        str += (codeVer && codeVer?.actionApp) ? bulletItem(str, "Actions: (v${codeVer?.actionApp})") : ""
+        str += (codeVer && codeVer?.actionApp) ? bulletItem(str, "Action: (v${codeVer?.actionApp})") : ""
+        str += (codeVer && codeVer?.zoneApp) ? bulletItem(str, "Zone: (v${codeVer?.zoneApp})") : ""
         str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
+        str += (!isST() && codeVer && codeVer?.wsDevice) ? bulletItem(str, "Socket: (v${codeVer?.wsDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
-        str += (state?.appData && state?.appData?.appDataVer) ? bulletItem(str, "Config: (v${state?.appData?.appDataVer})") : ""
     }
     section() {
         href "changeLogPage", title: inTS("${app?.name} (v${appVersion()})", getAppImg("echo_speaks_3.2x", true), null, false), description: str, image: getAppImg("echo_speaks_3.2x")
@@ -3481,8 +3796,7 @@ def appInfoSect()	{
             if(showDocs) { updateDocsInput() }
             if(!state?.authValid && !state?.resumeConfig) { isNote = true; paragraph pTS("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", null, false, "red"), required: true, state: null }
             if(state?.noticeData && state?.noticeData?.notices && state?.noticeData?.notices?.size()) {
-                isNote = true
-                state?.noticeData?.notices?.each { item-> paragraph pTS(bulletItem(str, item), null, false, "red"), required: true, state: null }
+                isNote = true; state?.noticeData?.notices?.each { item-> paragraph pTS(bulletItem(str, item), null, false, "red"), required: true, state: null; };
             }
             if(remDevs?.size()) {
                 isNote = true
@@ -3621,11 +3935,10 @@ def renderTextEditPage() {
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <meta http-equiv="x-ua-compatible" content="ie=edge">
-                <title>Echo Speak Text Entry</title>
-                <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
+                <title>Echo Speak Response Designer</title>
                 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
                 <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
-                <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/css/mdb.min.css" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mdbootstrap@4.8.10/css/mdb.min.css" integrity="sha256-iNGvtX88EOpA/u8LtFgUkDiIsoBSwI+GbErXYrSzpuA=" crossorigin="anonymous">
                 <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet">
                 <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/theme/material.min.css" rel="stylesheet">
                 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vanillatoasts@1.3.0/vanillatoasts.css" integrity="sha256-U06o/6s4HELYo2A3Gd7KPGQMojQiAxY9B8oE/hnM3KU=" crossorigin="anonymous">
@@ -3655,6 +3968,7 @@ def renderTextEditPage() {
             </head>
             <body class="m-2">
                 <div class="p-3"><button type="button" class="close" aria-label="Close" onclick="window.open('','_parent',''); window.close();"><span aria-hidden="true">×</span></button></div>
+                <div style="float: left; clear:both;position: fixed; top: 0px;"><small>v${inData?.version}</small></div>
                 <div class="w-100 pt-0">
                     <form>
                         <div class="container px-0">
@@ -3832,8 +4146,8 @@ def renderTextEditPage() {
                         </div>
                     </form>
                 </div>
-                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/vanillatoasts@1.3.0/vanillatoasts.min.js"></script>
+                <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mdbootstrap@4.8.10/js/mdb.min.js" integrity="sha256-wH71T2mMsoF6NEYmAPxpPvUbgALoVRlZRHlMlCQpOnk=" crossorigin="anonymous"></script>
+                <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/vanillatoasts@1.3.0/vanillatoasts.min.js"></script>
                 <script>
                     let inName = '${inName}';
                     let actId = '${actId}'
@@ -3947,7 +4261,7 @@ def renderTextEditPage() {
                                         title: 'Echo Speaks Actions',
                                         text: 'Responses saved successfully!',
                                         type: 'success',
-                                        icon: 'https://github.com/tonesto7/echo-speaks/raw/master/resources/icons/echo_speaks_3.1x.png',
+                                        icon: "data:image/png;base64,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",
                                         timeout: 4500,
                                         callback: function() { this.hide() }
                                     });
@@ -4164,7 +4478,7 @@ def textEditProcessing() {
     def resp = request?.JSON ?: null
     def actApp = getTextEditChild(actId)
     Boolean status = (actApp && actApp?.updateTxtEntry(resp))
-    def json = new JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersion()])
+    def json = new groovy.json.JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersion()])
     render contentType: "application/json", data: json, status: 200
 }
 
@@ -4198,17 +4512,8 @@ String getObjType(obj) {
     else { return "unknown"}
 }
 
-private Map amazonDomainOpts() {
-    return [
-        "amazon.com":"Amazon.com",
-        "amazon.ca":"Amazon.ca",
-        "amazon.co.uk":"amazon.co.uk",
-        "amazon.com.au":"amazon.com.au",
-        "amazon.de":"Amazon.de",
-        "amazon.it":"Amazon.it"
-    ]
-}
-private List localeOpts() { return ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU"] }
+private List amazonDomainOpts() { return ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br"] }
+private List localeOpts() { return ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR"] }
 
 private getPlatform() {
     def p = "SmartThings"
@@ -4316,9 +4621,6 @@ public JsonElementsParser(root) {
 
 Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
-// String debugStatus() { return (!settings?.appDebug) ? "Off" : "On" }
-String deviceDebugStatus() { return !settings?.childDebug ? "Off" : "On" }
-Boolean isChildDebug() { return (settings?.childDebug == true) }
 
 List logLevels() {
     List lItems = ["logInfo", "logWarn", "logDebug", "logError", "logTrace"]
@@ -4329,8 +4631,6 @@ String getAppDebugDesc() {
     def ll = logLevels()
     def str = ""
     str += ll?.size() ? "App Log Levels: (${ll?.join(", ")})" : ""
-    str += isChildDebug() && str != "" ? "\n" : ""
-    str += isChildDebug() ? "Device Debug: (${deviceDebugStatus()})" : ""
     return (str != "") ? "${str}" : null
 }
 
@@ -4339,8 +4639,8 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
     List eData = atomicState[logKey as String] ?: []
     if(eData?.find { it?.message == msg }) { return; }
     eData?.push([dt: getDtNow(), message: msg])
-	if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
-	atomicState[logKey as String] = eData
+    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+    atomicState[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
 private logInfo(msg) { if(settings?.logInfo != false) {  log.info " EchoApp (v${appVersion()}) | ${msg}" } }
