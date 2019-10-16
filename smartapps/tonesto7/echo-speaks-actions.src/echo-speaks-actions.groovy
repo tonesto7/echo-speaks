@@ -21,9 +21,6 @@ Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 // TODO: Finish Condition and/or logic in the description text
-// TODO: Reorder Zones above echo devices when used in description
-
-// TODO: Finish the button trigger logic
 // TODO: Add Lock Code triggers
 definition(
     name: "Echo Speaks - Actions",
@@ -1546,12 +1543,35 @@ private actionCleanup() {
     }
 
     // Cleanup Unused Schedule Trigger Items
-    //TODO: SCHEDULE CLEANUPS
+    if(!settings?.trig_scheduled_type) {
+        setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_recurrence", "trig_scheduled_sunState", "trig_scheduled_sunState_offset", "trig_scheduled_time", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
+    } else {
+        switch(settings?.trig_scheduled_type) {
+            case "One-Time":
+            case "Sunrise":
+            case "Sunset":
+                setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_recurrence", "trig_scheduled_sunState", "trig_scheduled_sunState_offset", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
+                break
+            case "Recurring":
+                switch(settings?.trig_scheduled_recurrence) {
+                    case "Daily":
+                        setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_recurrence", "trig_scheduled_sunState", "trig_scheduled_sunState_offset", "trig_scheduled_weeks"]
+                        break
+                    case "Weekly":
+                        setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_recurrence", "trig_scheduled_sunState", "trig_scheduled_sunState_offset"]
+                        break
+                    case "Monthly":
+                        setItems = setItems + ["trig_scheduled_recurrence", "trig_scheduled_sunState", "trig_scheduled_sunState_offset", "trig_scheduled_weekdays"]
+                        break
+                }
+                break
+        }
+    }
 
-    // log.debug "setItems: $setItems"
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     // Performs the Setting Removal
-    // setItems = setItems + ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
+    setItems = setItems + ["tuneinSearchQuery", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
+    log.debug "setItems: $setItems"
     setItems?.unique()?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
@@ -3405,6 +3425,7 @@ String getConditionsDesc() {
     String sPre = "cond_"
     if(confd) {
         String str = "Conditions: (${(conditionStatus()?.ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
+        str += settings?.cond_require_all ? " \u2022 Any Condition Allowed" : " \u2022 All Conditions Required"
         if(timeCondConfigured()) {
             str += " • Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
