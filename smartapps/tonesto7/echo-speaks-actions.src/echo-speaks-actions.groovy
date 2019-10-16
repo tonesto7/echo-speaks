@@ -2985,7 +2985,7 @@ public Map getActionMetrics() {
     out?.triggers = settings?.triggerEvents ?: []
     out?.echoZones = settings?.act_EchoZones ?: []
     out?.echoDevices = settings?.act_EchoDevices ?: []
-    out?.usingCustomText = (settings?.customTxtItems()?.size())
+    out?.usingCustomText = (customTxtItems()?.size())
     Integer tDevCnt = 0
     settings?.triggerEvents?.each { if(settings?."trig_${it}" && settings?."trig_${it}"?.size()) { tDevCnt = tDevCnt+settings?."trig_${it}"?.size() } }
     out?.triggerDeviceCnt = tDevCnt

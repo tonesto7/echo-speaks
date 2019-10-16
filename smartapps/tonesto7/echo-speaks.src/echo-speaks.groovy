@@ -3031,10 +3031,12 @@ private createMetricsDataJson(rendAsMap=false) {
             if(obj?.usage?.size()) { obj?.usage?.each { k,v-> deviceUsageMap[k as String] = (deviceUsageMap[k as String] ? deviceUsageMap[k as String] + v : v) } }
             if(obj?.errors?.size()) { obj?.errors?.each { k,v-> deviceErrorMap[k as String] = (deviceErrorMap[k as String] ? deviceErrorMap[k as String] + v : v) } }
         }
-        List actData = []
-        getActionApps()?.each { a-> actData?.push(a?.getActionMetrics()) }
-        List zoneData = []
-        getZoneApps()?.each { a-> zoneData?.push(a?.getZoneMetrics()) }
+        Map actData = [:]
+        def actCnt = 0
+        getActionApps()?.each { a-> actData[actCnt] = a?.getActionMetrics(); actCnt++ }
+        Map zoneData = [:]
+        def zoneCnt = 0
+        getZoneApps()?.each { a-> zoneData[zoneCnt] = a?.getZoneMetrics(); zoneCnt++ }
         Map dataObj = [
             guid: state?.appGuid,
             datetime: getDtNow()?.toString(),

@@ -923,7 +923,7 @@ String getAlarmSystemName(abbr=false) {
     return isST() ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 
-public Map getActionMetrics() {
+public Map getZoneMetrics() {
     Map out = [:]
     out?.version = appVersion()
     out?.activeDelay = settings?.zone_active_delay ?: 0
