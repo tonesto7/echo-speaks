@@ -20,7 +20,6 @@ String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
-// TODO: Finish Condition and/or logic in the description text
 // TODO: Add Lock Code triggers
 definition(
     name: "Echo Speaks - Actions",
@@ -299,15 +298,16 @@ def triggersPage() {
                                                 break
 
                                             case "Monthly":
-                                                input "trig_scheduled_daynums", "enum", title: inTS("Days of the Month?", getAppImg("day_calendar", true)), description: (!!settings?.trig_scheduled_weeks ? "(Optional)" : ""), multiple: true, required: (!settings?.trig_scheduled_weeks), submitOnChange: true, options: (1..31), image: getAppImg("day_calendar")
-                                                input "trig_scheduled_weeks", "enum", title: inTS("Weeks of the Month?", getAppImg("day_calendar", true)), description: (!!settings?.trig_scheduled_daynums ? "(Optional)" : ""), multiple: true, required: (!settings?.trig_scheduled_daynums), submitOnChange: true, options: weeksOfMonthMap(), image: getAppImg("day_calendar")
+                                                input "trig_scheduled_daynums", "enum", title: inTS("Days of the Month?", getAppImg("day_calendar", true)), description: (!settings?.trig_scheduled_weeks ? "(Optional)" : ""), multiple: true, required: (!settings?.trig_scheduled_weeks), submitOnChange: true, options: (1..31)?.collect { it as String }, image: getAppImg("day_calendar")
+                                                if(!settings?.trig_scheduled_daynums) {
+                                                    input "trig_scheduled_weeks", "enum", title: inTS("Weeks of the Month?", getAppImg("day_calendar", true)), description: (!settings?.trig_scheduled_daynums ? "(Optional)" : ""), multiple: true, required: (!settings?.trig_scheduled_daynums), submitOnChange: true, options: weeksOfMonthMap(), image: getAppImg("day_calendar")
+                                                }
                                                 input "trig_scheduled_months", "enum", title: inTS("Only on these Months?", getAppImg("day_calendar", true)), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: monthMap(), image: getAppImg("day_calendar")
                                                 break
                                         }
                                     }
                                 }
                                 break
-
                             case "Sunrise":
                             case "Sunset":
                                 input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset ${schedType} this number of minutes (+/-)", getAppImg(schedType?.toLowerCase(), true)), required: true, image: getAppImg(schedType?.toLowerCase() + "")
@@ -639,7 +639,7 @@ Boolean sensorTriggers() {
 }
 
 Boolean triggersConfigured() {
-    Boolean sched = scheduleTriggers()
+    Boolean sched = schedulesConfigured()
     Boolean loc = locationTriggers()
     Boolean dev = deviceTriggers()
     Boolean sen = sensorTriggers()
@@ -1543,25 +1543,28 @@ private actionCleanup() {
     }
 
     // Cleanup Unused Schedule Trigger Items
+    setItems = setItems + ["trig_scheduled_sunState", "trig_scheduled_sunState_offset",]
     if(!settings?.trig_scheduled_type) {
-        setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_recurrence", "trig_scheduled_sunState", "trig_scheduled_sunState_offset", "trig_scheduled_time", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
+        setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_type", "trig_scheduled_recurrence", "trig_scheduled_time", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
     } else {
         switch(settings?.trig_scheduled_type) {
             case "One-Time":
             case "Sunrise":
             case "Sunset":
-                setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_recurrence", "trig_scheduled_sunState", "trig_scheduled_sunState_offset", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
+                setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_recurrence", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
+                if(settings?.trig_scheduled_type in ["Sunset", "Sunrise"]) { setItems?.push("trig_scheduled_time") }
                 break
             case "Recurring":
                 switch(settings?.trig_scheduled_recurrence) {
                     case "Daily":
-                        setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_recurrence", "trig_scheduled_sunState", "trig_scheduled_sunState_offset", "trig_scheduled_weeks"]
+                        setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_weeks"]
                         break
                     case "Weekly":
-                        setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_recurrence", "trig_scheduled_sunState", "trig_scheduled_sunState_offset"]
+                        setItems?.push("trig_scheduled_daynums")
                         break
                     case "Monthly":
-                        setItems = setItems + ["trig_scheduled_recurrence", "trig_scheduled_sunState", "trig_scheduled_sunState_offset", "trig_scheduled_weekdays"]
+                        setItems?.push("trig_scheduled_weekdays")
+                        if(settings?.trig_scheduled_daynums && settings?.trig_scheduled_weeks) { setItems?.push("trig_scheduled_weeks") }
                         break
                 }
                 break
@@ -1571,7 +1574,7 @@ private actionCleanup() {
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     // Performs the Setting Removal
     setItems = setItems + ["tuneinSearchQuery", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
-    log.debug "setItems: $setItems"
+    // log.debug "setItems: $setItems"
     setItems?.unique()?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
@@ -1631,14 +1634,17 @@ String cronBuilder() {
     ****/
     String cron = null
     def time = settings?.trig_scheduled_time ?: null
+    List dayNums = settings?.trig_scheduled_daynums ? settings?.trig_scheduled_daynums?.collect { it as Integer }?.sort() : null
+    List weekNums = settings?.trig_scheduled_weeks ? settings?.trig_scheduled_weeks?.collect { it as Integer }?.sort() : null
+    List monthNums = settings?.trig_scheduled_months ? settings?.trig_scheduled_months?.collect { it as Integer }?.sort() : null
     if(time) {
         def hour = fmtTime(time, "HH") ?: "0"
         def minute = fmtTime(time, "mm") ?: "0"
         def second = "0" //fmtTime(time, "mm") ?: "0"
         def daysOfWeek = settings?.trig_scheduled_weekdays ? settings?.trig_scheduled_weekdays?.join(",") : null
-        def daysOfMonths = settings?.trig_scheduled_daynums?.size() ? (settings?.trig_scheduled_daynums?.size() > 1 ? "${settings?.trig_scheduled_daynums?.first()}-${settings?.trig_scheduled_daynums?.last()}" : settings?.trig_scheduled_daynums[0]) : null
-        def weeks = settings?.trig_scheduled_weeks ? settings?.trig_scheduled_weeks?.join(",") : null
-        def months = settings?.trig_scheduled_months ? settings?.trig_scheduled_months?.join(",") : null
+        def daysOfMonth = dayNums?.size() ? (dayNums?.size() > 1 ? "${dayNums?.first()}-${dayNums?.last()}" : dayNums[0]) : null
+        def weeks = (weekNums && !dayNums) ? weekNums?.join(",") : null
+        def months = monthNums ? monthNums?.sort()?.join(",") : null
         // log.debug "hour: ${hour} | m: ${minute} | s: ${second} | daysOfWeek: ${daysOfWeek} | daysOfMonth: ${daysOfMonth} | weeks: ${weeks} | months: ${months}"
         if(hour || minute || second) {
             List cItems = []
@@ -1656,10 +1662,10 @@ String cronBuilder() {
     return cron
 }
 
-Boolean scheduleTriggers() {
+Boolean schedulesConfigured() {
     if(settings?.trig_scheduled_type in ["Sunrise", "Sunset"]) { return true }
-    if(settings?.trig_scheduled_type == "One-Time" && settings?.trig_scheduled_time) { return true }
-    if(settings?.trig_scheduled_type == "Recurring" && settings?.trig_scheduled_time && settings?.trig_scheduled_recurrence) {
+    else if(settings?.trig_scheduled_type == "One-Time" && settings?.trig_scheduled_time) { return true }
+    else if(settings?.trig_scheduled_type == "Recurring" && settings?.trig_scheduled_time && settings?.trig_scheduled_recurrence) {
         if(settings?.trig_scheduled_recurrence == "Daily") { return true }
         else if (settings?.trig_scheduled_recurrence == "Weekly" && settings?.trig_scheduled_weekdays) { return true }
         else if (settings?.trig_scheduled_recurrence == "Monthly" && (settings?.trig_scheduled_daynums || settings?.trig_scheduled_weeks)) { return true }
@@ -1670,16 +1676,15 @@ Boolean scheduleTriggers() {
 private subscribeToEvts() {
     if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
-
     settings?.triggerEvents?.each { te->
         if(te == "scheduled" || settings?."trig_${te}") {
             switch (te as String) {
                 case "scheduled":
                     // Scheduled Trigger Events
-                    if (scheduleTriggers()) {
+                    if (schedulesConfigured()) {
                         if(settings?.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
                         else if(settings?.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
-                        else if(settings?.trig_scheduled_time) { schedule(cronBuilder() as String, "scheduleTrigEvt") }
+                        else if(settings?.trig_scheduled_type in ["One-Time", "Recurring"] && settings?.trig_scheduled_time) { schedule(cronBuilder() as String, "scheduleTrigEvt") }
                     }
                     break
                 case "guard":
