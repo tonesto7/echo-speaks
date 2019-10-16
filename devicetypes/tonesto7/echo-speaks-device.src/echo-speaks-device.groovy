@@ -92,6 +92,7 @@ metadata {
         command "sayWelcomeHome", ["number", "number"]
         // command "playCannedRandomTts", ["string", "number", "number"]
         // command "playCannedTts", ["string", "string", "number", "number"]
+        command "playAnnouncement", ["string", "number", "number"]
         command "playAnnouncement", ["string", "string", "number", "number"]
         command "playAnnouncementAll", ["string", "string"]
         command "playCalendarToday", ["number", "number"]
@@ -1837,7 +1838,18 @@ def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
     incrementCntByKey("use_cnt_playCannedRandomTTS")
 }
 
-def playAnnouncement(String msg, String title=null, volume=null, restoreVolume=null) {
+def playAnnouncement(String msg, volume=null, restoreVolume=null) {
+    if(isCommandTypeAllowed("announce")) {
+        if(volume != null) {
+            List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
+            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+            sendMultiSequenceCommand(seqs, "playAnnouncement")
+        } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
+        incrementCntByKey("use_cnt_announcement")
+    }
+}
+
+def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("announce")) {
         msg = "${title ? "${title}::" : ""}${msg}"
         if(volume != null) {
