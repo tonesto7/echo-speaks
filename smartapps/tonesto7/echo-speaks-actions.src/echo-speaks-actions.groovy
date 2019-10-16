@@ -111,7 +111,7 @@ private buildTriggerEnum() {
         // buildItems?.Location?.scene = "Scenes"
     }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power"]?.sort{ it?.value }
-    buildItems["Actionable Devices"] = ["lock":"Locks", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
+    buildItems["Actionable Devices"] = ["lock":"Locks", "button":"Buttons", "switch":"Outlets/Switches", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     if(isST()) {
@@ -417,6 +417,18 @@ def triggersPage() {
                 // }
             }
 
+            if (valTrigEvt("button")) {
+                section (sTS("Button Events"), hideable: true) {
+                    input "trig_button", "capability.button", title: inTS("Buttons", getAppImg("button", true)), required: !(settings?.trig_smoke), multiple: true, submitOnChange: true, image: getAppImg("button")
+                    if (settings?.trig_button) {
+                        input "trig_button_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["pushed", "held", "any"], required: true, submitOnChange: true, image: getAppImg("command")
+                        if(settings?.trig_button_cmd) {
+                            triggerVariableDesc("button", false, trigItemCnt++)
+                        }
+                    }
+                }
+            }
+
             if (valTrigEvt("temperature")) {
                 trigNumValSect("temperature", "temperatureMeasurement", "Temperature Sensor", "Temperature Sensors", "Temperature", "temperature", trigItemCnt++)
             }
@@ -437,7 +449,7 @@ def triggersPage() {
                 section (sTS("Carbon Monoxide Events"), hideable: true) {
                     input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: inTS("Carbon Monoxide Sensors", getAppImg("co", true)), required: !(settings?.trig_smoke), multiple: true, submitOnChange: true, image: getAppImg("co")
                     if (settings?.trig_carbonMonoxide) {
-                        input "trig_carbonMonoxide_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["detected", "clear", "any"], required: false, submitOnChange: true, image: getAppImg("command")
+                        input "trig_carbonMonoxide_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["detected", "clear", "any"], required: true, submitOnChange: true, image: getAppImg("command")
                         if(settings?.trig_carbonMonoxide_cmd) {
                             if (settings?.trig_carbonMonoxide?.size() > 1 && settings?.trig_carbonMonoxide_cmd != "any") {
                                 input "trig_carbonMonoxide_all", "bool", title: inTS("Require ALL Smoke Detectors to be (${settings?.trig_carbonMonoxide_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
@@ -452,7 +464,7 @@ def triggersPage() {
                 section (sTS("Smoke Events"), hideable: true) {
                     input "trig_smoke", "capability.smokeDetector", title: inTS("Smoke Detectors", getAppImg("smoke", true)), required: !(settings?.trig_carbonMonoxide), multiple: true, submitOnChange: true, image: getAppImg("smoke")
                     if (settings?.trig_smoke) {
-                        input "trig_smoke_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["detected", "clear", "any"], required: false, submitOnChange: true, image: getAppImg("command")
+                        input "trig_smoke_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["detected", "clear", "any"], required: true, submitOnChange: true, image: getAppImg("command")
                         if(settings?.trig_smoke_cmd) {
                             if (settings?.trig_smoke?.size() > 1 && settings?.trig_smoke_cmd != "any") {
                                 input "trig_smoke_all", "bool", title: inTS("Require ALL Smoke Detectors to be (${settings?.trig_smoke_cmd})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
@@ -594,9 +606,11 @@ Boolean locationTriggers() {
 }
 
 Boolean deviceTriggers() {
-    return (settings?.trig_Buttons || (settings?.trig_shade && settings?.trig_shade_cmd) || (settings?.trig_door && settings?.trig_door_cmd) || (settings?.trig_valve && settings?.trig_valve_cmd) ||
-            (settings?.trig_switch && settings?.trig_switch_cmd) || (settings?.trig_level && settings?.trig_level_cmd) || (settings?.trig_lock && settings?.trig_lock_cmd) ||
-            (settings?.trig_battery && settings?.trig_battery_cmd) || (thermostatTriggers())
+    return (
+        (settings?.trig_shade && settings?.trig_shade_cmd) || (settings?.trig_door && settings?.trig_door_cmd) || (settings?.trig_valve && settings?.trig_valve_cmd) ||
+        (settings?.trig_switch && settings?.trig_switch_cmd) || (settings?.trig_level && settings?.trig_level_cmd) || (settings?.trig_lock && settings?.trig_lock_cmd) ||
+        (settings?.trig_battery && settings?.trig_battery_cmd) || (thermostatTriggers()) ||
+        (settings?.trig_button && settings?.trig_button_cmd)
     )
 }
 
@@ -1377,7 +1391,7 @@ private echoDevicesInputByPerm(type) {
             if(!settings?.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves (Motion, presence, etc).\nWhen both Zones and Echo devices are selected zone will take priority over the echo devices.", null, false) }
             input "act_EchoZones", "enum", title: inTS("Zone(s) to Use", getAppImg("es_groups", true)), description: "Select the Zones", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings?.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
         }
-        if(settings?.act_EchoZones?.size() && echoDevs?.size()) {
+        if(settings?.act_EchoZones?.size() && echoDevs?.size() && !settings?.act_EchoDevices?.size()) {
             paragraph pTS("There may times when none of your zones are active at the time of action execution.\nYou have the option to select devices to use when no zones are available.", null, false, "#2678D9")
         }
         if(echoDevs?.size()) {
@@ -1529,7 +1543,7 @@ private actionCleanup() {
     }
 
     // Cleanup Unused Schedule Trigger Items
-
+    //TODO: SCHEDULE CLEANUPS
 
     // log.debug "setItems: $setItems"
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
@@ -1937,6 +1951,7 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
         case "motion":
         case "water":
         case "valve":
+        case "button":
             if(d?.size() && dc) {
                 if(dc == "any") { evtOk = true; }
                 else {
@@ -2429,6 +2444,7 @@ Map getRandomTrigEvt() {
         motion: getRandomItem(["active", "inactive"]),
         valve: getRandomItem(["open", "closed"]),
         shade: getRandomItem(["open", "closed"]),
+        button: getRandomItem(["pushed", "held"]),
         temperature: getRandomItem(30..80),
         illuminance: getRandomItem(1..100),
         humidity: getRandomItem(1..100),
