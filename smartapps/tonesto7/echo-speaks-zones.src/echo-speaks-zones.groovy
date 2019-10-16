@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()	 { return "3.1.7.0" }
-String appModified() { return "2019-10-14" }
+String appVersion()	 { return "3.1.8.0" }
+String appModified() { return "2019-10-16" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -788,8 +788,8 @@ public zoneCmdHandler(evt) {
                     logDebug("Sending Announcement Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                     if(isST() && delay) {
-                        zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (getZoneName() ?: "Echo Speaks Zone"), zoneDevs?.jsonStr, data?.changeVol, data?.restoreVol, [delay: delay])
-                    } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (getZoneName() ?: "Echo Speaks Zone"), zoneDevs?.jsonStr, data?.changeVol, data?.restoreVol) }
+                        zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.jsonStr, data?.changeVol, data?.restoreVol, [delay: delay])
+                    } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.jsonStr, data?.changeVol, data?.restoreVol) }
                 }
                 break
             case "sequence":

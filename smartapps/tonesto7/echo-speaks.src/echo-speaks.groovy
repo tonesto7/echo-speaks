@@ -15,7 +15,7 @@
  */
 
 String appVersion()   { return "3.1.8.0" }
-String appModified()  { return "2019-10-14" }
+String appModified()  { return "2019-10-16" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -974,29 +974,6 @@ private executeSpeechTest() {
     }
 }
 
-private executeBroadcast() {
-    settingUpdate("broadcastRun", "false", "bool")
-    String testMsg = settings?.broadcastMessage
-    Map eDevs = state?.echoDeviceMap
-    List seqItems = []
-    def selectedDevs = settings?.broadcastDevices
-    selectedDevs?.each { dev->
-        seqItems?.push([command: "volume", value: settings?.broadcastVolume as Integer, serial: dev, type: eDevs[dev]?.type])
-        seqItems?.push([command: "speak", value: testMsg, serial: dev, type: eDevs[dev]?.type])
-    }
-    sendMultiSequenceCommand(seqItems, "broadcastTest", settings?.broadcastParallel)
-    // schedules volume restore
-    runIn(getRecheckDelay(testMsg?.length()), "broadcastVolumeRestore")
-}
-
-private broadcastVolumeRestore() {
-    Map eDevs = state?.echoDeviceMap
-    def selectedDevs = settings?.broadcastDevices
-    List seqItems = []
-    selectedDevs?.each { dev-> seqItems?.push([command: "volume", value: (settings?.broadcastRestVolume ?: 30), serial: dev, type: eDevs[dev]?.type]) }
-    sendMultiSequenceCommand(seqItems, "broadcastVolumeRestore", settings?.broadcastParallel)
-}
-
 private announcementVolumeRestore() {
     Map eDevs = state?.echoDeviceMap
     def selectedDevs = settings?.announceDevices
@@ -1449,7 +1426,7 @@ private appCleanup() {
     // Settings Cleanup
 
     List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "stHub", "cookieRefreshDays"]
-    settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
+    settings?.each { si-> if(si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
     setItems?.each { sI->
         if(settings?.containsKey(sI as String)) { settingRemove(sI as String) }
     }

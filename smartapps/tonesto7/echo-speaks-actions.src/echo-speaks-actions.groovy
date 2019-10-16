@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.1.7.0" }
-String appModified() { return "2019-10-14" }
+String appVersion()  { return "3.1.8.0" }
+String appModified() { return "2019-10-16" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -207,6 +207,7 @@ def mainPage() {
                 href url: featUrl, style: "external", required: false, title: inTS("New Feature Request", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
                 href url: issueUrl, style: "external", required: false, title: inTS("Report an Issue", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
             }
+            log.debug "${getTierStatusMap()}"
         }
     }
 }
@@ -816,7 +817,7 @@ def actionTiersPage() {
                         input "act_tier_item_${ti}_delay", "number", title: inTS("Delay after Tier ${ti-1}\n(seconds)", getAppImg("equal", true)), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true, image: getAppImg("equal")
                     }
                     if(ti==1 || settings?."act_tier_item_${ti}_delay") {
-                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: inTS("Tier Item ${ti} Response", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
+                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "embedded" : "external"), required: true, title: inTS("Tier Item ${ti} Response", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
                                     description: settings?."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg("text")
                     }
                 }
@@ -852,7 +853,7 @@ Map getTierMap() {
     Integer cnt = settings?.act_tier_cnt as Integer
     if(isTierActConfigured() && cnt) {
         List tiers = (1..cnt)
-        tiers?.each { t-> exec[t as Integer] = [message: settings["act_tier_item_${t}_txt"], delay: settings["act_tier_item_${t}_delay"]] }
+        tiers?.each { t-> exec[t as Integer] = [message: settings["act_tier_item_${t}_txt"], delay: settings["act_tier_item_${t+1}_delay"]] }
     }
     return (exec?.size()) ? exec : null
 }
@@ -1501,17 +1502,9 @@ private getConfStatusItem(item) {
     return (state?.configStatusMap?.containsKey(item) && state?.configStatusMap[item] == true)
 }
 
-// if(settings?.trig_scheduled_type in ["Sunrise", "Sunset"]) { return true }
-//     if(settings?.trig_scheduled_type == "One-Time" && settings?.trig_scheduled_time) { return true }
-//     if(settings?.trig_scheduled_type == "Recurring" && settings?.trig_scheduled_time && settings?.trig_scheduled_recurrence) {
-//         if(settings?.trig_scheduled_recurrence == "Daily") { return true }
-//         else if (settings?.trig_scheduled_recurrence == "Weekly" && settings?.trig_scheduled_weekdays) { return true }
-//         else if (settings?.trig_scheduled_recurrence == "Monthly" && (settings?.trig_scheduled_daynums || settings?.trig_scheduled_weeks)) { return true }
-//     }
-
 private actionCleanup() {
     // State Cleanup
-    List items = ["afterEvtMap", "afterEvtChkSchedMap"]
+    List items = ["afterEvtMap", "afterEvtChkSchedMap", "actTierState", "tierSchedActive"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     //Cleans up unused action setting items
     List setItems = []
@@ -1984,6 +1977,7 @@ private processTierTrigEvt(evt, Boolean evtOk) {
             unschedule("tierEvtHandler")
             atomicState?.actTierState = [:]
             atomicState?.tierSchedActive = false
+            updTsVal("lastTierRespStopDt")
         }
     }
 }
@@ -1992,26 +1986,42 @@ Boolean isTierAction() {
     return (settings?.actionType in ["speak_tiered", "announcement_tiered"])
 }
 
+Map getTierStatusMap() {
+    Map s = [:]
+    Map tS = atomicState?.actTierState ?: null
+    s?.schedActive = atomicState?.tierSchedActive
+    s?.lastStartDt = getTsVal("lastTierRespStartDt")
+    s?.lastStopDt = getTsVal("lastTierRespStopDt")
+    s?.curCycle = tS?.cycle ?: null
+    s?.curDelay = tS?.schedDelay ?: null
+    return s
+}
+
 private tierEvtHandler(evt=null) {
     Map tierMap = getTierMap() ?: [:]
     Map tierState = atomicState?.actTierState ?: [:]
     Boolean schedNext = false
+    // log.debug "tierState: ${tierState}"
+    // log.debug "tierMap: ${tierMap}"
     if(tierMap && tierMap?.size()) {
         Map newEvt = tierState?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, deviceId: evt?.deviceId, date: evt?.date]
         Integer curPass = (tierState?.cycle && tierState?.cycle?.isNumber()) ? tierState?.cycle?.toInteger()+1 : 1
+        if(curPass == 1) { updTsVal("lastTierRespStartDt"); remTsVal("lastTierRespStopDt"); }
         if(curPass <= tierMap?.size()) {
             schedNext = true
             tierState?.cycle = curPass
-            tierState?.schedDelay = tierMap[(curPass>1 ? curPass : curPass+1)]?.delay ?: null
+            tierState?.schedDelay = tierMap[curPass]?.delay ?: null
             tierState?.message = tierMap[curPass]?.message ?: null
             tierState?.evt = newEvt
-            log.trace("tierSize: (${tierMap?.size()}) | cycle: ${tierState?.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState?.schedDelay}) | Message: (${tierState?.message})")
+            tierState?.lastMsg = (curPass+1 > tierMap?.size())
+            // log.trace("tierSize: (${tierMap?.size()}) | cycle: ${tierState?.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState?.schedDelay}) | Message: (${tierState?.message}) | LastMsg: (${tierState?.lastMsg})")
             atomicState?.actTierState = tierState
             tierSchedHandler([sched: schedNext, tierState: tierState])
         } else {
             log.debug("Tier Cycle has completed... Clearing TierState...")
             atomicState?.actTierState = [:]
             atomicState?.tierSchedActive = false
+            updTsVal("lastTierRespStopDt")
         }
     }
 }
@@ -2022,9 +2032,14 @@ private tierSchedHandler(data) {
         Map evt = data?.tierState?.evt
         evt?.date = dateTimeFmt(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         executeAction(evt, false, "tierSchedHandler", false, false, data?.tierState?.message as String)
-        if(data?.sched && data?.tierState?.schedDelay) {
-            logDebug("Scheduling Next Tier Message for (${data?.tierState?.schedDelay} seconds.)")
-            runIn(data?.tierState?.schedDelay, "tierEvtHandler")
+        if(data?.sched) {
+            if(data?.tierState?.schedDelay && data?.tierState?.lastMsg == false) {
+                log.debug("Scheduling Next Tier Message for (${data?.tierState?.schedDelay} seconds)");
+                runIn(data?.tierState?.schedDelay - 2, "tierEvtHandler"); //Subtracted 2 seconds from delay to offset processing delay
+            } else {
+                log.debug("Scheduling cleanup for (5 seconds) as this was the last message");
+                runIn(5, "tierEvtHandler");
+            }
             atomicState?.tierSchedActive = true
         }
     }
@@ -2529,7 +2544,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     logTrace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
     if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return; }
     Map condStatus = conditionStatus()
-    log.debug "condStatus: ${condStatus}"
+    // log.debug "condStatus: ${condStatus}"
     Boolean actOk = getConfStatusItem("actions")
     Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
@@ -2563,7 +2578,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
                     if(activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType?.replaceAll("_tiered", ""), data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType?.replaceAll("_tiered", ""), message: txt, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType?.replaceAll("_tiered", ""), data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType?.replaceAll("_tiered", ""), title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
                         logDebug("Sending Speech Text: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}${actDelay ? " | Delay: (${actDelay})" : ""}")
                     } else {
                         if(actType in ["speak", "speak_tiered"]) {
