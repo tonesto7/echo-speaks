@@ -3791,6 +3791,7 @@ def appInfoSect()	{
                 String str3 = "Updates Required for:"
                 minUpdMap?.updItems?.each { item-> str3 += bulletItem(str3, item)  }
                 paragraph pTS(str3, null, true, "red"), required: true, state: null
+                paragraph pTS("If you just updated the code please press Done/Save to let the app process the changes.", null, true, "red"), required: true, state: null
                 showDocs = true
             }
             if(showDocs) { updateDocsInput() }
