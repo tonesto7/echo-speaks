@@ -1,5 +1,5 @@
  ══════════
-   Main App (v3.2.0.1)
+   Main App (v3.2.0.2)
    October 17th, 2019
  ══════════
   • ADDED: New Zones Companion app.  You can now create groups of echo devices which you can be used in your actions.  They allow you to target speech based on device and location conditions.  So you only speak where your need to.
@@ -14,8 +14,8 @@
   • FIXED: Minor code cleanups and refactoring.
 
  ══════════
-   Actions App (v3.2.0.0)
-   October 16th, 2019
+   Actions App (v3.2.0.1)
+   October 17th, 2019
  ══════════
   • ADDED: Support for Level, water, power, shade, valve conditions.
   • ADDED: Support for Button trigger events.
@@ -29,12 +29,14 @@
   • UPDATED: Guard Support checks are now performed as soon as the server is installed now to help eliminate the not supported or refresh page message.
   • FIXED: Mode, routines should now respect the all or once setting values.
   • FIXED: Broken Carbon Monoxide & Smoke Trigger events
+  • FIXED: Tiered Actions Tests.
+  • FIXED: Broken condition logic after v3.2.
   • FIXED: Dozens of other little bugs that were discovered.
   • FIXED: Minor code cleanups and refactoring.
   • FIXED: Lots of UI text cleanups.
 
  ══════════
-   Zones App (v3.2.0.0)
+   Zones App (v3.2.0.1)
    October 16th, 2019
  ══════════
   • ADDED: Create a new zone that targets certain echo-speaks devices.  It is activated by certain location/device events.  Such as motion, presence, and many other attributes.
