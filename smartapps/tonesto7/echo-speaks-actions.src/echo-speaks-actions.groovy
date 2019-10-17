@@ -14,8 +14,8 @@
  *
  */
 //TODO: Restore beta to false and change url to master repo
-String appVersion()  { return "3.2.0.0" }
-String appModified() { return "2019-10-16" }
+String appVersion()  { return "3.2.0.1" }
+String appModified() { return "2019-10-17" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -2301,6 +2301,7 @@ Boolean timeCondOk() {
 Boolean dateCondOk() {
     Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : true
     Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : true
+    logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
     return (dOk && mOk)
 }
 
@@ -2308,7 +2309,7 @@ Boolean locationCondOk() {
     Boolean reqAll = (settings?.cond_require_all != false)
     Boolean mOk = settings?.cond_mode ? (isInMode(settings?.cond_mode)) : true
     Boolean aOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
-    logDebug("locationCondOk | modeOk: $mOk | alarmOk: $aOk")
+    logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
     return reqAll ? (mOk && aOk) : (mOk || aOk)
 }
 
@@ -2376,7 +2377,7 @@ Boolean deviceCondOk() {
     Boolean levelDevOk = checkDeviceNumCondOk("level")
     Boolean powerDevOk = checkDeviceNumCondOk("illuminance")
     Boolean battDevOk = checkDeviceNumCondOk("battery")
-    logDebug("checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk")
+    logDebug("deviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk")
     if(settings?.cond_require_all == false) {
         return (swDevOk || motDevOk || presDevOk || conDevOk || lockDevOk || garDevOk || valveDevOk || shadeDevOk || tempDevOk || humDevOk || battDevOk || illDevOk || levelDevOk || powerDevOk)
     } else {
@@ -2392,8 +2393,8 @@ def conditionStatus() {
     if(!dateCondOk())        { blocks?.push("date") } else { ok?.push("date") }
     if(!locationCondOk())    { blocks?.push("location") } else { ok?.push("location") }
     if(!deviceCondOk())      { blocks?.push("device") } else { ok?.push("device") }
-    logDebug("Action Conditions Check | Blocks: ${blocks}")
-    return [ok: (reqAll ? (ok?.size() >= 1) : (blocks?.size() == 0)), blocks: blocks]
+    logDebug("ConditionsStatus | RequireAll: ${reqAll} | Blocks: ${blocks}")
+    return [ok: (!reqAll ? (ok?.size() >= 1) : (blocks?.size() == 0)), blocks: blocks]
 }
 
 Boolean devCondConfigured(type) {

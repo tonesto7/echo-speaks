@@ -14,8 +14,8 @@
  *
  */
 //TODO: Restore beta to false and change url to master repo
-String appVersion()	 { return "3.2.0.0" }
-String appModified() { return "2019-10-16" }
+String appVersion()	 { return "3.2.0.1" }
+String appModified() { return "2019-10-17" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -620,15 +620,15 @@ Boolean deviceCondOk() {
 }
 
 def conditionStatus() {
-    Boolean allReq = (settings?.cond_require_all != false)
+    Boolean reqAll = (settings?.cond_require_all != false)
     List blocks = []
-    if(!timeCondOk())        { blocks?.push("time") }
-    if(!dateCondOk())        { blocks?.push("date") }
-    if(!locationCondOk())    { blocks?.push("location") }
-    if(!deviceCondOk())      { blocks?.push("device") }
-    Boolean ok = ((allReq && blocks?.size() == 0) || !allReq && blocks?.size() < 4)
-    logDebug("Zone Conditions Check | Status: ${ok} | Blocks: ${blocks}")
-    return [ok: ok, blocks: blocks]
+    List ok = []
+    if(!timeCondOk())        { blocks?.push("time") } else { ok?.push("time") }
+    if(!dateCondOk())        { blocks?.push("date") } else { ok?.push("date") }
+    if(!locationCondOk())    { blocks?.push("location") } else { ok?.push("location") }
+    if(!deviceCondOk())      { blocks?.push("device") } else { ok?.push("device") }
+    logDebug("ConditionsStatus | RequireAll: ${reqAll} | Blocks: ${blocks}")
+    return [ok: (!reqAll ? (ok?.size() >= 1) : (blocks?.size() == 0)), blocks: blocks]
 }
 
 Boolean devCondConfigured(type) {
