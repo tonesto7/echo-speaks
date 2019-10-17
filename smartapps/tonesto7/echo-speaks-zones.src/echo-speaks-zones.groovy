@@ -48,20 +48,23 @@ preferences {
 }
 
 def startPage() {
-    if(parent) {
-        if(!state?.isInstalled && parent?.childInstallOk() != true) {
-            uhOhPage()
-        } else {
-            state?.isParent = false
-            mainPage()
+    if(parent != null) {
+        if(!state?.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
+        else {
+            state?.isParent = false; return (checkMinVersion()) ? codeUpdatePage() : mainPage();
         }
-    } else {
-        uhOhPage()
-    }
+    } else { return uhOhPage() }
 }
 
 def appInfoSect(sect=true)	{
-    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "v${appVersion()}", image: getAppImg("es_groups") }
+    def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@'h:mm a", true) : null
+    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version${appVersion()}", image: getAppImg("es_groups") }
+}
+
+def codeUpdatePage () {
+    return dynamicPage(name: "codeUpdatePage", title: "Update is Required", install: false, uninstall: false) {
+        section() { paragraph "Looks like your Zone App needs an update\n\nPlease make sure all app and device code is updated to the most current version\n\nOnce updated your zones will resume normal operation.", required: true, state: null, image: getAppImg("exclude") }
+    }
 }
 
 def uhOhPage () {
@@ -81,10 +84,8 @@ def mainPage() {
         Boolean paused = isPaused()
         Boolean dup = (settings?.duplicateFlag == true || state?.dupPendingSetup == true)
         if(dup) {
-            section() {
-                paragraph pTS("This Zone was just created from an existing zone.  Please review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
-            }
             state?.dupOpenedByUser = true
+            section() { paragraph pTS("This Zone was just created from an existing zone.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange") }
         }
         if(paused) {
             section() {
@@ -380,6 +381,7 @@ def zoneNotifTimePage() {
 
 def installed() {
     log.debug "Installed with settings: ${settings}"
+    state?.dateInstalled = getDtNow()
     initialize()
 }
 
@@ -1011,10 +1013,10 @@ def time2Str(time) {
     }
 }
 
-def fmtTime(t, altFmt=false) {
+def fmtTime(t, fmt="h:mm a", altFmt=false) {
     if(!t) return null
     def dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t?.toString())
-    def tf = new java.text.SimpleDateFormat("h:mm a")
+    def tf = new java.text.SimpleDateFormat(fmt as String)
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
     return tf?.format(dt)
 }

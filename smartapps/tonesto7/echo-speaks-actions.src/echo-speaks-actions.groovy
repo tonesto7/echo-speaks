@@ -55,13 +55,9 @@ preferences {
 
 def startPage() {
     if(parent != null) {
-        if(!state?.isInstalled && parent?.childInstallOk() != true) { uhOhPage() }
-        else {
-            state?.isParent = false
-            if(checkMinVersion()) { codeUpdatePage() }
-            else { mainPage() }
-        }
-    } else { uhOhPage() }
+        if(!state?.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
+        else { state?.isParent = false; return (checkMinVersion()) ? codeUpdatePage() : mainPage(); }
+    } else { return uhOhPage(); }
 }
 
 def codeUpdatePage () {
@@ -81,7 +77,8 @@ def uhOhPage () {
 }
 
 def appInfoSect(sect=true)	{
-    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: "v${appVersion()}", image: getAppImg("es_actions") }
+    def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@'h:mm a", true) : null
+    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version: ${appVersion()}", image: getAppImg("es_actions") }
 }
 
 List cleanedTriggerList() {
@@ -143,10 +140,8 @@ def mainPage() {
         Boolean paused = isPaused()
         Boolean dup = (settings?.duplicateFlag == true || state?.dupPendingSetup == true)
         if(dup) {
-            section() {
-                paragraph pTS("This Action was just created from an existing action.  Please review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
-            }
             state?.dupOpenedByUser = true
+            section() { paragraph pTS("This Action was just created from an existing action.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange") }
         }
         if(paused) {
             section() {
@@ -1462,7 +1457,7 @@ Boolean wordInString(String findStr, String fullStr) {
 
 def installed() {
     log.debug "Installed with settings: ${settings}"
-    updTsVal("dateInstalled")
+    state?.dateInstalled = getDtNow()
     initialize()
 }
 
@@ -3318,10 +3313,10 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
     }
 }
 
-def getDateByFmt(String fmt) {
+def getDateByFmt(String fmt, dt=null) {
     def df = new java.text.SimpleDateFormat(fmt)
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return df.format(dt ?: new Date())
 }
 
 Map getDateMap() {
