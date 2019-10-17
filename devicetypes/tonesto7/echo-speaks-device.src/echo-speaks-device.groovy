@@ -867,14 +867,14 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
     }
     
     //Update Audio Track Data       
-    if (isMediaInfoChange){    	    
-    	Map trackData = [
-        	title: title,
-            artist: subText1,
-            album: subText2,
-            albumArtUrl: trackImg,
-            mediaSource: mediaSource
-        ]
+    if (isMediaInfoChange){
+        Map trackData = [:]
+        if(playerInfo?.infoText?.title) trackData << ["title":playerInfo?.infoText?.title]
+        if(playerInfo?.infoText?.subText1) trackData << ["artist":playerInfo?.infoText?.subText1]
+        //To avoid media source provider being used as album (ex: Apple Music), only inject `album` if subText2 and providerName are different
+        if(playerInfo?.infoText?.subText2 && playerInfo?.provider?.providerName!=playerInfo?.infoText?.subText2) trackData << ["album":playerInfo?.infoText?.subText2]        
+        if(playerInfo?.mainArt?.url) trackData << ["albumArtUrl":playerInfo?.mainArt?.url]
+        if(playerInfo?.provider?.providerName) trackData << ["mediaSource":playerInfo?.provider?.providerName]
         //log.debug(trackData)
         sendEvent(name: "audioTrackData", value: new JsonOutput().toJson(trackData), display: false, displayed: false)   
     }    
