@@ -15,7 +15,7 @@
  */
 //TODO: Restore beta to false and change url to master repo
 
-String appVersion()   { return "3.2.0.0" }
+String appVersion()   { return "3.2.0.1" }
 String appModified()  { return "2019-10-16" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
@@ -2089,14 +2089,15 @@ private setGuardState(guardState) {
     if(!state?.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return; }
     guardState = guardStateConv(guardState)
     logDebug("setAlexaGuard($guardState)")
-    Map params = [
-        uri: getAmazonUrl(),
-        path: "/api/phoenix/state",
-        headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
-        contentType: "application/json",
-        body: [ controlRequests: [ [ entityId: state?.guardData?.applianceId, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ]
-    ]
     try {
+        def body = new groovy.json.JsonOutput()?.toJson([ controlRequests: [ [ entityId: state?.guardData?.applianceId as String, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState as String ] ] ] ])
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/phoenix/state",
+            headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
+            contentType: "application/json",
+            body: body?.toString()
+        ]
         httpPutJson(params) { response ->
             def resp = response?.data ?: null
             if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
