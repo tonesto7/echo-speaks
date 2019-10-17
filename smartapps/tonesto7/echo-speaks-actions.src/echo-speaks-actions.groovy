@@ -2457,10 +2457,14 @@ Boolean multipleConditions() {
 private executeActTest() {
     settingUpdate("actTestRun", "false", "bool")
     Map evt = [name: "contact", displayName: "some test device", value: "open", date: new Date()]
-    if(settings?.actionType in ["speak", "announcement"]) {
-        evt = getRandomTrigEvt()
+    if(getConfStatusItem("tiers")) {
+        processTierTrigEvt(null, true)
+    } else {
+        if(settings?.actionType in ["speak", "announcement"]) {
+            evt = getRandomTrigEvt()
+        }
+        executeAction(evt, true, "executeActTest", false, false)
     }
-    executeAction(evt, true, "executeActTest", false, false)
 }
 
 Map getRandomTrigEvt() {
@@ -3456,7 +3460,7 @@ String getConditionsDesc() {
     String sPre = "cond_"
     if(confd) {
         String str = "Conditions: (${(conditionStatus()?.ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
-        str += settings?.cond_require_all ? " \u2022 Any Condition Allowed" : " \u2022 All Conditions Required"
+        str += settings?.cond_require_all ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
         if(timeCondConfigured()) {
             str += " • Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
