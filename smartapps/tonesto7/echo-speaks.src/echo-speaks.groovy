@@ -468,7 +468,7 @@ def actionDuplicationPage() {
                     Map actData = act?.getDuplSettingData()
                     actData?.settings["duplicateFlag"] = [type: "bool", value: true]
                     addChildApp("tonesto7", actChildName(), "${actData?.label} (Dup)", [settings: actData?.settings])
-                    paragraph pTS("Action Duplicated... Return to Action Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
+                    paragraph pTS("Action Duplicated...\n\nReturn to Action Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
                 } else { paragraph pTS("Action not Found", null, true, "red"), required: true, state: null }
                 state?.actionDuplicated = true
             }
@@ -477,7 +477,7 @@ def actionDuplicationPage() {
 }
 
 def zoneDuplicationPage() {
-    return dynamicPage(name: "zoneDuplicationPage", nextPage: "zonePage", uninstall: false, install: false) {
+    return dynamicPage(name: "zoneDuplicationPage", nextPage: "zonesPage", uninstall: false, install: false) {
         section() {
             if(state?.zoneDuplicated) {
                 paragraph pTS("Zone already duplicated...\n\nReturn to zone page and select it", null, true, "red"), required: true, state: null
@@ -487,7 +487,7 @@ def zoneDuplicationPage() {
                     Map znData = zn?.getDuplSettingData()
                     znData?.settings["duplicateFlag"] = [type: "bool", value: true]
                     addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData?.settings])
-                    paragraph pTS("Zone Duplicated... Return to Zone Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
+                    paragraph pTS("Zone Duplicated...\n\nReturn to Zone Page and look for the App with '(Dup)' in the name...", null, true, "#2784D9"), state: "complete"
                 } else { paragraph pTS("Zone not Found", null, true, "red"), required: true, state: null }
                 state?.zoneDuplicated = true
             }
@@ -1203,6 +1203,7 @@ private stateMigrationChk() {
 def updateZoneSubscriptions() {
     if(state?.zoneEvtsActive != true) {
         subscribe(location, "es3ZoneState", zoneStateHandler)
+        subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
         state?.zoneEvtsActive = true
     }
 }
@@ -1265,6 +1266,17 @@ def zoneStateHandler(evt) {
     if(data && id) {
         Map zoneMap = atomicState?.zoneStatusMap ?: [:]
         zoneMap[id as String] = [name: data?.name, active: data?.active]
+        atomicState?.zoneStatusMap = zoneMap
+    }
+}
+
+def zoneRemovedHandler(evt) {
+    String id = evt?.value?.toString()
+    Map data = evt?.jsonData;
+    // log.trace "zone: ${id} | Data: $data"
+    if(data && id) {
+        Map zoneMap = atomicState?.zoneStatusMap ?: [:]
+        if(zoneMap?.containsKey(id as String)) { zoneMap?.remove(id as String) }
         atomicState?.zoneStatusMap = zoneMap
     }
 }
@@ -1423,7 +1435,7 @@ private appCleanup() {
     state?.resumeConfig = false
     state?.missPollRepair = false
     state?.deviceRefreshInProgress = false
-    state?.zoneStatusMap = [:]
+    // state?.zoneStatusMap = [:]
     // Settings Cleanup
 
     List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "stHub", "cookieRefreshDays"]
