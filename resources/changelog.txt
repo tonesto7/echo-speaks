@@ -10,6 +10,7 @@
   • UPDATED: Optimized and reduced the number of repetitive web calls. I've made a lot of state cleanups and consolidations.  Please make sure to open the app and press done immediately after updating your code.
   • FIXED: Rare scenario has been resolved where new server installs would result in the wrong Server preferences page being shown.  The page will show the login page when the server is installed and the only login is required.
   • FIXED: Setting Alexa Guard state was broken on Hubitat.
+  • FIXED: More tweaks to help reduce the performance effects on Hubitat which causes slowdowns.
   • FIXED: Lots of UI text cleanups.
   • FIXED: Minor code cleanups and refactoring.
 
@@ -62,4 +63,4 @@
    Echo Websocket (v3.2.0.0)
    October 16th, 2019
  ══════════
-  • ADDED: Opens a web socket directly with Amazon and receives volume, playback, and other events in realtime so you Echo Speaks devices are always current and reduces polling.
+  • ADDED: Opens a web socket directly with Amazon and receives volume, playback, and other events in realtime so you Echo Speaks devices are always current and reduces polling. (Hubitat Only)
