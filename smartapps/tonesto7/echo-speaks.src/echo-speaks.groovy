@@ -1210,7 +1210,7 @@ def updateZoneSubscriptions() {
 def postInitialize() {
     runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
     appCleanup()
-    reInitChildren()
+    reInitChildDevices()
 }
 
 def uninstalled() {
@@ -1423,6 +1423,7 @@ private appCleanup() {
     state?.resumeConfig = false
     state?.missPollRepair = false
     state?.deviceRefreshInProgress = false
+    state?.zoneStatusMap = [:]
     // Settings Cleanup
 
     List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "stHub", "cookieRefreshDays"]
@@ -1437,19 +1438,19 @@ private resetQueues() {
     (isST() ? app?.getChildDevices(true) : getChildDevices())?.findAll { it?.isWS() != true }?.each { it?.resetQueue() }
 }
 
-private reInitChildren() {
+private reInitChildDevices() {
     (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.triggerInitialize() }
     updChildVers()
-    reInitChildApps()
+    reInitChildActions()
 }
 
-private reInitZones() {
+private reInitChildZones() {
     getZoneApps()?.each { it?.triggerInitialize() }
 }
 
-private reInitChildApps() {
+private reInitChildActions() {
     getActionApps()?.each { it?.triggerInitialize() }
-    runIn(3, "reInitZones")
+    runIn(3, "reInitChildZones")
 }
 
 def processData() {

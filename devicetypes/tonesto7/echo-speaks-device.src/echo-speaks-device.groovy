@@ -519,10 +519,7 @@ def postInstall() {
     if(device?.currentState('alarmVolume') == 0) { setAlarmVolume(30) }
 }
 
-public triggerInitialize() {
-    runIn(3, "initialize")
-}
-
+public triggerInitialize() { runIn(3, "initialize") }
 String getEchoDeviceType() { return state?.deviceType ?: null }
 String getEchoSerial() { return state?.serialNumber ?: null }
 
