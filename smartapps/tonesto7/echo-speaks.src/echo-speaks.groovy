@@ -20,7 +20,7 @@ String appModified()  { return "2019-10-16" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return true }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3200, wsDevice: 3200, actionApp: 3200, zoneApp: 3200, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3201, wsDevice: 3200, actionApp: 3200, zoneApp: 3200, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -2370,6 +2370,7 @@ def receiveEventData(Map evtData, String src) {
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     permissions["bluetoothControl"] = (echoValue?.capabilities.contains("PAIR_BT_SOURCE") || echoValue?.capabilities.contains("PAIR_BT_SINK"))
                     permissions["guardSupported"] = (echoValue?.capabilities?.contains("TUPLE"))
+                    permissions["isEchoDevice"] = (echoValue?.deviceFamily in ["KNIGHT", "ROOK", "ECHO"])
                     echoValue["guardStatus"] = (state?.alexaGuardSupported && state?.alexaGuardState) ? state?.alexaGuardState as String : (permissions?.guardSupported ? "Unknown" : "Not Supported")
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
