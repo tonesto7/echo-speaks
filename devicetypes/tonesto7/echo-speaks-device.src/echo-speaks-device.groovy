@@ -13,7 +13,7 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 //TODO: Restore beta to false and change url to master repo
-String devVersion()  { return "3.2.0.0"}
+String devVersion()  { return "3.2.0.1"}
 String devModified() { return "2019-10-16" }
 Boolean isBeta()     { return true }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -519,10 +519,7 @@ def postInstall() {
     if(device?.currentState('alarmVolume') == 0) { setAlarmVolume(30) }
 }
 
-public triggerInitialize() {
-    runIn(3, "initialize")
-}
-
+public triggerInitialize() { runIn(3, "initialize") }
 String getEchoDeviceType() { return state?.deviceType ?: null }
 String getEchoSerial() { return state?.serialNumber ?: null }
 
@@ -667,6 +664,7 @@ void updateDeviceStatus(Map devData) {
         //     }
         // }
         state?.isSupportedDevice = (devData?.unsupported != true)
+        state?.isEchoDevice = (devData?.isEchoDevice == true)
         state?.serialNumber = devData?.serialNumber
         state?.deviceType = devData?.deviceType
         state?.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
@@ -800,6 +798,7 @@ private refreshData(full=false) {
     // logTrace("trace", "refreshData()...")
     Boolean wsActive = (state?.websocketActive == true)
     Boolean isWHA = (state?.isWhaDevice == true)
+    Boolean isEchoDev = (state?.isEchoDevice == true)
     if(device?.currentValue("onlineStatus") != "online") {
         logTrace("Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
         return
@@ -813,7 +812,7 @@ private refreshData(full=false) {
     }
     if(!isWHA && (full || state?.fullRefreshOk)) {
         state?.fullRefreshOk = false
-        getWifiDetails()
+        if(isEchoDev) { getWifiDetails() }
         getDeviceSettings()
     }
 
