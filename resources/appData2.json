@@ -2,13 +2,13 @@
     "appDataVer": "3.1",
     "versions": {
         "mainApp": {
-            "ver": "3.2.0.1"
+            "ver": "3.2.0.2"
         },
         "actionApp": {
-            "ver": "3.2.0.0"
+            "ver": "3.2.0.1"
         },
         "zoneApp": {
-            "ver": "3.2.0.0"
+            "ver": "3.2.0.1"
         },
         "echoDevice": {
             "ver": "3.2.0.1"
