@@ -1203,6 +1203,7 @@ private stateMigrationChk() {
 def updateZoneSubscriptions() {
     if(state?.zoneEvtsActive != true) {
         subscribe(location, "es3ZoneState", zoneStateHandler)
+        subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
         state?.zoneEvtsActive = true
     }
 }
@@ -1265,6 +1266,17 @@ def zoneStateHandler(evt) {
     if(data && id) {
         Map zoneMap = atomicState?.zoneStatusMap ?: [:]
         zoneMap[id as String] = [name: data?.name, active: data?.active]
+        atomicState?.zoneStatusMap = zoneMap
+    }
+}
+
+def zoneRemovedHandler(evt) {
+    String id = evt?.value?.toString()
+    Map data = evt?.jsonData;
+    // log.trace "zone: ${id} | Data: $data"
+    if(data && id) {
+        Map zoneMap = atomicState?.zoneStatusMap ?: [:]
+        if(zoneMap?.containsKey(id as String)) { zoneMap?.remove(id as String) }
         atomicState?.zoneStatusMap = zoneMap
     }
 }
@@ -1423,7 +1435,7 @@ private appCleanup() {
     state?.resumeConfig = false
     state?.missPollRepair = false
     state?.deviceRefreshInProgress = false
-    state?.zoneStatusMap = [:]
+    // state?.zoneStatusMap = [:]
     // Settings Cleanup
 
     List setItems = ["tuneinSearchQuery", "performBroadcast", "performMusicTest", "stHub", "cookieRefreshDays"]

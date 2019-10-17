@@ -14,7 +14,7 @@
  *
  */
 //TODO: Restore beta to false and change url to master repo
-String appVersion()	 { return "3.2.0.1" }
+String appVersion()	 { return "3.2.0.2" }
 String appModified() { return "2019-10-17" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return true }
@@ -79,11 +79,12 @@ def mainPage() {
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: (newInstall == true), install: !newInstall) {
         appInfoSect()
         Boolean paused = isPaused()
-        Boolean dup = (state?.dupPendingSetup == true)
+        Boolean dup = (settings?.duplicateFlag == true || state?.dupPendingSetup == true)
         if(dup) {
             section() {
                 paragraph pTS("This Zone was just created from an existing zone.  Please review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
             }
+            state?.dupOpenedByUser = true
         }
         if(paused) {
             section() {
@@ -384,14 +385,16 @@ def installed() {
 
 def updated() {
     log.debug "Updated with settings: ${settings}"
+    if(state?.dupOpenedByUser == true) { state?.dupPendingSetup = false }
     initialize()
 }
 
 def initialize() {
     unsubscribe()
     unschedule()
-    if(state?.dupPendingSetup == false && settings?.duplicateFlag == true) {
+    if(settings?.duplicateFlag == true && state?.dupPendingSetup == false) {
         settingUpdate("duplicateFlag", "false", "bool")
+        state?.remove("dupOpenedByUser")
     } else if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
         String newLbl = app?.getLabel() + app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"
         app?.updateLabel(newLbl)
@@ -411,6 +414,10 @@ def initialize() {
     runEvery1Hour("healthCheck")
     updConfigStatusMap()
     sendZoneStatus()
+}
+
+def uninstalled() {
+    sendZoneRemoved()
 }
 
 String getZoneName() { return settings?.appLbl as String }
@@ -708,6 +715,10 @@ def sendZoneStatus() {
     Boolean active = (conditionStatus()?.ok == true)
     state?.zoneConditionsOk = active
     sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true)
+}
+
+def sendZoneRemoved() {
+    sendLocationEvent(name: "es3ZoneRemove", value: app?.getId(), data:[name: getZoneName()], isStateChange: true)
 }
 
 def updateZoneStatus(data) {

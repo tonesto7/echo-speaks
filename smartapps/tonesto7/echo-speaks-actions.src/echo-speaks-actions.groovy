@@ -14,7 +14,7 @@
  *
  */
 //TODO: Restore beta to false and change url to master repo
-String appVersion()  { return "3.2.0.1" }
+String appVersion()  { return "3.2.0.2" }
 String appModified() { return "2019-10-17" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return true }
@@ -141,11 +141,12 @@ def mainPage() {
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: (newInstall == true), install: !newInstall) {
         appInfoSect()
         Boolean paused = isPaused()
-        Boolean dup = (state?.dupPendingSetup == true)
+        Boolean dup = (settings?.duplicateFlag == true || state?.dupPendingSetup == true)
         if(dup) {
             section() {
                 paragraph pTS("This Action was just created from an existing action.  Please review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
             }
+            state?.dupOpenedByUser = true
         }
         if(paused) {
             section() {
@@ -209,6 +210,7 @@ def mainPage() {
                 href url: issueUrl, style: "external", required: false, title: inTS("Report an Issue", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
             }
         }
+
     }
 }
 
@@ -440,7 +442,7 @@ def triggersPage() {
                 trigNumValSect("humidity", "relativeHumidityMeasurement", "Humidity Sensors", "Relative Humidity Sensors", "Relative Humidity (%)", "humidity", trigItemCnt++)
             }
 
-            if (valTrigEvt("water") in settings?.triggerEvents) {
+            if (valTrigEvt("water")) {
                 trigNonNumSect("water", "waterSensor", "Water Sensors", "Water/Moisture Sensors", ["wet", "dry", "any"], "changes to", ["wet", "dry"], "water", trigItemCnt++)
             }
 
@@ -1460,20 +1462,22 @@ Boolean wordInString(String findStr, String fullStr) {
 
 def installed() {
     log.debug "Installed with settings: ${settings}"
+    updTsVal("dateInstalled")
     initialize()
 }
 
 def updated() {
     log.debug "Updated with settings: ${settings}"
-    state?.dupPendingSetup = false
+    if(state?.dupOpenedByUser == true) { state?.dupPendingSetup = false }
     initialize()
 }
 
 def initialize() {
     unsubscribe()
     unschedule()
-    if(state?.dupPendingSetup == false && settings?.duplicateFlag == true) {
+    if(settings?.duplicateFlag == true && state?.dupPendingSetup == false) {
         settingUpdate("duplicateFlag", "false", "bool")
+        state?.remove("dupOpenedByUser")
     } else if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
         String newLbl = app?.getLabel() + app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"
         app?.updateLabel(newLbl)
@@ -1496,7 +1500,7 @@ def initialize() {
 }
 
 def updateZoneSubscriptions() {
-    if(settings?.act_EchoZones) { subscribe(location, "es3ZoneState", zoneStateHandler) }
+    if(settings?.act_EchoZones) { subscribe(location, "es3ZoneState", zoneStateHandler); subscribe(location, "es3ZoneRemoved", zoneRemovedHandler); }
 }
 
 String getActionName() { return settings?.appLbl as String }
@@ -1737,6 +1741,17 @@ def zoneStateHandler(evt) {
     if(settings?.act_EchoZones && id && data && (id?.toString() in settings?.act_EchoZones)) {
         Map zoneMap = atomicState?.zoneStatusMap ?: [:]
         zoneMap[id as String] = [name: data?.name, active: data?.active]
+        atomicState?.zoneStatusMap = zoneMap
+    }
+}
+
+def zoneRemovedHandler(evt) {
+    String id = evt?.value?.toString()
+    Map data = evt?.jsonData;
+    // log.trace "zone: ${id} | Data: $data"
+    if(data && id) {
+        Map zoneMap = atomicState?.zoneStatusMap ?: [:]
+        if(zoneMap?.containsKey(id as String)) { zoneMap?.remove(id as String) }
         atomicState?.zoneStatusMap = zoneMap
     }
 }
