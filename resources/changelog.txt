@@ -1,6 +1,6 @@
  ══════════
-   Main App (v3.2.0.0)
-   October 16th, 2019
+   Main App (v3.2.0.1)
+   October 17th, 2019
  ══════════
   • ADDED: New Zones Companion app.  You can now create groups of echo devices which you can be used in your actions.  They allow you to target speech based on device and location conditions.  So you only speak where your need to.
   • ADDED: WebSocket support: This only works on Hubitat and requires an additional driver be installed.
@@ -9,6 +9,7 @@
   • UPDATED: Guard Support checks are now performed as soon as the server is installed now to help eliminate the not supported or refresh page message.
   • UPDATED: Optimized and reduced the amount of repetitive web calls. I've made alot of state cleanups and consolidations.  Please make sure to open the app and press done immediately after updating your code.
   • FIXED: Resolved scenario where new server installs would result in the wrong Server preferences page being shown.  The page will show the login page when the server is installed and only login is required.
+  • FIXED: Set guard state was broken on Hubitat.
   • FIXED: Lots of UI text cleanups.
   • FIXED: Minor code cleanups and refactoring.
 
@@ -40,14 +41,15 @@
   • ADDED: Use this to send your speech/announcements to the devices where people are to hear them
 
  ══════════
-   Echo Device (v3.2.0.0)
-   October 16th, 2019
+   Echo Device (v3.2.0.1)
+   October 17th, 2019
  ══════════
   • ADDED: Support for audio track capability (SmartThings Only)
   • ADDED: New tile support for upcoming Studio, Buds, and Show 8 (Once they are released I will add there data to the config file and you will see them).
   • ADDED: Support for the new Web Socket (Hubitat only) to reduce polling unless necessary.
   • FIXED: Speech commands now treat amazon response of Too many requests just like its being rate-limited and will retry the command in a few seconds..
   • FIXED: Restored playAnnouncement command that accepts only 3 commands.
+  • FIXED: Change wifi status updates to only occur on Echo devices and not 3rd Party.
   • FIXED: WHA group playback info.
   • FIXED: Removed unnecessary imports.
   • FIXED: Minor code cleanups and refactoring.
