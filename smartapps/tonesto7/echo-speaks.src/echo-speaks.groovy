@@ -13,12 +13,11 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
-//TODO: Restore beta to false and change url to master repo
 
 String appVersion()   { return "3.2.0.2" }
-String appModified()  { return "2019-10-17" }
+String appModified()  { return "2019-10-18" }
 String appAuthor()    { return "Anthony S." }
-Boolean isBeta()      { return true }
+Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
 Map minVersions()     { return [echoDevice: 3201, wsDevice: 3200, actionApp: 3202, zoneApp: 3202, server: 230] } //These values define the minimum versions of code this app will work with.
 
@@ -31,7 +30,7 @@ definition(
     iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${state?.updateAvailable ? "_update" : ""}.png",
     iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${state?.updateAvailable ? "_update" : ""}.png",
     iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${state?.updateAvailable ? "_update" : ""}.png",
-    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
+    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
     oauth       : true,
     pausable    : true
 )
