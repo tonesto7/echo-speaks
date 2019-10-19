@@ -973,12 +973,18 @@ private executeSpeechTest() {
     }
 }
 
-private announcementVolumeRestore() {
-    Map eDevs = state?.echoDeviceMap
-    def selectedDevs = settings?.announceDevices
-    List seqItems = []
-    selectedDevs?.each { dev-> seqItems?.push([command: "volume", value: (settings?.announceRestVolume ?: 30), serial: dev, type: eDevs[dev]?.type]) }
-    sendMultiSequenceCommand(seqItems, "announcementVolumeRestore", settings?.broadcastParallel)
+private sendTestAnnouncement() {
+    String testMsg = settings?.announceMessage ?: null
+    List sDevs = settings?.announceAllDevices ? getChildDevicesByCap("Announce") : settings?.announceDevices
+    if(sDevs?.size()) {
+        if(sDevs?.size() > 1)
+        	List devObj = []	
+        	sDevs?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+    	    sDevs[0]?.sendAnnouncementToDevices(testMsg, "Echo Speaks Test", devObj, settings?.announceVolume ?: null, settings?.announceRestVolume ?: null)
+    	} else {
+    	    sDevs[0]?.sendAnnouncement(testMsg, "Echo Speaks Test", settings?.announceVolume ?: null, settings?.announceRestVolume ?: null)
+    	}
+	}
 }
 
 private executeAnnouncement() {
@@ -1001,7 +1007,7 @@ private executeAnnouncement() {
         seqItems?.push([command: "announcementTest", value: testMsg, serial: null, type: null])
         sendMultiSequenceCommand(seqItems, "announcementTest", settings?.broadcastParallel)
     }
-    runIn(getRecheckDelay(testMsg?.length()), "announcementVolumeRestore")
+    runIn(getRecheckDelay(testMsg?.length()), "sendTestAnnouncement")
 }
 
 private executeSequence() {
