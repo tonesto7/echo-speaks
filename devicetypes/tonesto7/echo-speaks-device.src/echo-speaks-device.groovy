@@ -1733,7 +1733,7 @@ def executeRoutineId(String rId) {
     logTrace("executeRoutineId($rId) command received...")
     if(!rId) { logWarn("No Routine ID sent with executeRoutineId($rId) command", true) }
     if(parent?.executeRoutineById(rId as String)) {
-        logDebug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${rId}", true)
+        logDebug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${rId}")
         incrementCntByKey("use_cnt_executeRoutine")
     }
 }
