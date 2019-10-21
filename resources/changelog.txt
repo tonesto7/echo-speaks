@@ -19,10 +19,11 @@
   • FIXED: Minor UI tweaks.
 
  ══════════
-   Zone App (v3.2.0.3)
+   Zone App (v3.2.0.4)
    October 21st, 2019
  ══════════
   • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • FIXED: Paragraph was used outside of section error.
   • FIXED: Volume control fixed.
 
  ══════════
