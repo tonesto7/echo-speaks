@@ -4534,8 +4534,8 @@ String getObjType(obj) {
     else { return "unknown"}
 }
 
-private List amazonDomainOpts() { return ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br"] }
-private List localeOpts() { return ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR"] }
+private List amazonDomainOpts() { return ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx"] }
+private List localeOpts() { return ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY"] }
 
 private getPlatform() {
     def p = "SmartThings"
