@@ -10,8 +10,10 @@
    Actions App (v3.2.0.3)
    October 21st, 2019
  ══════════
+  • ADDED: Trigger a WebCoRE piston when an action executes
   • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
   • UPDATED: Modified the logic for only once a day to use just the trigger type instead of deviceid+type.
+  • FIXED: Volume control fixed for certain trigger actions.
   • FIXED: Minor UI tweaks.
 
  ══════════
@@ -19,6 +21,7 @@
    October 21st, 2019
  ══════════
   • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • FIXED: Volume control fixed.
 
  ══════════
    Echo Device (v3.2.0.3)
