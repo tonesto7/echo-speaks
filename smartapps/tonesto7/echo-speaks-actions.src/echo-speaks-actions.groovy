@@ -889,7 +889,7 @@ private tierItemCleanup() {
     // if(!isTierAct() || !tierCnt) { return }
     tierKeys?.each { k->
         List id = k?.tokenize("_") ?: []
-        if(!isTierAct || (id?.size() && id?.size() < 4) || !id[3]?.isNumber() || !(id[3]?.toInteger() in tierIds)) { rem?.push(k as String) }
+        if(!isTierAct || (id?.size() && id?.size() < 4) || !id[3]?.toString()?.isNumber() || !(id[3]?.toInteger() in tierIds)) { rem?.push(k as String) }
     }
     if(rem?.size()) { log.debug "tierItemCleanup | Removing: ${rem}"; rem?.each { settingRemove(it as String) }; }
 }
@@ -2125,7 +2125,8 @@ private tierEvtHandler(evt=null) {
     // log.debug "tierMap: ${tierMap}"
     if(tierMap && tierMap?.size()) {
         Map newEvt = tierState?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, deviceId: evt?.deviceId, date: evt?.date]
-        Integer curPass = (tierState?.cycle && tierState?.cycle?.isNumber()) ? tierState?.cycle?.toInteger()+1 : 1
+        log.debug "cycle: ${tierState?.cycle}"
+        Integer curPass = (tierState?.cycle && tierState?.cycle?.toString()?.isInteger()) ? tierState?.cycle?.toInteger()+1 : 1
         if(curPass == 1) { updTsVal("lastTierRespStartDt"); remTsVal("lastTierRespStopDt"); }
         if(curPass <= tierMap?.size()) {
             schedNext = true
@@ -2169,7 +2170,7 @@ Map deviceEvtProcNumValue(evt, List devs = null, String cmd = null, Double dcl =
     Boolean evtOk = false
     Boolean evtAd = false
     // log.debug "deviceEvtProcNumValue | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}"
-    if(devs?.size() && cmd && evt?.value?.isNumber()) {
+    if(devs?.size() && cmd && evt?.value?.toString()?.isNumber()) {
         Double evtValue = (dcavg ? getDevValueAvg(devs, evt?.name) : evt?.value) as Double
         switch(cmd) {
             case "equals":
@@ -2268,7 +2269,7 @@ def thermostatEvtHandler(evt) {
 
 String evtValueCleanup(val) {
     // log.debug "val(in): ${val}"
-    val = (val?.isNumber() && val?.toString()?.endsWith(".0")) ? val?.toDouble()?.round(0) : val
+    val = (val?.toString()?.isNumber() && val?.toString()?.endsWith(".0")) ? val?.toDouble()?.round(0) : val
     // log.debug "val(out): ${val}"
     return val
 }
@@ -2593,7 +2594,7 @@ String decodeVariables(evt, str) {
             str = (str?.contains("%name%")) ? str?.replaceAll("%name%", evt?.displayName) : str
         }
         str = (str?.contains("%unit%") && evt?.name) ? str?.replaceAll("%unit%", getAttrPostfix(evt?.name)) : str
-        str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
+        str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
         str = (str?.contains("%duration%") && evt?.totalDur) ? str?.replaceAll("%duration%", "${evt?.totalDur} seconds ago") : str
     }
     str = (str?.contains("%date%")) ? str?.replaceAll("%date%", convToDate(evt?.date ?: new Date())) : str
