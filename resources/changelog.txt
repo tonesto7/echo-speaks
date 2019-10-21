@@ -30,6 +30,7 @@
    October 21st, 2019
  ══════════
   • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • FIXED: logDebug error in executeRoutineId corrected.
   • FIXED: Before when an announcement was sent with volume and restore volume it only changed on first echo.  Now it changes on all devices.
 
  ══════════
