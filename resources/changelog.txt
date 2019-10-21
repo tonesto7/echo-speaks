@@ -33,7 +33,7 @@
   • FIXED: Before when an announcement was sent with volume and restore volume it only changed on first echo.  Now it changes on all devices.
 
  ══════════
-   Websocket Device (v3.2.0.2)
+   Websocket Device (v3.2.0.1)
    October 21st, 2019
  ══════════
   • UPDATED: Moved the device code out of the device types folder to stop ST users from installing with github integration (This will break the import under the web interface until you manually update the code).
