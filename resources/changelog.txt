@@ -1,4 +1,46 @@
  ══════════
+   Main App (v3.2.0.3)
+   October 21st, 2019
+ ══════════
+  • ADDED: New amazon domain (amazon.com.mx) and es-UY and es-SP locales.
+  • FIXED: The announcement test should now work.  They were so broken before it was embarassing.
+  • FIXED: App now cleans up app settings correctly after initialize() is run.
+  • FIXED: Minor UI tweaks.
+
+ ══════════
+   Actions App (v3.2.0.3)
+   October 21st, 2019
+ ══════════
+  • ADDED: Trigger a WebCoRE piston when an action executes
+  • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • UPDATED: Modified the logic for only once a day to use just the trigger type instead of deviceid+type.
+  • FIXED: Volume control fixed for certain trigger actions.
+  • FIXED: Smoke and CarbonMonoxide trigger tests.
+  • FIXED: Minor UI tweaks.
+
+ ══════════
+   Zone App (v3.2.0.3)
+   October 21st, 2019
+ ══════════
+  • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • FIXED: Volume control fixed.
+
+ ══════════
+   Echo Device (v3.2.0.2)
+   October 21st, 2019
+ ══════════
+  • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • FIXED: Before when an announcement was sent with volume and restore volume it only changed on first echo.  Now it changes on all devices.
+
+ ══════════
+   Websocket Device (v3.2.0.2)
+   October 21st, 2019
+ ══════════
+  • UPDATED: Moved the device code out of the device types folder to stop ST users from installing with github integration (This will break the import under the web interface until you manually update the code).
+
+---------------------------
+
+ ══════════
    Main App (v3.2.0.2)
    October 17th, 2019
  ══════════

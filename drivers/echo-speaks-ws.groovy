@@ -17,14 +17,14 @@
 // NOTICE: This device will not work on SmartThings
 //TODO: Restore beta to false and change url to master repo
 
-String devVersion()  { return "3.2.0.0"}
-String devModified() { return "2019-10-18" }
+String devVersion()  { return "3.2.0.1"}
+String devModified() { return "2019-10-21" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return true }
 
 metadata {
-    definition (name: "Echo Speaks WS", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/devicetypes/tonesto7/echo-speaks-ws.src/echo-speaks-ws.groovy") {
+    definition (name: "Echo Speaks WS", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-ws.groovy") {
         capability "Initialize"
         capability "Refresh"
         capability "Actuator"
