@@ -1156,7 +1156,7 @@ def donationPage() {
 }
 
 def installed() {
-    log.debug "Installed with settings: ${settings}"
+    logInfo("Installed Event Received...")
     state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: "Not Set", showDonation: false, sentMetrics: false, shownChgLog: true]
     state?.isInstalled = true
     sendInstallData()
@@ -1164,7 +1164,7 @@ def installed() {
 }
 
 def updated() {
-    log.debug "Updated with settings: ${settings}"
+    logInfo("Updated Event Received...")
     if(!state?.isInstalled) { state?.isInstalled = true }
     if(!state?.installData) { state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: getDtNow().toString(), shownDonation: false, sentMetrics: false] }
     unsubscribe()

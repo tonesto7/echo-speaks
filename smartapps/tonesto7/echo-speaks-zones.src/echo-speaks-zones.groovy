@@ -15,7 +15,7 @@
  */
 
 String appVersion()	 { return "3.2.0.3" }
-String appModified() { return "2019-10-20" }
+String appModified() { return "2019-10-21" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -380,13 +380,13 @@ def zoneNotifTimePage() {
 //********************************************
 
 def installed() {
-    log.debug "Installed with settings: ${settings}"
+    logInfo("Installed Event Received...")
     state?.dateInstalled = getDtNow()
     initialize()
 }
 
 def updated() {
-    log.debug "Updated with settings: ${settings}"
+    logInfo("Updated Event Received...")
     if(state?.dupOpenedByUser == true) { state?.dupPendingSetup = false }
     initialize()
 }
