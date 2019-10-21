@@ -607,7 +607,11 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
 }
 
 Boolean locationTriggers() {
-    return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted || settings?.trig_scene || settings?.trig_guard)
+    return (
+        (valTrigEvt("mode") && settings?.trig_mode) || (valTrigEvt("alarm") && settings?.trig_alarm) ||
+        (valTrigEvt("routineExecuted") && settings?.trig_routineExecuted) ||
+        (valTrigEvt("scene") && settings?.trig_scene) || (valTrigEvt("guard") && settings?.trig_guard)
+    )
 }
 
 Boolean deviceTriggers() {

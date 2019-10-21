@@ -2,13 +2,13 @@
     "appDataVer": "1.0",
     "versions": {
         "mainApp": {
-            "ver": "3.0.0"
+            "ver": "3.2.0.3"
         },
         "echoDevice": {
-            "ver": "3.0.0"
+            "ver": "3.2.0.2"
         },
         "server": {
-            "ver": "2.2.2"
+            "ver": "2.3.0"
         }
     },
     "settings": {
@@ -145,7 +145,10 @@
         "A1RABVCI4QCIKC": {
             "name": "Echo Dot (Gen3)",
             "image": "echo_dot_gen3",
-            "caps": ["a", "t"]
+            "caps": [
+                "a",
+                "t"
+            ]
         },
         "A10A33FOX2NUBK": {
             "name": "Echo Spot",
