@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.2.0.3"}
-String devModified()  { return "2019-10-20" }
+String devModified()  { return "2019-10-21" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
