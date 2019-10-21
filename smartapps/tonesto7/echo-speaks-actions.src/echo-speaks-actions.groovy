@@ -1456,13 +1456,13 @@ Boolean wordInString(String findStr, String fullStr) {
 }
 
 def installed() {
-    log.debug "Installed with settings: ${settings}"
+    logInfo("Installed Event Received...")
     state?.dateInstalled = getDtNow()
     initialize()
 }
 
 def updated() {
-    log.debug "Updated with settings: ${settings}"
+    logInfo("Updated Event Received...")
     if(state?.dupOpenedByUser == true) { state?.dupPendingSetup = false }
     initialize()
 }
@@ -2232,7 +2232,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
             def dayOk = !once || (once && !isDateToday(prevDt))
-            // logDebug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "${okSym()}" : "${notOkSym()}"}) | OnceDaily: (${once}) - Status: (${dayOk ? "${okSym()}" : "${notOkSym()}"})")
+            // log.debug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "${okSym()}" : "${notOkSym()}"}) | OnceDaily: (${once}) - Status: (${dayOk ? "${okSym()}" : "${notOkSym()}"})")
             ok = (waitOk && dayOk)
         }
     }
