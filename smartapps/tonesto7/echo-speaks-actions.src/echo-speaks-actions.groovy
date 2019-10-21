@@ -2138,7 +2138,7 @@ private tierEvtHandler(evt=null) {
             atomicState?.actTierState = tierState
             tierSchedHandler([sched: schedNext, tierState: tierState])
         } else {
-            log.debug("Tier Cycle has completed... Clearing TierState...")
+            logDebug("Tier Cycle has completed... Clearing TierState...")
             atomicState?.actTierState = [:]
             atomicState?.tierSchedActive = false
             updTsVal("lastTierRespStopDt")
@@ -2154,10 +2154,10 @@ private tierSchedHandler(data) {
         executeAction(evt, false, "tierSchedHandler", false, false, data?.tierState?.message as String)
         if(data?.sched) {
             if(data?.tierState?.schedDelay && data?.tierState?.lastMsg == false) {
-                log.debug("Scheduling Next Tier Message for (${data?.tierState?.schedDelay} seconds)");
+                logDebug("Scheduling Next Tier Message for (${data?.tierState?.schedDelay} seconds)");
                 runIn(data?.tierState?.schedDelay - 2, "tierEvtHandler"); //Subtracted 2 seconds from delay to offset processing delay
             } else {
-                log.debug("Scheduling cleanup for (5 seconds) as this was the last message");
+                logDebug("Scheduling cleanup for (5 seconds) as this was the last message");
                 runIn(5, "tierEvtHandler");
             }
             atomicState?.tierSchedActive = true
