@@ -1,3 +1,34 @@
+  ══════════
+   Main App (v3.2.0.3)
+   October 21st, 2019
+ ══════════
+  • ADDED: New amazon domain (amazon.com.mx) and es-UY and es-SP locales.
+  • FIXED: The announcement test should now work.  They were so broken before it was embarassing.
+  • FIXED: Minor UI tweaks.
+
+ ══════════
+   Actions App (v3.2.0.3)
+   October 21st, 2019
+ ══════════
+  • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • UPDATED: Modified the logic for only once a day to use just the trigger type instead of deviceid+type.
+  • FIXED: Minor UI tweaks.
+
+ ══════════
+   Zone App (v3.2.0.3)
+   October 21st, 2019
+ ══════════
+  • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+
+ ══════════
+   Echo Device (v3.2.0.3)
+   October 21st, 2019
+ ══════════
+  • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • FIXED: Before when an announcement was sent with volume and restore volume it only changed on first echo.  Now it changes on all devices.
+
+---------------------------
+
  ══════════
    Main App (v3.2.0.2)
    October 17th, 2019
