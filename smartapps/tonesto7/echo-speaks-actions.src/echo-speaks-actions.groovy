@@ -14,6 +14,11 @@
  *
  */
 
+ //TODO: Create reports options
+ /*
+    Custom Reports for multiple builtin in routine items.
+    Reports for home status like temp, contact, alarm status
+*/
 String appVersion()  { return "3.2.0.3" }
 String appModified() { return "2019-10-21" }
 String appAuthor()   { return "Anthony S." }
