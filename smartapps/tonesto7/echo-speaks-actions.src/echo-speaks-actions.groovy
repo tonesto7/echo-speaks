@@ -15,7 +15,7 @@
  */
 
 String appVersion()  { return "3.2.0.3" }
-String appModified() { return "2019-10-20" }
+String appModified() { return "2019-10-21" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -341,7 +341,7 @@ def triggersPage() {
                 section (sTS("Mode Events"), hideable: true) {
                     input "trig_mode", "mode", title: inTS("Location Modes", getAppImg("mode", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("mode")
                     if(settings?.trig_mode) {
-                        input "trig_mode_once", "bool", title: inTS("Only alert once a day?\n(per mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_mode_once", "bool", title: inTS("Only alert once a day?\n(per type: mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_mode_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("mode", false, trigItemCnt++)
                     }
@@ -352,7 +352,7 @@ def triggersPage() {
                 section(sTS("Routine Events"), hideable: true) {
                     input "trig_routineExecuted", "enum", title: inTS("Routines", getAppImg("routine", true)), options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_routineExecuted) {
-                        input "trig_routineExecuted_once", "bool", title: inTS("Only alert once a day?\n(per routine)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_routineExecuted_once", "bool", title: inTS("Only alert once a day?\n(per type: routine)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_routineExecuted_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("routineExecuted", false, trigItemCnt++)
                     }
@@ -363,7 +363,7 @@ def triggersPage() {
                 section(sTS("Scene Events"), hideable: true) {
                     input "trig_scene", "device.sceneActivator", title: inTS("Scene Devices", getAppImg("routine", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_scene) {
-                        input "trig_scene_once", "bool", title: inTS("Only alert once a day?\n(per scene)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_scene_once", "bool", title: inTS("Only alert once a day?\n(per type: scene)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_scene_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("scene", false, trigItemCnt++)
                     }
@@ -530,7 +530,7 @@ def triggersPage() {
                             if (settings?.trig_thermostat_cmd == "operatingstate") {
                                 input "trig_thermostat_state_cmd", "enum", title: inTS("Operating State changes to?", getAppImg("command", true)), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true, image: getAppImg("command")
                             }
-                            input "trig_thermostat_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_thermostat_once", "bool", title: inTS("Only alert once a day?\n(per type: thermostat)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_thermostat_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                             triggerVariableDesc("thermostat", false, trigItemCnt++)
                         }
@@ -563,7 +563,7 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     }
                 }
                 if(!settings?."trig_${inType}_after") {
-                    input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                    input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per type: ${inType})", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                     input "trig_${inType}_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                 }
                 triggerVariableDesc(inType, true, trigItemCnt)
@@ -593,7 +593,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                         input "trig_${inType}_avg", "bool", title: inTS("Use the average of all selected device values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                     }
                 }
-                input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per type: ${inType})", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                 input "trig_${inType}_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                 triggerVariableDesc(inType, false, trigItemCnt)
             }
@@ -2224,10 +2224,10 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     Boolean ok = true
     Map evtHistMap = atomicState?.valEvtHistory ?: [:]
     def evtDt = parseDate(evt?.date?.toString())
-    // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date ? parseDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt as String) : null} | evtDt: ${evtDt}"
-    if(evtHistMap?.containsKey("${evt?.deviceId}_${evt?.name}") && evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt) {
+    // log.debug "prevDt: ${evtHistMap["${evt?.name}"]?.date ? parseDate(evtHistMap["${evt?.name}"]?.dt as String) : null} | evtDt: ${evtDt}"
+    if(evtHistMap?.containsKey("${evt?.name}") && evtHistMap["${evt?.name}"]?.dt) {
         // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt as String}"
-        def prevDt = parseDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt?.toString())
+        def prevDt = parseDate(evtHistMap["${evt?.name}"]?.dt?.toString())
         if(prevDt && evtDt) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
@@ -2236,7 +2236,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             ok = (waitOk && dayOk)
         }
     }
-    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name as String] }
+    if(ok) { evtHistMap["${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name as String] }
     // log.debug "evtWaitRestrictionOk: $ok"
     atomicState?.valEvtHistory = evtHistMap
     return ok
