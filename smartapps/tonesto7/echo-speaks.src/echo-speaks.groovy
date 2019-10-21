@@ -15,7 +15,7 @@
  */
 
 String appVersion()   { return "3.2.0.3" }
-String appModified()  { return "2019-10-20" }
+String appModified()  { return "2019-10-21" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -2782,7 +2782,7 @@ private List codeUpdateItems(shrt=false) {
         if(appUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}App: (v${state?.appData?.versions?.mainApp?.ver?.toString()})")
         if(actUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Actions: (v${state?.appData?.versions?.actionApp?.ver?.toString()})")
         if(zoneUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Zones: (v${state?.appData?.versions?.zoneApp?.ver?.toString()})")
-        if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Device: (v${state?.appData?.versions?.echoDevice?.ver?.toString()})")
+        if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : "ES "}Device: (v${state?.appData?.versions?.echoDevice?.ver?.toString()})")
         if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Websocket: (v${state?.appData?.versions?.wsDevice?.ver?.toString()})")
         if(servUpd) updItems.push("${!shrt ? "\n" : ""}Server: (v${state?.appData?.versions?.server?.ver?.toString()})")
     }
@@ -3801,19 +3801,18 @@ def appInfoSect()	{
             Map minUpdMap = getMinVerUpdsRequired()
             List codeUpdItems = codeUpdateItems(true)
             List remDevs = getRemovableDevs()
-            if(codeUpdItems?.size()) {
-                isNote=true
-                String str2 = "Code Updates Available for:"
-                codeUpdItems?.each { item-> str2 += bulletItem(str2, item) }
-                paragraph pTS(str2, null, false, "#2784D9"), required: true, state: null
-                showDocs = true
-            }
             if(minUpdMap?.updRequired && minUpdMap?.updItems?.size()) {
                 isNote=true
                 String str3 = "Updates Required for:"
                 minUpdMap?.updItems?.each { item-> str3 += bulletItem(str3, item)  }
                 paragraph pTS(str3, null, true, "red"), required: true, state: null
                 paragraph pTS("If you just updated the code please press Done/Save to let the app process the changes.", null, true, "red"), required: true, state: null
+                showDocs = true
+            } else if(codeUpdItems?.size()) {
+                isNote=true
+                String str2 = "Code Updates Available for:"
+                codeUpdItems?.each { item-> str2 += bulletItem(str2, item) }
+                paragraph pTS(str2, null, false, "#2784D9"), required: true, state: null
                 showDocs = true
             }
             if(showDocs) { updateDocsInput() }
