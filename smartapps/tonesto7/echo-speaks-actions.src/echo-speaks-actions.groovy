@@ -30,7 +30,7 @@ definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
     author: "Anthony Santilli",
-    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllow you to create echo device actions based on Events in your SmartThings home",
+    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create echo device actions based on device/location events in your SmartThings/Hubitat home.",
     category: "My Apps",
     parent: "tonesto7:Echo Speaks",
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
