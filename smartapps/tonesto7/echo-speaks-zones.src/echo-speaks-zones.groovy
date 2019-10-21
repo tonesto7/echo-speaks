@@ -820,11 +820,11 @@ public zoneCmdHandler(evt) {
                 log.debug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 zoneDevs?.devices?.each { dev->
                     if(isST() && delay) {
-                        if(cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay]) }
-                        if(cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol, [delay: delay]) }
+                        if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay]) }
+                        if(data?.cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol, [delay: delay]) }
                     } else {
-                        if(cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null) }
-                        if(cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol) }
+                        if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null) }
+                        if(data?.cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol) }
                     }
                 }
                 break
