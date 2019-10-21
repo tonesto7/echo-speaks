@@ -15,6 +15,7 @@
   • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
   • UPDATED: Modified the logic for only once a day to use just the trigger type instead of deviceid+type.
   • FIXED: Volume control fixed for certain trigger actions.
+  • FIXED: Smoke and CarbonMonoxide trigger tests.
   • FIXED: Minor UI tweaks.
 
  ══════════
