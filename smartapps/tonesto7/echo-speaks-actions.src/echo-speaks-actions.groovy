@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.2.0.2" }
-String appModified() { return "2019-10-18" }
+String appVersion()  { return "3.2.0.3" }
+String appModified() { return "2019-10-20" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -2669,8 +2669,8 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                                 //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                                 def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
                                 if(isST && actDelayMs) {
-                                    actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
-                                } else { actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol) }
+                                    actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), actConf[actType]?.deviceObjs, changeVol, restoreVol, [delay: actDelayMs])
+                                } else { actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), actConf[actType]?.deviceObjs, changeVol, restoreVol) }
                             } else {
                                 actDevices?.each { dev->
                                     if(isST && actDelayMs) {

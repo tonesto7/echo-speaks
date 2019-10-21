@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.2.0.2" }
-String appModified()  { return "2019-10-18" }
+String appVersion()   { return "3.2.0.3" }
+String appModified()  { return "2019-10-20" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3201, wsDevice: 3200, actionApp: 3202, zoneApp: 3202, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3203, wsDevice: 3200, actionApp: 3203, zoneApp: 3203, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -865,12 +865,12 @@ def announcePage() {
     return dynamicPage(name: "announcePage", uninstall: false, install: false) {
         section("") {
             paragraph pTS("This feature has known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
-            Map devs = getDeviceList(true, [announce])
             if(!announceDevices) {
                 input "announceAllDevices", "bool", title: inTS("Test Announcement using All Supported Devices"), defaultValue: false, required: false, submitOnChange: true
             }
             if(!announceAllDevices) {
-                input "announceDevices", "enum", title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+                def devs = getChildDevicesByCap("announce") ?: []
+                input "announceDevices", "enum", title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs?.collectEntries { [(it?.getId()): it?.getLabel() as String] }), multiple: true, required: false, submitOnChange: true
             }
             if(announceAllDevices || announceDevices) {
                 input "announceVolume", "number", title: inTS("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
@@ -975,11 +975,13 @@ private executeSpeechTest() {
 
 private sendTestAnnouncement() {
     String testMsg = settings?.announceMessage ?: null
-    List sDevs = settings?.announceAllDevices ? getChildDevicesByCap("Announce") : settings?.announceDevices
+    List sDevs = settings?.announceAllDevices ? getChildDevicesByCap("announce") : getDevicesFromList(settings?.announceDevices)
+    log.debug "sDevs: $sDevs"
     if(sDevs?.size()) {
-        if(sDevs?.size() > 1)
-        	List devObj = []	
+        if(sDevs?.size() > 1) {
+        	List devObj = []
         	sDevs?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+            def devJson = new groovy.json.JsonOutput().toJson(devObj)
     	    sDevs[0]?.sendAnnouncementToDevices(testMsg, "Echo Speaks Test", devObj, settings?.announceVolume ?: null, settings?.announceRestVolume ?: null)
     	} else {
     	    sDevs[0]?.sendAnnouncement(testMsg, "Echo Speaks Test", settings?.announceVolume ?: null, settings?.announceRestVolume ?: null)

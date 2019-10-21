@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()	 { return "3.2.0.2" }
-String appModified() { return "2019-10-18" }
+String appVersion()	 { return "3.2.0.3" }
+String appModified() { return "2019-10-20" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -756,7 +756,7 @@ Map getZoneDevices() {
     List devObj = []
     List devices = parent?.getDevicesFromList(settings?.zone_EchoDevices)
     devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
-    return [devices: devices, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
+    return [devices: devices, devObj: devObj]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
 
 public zoneRefreshHandler(evt) {
@@ -797,12 +797,12 @@ public zoneCmdHandler(evt) {
                 }
                 break
             case "announcement":
-                if(zoneDevs?.devices?.size() > 0 && zoneDevs?.jsonStr) {
+                if(zoneDevs?.devices?.size() > 0 && zoneDevs?.devObj) {
                     logDebug("Sending Announcement Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                     if(isST() && delay) {
-                        zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.jsonStr, data?.changeVol, data?.restoreVol, [delay: delay])
-                    } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.jsonStr, data?.changeVol, data?.restoreVol) }
+                        zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol, [delay: delay])
+                    } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol) }
                 }
                 break
             case "sequence":
