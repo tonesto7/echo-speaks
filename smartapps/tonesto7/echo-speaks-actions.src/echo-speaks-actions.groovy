@@ -14,8 +14,13 @@
  *
  */
 
-String appVersion()  { return "3.2.0.2" }
-String appModified() { return "2019-10-18" }
+ //TODO: Create reports options
+ /*
+    Custom Reports for multiple builtin in routine items.
+    Reports for home status like temp, contact, alarm status
+*/
+String appVersion()  { return "3.2.0.3" }
+String appModified() { return "2019-10-21" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -25,7 +30,7 @@ definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
     author: "Anthony Santilli",
-    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllow you to create echo device actions based on Events in your SmartThings home",
+    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create echo device actions based on device/location events in your SmartThings/Hubitat home.",
     category: "My Apps",
     parent: "tonesto7:Echo Speaks",
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
@@ -341,7 +346,7 @@ def triggersPage() {
                 section (sTS("Mode Events"), hideable: true) {
                     input "trig_mode", "mode", title: inTS("Location Modes", getAppImg("mode", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("mode")
                     if(settings?.trig_mode) {
-                        input "trig_mode_once", "bool", title: inTS("Only alert once a day?\n(per mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_mode_once", "bool", title: inTS("Only alert once a day?\n(per type: mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_mode_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("mode", false, trigItemCnt++)
                     }
@@ -352,7 +357,7 @@ def triggersPage() {
                 section(sTS("Routine Events"), hideable: true) {
                     input "trig_routineExecuted", "enum", title: inTS("Routines", getAppImg("routine", true)), options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_routineExecuted) {
-                        input "trig_routineExecuted_once", "bool", title: inTS("Only alert once a day?\n(per routine)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_routineExecuted_once", "bool", title: inTS("Only alert once a day?\n(per type: routine)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_routineExecuted_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("routineExecuted", false, trigItemCnt++)
                     }
@@ -363,7 +368,7 @@ def triggersPage() {
                 section(sTS("Scene Events"), hideable: true) {
                     input "trig_scene", "device.sceneActivator", title: inTS("Scene Devices", getAppImg("routine", true)), multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
                     if(settings?.trig_scene) {
-                        input "trig_scene_once", "bool", title: inTS("Only alert once a day?\n(per scene)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_scene_once", "bool", title: inTS("Only alert once a day?\n(per type: scene)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_scene_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("scene", false, trigItemCnt++)
                     }
@@ -530,7 +535,7 @@ def triggersPage() {
                             if (settings?.trig_thermostat_cmd == "operatingstate") {
                                 input "trig_thermostat_state_cmd", "enum", title: inTS("Operating State changes to?", getAppImg("command", true)), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true, image: getAppImg("command")
                             }
-                            input "trig_thermostat_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                            input "trig_thermostat_once", "bool", title: inTS("Only alert once a day?\n(per type: thermostat)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                             input "trig_thermostat_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                             triggerVariableDesc("thermostat", false, trigItemCnt++)
                         }
@@ -563,7 +568,7 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     }
                 }
                 if(!settings?."trig_${inType}_after") {
-                    input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                    input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per type: ${inType})", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                     input "trig_${inType}_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                 }
                 triggerVariableDesc(inType, true, trigItemCnt)
@@ -593,7 +598,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                         input "trig_${inType}_avg", "bool", title: inTS("Use the average of all selected device values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                     }
                 }
-                input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per device)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                input "trig_${inType}_once", "bool", title: inTS("Only alert once a day?\n(per type: ${inType})", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                 input "trig_${inType}_wait", "number", title: inTS("Wait between each report", getAppImg("delay_time", true)), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
                 triggerVariableDesc(inType, false, trigItemCnt)
             }
@@ -602,7 +607,11 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
 }
 
 Boolean locationTriggers() {
-    return (settings?.trig_mode || settings?.trig_alarm || settings?.trig_routineExecuted || settings?.trig_scene || settings?.trig_guard)
+    return (
+        (valTrigEvt("mode") && settings?.trig_mode) || (valTrigEvt("alarm") && settings?.trig_alarm) ||
+        (valTrigEvt("routineExecuted") && settings?.trig_routineExecuted) ||
+        (valTrigEvt("scene") && settings?.trig_scene) || (valTrigEvt("guard") && settings?.trig_guard)
+    )
 }
 
 Boolean deviceTriggers() {
@@ -896,6 +905,47 @@ def actTextOrTiersInput(type) {
                 description: settings?."${type}" ?: "Open Response Designer...", image: getAppImg("text")
     }
 }
+
+// private updActExecMap() {
+//     String actionType = settings?.actionType
+//     Map actionExecMap = [configured: false]
+
+//     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
+//         actionExecMap?.actionType = settings?.actionType
+//         actionExecMap?.config = [:]
+//         switch(actionType) {
+//             case "speak":
+//             case "speak_tiered":
+//                 actionExecMap?.config[actionType] = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
+//                 break
+//             case "announcement":
+//             case "announcement_tiered":
+//                 actionExecMap?.config[actionType] = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
+//                 if(settings?.act_EchoDevices?.size() > 1) {
+//                     List devObj = []
+//                     devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+//                     // log.debug "devObj: $devObj"
+//                     actionExecMap?.config[actionType]?.deviceObjs = devObj
+//                 }
+//                 break
+//             case "sequence":
+//                 actionExecMap?.config[actionType] = [text: settings?."act_${actionType}_txt"]
+//                 break
+//             case "weather":
+//                 actionExecMap?.config?.weather = [cmd: "playWeather"]
+//                 break
+//             case "playback":
+//             case "builtin":
+//             case "calendar":
+//                 actionExecMap?.config[actionType] = [cmd: settings?."act_${actionType}_cmd"]
+//                 break
+//             case "music":
+
+//                 break
+//         }
+//     }
+// }
+
 
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
@@ -1196,6 +1246,13 @@ def actionsPage() {
                     input "act_switches_on", "capability.switch", title: inTS("Turn on these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
                     input "act_switches_off", "capability.switch", title: inTS("Turn off these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
                 }
+                section ("Execute a webCoRE Piston:") {
+                    input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+                    if(settings?.enableWebCoRE) {
+                        if(!atomicState?.webCoRE) { webCoRE_init() }
+                        input "webCorePistons", "enum", title: inTS("Choose Piston...", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+                    }
+                }
                 actionSimulationSect()
                 section("") {
                     paragraph pTS("You are all done with this step.\nPress Done/Save to go back", getAppImg("done", true)), state: "complete", image: getAppImg("done")
@@ -1456,13 +1513,13 @@ Boolean wordInString(String findStr, String fullStr) {
 }
 
 def installed() {
-    log.debug "Installed with settings: ${settings}"
+    logInfo("Installed Event Received...")
     state?.dateInstalled = getDtNow()
     initialize()
 }
 
 def updated() {
-    log.debug "Updated with settings: ${settings}"
+    logInfo("Updated Event Received...")
     if(state?.dupOpenedByUser == true) { state?.dupPendingSetup = false }
     initialize()
 }
@@ -1574,6 +1631,7 @@ private actionCleanup() {
     }
 
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
+    if(atomicState?.webCoRE && !settings?.enableWebCoRE) { setItems?.push("webCorePistons"); state?.remove("webCoRE"); }
     // Performs the Setting Removal
     setItems = setItems + ["tuneinSearchQuery", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
     // log.debug "setItems: $setItems"
@@ -2224,19 +2282,19 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     Boolean ok = true
     Map evtHistMap = atomicState?.valEvtHistory ?: [:]
     def evtDt = parseDate(evt?.date?.toString())
-    // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.date ? parseDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt as String) : null} | evtDt: ${evtDt}"
-    if(evtHistMap?.containsKey("${evt?.deviceId}_${evt?.name}") && evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt) {
+    // log.debug "prevDt: ${evtHistMap["${evt?.name}"]?.date ? parseDate(evtHistMap["${evt?.name}"]?.dt as String) : null} | evtDt: ${evtDt}"
+    if(evtHistMap?.containsKey("${evt?.name}") && evtHistMap["${evt?.name}"]?.dt) {
         // log.debug "prevDt: ${evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt as String}"
-        def prevDt = parseDate(evtHistMap["${evt?.deviceId}_${evt?.name}"]?.dt?.toString())
+        def prevDt = parseDate(evtHistMap["${evt?.name}"]?.dt?.toString())
         if(prevDt && evtDt) {
             def dur = (int) ((long)(evtDt?.getTime() - prevDt?.getTime())/1000)
             def waitOk = ( (wait && dur) && (wait < dur));
             def dayOk = !once || (once && !isDateToday(prevDt))
-            // logDebug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "${okSym()}" : "${notOkSym()}"}) | OnceDaily: (${once}) - Status: (${dayOk ? "${okSym()}" : "${notOkSym()}"})")
+            // log.debug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "${okSym()}" : "${notOkSym()}"}) | OnceDaily: (${once}) - Status: (${dayOk ? "${okSym()}" : "${notOkSym()}"})")
             ok = (waitOk && dayOk)
         }
     }
-    if(ok) { evtHistMap["${evt?.deviceId}_${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name as String] }
+    if(ok) { evtHistMap["${evt?.name}"] = [dt: evt?.date?.toString(), value: evt?.value, name: evt?.name as String] }
     // log.debug "evtWaitRestrictionOk: $ok"
     atomicState?.valEvtHistory = evtHistMap
     return ok
@@ -2485,7 +2543,7 @@ Map getRandomTrigEvt() {
     List trigItems = settings?."trig_${trig}" ?: null
     def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] : (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
-    // log.debug "trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}"
+    // logDebug "trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}"
     Map attVal = [
         "switch": getRandomItem(["on", "off"]),
         door: getRandomItem(["open", "closed", "opening", "closing"]),
@@ -2497,6 +2555,8 @@ Map getRandomTrigEvt() {
         valve: getRandomItem(["open", "closed"]),
         shade: getRandomItem(["open", "closed"]),
         button: getRandomItem(["pushed", "held"]),
+        smoke: getRandomItem(["detected", "clear"]),
+        carbonMonoxide: getRandomItem(["detected", "clear"]),
         temperature: getRandomItem(30..80),
         illuminance: getRandomItem(1..100),
         humidity: getRandomItem(1..100),
@@ -2594,6 +2654,9 @@ String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=
                     return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
                 case "schedule":
                     return "Your scheduled event has occurred at ${evt?.value}"
+                case "smoke":
+                case "carbonMonoxide":
+                    return "${evt?.name} is ${evt?.value} on ${evt?.displayName}!"
                 default:
                     if(evtAd && devs?.size()>1) {
                         return "All ${devs?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
@@ -2618,7 +2681,6 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     Map actMap = state?.actionExecMap ?: null
     List actDevices = settings?.act_EchoDevices ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
     Map activeZones = settings?.act_EchoZones ? getActiveZones() : [:]
-
     String actMsgTxt = null
     String actType = settings?.actionType
     if(actOk && actType) {
@@ -2634,7 +2696,6 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
         Integer changeVol = actMap?.config?.volume?.change as Integer ?: null
         Integer restoreVol = actMap?.config?.volume?.restore as Integer ?: null
         Integer alarmVol = actMap?.config?.volume?.alarm ?: null
-
         switch(actType) {
             case "speak":
             case "speak_tiered":
@@ -2669,8 +2730,8 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                                 //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                                 def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
                                 if(isST && actDelayMs) {
-                                    actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol, [delay: actDelayMs])
-                                } else { actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), devJson, changeVol, restoreVol) }
+                                    actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), actConf[actType]?.deviceObjs, changeVol, restoreVol, [delay: actDelayMs])
+                                } else { actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), actConf[actType]?.deviceObjs, changeVol, restoreVol) }
                             } else {
                                 actDevices?.each { dev->
                                     if(isST && actDelayMs) {
@@ -2729,19 +2790,10 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else if(actDevices?.size()) {
-                        if(changeVol || restoreVol) {
-                            actDevices?.each { dev->
-                                if(isST && actDelayMs) {
-                                    dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol, [delay: actDelayMs])
-                                } else { dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol) }
-                            }
-
-                        } else {
-                            actDevices?.each { dev->
-                                if(isST && actDelayMs) {
-                                    dev?."${actConf[actType]?.cmd}"([delay: actDelayMs])
-                                } else { dev?."${actConf[actType]?.cmd}"() }
-                            }
+                        actDevices?.each { dev->
+                            if(isST && actDelayMs) {
+                                dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol, [delay: actDelayMs])
+                            } else { dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol) }
                         }
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     }
@@ -2829,6 +2881,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             if(settings?.act_switches_off) settings?.act_switches_off?.off()
             if(settings?.act_switches_on) settings?.act_switches_on?.on()
         }
+        if (settings?.enableWebCoRE && settings?.webCorePistons) { webCoRE_execute(settings?.webCorePistons) }
     }
     logDebug("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
 }
@@ -3140,6 +3193,16 @@ Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")
 Boolean checkMinVersion() { return (versionStr2Int(appVersion()) < parent?.minVersions()["actionApp"]) }
 
 
+/************************************************************************************************************
+		webCoRE Integration
+************************************************************************************************************/
+private webCoRE_handle(){return'webCoRE'}
+private webCoRE_init(pistonExecutedCbk){atomicState.webCoRE=(atomicState?.webCoRE instanceof Map?atomicState?.webCoRE:[:])+(pistonExecutedCbk?[cbk:pistonExecutedCbk]:[:]);subscribe(location,"${webCoRE_handle()}.pistonList",webCoRE_handler);if(pistonExecutedCbk)subscribe(location,"${webCoRE_handle()}.pistonExecuted",webCoRE_handler);webCoRE_poll();}
+private webCoRE_poll(){sendLocationEvent([name: webCoRE_handle(),value:'poll',isStateChange:true,displayed:false])}
+public  webCoRE_execute(pistonIdOrName,Map data=[:]){def i=(atomicState?.webCoRE?.pistons?:[]).find{(it.name==pistonIdOrName)||(it.id==pistonIdOrName)}?.id;if(i){sendLocationEvent([name:i,value:app.label,isStateChange:true,displayed:false,data:data])}}
+public  webCoRE_list(mode){def p=atomicState?.webCoRE?.pistons;if(p)p.collect{mode=='id'?it.id:(mode=='name'?it.name:[id:it.id,name:it.name])}}
+public  webCoRE_handler(evt){switch(evt.value){case 'pistonList':List p=atomicState?.webCoRE?.pistons?:[];Map d=evt.jsonData?:[:];if(d.id&&d.pistons&&(d.pistons instanceof List)){p.removeAll{it.iid==d.id};p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name};atomicState?.webCoRE = [updated:now(),pistons:p];};break;case 'pistonExecuted':def cbk=atomicState?.webCoRE?.cbk;if(cbk&&evt.jsonData)"$cbk"(evt.jsonData);break;}}
+public  webCore_icon(){return "https://cdn.rawgit.com/ady624/webCoRE/master/resources/icons/app-CoRE.png"}
 /******************************************
 |   Restriction validators
 *******************************************/
@@ -3542,6 +3605,9 @@ String getActionDesc() {
         str += settings?.act_volume_restore ? "Restore Volume: (${settings?.act_volume_restore})\n" : ""
         str += settings?.act_delay ? "Delay: (${settings?.act_delay})\n" : ""
         str += settings?."act_${settings?.actionType}_txt" ? "Using Default Response: (True)\n" : ""
+        str + settings?.act_switches_on ? "Switches On: (settings?.act_switches_on?.size())" : ""
+        str + settings?.act_switches_off ? "Switches Off: (settings?.act_switches_off?.size())" : ""
+        str += (settings?.enableWebCoRE && settings?.webCorePistons) ? "webCoRE Piston:\n \u2022 ${settings?.webCorePistons}" : ""
         str += "\nTap to modify..."
         return str
     } else {

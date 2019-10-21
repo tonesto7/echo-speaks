@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.2.0.1"}
-String devModified() { return "2019-10-18" }
+String devVersion()  { return "3.2.0.2"}
+String devModified() { return "2019-10-21" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -1312,7 +1312,7 @@ private sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=fals
     commands?.each { cmdItem->
         if(cmdItem?.command instanceof Map) {
             nodeList?.push(cmdItem?.command)
-        } else { nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value)) }
+        } else { nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value, cmdItem?.devType ?: null, cmdItem?.devSerial ?: null)) }
     }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     sendSequenceCommand("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}", seqJson, null)
@@ -1733,7 +1733,7 @@ def executeRoutineId(String rId) {
     logTrace("executeRoutineId($rId) command received...")
     if(!rId) { logWarn("No Routine ID sent with executeRoutineId($rId) command", true) }
     if(parent?.executeRoutineById(rId as String)) {
-        logDebug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${rId}", true)
+        logDebug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${rId}")
         incrementCntByKey("use_cnt_executeRoutine")
     }
 }
@@ -1863,21 +1863,24 @@ def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) 
 }
 
 def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null, restoreVolume=null) {
+    // log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: devObj, volume: $volume, restoreVolume: $restoreVolume)"
     if(isCommandTypeAllowed("announce") && devObj) {
-        msg = "${title ? "${title}" : "Echo Speaks"}::${msg}::${devObj?.toString()}"
+        def devJson = new groovy.json.JsonOutput().toJson(devObj)
+        msg = "${title ?: "Echo Speaks"}::${msg}::${devJson?.toString()}"
         // log.debug "sendAnnouncementToDevices | msg: ${msg}"
-        if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "announcement_devices", value: msg]]
-            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "sendAnnouncementToDevices")
+        if(volume || restoreVolume) {
+            List mainSeq = []
+            if(volume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: volume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
+            mainSeq?.push([command: "announcement_devices", value: msg])
+            if(restoreVolume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: restoreVolume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
+            sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
         } else { doSequenceCmd("sendAnnouncementToDevices", "announcement_devices", msg) }
         incrementCntByKey("use_cnt_announcementDevices")
     }
 }
 
 def playAnnouncementAll(String msg, String title=null) {
-    // if(isCommandTypeAllowed("announce")) {
-        msg = "${title ? "${title}::" : ""}${msg}"
+    // if(isCommandTypeAllowed("announce")) {bvxdsa
         doSequenceCmd("AnnouncementAll", "announcementall", msg)
         incrementCntByKey("use_cnt_announcementAll")
     // }
@@ -2978,14 +2981,14 @@ Map multiSequenceBuilder(commands, parallel=false) {
     return seqObj
 }
 
-Map createSequenceNode(command, value) {
+Map createSequenceNode(command, value, devType=null, devSerial=null) {
     try {
         Boolean remDevSpecifics = false
         Map seqNode = [
             "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
             "operationPayload": [
-                "deviceType": state?.deviceType,
-                "deviceSerialNumber": state?.serialNumber,
+                "deviceType": devType ?: state?.deviceType,
+                "deviceSerialNumber": devSerial ?: state?.serialNumber,
                 "locale": (state?.regionLocale ?: "en-US"),
                 "customerId": state?.deviceOwnerCustomerId
             ]

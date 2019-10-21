@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()	 { return "3.2.0.2" }
-String appModified() { return "2019-10-18" }
+String appVersion()	 { return "3.2.0.3" }
+String appModified() { return "2019-10-21" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -24,7 +24,7 @@ definition(
     name: "Echo Speaks - Zones",
     namespace: "tonesto7",
     author: "Anthony Santilli",
-    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllow creation of virtual broadcast zones based on your echo devices",
+    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create virtual broadcast zones based on your echo devices using device/location events to active the zone.",
     category: "My Apps",
     parent: "tonesto7:Echo Speaks",
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
@@ -380,13 +380,13 @@ def zoneNotifTimePage() {
 //********************************************
 
 def installed() {
-    log.debug "Installed with settings: ${settings}"
+    logInfo("Installed Event Received...")
     state?.dateInstalled = getDtNow()
     initialize()
 }
 
 def updated() {
-    log.debug "Updated with settings: ${settings}"
+    logInfo("Updated Event Received...")
     if(state?.dupOpenedByUser == true) { state?.dupPendingSetup = false }
     initialize()
 }
@@ -756,7 +756,7 @@ Map getZoneDevices() {
     List devObj = []
     List devices = parent?.getDevicesFromList(settings?.zone_EchoDevices)
     devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
-    return [devices: devices, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
+    return [devices: devices, devObj: devObj]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
 
 public zoneRefreshHandler(evt) {
@@ -797,12 +797,12 @@ public zoneCmdHandler(evt) {
                 }
                 break
             case "announcement":
-                if(zoneDevs?.devices?.size() > 0 && zoneDevs?.jsonStr) {
+                if(zoneDevs?.devices?.size() > 0 && zoneDevs?.devObj) {
                     logDebug("Sending Announcement Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                     if(isST() && delay) {
-                        zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.jsonStr, data?.changeVol, data?.restoreVol, [delay: delay])
-                    } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.jsonStr, data?.changeVol, data?.restoreVol) }
+                        zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol, [delay: delay])
+                    } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol) }
                 }
                 break
             case "sequence":
@@ -817,14 +817,14 @@ public zoneCmdHandler(evt) {
             case "calendar":
             case "weather":
             case "playback":
-                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                log.debug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 zoneDevs?.devices?.each { dev->
                     if(isST() && delay) {
-                        dev?."${data?.cmd}"([delay: delay])
-                        if(data?.changeVol) { dev?.volume(data?.changeVol, [delay: delay]) }
+                        if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay]) }
+                        if(data?.cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol, [delay: delay]) }
                     } else {
-                        dev?."${data?.cmd}"()
-                        if(data?.changeVol) { dev?.volume(data?.changeVol) }
+                        if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null) }
+                        if(data?.cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol) }
                     }
                 }
                 break
