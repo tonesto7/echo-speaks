@@ -14,7 +14,7 @@
  *
  */
 
-String appVersion()	 { return "3.2.0.3" }
+String appVersion()	 { return "3.2.0.4" }
 String appModified() { return "2019-10-21" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
@@ -340,7 +340,7 @@ def zoneNotifPage() {
                 }
             } else { state?.notif_message_tested = false }
         } else {
-            paragraph pTS("Configure either an Active or Inactive message to configure remaining notification options.", null, false, "#2784D9"), state: "complete"
+            section() { paragraph pTS("Configure either an Active or Inactive message to configure remaining notification options.", null, false, "#2784D9"), state: "complete" }
         }
     }
 }
