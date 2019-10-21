@@ -817,14 +817,14 @@ public zoneCmdHandler(evt) {
             case "calendar":
             case "weather":
             case "playback":
-                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                log.debug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 zoneDevs?.devices?.each { dev->
                     if(isST() && delay) {
-                        dev?."${data?.cmd}"([delay: delay])
-                        if(data?.changeVol) { dev?.volume(data?.changeVol, [delay: delay]) }
+                        if(cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay]) }
+                        if(cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol, [delay: delay]) }
                     } else {
-                        dev?."${data?.cmd}"()
-                        if(data?.changeVol) { dev?.volume(data?.changeVol) }
+                        if(cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null) }
+                        if(cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol) }
                     }
                 }
                 break

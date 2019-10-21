@@ -2618,7 +2618,6 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     Map actMap = state?.actionExecMap ?: null
     List actDevices = settings?.act_EchoDevices ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
     Map activeZones = settings?.act_EchoZones ? getActiveZones() : [:]
-
     String actMsgTxt = null
     String actType = settings?.actionType
     if(actOk && actType) {
@@ -2729,19 +2728,10 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else if(actDevices?.size()) {
-                        if(changeVol || restoreVol) {
-                            actDevices?.each { dev->
-                                if(isST && actDelayMs) {
-                                    dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol, [delay: actDelayMs])
-                                } else { dev?."${actConf[actType]?.cmd}"(changeVolume, restoreVol) }
-                            }
-
-                        } else {
-                            actDevices?.each { dev->
-                                if(isST && actDelayMs) {
-                                    dev?."${actConf[actType]?.cmd}"([delay: actDelayMs])
-                                } else { dev?."${actConf[actType]?.cmd}"() }
-                            }
+                        actDevices?.each { dev->
+                            if(isST && actDelayMs) {
+                                dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol, [delay: actDelayMs])
+                            } else { dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol) }
                         }
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     }
