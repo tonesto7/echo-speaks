@@ -902,6 +902,47 @@ def actTextOrTiersInput(type) {
     }
 }
 
+// private updActExecMap() {
+//     String actionType = settings?.actionType
+//     Map actionExecMap = [configured: false]
+
+//     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
+//         actionExecMap?.actionType = settings?.actionType
+//         actionExecMap?.config = [:]
+//         switch(actionType) {
+//             case "speak":
+//             case "speak_tiered":
+//                 actionExecMap?.config[actionType] = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
+//                 break
+//             case "announcement":
+//             case "announcement_tiered":
+//                 actionExecMap?.config[actionType] = [text: settings?.act_speak_txt, evtText: ((state?.showSpeakEvtVars && !settings?.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
+//                 if(settings?.act_EchoDevices?.size() > 1) {
+//                     List devObj = []
+//                     devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+//                     // log.debug "devObj: $devObj"
+//                     actionExecMap?.config[actionType]?.deviceObjs = devObj
+//                 }
+//                 break
+//             case "sequence":
+//                 actionExecMap?.config[actionType] = [text: settings?."act_${actionType}_txt"]
+//                 break
+//             case "weather":
+//                 actionExecMap?.config?.weather = [cmd: "playWeather"]
+//                 break
+//             case "playback":
+//             case "builtin":
+//             case "calendar":
+//                 actionExecMap?.config[actionType] = [cmd: settings?."act_${actionType}_cmd"]
+//                 break
+//             case "music":
+
+//                 break
+//         }
+//     }
+// }
+
+
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
         Boolean done = false
@@ -1586,6 +1627,7 @@ private actionCleanup() {
     }
 
     settings?.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems?.push(si?.key as String) } }
+    if(atomicState?.webCoRE && !settings?.enableWebCoRE) { setItems?.push("webCorePistons"); state?.remove("webCoRE"); }
     // Performs the Setting Removal
     setItems = setItems + ["tuneinSearchQuery", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
     // log.debug "setItems: $setItems"
@@ -2497,7 +2539,7 @@ Map getRandomTrigEvt() {
     List trigItems = settings?."trig_${trig}" ?: null
     def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] : (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
-    // log.debug "trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}"
+    // log.debug "trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}"
     Map attVal = [
         "switch": getRandomItem(["on", "off"]),
         door: getRandomItem(["open", "closed", "opening", "closing"]),
@@ -2509,6 +2551,8 @@ Map getRandomTrigEvt() {
         valve: getRandomItem(["open", "closed"]),
         shade: getRandomItem(["open", "closed"]),
         button: getRandomItem(["pushed", "held"]),
+        smoke: getRandomItem(["detected", "clear"]),
+        carbonMonoxide: getRandomItem(["detected", "clear"]),
         temperature: getRandomItem(30..80),
         illuminance: getRandomItem(1..100),
         humidity: getRandomItem(1..100),
@@ -2606,6 +2650,9 @@ String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=
                     return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
                 case "schedule":
                     return "Your scheduled event has occurred at ${evt?.value}"
+                case "smoke":
+                case "carbonMonoxide":
+                    return "${evt?.name} is ${evt?.value} on ${evt?.displayName}!"
                 default:
                     if(evtAd && devs?.size()>1) {
                         return "All ${devs?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
@@ -2645,15 +2692,15 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
         Integer changeVol = actMap?.config?.volume?.change as Integer ?: null
         Integer restoreVol = actMap?.config?.volume?.restore as Integer ?: null
         Integer alarmVol = actMap?.config?.volume?.alarm ?: null
-
         switch(actType) {
             case "speak":
             case "speak_tiered":
             case "announcement":
             case "announcement_tiered":
                 if(actConf[actType]) {
+                    // log.debug "lalala"
                     String txt = getResponseItem(evt, tierMsg, allDevsResp, isRptAct, testMode) ?: null
-                    // log.debug "txt: $txt"
+                    log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
                     if(activeZones?.size()) {
