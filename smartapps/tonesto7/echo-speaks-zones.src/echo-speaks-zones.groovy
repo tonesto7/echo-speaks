@@ -24,7 +24,7 @@ definition(
     name: "Echo Speaks - Zones",
     namespace: "tonesto7",
     author: "Anthony Santilli",
-    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllow creation of virtual broadcast zones based on your echo devices",
+    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create virtual broadcast zones based on your echo devices using device/location events to active the zone.",
     category: "My Apps",
     parent: "tonesto7:Echo Speaks",
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
