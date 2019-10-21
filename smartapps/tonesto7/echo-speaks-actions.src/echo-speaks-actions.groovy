@@ -2539,7 +2539,7 @@ Map getRandomTrigEvt() {
     List trigItems = settings?."trig_${trig}" ?: null
     def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] : (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
-    // log.debug "trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}"
+    // logDebug "trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}"
     Map attVal = [
         "switch": getRandomItem(["on", "off"]),
         door: getRandomItem(["open", "closed", "opening", "closing"]),
@@ -2698,9 +2698,8 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "announcement":
             case "announcement_tiered":
                 if(actConf[actType]) {
-                    // log.debug "lalala"
                     String txt = getResponseItem(evt, tierMsg, allDevsResp, isRptAct, testMode) ?: null
-                    log.debug "txt: $txt"
+                    // log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
                     if(activeZones?.size()) {
