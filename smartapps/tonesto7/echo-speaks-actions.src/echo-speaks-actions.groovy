@@ -2125,8 +2125,7 @@ private tierEvtHandler(evt=null) {
     // log.debug "tierMap: ${tierMap}"
     if(tierMap && tierMap?.size()) {
         Map newEvt = tierState?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, deviceId: evt?.deviceId, date: evt?.date]
-        log.debug "cycle: ${tierState?.cycle}"
-        Integer curPass = (tierState?.cycle && tierState?.cycle?.toString()?.isInteger()) ? tierState?.cycle?.toInteger()+1 : 1
+        Integer curPass = (tierState?.cycle && tierState?.cycle?.toString()?.isNumber()) ? tierState?.cycle?.toInteger()+1 : 1
         if(curPass == 1) { updTsVal("lastTierRespStartDt"); remTsVal("lastTierRespStopDt"); }
         if(curPass <= tierMap?.size()) {
             schedNext = true
