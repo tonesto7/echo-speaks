@@ -55,7 +55,7 @@
         "name": "Echo Speaks Device",
         "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.png",
         "published": true,
-        "version": "3.2.0.3",
+        "version": "3.2.0.2",
         "appUrl": "deviceTypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy",
         "optional": false
     }]

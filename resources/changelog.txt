@@ -1,9 +1,10 @@
-  ══════════
+ ══════════
    Main App (v3.2.0.3)
    October 21st, 2019
  ══════════
   • ADDED: New amazon domain (amazon.com.mx) and es-UY and es-SP locales.
   • FIXED: The announcement test should now work.  They were so broken before it was embarassing.
+  • FIXED: App now cleans up app settings correctly after initialize() is run.
   • FIXED: Minor UI tweaks.
 
  ══════════
@@ -24,7 +25,7 @@
   • FIXED: Volume control fixed.
 
  ══════════
-   Echo Device (v3.2.0.3)
+   Echo Device (v3.2.0.2)
    October 21st, 2019
  ══════════
   • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
