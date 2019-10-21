@@ -1863,6 +1863,7 @@ def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) 
 }
 
 def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null, restoreVolume=null) {
+    // log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: devObj, volume: $volume, restoreVolume: $restoreVolume)"
     if(isCommandTypeAllowed("announce") && devObj) {
         def devJson = new groovy.json.JsonOutput().toJson(devObj)
         msg = "${title ?: "Echo Speaks"}::${msg}::${devJson?.toString()}"

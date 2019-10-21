@@ -973,43 +973,20 @@ private executeSpeechTest() {
     }
 }
 
-private sendTestAnnouncement() {
-    String testMsg = settings?.announceMessage ?: null
-    List sDevs = settings?.announceAllDevices ? getChildDevicesByCap("announce") : getDevicesFromList(settings?.announceDevices)
-    log.debug "sDevs: $sDevs"
-    if(sDevs?.size()) {
-        if(sDevs?.size() > 1) {
-        	List devObj = []
-        	sDevs?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
-            def devJson = new groovy.json.JsonOutput().toJson(devObj)
-    	    sDevs[0]?.sendAnnouncementToDevices(testMsg, "Echo Speaks Test", devObj, settings?.announceVolume ?: null, settings?.announceRestVolume ?: null)
-    	} else {
-    	    sDevs[0]?.sendAnnouncement(testMsg, "Echo Speaks Test", settings?.announceVolume ?: null, settings?.announceRestVolume ?: null)
-    	}
-	}
-}
-
 private executeAnnouncement() {
     settingUpdate("announceRun", "false", "bool")
     String testMsg = settings?.announceMessage
-    List selectedDevs = settings?.announceDevices
-    if(settings?.announceAllDevices) {
-        def childDev = getChildDeviceByCap("announce")
-        if(childDev && childDev?.hasCommand('playAnnouncementAll')) {
-            childDev?.playAnnouncementAll(testMsg)
+    List sDevs = settings?.announceAllDevices ? getChildDevicesByCap("announce") : getDevicesFromList(settings?.announceDevices)
+    if(sDevs?.size()) {
+        if(sDevs?.size() > 1) {
+            List devObj = []
+            sDevs?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+            def devJson = new groovy.json.JsonOutput().toJson(devObj)
+            sDevs[0]?.sendAnnouncementToDevices(testMsg, "Echo Speaks Test", devObj, settings?.announceVolume ?: null, settings?.announceRestVolume ?: null)
         } else {
-            logError("Announcement Test All | A Device with was not found that supports announcements!!!")
+            sDevs[0]?.playAnnouncement(testMsg, "Echo Speaks Test", settings?.announceVolume ?: null, settings?.announceRestVolume ?: null)
         }
-    } else {
-        Map eDevs = state?.echoDeviceMap
-        List seqItems = []
-        selectedDevs?.each { dev->
-            seqItems?.push([command: "volume", value: settings?.announceRestVolume as Integer, serial: dev, type: eDevs[dev]?.type])
-        }
-        seqItems?.push([command: "announcementTest", value: testMsg, serial: null, type: null])
-        sendMultiSequenceCommand(seqItems, "announcementTest", settings?.broadcastParallel)
     }
-    runIn(getRecheckDelay(testMsg?.length()), "sendTestAnnouncement")
 }
 
 private executeSequence() {
