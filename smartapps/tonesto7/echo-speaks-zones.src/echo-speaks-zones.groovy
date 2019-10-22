@@ -1548,15 +1548,15 @@ private getPlatform() {
 public getDuplSettingData() {
     Map typeObj = [
         stat: [
-            bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "act_tiered_resp"],
-            enum: ["triggerEvents", "act_EchoDevices", "act_EchoZones", "zone_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard"],
+            bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
+            enum: ["triggerEvents", "act_EchoDevices", "act_EchoZones", "zone_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard", "webCorePistons"],
             mode: ["cond_mode", "trig_mode"],
             number: [],
             text: ["appLbl"]
         ],
         ends: [
             bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear"],
-            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type"],
+            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run"],
             number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat"],
             text: ["_txt", "_sms_numbers"],
             time: ["_time_start", "_time_stop", "_scheduled_time"]
@@ -1583,7 +1583,9 @@ public getDuplSettingData() {
             _lock: "lock",
             _lock_code: "lock",
             _switches_off: "switch",
-            _switches_on: "switch"
+            _switches_on: "switch",
+            _tier_start_switches_off: "switch",
+            _tier_stop_switches_on: "switch"
         ],
         dev: [
             _scene: "sceneActivator"
