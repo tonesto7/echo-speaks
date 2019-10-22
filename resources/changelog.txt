@@ -1,4 +1,19 @@
  ══════════
+   Main App (v3.2.0.4)
+   October 22nd, 2019
+ ══════════
+  • FIXED: Child initiated refresh was broken.
+
+ ══════════
+   Echo Device (v3.2.0.3)
+   October 22nd, 2019
+ ══════════
+  • FIXED: Bugs with Websocket events resolved.
+  • FIXED: Issues with certain commands not working like createReminder and others is now fixed.
+
+-------------------------------------------------
+
+ ══════════
    Main App (v3.2.0.3)
    October 21st, 2019
  ══════════
