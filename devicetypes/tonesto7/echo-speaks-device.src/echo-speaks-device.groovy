@@ -872,7 +872,7 @@ private getPlaybackState(isGroupResponse=false) {
 }
 
 def playbackStateHandler(playerInfo, isGroupResponse=false) {
-    log.debug "playerInfo: ${playerInfo}"
+    // log.debug "playerInfo: ${playerInfo}"
     Boolean isPlayStateChange = false
     Boolean isMediaInfoChange = false
     if (state?.isGroupPlaying && !isGroupResponse) {
