@@ -1754,8 +1754,8 @@ private authValidationEvent(Boolean valid, String src=null) {
 private noAuthReminder() { logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...") }
 
 public childInitiatedRefresh() {
-    Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)
-    if(state?.deviceRefreshInProgress != true && lastRfsh > 120) {
+    Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)?.abs()
+    if(state?.deviceRefreshInProgress == false && lastRfsh > 120) {
         logDebug("A Child Device is requesting a Device List Refresh...")
         updTsVal("lastChildInitRefreshDt")
         getOtherData()
