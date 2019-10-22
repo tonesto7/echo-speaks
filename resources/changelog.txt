@@ -1,8 +1,24 @@
  ══════════
-   Main App (v3.2.0.4)
+   Main App (v3.2.0.5)
    October 22nd, 2019
  ══════════
   • FIXED: Child initiated refresh was broken.
+  • FIXED: Child app updates are now triggered properly.
+
+ ══════════
+   Action App (v3.2.0.4)
+   October 22nd, 2019
+ ══════════
+  • ADDED: new mode condition option to select whether mode is in or not in the selected modes.  App will update existing config to use is in modes.
+  • FIXED: time/date speech variables were not working.
+  • FIXED: Zone status updates are now requested on action updated() event.
+
+ ══════════
+   Zone App (v3.2.0.5)
+   October 22nd, 2019
+ ══════════
+  • ADDED: new mode condition option to select whether mode is in or not in the selected modes.  App will update existing config to use is in modes.
+  • FIXED: Zone status updates event now sends an update like it's supposed to.
 
  ══════════
    Echo Device (v3.2.0.3)

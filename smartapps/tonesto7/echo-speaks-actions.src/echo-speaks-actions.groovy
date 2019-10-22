@@ -19,8 +19,8 @@
     Custom Reports for multiple builtin in routine items.
     Reports for home status like temp, contact, alarm status
 */
-String appVersion()  { return "3.2.0.3" }
-String appModified() { return "2019-10-21" }
+String appVersion()  { return "3.2.0.4" }
+String appModified() { return "2019-10-22" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -153,6 +153,7 @@ def mainPage() {
                 paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
             }
         } else {
+            if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
             Boolean trigConf = triggersConfigured()
             Boolean condConf = conditionsConfigured()
             Boolean actConf = executionConfigured()
@@ -674,9 +675,13 @@ def conditionsPage() {
             input "cond_days", "enum", title: inTS("Days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
             input "cond_months", "enum", title: inTS("Months of the year", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: monthEnum(), image: getAppImg("day_calendar")
         }
-
-        section (sTS("Location Conditions")) {
-            input "cond_mode", "mode", title: inTS("Location Mode is...", getAppImg("mode", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("mode")
+        section (sTS("Mode Conditions")) {
+            input "cond_mode", "mode", title: inTS("Location Modes...", getAppImg("mode", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("mode")
+            if(settings?.cond_mode) {
+                input "cond_mode_cmd", "enum", title: inTS("are...", getAppImg("command", true)), options: ["not":"Not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+            }
+        }
+        section (sTS("Alarm Conditions")) {
             input "cond_alarm", "enum", title: inTS("${getAlarmSystemName()} is...", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
         }
 
@@ -1525,6 +1530,7 @@ def updated() {
 }
 
 def initialize() {
+    // logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
     if(settings?.duplicateFlag == true && state?.dupPendingSetup == false) {
@@ -1552,7 +1558,10 @@ def initialize() {
 }
 
 def updateZoneSubscriptions() {
-    if(settings?.act_EchoZones) { subscribe(location, "es3ZoneState", zoneStateHandler); subscribe(location, "es3ZoneRemoved", zoneRemovedHandler); }
+    if(settings?.act_EchoZones) {
+        subscribe(location, "es3ZoneState", zoneStateHandler); subscribe(location, "es3ZoneRemoved", zoneRemovedHandler);
+        sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true)
+    }
 }
 
 String getActionName() { return settings?.appLbl as String }
@@ -1758,6 +1767,7 @@ private subscribeToEvts() {
                     break
                 case "mode":
                     // Location Mode Events
+                    if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
                     subscribe(location, "mode", modeEvtHandler)
                     break
                 case "routineExecuted":
@@ -2375,7 +2385,7 @@ Boolean dateCondOk() {
 
 Boolean locationCondOk() {
     Boolean reqAll = (settings?.cond_require_all != false)
-    Boolean mOk = settings?.cond_mode ? (isInMode(settings?.cond_mode)) : true
+    Boolean mOk = (settings?.cond_mode && settings?.cond_mode_cmd) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
     Boolean aOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
     logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
     return reqAll ? (mOk && aOk) : (mOk || aOk)
@@ -2486,7 +2496,8 @@ Boolean dateCondConfigured() {
 }
 
 Boolean locationCondConfigured() {
-    Boolean mode = (settings?.cond_mode)
+    if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
+    Boolean mode = (settings?.cond_mode && settings?.cond_mode_cmd)
     Boolean alarm = (settings?.cond_alarm)
     return (mode || alarm)
 }
@@ -2681,6 +2692,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     Map actMap = state?.actionExecMap ?: null
     List actDevices = settings?.act_EchoDevices ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
     Map activeZones = settings?.act_EchoZones ? getActiveZones() : [:]
+    // log.debug "activeZones: $activeZones"
     String actMsgTxt = null
     String actType = settings?.actionType
     if(actOk && actType) {
@@ -3226,8 +3238,8 @@ List getLocationRoutines() {
     return (isST()) ? location.helloHome?.getPhrases()*.label?.sort() : []
 }
 
-Boolean isInMode(modes) {
-    return (modes) ? (getCurrentMode() in modes) : false
+Boolean isInMode(modes, not=false) {
+    return (modes) ? (not ? (!(getCurrentMode() in modes)) : (getCurrentMode() in modes)) : false
 }
 
 Boolean isInAlarmMode(modes) {
@@ -3292,6 +3304,7 @@ def formatDt(dt, tzChg=true) {
 }
 
 def dateTimeFmt(dt, fmt) {
+    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new java.text.SimpleDateFormat(fmt)
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf?.format(dt)
@@ -3313,6 +3326,7 @@ def convToDateTime(dt) {
     def d = dateTimeFmt(dt, "EEE, MMM d")
     return "$d, $t"
 }
+
 def okSym() {
 	return "\u2713"
 }
@@ -3543,10 +3557,10 @@ String getConditionsDesc() {
             str += settings?.cond_days      ? "    - Days: (${(isDayOfWeek(settings?.cond_days)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
             str += settings?.cond_months    ? "    - Months: (${(isMonthOfYear(settings?.cond_months)) ? "${okSym()}" : "${notOkSym()}"})\n"  : ""
         }
-        if(settings?.cond_alarm || settings?.cond_mode) {
+        if(settings?.cond_alarm || (settings?.cond_mode && settings?.cond_mode_cmd)) {
             str += " • Location: (${locationCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += settings?.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings?.cond_alarm)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-            str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+            str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
         }
         if(deviceCondConfigured()) {
             ["switch", "motion", "presence", "contact", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
@@ -3598,8 +3612,8 @@ String getActionDesc() {
         def eDevs = parent?.getDevicesFromList(settings?.act_EchoDevices)
         def zones = getZoneStatus()
         def tierDesc = getTierRespDesc()
-        str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n" : ""
-        str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Backup)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
+        str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n${zones?.size() ? "\n": ""}" : ""
+        str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Zone Backups)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
         str += tierDesc ? "\n${tierDesc}\n" : ""
         str += settings?.act_volume_change ? "New Volume: (${settings?.act_volume_change})\n" : ""
         str += settings?.act_volume_restore ? "Restore Volume: (${settings?.act_volume_restore})\n" : ""

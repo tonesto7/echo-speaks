@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.2.0.4" }
+String appVersion()   { return "3.2.0.5" }
 String appModified()  { return "2019-10-22" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3203, wsDevice: 3200, actionApp: 3203, zoneApp: 3204, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3203, wsDevice: 3200, actionApp: 3204, zoneApp: 3205, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -1429,11 +1429,11 @@ private postCodeUpdated() {
 }
 
 private resetQueues() {
-    (isST() ? app?.getChildDevices(true) : getChildDevices())?.findAll { it?.isWS() != true }?.each { it?.resetQueue() }
+    getEsDevices()?.findAll { it?.isWS() != true }?.each { it?.resetQueue() }
 }
 
 private reInitChildDevices() {
-    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { it?.triggerInitialize() }
+    getEsDevices()?.each { it?.triggerInitialize() }
     updChildVers()
     reInitChildActions()
 }
