@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()	 { return "3.2.0.4" }
-String appModified() { return "2019-10-21" }
+String appVersion()	 { return "3.2.0.5" }
+String appModified() { return "2019-10-22" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -58,7 +58,7 @@ def startPage() {
 
 def appInfoSect(sect=true)	{
     def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@'h:mm a", true) : null
-    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version${appVersion()}", image: getAppImg("es_groups") }
+    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version: ${appVersion()}", image: getAppImg("es_groups") }
 }
 
 def codeUpdatePage () {
@@ -92,6 +92,7 @@ def mainPage() {
                 paragraph pTS("This Zone is currently disabled...\nTo edit the please re-enable it.", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
             }
         } else {
+            if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
             Boolean condConf = conditionsConfigured()
             section(sTS("Zone Configuration:")) {
                 href "conditionsPage", title: inTS("Zone Activation Conditions", getAppImg("conditions", true)), description: getConditionsDesc(), required: true, state: (condConf ? "complete": null), image: getAppImg("conditions")
@@ -190,8 +191,14 @@ def conditionsPage() {
             input "cond_months", "enum", title: inTS("Months of the year", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: monthEnum(), image: getAppImg("day_calendar")
         }
 
-        section (sTS("Location Conditions")) {
-            input "cond_mode", "mode", title: inTS("Location Mode is...", getAppImg("mode", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("mode")
+        section (sTS("Mode Conditions")) {
+            input "cond_mode", "mode", title: inTS("Location Modes...", getAppImg("mode", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("mode")
+            if(settings?.cond_mode) {
+                input "cond_mode_cmd", "enum", title: inTS("are...", getAppImg("command", true)), options: ["not":"Not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+            }
+        }
+
+        section (sTS("Alarm Conditions")) {
             input "cond_alarm", "enum", title: inTS("${getAlarmSystemName()} is...", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
         }
 
@@ -392,6 +399,7 @@ def updated() {
 }
 
 def initialize() {
+    // logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
     if(settings?.duplicateFlag == true && state?.dupPendingSetup == false) {
@@ -503,6 +511,7 @@ private subscribeToEvts() {
                     subscribe(location, (!isST() ? "hsmStatus" : "alarmSystemStatus"), zoneEvtHandler)
                     break
                 case "mode":
+                    if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
                     subscribe(location, si as String, zoneEvtHandler)
                     break
                 default:
@@ -554,7 +563,7 @@ Boolean dateCondOk() {
 }
 
 Boolean locationCondOk() {
-    Boolean mOk = settings?.cond_mode ? (isInMode(settings?.cond_mode)) : true
+    Boolean mOk = (settings?.cond_mode && settings?.cond_mode_cmd) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
     Boolean aOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
     logDebug("locationCondOk | modeOk: $mOk | alarmOk: $aOk")
     return (mOk && aOk)
@@ -661,7 +670,8 @@ Boolean dateCondConfigured() {
 }
 
 Boolean locationCondConfigured() {
-    Boolean mode = (settings?.cond_mode)
+    if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
+    Boolean mode = (settings?.cond_mode && settings?.cond_mode_cmd)
     Boolean alarm = (settings?.cond_alarm)
     return (mode || alarm)
 }
@@ -763,8 +773,11 @@ public zoneRefreshHandler(evt) {
     String cmd = evt?.value;
     Map data = evt?.jsonData;
     switch(cmd) {
-        case "sendStatus":
+        case "checkStatus":
             checkZoneStatus()
+            break
+        case "sendStatus":
+            sendZoneStatus()
             break
     }
 }
@@ -879,8 +892,8 @@ List getLocationRoutines() {
     return (isST()) ? location.helloHome?.getPhrases()*.label?.sort() : []
 }
 
-Boolean isInMode(modes) {
-    return (modes) ? (getCurrentMode() in modes) : false
+Boolean isInMode(modes, not=false) {
+    return (modes) ? (not ? (!(getCurrentMode() in modes)) : (getCurrentMode() in modes)) : false
 }
 
 Boolean isInAlarmMode(modes) {
@@ -958,6 +971,7 @@ def formatDt(dt, tzChg=true) {
 }
 
 def dateTimeFmt(dt, fmt) {
+    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new java.text.SimpleDateFormat(fmt)
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf?.format(dt)
@@ -1222,7 +1236,7 @@ String getConditionsDesc() {
         if(settings?.cond_alarm || settings?.cond_mode) {
             str += " • Location: (${locationCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += settings?.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings?.cond_alarm)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-            str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+            str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
         }
         if(deviceCondConfigured()) {
             ["switch", "motion", "presence", "contact", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
