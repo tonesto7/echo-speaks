@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.2.0.2"}
-String devModified() { return "2019-10-21" }
+String devVersion()  { return "3.2.0.3"}
+String devModified() { return "2019-10-22" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -35,7 +35,7 @@ metadata {
         attribute "alexaMusicProviders", "JSON_OBJECT"
         attribute "alexaNotifications", "JSON_OBJECT"
         attribute "alexaPlaylists", "JSON_OBJECT"
-        attribute "alexaGuardStatus", "string"
+        // attribute "alexaGuardStatus", "string"
         attribute "alexaWakeWord", "string"
         attribute "btDeviceConnected", "string"
         attribute "btDevicesPaired", "JSON_OBJECT"
@@ -498,6 +498,7 @@ def installed() {
 
 def updated() {
     logTrace("${device?.displayName} Executing Updated()")
+    state?.fullRefreshOk = true
     initialize()
 }
 
@@ -577,7 +578,7 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
     if(!state?.deviceOwnerCustomerId) { if(!noLogs) { logWarn("OwnerCustomerId State Value Missing: ${state?.deviceOwnerCustomerId}", true) }; return false; }
     if(state?.isSupportedDevice == false) { logWarn("You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer", true); return true; }
     if(!type || state?.permissions == null) { if(!noLogs) { logWarn("Permissions State Object Missing: ${state?.permissions}", true) }; return false }
-    if(state?.doNotDisturb == true && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
+    if(device?.currentValue("doNotDisturb") == "true" && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
     if(state?.permissions?.containsKey(type) && state?.permissions[type] == true) { return true }
     else {
         String warnMsg = null
@@ -738,7 +739,7 @@ public updSocketStatus(active) {
 }
 
 void websocketUpdEvt(triggers) {
-    log.debug "triggers: $triggers"
+    logDebug("websocketEvt: $triggers")
     if(state?.isWhaDevice) { return }
     if(triggers?.size()) {
         triggers?.each { k->
@@ -756,7 +757,7 @@ void websocketUpdEvt(triggers) {
                     runIn(2, "getNotifications")
                     break
                 case "bluetooth":
-                    runIn(2, "getBluetoothData")
+                    runIn(2, "getBluetoothDevices")
                     break
                 case "notification":
                     runIn(2, "getNotifications")
@@ -806,21 +807,19 @@ private refreshData(full=false) {
     if(!isAuthOk()) {return}
     if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
     // logTrace("permissions: ${state?.permissions}")
-    if(state?.permissions?.mediaPlayer == true && !wsActive) {
+    if(state?.permissions?.mediaPlayer == true && (full || state?.fullRefreshOk || !wsActive)) {
         getPlaybackState()
         if(!isWHA) { getPlaylists() }
     }
-    if(!isWHA && (full || state?.fullRefreshOk)) {
-        state?.fullRefreshOk = false
-        if(isEchoDev) { getWifiDetails() }
-        getDeviceSettings()
-    }
-
     if(!isWHA) {
+        if (full || state?.fullRefreshOk) {
+            if(isEchoDev) { getWifiDetails() }
+            getDeviceSettings()
+        }
         if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
         getDeviceActivity()
         runIn(3, "refreshStage2")
-    }
+    } else { state?.fullRefreshOk = false }
 }
 
 private refreshStage2() {
@@ -837,7 +836,8 @@ private refreshStage2() {
     if(state?.permissions?.bluetoothControl && !wsActive) {
         getBluetoothDevices()
     }
-    updGuardStatus()
+    state?.fullRefreshOk = false
+    // updGuardStatus()
 }
 
 public setOnlineStatus(Boolean isOnline) {
@@ -1160,8 +1160,8 @@ private getNotifications() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications",
-        query: [ cached: true ],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        query: [cached: true],
+        headers: [Cookie: getCookieVal(), csrf: getCsrfVal()],
         contentType: "application/json"
     ]
     try {
@@ -1191,7 +1191,7 @@ private getDeviceActivity() {
         uri: getAmazonUrl(),
         path: "/api/activities",
         query: [ startTime:"", size:"50", offset:"-1" ],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: [Cookie: getCookieVal(), csrf: getCsrfVal()],
         contentType: "application/json"
     ]
     try {
@@ -1238,7 +1238,7 @@ String getCsrfVal() { return (state?.cookie && state?.cookie?.csrf) ? state?.coo
 *******************************************************************/
 
 private sendAmazonBasicCommand(String cmdType) {
-    sendAmazonCommand("post", [
+    sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/np/command",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
@@ -1263,21 +1263,19 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
         def rData = null
         def rStatus = null
         switch(method) {
-            case "post":
             case "POST":
                 httpPostJson(params) { response->
                     rData = response?.data ?: null
                     rStatus = response?.status
                 }
                 break
-            case "put":
             case "PUT":
+                if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
                 httpPutJson(params) { response->
                     rData = response?.data ?: null
                     rStatus = response?.status
                 }
                 break
-            case "delete":
             case "DELETE":
                 httpDelete(params) { response->
                     rData = response?.data ?: null
@@ -1288,7 +1286,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
         if (otherData?.cmdDesc?.startsWith("connectBluetooth") || otherData?.cmdDesc?.startsWith("disconnectBluetooth") || otherData?.cmdDesc?.startsWith("removeBluetooth")) {
             triggerDataRrsh()
         } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
-        logDebug("sendAmazonCommand | Status: (${response?.status})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+        logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
     } catch (ex) {
         respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
     }
@@ -1338,7 +1336,7 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
                             // Ignoring Unknown device type in request
                         } else if(respData && respData?.message?.startsWith("device not connected")) {
                             // Ignoring device not connect error
-                        } else { logError("${mName} | Improperly formatted request sent to Amazon | Msg: ${errMsg} | Data: ${respData}") }
+                        } else { logError("${mName} Code: ($sCode) | Message: ${errMsg} | Data: ${respData}") }
                     }
                     break
                 case "Rate Exceeded":
@@ -1354,6 +1352,8 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
             }
         } else if(sCode == 429) {
             logWarn("${mName} | Too Many Requests Made to Amazon | Msg: ${errMsg}")
+        } else if(sCode == 200) {
+            if(errMsg != "OK") { logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}") }
         } else {
             logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
@@ -1524,7 +1524,7 @@ def setLevel(level) {
 def setAlarmVolume(vol) {
     logTrace("setAlarmVolume($vol) command received...")
     if(isCommandTypeAllowed("alarms") && vol>=0 && vol<=100) {
-        sendAmazonCommand("put", [
+        sendAmazonCommand("PUT", [
             uri: getAmazonUrl(),
             path: "/api/device-notification-state/${state?.deviceType}/${state?.softwareVersion}/${state?.serialNumber}",
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
@@ -1586,7 +1586,7 @@ def followUpModeOn() {
 def setDoNotDisturb(Boolean val) {
     logTrace("setDoNotDisturb($val) command received...")
     if(isCommandTypeAllowed("doNotDisturb")) {
-        sendAmazonCommand("put", [
+        sendAmazonCommand("PUT", [
             uri: getAmazonUrl(),
             path: "/api/dnd/status",
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
@@ -1598,6 +1598,8 @@ def setDoNotDisturb(Boolean val) {
             ]
         ], [cmdDesc: "SetDoNotDisturb${val ? "On" : "Off"}"])
         incrementCntByKey("use_cnt_dndCmd${val ? "On" : "Off"}")
+        sendEvent(name: "doNotDisturb", value: (val == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(val == true)}", display: true, displayed: true)
+        parent?.getDoNotDisturb()
     }
 }
 
@@ -1606,10 +1608,10 @@ def setFollowUpMode(Boolean val) {
     if(state?.devicePreferences == null || !state?.devicePreferences?.size()) { return }
     if(!state?.deviceAccountId) { logError("renameDevice Failed because deviceAccountId is not found..."); return; }
     if(isCommandTypeAllowed("followUpMode")) {
-        sendAmazonCommand("put", [
+        sendAmazonCommand("PUT", [
             uri: getAmazonUrl(),
             path: "/api/device-preferences/${state?.serialNumber}",
-            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
             contentType: "application/json",
             body: [
                 deviceSerialNumber: state?.serialNumber,
@@ -2060,9 +2062,9 @@ def setWakeWord(String newWord) {
     logTrace("setWakeWord($newWord) command received...")
     String oldWord = device?.currentValue('alexaWakeWord')
     def wwList = device?.currentValue('wakeWords') ?: []
-    logDebug("newWord: $newWord | oldWord: $oldWord | wwList: $wwList (${wwList?.contains(newWord.toString()?.toUpperCase())})", true)
+    logDebug("newWord: $newWord | oldWord: $oldWord | wwList: $wwList (${wwList?.contains(newWord.toString()?.toUpperCase())})")
     if(oldWord && newWord && wwList && wwList?.contains(newWord.toString()?.toUpperCase())) {
-        sendAmazonCommand("put", [
+        sendAmazonCommand("PUT", [
             uri: getAmazonUrl(),
             path: "/api/wake-word/${state?.serialNumber}",
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
@@ -2102,8 +2104,8 @@ def createReminder(String remLbl, String remDate, String remTime) {
             createNotification("Reminder", [
                 cmdType: "CreateReminder",
                 label: remLbl?.toString(),
-                date: remDate,
-                time: remTime,
+                date: remDate?.toString(),
+                time: remTime?.toString(),
                 type: "Reminder"
             ])
             incrementCntByKey("use_cnt_createReminder")
@@ -2115,7 +2117,7 @@ def removeNotification(String id) {
     logTrace("removeNotification($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
-            sendAmazonCommand("delete", [
+            sendAmazonCommand("DELETE", [
                 uri: getAmazonUrl(),
                 path: "/api/notifications/${id}",
                 headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
@@ -2142,6 +2144,7 @@ private createNotification(type, options) {
             type: type,
             status: "ON",
             alarmTime: alarmTime,
+            createdDate: createdDate,
             originalTime: type != "Timer" ? "${options?.time}:00.000" : null,
             originalDate: type != "Timer" ? options?.date : null,
             timeZoneId: null,
@@ -2153,23 +2156,23 @@ private createNotification(type, options) {
             recurringPattern: type != "Timer" ? '' : null,
             alarmLabel: type == "Alarm" ? options?.label : null,
             reminderLabel: type == "Reminder" ? options?.label : null,
+            reminderSubLabel: "Echo Speaks",
             timerLabel: type == "Timer" ? options?.label : null,
             skillInfo: null,
             isSaveInFlight: type != "Timer" ? true : null,
             triggerTime: 0,
             id: "create${type}",
             isRecurring: false,
-            createdDate: createdDate,
             remainingDuration: type != "Timer" ? 0 : options?.timerDuration
         ]
     ]
-    sendAmazonCommand("put", params, [cmdDesc: "Create${type}"])
+    sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
 }
 
 def renameDevice(newName) {
     logTrace("renameDevice($newName) command received...")
     if(!state?.deviceAccountId) { logError("renameDevice Failed because deviceAccountId is not found..."); return; }
-    sendAmazonCommand("put", [
+    sendAmazonCommand("PUT", [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device/${state?.serialNumber}",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
@@ -2189,7 +2192,7 @@ def connectBluetooth(String btNameOrAddr) {
     if(isCommandTypeAllowed("bluetoothControl")) {
         String curBtAddr = getBtAddrByAddrOrName(btNameOrAddr as String)
         if(curBtAddr) {
-            sendAmazonCommand("post", [
+            sendAmazonCommand("POST", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/pair-sink/${state?.deviceType}/${state?.serialNumber}",
                 headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
@@ -2207,7 +2210,7 @@ def disconnectBluetooth() {
     if(isCommandTypeAllowed("bluetoothControl")) {
         String curBtAddr = getBtAddrByAddrOrName(device?.currentValue("btDeviceConnected") as String)
         if(curBtAddr) {
-            sendAmazonCommand("post", [
+            sendAmazonCommand("POST", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/disconnect-sink/${state?.deviceType}/${state?.serialNumber}",
                 headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
@@ -2224,7 +2227,7 @@ def removeBluetooth(String btNameOrAddr) {
     if(isCommandTypeAllowed("bluetoothControl")) {
         String curBtAddr = getBtAddrByAddrOrName(btNameOrAddr)
         if(curBtAddr) {
-            sendAmazonCommand("post", [
+            sendAmazonCommand("POST", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/unpair-sink/${state?.deviceType}/${state?.serialNumber}",
                 headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
