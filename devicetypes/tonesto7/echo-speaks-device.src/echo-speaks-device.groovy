@@ -1297,7 +1297,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
 private sendSequenceCommand(type, command, value) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
     Map seqObj = sequenceBuilder(command, value)
-    sendAmazonCommand("POST", [
+    sendAmazonCommand("post", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
@@ -1338,7 +1338,7 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
                             // Ignoring Unknown device type in request
                         } else if(respData && respData?.message?.startsWith("device not connected")) {
                             // Ignoring device not connect error
-                        } else { logError("${mName} | Improperly formatted request sent to Amazon | Msg: ${errMsg} | Data: ${respData}") }
+                        } else { logError("${mName} Code: ($sCode) | Message: ${errMsg} | Data: ${respData}") }
                     }
                     break
                 case "Rate Exceeded":
@@ -1354,6 +1354,8 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
             }
         } else if(sCode == 429) {
             logWarn("${mName} | Too Many Requests Made to Amazon | Msg: ${errMsg}")
+        } else if(sCode == 200) {
+            if(errMsg != "OK") { logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}") }
         } else {
             logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
@@ -1529,12 +1531,12 @@ def setAlarmVolume(vol) {
             path: "/api/device-notification-state/${state?.deviceType}/${state?.softwareVersion}/${state?.serialNumber}",
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
             contentType: "application/json",
-            body: [
+            body: new groovy.json.JsonOutput().toJson([
                 deviceSerialNumber: state?.serialNumber,
                 deviceType: state?.deviceType,
                 softwareVersion: device?.currentValue('firmwareVer'),
                 volumeLevel: vol
-            ]
+            ])
         ], [cmdDesc: "AlarmVolume"])
         incrementCntByKey("use_cnt_alarmVolumeCmd")
         sendEvent(name: "alarmVolume", value: vol, display: false, displayed: false)
@@ -1591,13 +1593,14 @@ def setDoNotDisturb(Boolean val) {
             path: "/api/dnd/status",
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
             contentType: "application/json",
-            body: [
+            body: new groovy.json.JsonOutput().toJson([
                 deviceSerialNumber: state?.serialNumber,
                 deviceType: state?.deviceType,
                 enabled: (val==true)
-            ]
+            ])
         ], [cmdDesc: "SetDoNotDisturb${val ? "On" : "Off"}"])
         incrementCntByKey("use_cnt_dndCmd${val ? "On" : "Off"}")
+        sendEvent(name: "doNotDisturb", value: (val == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(val == true)}", display: true, displayed: true)
     }
 }
 
@@ -1611,12 +1614,12 @@ def setFollowUpMode(Boolean val) {
             path: "/api/device-preferences/${state?.serialNumber}",
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
             contentType: "application/json",
-            body: [
+            body: new groovy.json.JsonOutput().toJson([
                 deviceSerialNumber: state?.serialNumber,
                 deviceType: state?.deviceType,
                 deviceAccountId: state?.deviceAccountId,
                 goldfishEnabled: (val==true)
-            ]
+            ])
         ], [cmdDesc: "setFollowUpMode${val ? "On" : "Off"}"])
         incrementCntByKey("use_cnt_followUpModeCmd${val ? "On" : "Off"}")
     }
@@ -2060,21 +2063,21 @@ def setWakeWord(String newWord) {
     logTrace("setWakeWord($newWord) command received...")
     String oldWord = device?.currentValue('alexaWakeWord')
     def wwList = device?.currentValue('wakeWords') ?: []
-    logDebug("newWord: $newWord | oldWord: $oldWord | wwList: $wwList (${wwList?.contains(newWord.toString()?.toUpperCase())})", true)
+    logDebug("newWord: $newWord | oldWord: $oldWord | wwList: $wwList (${wwList?.contains(newWord.toString()?.toUpperCase())})")
     if(oldWord && newWord && wwList && wwList?.contains(newWord.toString()?.toUpperCase())) {
         sendAmazonCommand("put", [
             uri: getAmazonUrl(),
             path: "/api/wake-word/${state?.serialNumber}",
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
             contentType: "application/json",
-            body: [
+            body: new groovy.json.JsonOutput().toJson([
                 active: true,
                 deviceSerialNumber: state?.serialNumber,
                 deviceType: state?.deviceType,
                 displayName: oldWord,
                 midFieldState: null,
                 wakeWord: newWord
-            ]
+            ])
         ], [cmdDesc: "SetWakeWord(${newWord})"])
         incrementCntByKey("use_cnt_setWakeWord")
         sendEvent(name: "alexaWakeWord", value: newWord?.toString()?.toUpperCase(), display: true, displayed: true)
@@ -2102,8 +2105,8 @@ def createReminder(String remLbl, String remDate, String remTime) {
             createNotification("Reminder", [
                 cmdType: "CreateReminder",
                 label: remLbl?.toString(),
-                date: remDate,
-                time: remTime,
+                date: remDate?.toString(),
+                time: remTime?.toString(),
                 type: "Reminder"
             ])
             incrementCntByKey("use_cnt_createReminder")
@@ -2138,10 +2141,11 @@ private createNotification(type, options) {
         path: "/api/notifications/create${type}",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
-        body: [
+        body: new groovy.json.JsonOutput().toJson([
             type: type,
             status: "ON",
             alarmTime: alarmTime,
+            createdDate: createdDate,
             originalTime: type != "Timer" ? "${options?.time}:00.000" : null,
             originalDate: type != "Timer" ? options?.date : null,
             timeZoneId: null,
@@ -2153,15 +2157,15 @@ private createNotification(type, options) {
             recurringPattern: type != "Timer" ? '' : null,
             alarmLabel: type == "Alarm" ? options?.label : null,
             reminderLabel: type == "Reminder" ? options?.label : null,
+            reminderSubLabel: "Echo Speaks",
             timerLabel: type == "Timer" ? options?.label : null,
             skillInfo: null,
             isSaveInFlight: type != "Timer" ? true : null,
             triggerTime: 0,
             id: "create${type}",
             isRecurring: false,
-            createdDate: createdDate,
             remainingDuration: type != "Timer" ? 0 : options?.timerDuration
-        ]
+        ])
     ]
     sendAmazonCommand("put", params, [cmdDesc: "Create${type}"])
 }
