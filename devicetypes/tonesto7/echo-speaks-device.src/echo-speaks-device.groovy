@@ -64,6 +64,7 @@ metadata {
         attribute "wakeWords", "enum"
         attribute "wifiNetwork", "string"
         attribute "wasLastSpokenToDevice", "string"
+	  attribute "audioTrackData", "JSON_OBJECT"    
 
         command "playText", ["string"] //This command is deprecated in ST but will work
         command "playTextAndResume"
