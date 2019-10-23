@@ -797,13 +797,13 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
         // str += "Custom Text is only used when Speech or Announcement action type is selected in Step 4."
         paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
         //Custom Text Options
-        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: (isST() ? "embedded" : "external"), required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
+        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: (isST() ? "external" : "external"), required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
                 description: settings?."trig_${inType}_txt" ?: "Open Response Designer...", image: getAppImg("text")
         if(showRepInputs) {
             if(settings?."trig_${inType}_after_repeat") {
                 //Custom Repeat Text Options
                 paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: (isST() ? "embedded" : "external"), title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
+                href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: (isST() ? "external" : "external"), title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
                         description: settings?."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings?."trig_${inType}_after_repeat_txt" ? "complete" : '') , submitOnChange: true, required: false, image: getAppImg("text")
             }
         }
@@ -845,7 +845,7 @@ def actionTiersPage() {
                         input "act_tier_item_${ti}_delay", "number", title: inTS("Delay after Tier ${ti-1}\n(seconds)", getAppImg("equal", true)), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true, image: getAppImg("equal")
                     }
                     if(ti==1 || settings?."act_tier_item_${ti}_delay") {
-                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "embedded" : "external"), required: true, title: inTS("Tier Item ${ti} Response", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
+                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "external" : "external"), required: true, title: inTS("Tier Item ${ti} Response", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
                                     description: settings?."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg("text")
                     }
                 }
@@ -921,7 +921,7 @@ def actTextOrTiersInput(type) {
         input "act_tier_stop_on_clear", "bool", title: inTS("Stop responses when trigger is cleared?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
-        href url: textUrl, style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Response\n(Optional)", getAppImg("text", true)), state: (settings?."${type}" ? "complete" : ""),
+        href url: textUrl, style: (isST() ? "external" : "external"), required: false, title: inTS("Default Action Response\n(Optional)", getAppImg("text", true)), state: (settings?."${type}" ? "complete" : ""),
                 description: settings?."${type}" ?: "Open Response Designer...", image: getAppImg("text")
     }
 }
@@ -1615,7 +1615,7 @@ def updateZoneSubscriptions() {
 String getActionName() { return settings?.appLbl as String }
 
 private updAppLabel() {
-    String newLbl = "${settings?.appLbl}${isPaused() ? " (\u275A\u275A)" : ""} (Act)"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings?.appLbl} (A)${isPaused() ? " (\u275A\u275A)" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -2040,9 +2040,8 @@ def afterEvtCheckHandler() {
         def nextItem = aEvtMap?.find { it?.value?.wait == lowWait && it?.value?.timeLeft == lowLeft }
         def nextVal = nextItem?.value ?: null
         def nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal?.deviceId}_${nextVal?.name}" : null
-        // log.debug "nextVal: $nextVal"
         if(nextVal) {
-            def prevDt = nextVal?.repeat && nextVal?.repeatDt ? parseDate(nextVal?.repeatDt?.toString()) : parseDate(nextVal?.dt?.toString())
+            def prevDt = nextVal?.isRepeat && nextVal?.repeatDt ? parseDate(nextVal?.repeatDt?.toString()) : parseDate(nextVal?.dt?.toString())
             def fullDt = parseDate(nextVal?.dt?.toString())
             def devs = settings?."trig_${nextVal?.name}" ?: null
             Boolean isRepeat = nextVal?.isRepeat ?: false
@@ -2054,14 +2053,15 @@ def afterEvtCheckHandler() {
                 Integer reqDur = (nextVal?.isRepeat && nextVal?.repeatWait) ? nextVal?.repeatWait : nextVal?.wait ?: null
                 timeLeft = (reqDur - evtElap)
                 aEvtMap[nextItem?.key]?.timeLeft = timeLeft
-                // log.warn "After Debug | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat}"
+                //log.warn "After Debug | TimeLeft: ${timeLeft}(<=4 ${(timeLeft <= 4)}) | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat}"
                 if(timeLeft <= 4 && nextVal?.deviceId && nextVal?.name) {
                     timeLeft = reqDur
+                    // log.debug "reqDur: $reqDur | evtElap: ${evtElap} | timeLeft: $timeLeft"
                     Boolean skipEvt = (nextVal?.triggerState && nextVal?.deviceId && nextVal?.name && devs) ? !devCapValEqual(devs, nextVal?.deviceId as String, nextVal?.name, nextVal?.triggerState) : true
                     aEvtMap[nextItem?.key]?.timeLeft = timeLeft
                     if(!skipEvt) {
                         if(hasRepeat) {
-                            log.warn "Last Repeat ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | Required: ${reqDur}"
+                            // log.warn "Last Repeat ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | Required: ${reqDur}"
                             aEvtMap[nextItem?.key]?.repeatDt = formatDt(new Date())
                             aEvtMap[nextItem?.key]?.isRepeat = true
                             deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, totalDur: fullElap], true, isRepeat)
@@ -2135,7 +2135,7 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     Boolean execOk = (evtOk && devEvtWaitOk)
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, execOk)
-    } else if (execOk) { executeAction(evt, false, "deviceEvtHandler(${evt?.name})", aftRepEvt, evtAd) }
+    } else if (execOk) { executeAction(evt, false, "deviceEvtHandler(${evt?.name})", evtAd, aftRepEvt) }
 }
 
 private processTierTrigEvt(evt, Boolean evtOk) {
@@ -2377,7 +2377,7 @@ String getAttrPostfix(attr) {
 }
 
 def scheduleAfterCheck(data) {
-    Integer val = data?.val ? (data?.val < 2 ? 2 : data?.val) : 60
+    Integer val = data?.val ? (data?.val < 2 ? 2 : data?.val-4) : 60
     String id = data?.id?.toString() ?: null
     Boolean rep = (data?.repeat == true)
     Map aSchedMap = atomicState?.afterEvtChkSchedMap ?: null
@@ -3012,7 +3012,7 @@ Map getInputData(inName) {
             break
     }
     Map o = [
-        val: settings?."${inName}"?.toString() ?: null,
+        val: settings?."${inName}" ? settings?."${inName}"?.toString()?.replaceAll("\'", "") : null,
         desc: """<ul class="pl-3" style="list-style-type: bullet;">${desc}</ul>""",
         title: title,
         template: template,

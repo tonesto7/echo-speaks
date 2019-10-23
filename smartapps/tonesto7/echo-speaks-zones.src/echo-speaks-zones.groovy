@@ -433,7 +433,7 @@ def uninstalled() {
 String getZoneName() { return settings?.appLbl as String }
 
 private updAppLabel() {
-    String newLbl = "${settings?.appLbl}${isPaused() ? " (\u275A\u275A)" : ""} (Zone)"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings?.appLbl} (Z)${isPaused() ? " (\u275A\u275A)" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 

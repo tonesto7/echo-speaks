@@ -4164,7 +4164,7 @@ def renderTextEditPage() {
                     function cleanEditorText(txt) {
                         txt = txt.split(';').filter(t => t.trim().length > 0).map(t => t.trim()).join(';');
                         txt = txt.endsWith(';') ? txt.replace(/;([^;]*)\$/, '\$1') : txt;
-                        return txt.replace(/  +/g, ' ').replace('> <', '><');
+                        return txt.replace(/  +/g, ' ').replace('> <', '><').replace("\'", '');
                     }
 
                     \$(document).ready(function() {
