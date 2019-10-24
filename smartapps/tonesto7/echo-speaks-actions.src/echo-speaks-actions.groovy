@@ -3091,11 +3091,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
         if(tierData?.size() && settings?.act_tier_cnt > 1) {
             log.debug "firstTierMsg: ${firstTierMsg} | lastTierMsg: ${lastTierMsg}"
             if(firstTierMsg) {
-                if(settings?.act_tier_start_switches_off) { settings?.act_tier_start_switches_off?.off() }
-                if(settings?.act_tier_start_switches_on) { settings?.act_tier_start_switches_on?.on() }
-                if(settings?.act_tier_start_mode_run) { setLocationMode(settings?.act_tier_start_mode_run as String) }
-                if(isST && settings?.act_tier_start_routine_run) { execRoutineById(settings?.act_tier_start_routine_run as String) }
-                if(settings?.enableWebCoRE && settings?.act_tier_start_webCorePistons) { webCoRE_execute(settings?.act_tier_start_webCorePistons) }
+                executeTierStartCommands()
             }
             if(lastTierMsg) {
                 if(settings?.act_tier_stop_delay) {
@@ -3103,14 +3099,34 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                 } else { executeTierStopCommands() }
             }
         } else {
-            if(settings?.act_switches_off) { settings?.act_switches_off?.off() }
-            if(settings?.act_switches_on) { settings?.act_switches_on?.on() }
-            if(settings?.enableWebCoRE && settings?.webCorePistons) { webCoRE_execute(settings?.webCorePistons) }
-            if(settings?.act_mode_run) { setLocationMode(settings?.act_mode_run as String) }
-            if(isST && settings?.act_routine_run) { execRoutineById(settings?.act_routine_run as String) }
+            if(settings?.act_tasks_delay) {
+                runIn(settings?.act_tasks_delay, "executeTaskCommands")
+            } else { executeTaskCommands() }
         }
     }
     logDebug("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
+}
+
+private executeTaskCommands() {
+    if(settings?.act_switches_off) { settings?.act_switches_off?.off() }
+    if(settings?.act_switches_on) { settings?.act_switches_on?.on() }
+    if(settings?.enableWebCoRE && settings?.webCorePistons) { webCoRE_execute(settings?.webCorePistons) }
+    if(settings?.act_mode_run) { setLocationMode(settings?.act_mode_run as String) }
+    if(isST && settings?.act_routine_run) { execRoutineById(settings?.act_routine_run as String) }
+    if(settings?.act_lights_color) {
+        def hueVals = getColorName(settings?.act_lights_color_color as String, settings?.act_lights_color_level)
+        if(hueVals) {
+            settings?.act_lights_color?.setColor(hueVals)
+        }
+    }
+}
+
+private executeTierStartCommands() {
+    if(settings?.act_tier_start_switches_off) { settings?.act_tier_start_switches_off?.off() }
+    if(settings?.act_tier_start_switches_on) { settings?.act_tier_start_switches_on?.on() }
+    if(settings?.act_tier_start_mode_run) { setLocationMode(settings?.act_tier_start_mode_run as String) }
+    if(isST && settings?.act_tier_start_routine_run) { execRoutineById(settings?.act_tier_start_routine_run as String) }
+    if(settings?.enableWebCoRE && settings?.act_tier_start_webCorePistons) { webCoRE_execute(settings?.act_tier_start_webCorePistons) }
 }
 
 private executeTierStopCommands() {
