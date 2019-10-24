@@ -1,4 +1,21 @@
  ══════════
+   Main App (v3.2.0.6)
+   October 24th, 2019
+ ══════════
+  • FIXED: Minor bug fixes.
+
+ ══════════
+   Action App (v3.2.0.5)
+   October 25th, 2019
+ ══════════
+  • ADDED: the abilitity to run routines/set location modes when an action is triggered.
+  • ADDED: When action is tiered it you can define tier start tasks (routines, mode, switches, webcore pistons), the another set of those tasks when the task has stopped.
+  • FIXED: repeat after events were broken.
+  • FIXED: other minor bug fixes.
+
+-------------------------------------------------
+
+ ══════════
    Main App (v3.2.0.5)
    October 22nd, 2019
  ══════════

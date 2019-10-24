@@ -14,18 +14,18 @@
  *
  */
 
- //TODO: Create reports options
- /*
-    Custom Reports for multiple builtin in routine items.
-    Reports for home status like temp, contact, alarm status
-*/
 String appVersion()  { return "3.2.0.5" }
-String appModified() { return "2019-10-22" }
+String appModified() { return "2019-10-24" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 // TODO: Add Lock Code triggers
+//TODO: Create reports options
+ /*
+    Custom Reports for multiple builtin in routine items.
+    Reports for home status like temp, contact, alarm status
+*/
 definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
@@ -51,6 +51,8 @@ preferences {
     page(name: "actionsPage")
     page(name: "actionTiersPage")
     page(name: "actionTiersConfigPage")
+    page(name: "actTierStartTasksPage")
+    page(name: "actTierStopTasksPage")
     page(name: "actNotifPage")
     page(name: "actNotifTimePage")
     page(name: "searchTuneInResultsPage")
@@ -859,29 +861,41 @@ def actionTiersPage() {
     }
 }
 
-String getTierRespDesc(hide=false) {
+String getTierRespDesc() {
     Map tierMap = getTierMap() ?: [:]
     String str = ""
     str += tierMap?.size() ? "Tiered Responses: (${tierMap?.size()})" : ""
     tierMap?.each { k,v->
-        str += (k > 1 && settings?."act_tier_item_${k}_delay" && settings?."act_tier_item_${k}_txt") ? "\n \u2022 Tier ${k} delay: (${settings?."act_tier_item_${k}_delay"})" : ""
+        str += (k > 1 && settings?."act_tier_item_${k}_delay" && settings?."act_tier_item_${k}_txt") ? "\n \u2022 Tier ${k} delay: (${settings?."act_tier_item_${k}_delay"} sec)" : ""
     }
-    if(tierMap?.size()) {
-        str += (act_tier_start_switches_on || act_tier_start_switches_off || act_tier_start_mode_run || act_tier_start_routine_run || act_tier_start_webCorePistons) ? "\n\nTier Start Commands:" : ""
+    return str != "" ? str : null
+}
+
+String tierStartDesc(isInpt=false) {
+    String str = ""
+    if(act_tier_start_switches_on || act_tier_start_switches_off || act_tier_start_mode_run || act_tier_start_routine_run || act_tier_start_webCorePistons) {
+        str += "${isInpt ? "" : "\n\n"}Tier Start Commands:"
         str += settings?.act_tier_start_switches_on ? "\n \u2022 Switches On: (${settings?.act_tier_start_switches_on?.size()})" : ""
         str += settings?.act_tier_start_switches_off ? "\n \u2022 Switches Off: (${settings?.act_tier_start_switches_off?.size()})" : ""
         str += settings?.act_tier_start_mode_run ? "\n \u2022 Set Mode:\n \u2022 ${settings?.act_tier_start_mode_run}" : ""
         str += settings?.act_tier_start_routine_run ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(settings?.act_tier_start_routine_run)?.label}" : ""
         str += (settings?.enableWebCoRE && settings?.act_tier_start_webCorePistons) ? "\n \u2022 webCoRE Piston:\n    - ${settings?.act_tier_start_webCorePistons}" : ""
+    }
+    return str != "" ? (isInpt ? "${str}\n\nTap to modify" : "${str}") : (isInpt ? "On tier start control devices, set Mode, execute routines or WebCore Pistons\n\nTap to configure" : null)
+}
 
-        str += (act_tier_stop_switches_on || act_tier_stop_switches_off || act_tier_stop_mode_run || act_tier_stop_routine_run || act_tier_stop_webCorePistons) ? "\n\nTier Stop Commands:" : ""
+String tierStopDesc(isInpt=false) {
+    String str = ""
+    if(act_tier_stop_switches_on || act_tier_stop_switches_off || act_tier_stop_mode_run || act_tier_stop_routine_run || act_tier_stop_webCorePistons) {
+        str += "${isInpt ? "" : "\n\n"}Tier Stop Commands:"
+        str += settings?.act_tier_stop_delay ? "\n \u2022 Stop Delay Task: (${settings?.act_tier_stop_delay} sec)" : ""
         str += settings?.act_tier_stop_switches_on ? "\n \u2022 Switches On: (${settings?.act_tier_stop_switches_on?.size()})" : ""
         str += settings?.act_tier_stop_switches_off ? "\n \u2022 Switches Off: (${settings?.act_tier_stop_switches_off?.size()})" : ""
         str += settings?.act_tier_stop_mode_run ? "\n \u2022 Set Mode:\n \u2022 ${settings?.act_tier_stop_mode_run}" : ""
         str += settings?.act_tier_stop_routine_run ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(settings?.act_tier_stop_routine_run)?.label}" : ""
         str += (settings?.enableWebCoRE && settings?.act_tier_stop_webCorePistons) ? "\n \u2022 webCoRE Piston:\n    - ${settings?.act_tier_stop_webCorePistons}" : ""
     }
-    return str != "" ? str : null
+    return str != "" ? (isInpt ? "${str}\n\nTap to modify" : "${str}") : (isInpt ? "On tier stop control devices, set Mode, execute routines or WebCore Pistons\n\nTap to configure" : null)
 }
 
 Boolean isTierActConfigured() {
@@ -1263,23 +1277,11 @@ def actionsPage() {
                     }
                 }
                 if(isTierAct && settings?.act_tier_cnt > 1) {
-                    section(sTS("Control Devices:")) {
-                        input "act_tier_start_switches_on", "capability.switch", title: inTS("Turn ON these Switches with Tier Start\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-                        input "act_tier_start_switches_off", "capability.switch", title: inTS("Turn OFF these Switches with Tier Start\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-                        input "act_tier_stop_switches_on", "capability.switch", title: inTS("Turn ON these Switches with Tier Stop\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-                        input "act_tier_stop_switches_off", "capability.switch", title: inTS("Turn OFF these Switches with Tier Stop\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+                    section(sTS("Tier Action Start Tasks:")) {
+                        href "actTierStartTasksPage", title: inTS("Perform Tasks on Tier Start", getAppImg("command", true)), description: tierStartDesc(true), state: (tierStartDesc() ? "complete" : null), image: getAppImg("command")
                     }
-                    section(sTS("Location Actions:")) {
-                        def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
-                        input "act_tier_start_mode_run", "enum", title: inTS("Set Location Mode with Tier Start\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
-                        input "act_tier_stop_mode_run", "enum", title: inTS("Set Location Mode with Tier Stop\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
-                        if(isST()) {
-                            input "act_tier_start_routine_run", "enum", title: inTS("Execute routine with Tier Start\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
-                            input "act_tier_stop_routine_run", "enum", title: inTS("Execute routine with Tier Stop\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
-                        }
-                    }
-                    section("Tier End Items Delay: ") {
-                        input "act_tier_stop_delay", "number", title: inTS("Delay running Stop Items in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
+                    section(sTS("Tier Action Stop Tasks:")) {
+                        href "actTierStopTasksPage", title: inTS("Perform Tasks on Tier Stop", getAppImg("command", true)), description: tierStopDesc(true), state: (tierStopDesc() ? "complete" : null), image: getAppImg("command")
                     }
                 } else {
                     section(sTS("Control Devices:")) {
@@ -1293,15 +1295,10 @@ def actionsPage() {
                             input "act_routine_run", "enum", title: inTS("Execute a routine\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
                         }
                     }
-                }
-                section (sTS("Execute a webCoRE Piston:")) {
-                    input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
-                    if(settings?.enableWebCoRE) {
-                        if(!atomicState?.webCoRE) { webCoRE_init() }
-                        if(isTierAct && settings?.act_tier_cnt > 1) {
-                            input "act_tier_start_webCorePistons", "enum", title: inTS("Execute Piston with Tier Start\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
-                            input "act_tier_stop_webCorePistons", "enum", title: inTS("Execute Piston with Tier Stop\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
-                        } else {
+                    section (sTS("Execute a webCoRE Piston:")) {
+                        input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+                        if(settings?.enableWebCoRE) {
+                            if(!atomicState?.webCoRE) { webCoRE_init() }
                             input "webCorePistons", "enum", title: inTS("Execute Piston...", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
                         }
                     }
@@ -1321,6 +1318,57 @@ def actionsPage() {
         }
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
         logDebug("actionExecMap: ${atomicState?.actionExecMap}")
+    }
+}
+
+def actTierStartTasksPage() {
+    return dynamicPage(name: "actTierStartTasksPage", title: "", install: false, uninstall: false) {
+        section(sTS("Control Devices:")) {
+            input "act_tier_start_switches_on", "capability.switch", title: inTS("Turn ON these Switches with Tier Start\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "act_tier_start_switches_off", "capability.switch", title: inTS("Turn OFF these Switches with Tier Start\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+        }
+        section(sTS("Location Actions:")) {
+            def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
+            input "act_tier_start_mode_run", "enum", title: inTS("Set Location Mode with Tier Start\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
+            if(isST()) {
+                input "act_tier_start_routine_run", "enum", title: inTS("Execute routine with Tier Start\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
+            }
+        }
+        section (sTS("Execute a webCoRE Piston:")) {
+            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+            if(settings?.enableWebCoRE) {
+                if(!atomicState?.webCoRE) { webCoRE_init() }
+                input "act_tier_start_webCorePistons", "enum", title: inTS("Execute Piston with Tier Stap\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+            }
+        }
+    }
+}
+
+def actTierStopTasksPage() {
+    return dynamicPage(name: "actTierStartTasksPage", title: "", install: false, uninstall: false) {
+        section(sTS("Control Devices:")) {
+            input "act_tier_stop_switches_on", "capability.switch", title: inTS("Turn ON these Switches with Tier Stop\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "act_tier_stop_switches_off", "capability.switch", title: inTS("Turn OFF these Switches with Tier Stop\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+        }
+        section(sTS("Location Actions:")) {
+            def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
+            input "act_tier_stop_mode_run", "enum", title: inTS("Set Location Mode with Tier Stop\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
+            if(isST()) {
+                input "act_tier_stop_routine_run", "enum", title: inTS("Execute routine with Tier Stop\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
+            }
+        }
+        if(settings?.act_tier_stop_mode_run || settings?.act_tier_stop_routine_run || settings?.act_tier_stop_switches_off || settings?.act_tier_stop_switches_on || settings?.act_tier_stop_webCorePistons) {
+            section("Tier End Items Delay: ") {
+                input "act_tier_stop_delay", "number", title: inTS("Delay running Stop Items in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
+            }
+        }
+        section (sTS("Execute a webCoRE Piston:")) {
+            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+            if(settings?.enableWebCoRE) {
+                if(!atomicState?.webCoRE) { webCoRE_init() }
+                input "act_tier_stop_webCorePistons", "enum", title: inTS("Execute Piston with Tier Stop\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+            }
+        }
     }
 }
 
@@ -1615,7 +1663,7 @@ def updateZoneSubscriptions() {
 String getActionName() { return settings?.appLbl as String }
 
 private updAppLabel() {
-    String newLbl = "${settings?.appLbl} (A)${isPaused() ? " (\u275A\u275A)" : ""}"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings?.appLbl} (A${isPaused() ? " \u275A\u275A" : ""})"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -3650,7 +3698,7 @@ String getConditionsDesc() {
         if(settings?.cond_alarm || (settings?.cond_mode && settings?.cond_mode_cmd)) {
             str += " • Location: (${locationCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += settings?.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings?.cond_alarm)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-            str += settings?.cond_mode ? "    - Location Modes(${settings?.cond_mode_cmd == "not" ? "not in" : "in"}): (${(isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+            str += settings?.cond_mode ? "    - Modes(${settings?.cond_mode_cmd == "not" ? "not in" : "in"}): (${(isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
         }
         if(deviceCondConfigured()) {
             ["switch", "motion", "presence", "contact", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
@@ -3702,9 +3750,13 @@ String getActionDesc() {
         def eDevs = parent?.getDevicesFromList(settings?.act_EchoDevices)
         def zones = getZoneStatus()
         def tierDesc = getTierRespDesc()
+        def tierStart = tierStartDesc()
+        def tierStop = tierStopDesc()
         str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n${eDevs?.size() ? "\n": ""}" : ""
         str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Zone Backups)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
-        str += tierDesc ? "\n${tierDesc}\n" : ""
+        str += tierDesc ? "\n${tierDesc}${tierStart || tierStop ? "" : "\n"}" : ""
+        str += tierStart ? "${tierStart}\n" : ""
+        str += tierStop ? "${tierStop}\n" : ""
         str += settings?.act_volume_change ? "New Volume: (${settings?.act_volume_change})\n" : ""
         str += settings?.act_volume_restore ? "Restore Volume: (${settings?.act_volume_restore})\n" : ""
         str += settings?.act_delay ? "Delay: (${settings?.act_delay})\n" : ""
@@ -3976,7 +4028,7 @@ public getDuplSettingData() {
         settings?.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
     }
     Map data = [:]
-    data?.label = app?.getLabel()?.toString()?.replace(" (\u275A\u275A)", "")
+    data?.label = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", "")
     data?.settings = setObjs
     return data
 }
