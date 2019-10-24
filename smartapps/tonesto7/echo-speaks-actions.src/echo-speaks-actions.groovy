@@ -21,7 +21,7 @@ Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 
 // TODO: Add Lock Code triggers
-//TODO: Create reports options
+// TODO: Create reports options
  /*
     Custom Reports for multiple builtin in routine items.
     Reports for home status like temp, contact, alarm status

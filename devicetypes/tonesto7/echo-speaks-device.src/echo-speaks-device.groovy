@@ -32,7 +32,6 @@ metadata {
         capability "Speech Synthesis"
 
         attribute "alarmVolume", "number"
-        attribute "alexaMusicProviders", "JSON_OBJECT"
         attribute "alexaNotifications", "JSON_OBJECT"
         attribute "alexaPlaylists", "JSON_OBJECT"
         // attribute "alexaGuardStatus", "string"
@@ -715,10 +714,6 @@ void updateDeviceStatus(Map devData) {
         String lItems = musicProviders?.collect{ it?.value }?.sort()?.join(", ")
         if(isStateChange(device, "supportedMusic", lItems?.toString())) {
             sendEvent(name: "supportedMusic", value: lItems?.toString(), display: false, displayed: false)
-        }
-        if(isStateChange(device, "alexaMusicProviders", musicProviders?.toString())) {
-            // log.trace "Alexa Music Providers Changed to ${musicProviders}"
-            sendEvent(name: "alexaMusicProviders", value: musicProviders?.toString(), display: false, displayed: false)
         }
         // if(devData?.guardStatus) { updGuardStatus(devData?.guardStatus) }
         if(!isOnline) {
@@ -1875,6 +1870,7 @@ def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null
             if(volume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: volume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
             mainSeq?.push([command: "announcement_devices", value: msg])
             if(restoreVolume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: restoreVolume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
+            log.debug "mainSeq: $mainSeq"
             sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
         } else { doSequenceCmd("sendAnnouncementToDevices", "announcement_devices", msg) }
         incrementCntByKey("use_cnt_announcementDevices")
