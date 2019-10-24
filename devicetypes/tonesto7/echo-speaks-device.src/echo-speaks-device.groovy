@@ -21,9 +21,9 @@ Boolean isWS()       { return false }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/devicetypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy") {
-        //capability "Audio Mute" // Not Compatible with Hubitat
+        capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
-        // capability "Audio Track Data" // To support SharpTools.io Album Art feature
+        capability "Audio Track Data" // To support SharpTools.io Album Art feature
         capability "Audio Volume"
         capability "Music Player"
         capability "Notification"
@@ -3098,6 +3098,8 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
                 seqNode?.operationPayload?.expireAfter = "PT5S"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
                 // log.debug "valObj(size: ${valObj?.size()}): $valObj"
+                // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
+                // log.debug "valObj[1]: ${valObj[1]}"
                 seqNode?.operationPayload?.content = [[ locale: (state?.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
                 seqNode?.operationPayload?.target = [ customerId : state?.deviceOwnerCustomerId ]
                 if(!(command in ["announcementall", "announcement_devices"])) {

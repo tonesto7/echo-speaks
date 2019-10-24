@@ -51,6 +51,7 @@ preferences {
     page(name: "actionsPage")
     page(name: "actionTiersPage")
     page(name: "actionTiersConfigPage")
+    page(name: "actTrigTasksPage")
     page(name: "actTierStartTasksPage")
     page(name: "actTierStopTasksPage")
     page(name: "actNotifPage")
@@ -1278,29 +1279,14 @@ def actionsPage() {
                 }
                 if(isTierAct && settings?.act_tier_cnt > 1) {
                     section(sTS("Tier Action Start Tasks:")) {
-                        href "actTierStartTasksPage", title: inTS("Perform Tasks on Tier Start", getAppImg("command", true)), description: tierStartDesc(true), state: (tierStartDesc() ? "complete" : null), image: getAppImg("command")
+                        href "actTierStartTasksPage", title: inTS("Perform Tasks on Tier Start?", getAppImg("command", true)), description: tierStartDesc(true), state: (tierStartDesc() ? "complete" : null), image: getAppImg("command")
                     }
                     section(sTS("Tier Action Stop Tasks:")) {
-                        href "actTierStopTasksPage", title: inTS("Perform Tasks on Tier Stop", getAppImg("command", true)), description: tierStopDesc(true), state: (tierStopDesc() ? "complete" : null), image: getAppImg("command")
+                        href "actTierStopTasksPage", title: inTS("Perform Tasks on Tier Stop?", getAppImg("command", true)), description: tierStopDesc(true), state: (tierStopDesc() ? "complete" : null), image: getAppImg("command")
                     }
                 } else {
-                    section(sTS("Control Devices:")) {
-                        input "act_switches_on", "capability.switch", title: inTS("Turn ON these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-                        input "act_switches_off", "capability.switch", title: inTS("Turn OFF these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-                    }
-                    section(sTS("Location Actions:")) {
-                        input "act_mode_run", "enum", title: inTS("Set Location Mode\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
-                        if(isST()) {
-                            def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
-                            input "act_routine_run", "enum", title: inTS("Execute a routine\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
-                        }
-                    }
-                    section (sTS("Execute a webCoRE Piston:")) {
-                        input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
-                        if(settings?.enableWebCoRE) {
-                            if(!atomicState?.webCoRE) { webCoRE_init() }
-                            input "webCorePistons", "enum", title: inTS("Execute Piston...", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
-                        }
+                    section(sTS("Action Triggered Tasks:")) {
+                        href "actTrigTasksPage", title: inTS("Perform tasks on Trigger?", getAppImg("command", true)), description: actTaskDesc(true), state: (actTaskDesc() ? "complete" : null), image: getAppImg("command")
                     }
                 }
                 actionSimulationSect()
@@ -1319,6 +1305,117 @@ def actionsPage() {
         atomicState?.actionExecMap = (done && actionExecMap?.configured == true) ? actionExecMap : [configured: false]
         logDebug("actionExecMap: ${atomicState?.actionExecMap}")
     }
+}
+
+def actTrigTasksPage() {
+    return dynamicPage(name: "actTrigTasksPage", title: "", install: false, uninstall: false) {
+        section(sTS("Control Devices:")) {
+            input "act_switches_on", "capability.switch", title: inTS("Turn ON these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "act_switches_off", "capability.switch", title: inTS("Turn OFF these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+        }
+        section(sTS("Control Lights:")) {
+            input "act_lights", "capability.switchLevel", title: inTS("Turn ON these Lights\n(Optional)", getAppImg("level", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("level")
+            if(settings?.act_lights) {
+                input "act_lights_flash", "bool", title: inTS("Flash the Lights?", getAppImg("command", true)), required: false, submitOnChange: true, image: getAppImg("command")
+                if(settings?.act_lights_color_flash) {
+                    input "act_lights_flash_cnt", "number", title: inTS("Number of flashes", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+                    if(settings?.act_lights_flash_cnt) {
+                        input "act_lights_flash_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("level")
+                        input "act_lights_flash_delay", "number", title: inTS("Every (x) seconds...", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+                        input "act_lights_flash_cycles", "number", title: inTS("This many cycles?", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+                    }
+                } else {
+                    input "act_lights_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("level")
+                }
+            }
+
+            input "act_lights_color", "capability.colorControl", title: inTS("Turn ON these Color Lights\n(Optional)", getAppImg("level", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("level")
+            if(settings?.act_lights_color) {
+                input "act_lights_color_flash", "bool", title: inTS("Flash the Lights?", getAppImg("command", true)), required: false, submitOnChange: true, image: getAppImg("command")
+                if(settings?.act_lights_color_flash) {
+                    input "act_lights_color_flash_cnt", "number", title: inTS("Number of flashes", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+                    if(settings?.act_lights_color_flash_cnt) {
+                        input "act_lights_color_flash_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: true, submitOnChange: true, image: getAppImg("level")
+                        input "act_lights_color_flash_delay", "number", title: inTS("Every (x) seconds...", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+                        input "act_lights_color_flash_cycles", "number", title: inTS("This many cycles?", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+                        input "act_lights_color_flash_color", "enum", title: inTS("Set to this color?", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: false, submitOnChange: true, image: getAppImg("color")
+                    }
+                } else {
+                    input "act_lights_color_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("level")
+                    input "act_lights_color_color", "enum", title: inTS("Set to this color?", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: true, submitOnChange: true, image: getAppImg("color")
+                }
+            }
+        }
+        section(sTS("Control Locks:")) {
+            input "act_locks_lock", "capability.lock", title: inTS("Lock these Locks\n(Optional)", getAppImg("lock", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
+            input "act_locks_unlock", "capability.lock", title: inTS("Unlock these Locks\n(Optional)", getAppImg("lock", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
+        }
+
+        section(sTS("Control Doors:")) {
+            input "act_doors_close", "capability.garageDoorControl", title: inTS("Close these Garage Doors\n(Optional)", getAppImg("garage_door", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("garage_door")
+            input "act_doors_open", "capability.garageDoorControl", title: inTS("Open these Garage Doors\n(Optional)", getAppImg("garage_door", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("garage_door")
+        }
+
+        section(sTS("Control Siren:")) {
+            input "act_sirens", "capability.lock", title: inTS("Activate these Sirens\n(Optional)", getAppImg("siren", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("siren")
+            if(settings?.act_sirens) {
+                input "act_siren_time", "number", title: inTS("Stop after (x) seconds...", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+            }
+        }
+        section(sTS("Location Actions:")) {
+            input "act_mode_run", "enum", title: inTS("Set Location Mode\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
+            if(isST()) {
+                def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
+                input "act_routine_run", "enum", title: inTS("Execute a routine\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
+            }
+        }
+        section (sTS("Execute a webCoRE Piston:")) {
+            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+            if(settings?.enableWebCoRE) {
+                if(!atomicState?.webCoRE) { webCoRE_init() }
+                input "webCorePistons", "enum", title: inTS("Execute Piston...", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+            }
+        }
+
+        if(act_mode_run || act_routine_run || act_switches_off || act_switches_on || webCorePistons || act_lights || act_lights_color || act_locks || act_sirens || act_doors) {
+            section("Delay before running Tasks: ") {
+                input "act_tasks_delay", "number", title: inTS("Delay running Task in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
+            }
+        }
+    }
+}
+
+String actTaskDesc(isInpt=false) {
+    String str = ""
+    if(act_switches_on || act_switches_off || act_mode_run || act_routine_run || webCorePistons) {
+        str += "${isInpt ? "" : "\n\n"}Trigger Tasks:"
+        str += act_switches_on ? "\n \u2022 Switches On: (${act_switches_on?.size()})" : ""
+        str += act_switches_off ? "\n \u2022 Switches Off: (${act_switches_off?.size()})" : ""
+
+        str += act_lights ? "\n \u2022 Lights ON: (${act_lights?.size()})${act_lights_level ? "(${act_lights_level}%)" : ""}" : ""
+        str += act_lights_color ? "\n \u2022 Color Bulbs: (${act_lights_color?.size()})" : ""
+        str += act_lights_color && settings?.act_lights_color_level ? "\n    - Level: (${act_lights_color_level}%)" : ""
+        str += act_lights_color && act_lights_color_flash && act_lights_color_flash_cnt ? "\n    - Flash: (${act_lights_color_flash_cnt} times)" : ""
+        str += act_lights_color && act_lights_color_flash && act_lights_color_flash_delay ? "\n    - Delay: (${act_lights_color_flash_delay} sec)" : ""
+        str += act_lights_color && act_lights_color_flash && act_lights_color_flash_cycles ? "\n    - Cycles: (${act_lights_color_flash_cycles} cycles)" : ""
+        str += act_lights_color && act_lights_color_flash && act_lights_color_flash_color ? "\n    - Color: (${act_lights_color_flash_color})" : ""
+        str += act_lights_color && act_lights_color_level ? "\n    - Level: (${act_lights_color_level}%)" : ""
+        str += act_lights_color && act_lights_color_color ? "\n    - Color: (${act_lights_color_color})" : ""
+        str += act_locks_unlock ? "\n \u2022 Locks Unlock: (${act_locks_unlock?.size()})" : ""
+        str += act_locks_lock ? "\n \u2022 Locks Lock: (${act_locks_lock?.size()})" : ""
+        str += act_doors_open ? "\n \u2022 Garages Open: (${act_doors_open?.size()})" : ""
+        str += act_doors_close ? "\n \u2022 Garages Close: (${act_doors_close?.size()})" : ""
+        str += act_sirens ? "\n \u2022 Sirens On: (${act_sirens?.size()})${act_sirens_delay ? "(${act_sirens_delay} sec)" : ""}" : ""
+
+        str += act_mode_run ? "\n \u2022 Set Mode:\n \u2022 ${settings?.act_mode_run}" : ""
+        str += act_routine_run ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(act_routine_run)?.label}" : ""
+        str += (settings?.enableWebCoRE && settings?.webCorePistons) ? "\n \u2022 webCoRE Piston:\n    - ${settings?.webCorePistons}" : ""
+    }
+    return str != "" ? (isInpt ? "${str}\n\nTap to modify" : "${str}") : (isInpt ? "On trigger control devices, set Mode, execute routines or WebCore Pistons\n\nTap to configure" : null)
+}
+
+Map dimmerLevelEnum() {
+    return [100:"Set Level to 100%", 90:"Set Level to 90%", 80:"Set Level to 80%", 70:"Set Level to 70%", 60:"Set Level to 60%", 50:"Set Level to 50%", 40:"Set Level to 40%", 30:"Set Level to 30%", 20:"Set Level to 20%", 10:"Set Level to 10%"]
 }
 
 def actTierStartTasksPage() {
@@ -1692,6 +1789,9 @@ private actionCleanup() {
 
     if(settings?.actionType) {
         def isTierAct = isTierAction()
+        if(!isTierAct) {
+            ["act_lights", "act_locks", "act_doors", "act_sirens"]?.each { settings?.each { sI -> if(sI?.key?.startsWith(it)) { isTierAct ? setItems?.push(sI?.key as String) : setIgn?.push(sI?.key as String) } } }
+        }
         ["act_tier_start_", "act_tier_stop_"]?.each { settings?.each { sI -> if(sI?.key?.startsWith(it)) { isTierAct ? setIgn?.push(sI?.key as String) : setItems?.push(sI?.key as String) } } }
         settings?.each { si->
             if(!(si?.key in setIgn) && si?.key?.startsWith("act_") && !si?.key?.startsWith("act_${settings?.actionType}") && (!isTierAct && si?.key?.startsWith("act_tier_item_"))) { setItems?.push(si?.key as String) }
@@ -3093,13 +3193,13 @@ public logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal
 public logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
 
 private updTsVal(key, dt=null) {
-	def data = atomicState?.tsDtMap ?: [:]
-	if(key) { data[key] = dt ?: getDtNow() }
-	atomicState?.tsDtMap = data
+    def data = atomicState?.tsDtMap ?: [:]
+    if(key) { data[key] = dt ?: getDtNow() }
+    atomicState?.tsDtMap = data
 }
 
 private remTsVal(key) {
-	def data = atomicState?.tsDtMap ?: [:]
+    def data = atomicState?.tsDtMap ?: [:]
     if(key) {
         if(key instanceof List) {
             key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
@@ -3109,19 +3209,19 @@ private remTsVal(key) {
 }
 
 def getTsVal(val) {
-	def tsMap = atomicState?.tsDtMap
-	if(val && tsMap && tsMap[val]) { return tsMap[val] }
-	return null
+    def tsMap = atomicState?.tsDtMap
+    if(val && tsMap && tsMap[val]) { return tsMap[val] }
+    return null
 }
 
 private updAppFlag(key, val) {
-	def data = atomicState?.appFlagsMap ?: [:]
-	if(key) { data[key] = val }
-	atomicState?.appFlagsMap = data
+    def data = atomicState?.appFlagsMap ?: [:]
+    if(key) { data[key] = val }
+    atomicState?.appFlagsMap = data
 }
 
 private remAppFlag(key) {
-	def data = atomicState?.appFlagsMap ?: [:]
+    def data = atomicState?.appFlagsMap ?: [:]
     if(key) {
         if(key instanceof List) {
             key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
@@ -3148,8 +3248,8 @@ private stateMapMigration() {
 }
 
 Integer getLastTsValSecs(val, nullVal=1000000) {
-	def tsMap = atomicState?.tsDtMap
-	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : nullVal
+    def tsMap = atomicState?.tsDtMap
+    return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : nullVal
 }
 
 void settingUpdate(name, value, type=null) {
@@ -3329,7 +3429,7 @@ Boolean checkMinVersion() { return (versionStr2Int(appVersion()) < parent?.minVe
 
 
 /************************************************************************************************************
-		webCoRE Integration
+        webCoRE Integration
 ************************************************************************************************************/
 private webCoRE_handle(){return'webCoRE'}
 private webCoRE_init(pistonExecutedCbk){atomicState.webCoRE=(atomicState?.webCoRE instanceof Map?atomicState?.webCoRE:[:])+(pistonExecutedCbk?[cbk:pistonExecutedCbk]:[:]);subscribe(location,"${webCoRE_handle()}.pistonList",webCoRE_handler);if(pistonExecutedCbk)subscribe(location,"${webCoRE_handle()}.pistonExecuted",webCoRE_handler);webCoRE_poll();}
@@ -3466,10 +3566,10 @@ def convToDateTime(dt) {
 }
 
 def okSym() {
-	return "\u2713"
+    return "\u2713"
 }
 def notOkSym() {
-	return "\u2715"
+    return "\u2715"
 }
 Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
@@ -3746,12 +3846,13 @@ String getActionDesc() {
     def time = null
     String sPre = "act_"
     if(settings?.actionType && confd) {
+        Boolean isTierAct = isTierAction()
         String str = ""
         def eDevs = parent?.getDevicesFromList(settings?.act_EchoDevices)
         def zones = getZoneStatus()
-        def tierDesc = getTierRespDesc()
-        def tierStart = tierStartDesc()
-        def tierStop = tierStopDesc()
+        def tierDesc = isTierAct ? getTierRespDesc() : null
+        def tierStart = isTierAct ? tierStartDesc() : null
+        def tierStop = isTierAct ? tierStopDesc() : null
         str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n${eDevs?.size() ? "\n": ""}" : ""
         str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Zone Backups)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
         str += tierDesc ? "\n${tierDesc}${tierStart || tierStop ? "" : "\n"}" : ""
@@ -3761,11 +3862,13 @@ String getActionDesc() {
         str += settings?.act_volume_restore ? "Restore Volume: (${settings?.act_volume_restore})\n" : ""
         str += settings?.act_delay ? "Delay: (${settings?.act_delay})\n" : ""
         str += settings?."act_${settings?.actionType}_txt" ? "Using Default Response: (True)\n" : ""
-        str += settings?.act_switches_on ? "Switches On: (${settings?.act_switches_on?.size()})\n" : ""
-        str += settings?.act_switches_off ? "Switches Off: (${settings?.act_switches_off?.size()})\n" : ""
-        str += settings?.act_mode_run ? "Set Mode:\n \u2022 ${settings?.act_mode_run})\n" : ""
-        str += settings?.act_routine_run ? "Execute Routine:\n \u2022 ${settings?.act_routine_run})\n" : ""
-        str += (settings?.enableWebCoRE && settings?.webCorePistons) ? "webCoRE Piston:\n \u2022 ${settings?.webCorePistons}\n" : ""
+        def trigTasks = !isTierAct ? actTaskDesc() : null
+        str += trigTasks ? "${trigTasks}" : ""
+        // str += settings?.act_switches_on ? "Switches On: (${settings?.act_switches_on?.size()})\n" : ""
+        // str += settings?.act_switches_off ? "Switches Off: (${settings?.act_switches_off?.size()})\n" : ""
+        // str += settings?.act_mode_run ? "Set Mode:\n \u2022 ${settings?.act_mode_run})\n" : ""
+        // str += settings?.act_routine_run ? "Execute Routine:\n \u2022 ${settings?.act_routine_run})\n" : ""
+        // str += (settings?.enableWebCoRE && settings?.webCorePistons) ? "webCoRE Piston:\n \u2022 ${settings?.webCorePistons}\n" : ""
         str += "\nTap to modify..."
         return str
     } else {
@@ -3965,6 +4068,167 @@ def searchTuneInResultsPage() {
     }
 }
 
+private getColorName(sHuesColor, level) {
+    for (color in fillColorSettings()) {
+        if (color.name.toLowerCase() == sHuesColor.toLowerCase()) {
+        log.warn "found a color match"
+            int hueVal = Math.round(color.h / 3.6)
+            int hueLevel = !level ? color.l : level
+            def hueSet = [hue: hueVal, saturation: color.s, level: hueLevel]
+            return hueSet
+        }
+    }
+}
+
+def fillColorSettings() {
+    return [
+        [ name: "Soft White",				rgb: "#B6DA7C",		h: 83,		s: 44,		l: 67,	],
+        [ name: "Warm White",				rgb: "#DAF17E",		h: 51,		s: 20,		l: 100,	],
+        [ name: "Very Warm White",			rgb: "#DAF17E",		h: 51,		s: 60,		l: 51,	],
+        [ name: "Daylight White",			rgb: "#CEF4FD",		h: 191,		s: 9,		l: 90,	],
+        [ name: "Daylight",					rgb: "#CEF4FD",		h: 191,		s: 9,		l: 90,	],
+        [ name: "Cool White",				rgb: "#F3F6F7",		h: 187,		s: 19,		l: 96,	],
+        [ name: "White",					rgb: "#FFFFFF",		h: 0,		s: 0,		l: 100,	],
+        [ name: "Alice Blue",				rgb: "#F0F8FF",		h: 208,		s: 100,		l: 97,	],
+        [ name: "Antique White",			rgb: "#FAEBD7",		h: 34,		s: 78,		l: 91,	],
+        [ name: "Aqua",						rgb: "#00FFFF",		h: 180,		s: 100,		l: 50,	],
+        [ name: "Aquamarine",				rgb: "#7FFFD4",		h: 160,		s: 100,		l: 75,	],
+        [ name: "Azure",					rgb: "#F0FFFF",		h: 180,		s: 100,		l: 97,	],
+        [ name: "Beige",					rgb: "#F5F5DC",		h: 60,		s: 56,		l: 91,	],
+        [ name: "Bisque",					rgb: "#FFE4C4",		h: 33,		s: 100,		l: 88,	],
+        [ name: "Blanched Almond",			rgb: "#FFEBCD",		h: 36,		s: 100,		l: 90,	],
+        [ name: "Blue",						rgb: "#0000FF",		h: 240,		s: 100,		l: 50,	],
+        [ name: "Blue Violet",				rgb: "#8A2BE2",		h: 271,		s: 76,		l: 53,	],
+        [ name: "Brown",					rgb: "#A52A2A",		h: 0,		s: 59,		l: 41,	],
+        [ name: "Burly Wood",				rgb: "#DEB887",		h: 34,		s: 57,		l: 70,	],
+        [ name: "Cadet Blue",				rgb: "#5F9EA0",		h: 182,		s: 25,		l: 50,	],
+        [ name: "Chartreuse",				rgb: "#7FFF00",		h: 90,		s: 100,		l: 50,	],
+        [ name: "Chocolate",				rgb: "#D2691E",		h: 25,		s: 75,		l: 47,	],
+        [ name: "Coral",					rgb: "#FF7F50",		h: 16,		s: 100,		l: 66,	],
+        [ name: "Corn Flower Blue",			rgb: "#6495ED",		h: 219,		s: 79,		l: 66,	],
+        [ name: "Corn Silk",				rgb: "#FFF8DC",		h: 48,		s: 100,		l: 93,	],
+        [ name: "Crimson",					rgb: "#DC143C",		h: 348,		s: 83,		l: 58,	],
+        [ name: "Cyan",						rgb: "#00FFFF",		h: 180,		s: 100,		l: 50,	],
+        [ name: "Dark Blue",				rgb: "#00008B",		h: 240,		s: 100,		l: 27,	],
+        [ name: "Dark Cyan",				rgb: "#008B8B",		h: 180,		s: 100,		l: 27,	],
+        [ name: "Dark Golden Rod",			rgb: "#B8860B",		h: 43,		s: 89,		l: 38,	],
+        [ name: "Dark Gray",				rgb: "#A9A9A9",		h: 0,		s: 0,		l: 66,	],
+        [ name: "Dark Green",				rgb: "#006400",		h: 120,		s: 100,		l: 20,	],
+        [ name: "Dark Khaki",				rgb: "#BDB76B",		h: 56,		s: 38,		l: 58,	],
+        [ name: "Dark Magenta",				rgb: "#8B008B",		h: 300,		s: 100,		l: 27,	],
+        [ name: "Dark Olive Green",			rgb: "#556B2F",		h: 82,		s: 39,		l: 30,	],
+        [ name: "Dark Orange",				rgb: "#FF8C00",		h: 33,		s: 100,		l: 50,	],
+        [ name: "Dark Orchid",				rgb: "#9932CC",		h: 280,		s: 61,		l: 50,	],
+        [ name: "Dark Red",					rgb: "#8B0000",		h: 0,		s: 100,		l: 27,	],
+        [ name: "Dark Salmon",				rgb: "#E9967A",		h: 15,		s: 72,		l: 70,	],
+        [ name: "Dark Sea Green",			rgb: "#8FBC8F",		h: 120,		s: 25,		l: 65,	],
+        [ name: "Dark Slate Blue",			rgb: "#483D8B",		h: 248,		s: 39,		l: 39,	],
+        [ name: "Dark Slate Gray",			rgb: "#2F4F4F",		h: 180,		s: 25,		l: 25,	],
+        [ name: "Dark Turquoise",			rgb: "#00CED1",		h: 181,		s: 100,		l: 41,	],
+        [ name: "Dark Violet",				rgb: "#9400D3",		h: 282,		s: 100,		l: 41,	],
+        [ name: "Deep Pink",				rgb: "#FF1493",		h: 328,		s: 100,		l: 54,	],
+        [ name: "Deep Sky Blue",			rgb: "#00BFFF",		h: 195,		s: 100,		l: 50,	],
+        [ name: "Dim Gray",					rgb: "#696969",		h: 0,		s: 0,		l: 41,	],
+        [ name: "Dodger Blue",				rgb: "#1E90FF",		h: 210,		s: 100,		l: 56,	],
+        [ name: "Fire Brick",				rgb: "#B22222",		h: 0,		s: 68,		l: 42,	],
+        [ name: "Floral White",				rgb: "#FFFAF0",		h: 40,		s: 100,		l: 97,	],
+        [ name: "Forest Green",				rgb: "#228B22",		h: 120,		s: 61,		l: 34,	],
+        [ name: "Fuchsia",					rgb: "#FF00FF",		h: 300,		s: 100,		l: 50,	],
+        [ name: "Gainsboro",				rgb: "#DCDCDC",		h: 0,		s: 0,		l: 86,	],
+        [ name: "Ghost White",				rgb: "#F8F8FF",		h: 240,		s: 100,		l: 99,	],
+        [ name: "Gold",						rgb: "#FFD700",		h: 51,		s: 100,		l: 50,	],
+        [ name: "Golden Rod",				rgb: "#DAA520",		h: 43,		s: 74,		l: 49,	],
+        [ name: "Gray",						rgb: "#808080",		h: 0,		s: 0,		l: 50,	],
+        [ name: "Green",					rgb: "#008000",		h: 120,		s: 100,		l: 25,	],
+        [ name: "Green Yellow",				rgb: "#ADFF2F",		h: 84,		s: 100,		l: 59,	],
+        [ name: "Honeydew",					rgb: "#F0FFF0",		h: 120,		s: 100,		l: 97,	],
+        [ name: "Hot Pink",					rgb: "#FF69B4",		h: 330,		s: 100,		l: 71,	],
+        [ name: "Indian Red",				rgb: "#CD5C5C",		h: 0,		s: 53,		l: 58,	],
+        [ name: "Indigo",					rgb: "#4B0082",		h: 275,		s: 100,		l: 25,	],
+        [ name: "Ivory",					rgb: "#FFFFF0",		h: 60,		s: 100,		l: 97,	],
+        [ name: "Khaki",					rgb: "#F0E68C",		h: 54,		s: 77,		l: 75,	],
+        [ name: "Lavender",					rgb: "#E6E6FA",		h: 240,		s: 67,		l: 94,	],
+        [ name: "Lavender Blush",			rgb: "#FFF0F5",		h: 340,		s: 100,		l: 97,	],
+        [ name: "Lawn Green",				rgb: "#7CFC00",		h: 90,		s: 100,		l: 49,	],
+        [ name: "Lemon Chiffon",			rgb: "#FFFACD",		h: 54,		s: 100,		l: 90,	],
+        [ name: "Light Blue",				rgb: "#ADD8E6",		h: 195,		s: 53,		l: 79,	],
+        [ name: "Light Coral",				rgb: "#F08080",		h: 0,		s: 79,		l: 72,	],
+        [ name: "Light Cyan",				rgb: "#E0FFFF",		h: 180,		s: 100,		l: 94,	],
+        [ name: "Light Golden Rod Yellow",	rgb: "#FAFAD2",		h: 60,		s: 80,		l: 90,	],
+        [ name: "Light Gray",				rgb: "#D3D3D3",		h: 0,		s: 0,		l: 83,	],
+        [ name: "Light Green",				rgb: "#90EE90",		h: 120,		s: 73,		l: 75,	],
+        [ name: "Light Pink",				rgb: "#FFB6C1",		h: 351,		s: 100,		l: 86,	],
+        [ name: "Light Salmon",				rgb: "#FFA07A",		h: 17,		s: 100,		l: 74,	],
+        [ name: "Light Sea Green",			rgb: "#20B2AA",		h: 177,		s: 70,		l: 41,	],
+        [ name: "Light Sky Blue",			rgb: "#87CEFA",		h: 203,		s: 92,		l: 75,	],
+        [ name: "Light Slate Gray",			rgb: "#778899",		h: 210,		s: 14,		l: 53,	],
+        [ name: "Light Steel Blue",			rgb: "#B0C4DE",		h: 214,		s: 41,		l: 78,	],
+        [ name: "Light Yellow",				rgb: "#FFFFE0",		h: 60,		s: 100,		l: 94,	],
+        [ name: "Lime",						rgb: "#00FF00",		h: 120,		s: 100,		l: 50,	],
+        [ name: "Lime Green",				rgb: "#32CD32",		h: 120,		s: 61,		l: 50,	],
+        [ name: "Linen",					rgb: "#FAF0E6",		h: 30,		s: 67,		l: 94,	],
+        [ name: "Maroon",					rgb: "#800000",		h: 0,		s: 100,		l: 25,	],
+        [ name: "Medium Aquamarine",		rgb: "#66CDAA",		h: 160,		s: 51,		l: 60,	],
+        [ name: "Medium Blue",				rgb: "#0000CD",		h: 240,		s: 100,		l: 40,	],
+        [ name: "Medium Orchid",			rgb: "#BA55D3",		h: 288,		s: 59,		l: 58,	],
+        [ name: "Medium Purple",			rgb: "#9370DB",		h: 260,		s: 60,		l: 65,	],
+        [ name: "Medium Sea Green",			rgb: "#3CB371",		h: 147,		s: 50,		l: 47,	],
+        [ name: "Medium Slate Blue",		rgb: "#7B68EE",		h: 249,		s: 80,		l: 67,	],
+        [ name: "Medium Spring Green",		rgb: "#00FA9A",		h: 157,		s: 100,		l: 49,	],
+        [ name: "Medium Turquoise",			rgb: "#48D1CC",		h: 178,		s: 60,		l: 55,	],
+        [ name: "Medium Violet Red",		rgb: "#C71585",		h: 322,		s: 81,		l: 43,	],
+        [ name: "Midnight Blue",			rgb: "#191970",		h: 240,		s: 64,		l: 27,	],
+        [ name: "Mint Cream",				rgb: "#F5FFFA",		h: 150,		s: 100,		l: 98,	],
+        [ name: "Misty Rose",				rgb: "#FFE4E1",		h: 6,		s: 100,		l: 94,	],
+        [ name: "Moccasin",					rgb: "#FFE4B5",		h: 38,		s: 100,		l: 85,	],
+        [ name: "Navajo White",				rgb: "#FFDEAD",		h: 36,		s: 100,		l: 84,	],
+        [ name: "Navy",						rgb: "#000080",		h: 240,		s: 100,		l: 25,	],
+        [ name: "Old Lace",					rgb: "#FDF5E6",		h: 39,		s: 85,		l: 95,	],
+        [ name: "Olive",					rgb: "#808000",		h: 60,		s: 100,		l: 25,	],
+        [ name: "Olive Drab",				rgb: "#6B8E23",		h: 80,		s: 60,		l: 35,	],
+        [ name: "Orange",					rgb: "#FFA500",		h: 39,		s: 100,		l: 50,	],
+        [ name: "Orange Red",				rgb: "#FF4500",		h: 16,		s: 100,		l: 50,	],
+        [ name: "Orchid",					rgb: "#DA70D6",		h: 302,		s: 59,		l: 65,	],
+        [ name: "Pale Golden Rod",			rgb: "#EEE8AA",		h: 55,		s: 67,		l: 80,	],
+        [ name: "Pale Green",				rgb: "#98FB98",		h: 120,		s: 93,		l: 79,	],
+        [ name: "Pale Turquoise",			rgb: "#AFEEEE",		h: 180,		s: 65,		l: 81,	],
+        [ name: "Pale Violet Red",			rgb: "#DB7093",		h: 340,		s: 60,		l: 65,	],
+        [ name: "Papaya Whip",				rgb: "#FFEFD5",		h: 37,		s: 100,		l: 92,	],
+        [ name: "Peach Puff",				rgb: "#FFDAB9",		h: 28,		s: 100,		l: 86,	],
+        [ name: "Peru",						rgb: "#CD853F",		h: 30,		s: 59,		l: 53,	],
+        [ name: "Pink",						rgb: "#FFC0CB",		h: 350,		s: 100,		l: 88,	],
+        [ name: "Plum",						rgb: "#DDA0DD",		h: 300,		s: 47,		l: 75,	],
+        [ name: "Powder Blue",				rgb: "#B0E0E6",		h: 187,		s: 52,		l: 80,	],
+        [ name: "Purple",					rgb: "#800080",		h: 300,		s: 100,		l: 25,	],
+        [ name: "Red",						rgb: "#FF0000",		h: 0,		s: 100,		l: 50,	],
+        [ name: "Rosy Brown",				rgb: "#BC8F8F",		h: 0,		s: 25,		l: 65,	],
+        [ name: "Royal Blue",				rgb: "#4169E1",		h: 225,		s: 73,		l: 57,	],
+        [ name: "Saddle Brown",				rgb: "#8B4513",		h: 25,		s: 76,		l: 31,	],
+        [ name: "Salmon",					rgb: "#FA8072",		h: 6,		s: 93,		l: 71,	],
+        [ name: "Sandy Brown",				rgb: "#F4A460",		h: 28,		s: 87,		l: 67,	],
+        [ name: "Sea Green",				rgb: "#2E8B57",		h: 146,		s: 50,		l: 36,	],
+        [ name: "Sea Shell",				rgb: "#FFF5EE",		h: 25,		s: 100,		l: 97,	],
+        [ name: "Sienna",					rgb: "#A0522D",		h: 19,		s: 56,		l: 40,	],
+        [ name: "Silver",					rgb: "#C0C0C0",		h: 0,		s: 0,		l: 75,	],
+        [ name: "Sky Blue",					rgb: "#87CEEB",		h: 197,		s: 71,		l: 73,	],
+        [ name: "Slate Blue",				rgb: "#6A5ACD",		h: 248,		s: 53,		l: 58,	],
+        [ name: "Slate Gray",				rgb: "#708090",		h: 210,		s: 13,		l: 50,	],
+        [ name: "Snow",						rgb: "#FFFAFA",		h: 0,		s: 100,		l: 99,	],
+        [ name: "Spring Green",				rgb: "#00FF7F",		h: 150,		s: 100,		l: 50,	],
+        [ name: "Steel Blue",				rgb: "#4682B4",		h: 207,		s: 44,		l: 49,	],
+        [ name: "Tan",						rgb: "#D2B48C",		h: 34,		s: 44,		l: 69,	],
+        [ name: "Teal",						rgb: "#008080",		h: 180,		s: 100,		l: 25,	],
+        [ name: "Thistle",					rgb: "#D8BFD8",		h: 300,		s: 24,		l: 80,	],
+        [ name: "Tomato",					rgb: "#FF6347",		h: 9,		s: 100,		l: 64,	],
+        [ name: "Turquoise",				rgb: "#40E0D0",		h: 174,		s: 72,		l: 56,	],
+        [ name: "Violet",					rgb: "#EE82EE",		h: 300,		s: 76,		l: 72,	],
+        [ name: "Wheat",					rgb: "#F5DEB3",		h: 39,		s: 77,		l: 83,	],
+        [ name: "White Smoke",				rgb: "#F5F5F5",		h: 0,		s: 0,		l: 96,	],
+        [ name: "Yellow",					rgb: "#FFFF00",		h: 60,		s: 100,		l: 50,	],
+        [ name: "Yellow Green",				rgb: "#9ACD32",		h: 80,		s: 61,		l: 50,	],
+    ]
+}
+
 //*******************************************************************
 //    CLONE CHILD LOGIC
 //*******************************************************************
@@ -4007,8 +4271,8 @@ public getDuplSettingData() {
             _lock_code: "lock",
             _switches_off: "switch",
             _switches_on: "switch",
-            _tier_start_switches_off: "switch",
-            _tier_stop_switches_on: "switch"
+            _lights: "level",
+            _color: "colorControl"
         ],
         dev: [
             _scene: "sceneActivator"

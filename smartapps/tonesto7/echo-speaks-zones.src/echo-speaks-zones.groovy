@@ -15,7 +15,7 @@
  */
 
 String appVersion()	 { return "3.2.0.5" }
-String appModified() { return "2019-10-22" }
+String appModified() { return "2019-10-24" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1584,8 +1584,7 @@ public getDuplSettingData() {
             _lock_code: "lock",
             _switches_off: "switch",
             _switches_on: "switch",
-            _tier_start_switches_off: "switch",
-            _tier_stop_switches_on: "switch"
+            _lights: "level"
         ],
         dev: [
             _scene: "sceneActivator"
