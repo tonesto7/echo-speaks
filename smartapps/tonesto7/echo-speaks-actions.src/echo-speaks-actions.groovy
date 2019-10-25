@@ -872,33 +872,6 @@ String getTierRespDesc() {
     return str != "" ? str : null
 }
 
-String tierStartDesc(isInpt=false) {
-    String str = ""
-    if(act_tier_start_switches_on || act_tier_start_switches_off || act_tier_start_mode_run || act_tier_start_routine_run || act_tier_start_webCorePistons) {
-        str += "${isInpt ? "" : "\n\n"}Tier Start Commands:"
-        str += settings?.act_tier_start_switches_on ? "\n \u2022 Switches On: (${settings?.act_tier_start_switches_on?.size()})" : ""
-        str += settings?.act_tier_start_switches_off ? "\n \u2022 Switches Off: (${settings?.act_tier_start_switches_off?.size()})" : ""
-        str += settings?.act_tier_start_mode_run ? "\n \u2022 Set Mode:\n \u2022 ${settings?.act_tier_start_mode_run}" : ""
-        str += settings?.act_tier_start_routine_run ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(settings?.act_tier_start_routine_run)?.label}" : ""
-        str += (settings?.enableWebCoRE && settings?.act_tier_start_webCorePistons) ? "\n \u2022 webCoRE Piston:\n    - ${settings?.act_tier_start_webCorePistons}" : ""
-    }
-    return str != "" ? (isInpt ? "${str}\n\nTap to modify" : "${str}") : (isInpt ? "On tier start control devices, set Mode, execute routines or WebCore Pistons\n\nTap to configure" : null)
-}
-
-String tierStopDesc(isInpt=false) {
-    String str = ""
-    if(act_tier_stop_switches_on || act_tier_stop_switches_off || act_tier_stop_mode_run || act_tier_stop_routine_run || act_tier_stop_webCorePistons) {
-        str += "${isInpt ? "" : "\n\n"}Tier Stop Commands:"
-        str += settings?.act_tier_stop_delay ? "\n \u2022 Stop Delay Task: (${settings?.act_tier_stop_delay} sec)" : ""
-        str += settings?.act_tier_stop_switches_on ? "\n \u2022 Switches On: (${settings?.act_tier_stop_switches_on?.size()})" : ""
-        str += settings?.act_tier_stop_switches_off ? "\n \u2022 Switches Off: (${settings?.act_tier_stop_switches_off?.size()})" : ""
-        str += settings?.act_tier_stop_mode_run ? "\n \u2022 Set Mode:\n \u2022 ${settings?.act_tier_stop_mode_run}" : ""
-        str += settings?.act_tier_stop_routine_run ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(settings?.act_tier_stop_routine_run)?.label}" : ""
-        str += (settings?.enableWebCoRE && settings?.act_tier_stop_webCorePistons) ? "\n \u2022 webCoRE Piston:\n    - ${settings?.act_tier_stop_webCorePistons}" : ""
-    }
-    return str != "" ? (isInpt ? "${str}\n\nTap to modify" : "${str}") : (isInpt ? "On tier stop control devices, set Mode, execute routines or WebCore Pistons\n\nTap to configure" : null)
-}
-
 Boolean isTierActConfigured() {
     if(!isTierAction()) { return false }
     Integer cnt = settings?.act_tier_cnt as Integer
@@ -1279,14 +1252,14 @@ def actionsPage() {
                 }
                 if(isTierAct && settings?.act_tier_cnt > 1) {
                     section(sTS("Tier Action Start Tasks:")) {
-                        href "actTierStartTasksPage", title: inTS("Perform Tasks on Tier Start?", getAppImg("command", true)), description: tierStartDesc(true), state: (tierStartDesc() ? "complete" : null), image: getAppImg("command")
+                        href "actTrigTasksPage", title: inTS("Perform Tasks on Tier Start?", getAppImg("tasks", true)), description: actTaskDesc("act_tier_start_", true), params:[type: "act_tier_start_"], state: (actTaskDesc("act_tier_start_") ? "complete" : null), image: getAppImg("tasks")
                     }
                     section(sTS("Tier Action Stop Tasks:")) {
-                        href "actTierStopTasksPage", title: inTS("Perform Tasks on Tier Stop?", getAppImg("command", true)), description: tierStopDesc(true), state: (tierStopDesc() ? "complete" : null), image: getAppImg("command")
+                        href "actTrigTasksPage", title: inTS("Perform Tasks on Tier Stop?", getAppImg("tasks", true)), description: actTaskDesc("act_tier_stop_", true), params:[type: "act_tier_stop_"], state: (actTaskDesc("act_tier_stop_") ? "complete" : null), image: getAppImg("tasks")
                     }
                 } else {
                     section(sTS("Action Triggered Tasks:")) {
-                        href "actTrigTasksPage", title: inTS("Perform tasks on Trigger?", getAppImg("command", true)), description: actTaskDesc(true), state: (actTaskDesc() ? "complete" : null), image: getAppImg("command")
+                        href "actTrigTasksPage", title: inTS("Perform tasks on Trigger?", getAppImg("tasks", true)), description: actTaskDesc("act_", true), params:[type: "act_"], state: (actTaskDesc("act_") ? "complete" : null), image: getAppImg("tasks")
                     }
                 }
                 actionSimulationSect()
@@ -1307,166 +1280,178 @@ def actionsPage() {
     }
 }
 
-def actTrigTasksPage() {
-    return dynamicPage(name: "actTrigTasksPage", title: "", install: false, uninstall: false) {
-        section(sTS("Control Devices:")) {
-            input "act_switches_on", "capability.switch", title: inTS("Turn ON these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-            input "act_switches_off", "capability.switch", title: inTS("Turn OFF these Switches\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+private executeTaskCommands(data) {
+    String pType = data?.type ?: null
+    String pt = pType == "act_" ? "" : pType
+    if(settings?."${pType}switches_off") { settings?."${pType}switches_off"?.off() }
+    if(settings?."${pType}switches_on") { settings?."${pType}switches_on"?.on() }
+    if(settings?."${pType}locks_lock") { settings?."${pType}locks_lock"?.lock() }
+    if(settings?."${pType}locks_unlock") { settings?."${pType}locks_unlock"?.unlock() }
+    if(settings?."${pType}doors_close") { settings?."${pType}doors_close"?.close() }
+    if(settings?."${pType}doors_open") { settings?."${pType}doors_open"?.open() }
+    if(settings?."${pType}sirens" && settings?."${pType}sirens_cmd") { settings?."${pType}sirens"?."${settings?."${pType}sirens_cmd"}"(); if(settings?."${pType}sirens_time") { runIn(settings?."${pType}sirens_time", postTaskCommands); } }
+    if(settings?.enableWebCoRE && settings?."${pType=="act_" ? "" : pType}webCorePistons") { webCoRE_execute(settings?."${pType=="act_" ? "" : pType}webCorePistons") }
+    if(settings?."${pType}mode_run") { setLocationMode(settings?."${pType}mode_run" as String) }
+    if(isST && settings?."${pType}routine_run") { execRoutineById(settings?."${pType}routine_run" as String) }
+    if(settings?."${pType}lights") {
+        if(settings?."${pType}lights_flash" && settings?."${pType}lights_flash_cnt" && settings?."${pType}lights_delay" && settings?."${pType}lights_cycles") {
+
         }
+    }
+
+    if(settings?."${pType}lights_color") {
+        def hueVals = getColorName(settings?."${pType}lights_color_color" as String, settings?."${pType}lights_color_level")
+        if(hueVals) {
+            settings?."${pType}lights_color"?.setColor(hueVals)
+        }
+    }
+}
+
+def actTrigTasksPage(params) {
+    def pType = params?.type
+    if(params?.type) {
+        atomicState?.curPageParams = params
+    } else { pType = atomicState?.curPageParams?.type }
+    return dynamicPage(name: "actTrigTasksPage", title: "", install: false, uninstall: false) {
+        Map dMap = [:]
+        section() {
+            switch(pType) {
+                case "act_":
+                    dMap = [def: "", delay: "tasks"]
+                    paragraph pTS("These tasks will be performed when the action is triggered.\n(Delay is optional)", null, false, "#2678D9"), state: "complete"
+                    break
+                case "act_tier_start_":
+                    dMap = [def: " with Tier start", delay: "Tier Start tasks"]
+                    paragraph pTS("These tasks will be performed with when the first tier of action is triggered.\n(Delay is optional)", null, false, "#2678D9"), state: "complete"
+                    break
+                case "act_tier_stop_":
+                    dMap = [def: " with Tier stop", delay: "Tier Stop tasks"]
+                    paragraph pTS("These tasks will be performed with when the last tier of action is triggered.\n(Delay is optional)", null, false, "#2678D9"), state: "complete"
+                    break
+            }
+        }
+        String pt = pType == "act_" ? "" : pType
+        section(sTS("Control Devices:")) {
+            input "${pType}switches_on", "capability.switch", title: inTS("Turn ON these Switches${dMap?.def}\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "${pType}switches_off", "capability.switch", title: inTS("Turn OFF these Switches${dMap?.def}\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+        }
+
         section(sTS("Control Lights:")) {
-            input "act_lights", "capability.switchLevel", title: inTS("Turn ON these Lights\n(Optional)", getAppImg("level", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("level")
-            if(settings?.act_lights) {
-                input "act_lights_flash", "bool", title: inTS("Flash the Lights?", getAppImg("command", true)), required: false, submitOnChange: true, image: getAppImg("command")
-                if(settings?.act_lights_color_flash) {
-                    input "act_lights_flash_cnt", "number", title: inTS("Number of flashes", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
-                    if(settings?.act_lights_flash_cnt) {
-                        input "act_lights_flash_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("level")
-                        input "act_lights_flash_delay", "number", title: inTS("Every (x) seconds...", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
-                        input "act_lights_flash_cycles", "number", title: inTS("This many cycles?", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+            input "${pType}lights", "capability.switchLevel", title: inTS("Turn ON these Lights${dMap?.def}\n(Optional)", getAppImg("level", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("level")
+            if(settings?."${pType}lights") {
+                input "${pType}lights_flash", "bool", title: inTS("Flash the Lights?", getAppImg("question", true)), required: false, submitOnChange: true, image: getAppImg("question")
+                if(settings?."${pType}lights_flash") {
+                    input "${pType}lights_flash_cnt", "number", title: inTS("Number of flashes", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+                    if(settings?."${pType}lights_flash_cnt") {
+                        input "${pType}lights_flash_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("level")
+                        input "${pType}lights_flash_delay", "number", title: inTS("Every (x) seconds...", getAppImg("delay", true)), required: true, submitOnChange: true, image: getAppImg("delay")
+                        input "${pType}lights_flash_cycles", "number", title: inTS("This many cycles?", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
                     }
                 } else {
-                    input "act_lights_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("level")
+                    input "${pType}lights_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("level")
                 }
             }
 
-            input "act_lights_color", "capability.colorControl", title: inTS("Turn ON these Color Lights\n(Optional)", getAppImg("level", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("level")
-            if(settings?.act_lights_color) {
-                input "act_lights_color_flash", "bool", title: inTS("Flash the Lights?", getAppImg("command", true)), required: false, submitOnChange: true, image: getAppImg("command")
-                if(settings?.act_lights_color_flash) {
-                    input "act_lights_color_flash_cnt", "number", title: inTS("Number of flashes", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
-                    if(settings?.act_lights_color_flash_cnt) {
-                        input "act_lights_color_flash_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: true, submitOnChange: true, image: getAppImg("level")
-                        input "act_lights_color_flash_delay", "number", title: inTS("Every (x) seconds...", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
-                        input "act_lights_color_flash_cycles", "number", title: inTS("This many cycles?", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
-                        input "act_lights_color_flash_color", "enum", title: inTS("Set to this color?", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: false, submitOnChange: true, image: getAppImg("color")
+            input "${pType}lights_color", "capability.colorControl", title: inTS("Turn ON these Color Lights${dMap?.def}\n(Optional)", getAppImg("light_color", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("light_color")
+            if(settings?."${pType}lights_color") {
+                input "${pType}lights_color_flash", "bool", title: inTS("Flash the Lights?", getAppImg("question", true)), required: false, submitOnChange: true, image: getAppImg("question")
+                if(settings?."${pType}lights_color_flash") {
+                    input "${pType}lights_color_flash_cnt", "number", title: inTS("Number of flashes", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+                    if(settings?."${pType}lights_color_flash_cnt") {
+                        input "${pType}lights_color_flash_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: true, submitOnChange: true, image: getAppImg("level")
+                        input "${pType}lights_color_flash_delay", "number", title: inTS("Every (x) seconds...", getAppImg("delay", true)), required: true, submitOnChange: true, image: getAppImg("delay")
+                        input "${pType}lights_color_flash_cycles", "number", title: inTS("This many cycles?", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+                        input "${pType}lights_color_flash_color", "enum", title: inTS("Set to this color?", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: false, submitOnChange: true, image: getAppImg("color")
                     }
                 } else {
-                    input "act_lights_color_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("level")
-                    input "act_lights_color_color", "enum", title: inTS("Set to this color?", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: true, submitOnChange: true, image: getAppImg("color")
+                    input "${pType}lights_color_level", "enum", title: inTS("At this level...", getAppImg("level", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("level")
+                    input "${pType}lights_color_color", "enum", title: inTS("Set to this color?", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: true, submitOnChange: true, image: getAppImg("color")
                 }
             }
         }
         section(sTS("Control Locks:")) {
-            input "act_locks_lock", "capability.lock", title: inTS("Lock these Locks\n(Optional)", getAppImg("lock", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
-            input "act_locks_unlock", "capability.lock", title: inTS("Unlock these Locks\n(Optional)", getAppImg("lock", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
+            input "${pType}locks_lock", "capability.lock", title: inTS("Lock these Locks${dMap?.def}\n(Optional)", getAppImg("lock", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
+            input "${pType}locks_unlock", "capability.lock", title: inTS("Unlock these Locks${dMap?.def}\n(Optional)", getAppImg("lock", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
         }
 
         section(sTS("Control Doors:")) {
-            input "act_doors_close", "capability.garageDoorControl", title: inTS("Close these Garage Doors\n(Optional)", getAppImg("garage_door", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("garage_door")
-            input "act_doors_open", "capability.garageDoorControl", title: inTS("Open these Garage Doors\n(Optional)", getAppImg("garage_door", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("garage_door")
+            input "${pType}doors_close", "capability.garageDoorControl", title: inTS("Close these Garage Doors${dMap?.def}\n(Optional)", getAppImg("garage_door", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("garage_door")
+            input "${pType}doors_open", "capability.garageDoorControl", title: inTS("Open these Garage Doors${dMap?.def}\n(Optional)", getAppImg("garage_door", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("garage_door")
         }
 
         section(sTS("Control Siren:")) {
-            input "act_sirens", "capability.lock", title: inTS("Activate these Sirens\n(Optional)", getAppImg("siren", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("siren")
-            if(settings?.act_sirens) {
-                input "act_siren_time", "number", title: inTS("Stop after (x) seconds...", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
+            input "${pType}sirens", "capability.alarm", title: inTS("Activate these Sirens${dMap?.def}\n(Optional)", getAppImg("siren", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("siren")
+            if(settings?."${pType}sirens") {
+                input "${pType}siren_cmd", "enum", title: inTS("Alarm action to take${dMap?.def}\n(Optional)", getAppImg("command", true)), options: ["both": "Siren & Stobe", "strobe":"Strobe Only", "siren":"Siren Only"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
+                input "${pType}siren_time", "number", title: inTS("Stop after (x) seconds...", getAppImg("delay", true)), required: true, submitOnChange: true, image: getAppImg("delay")
             }
         }
         section(sTS("Location Actions:")) {
-            input "act_mode_run", "enum", title: inTS("Set Location Mode\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
+            input "${pType}mode_run", "enum", title: inTS("Set Location Mode${dMap?.def}\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
             if(isST()) {
                 def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
-                input "act_routine_run", "enum", title: inTS("Execute a routine\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
+                input "${pType}routine_run", "enum", title: inTS("Execute a routine${dMap?.def}\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
             }
         }
         section (sTS("Execute a webCoRE Piston:")) {
             input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
             if(settings?.enableWebCoRE) {
                 if(!atomicState?.webCoRE) { webCoRE_init() }
-                input "webCorePistons", "enum", title: inTS("Execute Piston...", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+                input "${pt}webCorePistons", "enum", title: inTS("Execute Piston${dMap?.def}", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
             }
         }
-
-        if(act_mode_run || act_routine_run || act_switches_off || act_switches_on || webCorePistons || act_lights || act_lights_color || act_locks || act_sirens || act_doors) {
+        if(actTasksConfiguredByType(pType)) {
             section("Delay before running Tasks: ") {
-                input "act_tasks_delay", "number", title: inTS("Delay running Task in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
+                input "${pType}tasks_delay", "number", title: inTS("Delay running ${dMap?.delay} in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
             }
         }
     }
 }
 
-String actTaskDesc(isInpt=false) {
+Boolean actTasksConfiguredByType(pType) {
+    String pt = pType == "act_" ? "" : pType
+    return (
+        settings?."${pType}mode_run" || settings?."${pType}routine_run" || settings?."${pType}switches_off" || settings?."${pType}switches_on" || settings?."${pt}webCorePistons" ||
+        settings?."${pType}lights" || settings?."${pType}lights_color" || settings?."${pType}locks" || settings?."${pType}sirens" || settings?."${pType}doors")
+}
+
+String actTaskDesc(pType, isInpt=false) {
+    String pt = pType == "act_" ? "" : pType
     String str = ""
-    if(act_switches_on || act_switches_off || act_mode_run || act_routine_run || webCorePistons) {
-        str += "${isInpt ? "" : "\n\n"}Trigger Tasks:"
-        str += act_switches_on ? "\n \u2022 Switches On: (${act_switches_on?.size()})" : ""
-        str += act_switches_off ? "\n \u2022 Switches Off: (${act_switches_off?.size()})" : ""
+    if(actTasksConfiguredByType(pType)) {
+        switch(pType) {
+            case "act_":
+                str += "${isInpt ? "" : "\n\n"}Trigger Tasks:"
+                break
+            case "act_tier_start_":
+                str += "${isInpt ? "" : "\n\n"}Tier Start Tasks:"
+                break
+            case "act_tier_stop_":
+                str += "${isInpt ? "" : "\n\n"}Tier Stop Tasks:"
+                break
+        }
+        str += settings?."${pType}switches_on" ? "\n \u2022 Switches On: (${settings?."${pType}switches_on"?.size()})" : ""
+        str += settings?."${pType}switches_off" ? "\n \u2022 Switches Off: (${settings?."${pType}switches_off"?.size()})" : ""
+        str += settings?."${pType}lights" ? "\n \u2022 Lights ON: (${settings?."${pType}lights"?.size()})${settings?."${pType}lights_level" ? "(${settings?."${pType}lights_level"}%)" : ""}" : ""
+        str += settings?."${pType}lights_color" ? "\n \u2022 Color Bulbs: (${settings?."${pType}lights_color"?.size()})" : ""
+        str += settings?."${pType}lights_color" && settings?."${pType}lights_color_level" ? "\n    - Level: (${settings?."${pType}lights_color_level"}%)" : ""
+        str += settings?."${pType}lights_color" && settings?."${pType}lights_color_flash" && settings?."${pType}lights_color_flash_color" ? "\n    - Color: (${settings?."${pType}lights_color_flash_color"})" : ""
+        str += settings?."${pType}lights_color" && settings?."${pType}lights_color_flash" && settings?."${pType}lights_color_flash_cnt" ? "\n    - Flash: (${settings?."${pType}lights_color_flash_cnt"} times)" : ""
+        str += settings?."${pType}lights_color" && settings?."${pType}lights_color_flash" && settings?."${pType}lights_color_flash_delay" ? "\n    - Delay: (${settings?."${pType}lights_color_flash_delay"} sec)" : ""
+        str += settings?."${pType}lights_color" && settings?."${pType}lights_color_flash" && settings?."${pType}lights_color_flash_cycles" ? "\n    - Cycles: (${settings?."${pType}lights_color_flash_cycles"} cycles)" : ""
+        str += settings?."${pType}lights_color" && settings?."${pType}lights_color_level" ? "\n    - Level: (${settings?."${pType}lights_color_level"}%)" : ""
+        str += settings?."${pType}lights_color" && settings?."${pType}lights_color_color" ? "\n    - Color: (${settings?."${pType}lights_color_color"})" : ""
+        str += settings?."${pType}locks_unlock" ? "\n \u2022 Locks Unlock: (${settings?."${pType}locks_unlock"?.size()})" : ""
+        str += settings?."${pType}locks_lock" ? "\n \u2022 Locks Lock: (${settings?."${pType}locks_lock"?.size()})" : ""
+        str += settings?."${pType}doors_open" ? "\n \u2022 Garages Open: (${settings?."${pType}doors_open"?.size()})" : ""
+        str += settings?."${pType}doors_close" ? "\n \u2022 Garages Close: (${settings?."${pType}doors_close"?.size()})" : ""
+        str += settings?."${pType}sirens" ? "\n \u2022 Sirens On: (${settings?."${pType}sirens"?.size()})${settings?."${pType}sirens_delay" ? "(${settings?."${pType}sirens_delay"} sec)" : ""}" : ""
 
-        str += act_lights ? "\n \u2022 Lights ON: (${act_lights?.size()})${act_lights_level ? "(${act_lights_level}%)" : ""}" : ""
-        str += act_lights_color ? "\n \u2022 Color Bulbs: (${act_lights_color?.size()})" : ""
-        str += act_lights_color && settings?.act_lights_color_level ? "\n    - Level: (${act_lights_color_level}%)" : ""
-        str += act_lights_color && act_lights_color_flash && act_lights_color_flash_cnt ? "\n    - Flash: (${act_lights_color_flash_cnt} times)" : ""
-        str += act_lights_color && act_lights_color_flash && act_lights_color_flash_delay ? "\n    - Delay: (${act_lights_color_flash_delay} sec)" : ""
-        str += act_lights_color && act_lights_color_flash && act_lights_color_flash_cycles ? "\n    - Cycles: (${act_lights_color_flash_cycles} cycles)" : ""
-        str += act_lights_color && act_lights_color_flash && act_lights_color_flash_color ? "\n    - Color: (${act_lights_color_flash_color})" : ""
-        str += act_lights_color && act_lights_color_level ? "\n    - Level: (${act_lights_color_level}%)" : ""
-        str += act_lights_color && act_lights_color_color ? "\n    - Color: (${act_lights_color_color})" : ""
-        str += act_locks_unlock ? "\n \u2022 Locks Unlock: (${act_locks_unlock?.size()})" : ""
-        str += act_locks_lock ? "\n \u2022 Locks Lock: (${act_locks_lock?.size()})" : ""
-        str += act_doors_open ? "\n \u2022 Garages Open: (${act_doors_open?.size()})" : ""
-        str += act_doors_close ? "\n \u2022 Garages Close: (${act_doors_close?.size()})" : ""
-        str += act_sirens ? "\n \u2022 Sirens On: (${act_sirens?.size()})${act_sirens_delay ? "(${act_sirens_delay} sec)" : ""}" : ""
-
-        str += act_mode_run ? "\n \u2022 Set Mode:\n \u2022 ${settings?.act_mode_run}" : ""
-        str += act_routine_run ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(act_routine_run)?.label}" : ""
-        str += (settings?.enableWebCoRE && settings?.webCorePistons) ? "\n \u2022 webCoRE Piston:\n    - ${settings?.webCorePistons}" : ""
+        str += settings?."${pType}mode_run" ? "\n \u2022 Set Mode:\n \u2022 ${settings?."${pType}mode_run"}" : ""
+        str += settings?."${pType}routine_run" ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(settings?."${pType}routine_run")?.label}" : ""
+        str += (settings?.enableWebCoRE && settings?.webCorePistons) ? "\n \u2022 webCoRE Piston:\n    - ${settings?."${pType == "act_" ? "" : pType}webCorePistons"}" : ""
     }
-    return str != "" ? (isInpt ? "${str}\n\nTap to modify" : "${str}") : (isInpt ? "On trigger control devices, set Mode, execute routines or WebCore Pistons\n\nTap to configure" : null)
-}
-
-Map dimmerLevelEnum() {
-    return [100:"Set Level to 100%", 90:"Set Level to 90%", 80:"Set Level to 80%", 70:"Set Level to 70%", 60:"Set Level to 60%", 50:"Set Level to 50%", 40:"Set Level to 40%", 30:"Set Level to 30%", 20:"Set Level to 20%", 10:"Set Level to 10%"]
-}
-
-def actTierStartTasksPage() {
-    return dynamicPage(name: "actTierStartTasksPage", title: "", install: false, uninstall: false) {
-        section(sTS("Control Devices:")) {
-            input "act_tier_start_switches_on", "capability.switch", title: inTS("Turn ON these Switches with Tier Start\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-            input "act_tier_start_switches_off", "capability.switch", title: inTS("Turn OFF these Switches with Tier Start\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-        }
-        section(sTS("Location Actions:")) {
-            def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
-            input "act_tier_start_mode_run", "enum", title: inTS("Set Location Mode with Tier Start\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
-            if(isST()) {
-                input "act_tier_start_routine_run", "enum", title: inTS("Execute routine with Tier Start\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
-            }
-        }
-        section (sTS("Execute a webCoRE Piston:")) {
-            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
-            if(settings?.enableWebCoRE) {
-                if(!atomicState?.webCoRE) { webCoRE_init() }
-                input "act_tier_start_webCorePistons", "enum", title: inTS("Execute Piston with Tier Stap\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
-            }
-        }
-    }
-}
-
-def actTierStopTasksPage() {
-    return dynamicPage(name: "actTierStartTasksPage", title: "", install: false, uninstall: false) {
-        section(sTS("Control Devices:")) {
-            input "act_tier_stop_switches_on", "capability.switch", title: inTS("Turn ON these Switches with Tier Stop\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-            input "act_tier_stop_switches_off", "capability.switch", title: inTS("Turn OFF these Switches with Tier Stop\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-        }
-        section(sTS("Location Actions:")) {
-            def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
-            input "act_tier_stop_mode_run", "enum", title: inTS("Set Location Mode with Tier Stop\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
-            if(isST()) {
-                input "act_tier_stop_routine_run", "enum", title: inTS("Execute routine with Tier Stop\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
-            }
-        }
-        if(settings?.act_tier_stop_mode_run || settings?.act_tier_stop_routine_run || settings?.act_tier_stop_switches_off || settings?.act_tier_stop_switches_on || settings?.act_tier_stop_webCorePistons) {
-            section("Tier End Items Delay: ") {
-                input "act_tier_stop_delay", "number", title: inTS("Delay running Stop Items in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
-            }
-        }
-        section (sTS("Execute a webCoRE Piston:")) {
-            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
-            if(settings?.enableWebCoRE) {
-                if(!atomicState?.webCoRE) { webCoRE_init() }
-                input "act_tier_stop_webCorePistons", "enum", title: inTS("Execute Piston with Tier Stop\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
-            }
-        }
-    }
+    return str != "" ? (isInpt ? "${str}\n\nTap to modify" : "${str}") : (isInpt ? "On trigger control devices, set mode, execute routines or WebCore Pistons\n\nTap to configure" : null)
 }
 
 Boolean isActDevContConfigured() {
@@ -3091,50 +3076,27 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
         if(tierData?.size() && settings?.act_tier_cnt > 1) {
             log.debug "firstTierMsg: ${firstTierMsg} | lastTierMsg: ${lastTierMsg}"
             if(firstTierMsg) {
-                executeTierStartCommands()
+                if(settings?.act_tier_start_delay) {
+                    runIn(settings?.act_tier_start_delay, "executeTaskCommands", [data:[type: "act_tier_start_"]])
+                } else { executeTaskCommands([type:"act_tier_start_"]) }
             }
             if(lastTierMsg) {
                 if(settings?.act_tier_stop_delay) {
-                    runIn(settings?.act_tier_stop_delay, "executeTierStopCommands")
-                } else { executeTierStopCommands() }
+                    runIn(settings?.act_tier_stop_delay, "executeTaskCommands", [data:[type: "act_tier_stop_"]])
+                } else { executeTaskCommands([type:"act_tier_stop_"]) }
             }
         } else {
             if(settings?.act_tasks_delay) {
-                runIn(settings?.act_tasks_delay, "executeTaskCommands")
-            } else { executeTaskCommands() }
+                runIn(settings?.act_tasks_delay, "executeTaskCommands", [data:[type: "act_"]])
+            } else { executeTaskCommands([type: "act_"]) }
         }
     }
     logDebug("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
 }
 
-private executeTaskCommands() {
-    if(settings?.act_switches_off) { settings?.act_switches_off?.off() }
-    if(settings?.act_switches_on) { settings?.act_switches_on?.on() }
-    if(settings?.enableWebCoRE && settings?.webCorePistons) { webCoRE_execute(settings?.webCorePistons) }
-    if(settings?.act_mode_run) { setLocationMode(settings?.act_mode_run as String) }
-    if(isST && settings?.act_routine_run) { execRoutineById(settings?.act_routine_run as String) }
-    if(settings?.act_lights_color) {
-        def hueVals = getColorName(settings?.act_lights_color_color as String, settings?.act_lights_color_level)
-        if(hueVals) {
-            settings?.act_lights_color?.setColor(hueVals)
-        }
-    }
-}
 
-private executeTierStartCommands() {
-    if(settings?.act_tier_start_switches_off) { settings?.act_tier_start_switches_off?.off() }
-    if(settings?.act_tier_start_switches_on) { settings?.act_tier_start_switches_on?.on() }
-    if(settings?.act_tier_start_mode_run) { setLocationMode(settings?.act_tier_start_mode_run as String) }
-    if(isST && settings?.act_tier_start_routine_run) { execRoutineById(settings?.act_tier_start_routine_run as String) }
-    if(settings?.enableWebCoRE && settings?.act_tier_start_webCorePistons) { webCoRE_execute(settings?.act_tier_start_webCorePistons) }
-}
-
-private executeTierStopCommands() {
-    if(settings?.act_tier_stop_switches_off) { settings?.act_tier_stop_switches_off?.off() }
-    if(settings?.act_tier_stop_switches_on) { settings?.act_tier_stop_switches_on?.on() }
-    if(settings?.act_tier_stop_mode_run) { setLocationMode(settings?.act_tier_stop_mode_run as String) }
-    if(isST && settings?.act_tier_stop_routine_run) { execRoutineById(settings?.act_tier_stop_routine_run as String) }
-    if(settings?.enableWebCoRE && settings?.act_tier_stop_webCorePistons) { webCoRE_execute(settings?.act_tier_stop_webCorePistons) }
+private postTaskCommands() {
+    if(settings?."${pType}sirens" && settings?."${pType}sirens_cmd") { settings?."${pType}sirens"?.off() }
 }
 
 Map getInputData(inName) {
@@ -3684,6 +3646,8 @@ Boolean isTimeOfDay(startTime, stopTime) {
 |   App Input Description Functions
 *******************************************/
 
+Map dimmerLevelEnum() { return [100:"Set Level to 100%", 90:"Set Level to 90%", 80:"Set Level to 80%", 70:"Set Level to 70%", 60:"Set Level to 60%", 50:"Set Level to 50%", 40:"Set Level to 40%", 30:"Set Level to 30%", 20:"Set Level to 20%", 10:"Set Level to 10%"] }
+
 String unitStr(type) {
     switch(type) {
         case "temp":
@@ -3867,8 +3831,8 @@ String getActionDesc() {
         def eDevs = parent?.getDevicesFromList(settings?.act_EchoDevices)
         def zones = getZoneStatus()
         def tierDesc = isTierAct ? getTierRespDesc() : null
-        def tierStart = isTierAct ? tierStartDesc() : null
-        def tierStop = isTierAct ? tierStopDesc() : null
+        def tierStart = isTierAct ? actTaskDesc("act_tier_start_") : null
+        def tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : null
         str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n${eDevs?.size() ? "\n": ""}" : ""
         str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Zone Backups)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", "")}" }?.join("\n")}\n" : ""
         str += tierDesc ? "\n${tierDesc}${tierStart || tierStop ? "" : "\n"}" : ""
@@ -3878,7 +3842,7 @@ String getActionDesc() {
         str += settings?.act_volume_restore ? "Restore Volume: (${settings?.act_volume_restore})\n" : ""
         str += settings?.act_delay ? "Delay: (${settings?.act_delay})\n" : ""
         str += settings?."act_${settings?.actionType}_txt" ? "Using Default Response: (True)\n" : ""
-        def trigTasks = !isTierAct ? actTaskDesc() : null
+        def trigTasks = !isTierAct ? actTaskDesc("act_") : null
         str += trigTasks ? "${trigTasks}" : ""
         // str += settings?.act_switches_on ? "Switches On: (${settings?.act_switches_on?.size()})\n" : ""
         // str += settings?.act_switches_off ? "Switches Off: (${settings?.act_switches_off?.size()})\n" : ""
