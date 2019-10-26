@@ -1,24 +1,164 @@
  ══════════
-   Main App (v3.0.2.1)
-   September 17th, 2019
- ══════════
-  • FIXED: app header warnings for updates and issues
-
- ══════════
-   Main App (v3.0.2.0)
-   September 17th, 2019
- ══════════
-  • FIXED: Guard Automation page error on ST Android clients.
-  • FIXED: Guard data support using server to collect the data.
-
- ══════════
-   Actions App (v3.0.2.0)
-   September 17th, 2019
+   Main App (v3.2.0.6)
+   October 24th, 2019
  ══════════
   • FIXED: Minor bug fixes.
 
  ══════════
-   Device (v3.0.2.0)
-   September 17th, 2019
+   Action App (v3.2.0.5)
+   October 24th, 2019
  ══════════
-  • FIXED: Minor bug fixes.
+  • ADDED: the abilitity to run routines/set location modes when an action is triggered.
+  • ADDED: When action is tiered it you can define tier start tasks (routines, mode, switches, webcore pistons), the another set of those tasks when the task has stopped.
+  • FIXED: repeat after events were broken.
+  • FIXED: other minor bug fixes.
+
+ ══════════
+   Echo Device (v3.2.0.3)
+   October 24th, 2019
+ ══════════
+  • REMOVED: Removed the alexaMusicProvider attribute (Was redundant and unneeded).
+
+-------------------------------------------------
+
+ ══════════
+   Main App (v3.2.0.5)
+   October 22nd, 2019
+ ══════════
+  • FIXED: Child initiated refresh was broken.
+  • FIXED: Child app updates are now triggered properly.
+
+ ══════════
+   Action App (v3.2.0.4)
+   October 22nd, 2019
+ ══════════
+  • ADDED: new mode condition option to select whether mode is in or not in the selected modes.  App will update existing config to use is in modes.
+  • FIXED: time/date speech variables were not working.
+  • FIXED: Zone status updates are now requested on action updated() event.
+
+ ══════════
+   Zone App (v3.2.0.5)
+   October 22nd, 2019
+ ══════════
+  • ADDED: new mode condition option to select whether mode is in or not in the selected modes.  App will update existing config to use is in modes.
+  • FIXED: Zone status updates event now sends an update like it's supposed to.
+
+ ══════════
+   Echo Device (v3.2.0.3)
+   October 22nd, 2019
+ ══════════
+  • FIXED: Bugs with Websocket events resolved.
+  • FIXED: Issues with certain commands not working like createReminder and others is now fixed.
+
+-------------------------------------------------
+
+ ══════════
+   Main App (v3.2.0.3)
+   October 21st, 2019
+ ══════════
+  • ADDED: New amazon domain (amazon.com.mx) and es-UY and es-SP locales.
+  • FIXED: The announcement test should now work.  They were so broken before it was embarassing.
+  • FIXED: App now cleans up app settings correctly after initialize() is run.
+  • FIXED: Minor UI tweaks.
+
+ ══════════
+   Actions App (v3.2.0.3)
+   October 21st, 2019
+ ══════════
+  • ADDED: Trigger a WebCoRE piston when an action executes
+  • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • UPDATED: Modified the logic for only once a day to use just the trigger type instead of deviceid+type.
+  • FIXED: Volume control fixed for certain trigger actions.
+  • FIXED: Smoke and CarbonMonoxide trigger tests.
+  • FIXED: Minor UI tweaks.
+
+ ══════════
+   Zone App (v3.2.0.4)
+   October 21st, 2019
+ ══════════
+  • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • FIXED: Paragraph was used outside of section error.
+  • FIXED: Volume control fixed.
+
+ ══════════
+   Echo Device (v3.2.0.2)
+   October 21st, 2019
+ ══════════
+  • UPDATED: Modified the sendAnnouncementToDevices command to support changes required by the announcements test.
+  • FIXED: logDebug error in executeRoutineId corrected.
+  • FIXED: Before when an announcement was sent with volume and restore volume it only changed on first echo.  Now it changes on all devices.
+
+ ══════════
+   Websocket Device (v3.2.0.1)
+   October 21st, 2019
+ ══════════
+  • UPDATED: Moved the device code out of the device types folder to stop ST users from installing with github integration (This will break the import under the web interface until you manually update the code).
+
+---------------------------
+
+ ══════════
+   Main App (v3.2.0.2)
+   October 17th, 2019
+ ══════════
+  • ADDED: New Zones Companion app.  You can now create groups of echo devices that can be used in your actions.  They allow you to target speech based on device and location conditions.  So you only speak where your need to.
+  • ADDED: WebSocket support: This only works on Hubitat and requires an additional driver to be installed.
+  • ADDED: Locale support for Brazil (amazon.com.br | pt-BR).
+  • ADDED: LogTrace & LogDebug settings are automatically turned off after 6 hours now to reduce platform stress.
+  • UPDATED: Guard Support checks are now performed as soon as the server is installed now to help eliminate the not supported or refresh page message.
+  • UPDATED: Optimized and reduced the number of repetitive web calls. I've made a lot of state cleanups and consolidations.  Please make sure to open the app and press done immediately after updating your code.
+  • FIXED: Rare scenario has been resolved where new server installs would result in the wrong Server preferences page being shown.  The page will show the login page when the server is installed and the only login is required.
+  • FIXED: Setting Alexa Guard state was broken on Hubitat.
+  • FIXED: More tweaks to help reduce the performance effects on Hubitat which causes slowdowns.
+  • FIXED: Lots of UI text cleanups.
+  • FIXED: Minor code cleanups and refactoring.
+
+ ══════════
+   Actions App (v3.2.0.2)
+   October 17th, 2019
+ ══════════
+  • ADDED: Support for Level, water, power, shade, valve conditions.
+  • ADDED: Support for Button trigger events.
+  • ADDED: Use your new zones in any of your actions.  When you select zones you can define standalone echos as a fallback should none of the zones be active at the time of the event.
+  • ADDED: New Tiered response type.  It allows you to create multiple responses with different delays between each one. I used it for bedtime announcements for my kids where it has three announcements 1 immediately, the second 15 minutes later, and the third 10 minutes after that.
+  • ADDED: LogTrace & LogDebug settings are automatically turned off after 6 hours now to reduce platform stress.
+  • ADDED: And/Or logic to the conditions/restrictions.  So you can require one condition or all before executing.
+  • ADDED: Unused trigger input cleanups are now performed should you decide to change an action type or triggers.
+  • UPDATED: Organized action types input items into groups (On SmartThings).
+  • UPDATED: Rewrote the schedule triggers (This has breaking changes for existing triggers with schedule).
+  • UPDATED: Guard Support checks are now performed as soon as the server is installed now to help eliminate the not supported or refresh page message.
+  • FIXED: Mode, routines should now respect the all or once setting values.
+  • FIXED: Broken Carbon Monoxide & Smoke Trigger events
+  • FIXED: Tiered Actions Tests.
+  • FIXED: Water triggers not showings.
+  • FIXED: Broken condition logic after v3.2.
+  • FIXED: Dozens of other little bugs that were discovered.
+  • FIXED: Minor code cleanups and refactoring.
+  • FIXED: Lots of UI text cleanups.
+
+ ══════════
+   Zones App (v3.2.0.2)
+   October 16th, 2019
+ ══════════
+  • ADDED: Create a new zone that targets certain echo-speaks devices.  It is activated by certain location/device events.  Such as motion, presence, and many other attributes.
+  • ADDED: Use this to send your speech/announcements to the devices where people are to hear them
+
+ ══════════
+   Echo Device (v3.2.0.1)
+   October 17th, 2019
+ ══════════
+  • ADDED: Support for audio track capability (SmartThings Only)
+  • ADDED: New tile support for upcoming Studio, Buds, and Show 8 (Once they are released I will add their data to the config file and you will see them).
+  • ADDED: Support for the new Web Socket (Hubitat only) to reduce polling unless necessary.
+  • FIXED: Speech commands now treat amazon response of Too many requests just like its being rate-limited and will retry the command in a few seconds.
+  • FIXED: Restored playAnnouncement command that accepts only 3 commands.
+  • FIXED: Change wifi status updates to only occur on Echo devices and not 3rd Party.
+  • FIXED: WHA group playback info.
+  • FIXED: Removed unnecessary imports.
+  • FIXED: Minor code cleanups and refactoring.
+  • FIXED: Requests errors with improper request messages.
+
+ ══════════
+   Echo Websocket (v3.2.0.0)
+   October 16th, 2019
+ ══════════
+  • ADDED: Opens a web socket directly with Amazon and receives volume, playback, and other events in realtime so you Echo Speaks devices are always current and reduces polling. (Hubitat Only)

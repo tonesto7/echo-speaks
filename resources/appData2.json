@@ -1,22 +1,26 @@
 {
-    "appDataVer": "2.0",
+    "appDataVer": "3.1",
     "versions": {
         "mainApp": {
-            "ver": "3.0.1.5"
+            "ver": "3.2.0.6"
         },
         "actionApp": {
-            "ver": "3.0.1.2"
+            "ver": "3.2.0.5"
+        },
+        "zoneApp": {
+            "ver": "3.2.0.5"
         },
         "echoDevice": {
-            "ver": "3.0.1.2"
+            "ver": "3.2.0.3"
+        },
+        "wsDevice": {
+            "ver": "3.2.0.1"
         },
         "server": {
-            "ver": "2.2.2"
+            "ver": "2.3.0"
         }
     },
     "settings": {
-        "installNotif": true,
-        "updateNotif": true,
         "sendMetrics": true,
         "database": {
             "metricsUrl": "https://echo-speaks-metrics.firebaseio.com/"
@@ -32,7 +36,14 @@
             "A1X7HJX9QL16M5",
             "A2T0P32DY3F7VB",
             "A3H674413M2EKB",
-            "AILBSA2LNTOYL"
+            "AILBSA2LNTOYL",
+            "A2WN1FJ2HG09UN",
+            "A2RJLFEH0UEKI9",
+            "A3B50IC5QPZPWP",
+            "ADQRVG6LYK4LQ",
+            "A1VZJGJYCRI78V",
+            "ABP0V5EHO8A4U",
+            "A2TOXM6L8SFS8A"
         ]
     },
     "deviceFamilies": {
@@ -402,6 +413,19 @@
                 "a",
                 "t"
             ]
+        },
+        "A17LGWINFBUTZZ": {
+            "name": "Anker Roav Viva",
+            "image": "roav_viva",
+            "caps": [
+                "t",
+                "a"
+            ]
+        },
+        "AP1F6KUH00XPV": {
+            "name": "Stereo/Subwoofer Pair",
+            "blocked": true,
+            "caps": []
         }
     }
 }
