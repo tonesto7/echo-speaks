@@ -15,7 +15,7 @@
  */
 
 String appVersion()   { return "3.2.0.6" }
-String appModified()  { return "2019-10-24" }
+String appModified()  { return "2019-10-27" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -2669,7 +2669,7 @@ private healthCheck() {
     if(!isST() && getSocketDevice()?.isSocketActive() != true) { getSocketDevice()?.triggerInitialize() }
     if(state?.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(!getOk2Notify()) { return }
-    missPollNotify((settings?.sendMissedPollMsg == true), (settings?.misPollNotifyMsgWaitVal ?: 3600))
+    missPollNotify((settings?.sendMissedPollMsg == true), (settings?.misPollNotifyMsgWaitVal as Integer ?: 3600))
     appUpdateNotify()
     if(advLogsActive()) { logsDisable() }
 }
@@ -2679,16 +2679,14 @@ public logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal
 public logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
 
 private missPollNotify(Boolean on, Integer wait) {
-    log.trace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastTsValSecs("lastDevDataUpdDt")}) | misPollNotifyWaitVal: (${settings?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastTsValSecs("lastMissedPollMsgDt")})")
+    logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastTsValSecs("lastDevDataUpdDt")}) | misPollNotifyWaitVal: (${settings?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastTsValSecs("lastMissedPollMsgDt")})")
     if(!on || !wait) { return; }
-    if(getLastTsValSecs("lastDevDataUpdDt", 840) <= (settings?.misPollNotifyWaitVal ?: 2700)) {
-        log.debug "missPollRepair: false"
+    if(getLastTsValSecs("lastDevDataUpdDt", 840) <= (settings?.misPollNotifyWaitVal as Integer ?: 2700)) {
         state?.missPollRepair = false
         return
     } else {
         if(state?.missPollRepair == false) {
             state?.missPollRepair = true
-            log.debug "missPollRepair: true"
             initialize()
             return
         }
