@@ -15,7 +15,7 @@
  */
 
 String appVersion()   { return "3.2.0.6" }
-String appModified()  { return "2019-10-27" }
+String appModified()  { return "2019-10-28" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -2145,14 +2145,14 @@ def respExceptionHandler(ex, String mName, ignOn401=false, ignNullMsg=false) {
         } else if(sCode == 429) {
             logWarn("${mName} | Too Many Requests Made to Amazon | Msg: ${errMsg}")
         } else {
-            logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
+            logError("${mName} | Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        logError("${mName} Response Socket Timeout | Msg: ${ex?.getMessage()}")
+        logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        logError("${mName} Request Timeout | Msg: ${ex?.getMessage()}")
+        logError("${mName} | Request Timeout | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.UnknownHostException) {
-        logError("${mName} HostName Not Found | Msg: ${ex?.getMessage()}")
+        logError("${mName} | HostName Not Found (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
@@ -3456,7 +3456,7 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         def start = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt)).getTime()
         def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(now)).getTime()
         def diff = (int) (long) (stop - start) / 1000
-        return diff
+        return diff?.abs()
     } catch (ex) {
         logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex}")
         return 10000
