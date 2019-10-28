@@ -214,7 +214,6 @@ def mainPage() {
                 href url: issueUrl, style: "external", required: false, title: inTS("Report an Issue", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
             }
         }
-        log.debug "dateMap: ${getDateMap()}"
     }
 }
 
