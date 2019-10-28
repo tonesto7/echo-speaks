@@ -214,7 +214,7 @@ def mainPage() {
                 href url: issueUrl, style: "external", required: false, title: inTS("Report an Issue", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
             }
         }
-
+        log.debug "dateMap: ${getDateMap()}"
     }
 }
 
@@ -3616,18 +3616,18 @@ def getDateByFmt(String fmt, dt=null) {
 
 Map getDateMap() {
     Map m = [:]
-    m?.dayOfYear = getDateByFmt("DD")
+    m?.dayOfYear =    getDateByFmt("DD")
     m?.dayNameShort = getDateByFmt("EEE")?.toString()?.toUpperCase()
-    m?.dayName = getDateByFmt("EEEE")
-    m?.day = getDateByFmt("d")
-    m?.week = getDateByFmt("W")
-    m?.weekOfYear = getDateByFmt("w")
-    m?.monthName = getDateByFmt("MMMMM")
-    m?.month = getDateByFmt("MM")
-    m?.year = getDateByFmt("yyyy")
-    m?.hour = getDateByFmt("hh")
-    m?.minute = getDateByFmt("mm")
-    m?.second = getDateByFmt("ss")
+    m?.dayName =      getDateByFmt("EEEE")
+    m?.day =          getDateByFmt("d")
+    m?.week =         getDateByFmt("W")
+    m?.weekOfYear =   getDateByFmt("w")
+    m?.monthName =    getDateByFmt("MMMMM")
+    m?.month =        getDateByFmt("MM")
+    m?.year =         getDateByFmt("yyyy")
+    m?.hour =         getDateByFmt("hh")
+    m?.minute =       getDateByFmt("mm")
+    m?.second =       getDateByFmt("ss")
     return m
 }
 
@@ -3636,6 +3636,11 @@ Boolean isDayOfWeek(opts) {
     df.setTimeZone(location?.timeZone)
     def day = df.format(new Date())
     return ( opts?.contains(day) )
+}
+
+Boolean isMonthOfYear(opts) {
+    def dtMap = getDateMap()
+    return ( opts?.contains(dtMap?.monthName) )
 }
 
 Boolean isTimeOfDay(startTime, stopTime) {
