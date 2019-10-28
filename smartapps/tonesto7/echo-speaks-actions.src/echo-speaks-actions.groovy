@@ -43,7 +43,7 @@ preferences {
     page(name: "startPage")
     page(name: "uhOhPage")
     page(name: "codeUpdatePage")
-    page(name: "mainPage", install: false, uninstall: false)
+    page(name: "mainPage")
     page(name: "prefsPage")
     page(name: "triggersPage")
     page(name: "conditionsPage")
