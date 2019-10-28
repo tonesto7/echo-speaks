@@ -172,9 +172,10 @@ def authStatusPage() {
                 Boolean chk4 = (cookieValid == true)
                 String nextRfsh = nextCookieRefreshDur()
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
-                paragraph pTS("Session Value: (${chk1 ? "OK" : "Missing"})", null, false, chk1 ? "#2784D9" : "red"), state: (chk1 ? "complete" : null), required: true
-                paragraph pTS("CSRF Value: (${chk2 ? "OK" : "Missing"})", null, false, chk2 ? "#2784D9" : "red"), state: (chk2 ? "complete" : null), required: true
-                paragraph pTS("Validated: (${chk4 ? "OK" : "Invalid"})", null, false, chk4 ? "#2784D9" : "red"), state: (chk4 ? "complete" : null), required: true
+                String stat = "Auth Status: (${(chk1 && chk2) ? "OK": "Invalid"})"
+                stat += "\n \u2022 Cookie: (${chk1 ? okSym() : notOkSym()})"
+                stat += "\n \u2022 CSRF Value: (${chk2 ? okSym() : notOkSym()})"
+                paragraph pTS(stat, null, false, (chk1 && chk2) ? "#2784D9" : "red"), state: ((chk1 && chk2) ? "complete" : null), required: true
                 paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", null, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : null), required: true
                 paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", null, false, "#2784D9"), state: "complete", required: true
             }
@@ -4477,6 +4478,13 @@ def getSettingVal(inName) {
 
 String getTextEditorPath(cId, inName) {
     return getAppEndpointUrl("textEditor/${cId}/${inName}") as String
+}
+
+def okSym() {
+    return "\u2713"
+}
+def notOkSym() {
+    return "\u2715"
 }
 
 String getObjType(obj) {
