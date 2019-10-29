@@ -15,7 +15,7 @@
  */
 
 String appVersion()  { return "3.2.0.5" }
-String appModified() { return "2019-10-25" }
+String appModified() { return "2019-10-28" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -43,7 +43,7 @@ preferences {
     page(name: "startPage")
     page(name: "uhOhPage")
     page(name: "codeUpdatePage")
-    page(name: "mainPage", install: false, uninstall: false)
+    page(name: "mainPage")
     page(name: "prefsPage")
     page(name: "triggersPage")
     page(name: "conditionsPage")
@@ -214,7 +214,6 @@ def mainPage() {
                 href url: issueUrl, style: "external", required: false, title: inTS("Report an Issue", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
             }
         }
-
     }
 }
 
@@ -1313,32 +1312,15 @@ def actTrigTasksPage(params) {
             input "${t}lights", "capability.switch", title: inTS("Turn ON these Lights${dMap?.def}\n(Optional)", getAppImg("light", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("light")
             if(settings?."${t}lights") {
                 List lights = settings?."${t}lights"
-                input "${t}lights_flash", "bool", title: inTS("Flash the Lights?", getAppImg("question", true)), required: false, submitOnChange: true, image: getAppImg("question")
-                if(settings?."${t}lights_flash") {
-                    input "${t}lights_flash_cycles", "number", title: inTS("Number of flashes", getAppImg("equal", true)), range: "1..4", required: true, submitOnChange: true, image: getAppImg("equal")
-                    if(settings?."${t}lights_flash_cycles") {
-                        if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
-                            paragraph pTS("Not all selected devices support color commands. So color options are hidden.", null, true, "red"), state: null, required: true
-                        } else {
-                            input "${t}lights_flash_color1", "enum", title: inTS("Color 1?\n(Optional)", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: false, submitOnChange: true, image: getAppImg("color")
-                            input "${t}lights_flash_color2", "enum", title: inTS("Color 2?\n(Optional)", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: false, submitOnChange: true, image: getAppImg("color")
-                        }
-                        if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
-                            paragraph pTS("Not all selected devices support level commands. So level option is hidden.", null, true, "red"), state: null, required: true
-                        } else {
-                            input "${t}lights_flash_level", "enum", title: inTS("At this level?\n(Optional)", getAppImg("speed_knob", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("speed_knob")
-                        }
-                    }
-                } else {
-                    if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
-                        paragraph pTS("Not all selected devices support color. So color options are hidden.", null, true, "red"), state: null, required: true
-                    } else { input "${t}lights_color", "enum", title: inTS("To this color?\n(Optional)", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: false, submitOnChange: true, image: getAppImg("color") }
-                    if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
-                        paragraph pTS("Not all selected devices support level. So level option is hidden.", null, true, "red"), state: null, required: true
-                    } else { input "${t}lights_level", "enum", title: inTS("At this level?\n(Optional)", getAppImg("speed_knob", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("speed_knob")}
-                }
+                if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
+                    paragraph pTS("Not all selected devices support color. So color options are hidden.", null, true, "red"), state: null, required: true
+                } else { input "${t}lights_color", "enum", title: inTS("To this color?\n(Optional)", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: false, submitOnChange: true, image: getAppImg("color") }
+                if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
+                    paragraph pTS("Not all selected devices support level. So level option is hidden.", null, true, "red"), state: null, required: true
+                } else { input "${t}lights_level", "enum", title: inTS("At this level?\n(Optional)", getAppImg("speed_knob", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("speed_knob")}
             }
         }
+
         section(sTS("Control Locks:")) {
             input "${t}locks_lock", "capability.lock", title: inTS("Lock these Locks${dMap?.def}\n(Optional)", getAppImg("lock", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
             input "${t}locks_unlock", "capability.lock", title: inTS("Unlock these Locks${dMap?.def}\n(Optional)", getAppImg("lock", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
@@ -1399,16 +1381,11 @@ private executeTaskCommands(data) {
     if(settings?."${p}mode_run") { setLocationMode(settings?."${p}mode_run" as String) }
     if(isST && settings?."${p}routine_run") { execRoutineById(settings?."${p}routine_run" as String) }
     if(settings?."${p}lights") {
-        if(settings?."${p}lights_flash" && settings?."${p}lights_flash_cycles") {
-            captureLightState(settings?."${p}lights")
-            flashLights([type: p, cycle: 1, cycles: settings?."${p}lights_flash_cycles", state: "off", level: settings?."${p}lights_flash_level" ?: null,
-                    color1Map: (settings?."${p}lights_flash_color1" ? getColorName(settings?."${p}lights_flash_color1", settings?."${p}lights_flash_level") : null), color2Map: (settings?."${p}lights_flash_color2" ? getColorName(settings?."${p}lights_flash_color2", settings?."${p}lights_flash_level") : null)])
-        } else {
-            //captureLightState(settings?."${p}lights")
-            settings?."${p}lights"?.on()
-            if(settings?."${p}lights_level") { settings?."${p}lights"?.setLevel(getColorName(settings?."${p}lights_level")) }
-            if(settings?."${p}lights_color") { settings?."${p}lights"?.setColor(getColorName(settings?."${p}lights_color", settings?."${p}lights_level")) }
-        }
+
+        //captureLightState(settings?."${p}lights")
+        settings?."${p}lights"?.on()
+        if(settings?."${p}lights_level") { settings?."${p}lights"?.setLevel(getColorName(settings?."${p}lights_level")) }
+        if(settings?."${p}lights_color") { settings?."${p}lights"?.setColor(getColorName(settings?."${p}lights_color", settings?."${p}lights_level")) }
     }
 }
 
@@ -1432,9 +1409,6 @@ String actTaskDesc(t, isInpt=false) {
         str += settings?."${t}lights" ? "\n \u2022 Lights: (${settings?."${t}lights"?.size()})" : ""
         str += settings?."${t}lights" && settings?."${t}lights_level" ? "\n    - Level: (${settings?."${t}lights_level"}%)" : ""
         str += settings?."${t}lights" && settings?."${t}lights_color" ? "\n    - Color: (${settings?."${t}lights_color"})" : ""
-        str += settings?."${t}lights" && settings?."${t}lights_flash" ? "\n    - Flash: (${settings?."${t}lights_flash_cycles"} cycles)" : ""
-        str += settings?."${t}lights" && settings?."${t}lights_flash" && settings?."${t}lights_flash_color1" ? "\n    - Color1: (${settings?."${t}lights_flash_color1"})" : ""
-        str += settings?."${t}lights" && settings?."${t}lights_flash" && settings?."${t}lights_flash_color2" ? "\n    - Color2: (${settings?."${t}lights_flash_color2"})" : ""
         str += settings?."${t}locks_unlock" ? "\n \u2022 Locks Unlock: (${settings?."${t}locks_unlock"?.size()})" : ""
         str += settings?."${t}locks_lock" ? "\n \u2022 Locks Lock: (${settings?."${t}locks_lock"?.size()})" : ""
         str += settings?."${t}doors_open" ? "\n \u2022 Garages Open: (${settings?."${t}doors_open"?.size()})" : ""
@@ -3641,18 +3615,18 @@ def getDateByFmt(String fmt, dt=null) {
 
 Map getDateMap() {
     Map m = [:]
-    m?.dayOfYear = getDateByFmt("DD")
+    m?.dayOfYear =    getDateByFmt("DD")
     m?.dayNameShort = getDateByFmt("EEE")?.toString()?.toUpperCase()
-    m?.dayName = getDateByFmt("EEEE")
-    m?.day = getDateByFmt("d")
-    m?.week = getDateByFmt("W")
-    m?.weekOfYear = getDateByFmt("w")
-    m?.monthName = getDateByFmt("MMMMM")
-    m?.month = getDateByFmt("MM")
-    m?.year = getDateByFmt("yyyy")
-    m?.hour = getDateByFmt("hh")
-    m?.minute = getDateByFmt("mm")
-    m?.second = getDateByFmt("ss")
+    m?.dayName =      getDateByFmt("EEEE")
+    m?.day =          getDateByFmt("d")
+    m?.week =         getDateByFmt("W")
+    m?.weekOfYear =   getDateByFmt("w")
+    m?.monthName =    getDateByFmt("MMMMM")
+    m?.month =        getDateByFmt("MM")
+    m?.year =         getDateByFmt("yyyy")
+    m?.hour =         getDateByFmt("hh")
+    m?.minute =       getDateByFmt("mm")
+    m?.second =       getDateByFmt("ss")
     return m
 }
 
@@ -3661,6 +3635,11 @@ Boolean isDayOfWeek(opts) {
     df.setTimeZone(location?.timeZone)
     def day = df.format(new Date())
     return ( opts?.contains(day) )
+}
+
+Boolean isMonthOfYear(opts) {
+    def dtMap = getDateMap()
+    return ( opts?.contains(dtMap?.monthName) )
 }
 
 Boolean isTimeOfDay(startTime, stopTime) {

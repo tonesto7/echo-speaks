@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.2.0.3"}
-String devModified() { return "2019-10-24" }
+String devVersion()  { return "3.2.0.4"}
+String devModified() { return "2019-10-28" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -571,7 +571,7 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
     if(!isOnline) { if(!noLogs) { logWarn("Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})", true) }; return false; }
     if(!isAuthOk(noLogs)) { return false }
     if(!getAmazonDomain()) { if(!noLogs) { logWarn("amazonDomain State Value Missing: ${getAmazonDomain()}", true) }; return false }
-    if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { if(!noLogs) { logWarn("Amazon Cookie State Values Missing: ${state?.cookie}", true) }; setAuthState(false, null); return false }
+    if(!state?.cookie || !state?.cookie?.cookie || !state?.cookie?.csrf) { if(!noLogs) { logWarn("Amazon Cookie State Values Missing: ${state?.cookie}", true) }; setAuthState(false); return false }
     if(!state?.serialNumber) { if(!noLogs) { logWarn("SerialNumber State Value Missing: ${state?.serialNumber}", true) }; return false }
     if(!state?.deviceType) { if(!noLogs) { logWarn("DeviceType State Value Missing: ${state?.deviceType}", true) }; return false }
     if(!state?.deviceOwnerCustomerId) { if(!noLogs) { logWarn("OwnerCustomerId State Value Missing: ${state?.deviceOwnerCustomerId}", true) }; return false; }
@@ -1331,7 +1331,7 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
                             // Ignoring Unknown device type in request
                         } else if(respData && respData?.message?.startsWith("device not connected")) {
                             // Ignoring device not connect error
-                        } else { logError("${mName} Code: ($sCode) | Message: ${errMsg} | Data: ${respData}") }
+                        } else { logError("${mName} | Status: ($sCode) | Message: ${errMsg} | Data: ${respData}") }
                     }
                     break
                 case "Rate Exceeded":
@@ -1353,11 +1353,11 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
             logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        logError("${mName} Response Socket Timeout | Msg: ${ex?.getMessage()}")
+        logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.UnknownHostException) {
-        logError("${mName} HostName Not Found | Msg: ${ex?.getMessage()}")
+        logError("${mName} | HostName Not Found | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        logError("${mName} Request Timeout | Msg: ${ex?.getMessage()}")
+        logError("${mName} | Request Timeout (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 

@@ -15,7 +15,7 @@
  */
 
 String appVersion()   { return "3.2.0.6" }
-String appModified()  { return "2019-10-24" }
+String appModified()  { return "2019-10-28" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -172,9 +172,10 @@ def authStatusPage() {
                 Boolean chk4 = (cookieValid == true)
                 String nextRfsh = nextCookieRefreshDur()
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
-                paragraph pTS("Session Value: (${chk1 ? "OK" : "Missing"})", null, false, chk1 ? "#2784D9" : "red"), state: (chk1 ? "complete" : null), required: true
-                paragraph pTS("CSRF Value: (${chk2 ? "OK" : "Missing"})", null, false, chk2 ? "#2784D9" : "red"), state: (chk2 ? "complete" : null), required: true
-                paragraph pTS("Validated: (${chk4 ? "OK" : "Invalid"})", null, false, chk4 ? "#2784D9" : "red"), state: (chk4 ? "complete" : null), required: true
+                String stat = "Auth Status: (${(chk1 && chk2) ? "OK": "Invalid"})"
+                stat += "\n \u2022 Cookie: (${chk1 ? okSym() : notOkSym()})"
+                stat += "\n \u2022 CSRF Value: (${chk2 ? okSym() : notOkSym()})"
+                paragraph pTS(stat, null, false, (chk1 && chk2) ? "#2784D9" : "red"), state: ((chk1 && chk2) ? "complete" : null), required: true
                 paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", null, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : null), required: true
                 paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", null, false, "#2784D9"), state: "complete", required: true
             }
@@ -729,9 +730,6 @@ Map getAllDevices(isInputEnum=false) {
 
 def notifPrefPage() {
     dynamicPage(name: "notifPrefPage", install: false) {
-        Integer pollWait = 900
-        Integer pollMsgWait = 3600
-        Integer updNotifyWait = 7200
         section("") {
             paragraph title: "Notice:", pTS("The settings configure here are used by both the App and the Devices.", getAppImg("info", true), true, "#2784D9"), state: "complete"
         }
@@ -776,13 +774,8 @@ def notifPrefPage() {
             section(sTS("Missed Poll Alerts:")) {
                 input (name: "sendMissedPollMsg", type: "bool", title: inTS("Send Missed Checkin Alerts?", getAppImg("late", true)), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
                 if(settings?.sendMissedPollMsg) {
-                    def misPollNotifyWaitValDesc = settings?.misPollNotifyWaitVal ?: "Default: 45 Minutes"
-                    input (name: "misPollNotifyWaitVal", type: "enum", title: inTS("Time Past the Missed Checkin?", getAppImg("delay_time", true)), required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time"))
-                    if(settings?.misPollNotifyWaitVal) { pollWait = settings?.misPollNotifyWaitVal as Integer }
-
-                    def misPollNotifyMsgWaitValDesc = settings?.misPollNotifyMsgWaitVal ?: "Default: 1 Hour"
-                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: inTS("Send Reminder After?", getAppImg("reminder", true)), required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
-                    if(settings?.misPollNotifyMsgWaitVal) { pollMsgWait = settings?.misPollNotifyMsgWaitVal as Integer }
+                    input (name: "misPollNotifyWaitVal", type: "enum", title: inTS("Time Past the Missed Checkin?", getAppImg("delay_time", true)), description: "Default: 45 Minutes", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time"))
+                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: inTS("Send Reminder After?", getAppImg("reminder", true)), description: "Default: 1 Hour", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
                 }
             }
             section(sTS("Cookie Refresh Alert:")) {
@@ -791,15 +784,10 @@ def notifPrefPage() {
             section(sTS("Code Update Alerts:")) {
                 input "sendAppUpdateMsg", "bool", title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update")
                 if(settings?.sendAppUpdateMsg) {
-                    def updNotifyWaitValDesc = settings?.updNotifyWaitVal ?: "Default: 12 Hours"
-                    input (name: "updNotifyWaitVal", type: "enum", title: inTS("Send Reminders After?", getAppImg("reminder", true)), required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
-                    if(settings?.updNotifyWaitVal) { updNotifyWait = settings?.updNotifyWaitVal as Integer }
+                    input (name: "updNotifyWaitVal", type: "enum", title: inTS("Send Reminders After?", getAppImg("reminder", true)), description: "Default: 12 Hours", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
                 }
             }
         } else { state.pushTested = false }
-        state.misPollNotifyWaitVal = pollWait
-        state.misPollNotifyMsgWaitVal = pollMsgWait
-        state.updNotifyWaitVal = updNotifyWait
     }
 }
 
@@ -1208,7 +1196,7 @@ def uninstalled() {
 }
 
 private appCleanup() {
-    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie"]
+    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal", "updNotifyWaitVal"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
@@ -2158,14 +2146,14 @@ def respExceptionHandler(ex, String mName, ignOn401=false, ignNullMsg=false) {
         } else if(sCode == 429) {
             logWarn("${mName} | Too Many Requests Made to Amazon | Msg: ${errMsg}")
         } else {
-            logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
+            logError("${mName} | Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        logError("${mName} Response Socket Timeout | Msg: ${ex?.getMessage()}")
+        logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        logError("${mName} Request Timeout | Msg: ${ex?.getMessage()}")
+        logError("${mName} | Request Timeout | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.UnknownHostException) {
-        logError("${mName} HostName Not Found | Msg: ${ex?.getMessage()}")
+        logError("${mName} | HostName Not Found (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
@@ -2682,7 +2670,7 @@ private healthCheck() {
     if(!isST() && getSocketDevice()?.isSocketActive() != true) { getSocketDevice()?.triggerInitialize() }
     if(state?.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(!getOk2Notify()) { return }
-    missPollNotify((settings?.sendMissedPollMsg == true), (state?.misPollNotifyMsgWaitVal ?: 3600))
+    missPollNotify((settings?.sendMissedPollMsg == true), (settings?.misPollNotifyMsgWaitVal as Integer ?: 3600))
     appUpdateNotify()
     if(advLogsActive()) { logsDisable() }
 }
@@ -2692,9 +2680,9 @@ public logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal
 public logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
 
 private missPollNotify(Boolean on, Integer wait) {
-    log.trace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastTsValSecs("lastDevDataUpdDt")}) | misPollNotifyWaitVal: (${state?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastTsValSecs("lastMissedPollMsgDt")})")
-    if(!on || !wait || !(getLastTsValSecs("lastMissedPollMsgDt") > (state?.misPollNotifyWaitVal ?: 2700))) { return }
-    if(!(getLastTsValSecs("lastMissedPollMsgDt") > wait.toInteger())) {
+    logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastTsValSecs("lastDevDataUpdDt")}) | misPollNotifyWaitVal: (${settings?.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastTsValSecs("lastMissedPollMsgDt")})")
+    if(!on || !wait) { return; }
+    if(getLastTsValSecs("lastDevDataUpdDt", 840) <= (settings?.misPollNotifyWaitVal as Integer ?: 2700)) {
         state?.missPollRepair = false
         return
     } else {
@@ -2703,7 +2691,7 @@ private missPollNotify(Boolean on, Integer wait) {
             initialize()
             return
         }
-        state?.missPollRepair = true
+        if(!(getLastTsValSecs("lastMissedPollMsgDt") > wait?.toInteger())) { return; }
         String msg = ""
         if(state?.authValid) {
             msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue with the scheduling.  Please open the app and press Done/Save."
@@ -2726,8 +2714,8 @@ private appUpdateNotify() {
     Boolean echoDevUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
-    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastTsValSecs("lastUpdMsgDt")} | state?.updNotifyWaitVal: ${state?.updNotifyWaitVal}")
-    if(state?.updNotifyWaitVal && getLastTsValSecs("lastUpdMsgDt") > state?.updNotifyWaitVal.toInteger()) {
+    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastTsValSecs("lastUpdMsgDt")} | updNotifyWaitVal: ${settings?.updNotifyWaitVal}")
+    if(settings?.updNotifyWaitVal && getLastTsValSecs("lastUpdMsgDt") > settings?.updNotifyWaitVal?.toInteger()) {
         if(on && (appUpd || actUpd || zoneUpd || echoDevUpd || socketUpd || servUpd)) {
             state?.updateAvailable = true
             def str = ""
@@ -3249,7 +3237,7 @@ private getDiagDataJson() {
             devices: [
                 version: state?.codeVersions?.echoDevice ?: null,
                 count: echoDevs?.size() ?: 0,
-                lastDataUpdDt: updTsVal("lastDevDataUpdDt"),
+                lastDataUpdDt: getTsVal("lastDevDataUpdDt"),
                 models: state?.deviceStyleCnts ?: [:],
                 warnings: devWarnings,
                 errors: devErrors,
@@ -3469,7 +3457,7 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
         def start = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt)).getTime()
         def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(now)).getTime()
         def diff = (int) (long) (stop - start) / 1000
-        return diff
+        return diff?.abs()
     } catch (ex) {
         logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex}")
         return 10000
@@ -4490,6 +4478,13 @@ def getSettingVal(inName) {
 
 String getTextEditorPath(cId, inName) {
     return getAppEndpointUrl("textEditor/${cId}/${inName}") as String
+}
+
+def okSym() {
+    return "\u2713"
+}
+def notOkSym() {
+    return "\u2715"
 }
 
 String getObjType(obj) {
