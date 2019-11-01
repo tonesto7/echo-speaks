@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.2.0.5" }
-String appModified() { return "2019-10-28" }
+String appVersion()  { return "3.2.1.0" }
+String appModified() { return "2019-11-01" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1314,7 +1314,12 @@ def actTrigTasksPage(params) {
                 List lights = settings?."${t}lights"
                 if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
                     paragraph pTS("Not all selected devices support color. So color options are hidden.", null, true, "red"), state: null, required: true
-                } else { input "${t}lights_color", "enum", title: inTS("To this color?\n(Optional)", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: false, submitOnChange: true, image: getAppImg("color") }
+                } else {
+                    input "${t}lights_color", "enum", title: inTS("To this color?\n(Optional)", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: false, submitOnChange: true, image: getAppImg("color")
+                    if(settings?."${t}lights_color") {
+                        input "${t}lights_color_delay", "number", title: inTS("Restore original light state after (x) seconds?\n(Optional)", getAppImg("delay", true)), required: true, submitOnChange: true, image: getAppImg("delay")
+                    }
+                }
                 if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
                     paragraph pTS("Not all selected devices support level. So level option is hidden.", null, true, "red"), state: null, required: true
                 } else { input "${t}lights_level", "enum", title: inTS("At this level?\n(Optional)", getAppImg("speed_knob", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("speed_knob")}
@@ -1381,11 +1386,11 @@ private executeTaskCommands(data) {
     if(settings?."${p}mode_run") { setLocationMode(settings?."${p}mode_run" as String) }
     if(isST && settings?."${p}routine_run") { execRoutineById(settings?."${p}routine_run" as String) }
     if(settings?."${p}lights") {
-
-        //captureLightState(settings?."${p}lights")
+        if(settings?."${data?.type}lights_color_delay") { captureLightState(settings?."${p}lights") }
         settings?."${p}lights"?.on()
         if(settings?."${p}lights_level") { settings?."${p}lights"?.setLevel(getColorName(settings?."${p}lights_level")) }
         if(settings?."${p}lights_color") { settings?."${p}lights"?.setColor(getColorName(settings?."${p}lights_color", settings?."${p}lights_level")) }
+        if(settings?."${data?.type}lights_color_delay") { runIn(settings?."${data?.type}lights_color_delay" as Integer, [data:[type: p]]) }
     }
 }
 
@@ -1409,6 +1414,7 @@ String actTaskDesc(t, isInpt=false) {
         str += settings?."${t}lights" ? "\n \u2022 Lights: (${settings?."${t}lights"?.size()})" : ""
         str += settings?."${t}lights" && settings?."${t}lights_level" ? "\n    - Level: (${settings?."${t}lights_level"}%)" : ""
         str += settings?."${t}lights" && settings?."${t}lights_color" ? "\n    - Color: (${settings?."${t}lights_color"})" : ""
+        str += settings?."${t}lights" && settings?."${t}lights_color" && settings?."${t}lights_color_delay" ? "\n    - Restore After: (${settings?."${t}lights_color_delay"} sec.)" : ""
         str += settings?."${t}locks_unlock" ? "\n \u2022 Locks Unlock: (${settings?."${t}locks_unlock"?.size()})" : ""
         str += settings?."${t}locks_lock" ? "\n \u2022 Locks Lock: (${settings?."${t}locks_lock"?.size()})" : ""
         str += settings?."${t}doors_open" ? "\n \u2022 Garages Open: (${settings?."${t}doors_open"?.size()})" : ""
@@ -1453,6 +1459,10 @@ private flashLights(data) {
             restoreLightState(settings?."${p}lights")
         }
     }
+}
+
+private restoreLights(data) {
+    if(data?.type && settings?."${data?.type}lights") { restoreLightState(settings?."${data?.type}lights") }
 }
 
 Boolean isActDevContConfigured() {
