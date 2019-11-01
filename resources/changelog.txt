@@ -1,4 +1,67 @@
  ══════════
+   Main App (v3.2.1.0)
+   November 1st, 2019
+ ══════════
+  • UPDATED: Auth Status page to be a little cleaner.
+  • UPDATED: Cleaned up Http Exception logging to be a little less confusing.
+  • FIXED: Resolved the missed poll notification bug.
+  • FIXED: Minor bug fixes and State cleanups.
+  • FIXED: Minor bug with Response designer where invalid characters would cause the editor to not load configured text.
+  • FIXED: Fixed scenario where cookie refreshes would fail due to negative time calculation (Thanks @TonyFleisher).
+
+ ══════════
+   Action App (v3.2.1.0)
+   November 1st, 2019
+ ══════════
+  • ADDED: You can now run different tasks on Tiered Actions start and stop events (Each can have different delays).
+  • ADDED: New tasks have been added to the action executions (Control locks, garages, sirens, dimmers/lights/bulbs).
+  • FIXED: Minor UI cleanups to make this less confusing.
+  • FIXED: Squashed some more Repeat After action events.
+  • FIXED: Minor bug with Response designer where invalid characters would cause the editor to not load configured text.
+  • FIXED: other minor bug fixes.
+
+ ══════════
+   Zones App (v3.2.1.0)
+   November 1st, 2019
+ ══════════
+  • FIXED: other minor bug fixes.
+
+ ══════════
+   Echo Device (v3.2.1.0)
+   November 1st, 2019
+ ══════════
+  • UPDATED: (NOTICE) Split the device code into two versions. There is one for Hubitat and another for SmartThings.
+  • UPDATED: (NOTICE) Because of the split in code I can restore support for Audio Mute and Audio Track Data capabilities on SmartThings.
+  • UPDATED: Cleaned up some unnecessary attributes.
+  • UPDATED: Cleaned up Http Exception logging to be a little less confusing.
+  • REMOVED: Removed the alexaMusicProvider attribute (Was redundant and unneeded).
+
+-------------------------------------------------
+
+ ══════════
+   Main App (v3.2.0.6)
+   October 24th, 2019
+ ══════════
+  • FIXED: Minor bug fixes.
+
+ ══════════
+   Action App (v3.2.0.5)
+   October 24th, 2019
+ ══════════
+  • ADDED: the abilitity to run routines/set location modes when an action is triggered.
+  • ADDED: When action is tiered it you can define tier start tasks (routines, mode, switches, webcore pistons), the another set of those tasks when the task has stopped.
+  • FIXED: repeat after events were broken.
+  • FIXED: other minor bug fixes.
+
+ ══════════
+   Echo Device (v3.2.0.3)
+   October 24th, 2019
+ ══════════
+  • REMOVED: Removed the alexaMusicProvider attribute (Was redundant and unneeded).
+
+-------------------------------------------------
+
+ ══════════
    Main App (v3.2.0.5)
    October 22nd, 2019
  ══════════
