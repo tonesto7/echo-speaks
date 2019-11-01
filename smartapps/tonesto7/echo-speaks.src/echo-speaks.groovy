@@ -1396,7 +1396,7 @@ private checkIfCodeUpdated() {
         if(zApps?.size() && state?.codeVersions?.zoneApp && state?.codeVersions?.zoneApp != zApps[0]?.appVersion()) {
             chgs?.push("zoneApp")
             state?.pollBlocked = true
-            log.debug "zoneVer: ${zApps[0]?.appVersion()}"
+            // log.debug "zoneVer: ${zApps[0]?.appVersion()}"
             updCodeVerMap("zoneApp", zApps[0]?.appVersion())
             codeUpdated = true
         }
