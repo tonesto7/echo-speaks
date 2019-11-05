@@ -14,13 +14,13 @@
  */
 
 String devVersion()  { return "3.2.1.0"}
-String devModified() { return "2019-11-01" }
+String devModified()  { return "2019-11-01" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli" importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
         // capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
         // capability "Audio Track Data" // To support SharpTools.io Album Art feature
