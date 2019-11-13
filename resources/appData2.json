@@ -2,16 +2,16 @@
     "appDataVer": "3.1",
     "versions": {
         "mainApp": {
-            "ver": "3.2.1.0"
+            "ver": "3.2.2.0"
         },
         "actionApp": {
-            "ver": "3.2.1.0"
+            "ver": "3.2.2.0"
         },
         "zoneApp": {
             "ver": "3.2.1.0"
         },
         "echoDevice": {
-            "ver": "3.2.1.0"
+            "ver": "3.2.2.0"
         },
         "wsDevice": {
             "ver": "3.2.0.1"
@@ -74,7 +74,12 @@
             "blocked": true
         },
         "A37SHHQ3NUL7B5": {
-            "name": "Bose Homespeaker",
+            "name": "Bose Home Speaker 500",
+            "caps": [],
+            "blocked": true
+        },
+        "AVN2TMX8MU2YM": {
+            "name": "Bose Home Speaker 500",
             "caps": [],
             "blocked": true
         },
@@ -161,7 +166,7 @@
             ]
         },
         "A4ZP7ZC4PI6TO": {
-            "name": "Echo Show 5",
+            "name": "Echo Show 5 (Gen1)",
             "image": "echo_show_5",
             "caps": [
                 "a",
@@ -187,6 +192,30 @@
         "A1RABVCI4QCIKC": {
             "name": "Echo Dot (Gen3)",
             "image": "echo_dot_gen3",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A32DDESGESSHZA": {
+            "name": "Echo Dot (Gen3)",
+            "image": "echo_dot_gen3",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A3FX4UWTP28V1P": {
+            "name": "Echo Dot (Gen3)",
+            "image": "echo_dot_gen3",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A30YDR2MK8HMRV": {
+            "name": "Echo Dot Clock",
+            "image": "echo_dot_clock",
             "caps": [
                 "a",
                 "t"
@@ -256,6 +285,22 @@
                 "t"
             ]
         },
+        "A1F8D55J0FWDTN": {
+            "name": "Fire TV (Toshiba)",
+            "image": "toshiba_firetv",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "AFF50AL5E3DIU": {
+            "name": "Fire TV (Insignia)",
+            "image": "insignia_firetv",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
         "A3HF4YRA2L7XGC": {
             "name": "Fire TV Cube",
             "image": "firetv_cube",
@@ -288,6 +333,14 @@
             ]
         },
         "A38EHHIB10L47V": {
+            "name": "Fire Tablet HD 8",
+            "image": "tablet_hd10",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A3L0T0VL9A921N": {
             "name": "Fire Tablet HD 8",
             "image": "tablet_hd10",
             "caps": [
@@ -336,8 +389,8 @@
         "A1N9SW0I0LUX5Y": {
             "name": "Ford/Lincoln Alexa App",
             "image": "unknown",
-            "caps": [],
-            "blocked": true
+            "caps": ["a", "t"],
+            "blocked": false
         },
         "A1C66CX2XD756O": {
             "name": "Fire Tablet HD",

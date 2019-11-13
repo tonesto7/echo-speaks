@@ -1,4 +1,26 @@
  ══════════
+   Main App (v3.2.2.0)
+   November 13th, 2019
+ ══════════
+  • UPDATED: Added detections for newer echo devices.
+  • FIXED: Routine Executions in Actions and Device now work again (Sorry about that)
+  • ADDED: The app will now offer to let you submit unrecognized devices directly to github with 2 taps of the finger.
+
+ ══════════
+   Action App (v3.2.2.0)
+   November 13th, 2019
+ ══════════
+  • UPDATE: Modified the issue reporting parameters to help filter the source application.
+
+ ══════════
+   Echo Device (v3.2.2.0)
+   November 13th, 2019
+ ══════════
+  • ADDED: Added Device Tile Support for newer Echo devices (SmartThings Only).
+
+-------------------------------------------------
+
+ ══════════
    Main App (v3.2.1.0)
    November 1st, 2019
  ══════════
