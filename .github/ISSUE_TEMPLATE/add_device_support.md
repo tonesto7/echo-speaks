@@ -1,20 +1,19 @@
 ---
 name: Add Device Support
-about: Request Support for an Unknown device.
+about: Request support for a device marked as unknown. Request a feature such as announcements, or speech (Only after testing they are supportted using Alexa Routines).
 title: '[Add Device Support]'
 labels: 'enhancement, add_device_support'
 assignees: 'tonesto7'
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+**Required Info is the following (Found under Echo Speaks app under devices page):
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+* Family: (Eg. ECHO)
+* Type: (Eg. A30YDR2MK8HMRV)
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+** Other Info:
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+* Model and/or Generation of device:
+
+**Have you tested the device for announcement/speech support using Alexa Routine?
