@@ -286,16 +286,16 @@
             ]
         },
         "A1F8D55J0FWDTN": {
-            "name": "Fire TV (Television)",
-            "image": "insignia_firetv_gen1",
+            "name": "Fire TV (Toshiba)",
+            "image": "toshiba_firetv",
             "caps": [
                 "a",
                 "t"
             ]
         },
         "AFF50AL5E3DIU": {
-            "name": "Fire TV (Television)",
-            "image": "insignia_firetv_gen1",
+            "name": "Fire TV (Insignia)",
+            "image": "insignia_firetv",
             "caps": [
                 "a",
                 "t"
@@ -389,8 +389,8 @@
         "A1N9SW0I0LUX5Y": {
             "name": "Ford/Lincoln Alexa App",
             "image": "unknown",
-            "caps": [],
-            "blocked": true
+            "caps": ["a", "t"],
+            "blocked": false
         },
         "A1C66CX2XD756O": {
             "name": "Fire Tablet HD",
