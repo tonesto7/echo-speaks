@@ -1,5 +1,5 @@
 /**
- *	Echo Speaks Device
+ *	Echo Speaks Device Handler for SmartThings
  *
  *  Copyright 2018, 2019 Anthony Santilli
  *
@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.2.1.0"}
-String devModified() { return "2019-11-05" }
+String devVersion()  { return "3.2.2.0" }
+String devModified() { return "2019-11-13" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -198,6 +198,10 @@ metadata {
             state("paused_echo_dot_gen3", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen3.png", backgroundColor: "#cccccc")
             state("playing_echo_dot_gen3", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen3.png", backgroundColor: "#00a0dc")
             state("stopped_echo_dot_gen3", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen3.png")
+            // ECHO DOT CLOCK (GEN1)
+            state("paused_echo_dot_clock", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_clock.png", backgroundColor: "#cccccc")
+            state("playing_echo_dot_clock", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_clock.png", backgroundColor: "#00a0dc")
+            state("stopped_echo_dot_clock", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_clock.png")
             // ECHO SPOT (GEN1)
             state("paused_echo_spot_gen1", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_spot_gen1.png", backgroundColor: "#cccccc")
             state("playing_echo_spot_gen1", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_spot_gen1.png", backgroundColor: "#00a0dc")
@@ -254,6 +258,14 @@ metadata {
             state("paused_firetv_gen1", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/firetv_gen1.png", backgroundColor: "#cccccc")
             state("playing_firetv_gen1", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/firetv_gen1.png", backgroundColor: "#00a0dc")
             state("stopped_firetv_gen1", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/firetv_gen1.png")
+
+            state("paused_insignia_firetv", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/insignia_firetv.png", backgroundColor: "#cccccc")
+            state("playing_insignia_firetv", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/insignia_firetv.png", backgroundColor: "#00a0dc")
+            state("stopped_insignia_firetv", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/insignia_firetv.png")
+
+            state("paused_toshiba_firetv", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/toshiba_firetv.png", backgroundColor: "#cccccc")
+            state("playing_toshiba_firetv", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/toshiba_firetv.png", backgroundColor: "#00a0dc")
+            state("stopped_toshiba_firetv", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/toshiba_firetv.png")
 
             state("paused_tablet_hd10", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/tablet_hd10.png", backgroundColor: "#cccccc")
             state("playing_tablet_hd10", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/tablet_hd10.png", backgroundColor: "#00a0dc")
