@@ -69,6 +69,11 @@
         ]
     },
     "deviceSupport": {
+        "A1Q7QCGNMXAKYW": {
+            "name": "Generic Tablet",
+            "caps": [],
+            "blocked": true
+        },
         "A1X7HJX9QL16M5": {
             "name": "Bespoken.io",
             "caps": [],
