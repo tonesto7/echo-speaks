@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()   { return "3.2.1.0" }
-String appModified()  { return "2019-11-01" }
+String appVersion()   { return "3.2.2.0" }
+String appModified()  { return "2019-11-13" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -144,6 +144,12 @@ def mainPage() {
             }
             section(sTS("Remove Everything:")) {
                 href "uninstallPage", title: inTS("Uninstall this App", getAppImg("uninstall", true)), description: "Tap to Remove...", image: getAppImg("uninstall")
+            }
+            section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
+                def issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28BUG%29+&projects=echo-speaks%2F6"
+                def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BFeature+Request%5D&projects=echo-speaks%2F6"
+                href url: featUrl, style: "external", required: false, title: inTS("New Feature Request", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
+                href url: issueUrl, style: "external", required: false, title: inTS("Report an Issue", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
             }
         } else {
             showDevSharePrefs()
@@ -2365,7 +2371,7 @@ def receiveEventData(Map evtData, String src) {
                     echoDeviceMap[echoKey] = [
                         name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey,
                         style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: isMediaPlayer, announceSupport: permissions?.announce,
-                        ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers, broadcastSupport: permissions?.broadcast,
+                        ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers,
                         musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", "), supported: (unsupportedDevice != true)
                     ]
 
@@ -2591,21 +2597,19 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
         def rData = null
         def rStatus = null
         switch(method) {
-            case "post":
             case "POST":
-                httpPost(params) { response->
+                httpPostJson(params) { response->
                     rData = response?.data ?: null
                     rStatus = response?.status
                 }
                 break
-            case "put":
             case "PUT":
-                httpPut(params) { response->
+                if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
+                httpPutJson(params) { response->
                     rData = response?.data ?: null
                     rStatus = response?.status
                 }
                 break
-            case "delete":
             case "DELETE":
                 httpDelete(params) { response->
                     rData = response?.data ?: null
@@ -2613,22 +2617,22 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
                 }
                 break
         }
-        logDebug("sendAmazonCommand | Status: (${response?.status})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+        logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
     } catch (ex) {
-        respExceptionHandler(ex, "${otherData?.cmdDesc}")
+        respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
     }
 }
 
 private sendSequenceCommand(type, command, value) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value", true)
     Map seqObj = sequenceBuilder(command, value)
-    sendAmazonCommand("post", [
+    sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
-        body: seqObj
-    ], [cmdDesc: "SequenceCommand_${type}"])
+        body: new groovy.json.JsonOutput().toJson(seqObj)
+    ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
 private sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=false) {
@@ -3743,6 +3747,12 @@ String getInputToStringDesc(inpt, addSpace = null) {
     return (str != "") ? "${str}" : null
 }
 
+def getUnknownDevices() {
+    List o = []
+    state?.echoDeviceMap?.findAll { k,v -> (v?.containsKey("style") && v?.style?.containsKey("name")) && (v?.style?.name?.toString()?.toLowerCase()?.contains("unknown")) }?.each { o?.push([type: it?.value?.type, family: it?.value?.family]) }
+    return o
+}
+
 def appInfoSect()	{
     Map codeVer = state?.codeVersions ?: null
     String str = ""
@@ -3790,6 +3800,18 @@ def appInfoSect()	{
             if(!isNote) { paragraph pTS("No Issues to Report", null, true) }
         }
     }
+    List unkDevs = getUnknownDevices()
+    if(unkDevs?.size()) {
+        section() {
+            Map params = [ assignees: "tonesto7", labels: "add_device_support", projects: "echo-speaks/6", title: "[ADD DEVICE SUPPORT] (${unkDevs?.size()}) Devices", body: "Requesting device support from the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "${k}: ${v}" }?.join("\n") }?.join("\n\n")?.toString() ]
+            def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?${UrlParamBuilder(params)}"
+            href url: featUrl, style: "external", required: false, title: inTS("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", getAppImg("info", true)), description: "Tap to open browser", image: getAppImg("info")
+        }
+    }
+}
+
+String UrlParamBuilder(items) {
+    return items?.collect { k,v -> "${k}=${URLEncoder.encode(v?.toString())}" }?.join("&") as String
 }
 
 def getRandomItem(items) {
