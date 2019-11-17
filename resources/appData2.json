@@ -46,7 +46,7 @@
             "A2TOXM6L8SFS8A",
             "A2ZOTUOF1IBEYI",
             "A3NWHXTQ4EBCZS",
-            ""
+            "A3TCJ8RTT3NVI7"
         ]
     },
     "deviceFamilies": {
@@ -64,6 +64,7 @@
         "other": [
             "REAVER",
             "FIRE_TV",
+            "FIRE_TV_CUBE",
             "ALEXA_AUTO"
         ],
         "block": [
@@ -107,6 +108,22 @@
             "caps": []
         },
         "A3VRME03NAXFUB": {
+            "name": "Generic Echo",
+            "image": "unknown",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A16MZVIFVHX6P6": {
+            "name": "Generic Echo",
+            "image": "unknown",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A27VEYGQBW3YR5": {
             "name": "Generic Echo",
             "image": "unknown",
             "caps": [
@@ -332,6 +349,14 @@
         },
         "A3HF4YRA2L7XGC": {
             "name": "Fire TV Cube",
+            "image": "firetv_cube",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A2JKHJ0PX4J3L3": {
+            "name": "Fire TV Cube (Gen2)",
             "image": "firetv_cube",
             "caps": [
                 "a",
