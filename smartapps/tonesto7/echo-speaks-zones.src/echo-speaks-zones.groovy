@@ -14,7 +14,7 @@
  *
  */
 
-String appVersion()  { return "3.2.1.0" }
+String appVersion()  { return "3.2.1.1" }
 String appModified() { return "2019-11-01" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
@@ -1195,6 +1195,12 @@ String getAppNotifDesc(hide=false) {
         str += getNotifSchedDesc(true) ? " \u2022 Restrictions: (${getOk2Notify() ? "${okSym()}" : "${notOkSym()}"})\n" : ""
     }
     return str != "" ? str : null
+}
+
+List getQuietDays() {
+	List allDays = weekDaysEnum()
+	List curDays = settings?.notif_days ?: []
+	return allDays?.findAll { (!curDays?.contains(it as String)) }
 }
 
 String getNotifSchedDesc(min=false) {
