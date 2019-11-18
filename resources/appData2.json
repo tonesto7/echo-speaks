@@ -2,16 +2,16 @@
     "appDataVer": "3.3",
     "versions": {
         "mainApp": {
-            "ver": "3.2.2.0"
+            "ver": "3.2.2.1"
         },
         "actionApp": {
             "ver": "3.2.2.0"
         },
         "zoneApp": {
-            "ver": "3.2.1.0"
+            "ver": "3.2.2.0"
         },
         "echoDevice": {
-            "ver": "3.2.2.0"
+            "ver": "3.2.2.1"
         },
         "wsDevice": {
             "ver": "3.2.0.1"
@@ -82,6 +82,12 @@
             "caps": [],
             "blocked": true
         },
+        "A3SSWQ04XYPXBH": {
+            "name": "Generic Tablet",
+            "image": "amazon_tablet",
+            "caps": [],
+            "blocked": true
+        },
         "A1X7HJX9QL16M5": {
             "name": "Bespoken.io",
             "caps": [],
@@ -124,8 +130,8 @@
             ]
         },
         "A27VEYGQBW3YR5": {
-            "name": "Generic Echo",
-            "image": "unknown",
+            "name": "Echo Link",
+            "image": "echo_link",
             "caps": [
                 "a",
                 "t"
@@ -443,7 +449,10 @@
         "A1N9SW0I0LUX5Y": {
             "name": "Ford/Lincoln Alexa App",
             "image": "unknown",
-            "caps": ["a", "t"],
+            "caps": [
+                "a",
+                "t"
+            ],
             "blocked": false
         },
         "A1C66CX2XD756O": {
@@ -537,7 +546,10 @@
         "A1W2YILXTG9HA7": {
             "name": "Nextbase 522GW Dashcam",
             "image": "unknown",
-            "caps": ["t", "a"]
+            "caps": [
+                "t",
+                "a"
+            ]
         }
     }
 }
