@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.2.1.1" }
-String appModified() { return "2019-11-01" }
+String appVersion()  { return "3.2.2.0" }
+String appModified() { return "2019-11-18" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
