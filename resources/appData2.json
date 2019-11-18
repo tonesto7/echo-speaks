@@ -1,5 +1,5 @@
 {
-    "appDataVer": "3.2",
+    "appDataVer": "3.3",
     "versions": {
         "mainApp": {
             "ver": "3.2.2.0"
@@ -43,7 +43,10 @@
             "ADQRVG6LYK4LQ",
             "A1VZJGJYCRI78V",
             "ABP0V5EHO8A4U",
-            "A2TOXM6L8SFS8A"
+            "A2TOXM6L8SFS8A",
+            "A2ZOTUOF1IBEYI",
+            "A3NWHXTQ4EBCZS",
+            "A3TCJ8RTT3NVI7"
         ]
     },
     "deviceFamilies": {
@@ -59,15 +62,26 @@
             "WHA"
         ],
         "other": [
-            "REAVER"
+            "REAVER",
+            "FIRE_TV",
+            "FIRE_TV_CUBE",
+            "ALEXA_AUTO"
         ],
         "block": [
             "AMAZONMOBILEMUSIC_ANDROID",
+            "AMAZONMOBILEMUSIC_IOS",
             "TBIRD_IOS",
-            "VOX"
+            "VOX",
+            "MSHOP"
         ]
     },
     "deviceSupport": {
+        "A1Q7QCGNMXAKYW": {
+            "name": "Generic Tablet",
+            "image": "amazon_tablet",
+            "caps": [],
+            "blocked": true
+        },
         "A1X7HJX9QL16M5": {
             "name": "Bespoken.io",
             "caps": [],
@@ -92,6 +106,30 @@
             "name": "Mobile App",
             "blocked": true,
             "caps": []
+        },
+        "A3VRME03NAXFUB": {
+            "name": "Generic Echo",
+            "image": "unknown",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A16MZVIFVHX6P6": {
+            "name": "Generic Echo",
+            "image": "unknown",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A27VEYGQBW3YR5": {
+            "name": "Generic Echo",
+            "image": "unknown",
+            "caps": [
+                "a",
+                "t"
+            ]
         },
         "A1JJ0KFC4ZPNJ3": {
             "name": "Echo Input",
@@ -293,6 +331,14 @@
                 "t"
             ]
         },
+        "AP4RS91ZQ0OOI": {
+            "name": "Fire TV (Toshiba)",
+            "image": "toshiba_firetv",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
         "AFF50AL5E3DIU": {
             "name": "Fire TV (Insignia)",
             "image": "insignia_firetv",
@@ -303,6 +349,14 @@
         },
         "A3HF4YRA2L7XGC": {
             "name": "Fire TV Cube",
+            "image": "firetv_cube",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A2JKHJ0PX4J3L3": {
+            "name": "Fire TV Cube (Gen2)",
             "image": "firetv_cube",
             "caps": [
                 "a",
@@ -479,6 +533,11 @@
             "name": "Stereo/Subwoofer Pair",
             "blocked": true,
             "caps": []
+        },
+        "A1W2YILXTG9HA7": {
+            "name": "Nextbase 522GW Dashcam",
+            "image": "unknown",
+            "caps": ["t", "a"]
         }
     }
 }
