@@ -1,4 +1,24 @@
  ══════════
+   Main App (v3.2.2.1)
+   November 18th, 2019
+ ══════════
+  • UPDATED: Increased minimum code versions to match latest releases.
+
+ ══════════
+   Zones App (v3.2.2.0)
+   November 18th, 2019
+ ══════════
+  • FIXED: Fixed bug with zone notifications being set(Thanks @TonyFleisher).
+
+ ══════════
+   Echo Device (v3.2.2.1)
+   November 18th, 2019
+ ══════════
+  • ADDED: Added Device Tile Support for Echo Link (SmartThings Only).
+
+-------------------------------------------------
+
+ ══════════
    Main App (v3.2.2.0)
    November 13th, 2019
  ══════════
