@@ -113,6 +113,21 @@
             "blocked": true,
             "caps": []
         },
+        "A25EC4GIHFOCSG": {
+            "name": "Unrecognized Media Player",
+            "caps": [],
+            "blocked": true
+        },
+        "A1ORT4KZ23OY88": {
+            "name": "Unrecognized Devices",
+            "caps": [],
+            "blocked": true
+        },
+        "A1ORT4KZ23OY88": {
+            "name": "Unrecognized Devices",
+            "caps": [],
+            "blocked": true
+        },
         "A3VRME03NAXFUB": {
             "name": "Generic Echo",
             "image": "unknown",
@@ -551,5 +566,8 @@
                 "a"
             ]
         }
+    },
+    "note": {
+        "note": "These are unknown devices that have been blocked in the AppData file.  They will automatically be hidden from the app next time the appdata file is updated"
     }
 }

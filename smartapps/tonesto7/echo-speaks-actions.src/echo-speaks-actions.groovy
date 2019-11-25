@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.2.2.0" }
-String appModified() { return "2019-11-13" }
+String appVersion()  { return "3.3.0.0" }
+String appModified() { return "2019-11-25" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -130,6 +130,7 @@ private buildActTypeEnum() {
     List enumOpts = []
     Map buildItems = [:]
     buildItems["Speech"] = ["speak":"Speak", "announcement":"Announcement", "speak_tiered":"Speak (Tiered)", "announcement_tiered":"Announcement (Tiered)"]?.sort{ it?.key }
+    buildItems["Built-in Sounds"] = ["sounds":"Play a Sound"]?.sort{ it?.key }
     buildItems["Built-in Responses"] = ["weather":"Weather Report", "builtin":"Birthday, Compliments, Facts, Jokes, Stories, Traffic, and more...", "calendar":"Read Calendar Events"]?.sort{ it?.key }
     buildItems["Media/Playback"] = ["music":"Play Music/Playlists", "playback":"Playback/Volume Control"]?.sort{ it?.key }
     buildItems["Alarms/Reminders"] = ["alarm":"Create Alarm", "reminder":"Create Reminder"]?.sort{ it?.key }
@@ -822,6 +823,7 @@ String actionTypeDesc() {
         weather: "Plays a very basic weather report.",
         playback: "Allows you to control the media playback state of your Echo devices.",
         builtin: "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.",
+        sounds: "Plays a selected amazon sound item.",
         music: "Allows playback of various Songs/Radio using any connected music provider",
         calendar: "This will read out events in your calendar (Requires accounts to be configured in the alexa app. Must not have PIN.)",
         alarm: "This will allow you to create Alexa alarm clock notifications.",
@@ -1062,6 +1064,19 @@ def actionsPage() {
                         if(settings?.act_playback_cmd == "volume") { actionVolumeInputs(devices, true) }
                         actionExecMap?.config?.playback = [cmd: settings?.act_playback_cmd]
                         if(settings?.act_playback_cmd) { done = true } else { done = false }
+                    } else { done = false }
+                    break
+
+                case "sounds":
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
+                    echoDevicesInputByPerm("TTS")
+                    if(settings?.act_EchoDevices || settings?.act_EchoZones) {
+                        section(sTS("BuiltIn Sounds Config:")) {
+                            input "act_sounds_cmd", "enum", title: inTS("Select Sound Type", getAppImg("command", true)), description: "", options: parent?.getAvailableSounds()?.collect { it?.key as String }, required: true, submitOnChange: true, image: getAppImg("command")
+                        }
+                        actionVolumeInputs(devices)
+                        actionExecMap?.config?.sounds = [cmd: "playSoundByName", name: settings?.act_sounds_cmd]
+                        done = (settings?.act_sounds_cmd != null)
                     } else { done = false }
                     break
 
@@ -1635,7 +1650,7 @@ Boolean executionConfigured() {
 private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
     Boolean capOk = (type in ["TTS", "announce"])
-    Boolean zonesOk = (settings?.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "sequence", "weather", "calendar", "music", "builtin"])
+    Boolean zonesOk = (settings?.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "sequence", "weather", "calendar", "music", "sounds", "builtin"])
     Map echoZones = (capOk && zonesOk) ? parent?.getZones() : [:]
     section(sTS("Alexa Devices${echoZones?.size() ? " & Zones" : ""}:")) {
         if(echoZones?.size()) {
@@ -1660,7 +1675,7 @@ private actionVolumeInputs(devices, showVolOnly=false, showAlrmVol=false) {
             input "act_alarm_volume", "number", title: inTS("Alarm Volume\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
         }
     } else {
-        if(devices && settings?.actionType in ["speak", "announcement", "weather", "builtin", "music", "calendar"]) {
+        if(devices && settings?.actionType in ["speak", "announcement", "weather", "sounds", "builtin", "music", "calendar"]) {
             Map volMap = devsSupportVolume(devices)
             section(sTS("Volume Options:")) {
                 if(volMap?.n?.size() > 0 && volMap?.n?.size() < devices?.size()) { paragraph "Some of the selected devices do not support volume control" }
@@ -3007,6 +3022,22 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                 }
                 break
 
+            case "sounds":
+                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.name) {
+                    if(activeZones?.size()) {
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.name, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                    } else if(actDevices?.size()) {
+                        actDevices?.each { dev->
+                            if(isST && actDelayMs) {
+                                dev?."${actConf[actType]?.cmd}"(actConf[actType]?.name ,onchangeVol, restoreVol, [delay: actDelayMs])
+                            } else { dev?."${actConf[actType]?.cmd}"(actConf[actType]?.name, changeVol, restoreVol) }
+                        }
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
+                    }
+                }
+                break
+
             case "alarm":
             case "reminder":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.label && actConf[actType]?.date && actConf[actType]?.time) {
@@ -4013,6 +4044,7 @@ Map seqItemsAvail() {
             "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
             "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
             "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
+            "sound": "name",
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
             "announcementall": "message", "pushnotification": "message", "email": null
         ],
