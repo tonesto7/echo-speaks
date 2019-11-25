@@ -2,16 +2,16 @@
     "appDataVer": "3.3",
     "versions": {
         "mainApp": {
-            "ver": "3.2.2.1"
+            "ver": "3.3.0.0"
         },
         "actionApp": {
-            "ver": "3.2.2.0"
+            "ver": "3.3.0.0"
         },
         "zoneApp": {
-            "ver": "3.2.2.0"
+            "ver": "3.3.0.0"
         },
         "echoDevice": {
-            "ver": "3.2.2.1"
+            "ver": "3.3.0.0"
         },
         "wsDevice": {
             "ver": "3.2.0.1"

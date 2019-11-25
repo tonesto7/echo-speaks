@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.2.2.1" }
-String devModified() { return "2019-11-18" }
+String devVersion()  { return "3.3.0.0" }
+String devModified() { return "2019-11-25" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -82,6 +82,7 @@ metadata {
         command "playFunFact", ["number", "number"]
         command "playTraffic", ["number", "number"]
         command "playJoke", ["number", "number"]
+        command "playSoundByName"
         command "playTellStory", ["number", "number"]
         command "sayGoodbye", ["number", "number"]
         command "sayGoodNight", ["number", "number"]
@@ -1857,6 +1858,16 @@ def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
     incrementCntByKey("use_cnt_playCannedRandomTTS")
 }
 
+def playSoundByName(String name, volume=null, restoreVolume=null) {
+    log.debug "sound name: ${name}"
+    if(volume != null) {
+        List seqs = [[command: "volume", value: volume], [command: "sound", value: name]]
+        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs, "playSoundByName($name)")
+    } else { doSequenceCmd("playSoundByName($name)", "sound", name) }
+    incrementCntByKey("use_cnt_playSoundByName")
+}
+
 def playAnnouncement(String msg, volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("announce")) {
         if(volume != null) {
@@ -2442,6 +2453,7 @@ Map seqItemsAvail() {
             "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
             "dnd_duration":"2H30M", "dnd_time":"00:30",
             "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
+            "sound": "message",
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
             "announcementall": "message", "pushnotification": "message", "email": null
         ],
@@ -3074,6 +3086,12 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
                 seqNode?.type = "Alexa.CannedTts.Speak"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : [value as String, value as String]
                 seqNode?.operationPayload?.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
+                break
+            case "sound":
+                Map sounds = parent?.getAvailableSounds()
+                if(!(sounds[value])) { return null }
+                seqNode?.type = "Alexa.Sound"
+                seqNode?.operationPayload?.soundStringId = sounds[value]
                 break
             case "wait":
                 remDevSpecifics = true

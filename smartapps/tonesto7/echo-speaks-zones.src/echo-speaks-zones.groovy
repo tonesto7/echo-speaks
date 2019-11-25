@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.2.2.0" }
-String appModified() { return "2019-11-18" }
+String appVersion()  { return "3.3.0.0" }
+String appModified() { return "2019-11-25" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -838,6 +838,16 @@ public zoneCmdHandler(evt) {
                     } else {
                         if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null) }
                         if(data?.cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol) }
+                    }
+                }
+                break
+            case "sounds":
+                log.debug("Sending ${data?.cmd?.toString()?.capitalize()} | Name: ${data?.message} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                zoneDevs?.devices?.each { dev->
+                    if(isST() && delay) {
+                        dev?."${data?.cmd}"(data?.message, data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay])
+                    } else {
+                        dev?."${data?.cmd}"(data?.message, data?.changeVol ?: null, data?.restoreVol ?: null)
                     }
                 }
                 break
