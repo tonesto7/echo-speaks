@@ -2,16 +2,16 @@
     "appDataVer": "3.3",
     "versions": {
         "mainApp": {
-            "ver": "3.2.2.1"
+            "ver": "3.3.0.0"
         },
         "actionApp": {
-            "ver": "3.2.2.0"
+            "ver": "3.3.0.0"
         },
         "zoneApp": {
-            "ver": "3.2.2.0"
+            "ver": "3.3.0.0"
         },
         "echoDevice": {
-            "ver": "3.2.2.1"
+            "ver": "3.3.0.0"
         },
         "wsDevice": {
             "ver": "3.2.0.1"
@@ -46,7 +46,16 @@
             "A2TOXM6L8SFS8A",
             "A2ZOTUOF1IBEYI",
             "A3NWHXTQ4EBCZS",
-            "A3TCJ8RTT3NVI7"
+            "A3TCJ8RTT3NVI7",
+            "ATH4K2BAIXVHQ",
+            "A2Y04QPFCANLPQ",
+            "A1ORT4KZ23OY88",
+            "A37M7RU8Z6ZFB",
+            "A29L394LN0I8HN",
+            "A2XPGY5LRKB9BE",
+            "A1VS6XVTGTLC00",
+            "A2C8J6UHV0KFCV"
+
         ]
     },
     "deviceFamilies": {
@@ -118,15 +127,13 @@
             "caps": [],
             "blocked": true
         },
-        "A1ORT4KZ23OY88": {
-            "name": "Unrecognized Devices",
-            "caps": [],
-            "blocked": true
-        },
-        "A1ORT4KZ23OY88": {
-            "name": "Unrecognized Devices",
-            "caps": [],
-            "blocked": true
+        "A3RBAYBE7VM004": {
+            "name": "Echo Studio",
+            "image": "echo_studio",
+            "caps": [
+                "a",
+                "t"
+            ]
         },
         "A3VRME03NAXFUB": {
             "name": "Generic Echo",
@@ -227,6 +234,14 @@
         "A4ZP7ZC4PI6TO": {
             "name": "Echo Show 5 (Gen1)",
             "image": "echo_show_5",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A1Z88NGR2BK6A2": {
+            "name": "Echo Show?",
+            "image": "echo_show_gen2",
             "caps": [
                 "a",
                 "t"
@@ -524,6 +539,14 @@
                 "t"
             ]
         },
+        "AVE5HX13UR5NO": {
+            "name": "Logitech Zero Touch",
+            "image": "logitech_zero_touch",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
         "A10L5JEZTKKCZ8": {
             "name": "Vobot Bunny",
             "image": "vobot_bunny",
@@ -566,8 +589,5 @@
                 "a"
             ]
         }
-    },
-    "note": {
-        "note": "These are unknown devices that have been blocked in the AppData file.  They will automatically be hidden from the app next time the appdata file is updated"
     }
 }

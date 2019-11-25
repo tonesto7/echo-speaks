@@ -82,7 +82,7 @@ metadata {
         command "playFunFact", ["number", "number"]
         command "playTraffic", ["number", "number"]
         command "playJoke", ["number", "number"]
-        command "playSoundByName", ["string", "number", "number"]
+        command "playSoundByName"
         command "playTellStory", ["number", "number"]
         command "sayGoodbye", ["number", "number"]
         command "sayGoodNight", ["number", "number"]
@@ -1859,6 +1859,7 @@ def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
 }
 
 def playSoundByName(String name, volume=null, restoreVolume=null) {
+    log.debug "sound name: ${name}"
     if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "sound", value: name]]
         if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
