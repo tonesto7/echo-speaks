@@ -17,14 +17,14 @@
    Zones App (v3.3.0.0)
    November 25th, 2019
  ══════════
-  • ADDED: Support for the new Sounds commands in the devices and actions.
+  • ADDED: Support for the new Sounds commands in actions.
 
  ══════════
    Echo Device (v3.3.0.0)
    November 25th, 2019
  ══════════
   • ADDED: Support for the new Sounds Command (Play built in sounds available under alexa routines).
-  • ADDED: new command playSoundByName().
+  • ADDED: new command ```playSoundByName()``` Should support any Alexa Skills Kit Sound File that starts with 'amzn_sfx_'.
 
 -------------------------------------------------
 
