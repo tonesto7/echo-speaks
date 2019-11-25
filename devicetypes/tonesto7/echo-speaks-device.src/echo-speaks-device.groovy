@@ -2442,6 +2442,7 @@ Map seqItemsAvail() {
             "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
             "dnd_duration":"2H30M", "dnd_time":"00:30",
             "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
+            "sound": "message",
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
             "announcementall": "message", "pushnotification": "message", "email": null
         ],
@@ -3074,6 +3075,47 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
                 seqNode?.type = "Alexa.CannedTts.Speak"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : [value as String, value as String]
                 seqNode?.operationPayload?.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
+                break
+            case "sound":
+                Map sounds = [
+                    // Bells and Buzzers
+                    bells: "bell_02",
+                    buzzer: "buzzers_pistols_01",
+                    church_bell: "amzn_sfx_church_bell_1x_02",
+                    doorbell1: "amzn_sfx_doorbell_01",
+                    doorbell2: "amzn_sfx_doorbell_chime_01",
+                    doorbell3: "amzn_sfx_doorbell_chime_02",
+                    // Holidays
+                    xmas_bells: "christmas_05",
+                    halloween_door: "horror_10",
+                    // Misc
+                    air_horn: "air_horn_03",
+                    boing1: "boing_01",
+                    boing2: "boing_03",
+                    camera: "camera_01",
+                    squeaky_door: "squeaky_12",
+                    ticking_clock: "clock_01",
+                    trumpet: "amzn_sfx_trumpet_bugle_04",
+                    // Animals
+                    cat: "amzn_sfx_cat_meow_1x_01",
+                    dog: "amzn_sfx_dog_med_bark_1x_02",
+                    lion: "amzn_sfx_lion_roar_02",
+                    rooster: "amzn_sfx_rooster_crow_01",
+                    wolf: "amzn_sfx_wolf_howl_02",
+                    // Scifi
+                    aircraft: "futuristic_10",
+                    engines: "amzn_sfx_scifi_engines_on_02",
+                    red_alert: "amzn_sfx_scifi_alarm_04",
+                    shields: "amzn_sfx_scifi_sheilds_up_01",
+                    sirens: "amzn_sfx_scifi_alarm_01",
+                    zap: "zap_01",
+                    // Crowds
+                    applause: "amzn_sfx_crowd_applause_01",
+                    cheer: "amzn_sfx_large_crowd_cheer_01"
+                ]
+                if(!(sounds[value])) { return null }
+                seqNode?.type = "Alexa.Sound"
+                seqNode?.operationPayload?.soundStringId = sounds[value]
                 break
             case "wait":
                 remDevSpecifics = true
