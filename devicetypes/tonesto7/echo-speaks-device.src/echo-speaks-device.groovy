@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.3.0.0" }
-String devModified() { return "2019-11-25" }
+String devModified() { return "2019-11-27" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -82,7 +82,7 @@ metadata {
         command "playFunFact", ["number", "number"]
         command "playTraffic", ["number", "number"]
         command "playJoke", ["number", "number"]
-        command "playSoundByName"
+        command "playSoundByName", ["string", "number", "number"]
         command "playTellStory", ["number", "number"]
         command "sayGoodbye", ["number", "number"]
         command "sayGoodNight", ["number", "number"]
@@ -3088,10 +3088,16 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
                 seqNode?.operationPayload?.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
                 break
             case "sound":
-                Map sounds = parent?.getAvailableSounds()
-                if(!(sounds[value])) { return null }
+                String sndName = ""
+                if(value?.startsWith("amzn_sfx_")) {
+                    sndName = value
+                } else {
+                    Map sounds = parent?.getAvailableSounds()
+                    if(!(sounds[value])) { return null }
+                    sndName = sounds[value]
+                }
                 seqNode?.type = "Alexa.Sound"
-                seqNode?.operationPayload?.soundStringId = sounds[value]
+                seqNode?.operationPayload?.soundStringId = sndName
                 break
             case "wait":
                 remDevSpecifics = true
