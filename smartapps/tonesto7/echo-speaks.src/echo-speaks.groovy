@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.2.2.1" }
-String appModified()  { return "2019-11-18" }
+String appVersion()   { return "3.3.0.0" }
+String appModified()  { return "2019-11-25" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3221, wsDevice: 3200, actionApp: 3220, zoneApp: 3220, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3300, wsDevice: 3200, actionApp: 3300, zoneApp: 3300, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -111,7 +111,6 @@ def mainPage() {
                     href "deviceManagePage", title: inTS("Manage Devices:", getAppImg("devices", true)), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
-
 
             section(sTS("Companion Apps:")) {
                 def zones = getZoneApps()
@@ -2236,6 +2235,10 @@ private getEchoDevices() {
 def echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
+    List removeCaps = [
+        "SUPPORTS_CONNECTED_HOME", "SUPPORTS_CONNECTED_HOME_ALL", "SUPPORTS_CONNECTED_HOME_CLOUD_ONLY", "ALLOW_LOG_UPLOAD", "FACTORY_RESET_DEVICE", "DIALOG_INTERFACE_VERSION",
+        "SUPPORTS_SOFTWARE_VERSION", "REQUIRES_OOBE_FOR_SETUP", "DEREGISTER DEVICE", "PAIR_REMOTE", "SET_LOCALE", "DEREGISTER_FACTORY_RESET"
+    ]
     try {
         // log.debug "json response is: ${response.json}"
         state?.deviceRefreshInProgress=false
@@ -2245,6 +2248,7 @@ def echoDevicesResponse(response, data) {
             eDevData?.each { eDevice->
                 if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.startsWith("This Device")) {
                     removeKeys?.each { rk-> eDevice?.remove(rk as String) }
+                    eDevice?.capabilities = eDevice?.capabilities?.findAll { !(it in removeCaps) }?.collect { it as String }
                     if (eDevice?.deviceOwnerCustomerId != null) { state?.deviceOwnerCustomerId = eDevice?.deviceOwnerCustomerId }
                     echoDevices[eDevice?.serialNumber] = eDevice
                 }
@@ -2256,6 +2260,15 @@ def echoDevicesResponse(response, data) {
     } catch (ex) {
         respExceptionHandler(ex, "echoDevicesResponse")
     }
+}
+
+def getUnknownDevices() {
+    List items = []
+    state?.unknownDevices?.each {
+        it?.description = "What kind of device/model?(PLEASE UPDATE THIS)"
+        if(items?.size() < 5) items?.push(it)
+    }
+    return items
 }
 
 def receiveEventData(Map evtData, String src) {
@@ -2280,6 +2293,7 @@ def receiveEventData(Map evtData, String src) {
                 Map echoDeviceMap = [:]
                 Map allEchoDevices = [:]
                 Map skippedDevices = [:]
+                List unknownDevices = []
                 List curDevFamily = []
                 Integer cnt = 0
                 String devAcctId = null
@@ -2325,6 +2339,7 @@ def receiveEventData(Map evtData, String src) {
                         }
                         return
                     }
+                    // if(isBypassBlock && familyAllowed?.reason == "Family Blocked" || isBlocked == true) { return }
 
                     echoValue["unsupported"] = (unsupportedDevice == true)
                     echoValue["authValid"] = (state?.authValid == true)
@@ -2365,6 +2380,15 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
+
+                    if(deviceStyleData?.name?.toString()?.toLowerCase()?.contains("unknown")) {
+                        unknownDevices?.push([
+                            name: echoValue?.accountName,
+                            family: echoValue?.deviceFamily,
+                            type: echoValue?.deviceType,
+                            permissions: permissions?.findAll {it?.value == true}?.collect {it?.key as String}?.join(", ")?.toString()
+                        ])
+                    }
                     // echoValue["mainAccountCommsId"] = state?.accountCommIds?.find { it?.value?.signedInUser == true && it?.value?.isChild == false }?.key as String ?: null
                     // logWarn("Device Permisions | Name: ${echoValue?.accountName} | $permissions")
 
@@ -2418,6 +2442,7 @@ def receiveEventData(Map evtData, String src) {
                 state?.allEchoDevices = allEchoDevices
                 state?.skippedDevices = skippedDevices
                 state?.deviceStyleCnts = curDevFamily?.countBy { it }
+                state?.unknownDevices = unknownDevices
             } else {
                 log.warn "No Echo Device Data Sent... This may be the first transmission from the service after it started up!"
             }
@@ -3146,6 +3171,47 @@ private getWebData(params, desc, text=true) {
     }
 }
 
+
+// TODO: https://m.media-amazon.com/images/G/01/mobile-apps/dex/ask-tech-docs/ask-soundlibrary._TTH_.json
+Map getAvailableSounds() {
+    return [
+        // Bells and Buzzer
+        bells: "bell_02",
+        buzzer: "buzzers_pistols_01",
+        church_bell: "amzn_sfx_church_bell_1x_02",
+        doorbell1: "amzn_sfx_doorbell_01",
+        doorbell2: "amzn_sfx_doorbell_chime_01",
+        doorbell3: "amzn_sfx_doorbell_chime_02",
+        // Holidays
+        xmas_bells: "christmas_05",
+        halloween_door: "horror_10",
+        // Misc
+        air_horn: "air_horn_03",
+        boing1: "boing_01",
+        boing2: "boing_03",
+        camera: "camera_01",
+        squeaky_door: "squeaky_12",
+        ticking_clock: "clock_01",
+        trumpet: "amzn_sfx_trumpet_bugle_04",
+        // Animals
+        cat_meow: "amzn_sfx_cat_meow_1x_01",
+        dog_bark: "amzn_sfx_dog_med_bark_1x_02",
+        lion_roar: "amzn_sfx_lion_roar_02",
+        rooster: "amzn_sfx_rooster_crow_01",
+        wolf_howl: "amzn_sfx_wolf_howl_02",
+        // Scifi
+        aircraft: "futuristic_10",
+        engines: "amzn_sfx_scifi_engines_on_02",
+        red_alert: "amzn_sfx_scifi_alarm_04",
+        shields: "amzn_sfx_scifi_sheilds_up_01",
+        sirens: "amzn_sfx_scifi_alarm_01",
+        zap: "zap_01",
+        // Crowds
+        applause: "amzn_sfx_crowd_applause_01",
+        cheer: "amzn_sfx_large_crowd_cheer_01"
+    ]
+}
+
 /******************************************
 |    Diagnostic Data
 *******************************************/
@@ -3747,11 +3813,7 @@ String getInputToStringDesc(inpt, addSpace = null) {
     return (str != "") ? "${str}" : null
 }
 
-def getUnknownDevices() {
-    List o = []
-    state?.echoDeviceMap?.findAll { k,v -> (v?.containsKey("style") && v?.style?.containsKey("name")) && (v?.style?.name?.toString()?.toLowerCase()?.contains("unknown")) }?.each { o?.push([type: it?.value?.type, family: it?.value?.family]) }
-    return o
-}
+
 
 def appInfoSect()	{
     Map codeVer = state?.codeVersions ?: null
@@ -3803,7 +3865,7 @@ def appInfoSect()	{
     List unkDevs = getUnknownDevices()
     if(unkDevs?.size()) {
         section() {
-            Map params = [ assignees: "tonesto7", labels: "add_device_support", projects: "echo-speaks/6", title: "[ADD DEVICE SUPPORT] (${unkDevs?.size()}) Devices", body: "Requesting device support from the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "${k}: ${v}" }?.join("\n") }?.join("\n\n")?.toString() ]
+            Map params = [ assignees: "tonesto7", labels: "add_device_support", title: "[ADD DEVICE SUPPORT] (${unkDevs?.size()}) Devices", body: "Requesting device support from the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "${k}: ${v}" }?.join("\n") }?.join("\n\n")?.toString() ]
             def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?${UrlParamBuilder(params)}"
             href url: featUrl, style: "external", required: false, title: inTS("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", getAppImg("info", true)), description: "Tap to open browser", image: getAppImg("info")
         }

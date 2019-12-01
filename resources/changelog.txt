@@ -1,4 +1,34 @@
  ══════════
+   Main App (v3.3.0.0)
+   November 25th, 2019
+ ══════════
+  • UPDATED: The unknown devices reporting to include capabilities.
+  • ADDED: Support for the new Sounds commands in the devices and actions.
+
+ ══════════
+   Action App (v3.3.0.0)
+   November 25th, 2019
+ ══════════
+  • ADDED: Support for the new Sounds Action Type (Play built in sounds available under alexa routines).
+  • FIXED: Bug that caused white screen after selecting sequence action type.
+  • FIXED: Other bug fixes.
+
+ ══════════
+   Zones App (v3.3.0.0)
+   November 25th, 2019
+ ══════════
+  • ADDED: Support for the new Sounds commands in actions.
+
+ ══════════
+   Echo Device (v3.3.0.0)
+   November 25th, 2019
+ ══════════
+  • ADDED: Support for the new Sounds Command (Play built in sounds available under alexa routines).
+  • ADDED: new command ```playSoundByName()``` Should support any Alexa Skills Kit Sound File that starts with 'amzn_sfx_'.
+
+-------------------------------------------------
+
+ ══════════
    Main App (v3.2.2.1)
    November 18th, 2019
  ══════════
