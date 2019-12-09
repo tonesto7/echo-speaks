@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.0.0" }
-String appModified() { return "2019-11-25" }
+String appVersion()  { return "3.3.0.1" }
+String appModified() { return "2019-12-07" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1647,6 +1647,10 @@ Boolean executionConfigured() {
     return (opts || devs)
 }
 
+private getLastEchoSpokenTo() {
+    return parent?.getChildDevicesByCap("TTS")?.find { (it?.currentWasLastSpokenToDevice?.toString() == "true") } ?: null
+}
+
 private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
     Boolean capOk = (type in ["TTS", "announce"])
@@ -1759,6 +1763,7 @@ def initialize() {
     runEvery1Hour("healthCheck")
     updateZoneSubscriptions() // Subscribes to Echo Speaks Zone Activation Events...
     updConfigStatusMap()
+    resumeTierJobs()
 }
 
 def updateZoneSubscriptions() {
@@ -2019,7 +2024,7 @@ def zoneStateHandler(evt) {
 def zoneRemovedHandler(evt) {
     String id = evt?.value?.toString()
     Map data = evt?.jsonData;
-    // log.trace "zone: ${id} | Data: $data"
+    log.trace "zone removed: ${id} | Data: $data"
     if(data && id) {
         Map zoneMap = atomicState?.zoneStatusMap ?: [:]
         if(zoneMap?.containsKey(id as String)) { zoneMap?.remove(id as String) }
@@ -2332,6 +2337,12 @@ def getTierStatusSection() {
         section("Tier Response Status: ") {
             paragraph pTS(str, null, false, "#2678D9"), state: "complete"
         }
+    }
+}
+
+private resumeTierJobs() {
+    if(atomicState?.actTierState?.size() && atomicState?.tierSchedActive) {
+        tierSchedHandler();
     }
 }
 
