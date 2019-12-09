@@ -1,17 +1,17 @@
 {
-    "appDataVer": "3.3",
+    "appDataVer": "3.4",
     "versions": {
         "mainApp": {
-            "ver": "3.3.0.0"
+            "ver": "3.3.0.1"
         },
         "actionApp": {
-            "ver": "3.3.0.0"
+            "ver": "3.3.0.1"
         },
         "zoneApp": {
-            "ver": "3.3.0.0"
+            "ver": "3.3.0.1"
         },
         "echoDevice": {
-            "ver": "3.3.0.0"
+            "ver": "3.3.0.1"
         },
         "wsDevice": {
             "ver": "3.2.0.1"
@@ -20,6 +20,8 @@
             "ver": "2.3.0"
         }
     },
+    "amazonDomains": ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx", "amazon.es"],
+    "locales": ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY", "es-ES"],
     "settings": {
         "sendMetrics": true,
         "database": {
@@ -54,8 +56,8 @@
             "A29L394LN0I8HN",
             "A2XPGY5LRKB9BE",
             "A1VS6XVTGTLC00",
-            "A2C8J6UHV0KFCV"
-
+            "A2C8J6UHV0KFCV",
+            "A1ZB65LA390I4K",
         ]
     },
     "deviceFamilies": {
@@ -74,7 +76,8 @@
             "REAVER",
             "FIRE_TV",
             "FIRE_TV_CUBE",
-            "ALEXA_AUTO"
+            "ALEXA_AUTO",
+            "MMSDK"
         ],
         "block": [
             "AMAZONMOBILEMUSIC_ANDROID",
@@ -109,6 +112,11 @@
         },
         "AVN2TMX8MU2YM": {
             "name": "Bose Home Speaker 500",
+            "caps": [],
+            "blocked": true
+        },
+        "A1H0CMF1XM0ZP4": {
+            "name": "Bose SoundTouch 30",
             "caps": [],
             "blocked": true
         },
@@ -407,12 +415,28 @@
                 "t"
             ]
         },
+        "A2HZENIFNYTXZD": {
+            "name": "Facebook Portal",
+            "image": "facebook_portal",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
         "A1J16TEDOYCZTN": {
             "name": "Fire Tablet",
             "image": "amazon_tablet",
             "caps": [
                 "a",
                 "t"
+            ]
+        },
+        "A2R2GLZH1DFYQO": {
+            "name": "Zolo Halo Speaker",
+            "image": "halo_speaker",
+            "caps": [
+                "t",
+                "a"
             ]
         },
         "A1M0A9L9HDBID3": {
