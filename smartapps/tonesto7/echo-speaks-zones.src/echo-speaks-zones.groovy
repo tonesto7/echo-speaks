@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.0.0" }
-String appModified() { return "2019-11-25" }
+String appVersion()  { return "3.3.0.1" }
+String appModified() { return "2019-12-07" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -194,7 +194,7 @@ def conditionsPage() {
         section (sTS("Mode Conditions")) {
             input "cond_mode", "mode", title: inTS("Location Modes...", getAppImg("mode", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("mode")
             if(settings?.cond_mode) {
-                input "cond_mode_cmd", "enum", title: inTS("are...", getAppImg("command", true)), options: ["not":"Not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+                input "cond_mode_cmd", "enum", title: inTS("are...", getAppImg("command", true)), options: ["not":"not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
             }
         }
 
@@ -730,7 +730,7 @@ def sendZoneStatus() {
 }
 
 def sendZoneRemoved() {
-    sendLocationEvent(name: "es3ZoneRemove", value: app?.getId(), data:[name: getZoneName()], isStateChange: true)
+    sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: getZoneName()], isStateChange: true)
 }
 
 def updateZoneStatus(data) {
@@ -1224,12 +1224,12 @@ String getNotifSchedDesc(min=false) {
     def str = ""
     def startLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
     def stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
-    str += (startLbl && stopLbl) ? " • Time: ${startLbl} - ${stopLbl}" : ""
+    str += (startLbl && stopLbl) ? " \u2022 Time: ${startLbl} - ${stopLbl}" : ""
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
     def qDays = getQuietDays()
-    str += days ? "${(startLbl || stopLbl) ? "\n" : ""} • Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
-    str += modes ? "${(startLbl || stopLbl || days) ? "\n" : ""} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
+    str += days ? "${(startLbl || stopLbl) ? "\n" : ""} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
+    str += modes ? "${(startLbl || stopLbl || days) ? "\n" : ""} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
     return (str != "") ? "${str}" : null
 }
 
@@ -1241,16 +1241,16 @@ String getConditionsDesc() {
         String str = "Conditions: (${(conditionStatus()?.ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
         str += settings?.cond_require_all ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
         if(timeCondConfigured()) {
-            str += " • Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
+            str += " \u2022 Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
-            str += " • Date:\n"
+            str += " \u2022 Date:\n"
             str += settings?.cond_days      ? "    - Days: (${(isDayOfWeek(settings?.cond_days)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
             str += settings?.cond_months    ? "    - Months: (${(isMonthOfYear(settings?.cond_months)) ? "${okSym()}" : "${notOkSym()}"})\n"  : ""
         }
         if(settings?.cond_alarm || settings?.cond_mode) {
-            str += " • Location: (${locationCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
+            str += " \u2022 Location: (${locationCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += settings?.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings?.cond_alarm)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
             str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
         }
@@ -1261,7 +1261,7 @@ String getConditionsDesc() {
                     if(evt in ["switch", "motion", "presence", "contact", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
 
-                    str += settings?."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+                    str += settings?."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : ""
                     def cmd = settings?."${sPre}${evt}_cmd" ?: null
                     if(cmd in ["between", "below", "above", "equals"]) {
                         def cmdLow = settings?."${sPre}${evt}_low" ?: null
@@ -1289,7 +1289,7 @@ String getZoneDesc() {
     if(devicesConfigured() && conditionsConfigured()) {
         List eDevs = parent?.getDevicesFromList(settings?.zone_EchoDevices)?.collect { it?.displayName as String }
         String str = eDevs?.size() ? "Echo Devices in Zone:\n${eDevs?.join("\n")}\n" : ""
-        str += settings?.zone_delay ? " • Delay: (${settings?.zone_delay})\n" : ""
+        str += settings?.zone_delay ? " \u2022 Delay: (${settings?.zone_delay})\n" : ""
         str += "\nTap to modify..."
         return str
     } else {
