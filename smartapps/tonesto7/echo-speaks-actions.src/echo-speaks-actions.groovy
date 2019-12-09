@@ -1498,11 +1498,12 @@ Boolean customMsgConfigured() { return (settings?.notif_use_custom && settings?.
 def actNotifPage() {
     return dynamicPage(name: "actNotifPage", title: "Action Notifications", install: false, uninstall: false) {
         section (sTS("Message Customization:")) {
-            if(customMsgRequired() && !settings?.notif_use_custom) { settingUpdate("notif_use_custom", "true", "bool") }
+            Boolean custMsgReq = customMsgRequired()
+            // if(custMsgReq && !settings?.notif_use_custom) { settingUpdate("notif_use_custom", "true", "bool") }
             paragraph pTS("When using speak and announcements you can leave this off and a notification will be sent with speech text.  For other action types a custom message is required", null, false, "gray")
-            input "notif_use_custom", "bool", title: inTS("Send a custom notification...", getAppImg("question", true)), required: false, defaultValue: customMsgRequired(), submitOnChange: true, image: getAppImg("question")
-            if(settings?.notif_use_custom) {
-                input "notif_custom_message", "text", title: inTS("Enter custom message...", getAppImg("text", true)), required: true, submitOnChange: true, image: getAppImg("text")
+            input "notif_use_custom", "bool", title: inTS("Send a custom notification...", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+            if(settings?.notif_use_custom || custMsgReq) {
+                input "notif_custom_message", "text", title: inTS("Enter custom message...", getAppImg("text", true)), required: custMsgReq, submitOnChange: true, image: getAppImg("text")
             }
         }
 
