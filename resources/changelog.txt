@@ -1,4 +1,33 @@
  ══════════
+   Main App (v3.3.0.1)
+   December 7th, 2019
+ ══════════
+  • FIXED: When zones were removed they we not being removed from Main app and actions.
+  • ADDED: Zone Maintenance section to pause/unpause all zones as well as clear all stored zone data and force all zones to report in.
+  • ADDED: new amazon.es locale and a new way to distribute new locales remotely
+
+ ══════════
+   Action App (v3.3.0.1)
+   December 7th, 2019
+ ══════════
+  • FIXED: Zone refresh bugfixes when zones where removed.
+  • FIXED: Other bug fixes.
+
+ ══════════
+   Zones App (v3.3.0.1)
+   December 7th, 2019
+ ══════════
+  • FIXED: Minor UI tweaks and zone status bugfixes.
+
+ ══════════
+   Echo Device (v3.3.0.1)
+   December 7th, 2019
+ ══════════
+  • ADDED: Icons for facebook portal.
+
+-------------------------------------------------
+
+ ══════════
    Main App (v3.3.0.0)
    November 25th, 2019
  ══════════

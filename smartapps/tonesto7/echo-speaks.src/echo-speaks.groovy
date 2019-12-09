@@ -1,7 +1,7 @@
 /**
  *  Echo Speaks SmartApp
  *
- *  Copyright 2018, 2019 Anthony Santilli
+ *  Copyright 2018, 2019, 2020 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.3.0.0" }
-String appModified()  { return "2019-11-25" }
+String appVersion()   { return "3.3.0.1" }
+String appModified()   { return "2019-12-07" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3300, wsDevice: 3200, actionApp: 3300, zoneApp: 3300, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3301, wsDevice: 3200, actionApp: 3301, zoneApp: 3301, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -519,6 +519,8 @@ public getDupZoneStateData() {
 def zonesPage() {
     return dynamicPage(name: "zonesPage", nextPage: "mainPage", uninstall: false, install: false) {
         List zApps = getZoneApps()
+        List activeZones = zApps?.findAll { it?.isPaused() != true }
+        List pausedZones = zApps?.findAll { it?.isPaused() == true }
         if(zApps) { /*Nothing to add here yet*/ }
         else {
             section("") { paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started") }
@@ -530,6 +532,22 @@ def zonesPage() {
                 if(settings?.zoneDuplicateSelect) {
                     href "zoneDuplicationPage", title: inTS("Create Duplicate Zone?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
                 }
+            }
+        }
+        if(zApps?.size()) {
+            section (sTS("Zone Management:"), hideable: true, hidden: true) {
+                if(activeZones?.size()) {
+                    input "pauseChildZones", "bool", title: inTS("Pause all Zones?", getAppImg("pause_orange", true)), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
+                            defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                    if(settings?.pauseChildZones) { settingUpdate("pauseChildZones", "false", "bool"); runIn(3, "executeZonePause"); }
+                    if(!isST()) { paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", null, false, "gray") }
+                }
+                if(pausedZones?.size()) {
+                    input "unpauseChildZone", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                    if(settings?.unpauseChildZones) { settingUpdate("unpauseChildZones", "false", "bool"); runIn(3, "executeZoneUnpause"); }
+                }
+                input "reinitChildZones", "bool", title: inTS("Clear Zones Status and force a full status refresh for all zones?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(settings?.reinitChildZones) { settingUpdate("reinitChildZones", "false", "bool"); runIn(3, "executeZoneUpdate"); }
             }
         }
         state?.childInstallOkFlag = true
@@ -546,6 +564,16 @@ private executeActionUnpause() {
 }
 private executeActionUpdate() {
     getActionApps()?.each { it?.updated() }
+}
+private executeZonePause() {
+    getZoneApps()?.findAll { it?.isPaused() != true }?.each { it?.updatePauseState(true) }
+}
+private executeZoneUnpause() {
+    getZoneApps()?.findAll { it?.isPaused() == true }?.each { it?.updatePauseState(false) }
+}
+private executeZoneUpdate() {
+    atomicState?.zoneStatusMap = [:]
+    getZoneApps()?.each { it?.updated() }
 }
 
 def devicePrefsPage() {
@@ -1266,12 +1294,17 @@ def zoneStateHandler(evt) {
 def zoneRemovedHandler(evt) {
     String id = evt?.value?.toString()
     Map data = evt?.jsonData;
-    // log.trace "zone: ${id} | Data: $data"
+    log.trace "zone removed: ${id} | Data: $data"
     if(data && id) {
         Map zoneMap = atomicState?.zoneStatusMap ?: [:]
         if(zoneMap?.containsKey(id as String)) { zoneMap?.remove(id as String) }
         atomicState?.zoneStatusMap = zoneMap
     }
+}
+
+private requestZoneRefresh() {
+    atomicState?.zoneStatusMap = [:]
+    sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true)
 }
 
 public Map getZones() {
@@ -3171,6 +3204,8 @@ private getWebData(params, desc, text=true) {
     }
 }
 
+
+// TODO: https://m.media-amazon.com/images/G/01/mobile-apps/dex/ask-tech-docs/ask-soundlibrary._TTH_.json
 Map getAvailableSounds() {
     return [
         // Bells and Buzzer
@@ -4586,8 +4621,8 @@ String getObjType(obj) {
     else { return "unknown"}
 }
 
-private List amazonDomainOpts() { return ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx"] }
-private List localeOpts() { return ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY"] }
+private List amazonDomainOpts() { return (state?.appData && state?.appData?.amazonDomains?.size()) ? state?.appData?.amazonDomains : ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx"] }
+private List localeOpts() { return (state?.appData && state?.appData?.locales?.size()) ? state?.appData?.locales : ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY"] }
 
 private getPlatform() {
     def p = "SmartThings"

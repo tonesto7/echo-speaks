@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.3.0.0" }
-String devModified() { return "2019-11-25" }
+String devVersion()  { return "3.3.0.1" }
+String devModified() { return "2019-12-07" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -82,7 +82,7 @@ metadata {
         command "playFunFact", ["number", "number"]
         command "playTraffic", ["number", "number"]
         command "playJoke", ["number", "number"]
-        command "playSoundByName"
+        command "playSoundByName", ["string", "number", "number"]
         command "playTellStory", ["number", "number"]
         command "sayGoodbye", ["number", "number"]
         command "sayGoodNight", ["number", "number"]
@@ -323,6 +323,18 @@ metadata {
             state("paused_fabriq_riff", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/fabriq_riff.png", backgroundColor: "#cccccc")
             state("playing_fabriq_riff", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/fabriq_riff.png", backgroundColor: "#00a0dc")
             state("stopped_fabriq_riff", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/fabriq_riff.png")
+
+            state("paused_facebook_portal", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/facebook_portal.png", backgroundColor: "#cccccc")
+            state("playing_facebook_portal", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/facebook_portal.png", backgroundColor: "#00a0dc")
+            state("stopped_facebook_portal", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/facebook_portal.png")
+
+            state("paused_facebook_portal_plus", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/facebook_portal_plus.png", backgroundColor: "#cccccc")
+            state("playing_facebook_portal_plus", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/facebook_portal_plus.png", backgroundColor: "#00a0dc")
+            state("stopped_facebook_portal_plus", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/facebook_portal_plus.png")
+
+            state("paused_halo_speaker", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/halo_speaker.png", backgroundColor: "#cccccc")
+            state("playing_halo_speaker", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/halo_speaker.png", backgroundColor: "#00a0dc")
+            state("stopped_halo_speaker", label:"Stopped", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/halo_speaker.png")
 
             state("paused_lenovo_smarttab_m10", label:"Paused", action:"music Player.play", nextState: "playing", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/lenovo_smarttab_m10.png", backgroundColor: "#cccccc")
             state("playing_lenovo_smarttab_m10", label:"Playing", action:"music Player.pause", nextState: "paused", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/lenovo_smarttab_m10.png", backgroundColor: "#00a0dc")
@@ -3088,10 +3100,16 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
                 seqNode?.operationPayload?.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
                 break
             case "sound":
-                Map sounds = parent?.getAvailableSounds()
-                if(!(sounds[value])) { return null }
+                String sndName = ""
+                if(value?.startsWith("amzn_sfx_")) {
+                    sndName = value
+                } else {
+                    Map sounds = parent?.getAvailableSounds()
+                    if(!(sounds[value])) { return null }
+                    sndName = sounds[value]
+                }
                 seqNode?.type = "Alexa.Sound"
-                seqNode?.operationPayload?.soundStringId = sounds[value]
+                seqNode?.operationPayload?.soundStringId = sndName
                 break
             case "wait":
                 remDevSpecifics = true
