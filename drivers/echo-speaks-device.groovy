@@ -23,7 +23,7 @@ metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
         // capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
-        // capability "Audio Track Data" // To support SharpTools.io Album Art feature
+        // capability "Audio Track Data" // Not Compatible with Hubitat
         capability "Audio Volume"
         capability "Music Player"
         capability "Notification"
@@ -63,6 +63,8 @@ metadata {
         attribute "wakeWords", "enum"
         attribute "wifiNetwork", "string"
         attribute "wasLastSpokenToDevice", "string"
+	    
+	attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
 
         command "playText", ["string"] //This command is deprecated in ST but will work
         command "playTextAndResume"
