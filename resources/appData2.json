@@ -2,13 +2,13 @@
     "appDataVer": "3.4",
     "versions": {
         "mainApp": {
-            "ver": "3.3.0.1"
+            "ver": "3.3.1.0"
         },
         "actionApp": {
-            "ver": "3.3.0.1"
+            "ver": "3.3.1.0"
         },
         "zoneApp": {
-            "ver": "3.3.0.1"
+            "ver": "3.3.1.0"
         },
         "echoDevice": {
             "ver": "3.3.0.1"
@@ -57,7 +57,10 @@
             "A2XPGY5LRKB9BE",
             "A1VS6XVTGTLC00",
             "A2C8J6UHV0KFCV",
-            "A1ZB65LA390I4K"
+            "A1ZB65LA390I4K",
+            "A21X6I4DKINIZU",
+            "A112LJ20W14H95",
+            "A81PNL0A63P93"
         ]
     },
     "deviceFamilies": {
@@ -83,6 +86,7 @@
             "AMAZONMOBILEMUSIC_ANDROID",
             "AMAZONMOBILEMUSIC_IOS",
             "TBIRD_IOS",
+            "TBIRD_ANDROID",
             "VOX",
             "MSHOP"
         ]
@@ -481,6 +485,11 @@
             "caps": []
         },
         "A2OSP3UA4VC85F": {
+            "name": "Sonos",
+            "image": "sonos_generic",
+            "caps": []
+        },
+        "AVD3HM0HOJAAL": {
             "name": "Sonos",
             "image": "sonos_generic",
             "caps": []

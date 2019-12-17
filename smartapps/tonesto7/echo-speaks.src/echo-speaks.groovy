@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.3.0.2" }
+String appVersion()   { return "3.3.1.0" }
 String appModified()   { return "2019-12-17" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3301, wsDevice: 3200, actionApp: 3301, zoneApp: 3301, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3301, wsDevice: 3200, actionApp: 3310, zoneApp: 3310, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -1950,7 +1950,9 @@ public getAlexaRoutines(autoId=null, utterOnly=false) {
                     Integer cnt = 1
                     if(rtResp?.size()) {
                         rtResp?.findAll { it?.status == "ENABLED" }?.each { item->
-                            if(utterOnly) {
+                            if(item?.name != null) {
+                                items[item?.automationId] = item?.name
+                            } else {
                                 if(item?.triggers?.size()) {
                                     item?.triggers?.each { trg->
                                         if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
@@ -1961,8 +1963,6 @@ public getAlexaRoutines(autoId=null, utterOnly=false) {
                                         }
                                     }
                                 }
-                            } else {
-                                items[item?.automationId] = item?.name
                             }
                         }
                     }
@@ -4126,7 +4126,8 @@ def renderTextEditPage() {
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Date" data-ssml="evtdate">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Time" data-ssml="evttime">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Date/Time" data-ssml="evtdatetime">
-                                                                <input class="ssml-button" type="button" unselectable="on" value="Duration" data-ssml="evtduration">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Duration (Seconds)" data-ssml="evtduration">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Duration (Minutes)" data-ssml="evtdurationmin">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -4577,6 +4578,9 @@ def renderTextEditPage() {
                                     break;
                                 case 'evtduration':
                                     insertSsml(editor, '%duration%', false);
+                                    break;
+                                case 'evtdurationmin':
+                                    insertSsml(editor, '%duration_min%', false);
                                     break;
                                 default:
                                     break;

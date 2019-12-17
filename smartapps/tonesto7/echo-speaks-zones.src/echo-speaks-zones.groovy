@@ -14,7 +14,7 @@
  *
  */
 
-String appVersion()  { return "3.3.0.2" }
+String appVersion()  { return "3.3.1.0" }
 String appModified() { return "2019-12-17" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
@@ -201,7 +201,7 @@ def conditionsPage() {
         Boolean multiConds = multipleConditions()
         if(multiConds) {
             section() {
-                input "cond_require_all", "bool", title: inTS("Require All Conditions to met?", getAppImg("checkbox", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("checkbox")
+                input "cond_require_all", "bool", title: inTS("Require All Selected Conditions to Pass Before Activating Zone?", getAppImg("checkbox", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("checkbox")
                 paragraph pTS("Notice:\n${settings?.cond_require_all != false ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
             }
         }
@@ -229,6 +229,8 @@ def conditionsPage() {
         condNonNumSect("presence", "presenceSensor", "Presence Conditions", "Presence Sensors", ["present", "not present"], "are", "presence")
 
         condNonNumSect("contact", "contactSensor", "Door, Window, Contact Sensors Conditions", "Contact Sensors",  ["open","closed"], "are", "contact")
+
+        condNonNumSect("acceleration", "accelerationSensor", "Accelorometer Conditions", "Accelorometer Sensors", ["active","inactive"], "are", "acceleration")
 
         condNonNumSect("lock", "lock", "Lock Conditions", "Smart Locks", ["locked", "unlocked"], "are", "lock")
 
@@ -510,7 +512,7 @@ private subscribeToEvts() {
     if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
     state?.handleGuardEvents = false
-    List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "shade", "valve", "door", "contact", "switch", "battery", "level"]
+    List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "shade", "valve", "door", "contact", "acceleration", "switch", "battery", "level"]
 
     //SCHEDULING
     if (settings?.cond_time_start_type) {
@@ -643,6 +645,7 @@ Boolean deviceCondOk() {
     Boolean motDevOk = checkDeviceCondOk("motion")
     Boolean presDevOk = checkDeviceCondOk("presence")
     Boolean conDevOk = checkDeviceCondOk("contact")
+    Boolean accDevOk = checkDeviceCondOk("acceleration")
     Boolean lockDevOk = checkDeviceCondOk("lock")
     Boolean garDevOk = checkDeviceCondOk("door")
     Boolean shadeDevOk = checkDeviceCondOk("shade")
@@ -653,8 +656,12 @@ Boolean deviceCondOk() {
     Boolean levelDevOk = checkDeviceNumCondOk("level")
     Boolean powerDevOk = checkDeviceNumCondOk("illuminance")
     Boolean battDevOk = checkDeviceNumCondOk("battery")
-    logDebug("checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | lockOk: $lockDevOk | garageOk: $garDevOk")
-    return (swDevOk && motDevOk && presDevOk && conDevOk && lockDevOk && garDevOk && valveDevOk && shadeDevOk && tempDevOk && humDevOk && battDevOk && illDevOk && levelDevOk && powerDevOk)
+    logDebug("checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | accelerationOk: $accDevOk | lockOk: $lockDevOk | garageOk: $garDevOk")
+    if(settings?.cond_require_all == false) {
+        return (swDevOk || motDevOk || presDevOk || conDevOk || accDevOk || lockDevOk || garDevOk || valveDevOk || shadeDevOk || tempDevOk || humDevOk || battDevOk || illDevOk || levelDevOk || powerDevOk)
+    } else {
+        return (swDevOk && motDevOk && presDevOk && conDevOk && accDevOk && lockDevOk && garDevOk && valveDevOk && shadeDevOk && tempDevOk && humDevOk && battDevOk && illDevOk && levelDevOk && powerDevOk)
+    }
 }
 
 def conditionStatus() {
@@ -697,14 +704,14 @@ Boolean locationCondConfigured() {
 }
 
 Boolean deviceCondConfigured() {
-    List devConds = ["switch", "motion", "presence", "contact", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+    List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
     List items = []
     devConds?.each { dc-> if(devCondConfigured(dc)) { items?.push(dc) } }
     return (items?.size() > 0)
 }
 
 Integer deviceCondCount() {
-    List devConds = ["switch", "motion", "presence", "contact", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+    List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
     List items = []
     devConds?.each { dc-> if(devCondConfigured(dc)) { items?.push(dc) } }
     return items?.size() ?: 0
@@ -1307,10 +1314,10 @@ String getConditionsDesc() {
             str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
         }
         if(deviceCondConfigured()) {
-            ["switch", "motion", "presence", "contact", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
+            ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
                 if(devCondConfigured(evt)) {
                     def condOk = false
-                    if(evt in ["switch", "motion", "presence", "contact", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
+                    if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
 
                     str += settings?."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : ""
@@ -1630,6 +1637,7 @@ public getDuplSettingData() {
             time: ["_time_start", "_time_stop", "_scheduled_time"]
         ],
         caps: [
+            _acceleration: "accelerationSensor",
             _battery: "battery",
             _contact: "contactSensor",
             _door: "garageDoorControl",
