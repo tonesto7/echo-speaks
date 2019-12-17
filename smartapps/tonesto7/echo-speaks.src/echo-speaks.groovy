@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()   { return "3.3.0.1" }
-String appModified()   { return "2019-12-07" }
+String appVersion()   { return "3.3.0.2" }
+String appModified()   { return "2019-12-17" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -60,6 +60,7 @@ preferences {
     page(name: "speechPage")
     page(name: "announcePage")
     page(name: "sequencePage")
+    page(name: "viewZoneHistory")
     page(name: "setNotificationTimePage")
     page(name: "actionDuplicationPage")
     page(name: "zoneDuplicationPage")
@@ -535,6 +536,9 @@ def zonesPage() {
             }
         }
         if(zApps?.size()) {
+            section (sTS("Zone History:")) {
+                href "viewZoneHistory", title: inTS("View Zone History", getAppImg("tasks", true)), description: "(Grouped by Zone)", image: getAppImg("tasks"), state: "complete"
+            }
             section (sTS("Zone Management:"), hideable: true, hidden: true) {
                 if(activeZones?.size()) {
                     input "pauseChildZones", "bool", title: inTS("Pause all Zones?", getAppImg("pause_orange", true)), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
@@ -553,6 +557,20 @@ def zonesPage() {
         state?.childInstallOkFlag = true
         state?.zoneDuplicated = false
         updateZoneSubscriptions()
+    }
+}
+
+def viewZoneHistory() {
+    return dynamicPage(name: "viewZoneHistory", uninstall: false, install: false) {
+        List zApps = getZoneApps()
+        zApps?.each { z->
+            section(z?.getLabel()) {
+                List items = z?.getZoneHistory(true) ?: []
+                items?.each { item->
+                    paragraph item as String
+                }
+            }
+        }
     }
 }
 

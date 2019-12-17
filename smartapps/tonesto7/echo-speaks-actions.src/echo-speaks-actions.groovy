@@ -1,7 +1,7 @@
 /**
  *  Echo Speaks Actions
  *
- *  Copyright 2018, 2019 Anthony Santilli
+ *  Copyright 2018, 2019, 2020 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.0.1" }
-String appModified() { return "2019-12-07" }
+String appVersion()  { return "3.3.0.2" }
+String appModified() { return "2019-12-17" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }

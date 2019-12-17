@@ -1,7 +1,7 @@
 /**
  *  Echo Speaks - Zones
  *
- *  Copyright 2018, 2019 Anthony Santilli
+ *  Copyright 2018, 2019, 2020 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.0.1" }
-String appModified() { return "2019-12-07" }
+String appVersion()  { return "3.3.0.2" }
+String appModified() { return "2019-12-17" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -43,6 +43,7 @@ preferences {
     page(name: "condTimePage")
     page(name: "zoneNotifPage")
     page(name: "zoneNotifTimePage")
+    page(name: "zoneHistoryPage")
     page(name: "uninstallPage")
     page(name: "namePage")
 }
@@ -118,6 +119,11 @@ def mainPage() {
                 }
             }
         }
+
+        section(sTS("Zone History")) {
+            href "zoneHistoryPage", title: inTS("View Zone History", getAppImg("tasks", true)), description: "", image: getAppImg("tasks")
+        }
+
         section(sTS("Preferences")) {
             href "prefsPage", title: inTS("Logging Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
             if(state?.isInstalled) {
@@ -142,6 +148,20 @@ private echoDevicesInputByPerm(type) {
         def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == "true")]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
         input "zone_EchoDevices", "enum", title: inTS("Echo Devices in Zone", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : ""}"] }, multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
     } else { paragraph "No devices were found with support for ($type)"}
+}
+
+def zoneHistoryPage() {
+    return dynamicPage(name: "zoneHistoryPage", install: false, uninstall: false) {
+        section() {
+            getZoneHistory()
+        }
+        if(atomicState?.zoneHistory?.size()) {
+            section("") {
+                input "clearZoneHistory", "bool", title: inTS("Clear Zone History?", getAppImg("reset", true)), description: "Clears Stored Zone History.", defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(settings?.clearZoneHistory) { settingUpdate("clearZoneHistory", "false", "bool"); atomicState?.zoneHistory = []; }
+            }
+        }
+    }
 }
 
 def prefsPage() {
@@ -646,7 +666,7 @@ def conditionStatus() {
     if(!locationCondOk())    { blocks?.push("location") } else { ok?.push("location") }
     if(!deviceCondOk())      { blocks?.push("device") } else { ok?.push("device") }
     logDebug("ConditionsStatus | RequireAll: ${reqAll} | Blocks: ${blocks}")
-    return [ok: (!reqAll ? (ok?.size() >= 1) : (blocks?.size() == 0)), blocks: blocks]
+    return [ok: (!reqAll ? (ok?.size() >= 1) : (blocks?.size() == 0)), passed: ok, blocks: blocks]
 }
 
 Boolean devCondConfigured(type) {
@@ -708,19 +728,27 @@ Boolean multipleConditions() {
 ************************************************************************************************************/
 
 def zoneEvtHandler(evt) {
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms | Zone Conditions: (${condOk?.ok ? okSym() : notOkSym()})${condOk?.blocks?.size() ? " Blocks: ${condOk?.blocks}" : ""}")
-    sendZoneStatus()
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    checkZoneStatus(evt)
 }
 
-def checkZoneStatus() {
+private addToZoneHistory(evt, condStatus, Integer max=10) {
+    Boolean ssOk = (stateSizePerc() > 70)
+    List eData = atomicState?.zoneHistory ?: []
+    eData.push([dt: getDtNow(), active: (condStatus?.ok == true), evtName: evt?.name, evtDevice: evt?.displayName, blocks: condStatus?.blocks, passed: condStatus?.passed])
+    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
+    atomicState?.zoneHistory = eData
+}
+
+def checkZoneStatus(evtName) {
     Map condStatus = conditionStatus()
     Boolean active = (condStatus?.ok == true)
     Integer delay = null
     if(active) { delay = settings?.zone_active_delay ?: null }
     else { delay = settings?.zone_inactive_delay ?: null }
     if(delay) {
-        runIn(delay as Integer, "updateZoneStatus", [data: [active: active, recheck: true]])
-    } else { updateZoneStatus([data: [active: active, recheck: false]]) }
+        runIn(delay as Integer, "updateZoneStatus", [data: [active: active, recheck: true, evtName: evtName, condStatus: condStatus]])
+    } else { updateZoneStatus([active: active, recheck: false, evtName: evtName, condStatus: condStatus]) }
 }
 
 def sendZoneStatus() {
@@ -735,11 +763,15 @@ def sendZoneRemoved() {
 
 def updateZoneStatus(data) {
     Boolean active = (data?.active == true)
-    if(data?.recheck == true) { active = (conditionStatus()?.ok == true) }
+    Map condStatus = data?.condStatus ?: null
+    if(data?.recheck == true) {
+        condStatus = conditionStatus()
+        active = (condStatus?.ok == true) }
     if(state?.zoneConditionsOk != active) {
         log.debug("Updating Zone Status to (${active ? "Active" : "Inactive"})... ${getZoneName()}")
         state?.zoneConditionsOk = active
-        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true)
+        addToZoneHistory(data?.evtName, condStatus)
+        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: [ name: getZoneName(), active: active ], isStateChange: true)
         if(isZoneNotifConfigured()) {
             Boolean ok2Send = true
             String msgTxt = null
@@ -760,6 +792,26 @@ def updateZoneStatus(data) {
             if(settings?.zone_inactive_switches_on) settings?.zone_inactive_switches_on?.on()
         }
     }
+}
+
+public getZoneHistory(asList=false) {
+    List zHist = atomicState?.zoneHistory ?: []
+    List output = []
+    if(zHist?.size()) {
+        zHist?.each { h->
+            String str = ""
+            str += "Trigger: [${h?.evtName}]"
+            str += "\nDevice: [${h?.evtDevice}]"
+            str += "\nZone Status: ${h?.active ? "Activate" : "Deactivate"}"
+            str += "\nDateTime: ${h?.dt}"
+            str += "\nConditions Passed: ${h?.passed}"
+            str += "\nConditions Blocks: ${h?.blocks}"
+            output?.push(str)
+        }
+    } else { output?.push("No History Items Found...") }
+    if(!asList) {
+        output?.each { paragraph it as String }
+    } else { return output }
 }
 
 Map getZoneDevices() {
