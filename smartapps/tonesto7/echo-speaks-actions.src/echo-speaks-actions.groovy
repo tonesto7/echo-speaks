@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.1.0" }
-String appModified() { return "2019-12-17" }
+String appVersion()  { return "3.3.1.1" }
+String appModified() { return "2019-12-19" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -2669,39 +2669,38 @@ Boolean checkDeviceNumCondOk(type) {
 }
 
 Boolean deviceCondOk() {
-    Boolean swDevOk = checkDeviceCondOk("switch")
-    Boolean motDevOk = checkDeviceCondOk("motion")
-    Boolean presDevOk = checkDeviceCondOk("presence")
-    Boolean conDevOk = checkDeviceCondOk("contact")
-    Boolean accDevOk = checkDeviceCondOk("acceleration")
-    Boolean lockDevOk = checkDeviceCondOk("lock")
-    Boolean garDevOk = checkDeviceCondOk("door")
-    Boolean shadeDevOk = checkDeviceCondOk("shade")
-    Boolean valveDevOk = checkDeviceCondOk("valve")
-    Boolean tempDevOk = checkDeviceNumCondOk("temperature")
-    Boolean humDevOk = checkDeviceNumCondOk("humidity")
-    Boolean illDevOk = checkDeviceNumCondOk("illuminance")
-    Boolean levelDevOk = checkDeviceNumCondOk("level")
-    Boolean powerDevOk = checkDeviceNumCondOk("illuminance")
-    Boolean battDevOk = checkDeviceNumCondOk("battery")
-    logDebug("deviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk || accelerationOk: $accDevOk | lockOk: $lockDevOk | garageOk: $garDevOk")
-    if(settings?.cond_require_all == false) {
-        return (swDevOk || motDevOk || presDevOk || conDevOk || accDevOk || lockDevOk || garDevOk || valveDevOk || shadeDevOk || tempDevOk || humDevOk || battDevOk || illDevOk || levelDevOk || powerDevOk)
-    } else {
-        return (swDevOk && motDevOk && presDevOk && conDevOk && accDevOk && lockDevOk && garDevOk && valveDevOk && shadeDevOk && tempDevOk && humDevOk && battDevOk && illDevOk && levelDevOk && powerDevOk)
+    List skipped = []
+    List passed = []
+    List failed = []
+    ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.each { i->
+        if(!settings?."cond_${i}") { skipped?.push(i); return; }
+        checkDeviceCondOk(i) ? passed?.push(i) : failed?.push(i);
     }
+    ["temperature", "humidity", "illuminance", "level", "power", "battery"]?.each { i->
+        if(!settings?."cond_${i}") { skipped?.push(i); return; }
+        checkDeviceNumCondOk(i) ? passed?.push(i) : failed?.push(i);
+    }
+    logDebug("DeviceCondOk | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    Integer cndSize = (passed?.size() + failed?.size())
+    if(cndSize == 0) return null
+    return (settings?.cond_require_all == true) ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
 }
 
 def conditionStatus() {
-    Boolean reqAll = (settings?.cond_require_all != false)
-    List blocks = []
-    List ok = []
-    if(!timeCondOk())        { blocks?.push("time") } else { ok?.push("time") }
-    if(!dateCondOk())        { blocks?.push("date") } else { ok?.push("date") }
-    if(!locationCondOk())    { blocks?.push("location") } else { ok?.push("location") }
-    if(!deviceCondOk())      { blocks?.push("device") } else { ok?.push("device") }
-    logDebug("ConditionsStatus | RequireAll: ${reqAll} | Blocks: ${blocks}")
-    return [ok: (!reqAll ? (ok?.size() >= 1) : (blocks?.size() == 0)), blocks: blocks]
+    Boolean reqAll = (settings?.cond_require_all == true)
+    List failed = []
+    List passed = []
+    List skipped = []
+    ["time", "date", "location", "device"]?.each { i->
+        def s = "${i}CondOk"()
+        if(s == null) { skipped?.push(i); return; }
+        s ? passed?.push(i) : failed?.push(i);
+    }
+    Integer cndSize = (passed?.size() + failed?.size())
+    logDebug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    Boolean ok = reqAll ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
+    if(cndSize == 0) ok = true;
+    return [ok: ok, passed: passed, blocks: failed]
 }
 
 Boolean devCondConfigured(type) {
