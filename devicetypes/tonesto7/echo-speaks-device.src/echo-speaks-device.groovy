@@ -1287,7 +1287,7 @@ private execAsyncCmd(String method, String callbackHandler, Map params, Map othe
     }
 }
 
-private sendAmazonCommand(String method, Map params, Map otherData=null) {
+private String sendAmazonCommand(String method, Map params, Map otherData=null) {
     try {
         def rData = null
         def rStatus = null
@@ -1316,6 +1316,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
             triggerDataRrsh()
         } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
         logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+	return rData?.id
     } catch (ex) {
         respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
     }
@@ -2154,22 +2155,40 @@ def createReminder(String remLbl, String remDate, String remTime) {
 }
 
 def removeNotification(String id) {
+    id = generateNotificationKey(id)
     logTrace("removeNotification($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
-            sendAmazonCommand("DELETE", [
-                uri: getAmazonUrl(),
-                path: "/api/notifications/${id}",
-                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-                contentType: "application/json",
-                body: []
-            ], [cmdDesc: "RemoveNotification"])
-            incrementCntByKey("use_cnt_removeNotification")
+	    String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[id]
+            if (translatedID) {
+		    sendAmazonCommand("DELETE", [
+			uri: getAmazonUrl(),
+			path: "/api/notifications/${id}",
+			headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+			contentType: "application/json",
+			body: []
+		    ], [cmdDesc: "RemoveNotification"])
+		    incrementCntByKey("use_cnt_removeNotification")
+	    }
+            else { logWarn("removeNotification could not find translated ID for ${id}", true) }
         } else { logWarn("removeNotification is Missing the Required (id) Parameter!!!", true) }
     }
 }
 
+private String generateNotificationKey(id) {
+	return id?.toString()?.replaceAll(" ", "")
+}
+
 private createNotification(type, options) {
+    String notifKey = generateNotificationKey(options?.label)
+	if (notifKey) {
+    	String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[notifKey]
+        if (translatedID) {
+        	logWarn("createNotification found existing notification named ${notifKey}, removing that first")
+            removeNotification(notifKey)
+        }
+    }
+	
     def now = new Date()
     def createdDate = now.getTime()
     def addSeconds = new Date(createdDate + 1 * 60000);
@@ -2185,7 +2204,7 @@ private createNotification(type, options) {
             status: "ON",
             alarmTime: alarmTime,
             createdDate: createdDate,
-            originalTime: type != "Timer" ? "${options?.time}:00.000" : null,
+            originalTime: type != "Timer" ? "${options?.time}.000" : null,
             originalDate: type != "Timer" ? options?.date : null,
             timeZoneId: null,
             reminderIndex: null,
@@ -2206,7 +2225,13 @@ private createNotification(type, options) {
             remainingDuration: type != "Timer" ? 0 : options?.timerDuration
         ]
     ]
-    sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+    String id = sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+    if (notifKey) {
+    	if (state?.containsKey("createdNotifications"))
+        	state.createdNotifications[notifKey] = id
+        else
+        	state.createdNotifications=[notifKey:id]
+    }
 }
 
 def renameDevice(newName) {
@@ -2564,7 +2589,7 @@ private stateCleanup() {
     if(state?.lastVolume) { state?.oldVolume = state?.lastVolume }
     List items = ["qBlocked", "qCmdCycleCnt", "useThisVolume", "lastVolume", "lastQueueCheckDt", "loopChkCnt", "speakingNow",
         "cmdQueueWorking", "firstCmdFlag", "recheckScheduled", "cmdQIndexNum", "curMsgLen", "lastTtsCmdDelay",
-        "lastQueueMsg", "lastTtsMsg"
+        "lastQueueMsg", "lastTtsMsg", "createdNotifications"
     ]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
 }
