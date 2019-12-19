@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.1.0" }
-String appModified() { return "2019-12-17" }
+String appVersion()  { return "3.3.1.1" }
+String appModified() { return "2019-12-19" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -201,8 +201,8 @@ def conditionsPage() {
         Boolean multiConds = multipleConditions()
         if(multiConds) {
             section() {
-                input "cond_require_all", "bool", title: inTS("Require All Selected Conditions to Pass Before Activating Zone?", getAppImg("checkbox", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("checkbox")
-                paragraph pTS("Notice:\n${settings?.cond_require_all != false ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
+                input "cond_require_all", "bool", title: inTS("Require All Selected Conditions to Pass Before Activating Zone?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+                paragraph pTS("Notice:\n${cond_require_all == true ? "All selected conditions required to make zone active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
             }
         }
         section(sTS("Time/Date")) {
@@ -568,7 +568,7 @@ Boolean timeCondOk() {
         if(settings?.cond_time_stop_type == "sunset") { stopTime = sun?.sunset }
         else if(settings?.cond_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
         else if(settings?.cond_time_stop_type == "time" && settings?.cond_time_stop) { stopTime = settings?.cond_time_stop }
-    } else { return true }
+    } else { return null }
     if(startTime && stopTime) {
         if(!isST()) {
             startTime = toDateTime(startTime)
@@ -579,13 +579,15 @@ Boolean timeCondOk() {
 }
 
 Boolean dateCondOk() {
+    if(!settings?.cond_days || settings?.cond_months) return null;
     Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : true
     Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : true
     return (dOk && mOk)
 }
 
 Boolean locationCondOk() {
-    Boolean mOk = (settings?.cond_mode && settings?.cond_mode_cmd) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
+    if(!(settings?.cond_mode && settings?.cond_mode) && !settings?.cond_alarm) return null;
+    Boolean mOk = (settings?.cond_mode && settings?.cond_mode) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
     Boolean aOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
     logDebug("locationCondOk | modeOk: $mOk | alarmOk: $aOk")
     return (mOk && aOk)
@@ -641,39 +643,37 @@ Boolean checkDeviceNumCondOk(type) {
 }
 
 Boolean deviceCondOk() {
-    Boolean swDevOk = checkDeviceCondOk("switch")
-    Boolean motDevOk = checkDeviceCondOk("motion")
-    Boolean presDevOk = checkDeviceCondOk("presence")
-    Boolean conDevOk = checkDeviceCondOk("contact")
-    Boolean accDevOk = checkDeviceCondOk("acceleration")
-    Boolean lockDevOk = checkDeviceCondOk("lock")
-    Boolean garDevOk = checkDeviceCondOk("door")
-    Boolean shadeDevOk = checkDeviceCondOk("shade")
-    Boolean valveDevOk = checkDeviceCondOk("valve")
-    Boolean tempDevOk = checkDeviceNumCondOk("temperature")
-    Boolean humDevOk = checkDeviceNumCondOk("humidity")
-    Boolean illDevOk = checkDeviceNumCondOk("illuminance")
-    Boolean levelDevOk = checkDeviceNumCondOk("level")
-    Boolean powerDevOk = checkDeviceNumCondOk("illuminance")
-    Boolean battDevOk = checkDeviceNumCondOk("battery")
-    logDebug("checkDeviceCondOk | switchOk: $swDevOk | motionOk: $motDevOk | presenceOk: $presDevOk | contactOk: $conDevOk | accelerationOk: $accDevOk | lockOk: $lockDevOk | garageOk: $garDevOk")
-    if(settings?.cond_require_all == false) {
-        return (swDevOk || motDevOk || presDevOk || conDevOk || accDevOk || lockDevOk || garDevOk || valveDevOk || shadeDevOk || tempDevOk || humDevOk || battDevOk || illDevOk || levelDevOk || powerDevOk)
-    } else {
-        return (swDevOk && motDevOk && presDevOk && conDevOk && accDevOk && lockDevOk && garDevOk && valveDevOk && shadeDevOk && tempDevOk && humDevOk && battDevOk && illDevOk && levelDevOk && powerDevOk)
+    List skipped = []
+    List passed = []
+    List failed = []
+    ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.each { i->
+        if(!settings?."cond_${i}") { skipped?.push(i); return; }
+        checkDeviceCondOk(i) ? passed?.push(i) : failed?.push(i);
     }
+    ["temperature", "humidity", "illuminance", "level", "power", "battery"]?.each { i->
+        if(!settings?."cond_${i}") { skipped?.push(i); return; }
+        checkDeviceNumCondOk(i) ? passed?.push(i) : failed?.push(i);
+    }
+    logDebug("DeviceCondOk | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    Integer cndSize = (passed?.size() + failed?.size())
+    if(cndSize == 0) return null
+    return (settings?.cond_require_all == true) ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
 }
 
 def conditionStatus() {
-    Boolean reqAll = (settings?.cond_require_all != false)
-    List blocks = []
-    List ok = []
-    if(!timeCondOk())        { blocks?.push("time") } else { ok?.push("time") }
-    if(!dateCondOk())        { blocks?.push("date") } else { ok?.push("date") }
-    if(!locationCondOk())    { blocks?.push("location") } else { ok?.push("location") }
-    if(!deviceCondOk())      { blocks?.push("device") } else { ok?.push("device") }
-    logDebug("ConditionsStatus | RequireAll: ${reqAll} | Blocks: ${blocks}")
-    return [ok: (!reqAll ? (ok?.size() >= 1) : (blocks?.size() == 0)), passed: ok, blocks: blocks]
+    Boolean reqAll = (settings?.cond_require_all == true)
+    List failed = []
+    List passed = []
+    List skipped = []
+    ["time", "date", "location", "device"]?.each { i->
+        def s = "${i}CondOk"()
+        if(s == null) { skipped?.push(i); return; }
+        s ? passed?.push(i) : failed?.push(i);
+    }
+    Integer cndSize = (passed?.size() + failed?.size())
+    logDebug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    Boolean ok = reqAll ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
+    return [ok: ok, passed: passed, blocks: failed]
 }
 
 Boolean devCondConfigured(type) {
@@ -1298,7 +1298,7 @@ String getConditionsDesc() {
     String sPre = "cond_"
     if(confd) {
         String str = "Conditions: (${(conditionStatus()?.ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
-        str += settings?.cond_require_all ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
+        str += (settings?.cond_require_all == false) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
         if(timeCondConfigured()) {
             str += " \u2022 Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
