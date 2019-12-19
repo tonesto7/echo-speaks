@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.3.1.0" }
-String appModified()   { return "2019-12-17" }
+String appVersion()   { return "3.3.1.1" }
+String appModified()   { return "2019-12-19" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3301, wsDevice: 3200, actionApp: 3310, zoneApp: 3310, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3301, wsDevice: 3200, actionApp: 3311, zoneApp: 3311, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -539,20 +539,20 @@ def zonesPage() {
             section (sTS("Zone History:")) {
                 href "viewZoneHistory", title: inTS("View Zone History", getAppImg("tasks", true)), description: "(Grouped by Zone)", image: getAppImg("tasks"), state: "complete"
             }
-            section (sTS("Zone Management:"), hideable: true, hidden: true) {
-                if(activeZones?.size()) {
-                    input "pauseChildZones", "bool", title: inTS("Pause all Zones?", getAppImg("pause_orange", true)), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
-                            defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
-                    if(settings?.pauseChildZones) { settingUpdate("pauseChildZones", "false", "bool"); runIn(3, "executeZonePause"); }
-                    if(!isST()) { paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", null, false, "gray") }
-                }
-                if(pausedZones?.size()) {
-                    input "unpauseChildZone", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
-                    if(settings?.unpauseChildZones) { settingUpdate("unpauseChildZones", "false", "bool"); runIn(3, "executeZoneUnpause"); }
-                }
-                input "reinitChildZones", "bool", title: inTS("Clear Zones Status and force a full status refresh for all zones?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.reinitChildZones) { settingUpdate("reinitChildZones", "false", "bool"); runIn(3, "executeZoneUpdate"); }
+        }
+        section (sTS("Zone Management:"), hideable: true, hidden: true) {
+            if(activeZones?.size()) {
+                input "pauseChildZones", "bool", title: inTS("Pause all Zones?", getAppImg("pause_orange", true)), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
+                        defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                if(settings?.pauseChildZones) { settingUpdate("pauseChildZones", "false", "bool"); runIn(3, "executeZonePause"); }
+                if(!isST()) { paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", null, false, "gray") }
             }
+            if(pausedZones?.size()) {
+                input "unpauseChildZone", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                if(settings?.unpauseChildZones) { settingUpdate("unpauseChildZones", "false", "bool"); runIn(3, "executeZoneUnpause"); }
+            }
+            input "reinitChildZones", "bool", title: inTS("Clear Zones Status and force a full status refresh for all zones?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+            if(settings?.reinitChildZones) { settingUpdate("reinitChildZones", "false", "bool"); runIn(3, "executeZoneUpdate"); }
         }
         state?.childInstallOkFlag = true
         state?.zoneDuplicated = false
