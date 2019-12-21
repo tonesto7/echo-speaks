@@ -1,4 +1,81 @@
  ══════════
+   Main App (v3.3.1.1)
+   December 19th, 2019
+ ══════════
+  • ADDED: Ability to clear zones when none are installed #156.
+
+ ══════════
+   Action App (v3.3.1.1)
+   December 19th, 2019
+ ══════════
+  • UPDATED: Rebuilt the condition evaluation logic to fix #182 #183.
+
+ ══════════
+   Zones App (v3.3.1.1)
+   December 19th, 2019
+ ══════════
+  • UPDATED: Rebuilt the condition evaluation logic to fix #182 #183.
+
+-------------------------------------------------
+
+ ══════════
+   Main App (v3.3.1.0)
+   December 17th, 2019
+ ══════════
+  • FIXED: More zone condition and activation fixes.
+  • ADDED: New Zone history viewer in the Zones page.
+  • ADDED: Alexa Routines now allow you to add a name to them so the app now supports the name field(Meaning your actions routines will be easy to identify).
+  • ADDED: new amazon.in domain name.
+
+ ══════════
+   Action App (v3.3.1.0)
+   December 17th, 2019
+ ══════════
+  • ADDED: Use Accelerometer devices as triggers and conditions #175.
+  • ADDED: Alexa Routines now allow you to add a name to them so the app now supports the name field(Meaning your actions routines will be easy to identify).
+  • ADDED: Support for duration in minutes text variable (#179).
+  • FIXED: Other bug fixes.
+
+ ══════════
+   Zones App (v3.3.1.0)
+   December 17th, 2019
+ ══════════
+  • ADDED: Use Accelerometer devices under conditions #175.
+  • ADDED: Zone Activation changes are now logged so you can view them.
+  • FIXED: Other bug fixes.
+
+-------------------------------------------------
+
+ ══════════
+   Main App (v3.3.0.1)
+   December 7th, 2019
+ ══════════
+  • FIXED: When zones were removed they we not being removed from Main app and actions.
+  • ADDED: Zone Maintenance section to pause/unpause all zones as well as clear all stored zone data and force all zones to report in.
+  • ADDED: new amazon.es locale and a new way to distribute new locales remotely
+
+ ══════════
+   Action App (v3.3.0.1)
+   December 7th, 2019
+ ══════════
+  • FIXED: Zone refresh bugfixes when zones where removed.
+  • FIXED: Other bug fixes.
+
+ ══════════
+   Zones App (v3.3.0.1)
+   December 7th, 2019
+ ══════════
+  • FIXED: Minor UI tweaks and zone status bugfixes.
+
+ ══════════
+   Echo Device (v3.3.0.1)
+   December 7th, 2019
+ ══════════
+  • ADDED: Icons for facebook portal.
+
+-------------------------------------------------
+
+ ══════════
    Main App (v3.3.0.0)
    November 25th, 2019
  ══════════
