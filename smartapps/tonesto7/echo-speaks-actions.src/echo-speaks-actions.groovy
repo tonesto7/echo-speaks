@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.1.1" }
-String appModified() { return "2019-12-19" }
+String appVersion()  { return "3.3.1.2" }
+String appModified() { return "2019-12-23" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -2835,7 +2835,8 @@ String decodeVariables(evt, str) {
         str = (str?.contains("%unit%") && evt?.name) ? str?.replaceAll("%unit%", getAttrPostfix(evt?.name)) : str
         str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
         str = (str?.contains("%duration%") && evt?.totalDur) ? str?.replaceAll("%duration%", "${evt?.totalDur} seconds ago") : str
-        str = (str?.contains("%duration_min%") && evt?.totalDur) ? str?.replaceAll("%duration_min%", "${durationToMinutes(evt?.totalDur?.toDouble())} seconds ago") : str
+        str = (str?.contains("%duration_min%") && evt?.totalDur) ? str?.replaceAll("%duration_min%", "${durationToMinutes(evt?.totalDur)} seconds ago") : str
+        str = (str?.contains("%durationmin%") && evt?.totalDur) ? str?.replaceAll("%durationmin%", "${durationToMinutes(evt?.totalDur)} seconds ago") : str
     }
     str = (str?.contains("%date%")) ? str?.replaceAll("%date%", convToDate(evt?.date ?: new Date())) : str
     str = (str?.contains("%time%")) ? str?.replaceAll("%time%", convToTime(evt?.date ?: new Date())) : str
