@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.3.1.1" }
-String appModified()   { return "2019-12-19" }
+String appVersion()   { return "3.3.1.2" }
+String appModified()   { return "2019-12-23" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3301, wsDevice: 3200, actionApp: 3311, zoneApp: 3311, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3301, wsDevice: 3200, actionApp: 3312, zoneApp: 3311, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -4288,6 +4288,7 @@ def renderTextEditPage() {
                     function cleanEditorText(txt) {
                         txt = txt.split(';').filter(t => t.trim().length > 0).map(t => t.trim()).join(';');
                         txt = txt.endsWith(';') ? txt.replace(/;([^;]*)\$/, '\$1') : txt;
+                        txt = txt.replace('%duration_min%', '%durationmin%');
                         return txt.replace(/  +/g, ' ').replace('> <', '><').replace("\'", '');
                     }
 
@@ -4580,7 +4581,7 @@ def renderTextEditPage() {
                                     insertSsml(editor, '%duration%', false);
                                     break;
                                 case 'evtdurationmin':
-                                    insertSsml(editor, '%duration_min%', false);
+                                    insertSsml(editor, '%durationmin%', false);
                                     break;
                                 default:
                                     break;
