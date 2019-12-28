@@ -15,7 +15,7 @@
  */
 
 String appVersion()  { return "3.3.1.1" }
-String appModified() { return "2019-12-19" }
+String appModified() { return "2019-12-28" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -750,12 +750,13 @@ private addToZoneHistory(evt, condStatus, Integer max=10) {
 def checkZoneStatus(evtName) {
     Map condStatus = conditionStatus()
     Boolean active = (condStatus?.ok == true)
-    Integer delay = null
-    if(active) { delay = settings?.zone_active_delay ?: null }
-    else { delay = settings?.zone_inactive_delay ?: null }
-    if(delay) {
-        runIn(delay as Integer, "updateZoneStatus", [data: [active: active, recheck: true, evtName: evtName, condStatus: condStatus]])
-    } else { updateZoneStatus([active: active, recheck: false, evtName: evtName, condStatus: condStatus]) }
+    String delayType = active ? "active" : "inactive"
+    Map data = [active: active, recheck: false, evtName: evtName, condStatus: condStatus]
+    if(settings?."zone_${delayType}_delay") {
+        runIn(settings?."zone_${delayType}_delay", "updateZoneStatus", [data: data])
+    } else {
+        updateZoneStatus(data)
+    }
 }
 
 def sendZoneStatus() {
@@ -773,7 +774,8 @@ def updateZoneStatus(data) {
     Map condStatus = data?.condStatus ?: null
     if(data?.recheck == true) {
         condStatus = conditionStatus()
-        active = (condStatus?.ok == true) }
+        active = (condStatus?.ok == true)
+    }
     if(state?.zoneConditionsOk != active) {
         log.debug("Updating Zone Status to (${active ? "Active" : "Inactive"})... ${getZoneName()}")
         state?.zoneConditionsOk = active
