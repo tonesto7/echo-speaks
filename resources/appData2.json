@@ -8,7 +8,7 @@
             "ver": "3.3.1.2"
         },
         "zoneApp": {
-            "ver": "3.3.1.1"
+            "ver": "3.3.1.2"
         },
         "echoDevice": {
             "ver": "3.3.0.1"
@@ -60,7 +60,8 @@
             "A1ZB65LA390I4K",
             "A21X6I4DKINIZU",
             "A112LJ20W14H95",
-            "A81PNL0A63P93"
+            "A81PNL0A63P93",
+            "A1GC6GEE1XF1G9"
         ]
     },
     "deviceFamilies": {
@@ -118,6 +119,11 @@
             "name": "Bose Home Speaker 500",
             "caps": [],
             "blocked": true
+        },
+        "A3BRT6REMPQWA8": {
+            "name": "Bose Home Speaker 450",
+            "caps": ["a", "t"],
+            "image": "sonos_generic"
         },
         "A1H0CMF1XM0ZP4": {
             "name": "Bose SoundTouch 30",
@@ -436,6 +442,14 @@
             ]
         },
         "A2R2GLZH1DFYQO": {
+            "name": "Zolo Halo Speaker",
+            "image": "halo_speaker",
+            "caps": [
+                "t",
+                "a"
+            ]
+        },
+        "A1P31Q3MOWSHOD": {
             "name": "Zolo Halo Speaker",
             "image": "halo_speaker",
             "caps": [
