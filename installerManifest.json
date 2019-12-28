@@ -44,7 +44,7 @@
                 "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
                 "published": true,
                 "oAuth": false,
-                "version": "3.3.1.1",
+                "version": "3.3.1.2",
                 "appSettings": {},
                 "appUrl": "smartapps/tonesto7/echo-speaks-zones.src/echo-speaks-zones.groovy",
                 "optional": false
