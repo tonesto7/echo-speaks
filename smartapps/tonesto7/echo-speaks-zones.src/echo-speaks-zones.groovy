@@ -752,8 +752,9 @@ def checkZoneStatus(evtName) {
     Boolean active = (condStatus?.ok == true)
     String delayType = active ? "active" : "inactive"
     Map data = [active: active, recheck: false, evtName: evtName, condStatus: condStatus]
-    if(settings?."zone_${delayType}_delay") {
-        runIn(settings?."zone_${delayType}_delay", "updateZoneStatus", [data: data])
+    Integer delay = (settings?."zone_${delayType}_delay" && !settings?."zone_${delayType}_delay" instanceof String) ? settings?."zone_${delayType}_delay" : null
+    if(delay) {
+        runIn(delay, "updateZoneStatus", [data: data])
     } else {
         updateZoneStatus(data)
     }
