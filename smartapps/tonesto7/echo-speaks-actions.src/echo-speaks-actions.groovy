@@ -15,7 +15,7 @@
  */
 
 String appVersion()  { return "3.3.1.2" }
-String appModified() { return "2019-12-23" }
+String appModified() { return "2019-12-30" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -2834,9 +2834,9 @@ String decodeVariables(evt, str) {
         }
         str = (str?.contains("%unit%") && evt?.name) ? str?.replaceAll("%unit%", getAttrPostfix(evt?.name)) : str
         str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
-        str = (str?.contains("%duration%") && evt?.totalDur) ? str?.replaceAll("%duration%", "${evt?.totalDur} seconds ago") : str
-        str = (str?.contains("%duration_min%") && evt?.totalDur) ? str?.replaceAll("%duration_min%", "${durationToMinutes(evt?.totalDur)} seconds ago") : str
-        str = (str?.contains("%durationmin%") && evt?.totalDur) ? str?.replaceAll("%durationmin%", "${durationToMinutes(evt?.totalDur)} seconds ago") : str
+        str = (str?.contains("%duration%") && evt?.totalDur) ? str?.replaceAll("%duration%", "${evt?.totalDur} second${evt?.totalDur > 1 ? "s" : ""} ago") : str
+        str = (str?.contains("%duration_min%") && evt?.totalDur) ? str?.replaceAll("%duration_min%", "${durationToMinutes(evt?.totalDur)} minute${durationToMinutes(evt?.totalDur) > 1 ? "s" : ""} ago") : str
+        str = (str?.contains("%durationmin%") && evt?.totalDur) ? str?.replaceAll("%durationmin%", "${durationToMinutes(evt?.totalDur)} minute${durationToMinutes(evt?.totalDur) > 1 ? "s" : ""} ago") : str
     }
     str = (str?.contains("%date%")) ? str?.replaceAll("%date%", convToDate(evt?.date ?: new Date())) : str
     str = (str?.contains("%time%")) ? str?.replaceAll("%time%", convToTime(evt?.date ?: new Date())) : str
@@ -2845,12 +2845,12 @@ String decodeVariables(evt, str) {
 }
 
 def durationToMinutes(dur) {
-    if(dur && dur>=60) return (dur/60)?.round(0)
+    if(dur && dur>=60) return (dur/60)?.toInteger()
     return dur?.toInteger()
 }
 
 def durationToHours(dur) {
-    if(dur && dur>= (60*60)) return ((dur/60)/60)?.round(0)
+    if(dur && dur>= (60*60)) return ((dur/60)/60)?.toInteger()
     return dur?.toInteger()
 }
 
