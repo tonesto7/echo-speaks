@@ -82,7 +82,7 @@ metadata {
         command "playFunFact", ["number", "number"]
         command "playTraffic", ["number", "number"]
         command "playJoke", ["number", "number"]
-        command "playSoundByName"
+        command "playSoundByName", ["string", "number", "number"]
         command "playTellStory", ["number", "number"]
         command "sayGoodbye", ["number", "number"]
         command "sayGoodNight", ["number", "number"]
