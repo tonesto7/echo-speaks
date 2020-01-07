@@ -675,7 +675,7 @@ def conditionsPage() {
         if(multiConds) {
             section() {
                 input "cond_require_all", "bool", title: inTS("Require All Selected Conditions to Pass Before Activating Zone?", getAppImg("checkbox", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("checkbox")
-                paragraph pTS("Notice:\n${settings?.cond_require_all != false ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
+                paragraph pTS("Notice:\n${(settings?.cond_require_all == true) ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
             }
         }
         section(sTS("Time/Date")) {
@@ -2601,20 +2601,22 @@ Boolean timeCondOk() {
             stopTime = toDateTime(stopTime)
         }
         return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
-    } else { return true }
+    } else { return null }
 }
 
 Boolean dateCondOk() {
-    Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : true
-    Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : true
+    Boolean reqAll = (settings?.cond_require_all == true && multipleConditions())
+    Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : null
+    Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : null
     logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
-    return (dOk && mOk)
+    if(dOk == null && mOk==null) return null
+    return reqAll ? (mOk && dOk) : (mOk || dOk)
 }
 
 Boolean locationCondOk() {
-    Boolean reqAll = (settings?.cond_require_all != false)
+    Boolean reqAll = (settings?.cond_require_all == true && multipleConditions())
     Boolean mOk = (settings?.cond_mode && settings?.cond_mode_cmd) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
-    Boolean aOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
+    Boolean aOk = settings?.cond_alarm ? isInAlarmMode(settings?.cond_alarm) : true
     logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
     return reqAll ? (mOk && aOk) : (mOk || aOk)
 }
@@ -2683,11 +2685,11 @@ Boolean deviceCondOk() {
     logDebug("DeviceCondOk | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Integer cndSize = (passed?.size() + failed?.size())
     if(cndSize == 0) return null
-    return (settings?.cond_require_all == true) ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
+    return (settings?.cond_require_all == true && multipleConditions()) ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
 }
 
 def conditionStatus() {
-    Boolean reqAll = (settings?.cond_require_all == true)
+    Boolean reqAll = (settings?.cond_require_all == true && multipleConditions())
     List failed = []
     List passed = []
     List skipped = []
@@ -2697,7 +2699,7 @@ def conditionStatus() {
         s ? passed?.push(i) : failed?.push(i);
     }
     Integer cndSize = (passed?.size() + failed?.size())
-    logDebug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    log.debug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Boolean ok = reqAll ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
     if(cndSize == 0) ok = true;
     return [ok: ok, passed: passed, blocks: failed]
@@ -2850,7 +2852,7 @@ def durationToMinutes(dur) {
 }
 
 def durationToHours(dur) {
-    if(dur && dur>= (60*60)) return ((dur/60)/60)?.toInteger()
+    if(dur && dur>= (60*60)) return (dur / 60 / 60)?.toInteger()
     return dur?.toInteger()
 }
 
@@ -3322,22 +3324,12 @@ Map weeksOfMonthMap() { return ["1":"1st Week", "2":"2nd Week", "3":"3rd Week", 
 Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 Map getAlarmTrigOpts() {
-    if(isST()) { return ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] }
-    return ["armAway":"Armed Away","armHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
+    return isST() ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armAway":"Armed Away","armHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
 }
 
 def getShmIncidents() {
     def incidentThreshold = now() - 604800000
     return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
-}
-
-String getAlarmSystemStatus() {
-    if(isST()) {
-        def cur = location.currentState("alarmSystemStatus")?.value
-        def inc = getShmIncidents()
-        if(inc != null && inc?.size()) { cur = 'alarm_active' }
-        return cur ?: "disarmed"
-    } else { return location?.hsmStatus ?: "disarmed" }
 }
 
 public Map getActionMetrics() {
@@ -3534,7 +3526,7 @@ Boolean isInMode(modes, not=false) {
 }
 
 Boolean isInAlarmMode(modes) {
-    return (modes) ? (getAlarmSystemStatus() in modes) : false
+    return (modes) ? (parent?.getAlarmSystemStatus() in modes) : false
 }
 
 Boolean areAllDevsSame(List devs, String attr, val) {
@@ -3845,9 +3837,9 @@ String getConditionsDesc() {
     String sPre = "cond_"
     if(confd) {
         String str = "Conditions: (${(conditionStatus()?.ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
-        str += settings?.cond_require_all ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
+        str += (settings?.cond_require_all == true && multipleConditions()) ?  " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
-            str += " • Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
+            str += " • Time Between: (${(timeCondOk() == true) ? "${okSym()}" : "${notOkSym()}"})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
