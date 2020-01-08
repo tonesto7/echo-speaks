@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.1.2" }
-String appModified() { return "2019-12-30" }
+String appVersion()  { return "3.3.2.0" }
+String appModified() { return "2020-01-07" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -2581,6 +2581,8 @@ private clearAfterCheckSchedule() {
 /***********************************************************************************************************
    CONDITIONS HANDLER
 ************************************************************************************************************/
+Boolean reqAllCond() { return (multipleConditions() && settings?.cond_require_all == true)}
+
 Boolean timeCondOk() {
     def startTime = null
     def stopTime = null
@@ -2594,7 +2596,7 @@ Boolean timeCondOk() {
         if(settings?.cond_time_stop_type == "sunset") { stopTime = sun?.sunset }
         else if(settings?.cond_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
         else if(settings?.cond_time_stop_type == "time" && settings?.cond_time_stop) { stopTime = settings?.cond_time_stop }
-    } else { return true }
+    } else { return null }
     if(startTime && stopTime) {
         if(!isST()) {
             startTime = toDateTime(startTime)
@@ -2605,20 +2607,19 @@ Boolean timeCondOk() {
 }
 
 Boolean dateCondOk() {
-    Boolean reqAll = (settings?.cond_require_all == true && multipleConditions())
-    Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : null
-    Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : null
+    if(settings?.cond_days == null && settings?.cond_months == null) return null
+    Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : true
+    Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : true
     logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
-    if(dOk == null && mOk==null) return null
-    return reqAll ? (mOk && dOk) : (mOk || dOk)
+    return reqAllCond() ? (mOk && dOk) : (mOk || dOk)
 }
 
 Boolean locationCondOk() {
-    Boolean reqAll = (settings?.cond_require_all == true && multipleConditions())
+    if(settings?.cond_mode == null && settings?.cond_mode_cmd == null && settings?.cond_alarm == null) return null
     Boolean mOk = (settings?.cond_mode && settings?.cond_mode_cmd) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
     Boolean aOk = settings?.cond_alarm ? isInAlarmMode(settings?.cond_alarm) : true
     logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
-    return reqAll ? (mOk && aOk) : (mOk || aOk)
+    return reqAllCond() ? (mOk && aOk) : (mOk || aOk)
 }
 
 Boolean checkDeviceCondOk(type) {
@@ -2685,11 +2686,11 @@ Boolean deviceCondOk() {
     logDebug("DeviceCondOk | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Integer cndSize = (passed?.size() + failed?.size())
     if(cndSize == 0) return null
-    return (settings?.cond_require_all == true && multipleConditions()) ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
+    return reqAllCond() ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
 }
 
 def conditionStatus() {
-    Boolean reqAll = (settings?.cond_require_all == true && multipleConditions())
+    Boolean reqAll = reqAllCond()
     List failed = []
     List passed = []
     List skipped = []
@@ -2699,7 +2700,7 @@ def conditionStatus() {
         s ? passed?.push(i) : failed?.push(i);
     }
     Integer cndSize = (passed?.size() + failed?.size())
-    log.debug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    logDebug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Boolean ok = reqAll ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
     if(cndSize == 0) ok = true;
     return [ok: ok, passed: passed, blocks: failed]
@@ -3675,8 +3676,8 @@ def GetTimeDiffSeconds(lastDate, sender=null) {
 
 def getDateByFmt(String fmt, dt=null) {
     def df = new java.text.SimpleDateFormat(fmt)
-    df.setTimeZone(location?.timeZone)
-    return df.format(dt ?: new Date())
+    df?.setTimeZone(location?.timeZone)
+    return df?.format(dt ?: new Date())
 }
 
 Map getDateMap() {
@@ -3698,9 +3699,9 @@ Map getDateMap() {
 
 Boolean isDayOfWeek(opts) {
     def df = new java.text.SimpleDateFormat("EEEE")
-    df.setTimeZone(location?.timeZone)
-    def day = df.format(new Date())
-    return ( opts?.contains(day) )
+    df?.setTimeZone(location?.timeZone)
+    def day = df?.format(new Date())
+    return opts?.contains(day)
 }
 
 Boolean isMonthOfYear(opts) {
@@ -3837,7 +3838,7 @@ String getConditionsDesc() {
     String sPre = "cond_"
     if(confd) {
         String str = "Conditions: (${(conditionStatus()?.ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
-        str += (settings?.cond_require_all == true && multipleConditions()) ?  " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
+        str += reqAllCond() ?  " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
             str += " • Time Between: (${(timeCondOk() == true) ? "${okSym()}" : "${notOkSym()}"})\n"
             str += "    - ${getTimeCondDesc(false)}\n"

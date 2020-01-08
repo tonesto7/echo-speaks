@@ -25,7 +25,7 @@
             "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
             "published": true,
             "oAuth": true,
-            "version": "3.3.1.2",
+            "version": "3.3.2.0",
             "appSettings": {},
             "appUrl": "smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy"
         },
@@ -34,7 +34,7 @@
                 "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
                 "published": true,
                 "oAuth": false,
-                "version": "3.3.1.2",
+                "version": "3.3.2.0",
                 "appSettings": {},
                 "appUrl": "smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
                 "optional": false
@@ -44,7 +44,7 @@
                 "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
                 "published": true,
                 "oAuth": false,
-                "version": "3.3.1.2",
+                "version": "3.3.2.0",
                 "appSettings": {},
                 "appUrl": "smartapps/tonesto7/echo-speaks-zones.src/echo-speaks-zones.groovy",
                 "optional": false
