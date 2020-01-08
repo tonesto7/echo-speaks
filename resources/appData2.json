@@ -2,13 +2,13 @@
     "appDataVer": "3.4",
     "versions": {
         "mainApp": {
-            "ver": "3.3.1.2"
+            "ver": "3.3.2.0"
         },
         "actionApp": {
-            "ver": "3.3.1.2"
+            "ver": "3.3.2.0"
         },
         "zoneApp": {
-            "ver": "3.3.1.2"
+            "ver": "3.3.2.0"
         },
         "echoDevice": {
             "ver": "3.3.0.1"
@@ -61,7 +61,12 @@
             "A21X6I4DKINIZU",
             "A112LJ20W14H95",
             "A81PNL0A63P93",
-            "A1GC6GEE1XF1G9"
+            "A1GC6GEE1XF1G9",
+            "AUPUQSVCVHXP0",
+            "AD2YUJTRVBNOF",
+            "AGZWSPR7FLP9E",
+            "A2V3E2XUH5Z7M8",
+            "A1MPSLFC7L5AFK"
         ]
     },
     "deviceFamilies": {

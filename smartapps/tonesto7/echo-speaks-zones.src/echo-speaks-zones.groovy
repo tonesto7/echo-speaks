@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.1.2" }
-String appModified() { return "2019-12-30" }
+String appVersion()  { return "3.3.2.0" }
+String appModified() { return "2020-01-07" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -555,6 +555,8 @@ String attributeConvert(String attr) {
 /***********************************************************************************************************
    CONDITIONS HANDLER
 ************************************************************************************************************/
+Boolean reqAllCond() { return (multipleConditions() && settings?.cond_require_all == true)}
+
 Boolean timeCondOk() {
     def startTime = null
     def stopTime = null
@@ -575,22 +577,23 @@ Boolean timeCondOk() {
             stopTime = toDateTime(stopTime)
         }
         return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
-    } else { return true }
+    } else { return null }
 }
 
 Boolean dateCondOk() {
-    if(!settings?.cond_days || settings?.cond_months) return null;
+    if(settings?.cond_days == null && settings?.cond_months == null) return null
     Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : true
     Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : true
-    return (dOk && mOk)
+    logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
+    return reqAllCond() ? (mOk && dOk) : (mOk || dOk)
 }
 
 Boolean locationCondOk() {
-    if(!(settings?.cond_mode && settings?.cond_mode) && !settings?.cond_alarm) return null;
-    Boolean mOk = (settings?.cond_mode && settings?.cond_mode) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
-    Boolean aOk = settings?.cond_alarm ? (isInAlarmMode(settings?.cond_alarm)) : true
-    logDebug("locationCondOk | modeOk: $mOk | alarmOk: $aOk")
-    return (mOk && aOk)
+    if(settings?.cond_mode == null && settings?.cond_mode_cmd == null && settings?.cond_alarm == null) return null
+    Boolean mOk = (settings?.cond_mode && settings?.cond_mode_cmd) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
+    Boolean aOk = settings?.cond_alarm ? isInAlarmMode(settings?.cond_alarm) : true
+    logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
+    return reqAllCond() ? (mOk && aOk) : (mOk || aOk)
 }
 
 Boolean checkDeviceCondOk(type) {
@@ -657,11 +660,11 @@ Boolean deviceCondOk() {
     logDebug("DeviceCondOk | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Integer cndSize = (passed?.size() + failed?.size())
     if(cndSize == 0) return null
-    return (settings?.cond_require_all == true) ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
+    return reqAllCond() ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
 }
 
 def conditionStatus() {
-    Boolean reqAll = (settings?.cond_require_all == true)
+    Boolean reqAll = reqAllCond()
     List failed = []
     List passed = []
     List skipped = []
@@ -673,6 +676,7 @@ def conditionStatus() {
     Integer cndSize = (passed?.size() + failed?.size())
     logDebug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Boolean ok = reqAll ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
+    if(cndSize == 0) ok = true;
     return [ok: ok, passed: passed, blocks: failed]
 }
 
@@ -969,7 +973,7 @@ Boolean isInMode(modes, not=false) {
 }
 
 Boolean isInAlarmMode(modes) {
-    return (modes) ? (getAlarmSystemStatus() in modes) : false
+    return (modes) ? (parent?.getAlarmSystemStatus() in modes) : false
 }
 
 Boolean areAllDevsSame(List devs, String attr, val) {
@@ -1430,8 +1434,7 @@ List monthEnum() {
 }
 
 Map getAlarmTrigOpts() {
-    if(isST()) { return ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] }
-    return ["armAway":"Armed Away","armHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
+    return isST() ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armAway":"Armed Away","armHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
 }
 
 def getShmIncidents() {
@@ -1439,14 +1442,6 @@ def getShmIncidents() {
     return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
 }
 
-String getAlarmSystemStatus() {
-    if(isST()) {
-        def cur = location.currentState("alarmSystemStatus")?.value
-        def inc = getShmIncidents()
-        if(inc != null && inc?.size()) { cur = 'alarm_active' }
-        return cur ?: "disarmed"
-    } else { return location?.hsmStatus ?: "disarmed" }
-}
 Boolean pushStatus() { return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_pushover) ? ((settings?.notif_send_push || (settings?.notif_pushover && settings?.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : null }
 Integer getLastNotifMsgSec() { return !state?.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastNotifMsgDt, "getLastMsgSec").toInteger() }
 Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state?.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
