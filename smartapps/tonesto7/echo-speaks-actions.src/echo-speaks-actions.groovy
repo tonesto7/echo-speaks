@@ -111,7 +111,7 @@ private buildTriggerEnum() {
         //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
         // buildItems?.Location?.scene = "Scenes"
     }
-    buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power", "acceleration":"Accelorometers"]?.sort{ it?.value }
+    buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power", "acceleration":"Accelerometers"]?.sort{ it?.value }
     buildItems["Actionable Devices"] = ["lock":"Locks", "button":"Buttons", "switch":"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
     if(!isST()) {
         buildItems["Actionable Devices"]?.remove("button")
@@ -404,7 +404,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt("acceleration")) {
-                trigNonNumSect("acceleration", "accelerationSensor", "Accelorometers", "Accelorometers", ["active", "inactive", "any"], "changes to", ["active", "inactive"], "acceleration", trigItemCnt++)
+                trigNonNumSect("acceleration", "accelerationSensor", "Accelerometers", "Accelerometers", ["active", "inactive", "any"], "changes to", ["active", "inactive"], "acceleration", trigItemCnt++)
             }
 
             if (valTrigEvt("door")) {
@@ -701,7 +701,7 @@ def conditionsPage() {
 
         condNonNumSect("contact", "contactSensor", "Door, Window, Contact Sensors Conditions", "Contact Sensors", ["open","closed"], "are", "contact")
 
-        condNonNumSect("acceleration", "accelerationSensor", "Accelorometer Conditions", "Accelorometer Sensors", ["active","inactive"], "are", "acceleration")
+        condNonNumSect("acceleration", "accelerationSensor", "Accelerometer Conditions", "Accelerometer Sensors", ["active","inactive"], "are", "acceleration")
 
         condNonNumSect("lock", "lock", "Lock Conditions", "Smart Locks", ["locked", "unlocked"], "are", "lock")
 
