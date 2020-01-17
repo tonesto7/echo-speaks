@@ -1,85 +1,77 @@
  ══════════
-   Zone App (v3.3.2.0)
-   January 7th, 2020
+  January 17th, 2020
  ══════════
-  • FIXED: Issue with action and zone conditions.
+  Zone App (v3.3.3.0)
+  • FIXED: Activate and Deactivate delays are now working again
 
- ══════════
-   Main App (v3.3.2.0)
-   January 7th, 2020
- ══════════
-  • FIXED: Issue with conditions.
-
- ══════════
-   Action App (v3.3.2.0)
-   January 7th, 2020
- ══════════
+  Main App (v3.3.3.0)
   • FIXED: Issue with conditions.
 
 -------------------------------------------------
+
  ══════════
-   Zone App (v3.3.1.2)
-   December 28th, 2019
+  January 7th, 2020
  ══════════
+  Zone App (v3.3.2.0)
+  • FIXED: Issue with action and zone conditions.
+
+  Main App (v3.3.2.0)
+  • FIXED: Issue with conditions.
+
+  Action App (v3.3.2.0)
+  • FIXED: Issue with conditions.
+
+-------------------------------------------------
+
+ ══════════
+  December 28th, 2019
+ ══════════
+  Zone App (v3.3.1.2)
   • FIXED: Issue with zone delay setting conversion
 
 -------------------------------------------------
- ══════════
-   Main App (v3.3.1.2)
-   December 23rd, 2019
- ══════════
-  • FIXED: Issue with %duration_min% not being highlighter.
 
  ══════════
-   Action App (v3.3.1.2)
-   December 23rd, 2019
+  December 23rd, 2019
  ══════════
+  Main App (v3.3.1.2)
+  • FIXED: Issue with %duration_min% not being highlighter.
+
+  Action App (v3.3.1.2)
   • FIXED: Issue with %duration% variables appending .0
 
 -------------------------------------------------
 
  ══════════
-   Main App (v3.3.1.1)
-   December 19th, 2019
+  December 19th, 2019
  ══════════
+  Main App (v3.3.1.1)
   • ADDED: Ability to clear zones when none are installed #156.
 
- ══════════
-   Action App (v3.3.1.1)
-   December 19th, 2019
- ══════════
+  Action App (v3.3.1.1)
   • UPDATED: Rebuilt the condition evaluation logic to fix #182 #183.
 
- ══════════
-   Zones App (v3.3.1.1)
-   December 19th, 2019
- ══════════
+  Zones App (v3.3.1.1)
   • UPDATED: Rebuilt the condition evaluation logic to fix #182 #183.
 
 -------------------------------------------------
 
  ══════════
-   Main App (v3.3.1.0)
-   December 17th, 2019
+  December 17th, 2019
  ══════════
+  Main App (v3.3.1.0)
   • FIXED: More zone condition and activation fixes.
   • ADDED: New Zone history viewer in the Zones page.
   • ADDED: Alexa Routines now allow you to add a name to them so the app now supports the name field(Meaning your actions routines will be easy to identify).
   • ADDED: new amazon.in domain name.
 
- ══════════
-   Action App (v3.3.1.0)
-   December 17th, 2019
- ══════════
+  Action App (v3.3.1.0)
   • ADDED: Use Accelerometer devices as triggers and conditions #175.
   • ADDED: Alexa Routines now allow you to add a name to them so the app now supports the name field(Meaning your actions routines will be easy to identify).
   • ADDED: Support for duration in minutes text variable (#179).
   • FIXED: Other bug fixes.
 
- ══════════
-   Zones App (v3.3.1.0)
-   December 17th, 2019
- ══════════
+  Zones App (v3.3.1.0)
   • ADDED: Use Accelerometer devices under conditions #175.
   • ADDED: Zone Activation changes are now logged so you can view them.
   • FIXED: Other bug fixes.
