@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.2.0" }
-String appModified() { return "2020-01-07" }
+String appVersion()  { return "3.3.3.0" }
+String appModified() { return "2020-01-17" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -485,7 +485,7 @@ private zoneCleanup() {
     List items = []
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     //Cleans up unused Zone setting items
-    List setItems = []
+    List setItems = ["zone_delay"]
     List setIgn = ["zone_EchoDevices"]
     setItems?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
@@ -751,15 +751,17 @@ private addToZoneHistory(evt, condStatus, Integer max=10) {
     atomicState?.zoneHistory = eData
 }
 
-def checkZoneStatus(evtName) {
+def checkZoneStatus(evt) {
     Map condStatus = conditionStatus()
     Boolean active = (condStatus?.ok == true)
     String delayType = active ? "active" : "inactive"
-    Map data = [active: active, recheck: false, evtName: evtName, condStatus: condStatus]
-    Integer delay = (settings?."zone_${delayType}_delay" && !settings?."zone_${delayType}_delay" instanceof String) ? settings?."zone_${delayType}_delay" : null
+    Map data = [active: active, recheck: false, evtData: [name: evt?.name, displayName: evt?.displayName], condStatus: condStatus]
+    Integer delay = settings?."zone_${delayType}_delay" ?: null
     if(delay) {
+        log.debug "updateZoneStatus to [${delayType}] in (${delay} sec)"
         runIn(delay, "updateZoneStatus", [data: data])
     } else {
+        // log.debug "updateZoneStatus to [${delayType}]"
         updateZoneStatus(data)
     }
 }
@@ -782,9 +784,9 @@ def updateZoneStatus(data) {
         active = (condStatus?.ok == true)
     }
     if(state?.zoneConditionsOk != active) {
-        log.debug("Updating Zone Status to (${active ? "Active" : "Inactive"})... ${getZoneName()}")
+        log.debug("Setting Zone (${getZoneName()}) Status to (${active ? "Active" : "Inactive"})")
         state?.zoneConditionsOk = active
-        addToZoneHistory(data?.evtName, condStatus)
+        addToZoneHistory(data?.evtData, condStatus)
         sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: [ name: getZoneName(), active: active ], isStateChange: true)
         if(isZoneNotifConfigured()) {
             Boolean ok2Send = true
@@ -1355,14 +1357,14 @@ String getZoneDesc() {
     if(devicesConfigured() && conditionsConfigured()) {
         List eDevs = parent?.getDevicesFromList(settings?.zone_EchoDevices)?.collect { it?.displayName as String }
         String str = eDevs?.size() ? "Echo Devices in Zone:\n${eDevs?.join("\n")}\n" : ""
-        str += settings?.zone_delay ? " \u2022 Delay: (${settings?.zone_delay})\n" : ""
+        str += settings?.zone_active_delay ? " \u2022 Activate Delay: (${settings?.zone_active_delay})\n" : ""
+        str += settings?.zone_inactive_delay ? " \u2022 Deactivate Delay: (${settings?.zone_inactive_delay})\n" : ""
         str += "\nTap to modify..."
         return str
     } else {
         return "tap to configure..."
     }
 }
-
 
 String getTimeCondDesc(addPre=true) {
     def sun = getSunriseAndSunset()
