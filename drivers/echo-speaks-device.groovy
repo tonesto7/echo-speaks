@@ -1,7 +1,7 @@
 /**
  *	Echo Speaks Device (Hubitat ONLY)
  *
- *  Copyright 2018, 2019 Anthony Santilli
+ *  Copyright 2018, 2019, 2020 Anthony Santilli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.3.0.1"}
-String devModified() { return "2019-12-07" }
+String devModified() { return "2020-01-17" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
