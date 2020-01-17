@@ -2,13 +2,13 @@
     "appDataVer": "3.4",
     "versions": {
         "mainApp": {
-            "ver": "3.3.2.0"
+            "ver": "3.3.3.0"
         },
         "actionApp": {
             "ver": "3.3.2.0"
         },
         "zoneApp": {
-            "ver": "3.3.2.0"
+            "ver": "3.3.3.0"
         },
         "echoDevice": {
             "ver": "3.3.0.1"
@@ -67,6 +67,7 @@
             "AGZWSPR7FLP9E",
             "A2V3E2XUH5Z7M8",
             "A1MPSLFC7L5AFK"
+
         ]
     },
     "deviceFamilies": {
@@ -438,6 +439,14 @@
                 "t"
             ]
         },
+        "A3B5K1G3EITBIF": {
+            "name": "Facebook Portal",
+            "image": "facebook_portal",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
         "A1J16TEDOYCZTN": {
             "name": "Fire Tablet",
             "image": "amazon_tablet",
@@ -602,6 +611,22 @@
         "A10L5JEZTKKCZ8": {
             "name": "Vobot Bunny",
             "image": "vobot_bunny",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "AE7X7Z227NFNS": {
+            "name": "HiMirror Mini",
+            "image": "unknown",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A347G2JC8I4HC7": {
+            "name": "Roav Car Charger Pro",
+            "image": "unknown",
             "caps": [
                 "a",
                 "t"
