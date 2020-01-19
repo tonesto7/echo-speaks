@@ -215,6 +215,14 @@
                 "t"
             ]
         },
+        "A3FX4UWTP28V1P": {
+            "name": "Echo (Gen3)",
+            "image": "echo_plus_gen2",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
         "A2M35JJZWCQOMZ": {
             "name": "Echo Plus (Gen1)",
             "image": "echo_plus_gen1",
@@ -296,14 +304,6 @@
             ]
         },
         "A32DDESGESSHZA": {
-            "name": "Echo Dot (Gen3)",
-            "image": "echo_dot_gen3",
-            "caps": [
-                "a",
-                "t"
-            ]
-        },
-        "A3FX4UWTP28V1P": {
             "name": "Echo Dot (Gen3)",
             "image": "echo_dot_gen3",
             "caps": [
