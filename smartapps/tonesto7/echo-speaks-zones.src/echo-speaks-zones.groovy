@@ -521,8 +521,8 @@ private subscribeToEvts() {
             if (settings?.cond_time_start_type == "sunrise") { subscribe(location, "sunriseTime", zoneEvtHandler) }
         }
         if(settings?.cond_time_start_type == "time") {
-            if(settings?.cond_time_start) { schedule(settings?.cond_time_start, zoneEvtHandler) }
-            if(settings?.cond_time_stop) { schedule(settings?.cond_time_stop, zoneEvtHandler) }
+            if(settings?.cond_time_start) { schedule(settings?.cond_time_start, zoneTimeStartCondHandler) }
+            if(settings?.cond_time_stop) { schedule(settings?.cond_time_stop, zoneTimeStopCondHandler) }
         }
     }
 
@@ -741,6 +741,14 @@ Boolean multipleConditions() {
 def zoneEvtHandler(evt) {
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     checkZoneStatus(evt)
+}
+
+def zoneTimeStartCondHandler() {
+    checkZoneStatus([name: "Time", displayName: "Condition Start Time"])
+}
+
+def zoneTimeStopCondHandler() {
+    checkZoneStatus([name: "Time", displayName: "Condition Stop Time"])
 }
 
 private addToZoneHistory(evt, condStatus, Integer max=10) {
