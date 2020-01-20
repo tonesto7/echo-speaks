@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.3.0.1" }
-String devModified() { return "2020-01-17" }
+String devVersion()  { return "3.4.0.0" }
+String devModified() { return "2020-01-20" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -463,8 +463,8 @@ metadata {
             state("default", label:'', action: 'resetQueue', icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/reset_queue.png")
         }
         standardTile("refresh", "device.refresh", width:1, height:1, decoration: "flat") {
-			state "default", action:"refresh.refresh", icon:"https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/refresh.png"
-		}
+            state "default", action:"refresh.refresh", icon:"https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/refresh.png"
+        }
         standardTile("doNotDisturb", "device.doNotDisturb", height: 1, width: 1, inactiveLabel: false, decoration: "flat") {
             state "true", label: '', action: "doNotDisturbOff", nextState: "false", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/dnd_on.png"
             state "false", label: '', action: "doNotDisturbOn", nextState: "true", icon: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/device/dnd_off.png"
@@ -558,9 +558,9 @@ String getEchoDeviceType() { return state?.deviceType ?: null }
 String getEchoSerial() { return state?.serialNumber ?: null }
 
 String getHealthStatus(lower=false) {
-	String res = device?.getStatus()
-	if(lower) { return res?.toString()?.toLowerCase() }
-	return res as String
+    String res = device?.getStatus()
+    if(lower) { return res?.toString()?.toLowerCase() }
+    return res as String
 }
 
 def getShortDevName(){
@@ -951,13 +951,13 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
     //Media Source Provider
     String mediaSource = playerInfo?.provider?.providerName ?: ""
     if(isStateChange(device, "mediaSource", mediaSource?.toString())) {
-    	isMediaInfoChange = true
+        isMediaInfoChange = true
         sendEvent(name: "mediaSource", value: mediaSource?.toString(), descriptionText: "Media Source is ${mediaSource}", display: true, displayed: true)
     }
 
     //Update Audio Track Data
     if (isMediaInfoChange){
-    	Map trackData = [:]
+        Map trackData = [:]
         if(playerInfo?.infoText?.title) { trackData?.title = playerInfo?.infoText?.title }
         if(playerInfo?.infoText?.subText1) { trackData?.artist = playerInfo?.infoText?.subText1 }
         //To avoid media source provider being used as album (ex: Apple Music), only inject `album` if subText2 and providerName are different
@@ -1287,13 +1287,20 @@ private execAsyncCmd(String method, String callbackHandler, Map params, Map othe
     }
 }
 
-private sendAmazonCommand(String method, Map params, Map otherData=null) {
+private String sendAmazonCommand(String method, Map params, Map otherData=null) {
     try {
         def rData = null
         def rStatus = null
         switch(method) {
             case "POST":
                 httpPostJson(params) { response->
+                    rData = response?.data ?: null
+                    rStatus = response?.status
+                }
+                break
+            case "PUT2":
+                if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
+                httpPutJson(params) { response->
                     rData = response?.data ?: null
                     rStatus = response?.status
                 }
@@ -1316,6 +1323,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
             triggerDataRrsh()
         } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
         logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+        return rData?.id || null
     } catch (ex) {
         respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
     }
@@ -2138,7 +2146,7 @@ def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
 }
 
 def createReminder(String remLbl, String remDate, String remTime) {
-    logTrace("createReminder($remLbl, $remDate, $remTime) command received...")
+    log.trace("createReminder($remLbl, $remDate, $remTime) command received...")
     if(isCommandTypeAllowed("alarms")) {
         if(remLbl && remDate && remTime) {
             createNotification("Reminder", [
@@ -2154,22 +2162,43 @@ def createReminder(String remLbl, String remDate, String remTime) {
 }
 
 def removeNotification(String id) {
+    id = generateNotificationKey(id)
     logTrace("removeNotification($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
-            sendAmazonCommand("DELETE", [
-                uri: getAmazonUrl(),
-                path: "/api/notifications/${id}",
-                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-                contentType: "application/json",
-                body: []
-            ], [cmdDesc: "RemoveNotification"])
-            incrementCntByKey("use_cnt_removeNotification")
+            String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[id]
+            if (translatedID) {
+                sendAmazonCommand("DELETE", [
+                    uri: getAmazonUrl(),
+                    path: "/api/notifications/${id}",
+                    headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+                    contentType: "application/json",
+                    body: []
+                ], [cmdDesc: "RemoveNotification"])
+                incrementCntByKey("use_cnt_removeNotification")
+            } else { logWarn("removeNotification Unable to Find Translated ID for ${id}", true) }
         } else { logWarn("removeNotification is Missing the Required (id) Parameter!!!", true) }
     }
 }
 
+private String generateNotificationKey(id) {
+    return id?.toString()?.replaceAll(" ", "")
+}
+
+// https://github.com/custom-components/alexa_media_player/wiki/Known-Endpoints
+//TODO: CreateReminderInXMinutes()
+//TODO: Add Recurrence Options to Alarms and Reminders
+
 private createNotification(type, options) {
+    log.trace "createdNotification options: ${options}"
+    String notifKey = generateNotificationKey(options?.label)
+    if (notifKey) {
+        String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[notifKey]
+        if (translatedID) {
+            logWarn("createNotification found existing notification named ${notifKey}, removing that first")
+            removeNotification(notifKey)
+        }
+    }
     def now = new Date()
     def createdDate = now.getTime()
     def addSeconds = new Date(createdDate + 1 * 60000);
@@ -2185,7 +2214,7 @@ private createNotification(type, options) {
             status: "ON",
             alarmTime: alarmTime,
             createdDate: createdDate,
-            originalTime: type != "Timer" ? "${options?.time}:00.000" : null,
+            originalTime: type != "Timer" ? "${options?.time}.00.000" : null,
             originalDate: type != "Timer" ? options?.date : null,
             timeZoneId: null,
             reminderIndex: null,
@@ -2193,7 +2222,7 @@ private createNotification(type, options) {
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             timeZoneId: null,
-            recurringPattern: type != "Timer" ? '' : null,
+            recurringPattern: type != "Timer" ? 'None' : null,
             alarmLabel: type == "Alarm" ? options?.label : null,
             reminderLabel: type == "Reminder" ? options?.label : null,
             reminderSubLabel: "Echo Speaks",
@@ -2206,7 +2235,12 @@ private createNotification(type, options) {
             remainingDuration: type != "Timer" ? 0 : options?.timerDuration
         ]
     ]
-    sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+    String id = sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+    if (notifKey) {
+        if (state?.containsKey("createdNotifications")) {
+            state?.createdNotifications[notifKey] = id
+        } else { state.createdNotifications = [notifKey: id] }
+    }
 }
 
 def renameDevice(newName) {
@@ -2298,8 +2332,8 @@ def replayText() {
 }
 
 def playText(String msg) {
-	logTrace("playText(msg: $msg) command received...")
-	speak(msg as String)
+    logTrace("playText(msg: $msg) command received...")
+    speak(msg as String)
 }
 
 def playTrackAndResume(uri, duration, volume=null) {
@@ -2320,8 +2354,8 @@ def playTrackAndResume(uri, duration, volume=null) {
 def playTextAndResume(text, volume=null) {
     logTrace("The playTextAndResume(text: $text, volume: $volume) command received...")
     def restVolume = device?.currentValue("level")?.toInteger()
-	if (volume != null) {
-		setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
+    if (volume != null) {
+        setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
     } else { speak(text as String) }
 }
 
@@ -2343,8 +2377,8 @@ def playTrackAndRestore(uri, duration, volume=null) {
 def playTextAndRestore(text, volume=null) {
     logTrace("The playTextAndRestore($text, $volume) command received...")
     def restVolume = device?.currentValue("level")?.toInteger()
-	if (volume != null) {
-		setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
+    if (volume != null) {
+        setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
     } else { speak(text as String) }
 }
 
@@ -2564,7 +2598,7 @@ private stateCleanup() {
     if(state?.lastVolume) { state?.oldVolume = state?.lastVolume }
     List items = ["qBlocked", "qCmdCycleCnt", "useThisVolume", "lastVolume", "lastQueueCheckDt", "loopChkCnt", "speakingNow",
         "cmdQueueWorking", "firstCmdFlag", "recheckScheduled", "cmdQIndexNum", "curMsgLen", "lastTtsCmdDelay",
-        "lastQueueMsg", "lastTtsMsg"
+        "lastQueueMsg", "lastTtsMsg", "createdNotifications"
     ]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
 }
@@ -2889,8 +2923,8 @@ String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/e
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVersions()["echoDevice"]) }
 def getDtNow() {
-	def now = new Date()
-	return formatDt(now, false)
+    def now = new Date()
+    return formatDt(now, false)
 }
 
 def getIsoDtNow() {
@@ -2900,21 +2934,21 @@ def getIsoDtNow() {
 }
 
 def formatDt(dt, mdy = true) {
-	def formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
-	def tf = new java.text.SimpleDateFormat(formatVal)
-	if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-	return tf.format(dt)
+    def formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
+    def tf = new java.text.SimpleDateFormat(formatVal)
+    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf.format(dt)
 }
 
 def GetTimeDiffSeconds(strtDate, stpDate=null) {
-	if((strtDate && !stpDate) || (strtDate && stpDate)) {
-		def now = new Date()
-		def stopVal = stpDate ? stpDate.toString() : formatDt(now, false)
-		def start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate)?.getTime()
-		def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal)?.getTime()
-		def diff = (int) (long) (stop - start) / 1000
-		return diff
-	} else { return null }
+    if((strtDate && !stpDate) || (strtDate && stpDate)) {
+        def now = new Date()
+        def stopVal = stpDate ? stpDate.toString() : formatDt(now, false)
+        def start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate)?.getTime()
+        def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal)?.getTime()
+        def diff = (int) (long) (stop - start) / 1000
+        return diff
+    } else { return null }
 }
 
 def parseDt(dt, dtFmt) {
@@ -2939,8 +2973,8 @@ private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
     if(eData?.find { it?.message == msg }) { return; }
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
-	if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
-	state[logKey as String] = eData
+    if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+    state[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersion()}) | ${msg}" } }
 private logInfo(msg) { if(settings?.logInfo != false) { log.info " Echo (v${devVersion()}) | ${msg}" } }
@@ -2958,27 +2992,27 @@ public clearLogHistory() {
 }
 
 private incrementCntByKey(String key) {
-	long evtCnt = state?."${key}" ?: 0
-	evtCnt++
-	state?."${key}" = evtCnt?.toLong()
+    long evtCnt = state?."${key}" ?: 0
+    evtCnt++
+    state?."${key}" = evtCnt?.toLong()
 }
 
 String getObjType(obj) {
-	if(obj instanceof String) {return "String"}
-	else if(obj instanceof GString) {return "GString"}
-	else if(obj instanceof Map) {return "Map"}
+    if(obj instanceof String) {return "String"}
+    else if(obj instanceof GString) {return "GString"}
+    else if(obj instanceof Map) {return "Map"}
     else if(obj instanceof LinkedHashMap) {return "LinkedHashMap"}
     else if(obj instanceof HashMap) {return "HashMap"}
-	else if(obj instanceof List) {return "List"}
-	else if(obj instanceof ArrayList) {return "ArrayList"}
-	else if(obj instanceof Integer) {return "Integer"}
-	else if(obj instanceof BigInteger) {return "BigInteger"}
-	else if(obj instanceof Long) {return "Long"}
-	else if(obj instanceof Boolean) {return "Boolean"}
-	else if(obj instanceof BigDecimal) {return "BigDecimal"}
-	else if(obj instanceof Float) {return "Float"}
-	else if(obj instanceof Byte) {return "Byte"}
-	else { return "unknown"}
+    else if(obj instanceof List) {return "List"}
+    else if(obj instanceof ArrayList) {return "ArrayList"}
+    else if(obj instanceof Integer) {return "Integer"}
+    else if(obj instanceof BigInteger) {return "BigInteger"}
+    else if(obj instanceof Long) {return "Long"}
+    else if(obj instanceof Boolean) {return "Boolean"}
+    else if(obj instanceof BigDecimal) {return "BigDecimal"}
+    else if(obj instanceof Float) {return "Float"}
+    else if(obj instanceof Byte) {return "Byte"}
+    else { return "unknown"}
 }
 
 public Map getDeviceMetrics() {

@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.3.0" }
-String appModified() { return "2020-01-17" }
+String appVersion()  { return "3.4.0.0" }
+String appModified() { return "2020-01-20" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -258,7 +258,7 @@ def conditionsPage() {
 
 def condNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, String image) {
     section (sTS(sectStr), hideWhenEmpty: true) {
-        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required:false, image: getAppImg(image)
+        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required:false, image: getAppImg(image), hideWhenEmpty: true
         if (settings?."cond_${inType}") {
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle}...", getAppImg("command", true)), options: cmdOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
             if (settings?."cond_${inType}_cmd" && settings?."cond_${inType}"?.size() > 1) {
@@ -269,8 +269,8 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
 }
 
 def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, hideable= false) {
-    section (sTS(sectStr), hideable: hideable, hideWhenEmpty: true) {
-        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: false, image: getAppImg(image)
+    section (sTS(sectStr), hideWhenEmpty: true) {
+        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: false, image: getAppImg(image), hideWhenEmpty: true
         if(settings?."cond_${inType}") {
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
             if (settings?."cond_${inType}_cmd") {

@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.2.0" }
-String appModified() { return "2020-01-07" }
+String appVersion()  { return "3.4.0.0" }
+String appModified() { return "2020-01-20" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -707,29 +707,29 @@ def conditionsPage() {
 
         condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", ["open", "closed"], "are", "garage_door")
 
-        condNumValSect("temperature", "temperatureMeasurement", "Temperature Conditions", "Temperature Sensors", "Temperature", "temperature", true)
+        condNumValSect("temperature", "temperatureMeasurement", "Temperature Conditions", "Temperature Sensors", "Temperature", "temperature")
 
-        condNumValSect("humidity", "relativeHumidityMeasurement", "Humidity Conditions", "Relative Humidity Sensors", "Relative Humidity (%)", "humidity", true)
+        condNumValSect("humidity", "relativeHumidityMeasurement", "Humidity Conditions", "Relative Humidity Sensors", "Relative Humidity (%)", "humidity")
 
-        condNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Conditions", "Illuminance Sensors", "Lux Level (%)", "illuminance", true)
+        condNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Conditions", "Illuminance Sensors", "Lux Level (%)", "illuminance")
 
-        condNumValSect("level", "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level (%)", "speed_knob", true)
+        condNumValSect("level", "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level (%)", "speed_knob")
 
         condNonNumSect("water", "waterSensor", "Water Sensors", "Water Sensors", ["wet", "dry"], "are", "water")
 
-        condNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power", true)
+        condNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power")
 
         condNonNumSect("shade", "windowShades", "Window Shades", "Window Shades", ["open", "closed"], "are", "shade")
 
         condNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed"], "are", "valve")
 
-        condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery", true)
+        condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery")
     }
 }
 
 def condNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, String image) {
-    section (sTS(sectStr)) {
-        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required:false, image: getAppImg(image)
+    section (sTS(sectStr), hideWhenEmpty: true) {
+        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required:false, image: getAppImg(image), hideWhenEmpty: true
         if (settings?."cond_${inType}") {
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle}...", getAppImg("command", true)), options: cmdOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
             if (settings?."cond_${inType}_cmd" && settings?."cond_${inType}"?.size() > 1) {
@@ -740,8 +740,8 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
 }
 
 def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, hideable= false) {
-    section (sTS(sectStr), hideable: hideable) {
-        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: false, image: getAppImg(image)
+    section (sTS(sectStr), hideWhenEmpty: true) {
+        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: false, image: getAppImg(image), hideWhenEmpty: true
         if(settings?."cond_${inType}") {
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
             if (settings?."cond_${inType}_cmd") {
@@ -1162,6 +1162,8 @@ def actionsPage() {
                             // input "act_alarm_remove", "bool", title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
                         actionVolumeInputs(devices, false, true)
+                        def newTime = parseFmtDt("yyyy-MM-dd'T'HH:mm:ss.SSSZ", 'HH:mm', settings?.act_alarm_time)
+                        log.debug "newTime: ${newTime}"
                         actionExecMap?.config?.alarm = [cmd: "createAlarm", label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: settings?.act_alarm_time, remove: settings?.act_alarm_remove]
                         if(act_alarm_label && act_alarm_date && act_alarm_time) { done = true } else { done = false }
                     } else { done = false }
@@ -1179,7 +1181,9 @@ def actionsPage() {
                             // input "act_reminder_remove", "bool", title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
                         actionVolumeInputs(devices, false, true)
-                        actionExecMap?.config?.reminder = [cmd: "createReminder", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: settings?.act_reminder_time, remove: settings?.act_reminder_remove]
+                        def newTime = parseFmtDt("yyyy-MM-dd'T'HH:mm:ss.SSSZ", 'HH:mm', settings?.act_reminder_time)
+                        log.debug "newTime: ${newTime}"
+                        actionExecMap?.config?.reminder = [cmd: "createReminder", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: newTime, remove: settings?.act_reminder_remove]
                         if(act_reminder_label && act_reminder_date && act_reminder_time) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -3628,6 +3632,13 @@ def parseDt(pFormat, dt, tzFmt=true) {
     result = formatDt(newDt, tzFmt)
     //log.debug "parseDt Result: $result"
     return result
+}
+
+def parseFmtDt(parseFmt, newFmt, dt) {
+    def newDt = Date.parse(parseFmt, dt?.toString())
+    def tf = new java.text.SimpleDateFormat(newFmt)
+    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf?.format(newDt)
 }
 
 def getDtNow() {
