@@ -319,8 +319,8 @@ def condTimePage() {
 def zoneNotifPage() {
     return dynamicPage(name: "zoneNotifPage", title: "Zone Notifications", install: false, uninstall: false) {
         section (sTS("Message Customization:")) {
-            input "notif_active_message", "text", title: inTS("Enter message to send when Active...", getAppImg("text", true)), required: true, submitOnChange: true, image: getAppImg("text")
-            input "notif_inactive_message", "text", title: inTS("Enter message to send when Active...", getAppImg("text", true)), required: true, submitOnChange: true, image: getAppImg("text")
+            input "notif_active_message", "text", title: inTS("Active Message?", getAppImg("text", true)), required: false, submitOnChange: true, image: getAppImg("text")
+            input "notif_inactive_message", "text", title: inTS("Inactive Message?", getAppImg("text", true)), required: false, submitOnChange: true, image: getAppImg("text")
         }
         if(settings?.notif_active_message || settings?.notif_inactive_message) {
             section (sTS("Push Messages:")) {
@@ -768,7 +768,7 @@ def checkZoneStatus(evt) {
 
 def sendZoneStatus() {
     Boolean active = (conditionStatus()?.ok == true)
-    state?.zoneConditionsOk = active
+    // state?.zoneConditionsOk = active
     sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true)
 }
 
@@ -1293,11 +1293,9 @@ String getNotifSchedDesc(min=false) {
     def startLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
     def stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
     str += (startLbl && stopLbl) ? " \u2022 Time: ${startLbl} - ${stopLbl}" : ""
-    def days = getInputToStringDesc(dayInput)
-    def modes = getInputToStringDesc(modeInput)
     def qDays = getQuietDays()
-    str += days ? "${(startLbl || stopLbl) ? "\n" : ""} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
-    str += modes ? "${(startLbl || stopLbl || days) ? "\n" : ""} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
+    str += dayInput ? "${(startLbl || stopLbl) ? "\n" : ""} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
+    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : ""} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : ""
     return (str != "") ? "${str}" : null
 }
 
