@@ -15,7 +15,7 @@
  */
 
 String appVersion()  { return "3.4.0.0" }
-String appModified() { return "2020-01-20" }
+String appModified() { return "2020-01-21" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -85,7 +85,7 @@ def uhOhPage () {
 }
 
 def appInfoSect(sect=true)	{
-    def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@'h:mm a", true) : null
+    def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@' h:mm a", true) : null
     section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version: ${appVersion()}", image: getAppImg("es_actions") }
 }
 
@@ -828,7 +828,7 @@ String actionTypeDesc() {
         announcement_tiered: "Allows you to create tiered responses.  Each tier can have a different delay before the next message is spoken/announced. Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.",
         sequence: "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.",
         weather: "Plays a very basic weather report.",
-        playback: "Allows you to control the media playback state of your Echo devices.",
+        playback: "Allows you to control the media playback state or volume level of your Echo devices.",
         builtin: "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.",
         sounds: "Plays a selected amazon sound item.",
         music: "Allows playback of various Songs/Radio using any connected music provider",
@@ -1691,7 +1691,7 @@ private actionVolumeInputs(devices, showVolOnly=false, showAlrmVol=false) {
             input "act_alarm_volume", "number", title: inTS("Alarm Volume\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
         }
     } else {
-        if(devices && settings?.actionType in ["speak", "announcement", "weather", "sounds", "builtin", "music", "calendar"]) {
+        if(devices && settings?.actionType in ["speak", "announcement", "weather", "sounds", "builtin", "music", "calendar", "playback"]) {
             Map volMap = devsSupportVolume(devices)
             section(sTS("Volume Options:")) {
                 if(volMap?.n?.size() > 0 && volMap?.n?.size() < devices?.size()) { paragraph "Some of the selected devices do not support volume control" }
@@ -3033,9 +3033,11 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                         actDevices?.each { dev->
                             if(isST && actDelayMs) {
                                 if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
+                                else if(actConf[actType]?.cmd == "volume") { dev?.setVolume(changeVol, [delay: actDelayMs]) }
                                 if(changeVol) { dev?.volume(changeVol, [delay: actDelayMs]) }
                             } else {
                                 if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"() }
+                                else if(actConf[actType]?.cmd == "volume") { dev?.setVolume(changeVol) }
                                 if(changeVol) { dev?.volume(changeVol) }
                             }
                         }

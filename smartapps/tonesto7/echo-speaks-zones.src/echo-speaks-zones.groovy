@@ -910,10 +910,10 @@ public zoneCmdHandler(evt) {
                 zoneDevs?.devices?.each { dev->
                     if(isST() && delay) {
                         if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay]) }
-                        if(data?.cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol, [delay: delay]) }
+                        if(data?.cmd == "volume" && data?.changeVol) { dev?.setVolume(data?.changeVol, [delay: delay]) }
                     } else {
                         if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null) }
-                        if(data?.cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol) }
+                        if(data?.cmd == "volume" && data?.changeVol) { dev?.setVolume(data?.changeVol) }
                     }
                 }
                 break
