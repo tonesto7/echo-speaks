@@ -928,7 +928,7 @@ private execAsyncCmd(String method, String callbackHandler, Map params, Map othe
     }
 }
 
-private sendAmazonCommand(String method, Map params, Map otherData=null) {
+private String sendAmazonCommand(String method, Map params, Map otherData=null) {
     try {
         def rData = null
         def rStatus = null
@@ -957,6 +957,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
             triggerDataRrsh()
         } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
         logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+        return rData?.id || null
     } catch (ex) {
         respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
     }
@@ -1512,6 +1513,7 @@ def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
 }
 
 def playSoundByName(String name, volume=null, restoreVolume=null) {
+    log.debug "sound name: ${name}"
     if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "sound", value: name]]
         if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
@@ -1554,7 +1556,7 @@ def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null
             if(volume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: volume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
             mainSeq?.push([command: "announcement_devices", value: msg])
             if(restoreVolume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: restoreVolume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
-            log.debug "mainSeq: $mainSeq"
+            // log.debug "mainSeq: $mainSeq"
             sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
         } else { doSequenceCmd("sendAnnouncementToDevices", "announcement_devices", msg) }
         incrementCntByKey("use_cnt_announcementDevices")
@@ -1794,22 +1796,43 @@ def createReminder(String remLbl, String remDate, String remTime) {
 }
 
 def removeNotification(String id) {
+    id = generateNotificationKey(id)
     logTrace("removeNotification($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
-            sendAmazonCommand("DELETE", [
-                uri: getAmazonUrl(),
-                path: "/api/notifications/${id}",
-                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-                contentType: "application/json",
-                body: []
-            ], [cmdDesc: "RemoveNotification"])
-            incrementCntByKey("use_cnt_removeNotification")
+            String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[id]
+            if (translatedID) {
+                sendAmazonCommand("DELETE", [
+                    uri: getAmazonUrl(),
+                    path: "/api/notifications/${id}",
+                    headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+                    contentType: "application/json",
+                    body: []
+                ], [cmdDesc: "RemoveNotification"])
+                incrementCntByKey("use_cnt_removeNotification")
+            } else { logWarn("removeNotification Unable to Find Translated ID for ${id}", true) }
         } else { logWarn("removeNotification is Missing the Required (id) Parameter!!!", true) }
     }
 }
 
+private String generateNotificationKey(id) {
+    return id?.toString()?.replaceAll(" ", "")
+}
+
+// https://github.com/custom-components/alexa_media_player/wiki/Known-Endpoints
+//TODO: CreateReminderInXMinutes()
+//TODO: Add Recurrence Options to Alarms and Reminders
+
 private createNotification(type, options) {
+    log.trace "createdNotification options: ${options}"
+    String notifKey = generateNotificationKey(options?.label)
+    if (notifKey) {
+        String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[notifKey]
+        if (translatedID) {
+            logWarn("createNotification found existing notification named ${notifKey}, removing that first")
+            removeNotification(notifKey)
+        }
+    }
     def now = new Date()
     def createdDate = now.getTime()
     def addSeconds = new Date(createdDate + 1 * 60000);
@@ -1825,7 +1848,7 @@ private createNotification(type, options) {
             status: "ON",
             alarmTime: alarmTime,
             createdDate: createdDate,
-            originalTime: type != "Timer" ? "${options?.time}:00.000" : null,
+            originalTime: type != "Timer" ? "${options?.time}.00.000" : null,
             originalDate: type != "Timer" ? options?.date : null,
             timeZoneId: null,
             reminderIndex: null,
@@ -1833,7 +1856,7 @@ private createNotification(type, options) {
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             timeZoneId: null,
-            recurringPattern: type != "Timer" ? '' : null,
+            recurringPattern: type != "Timer" ? 'None' : null,
             alarmLabel: type == "Alarm" ? options?.label : null,
             reminderLabel: type == "Reminder" ? options?.label : null,
             reminderSubLabel: "Echo Speaks",
@@ -1846,7 +1869,12 @@ private createNotification(type, options) {
             remainingDuration: type != "Timer" ? 0 : options?.timerDuration
         ]
     ]
-    sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+    String id = sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+    if (notifKey) {
+        if (state?.containsKey("createdNotifications")) {
+            state?.createdNotifications[notifKey] = id
+        } else { state.createdNotifications = [notifKey: id] }
+    }
 }
 
 def renameDevice(newName) {
@@ -2204,7 +2232,7 @@ private stateCleanup() {
     if(state?.lastVolume) { state?.oldVolume = state?.lastVolume }
     List items = ["qBlocked", "qCmdCycleCnt", "useThisVolume", "lastVolume", "lastQueueCheckDt", "loopChkCnt", "speakingNow",
         "cmdQueueWorking", "firstCmdFlag", "recheckScheduled", "cmdQIndexNum", "curMsgLen", "lastTtsCmdDelay",
-        "lastQueueMsg", "lastTtsMsg"
+        "lastQueueMsg", "lastTtsMsg", "createdNotifications"
     ]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
 }

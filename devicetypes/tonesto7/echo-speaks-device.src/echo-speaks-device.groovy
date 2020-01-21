@@ -1298,13 +1298,6 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
                     rStatus = response?.status
                 }
                 break
-            case "PUT2":
-                if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
-                httpPutJson(params) { response->
-                    rData = response?.data ?: null
-                    rStatus = response?.status
-                }
-                break
             case "PUT":
                 if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
                 httpPutJson(params) { response->
@@ -2146,7 +2139,7 @@ def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
 }
 
 def createReminder(String remLbl, String remDate, String remTime) {
-    log.trace("createReminder($remLbl, $remDate, $remTime) command received...")
+    logTrace("createReminder($remLbl, $remDate, $remTime) command received...")
     if(isCommandTypeAllowed("alarms")) {
         if(remLbl && remDate && remTime) {
             createNotification("Reminder", [
