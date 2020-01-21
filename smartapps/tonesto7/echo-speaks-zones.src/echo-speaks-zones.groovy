@@ -205,6 +205,7 @@ def conditionsPage() {
                 paragraph pTS("Notice:\n${cond_require_all == true ? "All selected conditions required to make zone active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
             }
         }
+
         section(sTS("Time/Date")) {
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getAppImg("clock")
             input "cond_days", "enum", title: inTS("Days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
@@ -215,11 +216,17 @@ def conditionsPage() {
             input "cond_mode", "mode", title: inTS("Location Modes...", getAppImg("mode", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("mode")
             if(settings?.cond_mode) {
                 input "cond_mode_cmd", "enum", title: inTS("are...", getAppImg("command", true)), options: ["not":"not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+                if(cond_mode && cond_mode_cmd) {
+                    input "cond_mode_db", "bool", title: inTS("Deactivate Zone immediately when Mode condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+                }
             }
         }
 
         section (sTS("Alarm Conditions")) {
             input "cond_alarm", "enum", title: inTS("${getAlarmSystemName()} is...", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
+            if(settings?.cond_alarm) {
+                input "cond_alarm_db", "bool", title: inTS("Deactivate Zone immediately when Alarm condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+            }
         }
 
         condNonNumSect("switch", "switch", "Switches/Outlets Conditions", "Switches/Outlets", ["on","off"], "are", "switch")
@@ -264,6 +271,7 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
             if (settings?."cond_${inType}_cmd" && settings?."cond_${inType}"?.size() > 1) {
                 input "cond_${inType}_all", "bool", title: inTS("ALL ${devTitle} must be (${settings?."cond_${inType}_cmd"})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
             }
+            input "cond_${inType}_db", "bool", title: inTS("Deactivate Zone immediately when ${cmdTitle} condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
         }
     }
 }
@@ -289,6 +297,7 @@ def condNumValSect(String inType, String capType, String sectStr, String devTitl
                         input "cond_${inType}_avg", "bool", title: inTS("Use the average of all selected device values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                     }
                 }
+                input "cond_${inType}_db", "bool", title: inTS("Deactivate Zone immediately when ${cmdTitle} condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
             }
         }
     }
@@ -645,6 +654,22 @@ Boolean checkDeviceNumCondOk(type) {
     }
 }
 
+private isConditionOk(evt) {
+    if(["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.contains(evt)) {
+        if(!settings?."cond_${evt}") { true }
+        return checkDeviceCondOk(evt)
+    } else if(["temperature", "humidity", "illuminance", "level", "power", "battery"]?.contains(evt)) {
+        if(!settings?."cond_${evt}") { true }
+        return checkDeviceNumCondOk(evt)
+    } else if (evt == "mode") {
+        return (settings?.cond_mode && settings?.cond_mode_cmd) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
+    } else if (["hsmStatus", "alarmSystemStatus"]?.contains(evt)) {
+        return settings?.cond_alarm ? isInAlarmMode(settings?.cond_alarm) : true
+    } else {
+        return true
+    }
+}
+
 Boolean deviceCondOk() {
     List skipped = []
     List passed = []
@@ -762,14 +787,19 @@ private addToZoneHistory(evt, condStatus, Integer max=10) {
 def checkZoneStatus(evt) {
     Map condStatus = conditionStatus()
     Boolean active = (condStatus?.ok == true)
+    Boolean bypassDelay = false
     String delayType = active ? "active" : "inactive"
     Map data = [active: active, recheck: false, evtData: [name: evt?.name, displayName: evt?.displayName], condStatus: condStatus]
     Integer delay = settings?."zone_${delayType}_delay" ?: null
-    if(delay) {
+    if(!active && settings?."cond_${evt?.name}_db" == true) { bypassDelay = isConditionOk(evt?.name) != true }
+    if(!bypassDelay && delay) {
         log.debug "updateZoneStatus to [${delayType}] in (${delay} sec)"
         runIn(delay, "updateZoneStatus", [data: data])
     } else {
         // log.debug "updateZoneStatus to [${delayType}]"
+        if(bypassDelay) {
+            log.debug "Bypassing Inactive Delay for (${evt?.name}) Event..."
+        }
         updateZoneStatus(data)
     }
 }
@@ -1334,7 +1364,7 @@ String getConditionsDesc() {
                     def condOk = false
                     if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
-
+                    // str += settings?."${}"
                     str += settings?."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : ""
                     def cmd = settings?."${sPre}${evt}_cmd" ?: null
                     if(cmd in ["between", "below", "above", "equals"]) {
