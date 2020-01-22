@@ -2178,6 +2178,167 @@ private String generateNotificationKey(id) {
     return id?.toString()?.replaceAll(" ", "")
 }
 
+/* Repeat Everyday @x:xx time
+    "rRuleData": {
+        "byMonthDays": null,
+        "byWeekDays": null,
+        "flexibleRecurringPatternType": "ONCE_A_DAY",
+        "frequency": null,
+        "intervals": [
+            1
+        ],
+        "nextTriggerTimes": null,
+        "notificationTimes": [
+            "22:59:00.000"
+        ],
+        "recurEndDate": null,
+        "recurEndTime": null,
+        "recurStartDate": null,
+        "recurStartTime": null,
+        "recurrenceRules": [
+            "FREQ=DAILY;BYHOUR=22;BYMINUTE=59;BYSECOND=0;INTERVAL=1;"
+        ]
+    },
+    "recurrenceEligibility": false,
+    "recurringPattern": "P1D"
+*/
+
+/*
+    Repeat on Weekends @x:xx
+    "rRuleData": {
+        "byMonthDays": null,
+        "byWeekDays": [
+            "SA",
+            "SU"
+        ],
+        "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
+        "frequency": null,
+        "intervals": [
+            1
+        ],
+        "nextTriggerTimes": null,
+        "notificationTimes": [
+            "23:02:00.000",
+            "23:02:00.000"
+        ],
+        "recurEndDate": null,
+        "recurEndTime": null,
+        "recurStartDate": null,
+        "recurStartTime": null,
+        "recurrenceRules": [
+            "FREQ=WEEKLY;BYDAY=SA;BYHOUR=23;BYMINUTE=2;BYSECOND=0;INTERVAL=1;",
+            "FREQ=WEEKLY;BYDAY=SU;BYHOUR=23;BYMINUTE=2;BYSECOND=0;INTERVAL=1;"
+        ]
+    },
+    "recurrenceEligibility": false,
+    "recurringPattern": "XXXX-WE",
+*/
+
+/*
+    Repeat Every Weekday @ x:xx
+    "rRuleData": {
+        "byMonthDays": null,
+        "byWeekDays": [
+            "MO",
+            "TU",
+            "WE",
+            "TH",
+            "FR"
+        ],
+        "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
+        "frequency": null,
+        "intervals": [
+            1
+        ],
+        "nextTriggerTimes": null,
+        "notificationTimes": [
+            "23:01:00.000",
+            "23:01:00.000",
+            "23:01:00.000",
+            "23:01:00.000",
+            "23:01:00.000"
+        ],
+        "recurEndDate": null,
+        "recurEndTime": null,
+        "recurStartDate": null,
+        "recurStartTime": null,
+        "recurrenceRules": [
+            "FREQ=WEEKLY;BYDAY=MO;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+            "FREQ=WEEKLY;BYDAY=TU;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+            "FREQ=WEEKLY;BYDAY=WE;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+            "FREQ=WEEKLY;BYDAY=TH;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+            "FREQ=WEEKLY;BYDAY=FR;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;"
+        ]
+    },
+    "recurrenceEligibility": false,
+    "recurringPattern": "XXXX-WD",
+*/
+
+/* Repeat on these day every week
+    "rRuleData": {
+        "byMonthDays": [],
+        "byWeekDays": [
+            "TU",
+            "WE",
+            "TH"
+        ],
+        "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
+        "frequency": null,
+        "intervals": [
+            1,
+            1,
+            1
+        ],
+        "nextTriggerTimes": [
+            "2020-01-21T23:00:00.000-05:00"
+        ],
+        "notificationTimes": [
+            "23:00:00.000",
+            "23:00:00.000",
+            "23:00:00.000"
+        ],
+        "recurEndDate": null,
+        "recurEndTime": null,
+        "recurStartDate": null,
+        "recurStartTime": null,
+        "recurrenceRules": [
+            "FREQ=WEEKLY;BYDAY=TU;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;",
+            "FREQ=WEEKLY;BYDAY=WE;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;",
+            "FREQ=WEEKLY;BYDAY=TH;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;"
+        ]
+    },
+    "recurrenceEligibility": false,
+    "recurringPattern": null,
+*/
+
+/*
+    Repeat every 7th day of the month
+    "rRuleData": {
+        "byMonthDays": [],
+        "byWeekDays": [],
+        "flexibleRecurringPatternType": "EVERY_X_DAYS",
+        "frequency": null,
+        "intervals": [
+            7
+        ],
+        "nextTriggerTimes": [
+            "2020-01-21T23:00:00.000-05:00"
+        ],
+        "notificationTimes": [
+            "23:00:00.000"
+        ],
+        "recurEndDate": null,
+        "recurEndTime": null,
+        "recurStartDate": "2020-01-21",
+        "recurStartTime": "00:00:00.000",
+        "recurrenceRules": [
+            "FREQ=DAILY;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=7;"
+        ]
+    },
+    "recurrenceEligibility": false,
+    "recurringPattern": null,
+*/
+
 // https://github.com/custom-components/alexa_media_player/wiki/Known-Endpoints
 //TODO: CreateReminderInXMinutes()
 //TODO: Add Recurrence Options to Alarms and Reminders

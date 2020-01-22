@@ -1159,12 +1159,19 @@ def actionsPage() {
                             input "act_alarm_label", "text", title: inTS("Alarm Label", getAppImg("name_tag", true)), submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_alarm_date", "text", title: inTS("Alarm Date\n(yyyy-mm-dd)", getAppImg("day_calendar", true)), submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_alarm_time", "time", title: inTS("Alarm Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getAppImg("clock")
+                            input "act_alarm_rt", "enum", title: inTS("Repeat (Optional)", getAppImg("command", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("command")
+                            if(settings?."act_alarm_rt" && settings?."act_alarm_rt" == "daysOfWeek") {
+                                input "act_alarm_rt_wd", "enum", title: inTS("Weekday", getAppImg("checkbox", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("checkbox")
+                            }
+                            if(settings?."act_alarm_rt" && settings?."act_alarm_rt" == "daysOfWeek") {
+                                input "act_alarm_rt_ed", "enum", title: inTS("Every X Days", getAppImg("checkbox", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("checkbox")
+                            }
                             // input "act_alarm_remove", "bool", title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
                         actionVolumeInputs(devices, false, true)
                         def newTime = parseFmtDt("yyyy-MM-dd'T'HH:mm:ss.SSSZ", 'HH:mm', settings?.act_alarm_time)
-                        log.debug "newTime: ${newTime}"
-                        actionExecMap?.config?.alarm = [cmd: "createAlarm", label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: settings?.act_alarm_time, remove: settings?.act_alarm_remove]
+                        def repeatOpts = null
+                        actionExecMap?.config?.alarm = [cmd: "createAlarm", label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: newTime, repeat: repeatOpts, remove: settings?.act_alarm_remove]
                         if(act_alarm_label && act_alarm_date && act_alarm_time) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -1174,16 +1181,25 @@ def actionsPage() {
                     section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("reminders")
                     if(settings?.act_EchoDevices) {
+                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysOfWeek":"Days of the Week", "everyXdays":"Every Nth Day"]
                         section(sTS("Action Type Config:")) {
                             input "act_reminder_label", "text", title: inTS("Reminder Label", getAppImg("name_tag", true)), submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_reminder_date", "text", title: inTS("Reminder Date\n(yyyy-mm-dd)", getAppImg("day_calendar", true)), submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_reminder_time", "time", title: inTS("Reminder Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getAppImg("clock")
+                            input "act_reminder_rt", "enum", title: inTS("Repeat (Optional)", getAppImg("command", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("command")
+                            if(settings?."act_reminder_rt" && settings?."act_reminder_rt" == "daysOfWeek") {
+                                input "act_reminder_rt_wd", "enum", title: inTS("Weekday", getAppImg("checkbox", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("checkbox")
+                            }
+                            if(settings?."act_reminder_rt" && settings?."act_reminder_rt" == "daysOfWeek") {
+                                input "act_reminder_rt_ed", "enum", title: inTS("Every X Days", getAppImg("checkbox", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("checkbox")
+                            }
                             // input "act_reminder_remove", "bool", title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
                         actionVolumeInputs(devices, false, true)
                         def newTime = parseFmtDt("yyyy-MM-dd'T'HH:mm:ss.SSSZ", 'HH:mm', settings?.act_reminder_time)
-                        log.debug "newTime: ${newTime}"
-                        actionExecMap?.config?.reminder = [cmd: "createReminder", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: newTime, remove: settings?.act_reminder_remove]
+                        def repeatOpts = null
+                        if(settings?."act_reminder_rt")
+                        actionExecMap?.config?.reminder = [cmd: "createReminder", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: newTime, repeat: repeatOpts, remove: settings?.act_reminder_remove]
                         if(act_reminder_label && act_reminder_date && act_reminder_time) { done = true } else { done = false }
                     } else { done = false }
                     break
