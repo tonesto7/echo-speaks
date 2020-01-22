@@ -2138,8 +2138,8 @@ def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
     } else { logWarn("createAlarm is Missing a Required Parameter!!!", true) }
 }
 
-def createReminder(String remLbl, String remDate, String remTime) {
-    logTrace("createReminder($remLbl, $remDate, $remTime) command received...")
+def createReminder(String remLbl, String remDate, String remTime, String recurType=null, String recurOpt=null) {
+    logTrace("createReminder($remLbl, $remDate, $remTime, $recurType, $recurOpt) command received...")
     if(isCommandTypeAllowed("alarms")) {
         if(remLbl && remDate && remTime) {
             createNotification("Reminder", [
@@ -2147,7 +2147,10 @@ def createReminder(String remLbl, String remDate, String remTime) {
                 label: remLbl?.toString(),
                 date: remDate?.toString(),
                 time: remTime?.toString(),
-                type: "Reminder"
+                type: "Reminder",
+                recurType: recurType,
+                recurOpt: recurOpt
+
             ])
             incrementCntByKey("use_cnt_createReminder")
         } else { logWarn("createReminder is Missing the Required (id) Parameter!!!", true) }
