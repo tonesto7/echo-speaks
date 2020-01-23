@@ -1185,7 +1185,7 @@ private getPlaylists() {
     }
 }
 
-private getNotifications() {
+private getNotifications(type="Reminder", all=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications",
@@ -1198,7 +1198,9 @@ private getNotifications() {
             List newList = []
             def sData = response?.data ?: null
             if(sData?.size()) {
-                List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
+                List s = ["ON"]
+                if(all) s?.push("OFF")
+                List items = sData?.notifications ? sData?.notifications?.findAll { (it?.status in s) && (it?.type == type) && it?.deviceSerialNumber == state?.serialNumber } : []
                 items?.each { item->
                     Map li = [:]
                     item?.keySet().each { key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration']) { li[key] = item[key] } }
@@ -1209,9 +1211,11 @@ private getNotifications() {
                 sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
             }
             // log.trace "notifications: $newList"
+            return newList
         }
     } catch (ex) {
         respExceptionHandler(ex, "getNotifications")
+        return null
     }
 }
 
@@ -2138,7 +2142,23 @@ def createAlarm(String alarmLbl, String alarmDate, String alarmTime) {
     } else { logWarn("createAlarm is Missing a Required Parameter!!!", true) }
 }
 
-def createReminder(String remLbl, String remDate, String remTime, String recurType=null, String recurOpt=null) {
+def createReminder(String remLbl, String remDate, String remTime) {
+    logTrace("createReminder($remLbl, $remDate, $remTime) command received...")
+    if(isCommandTypeAllowed("alarms")) {
+        if(remLbl && remDate && remTime) {
+            createNotification("Reminder", [
+                cmdType: "CreateReminder",
+                label: remLbl?.toString(),
+                date: remDate?.toString(),
+                time: remTime?.toString(),
+                type: "Reminder"
+            ])
+            incrementCntByKey("use_cnt_createReminder")
+        } else { logWarn("createReminder is Missing the Required (id) Parameter!!!", true) }
+    }
+}
+
+def createReminderNew(String remLbl, String remDate, String remTime, String recurType=null, String recurOpt=null) {
     logTrace("createReminder($remLbl, $remDate, $remTime, $recurType, $recurOpt) command received...")
     if(isCommandTypeAllowed("alarms")) {
         if(remLbl && remDate && remTime) {
@@ -2150,7 +2170,6 @@ def createReminder(String remLbl, String remDate, String remTime, String recurTy
                 type: "Reminder",
                 recurType: recurType,
                 recurOpt: recurOpt
-
             ])
             incrementCntByKey("use_cnt_createReminder")
         } else { logWarn("createReminder is Missing the Required (id) Parameter!!!", true) }
@@ -2174,6 +2193,27 @@ def removeNotification(String id) {
                 incrementCntByKey("use_cnt_removeNotification")
             } else { logWarn("removeNotification Unable to Find Translated ID for ${id}", true) }
         } else { logWarn("removeNotification is Missing the Required (id) Parameter!!!", true) }
+    }
+}
+
+def removeAllNotificationByType(String type) {
+    logTrace("removeAllNotificationsByType($id) command received...")
+    if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
+        def ids = getNotifications(type, true)
+        if(ids?.size()) {
+            ids?.each {
+                if (translatedID) {
+                    sendAmazonCommand("DELETE", [
+                        uri: getAmazonUrl(),
+                        path: "/api/notifications/${id}",
+                        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+                        contentType: "application/json",
+                        body: []
+                    ], [cmdDesc: "RemoveNotification"])
+                    incrementCntByKey("use_cnt_removeNotification")
+                } else { logWarn("removeNotification Unable to Find Translated ID for ${id}", true) }
+            }
+        } else { logWarn("removeAllNotificationByType($type) is Missing the Required (id) Parameter!!!", true) }
     }
 }
 
@@ -2342,8 +2382,9 @@ private String generateNotificationKey(id) {
     "recurringPattern": null,
 */
 
-// https://github.com/custom-components/alexa_media_player/wiki/Known-Endpoints
 //TODO: CreateReminderInXMinutes()
+//TODO: RemoveAllReminders() //Remove all Reminders for this device
+//TODO: RemoveAllAlarms() //Remove all Alarms for this device
 //TODO: Add Recurrence Options to Alarms and Reminders
 
 private createNotification(type, options) {

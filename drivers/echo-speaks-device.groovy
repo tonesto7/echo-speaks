@@ -1819,7 +1819,6 @@ private String generateNotificationKey(id) {
     return id?.toString()?.replaceAll(" ", "")
 }
 
-// https://github.com/custom-components/alexa_media_player/wiki/Known-Endpoints
 //TODO: CreateReminderInXMinutes()
 //TODO: Add Recurrence Options to Alarms and Reminders
 
