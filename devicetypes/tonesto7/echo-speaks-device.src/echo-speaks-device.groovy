@@ -2161,7 +2161,7 @@ def createReminder(String remLbl, String remDate, String remTime) {
 }
 
 def createReminderNew(String remLbl, String remDate, String remTime, String recurType=null, recurOpt=null) {
-    logTrace("createReminder($remLbl, $remDate, $remTime, $recurType, $recurOpt) command received...")
+    logTrace("createReminderNew($remLbl, $remDate, $remTime, $recurType, $recurOpt) command received...")
     if(isCommandTypeAllowed("alarms")) {
         if(remLbl && remDate && remTime) {
             createNotification("Reminder", [
@@ -2170,7 +2170,8 @@ def createReminderNew(String remLbl, String remDate, String remTime, String recu
                 date: remDate?.toString(),
                 time: remTime?.toString(),
                 type: "Reminder",
-                recur: [type: recurType, opt: recurOpt]
+                recur_type: recurType,
+                recur_opt: recurOpt
             ])
             incrementCntByKey("use_cnt_createReminder")
         } else { logWarn("createReminder is Missing the Required (id) Parameter!!!", true) }
@@ -2215,6 +2216,7 @@ def removeAllNotificationsByType(String type) {
                 } else { logWarn("removeAllNotificationByType($type) Unable to Find ID for ${item?.id}", true) }
             }
         }// else { logWarn("removeAllNotificationByType($type) is Missing the Required (id) Parameter!!!", true) }
+        state?.remove("createdNotifications")
     }
 }
 
@@ -2222,12 +2224,93 @@ private String generateNotificationKey(id) {
     return id?.toString()?.replaceAll(" ", "")
 }
 
-private transormRecurString(recurType, recurOpt, tm, dt) {
-    Map rRuleData = null
-    String recurringPattern = null
-    if(!recurType) return [rRuleData: rRuleData, recurringPattern: recurringPattern]
-    switch(recurType) {
+//TODO: CreateReminderInXMinutes()
+//TODO: RemoveAllReminders() //Remove all Reminders for this device
+//TODO: RemoveAllAlarms() //Remove all Alarms for this device
+//TODO: Add Recurrence Options to Alarms and Reminders
+
+private createNotification(type, opts) {
+    log.trace "createdNotification params: ${opts}"
+    String notifKey = generateNotificationKey(opts?.label)
+    if (notifKey) {
+        String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[notifKey]
+        if (translatedID) {
+            logWarn("createNotification found existing notification named ${notifKey}, removing that first")
+            removeNotification(notifKey)
+        }
+    }
+    def now = new Date()
+    def createdDate = now.getTime()
+    def addSeconds = new Date(createdDate + 1 * 60000);
+    def alarmTime = type != "Timer" ? addSeconds.getTime() : 0
+    // log.debug "addSeconds: $addSeconds | alarmTime: $alarmTime"
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/notifications/create${type}",
+        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        contentType: "application/json",
+        body: [
+            type: type,
+            status: "ON",
+            alarmTime: alarmTime,
+            createdDate: createdDate,
+            originalTime: type != "Timer" ? "${opts?.time}.00.000" : null,
+            originalDate: type != "Timer" ? opts?.date : null,
+            timeZoneId: null,
+            reminderIndex: null,
+            sound: null,
+            deviceSerialNumber: state?.serialNumber,
+            deviceType: state?.deviceType,
+            timeZoneId: null,
+            recurrenceEligibility: false,
+            alarmLabel: type == "Alarm" ? opts?.label : null,
+            reminderLabel: type == "Reminder" ? opts?.label : null,
+            reminderSubLabel: "Echo Speaks",
+            timerLabel: type == "Timer" ? opts?.label : null,
+            skillInfo: null,
+            isSaveInFlight: type != "Timer" ? true : null,
+            triggerTime: 0,
+            id: "create${type}",
+            isRecurring: false,
+            remainingDuration: type != "Timer" ? 0 : opts?.timerDuration
+        ]
+    ]
+    Map rule = transormRecurString(opts?.recur_type, opts?.recur_opt, opts?.time, opts?.date)
+    log.debug "rule: $rule"
+    params?.body?.rRuleData = rule?.data ?: null
+    params?.body?.recurringPattern = rule?.pattern ?: null
+    log.debug "params: ${params?.body}"
+    String id = sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+    if (notifKey) {
+        if (state?.containsKey("createdNotifications")) {
+            state?.createdNotifications[notifKey] = id
+        } else { state.createdNotifications = [notifKey: id] }
+    }
+}
+
+private transormRecurString(type, opt, tm, dt) {
+    log.debug "transormRecurString(type: ${type}, opt: ${opt}, time: ${tm},date: ${dt})"
+    Map rd = null
+    String rp = null
+    if(!type) return [data: rd, pattern: rp]
+    def time = tm?.tokenize(':')
+    switch(type) {
         case "everyday":
+            rd = [:]
+            rd?.byMonthDays = null
+            rd?.byWeekDays = null
+            rd?.flexibleRecurringPatternType = "ONCE_A_DAY"
+            rd?.frequency = null
+            rd?.intervals = [1]
+            rd?.nextTriggerTimes = null
+            rd?.notificationTimes = ["${time[0]}:${time[1]}:00.000"]
+            rd?.recurEndDate = null
+            rd?.recurEndTime = null
+            rd?.recurStartDate = null
+            rd?.recurStartTime = null
+            rd?.recurrenceRules = ["FREQ=DAILY;BYHOUR=${time[0]};BYMINUTE=${time[1]};BYSECOND=0;INTERVAL=1;"]
+            rp = "P1D"
+            return [data: rd, pattern: rp]
             /* Repeat Everyday @x:xx time
                 "rRuleData": {
                     "byMonthDays": null,
@@ -2253,8 +2336,28 @@ private transormRecurString(recurType, recurOpt, tm, dt) {
                 "recurringPattern": "P1D"
             */
             break
+
         case "weekdays":
-            rRuleData?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            rd = [:]
+            rd?.byMonthDays = null
+            rd?.byWeekDays = ["MO", "TU", "WE", "TH", "FR"]
+            rd?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            rd?.frequency = null
+            rd?.intervals = [1]
+            rd?.nextTriggerTimes = null
+            rd?.notificationTimes = []
+            rd?.recurEndDate = null
+            rd?.recurEndTime = null
+            rd?.recurStartDate = null
+            rd?.recurStartTime = null
+            rd?.recurrenceRules = []
+            rd?.byWeekDays?.each { d->
+                rd?.notificationTimes?.push("${time[0]}:${time[1]}:00.000")
+                rd?.recurrenceRules?.push("FREQ=WEEKLY;BYDAY=${d};BYHOUR=${time[0]};BYMINUTE=${time[1]};BYSECOND=0;INTERVAL=1;")
+            }
+            rp = "XXXX-WD"
+            log.debug "weekdays: ${rd}"
+            return [data: rd, pattern: rp]
             /*
                 Repeat Every Weekday @ x:xx
                 "rRuleData": {
@@ -2294,10 +2397,28 @@ private transormRecurString(recurType, recurOpt, tm, dt) {
                 "recurrenceEligibility": false,
                 "recurringPattern": "XXXX-WD",
             */
-
             break
+
         case "weekends":
-            rRuleData?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            rd = [:]
+            rd?.byMonthDays = null
+            rd?.byWeekDays = ["SA", "SU"]
+            rd?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            rd?.frequency = null
+            rd?.intervals = [1]
+            rd?.nextTriggerTimes = null
+            rd?.notificationTimes = []
+            rd?.recurEndDate = null
+            rd?.recurEndTime = null
+            rd?.recurStartDate = null
+            rd?.recurStartTime = null
+            rd?.recurrenceRules = []
+            rd?.byWeekDays?.each { d->
+                rd?.notificationTimes?.push("${time[0]}:${time[1]}:00.000")
+                rd?.recurrenceRules?.push("FREQ=WEEKLY;BYDAY=${d};BYHOUR=${time[0]};BYMINUTE=${time[1]};BYSECOND=0;INTERVAL=1;")
+            }
+            rp = "XXXX-WE"
+            return [data: rd, pattern: rp]
             /*
                 Repeat on Weekends @x:xx
                 "rRuleData": {
@@ -2328,10 +2449,29 @@ private transormRecurString(recurType, recurOpt, tm, dt) {
                 "recurrenceEligibility": false,
                 "recurringPattern": "XXXX-WE",
             */
-
             break
+
         case "daysofweek":
-            rRuleData?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            rd = [:]
+            rd?.byMonthDays = null
+            rd?.byWeekDays = opt
+            rd?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            rd?.frequency = null
+            rd?.intervals = []
+            rd?.nextTriggerTimes = ["${parseFmtDt("HH:mm", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", time)}"]
+            rd?.notificationTimes = ["${dt}T${time[0]}:${time[1]}:00.000-05:00"]
+            rd?.recurEndDate = null
+            rd?.recurEndTime = null
+            rd?.recurStartDate = null
+            rd?.recurStartTime = null
+            rd?.recurrenceRules = []
+            rd?.byWeekDays?.each { d->
+                rd?.intervals?.push(1)
+                rd?.notificationTimes?.push("${time[0]}:${time[1]}:00.000")
+                rd?.recurrenceRules?.push("FREQ=WEEKLY;BYDAY=${d};BYHOUR=${time[0]};BYMINUTE=${time[1]};BYSECOND=0;INTERVAL=1;")
+            }
+            rp = null
+            return [data: rd, pattern: rp]
             /* Repeat on these day every week
                 "rRuleData": {
                     "byMonthDays": [],
@@ -2371,6 +2511,22 @@ private transormRecurString(recurType, recurOpt, tm, dt) {
             break
 
         case "everyxdays":
+            rd = [:]
+            rd?.byMonthDays = null
+            rd?.byWeekDays = opt
+            rd?.flexibleRecurringPatternType = "EVERY_X_DAYS"
+            rd?.frequency = null
+            rd?.intervals = []
+            rd?.intervals?.push(recurOpt)
+            rd?.nextTriggerTimes = []
+            rd?.notificationTimes = ["${dt}T${time[0]}:${time[1]}:00.000-05:00"]
+            rd?.recurEndDate = null
+            rd?.recurEndTime = null
+            rd?.recurStartDate = dt
+            rd?.recurStartTime = "${time[0]}:${time[1]}:00.000"
+            rd?.recurrenceRules = ["FREQ=DAILY;BYHOUR=${time[0]};BYMINUTE=${time[1]};BYSECOND=0;INTERVAL=${recurOpt};"]
+            rp = null
+            return [data: rd, pattern: rp]
             /*
                 Repeat every 7th day of the month
                 "rRuleData": {
@@ -2398,70 +2554,6 @@ private transormRecurString(recurType, recurOpt, tm, dt) {
                 "recurringPattern": null,
             */
             break
-    }
-}
-
-
-//TODO: CreateReminderInXMinutes()
-//TODO: RemoveAllReminders() //Remove all Reminders for this device
-//TODO: RemoveAllAlarms() //Remove all Alarms for this device
-//TODO: Add Recurrence Options to Alarms and Reminders
-
-private createNotification(type, options) {
-    log.trace "createdNotification options: ${options}"
-    String notifKey = generateNotificationKey(options?.label)
-    if (notifKey) {
-        String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[notifKey]
-        if (translatedID) {
-            logWarn("createNotification found existing notification named ${notifKey}, removing that first")
-            removeNotification(notifKey)
-        }
-    }
-    def now = new Date()
-    def createdDate = now.getTime()
-    def addSeconds = new Date(createdDate + 1 * 60000);
-    def alarmTime = type != "Timer" ? addSeconds.getTime() : 0
-    // log.debug "addSeconds: $addSeconds | alarmTime: $alarmTime"
-    Map params = [
-        uri: getAmazonUrl(),
-        path: "/api/notifications/create${type}",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-        contentType: "application/json",
-        body: [
-            type: type,
-            status: "ON",
-            alarmTime: alarmTime,
-            createdDate: createdDate,
-            originalTime: type != "Timer" ? "${options?.time}.00.000" : null,
-            originalDate: type != "Timer" ? options?.date : null,
-            timeZoneId: null,
-            reminderIndex: null,
-            sound: null,
-            deviceSerialNumber: state?.serialNumber,
-            deviceType: state?.deviceType,
-            timeZoneId: null,
-            recurrenceEligibility: false,
-            // recurringPattern: type != "Timer" ? 'None' : null,
-            alarmLabel: type == "Alarm" ? options?.label : null,
-            reminderLabel: type == "Reminder" ? options?.label : null,
-            reminderSubLabel: "Echo Speaks",
-            timerLabel: type == "Timer" ? options?.label : null,
-            skillInfo: null,
-            isSaveInFlight: type != "Timer" ? true : null,
-            triggerTime: 0,
-            id: "create${type}",
-            isRecurring: false,
-            remainingDuration: type != "Timer" ? 0 : options?.timerDuration
-        ]
-    ]
-    def recurData = transormRecurString(options?.recur?.type, options?.recur?.opt, alarmTime, createdDate)
-    params?.body?.rRuleData = recurData?.rRuleData ?: null
-    params?.body?.recurringPattern = recurData?.recurringPattern ?: null
-    String id = sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
-    if (notifKey) {
-        if (state?.containsKey("createdNotifications")) {
-            state?.createdNotifications[notifKey] = id
-        } else { state.createdNotifications = [notifKey: id] }
     }
 }
 
@@ -2820,7 +2912,7 @@ private stateCleanup() {
     if(state?.lastVolume) { state?.oldVolume = state?.lastVolume }
     List items = ["qBlocked", "qCmdCycleCnt", "useThisVolume", "lastVolume", "lastQueueCheckDt", "loopChkCnt", "speakingNow",
         "cmdQueueWorking", "firstCmdFlag", "recheckScheduled", "cmdQIndexNum", "curMsgLen", "lastTtsCmdDelay",
-        "lastQueueMsg", "lastTtsMsg", "createdNotifications"
+        "lastQueueMsg", "lastTtsMsg"
     ]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
 }
@@ -3175,6 +3267,13 @@ def GetTimeDiffSeconds(strtDate, stpDate=null) {
 
 def parseDt(dt, dtFmt) {
     return Date.parse(dtFmt, dt)
+}
+
+def parseFmtDt(parseFmt, newFmt, dt) {
+    def newDt = Date.parse(parseFmt, dt?.toString())
+    def tf = new java.text.SimpleDateFormat(newFmt)
+    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf?.format(newDt)
 }
 
 Boolean ok2Notify() {
