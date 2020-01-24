@@ -113,7 +113,9 @@ metadata {
         command "executeRoutineId", ["string"]
         command "createAlarm", ["string", "string", "string"]
         command "createReminder", ["string", "string", "string"]
+        command "createReminderNew", ["string", "string", "string", "string", "string"]
         command "removeNotification", ["string"]
+        command "removeAllNotificationsByType", ["string"]
         command "setWakeWord", ["string"]
         command "renameDevice", ["string"]
         command "storeCurrentVolume"
@@ -2158,7 +2160,7 @@ def createReminder(String remLbl, String remDate, String remTime) {
     }
 }
 
-def createReminderNew(String remLbl, String remDate, String remTime, String recurType=null, String recurOpt=null) {
+def createReminderNew(String remLbl, String remDate, String remTime, String recurType=null, recurOpt=null) {
     logTrace("createReminder($remLbl, $remDate, $remTime, $recurType, $recurOpt) command received...")
     if(isCommandTypeAllowed("alarms")) {
         if(remLbl && remDate && remTime) {
@@ -2168,8 +2170,7 @@ def createReminderNew(String remLbl, String remDate, String remTime, String recu
                 date: remDate?.toString(),
                 time: remTime?.toString(),
                 type: "Reminder",
-                recurType: recurType,
-                recurOpt: recurOpt
+                recur: [type: recurType, opt: recurOpt]
             ])
             incrementCntByKey("use_cnt_createReminder")
         } else { logWarn("createReminder is Missing the Required (id) Parameter!!!", true) }
@@ -2196,24 +2197,24 @@ def removeNotification(String id) {
     }
 }
 
-def removeAllNotificationByType(String type) {
+def removeAllNotificationsByType(String type) {
     logTrace("removeAllNotificationsByType($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
-        def ids = getNotifications(type, true)
-        if(ids?.size()) {
-            ids?.each {
-                if (translatedID) {
+        def items = getNotifications(type, true)
+        if(items?.size()) {
+            items?.each { item->
+                if (item?.id) {
                     sendAmazonCommand("DELETE", [
                         uri: getAmazonUrl(),
-                        path: "/api/notifications/${id}",
+                        path: "/api/notifications/${item?.id}",
                         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                         contentType: "application/json",
                         body: []
                     ], [cmdDesc: "RemoveNotification"])
                     incrementCntByKey("use_cnt_removeNotification")
-                } else { logWarn("removeNotification Unable to Find Translated ID for ${id}", true) }
+                } else { logWarn("removeAllNotificationByType($type) Unable to Find ID for ${item?.id}", true) }
             }
-        } else { logWarn("removeAllNotificationByType($type) is Missing the Required (id) Parameter!!!", true) }
+        }// else { logWarn("removeAllNotificationByType($type) is Missing the Required (id) Parameter!!!", true) }
     }
 }
 
@@ -2221,166 +2222,185 @@ private String generateNotificationKey(id) {
     return id?.toString()?.replaceAll(" ", "")
 }
 
-/* Repeat Everyday @x:xx time
-    "rRuleData": {
-        "byMonthDays": null,
-        "byWeekDays": null,
-        "flexibleRecurringPatternType": "ONCE_A_DAY",
-        "frequency": null,
-        "intervals": [
-            1
-        ],
-        "nextTriggerTimes": null,
-        "notificationTimes": [
-            "22:59:00.000"
-        ],
-        "recurEndDate": null,
-        "recurEndTime": null,
-        "recurStartDate": null,
-        "recurStartTime": null,
-        "recurrenceRules": [
-            "FREQ=DAILY;BYHOUR=22;BYMINUTE=59;BYSECOND=0;INTERVAL=1;"
-        ]
-    },
-    "recurrenceEligibility": false,
-    "recurringPattern": "P1D"
-*/
+private transormRecurString(recurType, recurOpt, tm, dt) {
+    Map rRuleData = null
+    String recurringPattern = null
+    if(!recurType) return [rRuleData: rRuleData, recurringPattern: recurringPattern]
+    switch(recurType) {
+        case "everyday":
+            /* Repeat Everyday @x:xx time
+                "rRuleData": {
+                    "byMonthDays": null,
+                    "byWeekDays": null,
+                    "flexibleRecurringPatternType": "ONCE_A_DAY",
+                    "frequency": null,
+                    "intervals": [
+                        1
+                    ],
+                    "nextTriggerTimes": null,
+                    "notificationTimes": [
+                        "22:59:00.000"
+                    ],
+                    "recurEndDate": null,
+                    "recurEndTime": null,
+                    "recurStartDate": null,
+                    "recurStartTime": null,
+                    "recurrenceRules": [
+                        "FREQ=DAILY;BYHOUR=22;BYMINUTE=59;BYSECOND=0;INTERVAL=1;"
+                    ]
+                },
+                "recurrenceEligibility": false,
+                "recurringPattern": "P1D"
+            */
+            break
+        case "weekdays":
+            rRuleData?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            /*
+                Repeat Every Weekday @ x:xx
+                "rRuleData": {
+                    "byMonthDays": null,
+                    "byWeekDays": [
+                        "MO",
+                        "TU",
+                        "WE",
+                        "TH",
+                        "FR"
+                    ],
+                    "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
+                    "frequency": null,
+                    "intervals": [
+                        1
+                    ],
+                    "nextTriggerTimes": null,
+                    "notificationTimes": [
+                        "23:01:00.000",
+                        "23:01:00.000",
+                        "23:01:00.000",
+                        "23:01:00.000",
+                        "23:01:00.000"
+                    ],
+                    "recurEndDate": null,
+                    "recurEndTime": null,
+                    "recurStartDate": null,
+                    "recurStartTime": null,
+                    "recurrenceRules": [
+                        "FREQ=WEEKLY;BYDAY=MO;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=TU;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=WE;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=TH;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=FR;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;"
+                    ]
+                },
+                "recurrenceEligibility": false,
+                "recurringPattern": "XXXX-WD",
+            */
 
-/*
-    Repeat on Weekends @x:xx
-    "rRuleData": {
-        "byMonthDays": null,
-        "byWeekDays": [
-            "SA",
-            "SU"
-        ],
-        "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
-        "frequency": null,
-        "intervals": [
-            1
-        ],
-        "nextTriggerTimes": null,
-        "notificationTimes": [
-            "23:02:00.000",
-            "23:02:00.000"
-        ],
-        "recurEndDate": null,
-        "recurEndTime": null,
-        "recurStartDate": null,
-        "recurStartTime": null,
-        "recurrenceRules": [
-            "FREQ=WEEKLY;BYDAY=SA;BYHOUR=23;BYMINUTE=2;BYSECOND=0;INTERVAL=1;",
-            "FREQ=WEEKLY;BYDAY=SU;BYHOUR=23;BYMINUTE=2;BYSECOND=0;INTERVAL=1;"
-        ]
-    },
-    "recurrenceEligibility": false,
-    "recurringPattern": "XXXX-WE",
-*/
+            break
+        case "weekends":
+            rRuleData?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            /*
+                Repeat on Weekends @x:xx
+                "rRuleData": {
+                    "byMonthDays": null,
+                    "byWeekDays": [
+                        "SA",
+                        "SU"
+                    ],
+                    "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
+                    "frequency": null,
+                    "intervals": [
+                        1
+                    ],
+                    "nextTriggerTimes": null,
+                    "notificationTimes": [
+                        "23:02:00.000",
+                        "23:02:00.000"
+                    ],
+                    "recurEndDate": null,
+                    "recurEndTime": null,
+                    "recurStartDate": null,
+                    "recurStartTime": null,
+                    "recurrenceRules": [
+                        "FREQ=WEEKLY;BYDAY=SA;BYHOUR=23;BYMINUTE=2;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=SU;BYHOUR=23;BYMINUTE=2;BYSECOND=0;INTERVAL=1;"
+                    ]
+                },
+                "recurrenceEligibility": false,
+                "recurringPattern": "XXXX-WE",
+            */
 
-/*
-    Repeat Every Weekday @ x:xx
-    "rRuleData": {
-        "byMonthDays": null,
-        "byWeekDays": [
-            "MO",
-            "TU",
-            "WE",
-            "TH",
-            "FR"
-        ],
-        "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
-        "frequency": null,
-        "intervals": [
-            1
-        ],
-        "nextTriggerTimes": null,
-        "notificationTimes": [
-            "23:01:00.000",
-            "23:01:00.000",
-            "23:01:00.000",
-            "23:01:00.000",
-            "23:01:00.000"
-        ],
-        "recurEndDate": null,
-        "recurEndTime": null,
-        "recurStartDate": null,
-        "recurStartTime": null,
-        "recurrenceRules": [
-            "FREQ=WEEKLY;BYDAY=MO;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
-            "FREQ=WEEKLY;BYDAY=TU;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
-            "FREQ=WEEKLY;BYDAY=WE;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
-            "FREQ=WEEKLY;BYDAY=TH;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
-            "FREQ=WEEKLY;BYDAY=FR;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;"
-        ]
-    },
-    "recurrenceEligibility": false,
-    "recurringPattern": "XXXX-WD",
-*/
+            break
+        case "daysofweek":
+            rRuleData?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            /* Repeat on these day every week
+                "rRuleData": {
+                    "byMonthDays": [],
+                    "byWeekDays": [
+                        "TU",
+                        "WE",
+                        "TH"
+                    ],
+                    "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
+                    "frequency": null,
+                    "intervals": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "nextTriggerTimes": [
+                        "2020-01-21T23:00:00.000-05:00"
+                    ],
+                    "notificationTimes": [
+                        "23:00:00.000",
+                        "23:00:00.000",
+                        "23:00:00.000"
+                    ],
+                    "recurEndDate": null,
+                    "recurEndTime": null,
+                    "recurStartDate": null,
+                    "recurStartTime": null,
+                    "recurrenceRules": [
+                        "FREQ=WEEKLY;BYDAY=TU;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=WE;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=TH;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;"
+                    ]
+                },
+                "recurrenceEligibility": false,
+                "recurringPattern": null,
+            */
+            break
 
-/* Repeat on these day every week
-    "rRuleData": {
-        "byMonthDays": [],
-        "byWeekDays": [
-            "TU",
-            "WE",
-            "TH"
-        ],
-        "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
-        "frequency": null,
-        "intervals": [
-            1,
-            1,
-            1
-        ],
-        "nextTriggerTimes": [
-            "2020-01-21T23:00:00.000-05:00"
-        ],
-        "notificationTimes": [
-            "23:00:00.000",
-            "23:00:00.000",
-            "23:00:00.000"
-        ],
-        "recurEndDate": null,
-        "recurEndTime": null,
-        "recurStartDate": null,
-        "recurStartTime": null,
-        "recurrenceRules": [
-            "FREQ=WEEKLY;BYDAY=TU;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;",
-            "FREQ=WEEKLY;BYDAY=WE;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;",
-            "FREQ=WEEKLY;BYDAY=TH;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;"
-        ]
-    },
-    "recurrenceEligibility": false,
-    "recurringPattern": null,
-*/
+        case "everyxdays":
+            /*
+                Repeat every 7th day of the month
+                "rRuleData": {
+                    "byMonthDays": [],
+                    "byWeekDays": [],
+                    "flexibleRecurringPatternType": "EVERY_X_DAYS",
+                    "frequency": null,
+                    "intervals": [
+                        7
+                    ],
+                    "nextTriggerTimes": [
+                        "2020-01-21T23:00:00.000-05:00"
+                    ],
+                    "notificationTimes": [
+                        "23:00:00.000"
+                    ],
+                    "recurEndDate": null,
+                    "recurEndTime": null,
+                    "recurStartDate": "2020-01-21",
+                    "recurStartTime": "00:00:00.000",
+                    "recurrenceRules": [
+                        "FREQ=DAILY;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=7;"
+                    ]
+                },
+                "recurringPattern": null,
+            */
+            break
+    }
+}
 
-/*
-    Repeat every 7th day of the month
-    "rRuleData": {
-        "byMonthDays": [],
-        "byWeekDays": [],
-        "flexibleRecurringPatternType": "EVERY_X_DAYS",
-        "frequency": null,
-        "intervals": [
-            7
-        ],
-        "nextTriggerTimes": [
-            "2020-01-21T23:00:00.000-05:00"
-        ],
-        "notificationTimes": [
-            "23:00:00.000"
-        ],
-        "recurEndDate": null,
-        "recurEndTime": null,
-        "recurStartDate": "2020-01-21",
-        "recurStartTime": "00:00:00.000",
-        "recurrenceRules": [
-            "FREQ=DAILY;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=7;"
-        ]
-    },
-    "recurrenceEligibility": false,
-    "recurringPattern": null,
-*/
 
 //TODO: CreateReminderInXMinutes()
 //TODO: RemoveAllReminders() //Remove all Reminders for this device
@@ -2420,7 +2440,8 @@ private createNotification(type, options) {
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             timeZoneId: null,
-            recurringPattern: type != "Timer" ? 'None' : null,
+            recurrenceEligibility: false,
+            // recurringPattern: type != "Timer" ? 'None' : null,
             alarmLabel: type == "Alarm" ? options?.label : null,
             reminderLabel: type == "Reminder" ? options?.label : null,
             reminderSubLabel: "Echo Speaks",
@@ -2433,6 +2454,9 @@ private createNotification(type, options) {
             remainingDuration: type != "Timer" ? 0 : options?.timerDuration
         ]
     ]
+    def recurData = transormRecurString(options?.recur?.type, options?.recur?.opt, alarmTime, createdDate)
+    params?.body?.rRuleData = recurData?.rRuleData ?: null
+    params?.body?.recurringPattern = recurData?.recurringPattern ?: null
     String id = sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
     if (notifKey) {
         if (state?.containsKey("createdNotifications")) {

@@ -1155,6 +1155,7 @@ def actionsPage() {
                     section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("alarms")
                     if(settings?.act_EchoDevices) {
+                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
                         String rptType = null
                         def rptTypeOpts = null
                         section(sTS("Action Type Config:")) {
@@ -1165,11 +1166,11 @@ def actionsPage() {
                             //     input "act_alarm_rt", "enum", title: inTS("Repeat (Optional)", getAppImg("command", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("command")
                             //     if(settings?."act_alarm_rt") {
                             //         rptType = settings?.act_alarm_rt
-                            //         if(settings?."act_alarm_rt" == "daysOfWeek") {
+                            //         if(settings?."act_alarm_rt" == "daysofweek") {
                             //             input "act_alarm_rt_wd", "enum", title: inTS("Weekday", getAppImg("checkbox", true)), description: "", options: weekDaysAbrvEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("checkbox")
                             //             if(settings?.act_alarm_rt_wd) rptTypeOpts = settings?.act_alarm_rt_wd
                             //         }
-                            //         if(settings?."act_alarm_rt" == "everyXdays") {
+                            //         if(settings?."act_alarm_rt" == "everyxdays") {
                             //             input "act_alarm_rt_ed", "number", title: inTS("Every X Days", getAppImg("checkbox", true)), description: "", range: "1..31", required: true, submitOnChange: true, image: getAppImg("checkbox")
                             //             if(settings?.act_alarm_rt_ed) rptTypeOpts = settings?.act_alarm_rt_ed
                             //         }
@@ -1189,32 +1190,32 @@ def actionsPage() {
                     section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("reminders")
                     if(settings?.act_EchoDevices) {
-                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysOfWeek":"Days of the Week", "everyXdays":"Every Nth Day"]
+                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
                         String rptType = null
                         def rptTypeOpts = null
                         section(sTS("Action Type Config:")) {
                             input "act_reminder_label", "text", title: inTS("Reminder Label", getAppImg("name_tag", true)), submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_reminder_date", "text", title: inTS("Reminder Date\n(yyyy-mm-dd)", getAppImg("day_calendar", true)), submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_reminder_time", "time", title: inTS("Reminder Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getAppImg("clock")
-                            // if(act_reminder_label && act_reminder_date && act_reminder_time) {
-                            //     input "act_reminder_rt", "enum", title: inTS("Repeat (Optional)", getAppImg("command", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("command")
-                            //     if(settings?."act_reminder_rt") {
-                            //         rptType = settings?.act_reminder_rt
-                            //         if(settings?."act_reminder_rt" == "daysOfWeek") {
-                            //             input "act_reminder_rt_wd", "enum", title: inTS("Weekday", getAppImg("checkbox", true)), description: "", options: weekDaysAbrvEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("checkbox")
-                            //             if(settings?.act_reminder_rt_wd) rptTypeOpts = settings?.act_reminder_rt_wd
-                            //         }
-                            //         if(settings?."act_reminder_rt" && settings?."act_reminder_rt" == "everyXdays") {
-                            //             input "act_reminder_rt_ed", "number", title: inTS("Every X Days (1-31)", getAppImg("checkbox", true)), description: "", range: "1..31", required: true, submitOnChange: true, image: getAppImg("checkbox")
-                            //             if(settings?.act_reminder_rt_ed) rptTypeOpts = settings?.act_reminder_rt_ed
-                            //         }
-                            //     }
-                            // }
+                            if(act_reminder_label && act_reminder_date && act_reminder_time) {
+                                input "act_reminder_rt", "enum", title: inTS("Repeat (Optional)", getAppImg("command", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("command")
+                                if(settings?."act_reminder_rt") {
+                                    rptType = settings?.act_reminder_rt
+                                    if(settings?."act_reminder_rt" == "daysofweek") {
+                                        input "act_reminder_rt_wd", "enum", title: inTS("Weekday", getAppImg("checkbox", true)), description: "", options: weekDaysAbrvEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("checkbox")
+                                        if(settings?.act_reminder_rt_wd) rptTypeOpts = settings?.act_reminder_rt_wd
+                                    }
+                                    if(settings?."act_reminder_rt" && settings?."act_reminder_rt" == "everyxdays") {
+                                        input "act_reminder_rt_ed", "number", title: inTS("Every X Days (1-31)", getAppImg("checkbox", true)), description: "", range: "1..31", required: true, submitOnChange: true, image: getAppImg("checkbox")
+                                        if(settings?.act_reminder_rt_ed) rptTypeOpts = settings?.act_reminder_rt_ed
+                                    }
+                                }
+                            }
                             // input "act_reminder_remove", "bool", title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
                         actionVolumeInputs(devices, false, true)
                         def newTime = settings?.act_reminder_time ? parseFmtDt("yyyy-MM-dd'T'HH:mm:ss.SSSZ", 'HH:mm', settings?.act_reminder_time) : null
-                        actionExecMap?.config?.reminder = [cmd: "createReminder", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: newTime, recur: [type: rptType, opts: rptTypeOpts], remove: settings?.act_reminder_remove]
+                        actionExecMap?.config?.reminder = [cmd: "createReminderNew", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: newTime, recur: [type: rptType, opts: rptTypeOpts], remove: settings?.act_reminder_remove]
                         if(act_reminder_label && act_reminder_date && act_reminder_time) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -3116,15 +3117,10 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.label && actConf[actType]?.date && actConf[actType]?.time) {
                     actDevices?.each { dev->
                         if(isST && actDelayMs) {
-                            dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, [delay: actDelayMs])
+                            dev?."${actConf[actType]?.cmd}New"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt, [delay: actDelayMs])
                         } else {
-                            dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time)
+                            dev?."${actConf[actType]?.cmd}New"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt)
                         }
-                        // if(isST && actDelayMs) {
-                        //     dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt, [delay: actDelayMs])
-                        // } else {
-                        //     dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt)
-                        // }
                     }
                     logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}")
                 }
