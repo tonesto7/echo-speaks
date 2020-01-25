@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.3.0" }
-String appModified() { return "2020-01-17" }
+String appVersion()  { return "3.4.0.0" }
+String appModified() { return "2020-01-24" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -205,6 +205,7 @@ def conditionsPage() {
                 paragraph pTS("Notice:\n${cond_require_all == true ? "All selected conditions required to make zone active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
             }
         }
+
         section(sTS("Time/Date")) {
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getAppImg("clock")
             input "cond_days", "enum", title: inTS("Days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
@@ -215,11 +216,17 @@ def conditionsPage() {
             input "cond_mode", "mode", title: inTS("Location Modes...", getAppImg("mode", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("mode")
             if(settings?.cond_mode) {
                 input "cond_mode_cmd", "enum", title: inTS("are...", getAppImg("command", true)), options: ["not":"not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
+                if(cond_mode && cond_mode_cmd) {
+                    input "cond_mode_db", "bool", title: inTS("Deactivate Zone immediately when Mode condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+                }
             }
         }
 
         section (sTS("Alarm Conditions")) {
             input "cond_alarm", "enum", title: inTS("${getAlarmSystemName()} is...", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
+            if(settings?.cond_alarm) {
+                input "cond_alarm_db", "bool", title: inTS("Deactivate Zone immediately when Alarm condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+            }
         }
 
         condNonNumSect("switch", "switch", "Switches/Outlets Conditions", "Switches/Outlets", ["on","off"], "are", "switch")
@@ -258,19 +265,20 @@ def conditionsPage() {
 
 def condNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, String image) {
     section (sTS(sectStr), hideWhenEmpty: true) {
-        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required:false, image: getAppImg(image)
+        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required:false, image: getAppImg(image), hideWhenEmpty: true
         if (settings?."cond_${inType}") {
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle}...", getAppImg("command", true)), options: cmdOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
             if (settings?."cond_${inType}_cmd" && settings?."cond_${inType}"?.size() > 1) {
                 input "cond_${inType}_all", "bool", title: inTS("ALL ${devTitle} must be (${settings?."cond_${inType}_cmd"})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
             }
+            input "cond_${inType}_db", "bool", title: inTS("Deactivate Zone immediately when ${cmdTitle} condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
         }
     }
 }
 
 def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, hideable= false) {
-    section (sTS(sectStr), hideable: hideable, hideWhenEmpty: true) {
-        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: false, image: getAppImg(image)
+    section (sTS(sectStr), hideWhenEmpty: true) {
+        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: false, image: getAppImg(image), hideWhenEmpty: true
         if(settings?."cond_${inType}") {
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
             if (settings?."cond_${inType}_cmd") {
@@ -289,6 +297,7 @@ def condNumValSect(String inType, String capType, String sectStr, String devTitl
                         input "cond_${inType}_avg", "bool", title: inTS("Use the average of all selected device values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                     }
                 }
+                input "cond_${inType}_db", "bool", title: inTS("Deactivate Zone immediately when ${cmdTitle} condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
             }
         }
     }
@@ -319,8 +328,8 @@ def condTimePage() {
 def zoneNotifPage() {
     return dynamicPage(name: "zoneNotifPage", title: "Zone Notifications", install: false, uninstall: false) {
         section (sTS("Message Customization:")) {
-            input "notif_active_message", "text", title: inTS("Enter message to send when Active...", getAppImg("text", true)), required: true, submitOnChange: true, image: getAppImg("text")
-            input "notif_inactive_message", "text", title: inTS("Enter message to send when Active...", getAppImg("text", true)), required: true, submitOnChange: true, image: getAppImg("text")
+            input "notif_active_message", "text", title: inTS("Active Message?", getAppImg("text", true)), required: false, submitOnChange: true, image: getAppImg("text")
+            input "notif_inactive_message", "text", title: inTS("Inactive Message?", getAppImg("text", true)), required: false, submitOnChange: true, image: getAppImg("text")
         }
         if(settings?.notif_active_message || settings?.notif_inactive_message) {
             section (sTS("Push Messages:")) {
@@ -521,8 +530,8 @@ private subscribeToEvts() {
             if (settings?.cond_time_start_type == "sunrise") { subscribe(location, "sunriseTime", zoneEvtHandler) }
         }
         if(settings?.cond_time_start_type == "time") {
-            if(settings?.cond_time_start) { schedule(settings?.cond_time_start, zoneEvtHandler) }
-            if(settings?.cond_time_stop) { schedule(settings?.cond_time_stop, zoneEvtHandler) }
+            if(settings?.cond_time_start) { schedule(settings?.cond_time_start, zoneTimeStartCondHandler) }
+            if(settings?.cond_time_stop) { schedule(settings?.cond_time_stop, zoneTimeStopCondHandler) }
         }
     }
 
@@ -645,6 +654,22 @@ Boolean checkDeviceNumCondOk(type) {
     }
 }
 
+private isConditionOk(evt) {
+    if(["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.contains(evt)) {
+        if(!settings?."cond_${evt}") { true }
+        return checkDeviceCondOk(evt)
+    } else if(["temperature", "humidity", "illuminance", "level", "power", "battery"]?.contains(evt)) {
+        if(!settings?."cond_${evt}") { true }
+        return checkDeviceNumCondOk(evt)
+    } else if (evt == "mode") {
+        return (settings?.cond_mode && settings?.cond_mode_cmd) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
+    } else if (["hsmStatus", "alarmSystemStatus"]?.contains(evt)) {
+        return settings?.cond_alarm ? isInAlarmMode(settings?.cond_alarm) : true
+    } else {
+        return true
+    }
+}
+
 Boolean deviceCondOk() {
     List skipped = []
     List passed = []
@@ -743,6 +768,14 @@ def zoneEvtHandler(evt) {
     checkZoneStatus(evt)
 }
 
+def zoneTimeStartCondHandler() {
+    checkZoneStatus([name: "Time", displayName: "Condition Start Time"])
+}
+
+def zoneTimeStopCondHandler() {
+    checkZoneStatus([name: "Time", displayName: "Condition Stop Time"])
+}
+
 private addToZoneHistory(evt, condStatus, Integer max=10) {
     Boolean ssOk = (stateSizePerc() > 70)
     List eData = atomicState?.zoneHistory ?: []
@@ -754,21 +787,26 @@ private addToZoneHistory(evt, condStatus, Integer max=10) {
 def checkZoneStatus(evt) {
     Map condStatus = conditionStatus()
     Boolean active = (condStatus?.ok == true)
+    Boolean bypassDelay = false
     String delayType = active ? "active" : "inactive"
     Map data = [active: active, recheck: false, evtData: [name: evt?.name, displayName: evt?.displayName], condStatus: condStatus]
     Integer delay = settings?."zone_${delayType}_delay" ?: null
-    if(delay) {
+    if(!active && settings?."cond_${evt?.name}_db" == true) { bypassDelay = isConditionOk(evt?.name) != true }
+    if(!bypassDelay && delay) {
         log.debug "updateZoneStatus to [${delayType}] in (${delay} sec)"
         runIn(delay, "updateZoneStatus", [data: data])
     } else {
         // log.debug "updateZoneStatus to [${delayType}]"
+        if(bypassDelay) {
+            log.debug "Bypassing Inactive Delay for (${evt?.name}) Event..."
+        }
         updateZoneStatus(data)
     }
 }
 
 def sendZoneStatus() {
     Boolean active = (conditionStatus()?.ok == true)
-    state?.zoneConditionsOk = active
+    // state?.zoneConditionsOk = active
     sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true)
 }
 
@@ -902,10 +940,10 @@ public zoneCmdHandler(evt) {
                 zoneDevs?.devices?.each { dev->
                     if(isST() && delay) {
                         if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay]) }
-                        if(data?.cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol, [delay: delay]) }
+                        if(data?.cmd == "volume" && data?.changeVol) { dev?.setVolume(data?.changeVol, [delay: delay]) }
                     } else {
                         if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null) }
-                        if(data?.cmd == "volume" && data?.changeVol) { dev?.volume(data?.changeVol) }
+                        if(data?.cmd == "volume" && data?.changeVol) { dev?.setVolume(data?.changeVol) }
                     }
                 }
                 break
@@ -1293,11 +1331,9 @@ String getNotifSchedDesc(min=false) {
     def startLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
     def stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
     str += (startLbl && stopLbl) ? " \u2022 Time: ${startLbl} - ${stopLbl}" : ""
-    def days = getInputToStringDesc(dayInput)
-    def modes = getInputToStringDesc(modeInput)
     def qDays = getQuietDays()
-    str += days ? "${(startLbl || stopLbl) ? "\n" : ""} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
-    str += modes ? "${(startLbl || stopLbl || days) ? "\n" : ""} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
+    str += dayInput ? "${(startLbl || stopLbl) ? "\n" : ""} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
+    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : ""} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : ""
     return (str != "") ? "${str}" : null
 }
 
@@ -1328,7 +1364,7 @@ String getConditionsDesc() {
                     def condOk = false
                     if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
-
+                    // str += settings?."${}"
                     str += settings?."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : ""
                     def cmd = settings?."${sPre}${evt}_cmd" ?: null
                     if(cmd in ["between", "below", "above", "equals"]) {
@@ -1630,7 +1666,7 @@ public getDuplSettingData() {
             text: ["appLbl"]
         ],
         ends: [
-            bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear"],
+            bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db"],
             enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run"],
             number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat"],
             text: ["_txt", "_sms_numbers"],
