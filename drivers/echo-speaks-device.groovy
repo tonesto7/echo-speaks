@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.3.0.1"}
-String devModified() { return "2020-01-17" }
+String devVersion()  { return "3.4.0.0"}
+String devModified() { return "2020-01-24" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -199,9 +199,9 @@ String getEchoDeviceType() { return state?.deviceType ?: null }
 String getEchoSerial() { return state?.serialNumber ?: null }
 
 String getHealthStatus(lower=false) {
-	String res = device?.getStatus()
-	if(lower) { return res?.toString()?.toLowerCase() }
-	return res as String
+    String res = device?.getStatus()
+    if(lower) { return res?.toString()?.toLowerCase() }
+    return res as String
 }
 
 def getShortDevName(){
@@ -592,13 +592,13 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
     //Media Source Provider
     String mediaSource = playerInfo?.provider?.providerName ?: ""
     if(isStateChange(device, "mediaSource", mediaSource?.toString())) {
-    	isMediaInfoChange = true
+        isMediaInfoChange = true
         sendEvent(name: "mediaSource", value: mediaSource?.toString(), descriptionText: "Media Source is ${mediaSource}", display: true, displayed: true)
     }
 
     //Update Audio Track Data
     if (isMediaInfoChange){
-    	Map trackData = [:]
+        Map trackData = [:]
         if(playerInfo?.infoText?.title) { trackData?.title = playerInfo?.infoText?.title }
         if(playerInfo?.infoText?.subText1) { trackData?.artist = playerInfo?.infoText?.subText1 }
         //To avoid media source provider being used as album (ex: Apple Music), only inject `album` if subText2 and providerName are different
@@ -826,7 +826,7 @@ private getPlaylists() {
     }
 }
 
-private getNotifications() {
+private getNotifications(type="Reminder", all=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications",
@@ -839,7 +839,9 @@ private getNotifications() {
             List newList = []
             def sData = response?.data ?: null
             if(sData?.size()) {
-                List items = sData?.notifications ? sData?.notifications?.findAll { it?.status == "ON" && it?.deviceSerialNumber == state?.serialNumber} : []
+                List s = ["ON"]
+                if(all) s?.push("OFF")
+                List items = sData?.notifications ? sData?.notifications?.findAll { (it?.status in s) && (it?.type == type) && it?.deviceSerialNumber == state?.serialNumber } : []
                 items?.each { item->
                     Map li = [:]
                     item?.keySet().each { key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration']) { li[key] = item[key] } }
@@ -850,9 +852,11 @@ private getNotifications() {
                 sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
             }
             // log.trace "notifications: $newList"
+            return newList
         }
     } catch (ex) {
         respExceptionHandler(ex, "getNotifications")
+        return null
     }
 }
 
@@ -928,7 +932,7 @@ private execAsyncCmd(String method, String callbackHandler, Map params, Map othe
     }
 }
 
-private sendAmazonCommand(String method, Map params, Map otherData=null) {
+private String sendAmazonCommand(String method, Map params, Map otherData=null) {
     try {
         def rData = null
         def rStatus = null
@@ -957,6 +961,7 @@ private sendAmazonCommand(String method, Map params, Map otherData=null) {
             triggerDataRrsh()
         } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
         logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+        return rData?.id || null
     } catch (ex) {
         respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
     }
@@ -1512,6 +1517,7 @@ def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
 }
 
 def playSoundByName(String name, volume=null, restoreVolume=null) {
+    log.debug "sound name: ${name}"
     if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: "sound", value: name]]
         if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
@@ -1554,7 +1560,7 @@ def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null
             if(volume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: volume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
             mainSeq?.push([command: "announcement_devices", value: msg])
             if(restoreVolume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: restoreVolume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
-            log.debug "mainSeq: $mainSeq"
+            // log.debug "mainSeq: $mainSeq"
             sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
         } else { doSequenceCmd("sendAnnouncementToDevices", "announcement_devices", msg) }
         incrementCntByKey("use_cnt_announcementDevices")
@@ -1793,23 +1799,85 @@ def createReminder(String remLbl, String remDate, String remTime) {
     }
 }
 
+def createReminderNew(String remLbl, String remDate, String remTime, String recurType=null, recurOpt=null) {
+    logTrace("createReminderNew($remLbl, $remDate, $remTime, $recurType, $recurOpt) command received...")
+    if(isCommandTypeAllowed("alarms")) {
+        if(remLbl && remDate && remTime) {
+            createNotification("Reminder", [
+                cmdType: "CreateReminder",
+                label: remLbl?.toString(),
+                date: remDate?.toString(),
+                time: remTime?.toString(),
+                type: "Reminder",
+                recur_type: recurType,
+                recur_opt: recurOpt
+            ])
+            incrementCntByKey("use_cnt_createReminder")
+        } else { logWarn("createReminder is Missing the Required (id) Parameter!!!", true) }
+    }
+}
+
 def removeNotification(String id) {
+    id = generateNotificationKey(id)
     logTrace("removeNotification($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
-            sendAmazonCommand("DELETE", [
-                uri: getAmazonUrl(),
-                path: "/api/notifications/${id}",
-                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-                contentType: "application/json",
-                body: []
-            ], [cmdDesc: "RemoveNotification"])
-            incrementCntByKey("use_cnt_removeNotification")
+            String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[id]
+            if (translatedID) {
+                sendAmazonCommand("DELETE", [
+                    uri: getAmazonUrl(),
+                    path: "/api/notifications/${id}",
+                    headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+                    contentType: "application/json",
+                    body: []
+                ], [cmdDesc: "RemoveNotification"])
+                incrementCntByKey("use_cnt_removeNotification")
+            } else { logWarn("removeNotification Unable to Find Translated ID for ${id}", true) }
         } else { logWarn("removeNotification is Missing the Required (id) Parameter!!!", true) }
     }
 }
 
-private createNotification(type, options) {
+def removeAllNotificationsByType(String type) {
+    logTrace("removeAllNotificationsByType($id) command received...")
+    if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
+        def items = getNotifications(type, true)
+        if(items?.size()) {
+            items?.each { item->
+                if (item?.id) {
+                    sendAmazonCommand("DELETE", [
+                        uri: getAmazonUrl(),
+                        path: "/api/notifications/${item?.id}",
+                        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+                        contentType: "application/json",
+                        body: []
+                    ], [cmdDesc: "RemoveNotification"])
+                    incrementCntByKey("use_cnt_removeNotification")
+                } else { logWarn("removeAllNotificationByType($type) Unable to Find ID for ${item?.id}", true) }
+            }
+        }// else { logWarn("removeAllNotificationByType($type) is Missing the Required (id) Parameter!!!", true) }
+        state?.remove("createdNotifications")
+    }
+}
+
+private String generateNotificationKey(id) {
+    return id?.toString()?.replaceAll(" ", "")
+}
+
+//TODO: CreateReminderInXMinutes()
+//TODO: RemoveAllReminders() //Remove all Reminders for this device
+//TODO: RemoveAllAlarms() //Remove all Alarms for this device
+//TODO: Add Recurrence Options to Alarms and Reminders
+
+private createNotification(type, opts) {
+    log.trace "createdNotification params: ${opts}"
+    String notifKey = generateNotificationKey(opts?.label)
+    if (notifKey) {
+        String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[notifKey]
+        if (translatedID) {
+            logWarn("createNotification found existing notification named ${notifKey}, removing that first")
+            removeNotification(notifKey)
+        }
+    }
     def now = new Date()
     def createdDate = now.getTime()
     def addSeconds = new Date(createdDate + 1 * 60000);
@@ -1825,28 +1893,307 @@ private createNotification(type, options) {
             status: "ON",
             alarmTime: alarmTime,
             createdDate: createdDate,
-            originalTime: type != "Timer" ? "${options?.time}:00.000" : null,
-            originalDate: type != "Timer" ? options?.date : null,
+            originalTime: type != "Timer" ? "${opts?.time}.00.000" : null,
+            originalDate: type != "Timer" ? opts?.date : null,
             timeZoneId: null,
             reminderIndex: null,
             sound: null,
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             timeZoneId: null,
-            recurringPattern: type != "Timer" ? '' : null,
-            alarmLabel: type == "Alarm" ? options?.label : null,
-            reminderLabel: type == "Reminder" ? options?.label : null,
+            recurrenceEligibility: false,
+            alarmLabel: type == "Alarm" ? opts?.label : null,
+            reminderLabel: type == "Reminder" ? opts?.label : null,
             reminderSubLabel: "Echo Speaks",
-            timerLabel: type == "Timer" ? options?.label : null,
+            timerLabel: type == "Timer" ? opts?.label : null,
             skillInfo: null,
             isSaveInFlight: type != "Timer" ? true : null,
             triggerTime: 0,
             id: "create${type}",
             isRecurring: false,
-            remainingDuration: type != "Timer" ? 0 : options?.timerDuration
+            remainingDuration: type != "Timer" ? 0 : opts?.timerDuration
         ]
     ]
-    sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+    Map rule = transormRecurString(opts?.recur_type, opts?.recur_opt, opts?.time, opts?.date)
+    log.debug "rule: $rule"
+    params?.body?.rRuleData = rule?.data ?: null
+    params?.body?.recurringPattern = rule?.pattern ?: null
+    log.debug "params: ${params?.body}"
+    String id = sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
+    if (notifKey) {
+        if (state?.containsKey("createdNotifications")) {
+            state?.createdNotifications[notifKey] = id
+        } else { state.createdNotifications = [notifKey: id] }
+    }
+}
+
+private transormRecurString(type, opt, tm, dt) {
+    log.debug "transormRecurString(type: ${type}, opt: ${opt}, time: ${tm},date: ${dt})"
+    Map rd = null
+    String rp = null
+    if(!type) return [data: rd, pattern: rp]
+    def time = tm?.tokenize(':')
+    switch(type) {
+        case "everyday":
+            rd = [:]
+            rd?.byMonthDays = null
+            rd?.byWeekDays = null
+            rd?.flexibleRecurringPatternType = "ONCE_A_DAY"
+            rd?.frequency = null
+            rd?.intervals = [1]
+            rd?.nextTriggerTimes = null
+            rd?.notificationTimes = ["${time[0]}:${time[1]}:00.000"]
+            rd?.recurEndDate = null
+            rd?.recurEndTime = null
+            rd?.recurStartDate = null
+            rd?.recurStartTime = null
+            rd?.recurrenceRules = ["FREQ=DAILY;BYHOUR=${time[0]};BYMINUTE=${time[1]};BYSECOND=0;INTERVAL=1;"]
+            rp = "P1D"
+            return [data: rd, pattern: rp]
+            /* Repeat Everyday @x:xx time
+                "rRuleData": {
+                    "byMonthDays": null,
+                    "byWeekDays": null,
+                    "flexibleRecurringPatternType": "ONCE_A_DAY",
+                    "frequency": null,
+                    "intervals": [
+                        1
+                    ],
+                    "nextTriggerTimes": null,
+                    "notificationTimes": [
+                        "22:59:00.000"
+                    ],
+                    "recurEndDate": null,
+                    "recurEndTime": null,
+                    "recurStartDate": null,
+                    "recurStartTime": null,
+                    "recurrenceRules": [
+                        "FREQ=DAILY;BYHOUR=22;BYMINUTE=59;BYSECOND=0;INTERVAL=1;"
+                    ]
+                },
+                "recurrenceEligibility": false,
+                "recurringPattern": "P1D"
+            */
+            break
+
+        case "weekdays":
+            rd = [:]
+            rd?.byMonthDays = null
+            rd?.byWeekDays = ["MO", "TU", "WE", "TH", "FR"]
+            rd?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            rd?.frequency = null
+            rd?.intervals = [1]
+            rd?.nextTriggerTimes = null
+            rd?.notificationTimes = []
+            rd?.recurEndDate = null
+            rd?.recurEndTime = null
+            rd?.recurStartDate = null
+            rd?.recurStartTime = null
+            rd?.recurrenceRules = []
+            rd?.byWeekDays?.each { d->
+                rd?.notificationTimes?.push("${time[0]}:${time[1]}:00.000")
+                rd?.recurrenceRules?.push("FREQ=WEEKLY;BYDAY=${d};BYHOUR=${time[0]};BYMINUTE=${time[1]};BYSECOND=0;INTERVAL=1;")
+            }
+            rp = "XXXX-WD"
+            log.debug "weekdays: ${rd}"
+            return [data: rd, pattern: rp]
+            /*
+                Repeat Every Weekday @ x:xx
+                "rRuleData": {
+                    "byMonthDays": null,
+                    "byWeekDays": [
+                        "MO",
+                        "TU",
+                        "WE",
+                        "TH",
+                        "FR"
+                    ],
+                    "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
+                    "frequency": null,
+                    "intervals": [
+                        1
+                    ],
+                    "nextTriggerTimes": null,
+                    "notificationTimes": [
+                        "23:01:00.000",
+                        "23:01:00.000",
+                        "23:01:00.000",
+                        "23:01:00.000",
+                        "23:01:00.000"
+                    ],
+                    "recurEndDate": null,
+                    "recurEndTime": null,
+                    "recurStartDate": null,
+                    "recurStartTime": null,
+                    "recurrenceRules": [
+                        "FREQ=WEEKLY;BYDAY=MO;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=TU;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=WE;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=TH;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=FR;BYHOUR=23;BYMINUTE=1;BYSECOND=0;INTERVAL=1;"
+                    ]
+                },
+                "recurrenceEligibility": false,
+                "recurringPattern": "XXXX-WD",
+            */
+            break
+
+        case "weekends":
+            rd = [:]
+            rd?.byMonthDays = null
+            rd?.byWeekDays = ["SA", "SU"]
+            rd?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            rd?.frequency = null
+            rd?.intervals = [1]
+            rd?.nextTriggerTimes = null
+            rd?.notificationTimes = []
+            rd?.recurEndDate = null
+            rd?.recurEndTime = null
+            rd?.recurStartDate = null
+            rd?.recurStartTime = null
+            rd?.recurrenceRules = []
+            rd?.byWeekDays?.each { d->
+                rd?.notificationTimes?.push("${time[0]}:${time[1]}:00.000")
+                rd?.recurrenceRules?.push("FREQ=WEEKLY;BYDAY=${d};BYHOUR=${time[0]};BYMINUTE=${time[1]};BYSECOND=0;INTERVAL=1;")
+            }
+            rp = "XXXX-WE"
+            return [data: rd, pattern: rp]
+            /*
+                Repeat on Weekends @x:xx
+                "rRuleData": {
+                    "byMonthDays": null,
+                    "byWeekDays": [
+                        "SA",
+                        "SU"
+                    ],
+                    "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
+                    "frequency": null,
+                    "intervals": [
+                        1
+                    ],
+                    "nextTriggerTimes": null,
+                    "notificationTimes": [
+                        "23:02:00.000",
+                        "23:02:00.000"
+                    ],
+                    "recurEndDate": null,
+                    "recurEndTime": null,
+                    "recurStartDate": null,
+                    "recurStartTime": null,
+                    "recurrenceRules": [
+                        "FREQ=WEEKLY;BYDAY=SA;BYHOUR=23;BYMINUTE=2;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=SU;BYHOUR=23;BYMINUTE=2;BYSECOND=0;INTERVAL=1;"
+                    ]
+                },
+                "recurrenceEligibility": false,
+                "recurringPattern": "XXXX-WE",
+            */
+            break
+
+        case "daysofweek":
+            rd = [:]
+            rd?.byMonthDays = null
+            rd?.byWeekDays = opt
+            rd?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
+            rd?.frequency = null
+            rd?.intervals = []
+            rd?.nextTriggerTimes = ["${parseFmtDt("HH:mm", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", time)}"]
+            rd?.notificationTimes = ["${dt}T${time[0]}:${time[1]}:00.000-05:00"]
+            rd?.recurEndDate = null
+            rd?.recurEndTime = null
+            rd?.recurStartDate = null
+            rd?.recurStartTime = null
+            rd?.recurrenceRules = []
+            rd?.byWeekDays?.each { d->
+                rd?.intervals?.push(1)
+                rd?.notificationTimes?.push("${time[0]}:${time[1]}:00.000")
+                rd?.recurrenceRules?.push("FREQ=WEEKLY;BYDAY=${d};BYHOUR=${time[0]};BYMINUTE=${time[1]};BYSECOND=0;INTERVAL=1;")
+            }
+            rp = null
+            return [data: rd, pattern: rp]
+            /* Repeat on these day every week
+                "rRuleData": {
+                    "byMonthDays": [],
+                    "byWeekDays": [
+                        "TU",
+                        "WE",
+                        "TH"
+                    ],
+                    "flexibleRecurringPatternType": "X_TIMES_A_WEEK",
+                    "frequency": null,
+                    "intervals": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "nextTriggerTimes": [
+                        "2020-01-21T23:00:00.000-05:00"
+                    ],
+                    "notificationTimes": [
+                        "23:00:00.000",
+                        "23:00:00.000",
+                        "23:00:00.000"
+                    ],
+                    "recurEndDate": null,
+                    "recurEndTime": null,
+                    "recurStartDate": null,
+                    "recurStartTime": null,
+                    "recurrenceRules": [
+                        "FREQ=WEEKLY;BYDAY=TU;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=WE;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;",
+                        "FREQ=WEEKLY;BYDAY=TH;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=1;"
+                    ]
+                },
+                "recurrenceEligibility": false,
+                "recurringPattern": null,
+            */
+            break
+
+        case "everyxdays":
+            rd = [:]
+            rd?.byMonthDays = null
+            rd?.byWeekDays = opt
+            rd?.flexibleRecurringPatternType = "EVERY_X_DAYS"
+            rd?.frequency = null
+            rd?.intervals = []
+            rd?.intervals?.push(recurOpt)
+            rd?.nextTriggerTimes = []
+            rd?.notificationTimes = ["${dt}T${time[0]}:${time[1]}:00.000-05:00"]
+            rd?.recurEndDate = null
+            rd?.recurEndTime = null
+            rd?.recurStartDate = dt
+            rd?.recurStartTime = "${time[0]}:${time[1]}:00.000"
+            rd?.recurrenceRules = ["FREQ=DAILY;BYHOUR=${time[0]};BYMINUTE=${time[1]};BYSECOND=0;INTERVAL=${recurOpt};"]
+            rp = null
+            return [data: rd, pattern: rp]
+            /*
+                Repeat every 7th day of the month
+                "rRuleData": {
+                    "byMonthDays": [],
+                    "byWeekDays": [],
+                    "flexibleRecurringPatternType": "EVERY_X_DAYS",
+                    "frequency": null,
+                    "intervals": [
+                        7
+                    ],
+                    "nextTriggerTimes": [
+                        "2020-01-21T23:00:00.000-05:00"
+                    ],
+                    "notificationTimes": [
+                        "23:00:00.000"
+                    ],
+                    "recurEndDate": null,
+                    "recurEndTime": null,
+                    "recurStartDate": "2020-01-21",
+                    "recurStartTime": "00:00:00.000",
+                    "recurrenceRules": [
+                        "FREQ=DAILY;BYHOUR=23;BYMINUTE=0;BYSECOND=0;INTERVAL=7;"
+                    ]
+                },
+                "recurringPattern": null,
+            */
+            break
+    }
 }
 
 def renameDevice(newName) {
@@ -1938,8 +2285,8 @@ def replayText() {
 }
 
 def playText(String msg) {
-	logTrace("playText(msg: $msg) command received...")
-	speak(msg as String)
+    logTrace("playText(msg: $msg) command received...")
+    speak(msg as String)
 }
 
 def playTrackAndResume(uri, duration, volume=null) {
@@ -1960,8 +2307,8 @@ def playTrackAndResume(uri, duration, volume=null) {
 def playTextAndResume(text, volume=null) {
     logTrace("The playTextAndResume(text: $text, volume: $volume) command received...")
     def restVolume = device?.currentValue("level")?.toInteger()
-	if (volume != null) {
-		setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
+    if (volume != null) {
+        setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
     } else { speak(text as String) }
 }
 
@@ -1983,8 +2330,8 @@ def playTrackAndRestore(uri, duration, volume=null) {
 def playTextAndRestore(text, volume=null) {
     logTrace("The playTextAndRestore($text, $volume) command received...")
     def restVolume = device?.currentValue("level")?.toInteger()
-	if (volume != null) {
-		setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
+    if (volume != null) {
+        setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
     } else { speak(text as String) }
 }
 
@@ -2529,8 +2876,8 @@ String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/e
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVersions()["echoDevice"]) }
 def getDtNow() {
-	def now = new Date()
-	return formatDt(now, false)
+    def now = new Date()
+    return formatDt(now, false)
 }
 
 def getIsoDtNow() {
@@ -2540,25 +2887,32 @@ def getIsoDtNow() {
 }
 
 def formatDt(dt, mdy = true) {
-	def formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
-	def tf = new java.text.SimpleDateFormat(formatVal)
-	if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-	return tf.format(dt)
+    def formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
+    def tf = new java.text.SimpleDateFormat(formatVal)
+    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf.format(dt)
 }
 
 def GetTimeDiffSeconds(strtDate, stpDate=null) {
-	if((strtDate && !stpDate) || (strtDate && stpDate)) {
-		def now = new Date()
-		def stopVal = stpDate ? stpDate.toString() : formatDt(now, false)
-		def start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate)?.getTime()
-		def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal)?.getTime()
-		def diff = (int) (long) (stop - start) / 1000
-		return diff
-	} else { return null }
+    if((strtDate && !stpDate) || (strtDate && stpDate)) {
+        def now = new Date()
+        def stopVal = stpDate ? stpDate.toString() : formatDt(now, false)
+        def start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate)?.getTime()
+        def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal)?.getTime()
+        def diff = (int) (long) (stop - start) / 1000
+        return diff
+    } else { return null }
 }
 
 def parseDt(dt, dtFmt) {
     return Date.parse(dtFmt, dt)
+}
+
+def parseFmtDt(parseFmt, newFmt, dt) {
+    def newDt = Date.parse(parseFmt, dt?.toString())
+    def tf = new java.text.SimpleDateFormat(newFmt)
+    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf?.format(newDt)
 }
 
 Boolean ok2Notify() {
@@ -2579,8 +2933,8 @@ private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
     if(eData?.find { it?.message == msg }) { return; }
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
-	if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
-	state[logKey as String] = eData
+    if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+    state[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersion()}) | ${msg}" } }
 private logInfo(msg) { if(settings?.logInfo != false) { log.info " Echo (v${devVersion()}) | ${msg}" } }
@@ -2598,27 +2952,27 @@ public clearLogHistory() {
 }
 
 private incrementCntByKey(String key) {
-	long evtCnt = state?."${key}" ?: 0
-	evtCnt++
-	state?."${key}" = evtCnt?.toLong()
+    long evtCnt = state?."${key}" ?: 0
+    evtCnt++
+    state?."${key}" = evtCnt?.toLong()
 }
 
 String getObjType(obj) {
-	if(obj instanceof String) {return "String"}
-	else if(obj instanceof GString) {return "GString"}
-	else if(obj instanceof Map) {return "Map"}
+    if(obj instanceof String) {return "String"}
+    else if(obj instanceof GString) {return "GString"}
+    else if(obj instanceof Map) {return "Map"}
     else if(obj instanceof LinkedHashMap) {return "LinkedHashMap"}
     else if(obj instanceof HashMap) {return "HashMap"}
-	else if(obj instanceof List) {return "List"}
-	else if(obj instanceof ArrayList) {return "ArrayList"}
-	else if(obj instanceof Integer) {return "Integer"}
-	else if(obj instanceof BigInteger) {return "BigInteger"}
-	else if(obj instanceof Long) {return "Long"}
-	else if(obj instanceof Boolean) {return "Boolean"}
-	else if(obj instanceof BigDecimal) {return "BigDecimal"}
-	else if(obj instanceof Float) {return "Float"}
-	else if(obj instanceof Byte) {return "Byte"}
-	else { return "unknown"}
+    else if(obj instanceof List) {return "List"}
+    else if(obj instanceof ArrayList) {return "ArrayList"}
+    else if(obj instanceof Integer) {return "Integer"}
+    else if(obj instanceof BigInteger) {return "BigInteger"}
+    else if(obj instanceof Long) {return "Long"}
+    else if(obj instanceof Boolean) {return "Boolean"}
+    else if(obj instanceof BigDecimal) {return "BigDecimal"}
+    else if(obj instanceof Float) {return "Float"}
+    else if(obj instanceof Byte) {return "Byte"}
+    else { return "unknown"}
 }
 
 public Map getDeviceMetrics() {
@@ -2835,4 +3189,3 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
         logError("createSequenceNode Exception: ${ex}")
         return [:]
     }
-}

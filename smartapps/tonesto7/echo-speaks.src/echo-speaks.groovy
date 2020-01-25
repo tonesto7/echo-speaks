@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.3.3.0" }
-String appModified()  { return "2020-01-17" }
+String appVersion()   { return "3.4.0.0" }
+String appModified()  { return "2020-01-24" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3301, wsDevice: 3200, actionApp: 3320, zoneApp: 3330, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3400, wsDevice: 3200, actionApp: 3400, zoneApp: 3400, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -337,15 +337,22 @@ def alexaGuardAutoPage() {
         List amo = getAlarmModes()
         Boolean alarmReq = (settings?.guardAwayAlarm || settings?.guardHomeAlarm)
         Boolean modeReq = (settings?.guardAwayModes || settings?.guardHomeModes)
-        section(sTS("Set Guard using ${asn}")) {
+        // Boolean swReq = (settings?.guardAwaySw || settings?.guardHomeSw)
+        section(sTS("Set Guard Using ${asn}")) {
             input "guardHomeAlarm", "enum", title: inTS("Home in ${asn} modes.", getAppImg("alarm_home", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
             input "guardAwayAlarm", "enum", title: inTS("Away in ${asn} modes.", getAppImg("alarm_away", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
         }
 
-        section(sTS("Set Guard using Modes")) {
+        section(sTS("Set Guard Using Modes")) {
             input "guardHomeModes", "mode", title: inTS("Home in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
             input "guardAwayModes", "mode", title: inTS("Away in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
         }
+
+        section(sTS("Set Guard Using Switches:")) {
+            input "guardHomeSwitch", "capability.switch", title: inTS("Home when any of these are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardAwaySwitch", "capability.switch", title: inTS("Away when any of these are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+        }
+
         section(sTS("Set Guard using Presence")) {
             input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when these devices are All away?", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
         }
@@ -362,7 +369,7 @@ def alexaGuardAutoPage() {
 }
 
 Boolean guardAutoConfigured() {
-    return ((settings?.guardAwayAlarm && settings?.guardHomeAlarm) || (settings?.guardAwayModes && settings?.guardHomeModes) || settings?.guardAwayPresence)
+    return ((settings?.guardAwayAlarm && settings?.guardHomeAlarm) || (settings?.guardAwayModes && settings?.guardHomeModes) || (settings?.guardAwaySwitch && settings?.guardHomeSwitch) || settings?.guardAwayPresence)
 }
 
 String guardAutoDesc() {
@@ -372,6 +379,8 @@ String guardAutoDesc() {
         str += (settings?.guardAwayAlarm && settings?.guardHomeAlarm) ? "\n \u2022 Using ${getAlarmSystemName()}" : ""
         str += settings?.guardHomeModes ? "\n \u2022 Home Modes: (${settings?.guardHomeModes?.size()})" : ""
         str += settings?.guardAwayModes ? "\n \u2022 Away Modes: (${settings?.guardAwayModes?.size()})" : ""
+        str += settings?.guardHomeSwitch ? "\n \u2022 Home Switches: (${settings?.guardHomeSwitch?.size()})" : ""
+        str += settings?.guardAwaySwitch ? "\n \u2022 Away Switches: (${settings?.guardAwaySwitch?.size()})" : ""
         str += settings?.guardAwayPresence ? "\n \u2022 Presence Home: (${settings?.guardAwayPresence?.size()})" : ""
     }
     return str == "" ? "Tap to configure..." : "${str}\n\nTap to configure..."
@@ -393,6 +402,13 @@ def guardTriggerEvtHandler(evt) {
             if(inAwayMode && inHomeMode) { logError("Guard Control Trigger can't act because same mode is in both Home and Away input"); return; }
             if(inAwayMode && !inHomeMode) { newState = "ARMED_AWAY" }
             if(!inAwayMode && inHomeMode) { newState = "ARMED_STAY" }
+            break
+        case "switch":
+            Boolean inAwaySw = isSwitchOn(settings?.guardAwaySwitch)
+            Boolean inHomeSw = isSwitchOn(settings?.guardHomeSwitch)
+            if(inAwaySw && inHomeSw) { logError("Guard Control Trigger can't act because both switch groups are in both Home and Away input"); return; }
+            if(inAwaySw && !inHomeSw) { newState = "ARMED_AWAY" }
+            if(!inAwaySw && inHomeSw) { newState = "ARMED_STAY" }
             break
         case "presence":
             newState = isSomebodyHome(settings?.guardAwayPresence) ? "ARMED_STAY" : "ARMED_AWAY"
@@ -1194,12 +1210,16 @@ def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
     if(!state?.resumeConfig) { subscribe(app, onAppTouch) }
-    if((settings?.guardHomeAlarm && settings?.guardAwayAlarm) || settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
+    if(guardAutoConfigured()) {
         if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
             subscribe(location, "${!isST() ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
         }
         if(settings?.guardAwayModes && settings?.guardHomeModes) {
             subscribe(location, "mode", guardTriggerEvtHandler)
+        }
+        if(settings?.guardAwaySwitch && settings?.guardHomeSwitch) {
+            if(settings?.guardHomeSwitch) subscribe(settings?.guardHomeSwitch, "switch", guardTriggerEvtHandler)
+            if(settings?.guardAwaySwitch) subscribe(settings?.guardAwaySwitch, "switch", guardTriggerEvtHandler)
         }
         if(settings?.guardAwayPresence) {
             subscribe(settings?.guardAwayPresence, "presence", guardTriggerEvtHandler)

@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.3.2.0" }
-String appModified() { return "2020-01-07" }
+String appVersion()  { return "3.4.0.0" }
+String appModified() { return "2020-01-24" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -85,7 +85,7 @@ def uhOhPage () {
 }
 
 def appInfoSect(sect=true)	{
-    def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@'h:mm a", true) : null
+    def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@' h:mm a", true) : null
     section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version: ${appVersion()}", image: getAppImg("es_actions") }
 }
 
@@ -707,29 +707,29 @@ def conditionsPage() {
 
         condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", ["open", "closed"], "are", "garage_door")
 
-        condNumValSect("temperature", "temperatureMeasurement", "Temperature Conditions", "Temperature Sensors", "Temperature", "temperature", true)
+        condNumValSect("temperature", "temperatureMeasurement", "Temperature Conditions", "Temperature Sensors", "Temperature", "temperature")
 
-        condNumValSect("humidity", "relativeHumidityMeasurement", "Humidity Conditions", "Relative Humidity Sensors", "Relative Humidity (%)", "humidity", true)
+        condNumValSect("humidity", "relativeHumidityMeasurement", "Humidity Conditions", "Relative Humidity Sensors", "Relative Humidity (%)", "humidity")
 
-        condNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Conditions", "Illuminance Sensors", "Lux Level (%)", "illuminance", true)
+        condNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Conditions", "Illuminance Sensors", "Lux Level (%)", "illuminance")
 
-        condNumValSect("level", "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level (%)", "speed_knob", true)
+        condNumValSect("level", "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level (%)", "speed_knob")
 
         condNonNumSect("water", "waterSensor", "Water Sensors", "Water Sensors", ["wet", "dry"], "are", "water")
 
-        condNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power", true)
+        condNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power")
 
         condNonNumSect("shade", "windowShades", "Window Shades", "Window Shades", ["open", "closed"], "are", "shade")
 
         condNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed"], "are", "valve")
 
-        condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery", true)
+        condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery")
     }
 }
 
 def condNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, String image) {
-    section (sTS(sectStr)) {
-        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required:false, image: getAppImg(image)
+    section (sTS(sectStr), hideWhenEmpty: true) {
+        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required:false, image: getAppImg(image), hideWhenEmpty: true
         if (settings?."cond_${inType}") {
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle}...", getAppImg("command", true)), options: cmdOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
             if (settings?."cond_${inType}_cmd" && settings?."cond_${inType}"?.size() > 1) {
@@ -740,8 +740,8 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
 }
 
 def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, hideable= false) {
-    section (sTS(sectStr), hideable: hideable) {
-        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: false, image: getAppImg(image)
+    section (sTS(sectStr), hideWhenEmpty: true) {
+        input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: false, image: getAppImg(image), hideWhenEmpty: true
         if(settings?."cond_${inType}") {
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
             if (settings?."cond_${inType}_cmd") {
@@ -828,7 +828,7 @@ String actionTypeDesc() {
         announcement_tiered: "Allows you to create tiered responses.  Each tier can have a different delay before the next message is spoken/announced. Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.",
         sequence: "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.",
         weather: "Plays a very basic weather report.",
-        playback: "Allows you to control the media playback state of your Echo devices.",
+        playback: "Allows you to control the media playback state or volume level of your Echo devices.",
         builtin: "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.",
         sounds: "Plays a selected amazon sound item.",
         music: "Allows playback of various Songs/Radio using any connected music provider",
@@ -1155,14 +1155,32 @@ def actionsPage() {
                     section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("alarms")
                     if(settings?.act_EchoDevices) {
+                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
+                        String rptType = null
+                        def rptTypeOpts = null
                         section(sTS("Action Type Config:")) {
                             input "act_alarm_label", "text", title: inTS("Alarm Label", getAppImg("name_tag", true)), submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_alarm_date", "text", title: inTS("Alarm Date\n(yyyy-mm-dd)", getAppImg("day_calendar", true)), submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_alarm_time", "time", title: inTS("Alarm Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getAppImg("clock")
+                            // if(act_alarm_label && act_alarm_date && act_alarm_time) {
+                            //     input "act_alarm_rt", "enum", title: inTS("Repeat (Optional)", getAppImg("command", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("command")
+                            //     if(settings?."act_alarm_rt") {
+                            //         rptType = settings?.act_alarm_rt
+                            //         if(settings?."act_alarm_rt" == "daysofweek") {
+                            //             input "act_alarm_rt_wd", "enum", title: inTS("Weekday", getAppImg("checkbox", true)), description: "", options: weekDaysAbrvEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("checkbox")
+                            //             if(settings?.act_alarm_rt_wd) rptTypeOpts = settings?.act_alarm_rt_wd
+                            //         }
+                            //         if(settings?."act_alarm_rt" == "everyxdays") {
+                            //             input "act_alarm_rt_ed", "number", title: inTS("Every X Days", getAppImg("checkbox", true)), description: "", range: "1..31", required: true, submitOnChange: true, image: getAppImg("checkbox")
+                            //             if(settings?.act_alarm_rt_ed) rptTypeOpts = settings?.act_alarm_rt_ed
+                            //         }
+                            //     }
+                            // }
                             // input "act_alarm_remove", "bool", title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
                         actionVolumeInputs(devices, false, true)
-                        actionExecMap?.config?.alarm = [cmd: "createAlarm", label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: settings?.act_alarm_time, remove: settings?.act_alarm_remove]
+                        def newTime = settings?.act_alarm_time ? parseFmtDt("yyyy-MM-dd'T'HH:mm:ss.SSSZ", 'HH:mm', settings?.act_alarm_time) : null
+                        actionExecMap?.config?.alarm = [cmd: "createAlarm", label: settings?.act_alarm_label, date: settings?.act_alarm_date, time: newTime, recur: [type: rptType, opts: rptTypeOpts], remove: settings?.act_alarm_remove]
                         if(act_alarm_label && act_alarm_date && act_alarm_time) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -1172,14 +1190,32 @@ def actionsPage() {
                     section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("reminders")
                     if(settings?.act_EchoDevices) {
+                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
+                        String rptType = null
+                        def rptTypeOpts = null
                         section(sTS("Action Type Config:")) {
                             input "act_reminder_label", "text", title: inTS("Reminder Label", getAppImg("name_tag", true)), submitOnChange: true, required: true, image: getAppImg("name_tag")
                             input "act_reminder_date", "text", title: inTS("Reminder Date\n(yyyy-mm-dd)", getAppImg("day_calendar", true)), submitOnChange: true, required: true, image: getAppImg("day_calendar")
                             input "act_reminder_time", "time", title: inTS("Reminder Time", getAppImg("clock", true)), submitOnChange: true, required: true, image: getAppImg("clock")
+                            // if(act_reminder_label && act_reminder_date && act_reminder_time) {
+                            //     input "act_reminder_rt", "enum", title: inTS("Repeat (Optional)", getAppImg("command", true)), description: "", options: repeatOpts, required: true, submitOnChange: true, image: getAppImg("command")
+                            //     if(settings?."act_reminder_rt") {
+                            //         rptType = settings?.act_reminder_rt
+                            //         if(settings?."act_reminder_rt" == "daysofweek") {
+                            //             input "act_reminder_rt_wd", "enum", title: inTS("Weekday", getAppImg("checkbox", true)), description: "", options: weekDaysAbrvEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("checkbox")
+                            //             if(settings?.act_reminder_rt_wd) rptTypeOpts = settings?.act_reminder_rt_wd
+                            //         }
+                            //         if(settings?."act_reminder_rt" && settings?."act_reminder_rt" == "everyxdays") {
+                            //             input "act_reminder_rt_ed", "number", title: inTS("Every X Days (1-31)", getAppImg("checkbox", true)), description: "", range: "1..31", required: true, submitOnChange: true, image: getAppImg("checkbox")
+                            //             if(settings?.act_reminder_rt_ed) rptTypeOpts = settings?.act_reminder_rt_ed
+                            //         }
+                            //     }
+                            // }
                             // input "act_reminder_remove", "bool", title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
                         }
                         actionVolumeInputs(devices, false, true)
-                        actionExecMap?.config?.reminder = [cmd: "createReminder", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: settings?.act_reminder_time, remove: settings?.act_reminder_remove]
+                        def newTime = settings?.act_reminder_time ? parseFmtDt("yyyy-MM-dd'T'HH:mm:ss.SSSZ", 'HH:mm', settings?.act_reminder_time) : null
+                        actionExecMap?.config?.reminder = [cmd: "createReminderNew", label: settings?.act_reminder_label, date: settings?.act_reminder_date, time: newTime, recur: [type: rptType, opts: rptTypeOpts], remove: settings?.act_reminder_remove]
                         if(act_reminder_label && act_reminder_date && act_reminder_time) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -1687,7 +1723,7 @@ private actionVolumeInputs(devices, showVolOnly=false, showAlrmVol=false) {
             input "act_alarm_volume", "number", title: inTS("Alarm Volume\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
         }
     } else {
-        if(devices && settings?.actionType in ["speak", "announcement", "weather", "sounds", "builtin", "music", "calendar"]) {
+        if(devices && settings?.actionType in ["speak", "announcement", "weather", "sounds", "builtin", "music", "calendar", "playback"]) {
             Map volMap = devsSupportVolume(devices)
             section(sTS("Volume Options:")) {
                 if(volMap?.n?.size() > 0 && volMap?.n?.size() < devices?.size()) { paragraph "Some of the selected devices do not support volume control" }
@@ -3029,9 +3065,11 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                         actDevices?.each { dev->
                             if(isST && actDelayMs) {
                                 if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
+                                else if(actConf[actType]?.cmd == "volume") { dev?.setVolume(changeVol, [delay: actDelayMs]) }
                                 if(changeVol) { dev?.volume(changeVol, [delay: actDelayMs]) }
                             } else {
                                 if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"() }
+                                else if(actConf[actType]?.cmd == "volume") { dev?.setVolume(changeVol) }
                                 if(changeVol) { dev?.volume(changeVol) }
                             }
                         }
@@ -3080,7 +3118,14 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                     actDevices?.each { dev->
                         if(isST && actDelayMs) {
                             dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, [delay: actDelayMs])
-                        } else { dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time) }
+                        } else {
+                            dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time)
+                        }
+                        // if(isST && actDelayMs) {
+                        //     dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt, [delay: actDelayMs])
+                        // } else {
+                        //     dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt)
+                        // }
                     }
                     logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}")
                 }
@@ -3319,6 +3364,7 @@ void settingRemove(String name) {
 }
 
 List weekDaysEnum() { return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] }
+List weekDaysAbrvEnum() { return ["MO":"Monday", "TU":"Tuesday", "WE":"Wednesday", "TH":"Thursday", "FR":"Friday", "SA":"Saturday", "SU":"Sunday"] }
 List monthEnum() { return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] }
 Map daysOfWeekMap() { return ["MON":"Monday", "TUE":"Tuesday", "WED":"Wednesday", "THU":"Thursday", "FRI":"Friday", "SAT":"Saturday", "SUN":"Sunday"] }
 Map weeksOfMonthMap() { return ["1":"1st Week", "2":"2nd Week", "3":"3rd Week", "4":"4th Week", "5":"5th Week"] }
@@ -3630,6 +3676,13 @@ def parseDt(pFormat, dt, tzFmt=true) {
     return result
 }
 
+def parseFmtDt(parseFmt, newFmt, dt) {
+    def newDt = Date.parse(parseFmt, dt?.toString())
+    def tf = new java.text.SimpleDateFormat(newFmt)
+    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return tf?.format(newDt)
+}
+
 def getDtNow() {
     def now = new Date()
     return formatDt(now)
@@ -3763,11 +3816,9 @@ String getNotifSchedDesc(min=false) {
     def startLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
     def stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
     str += (startLbl && stopLbl) ? " • Time: ${startLbl} - ${stopLbl}" : ""
-    def days = getInputToStringDesc(dayInput)
-    def modes = getInputToStringDesc(modeInput)
     def qDays = getQuietDays()
-    str += days ? "${(startLbl || stopLbl) ? "\n" : ""} • Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
-    str += modes ? "${(startLbl || stopLbl || days) ? "\n" : ""} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
+    str += dayInput ? "${(startLbl || stopLbl) ? "\n" : ""} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
+    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : ""} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : ""
     return (str != "") ? "${str}" : null
 }
 
@@ -4234,8 +4285,8 @@ public getDuplSettingData() {
         ],
         ends: [
             bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear"],
-            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_webCorePistons"],
-            number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat"],
+            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_webCorePistons", "_rt", "_rt_wd"],
+            number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat", "_rt_ed"],
             text: ["_txt", "_sms_numbers"],
             time: ["_time_start", "_time_stop", "_scheduled_time"]
         ],
