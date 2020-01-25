@@ -1,4 +1,26 @@
  ══════════
+  January 24th, 2020
+ ══════════
+  Main App (v3.4.0.0)
+  • ADDED: Ability to control SHM based on switches #217 #214
+  • FIXED: Other bugfixes.
+
+  Action App (v3.4.0.0)
+  • FIXED: Volume Control Actions #147
+  • FIXED: Alarm/Reminder creation changes (@JDiaz11) #200
+  • FIXED: Other bugfixes.
+
+  Zone App (v3.4.0.0)
+  • FIXED: Zone Activation Notifications #211
+  • FIXED: Zone Deactivation based on time in condition #212
+  • FIXED: Other bugfixes.
+
+  Echo Device (v3.4.0.0)
+  • FIXED: Alarm/Reminder creation changes (@JDiaz11) #200
+  • FIXED: Other bugfixes.
+_____________________________________
+
+ ══════════
   January 17th, 2020
  ══════════
   Zone App (v3.3.3.0)

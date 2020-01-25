@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.4.0.0" }
-String devModified() { return "2020-01-20" }
+String devModified()  { return "2020-01-25" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -113,9 +113,9 @@ metadata {
         command "executeRoutineId", ["string"]
         command "createAlarm", ["string", "string", "string"]
         command "createReminder", ["string", "string", "string"]
-        command "createReminderNew", ["string", "string", "string", "string", "string"]
+        // command "createReminderNew", ["string", "string", "string", "string", "string"]
         command "removeNotification", ["string"]
-        command "removeAllNotificationsByType", ["string"]
+        // command "removeAllNotificationsByType", ["string"]
         command "setWakeWord", ["string"]
         command "renameDevice", ["string"]
         command "storeCurrentVolume"
