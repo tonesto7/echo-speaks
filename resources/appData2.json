@@ -327,6 +327,14 @@
                 "t"
             ]
         },
+        "A3VRME03NAXFUB": {
+            "name": "Echo Flex",
+            "image": "echo_flex",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
         "A3SSG6GR8UU7SN": {
             "name": "Echo Sub",
             "image": "echo_sub_gen1",
