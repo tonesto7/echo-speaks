@@ -3191,3 +3191,4 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
         logError("createSequenceNode Exception: ${ex}")
         return [:]
     }
+}
