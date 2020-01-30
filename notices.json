@@ -2,5 +2,5 @@
     "versions": {
         "server": "2.3.1"
     },
-    "notices": []
+    "notices": ["There appears to have been a change to Amazons API resulting in log entries like this: | Status: (400) | Message: Bad Request | Data: [message:Rate exceeded]/nI'm out of town for work and will look into it more when I return"]
 }
