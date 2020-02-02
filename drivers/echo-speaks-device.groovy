@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.4.0.0"}
-String devModified() { return "2020-01-24" }
+String devVersion()  { return "3.4.1.0"}
+String devModified() { return "2020-02-01" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -861,43 +861,20 @@ private getNotifications(type="Reminder", all=false) {
 }
 
 private getDeviceActivity() {
-    Map params = [
-        uri: getAmazonUrl(),
-        path: "/api/activities",
-        query: [ startTime:"", size:"50", offset:"-1" ],
-        headers: [Cookie: getCookieVal(), csrf: getCsrfVal()],
-        contentType: "application/json"
-    ]
     try {
-        httpGet(params) { response->
-            List newList = []
-            def sData = response?.data ?: null
-            Boolean wasLastDevice = false
-            def actTS = null
-            if (sData && sData?.activities != null) {
-                def lastCommand = sData?.activities?.find {
-                    (it?.domainAttributes == null || it?.domainAttributes.startsWith("{")) &&
-                    it?.activityStatus?.equals("SUCCESS") &&
-                    it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType)
-                }
-                if (lastCommand) {
-                    def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
-                    def spokenText = lastDescription?.summary
-                    def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
-                    if(lastDevice?.serialNumber == state?.serialNumber) {
-                        wasLastDevice = true
-                        if(isStateChange(device, "lastVoiceActivity", spokenText?.toString())) {
-                            sendEvent(name: "lastVoiceActivity", value: spokenText?.toString(), display: false, displayed: false)
-                        }
-                        if(isStateChange(device, "lastSpokenToTime", lastCommand?.creationTimestamp?.toString())) {
-                            sendEvent(name: "lastSpokenToTime", value: lastCommand?.creationTimestamp, display: false, displayed: false)
-                        }
-                    }
-                }
-                if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
-                    sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
-                }
+        List newList = []
+        def aData = parent?.getDeviceActivity(state?.serialNumber) ?: null
+        Boolean wasLastDevice = (aData?.lastSpokenTo == true)
+        if (aData != null) {
+            if(isStateChange(device, "lastVoiceActivity", aData?.spokenText?.toString())) {
+                sendEvent(name: "lastVoiceActivity", value: aData?.spokenText?.toString(), display: false, displayed: false)
             }
+            if(isStateChange(device, "lastSpokenToTime", aData?.lastSpokenDt?.toString())) {
+                sendEvent(name: "lastSpokenToTime", value: aData?.lastSpokenDt?.toString(), display: false, displayed: false)
+            }
+        }
+        if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
+            sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
         }
     } catch (ex) {
         respExceptionHandler(ex, "getDeviceActivity")
