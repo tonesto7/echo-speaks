@@ -1267,7 +1267,7 @@ def uninstalled() {
 }
 
 private appCleanup() {
-    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal", "updNotifyWaitVal"]
+    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal", "updNotifyWaitVal", "lastDevActivity"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
@@ -1928,34 +1928,33 @@ def getDeviceActivity(serialNum) {
         contentType: "application/json"
     ]
     Boolean wasLastDevice = false
-    def aData = null
+    Map aData = null
     try {
         if(getLastTsValSecs("lastDevActChk") > 15) {
             httpGet(params) { response->
                 if (response?.data && response?.data?.activities != null) {
                     updTsVal("lastDevActChk")
-                    aData = response?.data?.activities
+                    def lastCommand = response?.data?.activities?.find { it?.domainAttributes.startsWith("{") && it?.activityStatus?.equals("SUCCESS") && it?.sourceDeviceIds?.get(0)?.deviceType != null }
+                    if (lastCommand) {
+                        def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
+                        def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
+                        aData = [:]
+                        aData[lastDevice?.serialNumber] = [spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp]
+                    }
                     atomicState?.lastDevActivity = aData
                 }
             }
         } else {
-            if(atomicState?.lastDevActivity) {
-               aData = atomicState?.lastDevActivity
-            }
+            aData = atomicState?.lastDevActivity
         }
-        if(aData) {
-            def lastCommand = aData?.find { (it?.domainAttributes == null || it?.domainAttributes.startsWith("{")) && it?.activityStatus?.equals("SUCCESS") && it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) }
-            if (lastCommand) {
-                def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
-                def spokenText = lastDescription?.summary
-                def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
-                if(lastDevice?.serialNumber == serialNum) {
-                    return [lastSpokenTo: wasLastDevice, spokenText: spokenText, lastSpokenDt: lastCommand?.creationTimestamp]
-                } else { return null }
-            }
+        if(aData && aData?.size() && aData[serialNum]) {
+            aData[serialNum]?.lastSpokenTo = true
+            // log.debug "aData: ${aData[serialNum]}"
+            return aData[serialNum]
         } else { return null }
     } catch (ex) {
         respExceptionHandler(ex, "getDeviceActivity")
+        // log.error "getDeviceActivity error: ", ex
         return null
     }
 }

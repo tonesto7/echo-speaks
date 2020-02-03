@@ -1235,6 +1235,7 @@ private getDeviceActivity() {
             }
         }
         if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
+            log.debug "wasLastSpokenToDevice: ${wasLastDevice}"
             sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
         }
     } catch (ex) {
