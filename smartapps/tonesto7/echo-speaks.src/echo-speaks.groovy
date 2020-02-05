@@ -1923,7 +1923,7 @@ def getDeviceActivity(serialNum) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/activities",
-        query: [ startTime: "", size: "5", offset: "1" ],
+        query: [ startTime: "", size: "5", offset: "-1" ],
         headers: [Cookie: getCookieVal(), csrf: getCsrfVal()],
         contentType: "application/json"
     ]
@@ -1934,7 +1934,7 @@ def getDeviceActivity(serialNum) {
             httpGet(params) { response->
                 if (response?.data && response?.data?.activities != null) {
                     updTsVal("lastDevActChk")
-                    def lastCommand = response?.data?.activities?.find { it?.domainAttributes.startsWith("{") && it?.activityStatus?.equals("SUCCESS") && it?.sourceDeviceIds?.get(0)?.deviceType != null }
+                    def lastCommand = response?.data?.activities?.find { it?.domainAttributes && it?.domainAttributes?.startsWith("{") && it?.activityStatus?.equals("SUCCESS") && it?.sourceDeviceIds?.get(0)?.deviceType != null }
                     if (lastCommand) {
                         def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
                         def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
