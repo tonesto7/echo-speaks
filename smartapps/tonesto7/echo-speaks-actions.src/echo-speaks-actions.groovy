@@ -2762,11 +2762,13 @@ Boolean dateCondConfigured() {
     return (days || months)
 }
 
-Boolean locationCondConfigured() {
+Boolean locationModeConfigured() {
     if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
-    Boolean mode = (settings?.cond_mode && settings?.cond_mode_cmd)
-    Boolean alarm = (settings?.cond_alarm)
-    return (mode || alarm)
+    return (settings?.cond_mode && settings?.cond_mode_cmd)
+}
+
+Boolean locationAlarmConfigured() {
+    return (settings?.cond_alarm)
 }
 
 Boolean deviceCondConfigured() {
@@ -2784,14 +2786,15 @@ Integer deviceCondCount() {
 }
 
 Boolean conditionsConfigured() {
-    return (timeCondConfigured() || dateCondConfigured() || locationCondConfigured() || deviceCondConfigured())
+    return (timeCondConfigured() || dateCondConfigured() || locationModeConfigured() || locationAlarmConfigured() || deviceCondConfigured())
 }
 
 Boolean multipleConditions() {
     Integer cnt = 0
     if(timeCondConfigured()) cnt++
     if(dateCondConfigured()) cnt++
-    if(locationCondConfigured()) cnt++
+    if(locationModeConfigured()) cnt++
+    if(locationAlarmConfigured()) cnt++
     cnt = cnt + deviceCondCount()
     return (cnt>1)
 }
