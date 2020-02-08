@@ -20,7 +20,7 @@ Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", mnmn: "SmartThings", vid: "generic-music-player") {
         capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
         capability "Audio Track Data" // To support SharpTools.io Album Art feature
@@ -1223,8 +1223,7 @@ private getNotifications(type="Reminder", all=false) {
 
 private getDeviceActivity() {
     try {
-        List newList = []
-        def aData = parent?.getDeviceActivity(state?.serialNumber) ?: null
+        def aData = parent?.getActivityData(state?.serialNumber) ?: null
         Boolean wasLastDevice = (aData?.lastSpokenTo == true)
         if (aData != null) {
             if(isStateChange(device, "lastVoiceActivity", aData?.spokenText?.toString())) {
@@ -1239,7 +1238,7 @@ private getDeviceActivity() {
             sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
         }
     } catch (ex) {
-        respExceptionHandler(ex, "getDeviceActivity")
+        logError("updDeviceActivity Error: ${ex.message}")
     }
 }
 
