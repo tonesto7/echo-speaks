@@ -24,7 +24,7 @@
         "sendMetrics": true,
         "database": {
             "metricsUrl": "https://echo-speaks-metrics.firebaseio.com/",
-            "configUrl": "https://echospeaks-config.firebaseio.com/",
+            "configUrl": "https://firestore.googleapis.com/v1/projects/echospeaks-config/databases/(default)/documents/",
             "configId": "615b4f5d837dc81a5201422d5c791997b1ba8388"
         }
     }
