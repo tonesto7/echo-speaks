@@ -2,16 +2,16 @@
     "appDataVer": "3.4",
     "versions": {
         "mainApp": {
-            "ver": "3.3.1.1"
+            "ver": "3.4.1.0"
         },
         "actionApp": {
-            "ver": "3.3.1.1"
+            "ver": "3.4.0.0"
         },
         "zoneApp": {
-            "ver": "3.3.1.1"
+            "ver": "3.4.0.0"
         },
         "echoDevice": {
-            "ver": "3.3.0.1"
+            "ver": "3.4.1.0"
         },
         "wsDevice": {
             "ver": "3.2.0.1"
@@ -60,7 +60,14 @@
             "A1ZB65LA390I4K",
             "A21X6I4DKINIZU",
             "A112LJ20W14H95",
-            "A81PNL0A63P93"
+            "A81PNL0A63P93",
+            "A1GC6GEE1XF1G9",
+            "AUPUQSVCVHXP0",
+            "AD2YUJTRVBNOF",
+            "AGZWSPR7FLP9E",
+            "A2V3E2XUH5Z7M8",
+            "A1MPSLFC7L5AFK"
+
         ]
     },
     "deviceFamilies": {
@@ -118,6 +125,11 @@
             "name": "Bose Home Speaker 500",
             "caps": [],
             "blocked": true
+        },
+        "A3BRT6REMPQWA8": {
+            "name": "Bose Home Speaker 450",
+            "caps": ["a", "t"],
+            "image": "sonos_generic"
         },
         "A1H0CMF1XM0ZP4": {
             "name": "Bose SoundTouch 30",
@@ -198,6 +210,14 @@
         "A7WXQPH584YP": {
             "name": "Echo (Gen2)",
             "image": "echo_gen2",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A3FX4UWTP28V1P": {
+            "name": "Echo (Gen3)",
+            "image": "echo_plus_gen2",
             "caps": [
                 "a",
                 "t"
@@ -291,14 +311,6 @@
                 "t"
             ]
         },
-        "A3FX4UWTP28V1P": {
-            "name": "Echo Dot (Gen3)",
-            "image": "echo_dot_gen3",
-            "caps": [
-                "a",
-                "t"
-            ]
-        },
         "A30YDR2MK8HMRV": {
             "name": "Echo Dot Clock",
             "image": "echo_dot_clock",
@@ -310,6 +322,14 @@
         "A10A33FOX2NUBK": {
             "name": "Echo Spot",
             "image": "echo_spot_gen1",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A3VRME03NAXFUB": {
+            "name": "Echo Flex",
+            "image": "echo_flex",
             "caps": [
                 "a",
                 "t"
@@ -427,6 +447,14 @@
                 "t"
             ]
         },
+        "A3B5K1G3EITBIF": {
+            "name": "Facebook Portal",
+            "image": "facebook_portal",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
         "A1J16TEDOYCZTN": {
             "name": "Fire Tablet",
             "image": "amazon_tablet",
@@ -436,6 +464,14 @@
             ]
         },
         "A2R2GLZH1DFYQO": {
+            "name": "Zolo Halo Speaker",
+            "image": "halo_speaker",
+            "caps": [
+                "t",
+                "a"
+            ]
+        },
+        "A1P31Q3MOWSHOD": {
             "name": "Zolo Halo Speaker",
             "image": "halo_speaker",
             "caps": [
@@ -583,6 +619,22 @@
         "A10L5JEZTKKCZ8": {
             "name": "Vobot Bunny",
             "image": "vobot_bunny",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "AE7X7Z227NFNS": {
+            "name": "HiMirror Mini",
+            "image": "unknown",
+            "caps": [
+                "a",
+                "t"
+            ]
+        },
+        "A347G2JC8I4HC7": {
+            "name": "Roav Car Charger Pro",
+            "image": "unknown",
             "caps": [
                 "a",
                 "t"

@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.3.1.1" }
-String appModified()   { return "2019-12-19" }
+String appVersion()   { return "3.4.1.0" }
+String appModified()  { return "2020-02-01" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3301, wsDevice: 3200, actionApp: 3311, zoneApp: 3311, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3410, wsDevice: 3200, actionApp: 3400, zoneApp: 3400, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -337,15 +337,22 @@ def alexaGuardAutoPage() {
         List amo = getAlarmModes()
         Boolean alarmReq = (settings?.guardAwayAlarm || settings?.guardHomeAlarm)
         Boolean modeReq = (settings?.guardAwayModes || settings?.guardHomeModes)
-        section(sTS("Set Guard using ${asn}")) {
+        // Boolean swReq = (settings?.guardAwaySw || settings?.guardHomeSw)
+        section(sTS("Set Guard Using ${asn}")) {
             input "guardHomeAlarm", "enum", title: inTS("Home in ${asn} modes.", getAppImg("alarm_home", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
             input "guardAwayAlarm", "enum", title: inTS("Away in ${asn} modes.", getAppImg("alarm_away", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
         }
 
-        section(sTS("Set Guard using Modes")) {
+        section(sTS("Set Guard Using Modes")) {
             input "guardHomeModes", "mode", title: inTS("Home in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
             input "guardAwayModes", "mode", title: inTS("Away in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
         }
+
+        section(sTS("Set Guard Using Switches:")) {
+            input "guardHomeSwitch", "capability.switch", title: inTS("Home when any of these are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardAwaySwitch", "capability.switch", title: inTS("Away when any of these are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+        }
+
         section(sTS("Set Guard using Presence")) {
             input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when these devices are All away?", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
         }
@@ -362,7 +369,7 @@ def alexaGuardAutoPage() {
 }
 
 Boolean guardAutoConfigured() {
-    return ((settings?.guardAwayAlarm && settings?.guardHomeAlarm) || (settings?.guardAwayModes && settings?.guardHomeModes) || settings?.guardAwayPresence)
+    return ((settings?.guardAwayAlarm && settings?.guardHomeAlarm) || (settings?.guardAwayModes && settings?.guardHomeModes) || (settings?.guardAwaySwitch && settings?.guardHomeSwitch) || settings?.guardAwayPresence)
 }
 
 String guardAutoDesc() {
@@ -372,6 +379,8 @@ String guardAutoDesc() {
         str += (settings?.guardAwayAlarm && settings?.guardHomeAlarm) ? "\n \u2022 Using ${getAlarmSystemName()}" : ""
         str += settings?.guardHomeModes ? "\n \u2022 Home Modes: (${settings?.guardHomeModes?.size()})" : ""
         str += settings?.guardAwayModes ? "\n \u2022 Away Modes: (${settings?.guardAwayModes?.size()})" : ""
+        str += settings?.guardHomeSwitch ? "\n \u2022 Home Switches: (${settings?.guardHomeSwitch?.size()})" : ""
+        str += settings?.guardAwaySwitch ? "\n \u2022 Away Switches: (${settings?.guardAwaySwitch?.size()})" : ""
         str += settings?.guardAwayPresence ? "\n \u2022 Presence Home: (${settings?.guardAwayPresence?.size()})" : ""
     }
     return str == "" ? "Tap to configure..." : "${str}\n\nTap to configure..."
@@ -393,6 +402,13 @@ def guardTriggerEvtHandler(evt) {
             if(inAwayMode && inHomeMode) { logError("Guard Control Trigger can't act because same mode is in both Home and Away input"); return; }
             if(inAwayMode && !inHomeMode) { newState = "ARMED_AWAY" }
             if(!inAwayMode && inHomeMode) { newState = "ARMED_STAY" }
+            break
+        case "switch":
+            Boolean inAwaySw = isSwitchOn(settings?.guardAwaySwitch)
+            Boolean inHomeSw = isSwitchOn(settings?.guardHomeSwitch)
+            if(inAwaySw && inHomeSw) { logError("Guard Control Trigger can't act because both switch groups are in both Home and Away input"); return; }
+            if(inAwaySw && !inHomeSw) { newState = "ARMED_AWAY" }
+            if(!inAwaySw && inHomeSw) { newState = "ARMED_STAY" }
             break
         case "presence":
             newState = isSomebodyHome(settings?.guardAwayPresence) ? "ARMED_STAY" : "ARMED_AWAY"
@@ -1194,12 +1210,16 @@ def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
     if(!state?.resumeConfig) { subscribe(app, onAppTouch) }
-    if((settings?.guardHomeAlarm && settings?.guardAwayAlarm) || settings?.guardHomeModes || settings?.guardAwayModes || settings?.guardAwayPresence) {
+    if(guardAutoConfigured()) {
         if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
             subscribe(location, "${!isST() ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
         }
         if(settings?.guardAwayModes && settings?.guardHomeModes) {
             subscribe(location, "mode", guardTriggerEvtHandler)
+        }
+        if(settings?.guardAwaySwitch && settings?.guardHomeSwitch) {
+            if(settings?.guardHomeSwitch) subscribe(settings?.guardHomeSwitch, "switch", guardTriggerEvtHandler)
+            if(settings?.guardAwaySwitch) subscribe(settings?.guardAwaySwitch, "switch", guardTriggerEvtHandler)
         }
         if(settings?.guardAwayPresence) {
             subscribe(settings?.guardAwayPresence, "presence", guardTriggerEvtHandler)
@@ -1247,7 +1267,7 @@ def uninstalled() {
 }
 
 private appCleanup() {
-    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal", "updNotifyWaitVal"]
+    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal", "updNotifyWaitVal", "lastDevActivity"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
@@ -1897,6 +1917,46 @@ def getBluetoothData(serialNumber) {
         }
     }
     return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
+}
+
+def getDeviceActivity(serialNum) {
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/activities",
+        query: [ startTime: "", size: "5", offset: "-1" ],
+        headers: [Cookie: getCookieVal(), csrf: getCsrfVal()],
+        contentType: "application/json"
+    ]
+    Boolean wasLastDevice = false
+    Map aData = null
+    try {
+        if(getLastTsValSecs("lastDevActChk") > 15) {
+            httpGet(params) { response->
+                if (response?.data && response?.data?.activities != null) {
+                    updTsVal("lastDevActChk")
+                    def lastCommand = response?.data?.activities?.find { it?.domainAttributes && it?.domainAttributes?.startsWith("{") && it?.activityStatus?.equals("SUCCESS") && it?.sourceDeviceIds?.get(0)?.deviceType != null }
+                    if (lastCommand) {
+                        def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
+                        def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
+                        aData = [:]
+                        aData[lastDevice?.serialNumber] = [spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp]
+                    }
+                    atomicState?.lastDevActivity = aData
+                }
+            }
+        } else {
+            aData = atomicState?.lastDevActivity
+        }
+        if(aData && aData?.size() && aData[serialNum]) {
+            aData[serialNum]?.lastSpokenTo = true
+            // log.debug "aData: ${aData[serialNum]}"
+            return aData[serialNum]
+        } else { return null }
+    } catch (ex) {
+        respExceptionHandler(ex, "getDeviceActivity")
+        // log.error "getDeviceActivity error: ", ex
+        return null
+    }
 }
 
 private getDoNotDisturb() {
@@ -4288,6 +4348,7 @@ def renderTextEditPage() {
                     function cleanEditorText(txt) {
                         txt = txt.split(';').filter(t => t.trim().length > 0).map(t => t.trim()).join(';');
                         txt = txt.endsWith(';') ? txt.replace(/;([^;]*)\$/, '\$1') : txt;
+                        txt = txt.replace('%duration_min%', '%durationmin%');
                         return txt.replace(/  +/g, ' ').replace('> <', '><').replace("\'", '');
                     }
 
@@ -4580,7 +4641,7 @@ def renderTextEditPage() {
                                     insertSsml(editor, '%duration%', false);
                                     break;
                                 case 'evtdurationmin':
-                                    insertSsml(editor, '%duration_min%', false);
+                                    insertSsml(editor, '%durationmin%', false);
                                     break;
                                 default:
                                     break;
