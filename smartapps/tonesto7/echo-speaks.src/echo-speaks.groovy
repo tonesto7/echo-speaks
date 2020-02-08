@@ -1876,6 +1876,7 @@ private getOtherData() {
     getDoNotDisturb()
     getBluetoothDevices()
     getMusicProviders()
+    getDeviceActivity()
     // getCustomerData()
     // getAlexaSkills()
 }
@@ -1919,19 +1920,22 @@ def getBluetoothData(serialNumber) {
     return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
 }
 
-def getDeviceActivity(serialNum) {
-    Map params = [
-        uri: getAmazonUrl(),
-        path: "/api/activities",
-        query: [ startTime: "", size: "5", offset: "-1" ],
-        headers: [Cookie: getCookieVal(), csrf: getCsrfVal()],
-        contentType: "application/json"
-    ]
-    Boolean wasLastDevice = false
-    Map aData = null
+def getDeviceActivity() {
     try {
-        if(getLastTsValSecs("lastDevActChk") > 15) {
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/activities",
+            query: [ size: 5, offset: 1 ],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            contentType: "application/json"
+        ]
+        Boolean wasLastDevice = false
+        Map aData = null
+        def test = true
+        if(getLastTsValSecs("lastDevActChk") > 10) {
             httpGet(params) { response->
+                log.debug("X-Amz-Cf-Id: ${response?.getHeaders("X-Amz-Cf-Id")}")
+                log.debug("X-Amz-Cf-Pop: ${response?.getHeaders("X-Amz-Cf-Pop")}")
                 if (response?.data && response?.data?.activities != null) {
                     updTsVal("lastDevActChk")
                     def lastCommand = response?.data?.activities?.find { it?.domainAttributes && it?.domainAttributes?.startsWith("{") && it?.activityStatus?.equals("SUCCESS") && it?.sourceDeviceIds?.get(0)?.deviceType != null }
@@ -1944,19 +1948,23 @@ def getDeviceActivity(serialNum) {
                     atomicState?.lastDevActivity = aData
                 }
             }
-        } else {
-            aData = atomicState?.lastDevActivity
         }
-        if(aData && aData?.size() && aData[serialNum]) {
-            aData[serialNum]?.lastSpokenTo = true
-            // log.debug "aData: ${aData[serialNum]}"
-            return aData[serialNum]
-        } else { return null }
     } catch (ex) {
-        respExceptionHandler(ex, "getDeviceActivity")
-        // log.error "getDeviceActivity error: ", ex
-        return null
+        if(!ex?.message == "Bad Request") {
+            respExceptionHandler(ex, "getDeviceActivity")
+        }
+        // log.error "getDeviceActivity error: ${ex.message}"
     }
+}
+
+public getActivityData(serialNum) {
+    if(getLastTsValSecs("lastDevActChk") > 30) { getDeviceActivity() }
+    Map aData = atomicState?.lastDevActivity ?: null
+    if(aData && aData?.size() && aData[serialNum]) {
+        aData[serialNum]?.lastSpokenTo = true
+        // log.debug "aData: ${aData[serialNum]}"
+        return aData[serialNum]
+    } else { return null }
 }
 
 private getDoNotDisturb() {
