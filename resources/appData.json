@@ -2,7 +2,7 @@
     "appDataVer": "4.0",
     "versions": {
         "mainApp": {
-            "ver": "3.4.0.0"
+            "ver": "3.4.1.0"
         },
         "actionApp": {
             "ver": "3.4.0.0"
@@ -11,7 +11,7 @@
             "ver": "3.4.0.0"
         },
         "echoDevice": {
-            "ver": "3.4.0.0"
+            "ver": "3.4.1.0"
         },
         "wsDevice": {
             "ver": "3.2.0.1"
@@ -24,7 +24,8 @@
         "sendMetrics": true,
         "database": {
             "metricsUrl": "https://echo-speaks-metrics.firebaseio.com/",
-            "configUrl": "https://echospeaks-config.firebaseio.com/"
+            "configUrl": "https://echospeaks-config.firebaseio.com/",
+            "configId": "615b4f5d837dc81a5201422d5c791997b1ba8388"
         }
     }
 }
