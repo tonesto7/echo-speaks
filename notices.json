@@ -2,5 +2,5 @@
     "versions": {
         "server": "2.3.1"
     },
-    "notices": ["Amazons has been making some minor changes to the Web API used to make all this stuff work. You may be seeing lots of log entries like this: `Status: (400) | Message: Bad Request | Data: [message:Rate exceeded]`.  I have resolved the issue in and the new release should be out by Monday Feb 10th."]
+    "notices": []
 }
