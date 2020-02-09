@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.4.0.0" }
-String appModified()  { return "2020-01-24" }
+String appVersion()   { return "3.4.1.0" }
+String appModified()  { return "2020-02-01" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3400, wsDevice: 3200, actionApp: 3400, zoneApp: 3400, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3410, wsDevice: 3200, actionApp: 3400, zoneApp: 3400, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -1917,6 +1917,47 @@ def getBluetoothData(serialNumber) {
         }
     }
     return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
+}
+
+def getDeviceActivity(serialNum) {
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/activities",
+        query: [ startTime: "", size: "5", offset: "1" ],
+        headers: [Cookie: getCookieVal(), csrf: getCsrfVal()],
+        contentType: "application/json"
+    ]
+    Boolean wasLastDevice = false
+    def aData = null
+    try {
+        if(getLastTsValSecs("lastDevActChk") > 15) {
+            httpGet(params) { response->
+                if (response?.data && response?.data?.activities != null) {
+                    updTsVal("lastDevActChk")
+                    aData = response?.data?.activities
+                    atomicState?.lastDevActivity = aData
+                }
+            }
+        } else {
+            if(atomicState?.lastDevActivity) {
+               aData = atomicState?.lastDevActivity
+            }
+        }
+        if(aData) {
+            def lastCommand = aData?.find { (it?.domainAttributes == null || it?.domainAttributes.startsWith("{")) && it?.activityStatus?.equals("SUCCESS") && it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) }
+            if (lastCommand) {
+                def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
+                def spokenText = lastDescription?.summary
+                def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
+                if(lastDevice?.serialNumber == serialNum) {
+                    return [lastSpokenTo: wasLastDevice, spokenText: spokenText, lastSpokenDt: lastCommand?.creationTimestamp]
+                } else { return null }
+            }
+        } else { return null }
+    } catch (ex) {
+        respExceptionHandler(ex, "getDeviceActivity")
+        return null
+    }
 }
 
 private getDoNotDisturb() {
