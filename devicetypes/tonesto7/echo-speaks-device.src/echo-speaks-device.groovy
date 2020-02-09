@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.4.1.0" }
-String devModified()  { return "2020-02-01" }
+String devVersion()  { return "3.5.0.0" }
+String devModified()  { return "2020-02-10" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -2218,7 +2218,7 @@ private createNotification(type, opts) {
     }
     def now = new Date()
     def createdDate = now.getTime()
-    
+
     def isoFormat = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm")
     isoFormat.setTimeZone(location.timeZone)
     def alarmDate = isoFormat.parse("${opts.date}T${opts.time}")
