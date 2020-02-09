@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.4.0.0" }
-String appModified() { return "2020-01-24" }
+String appVersion()  { return "3.5.0.0" }
+String appModified() { return "2020-02-10" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -859,6 +859,8 @@ def actionTiersPage() {
                         href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "external" : "external"), required: true, title: inTS("Tier Item ${ti} Response", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
                                     description: settings?."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg("text")
                     }
+                    input "act_tier_item_${ti}_volume_change", "number", title: inTS("Tier Item Volume", getAppImg("speed_knob", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("speed_knob")
+                    input "act_tier_item_${ti}_volume_restore", "number", title: inTS("Tier Item Volume Restore", getAppImg("speed_knob", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("speed_knob")
                 }
             }
             if(isTierActConfigured()) {
@@ -875,7 +877,11 @@ String getTierRespDesc() {
     String str = ""
     str += tierMap?.size() ? "Tiered Responses: (${tierMap?.size()})" : ""
     tierMap?.each { k,v->
-        str += (k > 1 && settings?."act_tier_item_${k}_delay" && settings?."act_tier_item_${k}_txt") ? "\n \u2022 Tier ${k} delay: (${settings?."act_tier_item_${k}_delay"} sec)" : ""
+        if(settings?."act_tier_item_${k}_txt") {
+            str += (settings?."act_tier_item_${k}_delay") ? "\n \u2022 Tier ${k} delay: (${settings?."act_tier_item_${k}_delay"} sec)" : ""
+            str += (settings?."act_tier_item_${k}_volume_change") ? "\n \u2022 Tier ${k} volume: (${settings?."act_tier_item_${k}_volume_change"})" : ""
+            str += (settings?."act_tier_item_${k}_volume_restore") ? "\n \u2022 Tier ${k} restore: (${settings?."act_tier_item_${k}_volume_restore"})" : ""
+        }
     }
     return str != "" ? str : null
 }
@@ -892,7 +898,16 @@ Map getTierMap() {
     Integer cnt = settings?.act_tier_cnt as Integer
     if(isTierActConfigured() && cnt) {
         List tiers = (1..cnt)
-        tiers?.each { t-> exec[t as Integer] = [message: settings["act_tier_item_${t}_txt"], delay: settings["act_tier_item_${t+1}_delay"]] }
+        tiers?.each { t->
+            exec[t as Integer] = [
+                message: settings["act_tier_item_${t}_txt"],
+                delay: settings["act_tier_item_${t+1}_delay"],
+                volume: [
+                    change: settings["act_tier_item_${t}_volume_change"],
+                    restore: settings["act_tier_item_${t}_volume_restore"]
+                ]
+            ]
+        }
     }
     return (exec?.size()) ? exec : null
 }
@@ -2406,6 +2421,9 @@ private tierEvtHandler(evt=null) {
             tierState?.cycle = curPass
             tierState?.schedDelay = tierMap[curPass]?.delay ?: null
             tierState?.message = tierMap[curPass]?.message ?: null
+            tierState?.volume = [:]
+            if(tierMap[curPass]?.volume?.change) tierState?.volume?.change = tierMap[curPass]?.volume?.change ?: null
+            if(tierMap[curPass]?.volume?.restore) tierState?.volume?.restore = tierMap[curPass]?.volume?.restore ?: null
             tierState?.evt = newEvt
             tierState?.lastMsg = (curPass+1 > tierMap?.size())
             // log.trace("tierSize: (${tierMap?.size()}) | cycle: ${tierState?.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState?.schedDelay}) | Message: (${tierState?.message}) | LastMsg: (${tierState?.lastMsg})")
@@ -2425,7 +2443,7 @@ private tierSchedHandler(data) {
         // log.debug "tierSchedHandler(${data})"
         Map evt = data?.tierState?.evt
         evt?.date = dateTimeFmt(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
-        executeAction(evt, false, "tierSchedHandler", false, false, [msg: data?.tierState?.message as String, isFirst: (data?.tierState?.cycle == 1), isLast: (data?.tierState?.lastMsg == true)])
+        executeAction(evt, false, "tierSchedHandler", false, false, [msg: data?.tierState?.message as String, volume: data?.tierState?.volume, isFirst: (data?.tierState?.cycle == 1), isLast: (data?.tierState?.lastMsg == true)])
         if(data?.sched) {
             if(data?.tierState?.schedDelay && data?.tierState?.lastMsg == false) {
                 logDebug("Scheduling Next Tier Message for (${data?.tierState?.schedDelay} seconds)");
@@ -2999,6 +3017,10 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "announcement":
             case "announcement_tiered":
                 if(actConf[actType]) {
+                    if(tierData?.volume && tierData?.volume?.change || tierData?.volume?.restore) {
+                        if(tierData?.volume?.change) changeVol = tierData?.volume?.change
+                        if(tierData?.volume?.restore) restoreVol = tierData?.volume?.restore
+                    }
                     String txt = getResponseItem(evt, tierData?.msg, allDevsResp, isRptAct, testMode) ?: null
                     // log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
