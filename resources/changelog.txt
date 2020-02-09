@@ -1,4 +1,25 @@
  ══════════
+  February 9th, 2020
+ ══════════
+  Main App (v3.5.0.0)
+  • UPDATED: Overhauled the way supported device data is loaded to reduce state size consumption.  All data is pulled from a Firebase Database now.
+  • ADDED: Device Activity data is now loaded from the smartapp and available to the devices to reduce the many reduntant calls to the API which causes rate-limiting. #230
+  • FIXED: Stopped removing ' character from speech text builder. #226
+  • FIXED: Lot's of other minor UI and logic bugfixes.
+
+  Action App (v3.5.0.0)
+  • FIXED: Resolved issue with multiple actions conditions being ignored #232
+  • FIXED: Other bugfixes.
+
+  Zone App (v3.5.0.0)
+  • FIXED: Other bugfixes.
+
+  Echo Device (v3.5.0.0)
+  • FIXED: Alarm/Reminder creation fixes (@TonyFleisher) #200
+  • UPDATED: Support for the new device activity logic.
+_____________________________________
+
+ ══════════
   January 24th, 2020
  ══════════
   Main App (v3.4.0.0)

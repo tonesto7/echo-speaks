@@ -4443,7 +4443,7 @@ def renderTextEditPage() {
                         txt = txt.split(';').filter(t => t.trim().length > 0).map(t => t.trim()).join(';');
                         txt = txt.endsWith(';') ? txt.replace(/;([^;]*)\$/, '\$1') : txt;
                         txt = txt.replace('%duration_min%', '%durationmin%');
-                        return txt.replace(/  +/g, ' ').replace('> <', '><').replace("\'", '');
+                        return txt.replace(/  +/g, ' ').replace('> <', '><');//.replace("\'", '');
                     }
 
                     \$(document).ready(function() {
