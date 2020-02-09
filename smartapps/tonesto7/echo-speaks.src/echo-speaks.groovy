@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.4.1.0" }
-String appModified()  { return "2020-02-01" }
+String appVersion()   { return "3.5.0.0" }
+String appModified()  { return "2020-02-10" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3410, wsDevice: 3200, actionApp: 3400, zoneApp: 3400, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3500, wsDevice: 3200, actionApp: 3500, zoneApp: 3500, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -41,6 +41,7 @@ preferences {
     page(name: "settingsPage")
     page(name: "devicePrefsPage")
     page(name: "deviceManagePage")
+    page(name: "devCleanupPage")
     page(name: "newSetupPage")
     page(name: "authStatusPage")
     page(name: "actionsPage")
@@ -108,7 +109,9 @@ def mainPage() {
                     Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
                     Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
                     List remDevs = getRemovableDevs()
-                    if(remDevs?.size()) { paragraph pTS("Removable Devices:\n${remDevs?.sort()?.join("\n")}", null, false, "red"), required: true, state: null }
+                    if(remDevs?.size()) {
+                        href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: null
+                    }
                     href "deviceManagePage", title: inTS("Manage Devices:", getAppImg("devices", true)), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
@@ -300,6 +303,10 @@ def deviceManagePage() {
                 if(devs?.size()) {
                     href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                 } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
+                List remDevs = getRemovableDevs()
+                if(remDevs?.size()) {
+                    href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: null
+                }
                 if(skDevs?.size()) {
                     String uDesc = "Unsupported: (${skDevs?.size()})"
                     uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : ""
@@ -642,6 +649,12 @@ private deviceDetectOpts() {
     }
 }
 
+private devCleanupPage() {
+    return dynamicPage(name: "devCleanupPage", uninstall: false, install: false) {
+        devCleanupSect()
+    }
+}
+
 private devCleanupSect() {
     if(state?.isInstalled && !state?.resumeConfig) {
         section(sTS("Device Cleanup Options:")) {
@@ -676,8 +689,6 @@ private String devicePrefsDesc() {
     }
     str += settings?.autoRenameDevices != false ? bulletItem(str, "Auto Rename") : ""
     str += settings?.bypassDeviceBlocks == true ? "\nBlock Bypass: (Active)" : ""
-    def remDevsSz = getRemovableDevs()?.size() ?: 0
-    str += remDevsSz > 0 ? "\n\nRemovable Devices: (${remDevsSz})" : ""
     return str != "" ? str : null
 }
 
@@ -1267,7 +1278,7 @@ def uninstalled() {
 }
 
 private appCleanup() {
-    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal", "updNotifyWaitVal"]
+    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal", "updNotifyWaitVal", "lastDevActivity"]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
@@ -1876,8 +1887,10 @@ private getOtherData() {
     getDoNotDisturb()
     getBluetoothDevices()
     getMusicProviders()
+    getDeviceActivity()
     // getCustomerData()
     // getAlexaSkills()
+    runIn(10, "updDeviceSupportCacheData")
 }
 
 private getBluetoothDevices() {
@@ -1919,45 +1932,51 @@ def getBluetoothData(serialNumber) {
     return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
 }
 
-def getDeviceActivity(serialNum) {
-    Map params = [
-        uri: getAmazonUrl(),
-        path: "/api/activities",
-        query: [ startTime: "", size: "5", offset: "1" ],
-        headers: [Cookie: getCookieVal(), csrf: getCsrfVal()],
-        contentType: "application/json"
-    ]
-    Boolean wasLastDevice = false
-    def aData = null
+def getDeviceActivity() {
     try {
-        if(getLastTsValSecs("lastDevActChk") > 15) {
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/activities",
+            query: [ size: 5, offset: 1 ],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            contentType: "application/json"
+        ]
+        Boolean wasLastDevice = false
+        Map aData = null
+        def test = true
+        if(getLastTsValSecs("lastDevActChk") > 10) {
             httpGet(params) { response->
+                // log.debug("X-Amz-Cf-Id: ${response?.getHeaders("X-Amz-Cf-Id")}")
+                // log.debug("X-Amz-Cf-Pop: ${response?.getHeaders("X-Amz-Cf-Pop")}")
                 if (response?.data && response?.data?.activities != null) {
                     updTsVal("lastDevActChk")
-                    aData = response?.data?.activities
+                    def lastCommand = response?.data?.activities?.find { it?.domainAttributes && it?.domainAttributes?.startsWith("{") && it?.activityStatus?.equals("SUCCESS") && it?.sourceDeviceIds?.get(0)?.deviceType != null }
+                    if (lastCommand) {
+                        def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
+                        def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
+                        aData = [:]
+                        aData[lastDevice?.serialNumber] = [spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp]
+                    }
                     atomicState?.lastDevActivity = aData
                 }
             }
-        } else {
-            if(atomicState?.lastDevActivity) {
-               aData = atomicState?.lastDevActivity
-            }
         }
-        if(aData) {
-            def lastCommand = aData?.find { (it?.domainAttributes == null || it?.domainAttributes.startsWith("{")) && it?.activityStatus?.equals("SUCCESS") && it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) }
-            if (lastCommand) {
-                def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
-                def spokenText = lastDescription?.summary
-                def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
-                if(lastDevice?.serialNumber == serialNum) {
-                    return [lastSpokenTo: wasLastDevice, spokenText: spokenText, lastSpokenDt: lastCommand?.creationTimestamp]
-                } else { return null }
-            }
-        } else { return null }
     } catch (ex) {
-        respExceptionHandler(ex, "getDeviceActivity")
-        return null
+        if(!ex?.message == "Bad Request") {
+            respExceptionHandler(ex, "getDeviceActivity")
+        }
+        // log.error "getDeviceActivity error: ${ex.message}"
     }
+}
+
+public getActivityData(serialNum) {
+    if(getLastTsValSecs("lastDevActChk") > 30) { getDeviceActivity() }
+    Map aData = atomicState?.lastDevActivity ?: null
+    if(aData && aData?.size() && aData[serialNum]) {
+        aData[serialNum]?.lastSpokenTo = true
+        // log.debug "aData: ${aData[serialNum]}"
+        return aData[serialNum]
+    } else { return null }
 }
 
 private getDoNotDisturb() {
@@ -2345,7 +2364,7 @@ private getEchoDevices() {
 }
 
 def echoDevicesResponse(response, data) {
-    List ignoreTypes = getDeviceTypesMap()?.ignore ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
+    List ignoreTypes = state?.devTypeIgnoreData ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     List removeCaps = [
         "SUPPORTS_CONNECTED_HOME", "SUPPORTS_CONNECTED_HOME_ALL", "SUPPORTS_CONNECTED_HOME_CLOUD_ONLY", "ALLOW_LOG_UPLOAD", "FACTORY_RESET_DEVICE", "DIALOG_INTERFACE_VERSION",
@@ -2372,6 +2391,54 @@ def echoDevicesResponse(response, data) {
     } catch (ex) {
         respExceptionHandler(ex, "echoDevicesResponse")
     }
+}
+
+private getDeviceSupportData(type) {
+    def dsData = getDevSupVal(type) ?: null
+    if(!dsData) {
+        if(state?.tempDevSupData && state?.tempDevSupData[type]) {
+            // log.debug "state.tempDevSupData[$type]: ${state?.tempDevSupData[type]}"
+            dsData = state?.tempDevSupData[type]
+        } else {
+            Map params = [ uri: "${getFbConfigUrl()}devices.json?orderBy=%22ignore%22&endAt=false", contentType: "application/json" ]
+            def data = getWebData(params, "deviceSupportData", false)
+            if(data && data?.size()) {
+                state?.tempDevSupData = data
+                dsData = data[type]
+            }
+        }
+        if(dsData) { updDevSupVal(type, dsData) }
+    }
+    return dsData
+}
+
+private updDeviceSupportCacheData() {
+    Map dsData = state?.devSupMap ?: [:]
+    if(dsData && dsData?.size() && getLastTsValSecs("lastDevSupCacheUpdDt") > 86400/2) {
+        Map params = [ uri: "${getFbConfigUrl()}devices.json?orderBy=%22ignore%22&endAt=false", contentType: "application/json" ]
+        def data = getWebData(params, "deviceSupportData_${k}", false)
+        if(data && data != null) {
+            dsData?.each { k,v ->
+                updDevSupVal(k, data[k])
+            }
+            updTsVal("lastDevSupCacheUpdDt")
+        }
+    }
+}
+
+private getDeviceIgnoreData() {
+    List iData = state?.devTypeIgnoreData ?: null
+    if( !iData?.size() || getLastTsValSecs("lastDevIgnoreUpdDt") > 86400 ) {
+        Map params = [uri: "${getFbConfigUrl()}devices.json?orderBy=%22ignore%22&startAt=true", contentType: "application/json"]
+        def data = getWebData(params, "deviceIgnoreData", false)
+        if(data && data?.size()) {
+            iData = data?.keySet()
+            state?.devTypeIgnoreData = iData
+            updTsVal("lastDevIgnoreUpdDt")
+            log.debug "devTypeIgnoreData: ${iData}"
+        }
+    }
+    return iData
 }
 
 def getUnknownDevices() {
@@ -2558,6 +2625,7 @@ def receiveEventData(Map evtData, String src) {
             } else {
                 log.warn "No Echo Device Data Sent... This may be the first transmission from the service after it started up!"
             }
+            state?.remove("tempDevSupData")
             if(updRequired) {
                 logWarn("CODE UPDATES REQUIRED: Echo Speaks Integration may not function until the following items are ALL Updated ${updRequiredItems}...")
                 appUpdateNotify()
@@ -2583,10 +2651,11 @@ private Map getMinVerUpdsRequired() {
 }
 
 public getDeviceStyle(String family, String type) {
-    if(!state?.appData || !state?.appData?.deviceSupport) { checkVersionData(true) }
-    Map typeData = state?.appData?.deviceSupport ?: [:]
-    if(typeData[type]) {
-        return typeData[type]
+    // if(!state?.appData || !state?.appData?.deviceSupport) { checkVersionData(true) }
+    // Map typeData = state?.appData?.deviceSupport ?: [:]
+    Map typeData = getDeviceSupportData(type) ?: [:]
+    if(typeData) {
+        return typeData
     } else { return [name: "Echo Unknown $type", image: "unknown", allowTTS: false] }
 }
 
@@ -2595,10 +2664,10 @@ public Map getDeviceFamilyMap() {
     return state?.appData?.deviceFamilies ?: [:]
 }
 
-public Map getDeviceTypesMap() {
-    if(!state?.appData || !state?.appData?.deviceTypes) { checkVersionData(true) }
-    return state?.appData?.deviceTypes ?: [:]
-}
+// public Map getDeviceTypesMap() {
+//     if(!state?.appData || !state?.appData?.deviceTypes) { checkVersionData(true) }
+//     return state?.appData?.deviceTypes ?: [:]
+// }
 
 private getDevicesFromSerialList(serialNumberList) {
     //logTrace("getDevicesFromSerialList called with: ${ serialNumberList}")
@@ -3070,7 +3139,8 @@ def changeLogPage() {
 /******************************************
 |    METRIC Logic
 ******************************************/
-String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com" }
+String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com/" }
+String getFbConfigUrl() { return state?.appData?.settings?.database?.configUrl ?: "https://echospeaks-config.firebaseio.com/" }
 Boolean metricsOk() { (settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
 private generateGuid() { if(!state?.appGuid) { state?.appGuid = UUID?.randomUUID().toString() } }
 private sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { sendFirebaseData(getFbMetricsUrl(), "/clients/${state?.appGuid}.json", createMetricsDataJson(), "put", "heartbeat"); } }
@@ -3242,7 +3312,7 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
 
 private getConfigData() {
     Map params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData2.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData.json",
         contentType: "application/json"
     ]
     def data = getWebData(params, "appData", false)
@@ -3279,7 +3349,7 @@ private getWebData(params, desc, text=true) {
         if(ex instanceof groovyx.net.http.HttpResponseException) {
             logWarn("${desc} file not found")
         } else { logError("getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex}") }
-        return "${label} info not found"
+        return "${desc} info not found"
     }
 }
 
@@ -3721,6 +3791,28 @@ def getTsVal(val) {
     return null
 }
 
+private updDevSupVal(key, val) {
+    def data = atomicState?.devSupMap ?: [:]
+    if(key) { data[key] = val }
+    atomicState?.devSupMap = data
+}
+
+private remDevSupVal(key) {
+    def data = atomicState?.devSupMap ?: [:]
+    if(key) {
+        if(key instanceof List) {
+            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+        atomicState?.devSupMap = data
+    }
+}
+
+private getDevSupVal(val) {
+    def dsMap = atomicState?.devSupMap
+    if(val && dsMap && dsMap[val]) { return dsMap[val] }
+    return null
+}
+
 private updServerItem(key, val) {
     def data = atomicState?.serverDataMap ?: [:]
     if(key) { data[key] = val }
@@ -3903,10 +3995,11 @@ String getActionsDesc() {
 String getZoneDesc() {
     def zones = getZoneApps()
     def actZones = getActiveZoneNames()?.sort()?.collect { "\u2022 ${it}" }
+    log.debug "actZones: $actZones"
     def paused = zones?.findAll { it?.isPaused() == true }
     def active = zones?.findAll { it?.isPaused() != true }
     String str = ""
-    str += actZones?.size() ? "Active Zones:\n${actZones?.join("\n")}\n" : ""
+    str += actZones?.size() ? "Active Zones:\n${actZones?.join("\n")}\n" : "No Active Zones...\n"
     str += paused?.size() ? "(${paused?.size()}) Paused\n" : ""
     str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to create alexa device zones based on motion, presence, and other criteria."
     return str
@@ -4350,7 +4443,7 @@ def renderTextEditPage() {
                         txt = txt.split(';').filter(t => t.trim().length > 0).map(t => t.trim()).join(';');
                         txt = txt.endsWith(';') ? txt.replace(/;([^;]*)\$/, '\$1') : txt;
                         txt = txt.replace('%duration_min%', '%durationmin%');
-                        return txt.replace(/  +/g, ' ').replace('> <', '><').replace("\'", '');
+                        return txt.replace(/  +/g, ' ').replace('> <', '><');//.replace("\'", '');
                     }
 
                     \$(document).ready(function() {
@@ -4758,7 +4851,7 @@ List getAlarmModes() {
 
 String getAlarmSystemStatus() {
     if(isST()) {
-        def cur = location.currentState("alarmSystemStatus")?.value
+        def cur = location?.currentState("alarmSystemStatus")?.value
         def inc = getShmIncidents()
         if(inc != null && inc?.size()) { cur = 'alarm_active' }
         return cur ?: "disarmed"
@@ -4767,7 +4860,7 @@ String getAlarmSystemStatus() {
 
 def getShmIncidents() {
     def incidentThreshold = now() - 604800000
-    return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
+    return location?.activeIncidents?.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
 }
 
 public setAlarmSystemMode(mode) {
