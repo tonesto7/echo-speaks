@@ -41,6 +41,7 @@ preferences {
     page(name: "settingsPage")
     page(name: "devicePrefsPage")
     page(name: "deviceManagePage")
+    page(name: "devCleanupPage")
     page(name: "newSetupPage")
     page(name: "authStatusPage")
     page(name: "actionsPage")
@@ -108,7 +109,9 @@ def mainPage() {
                     Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
                     Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
                     List remDevs = getRemovableDevs()
-                    if(remDevs?.size()) { paragraph pTS("Removable Devices:\n${remDevs?.sort()?.join("\n")}", null, false, "red"), required: true, state: null }
+                    if(remDevs?.size()) {
+                        href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: null
+                    }
                     href "deviceManagePage", title: inTS("Manage Devices:", getAppImg("devices", true)), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: "complete", image: getAppImg("devices")
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
@@ -300,6 +303,10 @@ def deviceManagePage() {
                 if(devs?.size()) {
                     href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                 } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
+                List remDevs = getRemovableDevs()
+                if(remDevs?.size()) {
+                    href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: null
+                }
                 if(skDevs?.size()) {
                     String uDesc = "Unsupported: (${skDevs?.size()})"
                     uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : ""
@@ -642,6 +649,12 @@ private deviceDetectOpts() {
     }
 }
 
+private devCleanupPage() {
+    return dynamicPage(name: "devCleanupPage", uninstall: false, install: false) {
+        devCleanupSect()
+    }
+}
+
 private devCleanupSect() {
     if(state?.isInstalled && !state?.resumeConfig) {
         section(sTS("Device Cleanup Options:")) {
@@ -676,8 +689,6 @@ private String devicePrefsDesc() {
     }
     str += settings?.autoRenameDevices != false ? bulletItem(str, "Auto Rename") : ""
     str += settings?.bypassDeviceBlocks == true ? "\nBlock Bypass: (Active)" : ""
-    def remDevsSz = getRemovableDevs()?.size() ?: 0
-    str += remDevsSz > 0 ? "\n\nRemovable Devices: (${remDevsSz})" : ""
     return str != "" ? str : null
 }
 
@@ -3987,7 +3998,7 @@ String getZoneDesc() {
     def paused = zones?.findAll { it?.isPaused() == true }
     def active = zones?.findAll { it?.isPaused() != true }
     String str = ""
-    str += actZones?.size() ? "Active Zones:\n${actZones?.join("\n")}\n" : ""
+    str += actZones?.size() ? "Active Zones:\n${actZones?.join("\n")}\n" : "No Active Zones...\n"
     str += paused?.size() ? "(${paused?.size()}) Paused\n" : ""
     str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to create alexa device zones based on motion, presence, and other criteria."
     return str
