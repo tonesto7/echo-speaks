@@ -9,6 +9,7 @@
 
   Action App (v3.5.0.0)
   • FIXED: Resolved issue with multiple actions conditions being ignored #232
+  • ADDED: You can now define volumes for each tier in tiered actions.
   • FIXED: Other bugfixes.
 
   Zone App (v3.5.0.0)
