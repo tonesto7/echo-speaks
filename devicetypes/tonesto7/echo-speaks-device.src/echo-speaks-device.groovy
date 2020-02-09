@@ -2218,9 +2218,11 @@ private createNotification(type, opts) {
     }
     def now = new Date()
     def createdDate = now.getTime()
-    def addSeconds = new Date(createdDate + 1 * 60000);
-    def alarmTime = type != "Timer" ? addSeconds.getTime() : 0
-    // log.debug "addSeconds: $addSeconds | alarmTime: $alarmTime"
+    
+    def isoFormat = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm")
+    isoFormat.setTimeZone(location.timeZone)
+    def alarmDate = isoFormat.parse("${opts.date}T${opts.time}")
+    def alarmTime = alarmDate.getTime()
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications/create${type}",
@@ -2231,7 +2233,7 @@ private createNotification(type, opts) {
             status: "ON",
             alarmTime: alarmTime,
             createdDate: createdDate,
-            originalTime: type != "Timer" ? "${opts?.time}.00.000" : null,
+            originalTime: type != "Timer" ? "${opts?.time}:00.000" : null,
             originalDate: type != "Timer" ? opts?.date : null,
             timeZoneId: null,
             reminderIndex: null,
@@ -2239,14 +2241,12 @@ private createNotification(type, opts) {
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             timeZoneId: null,
-            recurrenceEligibility: false,
             alarmLabel: type == "Alarm" ? opts?.label : null,
             reminderLabel: type == "Reminder" ? opts?.label : null,
             reminderSubLabel: "Echo Speaks",
             timerLabel: type == "Timer" ? opts?.label : null,
             skillInfo: null,
             isSaveInFlight: type != "Timer" ? true : null,
-            triggerTime: 0,
             id: "create${type}",
             isRecurring: false,
             remainingDuration: type != "Timer" ? 0 : opts?.timerDuration
@@ -2265,6 +2265,11 @@ private createNotification(type, opts) {
     }
 }
 
+// For simple recurring, all that is needed is the "recurringPattern":
+// once per day: "P1D"
+// weekly on one day: "XXXX-WXX-3" => Weds
+// weekdays: "XXXX-WD"
+// weekends: "XXXX-WE"
 private transormRecurString(type, opt, tm, dt) {
     log.debug "transormRecurString(type: ${type}, opt: ${opt}, time: ${tm},date: ${dt})"
     Map rd = null
