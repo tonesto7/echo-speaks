@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.4.0.0" }
-String appModified() { return "2020-01-24" }
+String appVersion()  { return "3.5.0.0" }
+String appModified() { return "2020-02-10" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -608,7 +608,7 @@ Boolean locationCondOk() {
 Boolean checkDeviceCondOk(type) {
     List devs = settings?."cond_${type}" ?: null
     String cmdVal = settings?."cond_${type}_cmd" ?: null
-    Boolean all = settings?."cond_${type}_all"
+    Boolean all = (settings?."cond_${type}_all" == true)
     if( !(type && devs && cmdVal) ) { return true }
     return all ? allDevCapValsEqual(devs, type, cmdVal) : anyDevCapValsEqual(devs, type, cmdVal)
 }
@@ -619,7 +619,7 @@ Boolean checkDeviceNumCondOk(type) {
     Double dcl = settings?."cond_${type}_low" ?: null
     Double dch = settings?."cond_${type}_high" ?: null
     Double dce = settings?."cond_${type}_equal" ?: null
-    Boolean dca = settings?."cond_${type}_all" ?: false
+    Boolean dca = (settings?."cond_${type}_all" == true) ?: false
     if( !(type && devs && cmd) ) { return true }
 
     switch(cmd) {
@@ -1343,7 +1343,7 @@ String getConditionsDesc() {
     String sPre = "cond_"
     if(confd) {
         String str = "Conditions: (${(conditionStatus()?.ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
-        str += (settings?.cond_require_all == false) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
+        str += (settings?.cond_require_all != true) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
         if(timeCondConfigured()) {
             str += " \u2022 Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
@@ -1378,7 +1378,7 @@ String getConditionsDesc() {
                     } else {
                         str += cmd ? "    - Value: (${cmd})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
                     }
-                    str += settings?."${sPre}${evt}_all" ? "    - Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
+                    str += (settings?."${sPre}${evt}_all" == true) ? "    - Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
                 }
             }
         }
@@ -1636,7 +1636,7 @@ private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Zone (v${app
 private logInfo(msg) { if(settings?.logInfo != false) { log.info " Zone (v${appVersion()}) | ${msg}" } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Zone (v${appVersion()}) | ${msg}" } }
 private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg) { if(settings?.logError != false) { log.error "Zone (v${appVersion()}) | ${msg}"; }; addToLogHistory("errorHistory", msg, 15); }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 Map getLogHistory() {
     return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]

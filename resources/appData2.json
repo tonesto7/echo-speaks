@@ -2,16 +2,16 @@
     "appDataVer": "3.4",
     "versions": {
         "mainApp": {
-            "ver": "3.4.1.0"
+            "ver": "3.5.0.0"
         },
         "actionApp": {
-            "ver": "3.4.0.0"
+            "ver": "3.5.0.0"
         },
         "zoneApp": {
-            "ver": "3.4.0.0"
+            "ver": "3.5.0.0"
         },
         "echoDevice": {
-            "ver": "3.4.1.0"
+            "ver": "3.5.0.0"
         },
         "wsDevice": {
             "ver": "3.2.0.1"
@@ -67,7 +67,6 @@
             "AGZWSPR7FLP9E",
             "A2V3E2XUH5Z7M8",
             "A1MPSLFC7L5AFK"
-
         ]
     },
     "deviceFamilies": {
@@ -154,14 +153,6 @@
         "A3RBAYBE7VM004": {
             "name": "Echo Studio",
             "image": "echo_studio",
-            "caps": [
-                "a",
-                "t"
-            ]
-        },
-        "A3VRME03NAXFUB": {
-            "name": "Generic Echo",
-            "image": "unknown",
             "caps": [
                 "a",
                 "t"

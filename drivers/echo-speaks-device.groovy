@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.4.1.0"}
-String devModified() { return "2020-02-01" }
+String devVersion()  { return "3.5.0.0"}
+String devModified() { return "2020-02-10" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -864,8 +864,7 @@ private getNotifications(type="Reminder", all=false) {
 
 private getDeviceActivity() {
     try {
-        List newList = []
-        def aData = parent?.getDeviceActivity(state?.serialNumber) ?: null
+        def aData = parent?.getActivityData(state?.serialNumber) ?: null
         Boolean wasLastDevice = (aData?.lastSpokenTo == true)
         if (aData != null) {
             if(isStateChange(device, "lastVoiceActivity", aData?.spokenText?.toString())) {
@@ -876,10 +875,11 @@ private getDeviceActivity() {
             }
         }
         if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
+            log.debug "wasLastSpokenToDevice: ${wasLastDevice}"
             sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
         }
     } catch (ex) {
-        respExceptionHandler(ex, "getDeviceActivity")
+        logError("updDeviceActivity Error: ${ex.message}")
     }
 }
 
@@ -1859,9 +1859,11 @@ private createNotification(type, opts) {
     }
     def now = new Date()
     def createdDate = now.getTime()
-    def addSeconds = new Date(createdDate + 1 * 60000);
-    def alarmTime = type != "Timer" ? addSeconds.getTime() : 0
-    // log.debug "addSeconds: $addSeconds | alarmTime: $alarmTime"
+
+    def isoFormat = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm")
+    isoFormat.setTimeZone(location.timeZone)
+    def alarmDate = isoFormat.parse("${opts.date}T${opts.time}")
+    def alarmTime = alarmDate.getTime()
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications/create${type}",
@@ -1872,7 +1874,7 @@ private createNotification(type, opts) {
             status: "ON",
             alarmTime: alarmTime,
             createdDate: createdDate,
-            originalTime: type != "Timer" ? "${opts?.time}.00.000" : null,
+            originalTime: type != "Timer" ? "${opts?.time}:00.000" : null,
             originalDate: type != "Timer" ? opts?.date : null,
             timeZoneId: null,
             reminderIndex: null,
@@ -1880,14 +1882,12 @@ private createNotification(type, opts) {
             deviceSerialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
             timeZoneId: null,
-            recurrenceEligibility: false,
             alarmLabel: type == "Alarm" ? opts?.label : null,
             reminderLabel: type == "Reminder" ? opts?.label : null,
             reminderSubLabel: "Echo Speaks",
             timerLabel: type == "Timer" ? opts?.label : null,
             skillInfo: null,
             isSaveInFlight: type != "Timer" ? true : null,
-            triggerTime: 0,
             id: "create${type}",
             isRecurring: false,
             remainingDuration: type != "Timer" ? 0 : opts?.timerDuration
@@ -1906,6 +1906,11 @@ private createNotification(type, opts) {
     }
 }
 
+// For simple recurring, all that is needed is the "recurringPattern":
+// once per day: "P1D"
+// weekly on one day: "XXXX-WXX-3" => Weds
+// weekdays: "XXXX-WD"
+// weekends: "XXXX-WE"
 private transormRecurString(type, opt, tm, dt) {
     log.debug "transormRecurString(type: ${type}, opt: ${opt}, time: ${tm},date: ${dt})"
     Map rd = null
