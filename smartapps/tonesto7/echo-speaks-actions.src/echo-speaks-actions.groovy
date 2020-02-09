@@ -2679,7 +2679,7 @@ Boolean locationCondOk() {
 Boolean checkDeviceCondOk(type) {
     List devs = settings?."cond_${type}" ?: null
     String cmdVal = settings?."cond_${type}_cmd" ?: null
-    Boolean all = settings?."cond_${type}_all"
+    Boolean all = (settings?."cond_${type}_all" == true)
     if( !(type && devs && cmdVal) ) { return true }
     return all ? allDevCapValsEqual(devs, type, cmdVal) : anyDevCapValsEqual(devs, type, cmdVal)
 }
@@ -2690,7 +2690,7 @@ Boolean checkDeviceNumCondOk(type) {
     Double dcl = settings?."cond_${type}_low" ?: null
     Double dch = settings?."cond_${type}_high" ?: null
     Double dce = settings?."cond_${type}_equal" ?: null
-    Boolean dca = settings?."cond_${type}_all" ?: false
+    Boolean dca = (settings?."cond_${type}_all" == true) ?: false
     if( !(type && devs && cmd) ) { return true }
 
     switch(cmd) {
@@ -3891,7 +3891,7 @@ String getTriggersDesc(hideDesc=false) {
                         }
                         str += settings?."${sPre}${evt}_after"              ? "    \u25E6 Only After: (${settings?."${sPre}${evt}_after"} sec)\n" : ""
                         str += settings?."${sPre}${evt}_after_repeat"       ? "    \u25E6 Repeat Every: (${settings?."${sPre}${evt}_after_repeat"} sec)\n" : ""
-                        str += settings?."${sPre}${evt}_all"                ? "    \u25E6 Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
+                        str += (settings?."${sPre}${evt}_all" == true)      ? "    \u25E6 Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
                         str += settings?."${sPre}${evt}_once"               ? "    \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
                         str += settings?."${sPre}${evt}_wait"               ? "    \u25E6 Wait: (${settings?."${sPre}${evt}_wait"})\n" : ""
                         str += (settings?."${sPre}${evt}_txt" || settings?."${sPre}${evt}_after_repeat_txt") ? "    \u25E6 Custom Responses:\n" : ""
@@ -3949,7 +3949,7 @@ String getConditionsDesc() {
                     } else {
                         str += cmd ? "    - Value: (${cmd})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
                     }
-                    str += settings?."${sPre}${evt}_all" ? "    - Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
+                    str += (settings?."${sPre}${evt}_all" == true) ? "    - Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
                 }
             }
         }

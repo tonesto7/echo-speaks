@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.4.1.0" }
-String appModified()  { return "2020-02-01" }
+String appVersion()   { return "3.5.0.0" }
+String appModified()  { return "2020-02-10" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3410, wsDevice: 3200, actionApp: 3400, zoneApp: 3400, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3500, wsDevice: 3200, actionApp: 3500, zoneApp: 3500, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -3995,6 +3995,7 @@ String getActionsDesc() {
 String getZoneDesc() {
     def zones = getZoneApps()
     def actZones = getActiveZoneNames()?.sort()?.collect { "\u2022 ${it}" }
+    log.debug "actZones: $actZones"
     def paused = zones?.findAll { it?.isPaused() == true }
     def active = zones?.findAll { it?.isPaused() != true }
     String str = ""
