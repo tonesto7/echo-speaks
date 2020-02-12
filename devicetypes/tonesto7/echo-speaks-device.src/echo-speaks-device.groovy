@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.5.0.0" }
-String devModified()  { return "2020-02-10" }
+String devModified()  { return "2020-02-12" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -502,7 +502,7 @@ metadata {
             input "logError", "bool", title: "Show Error Logs?",  required: false, defaultValue: true
             input "logDebug", "bool", title: "Show Debug Logs?", description: "Only leave on when required", required: false, defaultValue: false
             input "logTrace", "bool", title: "Show Detailed Logs?", description: "Only Enabled when asked by the developer", required: false, defaultValue: false
-
+            input "ignoreTimeoutErrors", "bool", required: false, title: "Don't show errors in the logs for request timeouts?", description: "", defaultValue: (isST() != true)
             input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
             input "disableTextTransform", "bool", required: false, title: "Disable Text Transform?", description: "This will attempt to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false
             input "sendDevNotifAsAnnouncement", "bool", required: false, title: "Send Device Notifications as Announcements?", description: "", defaultValue: false
@@ -1371,11 +1371,11 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
             logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
+        if(settings?.ignoreTimeoutErrors == true) logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.UnknownHostException) {
         logError("${mName} | HostName Not Found | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        logError("${mName} | Request Timeout (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
+        if(settings?.ignoreTimeoutErrors == true) logError("${mName} | Request Timeout (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
