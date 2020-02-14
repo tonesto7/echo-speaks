@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.5.0.0"}
-String devModified() { return "2020-02-12" }
+String devModified() { return "2020-02-13" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -141,7 +141,7 @@ metadata {
             input "logError", "bool", title: "Show Error Logs?",  required: false, defaultValue: true
             input "logDebug", "bool", title: "Show Debug Logs?", description: "Only leave on when required", required: false, defaultValue: false
             input "logTrace", "bool", title: "Show Detailed Logs?", description: "Only Enabled when asked by the developer", required: false, defaultValue: false
-            input "ignoreTimeoutErrors", "bool", required: false, title: "Don't show errors in the logs for request timeouts?", description: "", defaultValue: (isST() != true)
+            input "ignoreTimeoutErrors", "bool", required: false, title: "Don't show errors in the logs for request timeouts?", description: "", defaultValue: true
 
             input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
             input "disableTextTransform", "bool", required: false, title: "Disable Text Transform?", description: "This will attempt to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false
