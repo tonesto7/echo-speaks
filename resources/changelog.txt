@@ -1,3 +1,13 @@
+  ══════════
+  February 17th, 2020
+ ══════════
+  Main App (v3.5.0.1)
+  • UPDATED: Log cleanups.
+
+  Echo Device (v3.5.0.1)
+  • UPDATED: Log cleanups.
+_____________________________________
+
  ══════════
   February 9th, 2020
  ══════════

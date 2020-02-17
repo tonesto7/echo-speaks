@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.5.0.0" }
-String devModified()  { return "2020-02-13" }
+String devVersion()  { return "3.5.0.1" }
+String devModified()  { return "2020-02-17" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -1160,7 +1160,7 @@ private getDoNotDisturb() {
     logTrace("getDoNotDisturb: $dndEnabled")
     state?.doNotDisturb = dndEnabled
     if(isStateChange(device, "doNotDisturb", (dndEnabled == true)?.toString())) {
-        logInfo("Do Not Disturb: (${(dndEnabled == true)})")
+        logDebug("Do Not Disturb: (${(dndEnabled == true)})")
         sendEvent(name: "doNotDisturb", value: (dndEnabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndEnabled == true)}", display: true, displayed: true)
     }
 }
@@ -1206,7 +1206,7 @@ private getNotifications(type="Reminder", all=false) {
                 List items = sData?.notifications ? sData?.notifications?.findAll { (it?.status in s) && (it?.type == type) && it?.deviceSerialNumber == state?.serialNumber } : []
                 items?.each { item->
                     Map li = [:]
-                    item?.keySet().each { key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration']) { li[key] = item[key] } }
+                    item?.keySet()?.each { key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration']) { li[key] = item[key] } }
                     newList?.push(li)
                 }
             }
@@ -1235,7 +1235,7 @@ private getDeviceActivity() {
             }
         }
         if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
-            log.debug "wasLastSpokenToDevice: ${wasLastDevice}"
+            logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
             sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
         }
     } catch (ex) {
@@ -1377,6 +1377,10 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
         logError("${mName} | HostName Not Found | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
         if(settings?.ignoreTimeoutErrors == true) logError("${mName} | Request Timeout (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
+    } else if(ex instanceof java.net.NoRouteToHostException) {
+        logError("${mName} | No Route to Connection (Possibly a Local Internet Issue) | Msg: ${ex}")
+    } else if(ex instanceof javax.net.ssl.SSLHandshakeException) {
+        if(settings?.ignoreTimeoutErrors == true) logError("${mName} | Remote Connection Closed (Possibly an Amazon/Internet Issue) | Msg: ${ex}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 

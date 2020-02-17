@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()   { return "3.5.0.0" }
-String appModified()  { return "2020-02-10" }
+String appVersion()   { return "3.5.0.1" }
+String appModified()  { return "2020-02-17" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -1757,7 +1757,7 @@ Boolean validateCookie(frc=false) {
                 if(aData?.customerName) { state?.customerName = aData?.customerName }
                 valid = (resp?.data?.authentication?.authenticated != false)
             }
-            logInfo("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
+            logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
             authValidationEvent(valid, "validateCookie")
         }
     } catch(ex) {
@@ -2088,8 +2088,8 @@ def checkGuardSupportResponse(response, data) {
     Boolean guardSupported = false
     try {
         def respLen = response?.data?.toString()?.length() ?: null
-        logInfo("GuardSupport Response Length: ${respLen}")
         if(isST() && response?.data && respLen && respLen > 485000) {
+            logInfo("GuardSupport Response Length: ${respLen}")
             Map minUpdMap = getMinVerUpdsRequired()
             if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
                 wakeupServer(false, true)
@@ -2290,6 +2290,8 @@ def respExceptionHandler(ex, String mName, ignOn401=false, ignNullMsg=false) {
         logError("${mName} | Request Timeout | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.UnknownHostException) {
         logError("${mName} | HostName Not Found (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
+    } else if(ex instanceof java.net.NoRouteToHostException) {
+        logError("${mName} | No Route to Connection (Possibly a Local Internet Issue) | Msg: ${ex?.getMessage()}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
