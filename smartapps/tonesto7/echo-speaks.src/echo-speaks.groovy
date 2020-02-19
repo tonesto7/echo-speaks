@@ -2691,33 +2691,40 @@ public Map getDeviceFamilyMap() {
 //     return state?.appData?.deviceTypes ?: [:]
 // }
 
-private getDevicesFromSerialList(serialNumberList) {
-    //logTrace("getDevicesFromSerialList called with: ${ serialNumberList}")
-    if (serialNumberList == null) {
+private getDevicesFromSerialList(serialList) {
+    //logTrace("getDevicesFromSerialList called with: ${serialList}")
+    if (serialList == null) {
        logDebug("SerialNumberList is null")
-       return;
+       return null;
     }
-    def devicesList = serialNumberList.findResults { echoKey ->
-        String dni = [app?.id, "echoSpeaks", echoKey].join("|")
-        getChildDevice(dni)
+    List devs = []
+    serialList?.each { ser ->
+        def d = findEchoDevice(ser)
+        if(d) devs?.push(d)
     }
-    //log.debug "Device list: ${ devicesList}"
-    return devicesList
+    //log.debug "Device list: ${devs}"
+    return devs
 }
 
 // This is called by the device handler to send playback data to cluster members
 public sendPlaybackStateToClusterMembers(whaKey, data) {
     //logTrace("sendPlaybackStateToClusterMembers: key: ${ whaKey}")
-    def echoDeviceMap = state?.echoDeviceMap
-    def whaMap = echoDeviceMap[whaKey]
-    def clusterMembers = whaMap?.clusterMembers
+    try {
+        Map echoDeviceMap = state?.echoDeviceMap
+        def whaMap = echoDeviceMap[whaKey]
+        def clusterMembers = whaMap?.clusterMembers
 
-    if (clusterMembers) {
-        def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
-        clusterMemberDevices?.each { it?.playbackStateHandler(data, true) }
-    } else {
-        // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
-        //log.debug "sendPlaybackStateToClusterMembers: no data found for ${whaKey} (first refresh?)"
+        if (clusterMembers) {
+            def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
+            if(clusterMemberDevices) {
+                clusterMemberDevices?.each { it?.playbackStateHandler(data, true) }
+            }
+        } else {
+            // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
+            //log.debug "sendPlaybackStateToClusterMembers: no data found for ${whaKey} (first refresh?)"
+        }
+    } catch (ex) {
+        log.error "sendPlaybackStateToClusterMembers Error: ${ex}"
     }
 }
 
@@ -4017,7 +4024,7 @@ String getActionsDesc() {
 String getZoneDesc() {
     def zones = getZoneApps()
     def actZones = getActiveZoneNames()?.sort()?.collect { "\u2022 ${it}" }
-    log.debug "actZones: $actZones"
+    // log.debug "actZones: $actZones"
     def paused = zones?.findAll { it?.isPaused() == true }
     def active = zones?.findAll { it?.isPaused() != true }
     String str = ""
@@ -4039,8 +4046,6 @@ String getInputToStringDesc(inpt, addSpace = null) {
     //log.debug "str: $str"
     return (str != "") ? "${str}" : null
 }
-
-
 
 def appInfoSect()	{
     Map codeVer = state?.codeVersions ?: null

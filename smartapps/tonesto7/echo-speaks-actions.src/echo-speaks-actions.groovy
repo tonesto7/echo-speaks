@@ -4022,6 +4022,23 @@ String getConditionsDesc() {
     }
 }
 
+String attUnit(attr) {
+    switch(attr) {
+        case "humidity":
+        case "level":
+        case "battery":
+            return " percent"
+        case "temperature":
+            return " degrees"
+        case "illuminance":
+            return " lux"
+        case "power":
+            return " watts"
+        default:
+            return ""
+    }
+}
+
 def getZoneStatus() {
     def echoZones = settings?.act_EchoZones ?: []
     def res = [:]
