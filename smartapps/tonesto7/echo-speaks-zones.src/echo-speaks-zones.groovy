@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.5.0.0" }
-String appModified() { return "2020-02-10" }
+String appVersion()  { return "3.5.0.1" }
+String appModified() { return "2020-02-19" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -848,23 +848,24 @@ def updateZoneStatus(data) {
     }
 }
 
-public getZoneHistory(asList=false) {
+public getZoneHistory(asObj=false) {
     List zHist = atomicState?.zoneHistory ?: []
-    List output = []
+    Boolean isST = isST()
+    Map output = [:]
     if(zHist?.size()) {
         zHist?.each { h->
             String str = ""
-            str += "Trigger: [${h?.evtName}]"
-            str += "\nDevice: [${h?.evtDevice}]"
+            str += !isST ? "Trigger: [${h?.evtName}]" : ""
+            str += "${!isST ? "\n" : ""}Device: [${h?.evtDevice}]"
             str += "\nZone Status: ${h?.active ? "Activate" : "Deactivate"}"
-            str += "\nDateTime: ${h?.dt}"
             str += "\nConditions Passed: ${h?.passed}"
             str += "\nConditions Blocks: ${h?.blocks}"
-            output?.push(str)
+            str += "\nDateTime: ${h?.dt}"
+            output[h?.evtName] = str
         }
-    } else { output?.push("No History Items Found...") }
-    if(!asList) {
-        output?.each { paragraph it as String }
+    } else { output["Oops..."] = "No History Items Found..." }
+    if(!asObj) {
+        output?.each { k,v-> paragraph title: k, pTS(v) }
     } else { return output }
 }
 

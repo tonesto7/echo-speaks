@@ -15,11 +15,11 @@
  */
 
 String appVersion()   { return "3.5.0.1" }
-String appModified()  { return "2020-02-17" }
+String appModified()  { return "2020-02-19" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3500, wsDevice: 3200, actionApp: 3500, zoneApp: 3500, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3501, wsDevice: 3200, actionApp: 3501, zoneApp: 3501, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -62,6 +62,7 @@ preferences {
     page(name: "announcePage")
     page(name: "sequencePage")
     page(name: "viewZoneHistory")
+    page(name: "viewActionHistory")
     page(name: "setNotificationTimePage")
     page(name: "actionDuplicationPage")
     page(name: "zoneDuplicationPage")
@@ -464,8 +465,12 @@ def actionsPage() {
                 }
             }
         }
-
         if(actApps?.size()) {
+            section (sTS("Action History:")) {
+                href "viewActionHistory", title: inTS("View Action History", getAppImg("tasks", true)), description: "(Grouped by Action)", image: getAppImg("tasks"), state: "complete"
+            }
+        }
+        // if(actApps?.size()) {
             section (sTS("Global Actions Management:"), hideable: true, hidden: true) {
                 if(activeActions?.size()) {
                     input "pauseChildActions", "bool", title: inTS("Pause all actions?", getAppImg("pause_orange", true)), description: "When pausing all Actions you can either restore all or open each action and manually unpause it.",
@@ -480,7 +485,7 @@ def actionsPage() {
                 input "reinitChildActions", "bool", title: inTS("Force Refresh all actions?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 if(settings?.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUpdate"); }
             }
-        }
+        // }
         state.childInstallOkFlag = true
         state?.actionDuplicated = false
     }
@@ -588,14 +593,29 @@ def viewZoneHistory() {
         List zApps = getZoneApps()
         zApps?.each { z->
             section(z?.getLabel()) {
-                List items = z?.getZoneHistory(true) ?: []
-                items?.each { item->
-                    paragraph item as String
+                Map items = z?.getZoneHistory(true) ?: [:]
+                items?.each { k, v->
+                    paragraph title: k, pTS(v)
                 }
             }
         }
     }
 }
+
+def viewActionHistory() {
+    return dynamicPage(name: "viewActionHistory", uninstall: false, install: false) {
+        List actApps = getActionApps()
+        actApps?.each { a->
+            section(a?.getLabel()) {
+                Map items = a?.getActionHistory(true) ?: [:]
+                items?.each { k, v->
+                    paragraph title: k, pTS(v)
+                }
+            }
+        }
+    }
+}
+
 
 private executeActionPause() {
     getActionApps()?.findAll { it?.isPaused() != true }?.each { it?.updatePauseState(true) }

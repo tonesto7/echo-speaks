@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.5.0.0" }
-String appModified() { return "2020-02-10" }
+String appVersion()  { return "3.5.0.1" }
+String appModified() { return "2020-02-19" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -56,6 +56,7 @@ preferences {
     page(name: "actTierStopTasksPage")
     page(name: "actNotifPage")
     page(name: "actNotifTimePage")
+    page(name: "actionHistoryPage")
     page(name: "searchTuneInResultsPage")
     page(name: "uninstallPage")
     page(name: "namePage")
@@ -190,6 +191,10 @@ def mainPage() {
             }
         }
 
+        section(sTS("Action History")) {
+            href "actionHistoryPage", title: inTS("View Action History", getAppImg("tasks", true)), description: "", image: getAppImg("tasks")
+        }
+
         section(sTS("Preferences")) {
             href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
             if(state?.isInstalled) {
@@ -242,6 +247,22 @@ def namePage() {
         }
     }
 }
+
+def actionHistoryPage() {
+    return dynamicPage(name: "actionHistoryPage", install: false, uninstall: false) {
+        section() {
+            getActionHistory()
+        }
+        if(atomicState?.actionHistory?.size()) {
+            section("") {
+                input "clearActionHistory", "bool", title: inTS("Clear Action History?", getAppImg("reset", true)), description: "Clears Stored Action History.", defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(settings?.clearActionHistory) { settingUpdate("clearActionHistory", "false", "bool"); atomicState?.actionHistory = []; }
+            }
+        }
+    }
+}
+
+
 
 // TODO: Add flag to check for the old schedule settings and pause the action, and notifiy the user.
 private scheduleConvert() {
@@ -2982,6 +3003,46 @@ String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=
     return "Invalid Text Received... Please verify Action configuration..."
 }
 
+public getActionHistory(asObj=false) {
+    List eHist = atomicState?.actionHistory ?: []
+    Boolean isST = isST()
+    Map output = [:]
+    if(eHist?.size()) {
+        eHist?.each { h->
+            String str = ""
+            str += !isST ? "Trigger: [${h?.evtName}]" : ""
+            str += "${!isST ? "\n" : ""}Device: [${h?.evtDevice}]"
+            str += "\nCondition Status: ${h?.active ? "Passed" : "Failed"}"
+            str += "\nConditions Passed: ${h?.passed}"
+            str += "\nConditions Blocks: ${h?.blocks}"
+            str += h?.test ? "\nTest Mode: true" : ""
+            str += h?.isRepeat ? "\nRepeat: true" : ""
+            str += "\nDateTime: ${h?.dt}"
+            output[h?.evtName] = str
+        }
+    } else { output["Oops..."] = "No History Items Found..." }
+    if(!asObj) {
+        output?.each { k,v-> paragraph title: k, pTS(v) }
+    } else { return output }
+}
+
+private addToActHistory(evt, data, Integer max=10) {
+    Boolean ssOk = (stateSizePerc() > 70)
+    List eData = atomicState?.actionHistory ?: []
+    eData?.push([
+        dt: getDtNow(),
+        active: (data?.status?.ok == true),
+        evtName: evt?.name,
+        evtDevice: evt?.displayName,
+        blocks: data?.status?.blocks,
+        passed: data?.status?.passed,
+        test: data?.test,
+        isRepeat: data?.isRepeat
+    ])
+    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
+    atomicState?.actionHistory = eData
+}
+
 private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, isRptAct=false, tierData=null) {
     def startTime = now()
     logTrace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
@@ -2989,6 +3050,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     Map condStatus = conditionStatus()
     // log.debug "condStatus: ${condStatus}"
     Boolean actOk = getConfStatusItem("actions")
+    addToActHistory(evt, [status: condStatus, test: testMode, src: src, isRepeat: isRptAct] )
     Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
     List actDevices = settings?.act_EchoDevices ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
