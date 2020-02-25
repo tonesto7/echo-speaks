@@ -2431,8 +2431,8 @@ private tierEvtHandler(evt=null) {
     Map tierMap = getTierMap() ?: [:]
     Map tierState = atomicState?.actTierState ?: [:]
     Boolean schedNext = false
-    // log.debug "tierState: ${tierState}"
-    // log.debug "tierMap: ${tierMap}"
+    log.debug "tierState: ${tierState}"
+    log.debug "tierMap: ${tierMap}"
     if(tierMap && tierMap?.size()) {
         Map newEvt = tierState?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, deviceId: evt?.deviceId, date: evt?.date]
         Integer curPass = (tierState?.cycle && tierState?.cycle?.toString()?.isNumber()) ? tierState?.cycle?.toInteger()+1 : 1
@@ -2447,7 +2447,7 @@ private tierEvtHandler(evt=null) {
             if(tierMap[curPass]?.volume?.restore) tierState?.volume?.restore = tierMap[curPass]?.volume?.restore ?: null
             tierState?.evt = newEvt
             tierState?.lastMsg = (curPass+1 > tierMap?.size())
-            // log.trace("tierSize: (${tierMap?.size()}) | cycle: ${tierState?.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState?.schedDelay}) | Message: (${tierState?.message}) | LastMsg: (${tierState?.lastMsg})")
+            log.trace("tierSize: (${tierMap?.size()}) | cycle: ${tierState?.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState?.schedDelay}) | Message: (${tierState?.message}) | LastMsg: (${tierState?.lastMsg})")
             atomicState?.actTierState = tierState
             tierSchedHandler([sched: schedNext, tierState: tierState])
         } else {
