@@ -26,7 +26,8 @@
         "sendMetrics": true,
         "database": {
             "metricsUrl": "https://echo-speaks-metrics.firebaseio.com/",
-            "configUrl": "https://echospeaks-config-alt.firebaseio.com/"
+            "configUrl": "https://echospeaks-config-alt.firebaseio.com/",
+            "configUrlAlt": "https://echospeaks-config-alt.firebaseio.com/"
         }
     },
     "deviceFamilies": {
