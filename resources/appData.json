@@ -2,16 +2,16 @@
     "appDataVer": "4.0",
     "versions": {
         "mainApp": {
-            "ver": "3.5.0.0"
+            "ver": "3.5.0.1"
         },
         "actionApp": {
-            "ver": "3.5.0.0"
+            "ver": "3.5.0.1"
         },
         "zoneApp": {
-            "ver": "3.5.0.0"
+            "ver": "3.5.0.1"
         },
         "echoDevice": {
-            "ver": "3.5.0.0"
+            "ver": "3.5.0.1"
         },
         "wsDevice": {
             "ver": "3.2.0.1"
@@ -26,7 +26,8 @@
         "sendMetrics": true,
         "database": {
             "metricsUrl": "https://echo-speaks-metrics.firebaseio.com/",
-            "configUrl": "https://echospeaks-config.firebaseio.com/"
+            "configUrl": "https://echospeaks-config-alt.firebaseio.com/",
+            "configUrlAlt": "https://echospeaks-config-alt.firebaseio.com/"
         }
     },
     "deviceFamilies": {
