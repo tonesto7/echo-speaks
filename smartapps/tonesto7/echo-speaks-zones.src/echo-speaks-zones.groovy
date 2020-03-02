@@ -1640,7 +1640,7 @@ private logWarn(msg, noHist=false) { logToServer(msg, "warn"); if(settings?.logW
 private logError(msg, noHist=false) { logToServer(msg, "error"); if(settings?.logError != false) { log.error " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 public logToServer(msg, lvl) {
-    String addr = parent ? parent?.getLogServer() : getLogServer()
+    String addr = parent ? parent?.getLogServerAddr() : getLogServerAddr()
     if(addr) {
         Map params = [
             method: "POST",

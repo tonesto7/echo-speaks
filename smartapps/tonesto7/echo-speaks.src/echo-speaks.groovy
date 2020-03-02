@@ -4970,7 +4970,7 @@ public getLogServerAddr() {
 }
 
 public logToServer(msg, lvl) {
-    String addr = parent ? parent?.getLogServer() : getLogServer()
+    String addr = parent ? parent?.getLogServerAddr() : getLogServerAddr()
     if(addr) {
         Map params = [
             method: "POST",
