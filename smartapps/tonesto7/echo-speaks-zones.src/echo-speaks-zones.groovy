@@ -430,6 +430,7 @@ def updated() {
 }
 
 def initialize() {
+    state?.useLogDevice = (parent?.hasLogDevice() == true)
     // logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
@@ -1633,28 +1634,18 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
     atomicState[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { logToServer(msg, "debug"); log.debug "Zone (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { logToServer(msg, "info"); log.info " Zone (v${appVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { logToServer(msg, "trace"); log.trace "Zone (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { logToServer(msg, "warn"); log.warn " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { logToServer(msg, "error"); log.error " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private logDebug(msg) { if(settings?.logDebug == true) { sendLog(msg, "debug"); log.debug "Zone (v${appVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { sendLog(msg, "info"); log.info " Zone (v${appVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { sendLog(msg, "trace"); log.trace "Zone (v${appVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { sendLog(msg, "warn"); log.warn " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { sendLog(msg, "error"); log.error " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
-public logToServer(msg, lvl) {
-    String addr = parent ? parent?.getLogServerAddr() : getLogServerAddr()
-    if(addr) {
-        Map params = [
-            method: "POST",
-            path: "/gelf",
-            headers: [
-                HOST: addr,
-                'Content-Type': "application/json"
-            ],
-            body: [short_message: msg, logLevel: lvl, host: "${getPlatform()} (${app?.getLabel()})"]
-        ]
-        params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel();
-        // params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = device?.getName(); params?.body?.deviceName = device?.displayName;
-        def result = new physicalgraph.device.HubAction(params)
-        sendHubCommand(result)
+public sendLog(msg, lvl) {
+    if(state?.useLogDevice) {
+        def ver = (!device) ? appVersion() : devVersion();
+        def srcType = (!device) ? "app" : "device";
+        def src = (!device) ? app?.getLabel() : device?.displayName;
+        parent?.logToDevice(src, srcType, msg, ver, lvl)
     }
 }
 

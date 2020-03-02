@@ -74,6 +74,7 @@ def updated() {
 
 def initialize() {
     log.info "initialize() called"
+    state?.useLogDevice = (parent?.hasLogDevice() == true)
     close()
     state?.amazonDomain = parent?.getAmazonDomain()
     state?.cookie = parent?.getCookieVal()
@@ -637,7 +638,7 @@ public logToServer(msg, lvl) {
         ]
         // params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel();
         params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = device?.getName(); params?.body?.deviceName = device?.displayName;
-        def result = new physicalgraph.device.HubAction(params)
+        def result = (!physicalgraph) ? hubitat.device.HubAction.newInstance()(params) : physicalgraph.device.HubAction.newInstance()(params)
         sendHubCommand(result)
     }
 }

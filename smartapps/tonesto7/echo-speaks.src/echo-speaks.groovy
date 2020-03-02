@@ -35,10 +35,6 @@ definition(
     pausable    : true
 )
 
-{
-    appSetting "log_address"
-}
-
 preferences {
     page(name: "startPage")
     page(name: "mainPage")
@@ -725,6 +721,9 @@ def settingsPage() {
             input "logError", "bool", title: inTS("Show Error Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
             input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
             input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+        }
+        section(sTS("GrayLog Device"), hideWhenEmpty: true) {
+            input "logDevice", "device.GrayLogDevice", title: inTS("Gray Log Devices?", getAppImg("debug", true)), required: false, submitOnChange: true, image: getAppImg("debug")
         }
         if(advLogsActive()) { logsEnabled() }
         showDevSharePrefs()
@@ -4912,32 +4911,25 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
     atomicState[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { logToServer(msg, "debug"); log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { logToServer(msg, "info"); log.info " EchoApp (v${appVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { logToServer(msg, "trace"); log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { logToServer(msg, "warn");  log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { logToServer(msg, "error"); log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private logDebug(msg) { if(settings?.logDebug == true) { sendLog(msg, "debug"); log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { sendLog(msg, "info"); log.info " EchoApp (v${appVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { sendLog(msg, "trace"); log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { sendLog(msg, "warn");  log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { sendLog(msg, "error"); log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
-public getLogServerAddr() {
-    return appSettings?.log_address ?: null
+public hasLogDevice() { return (settings?.logDevice?.size()) }
+public sendLog(msg, lvl) {
+    if(settings?.logDevice) {
+        def ver = (!device) ? appVersion() : devVersion();
+        def srcType = (!device) ? "app" : "device";
+        def src = (!device) ? app?.getLabel() : device?.displayName;
+        logToDevice(src, srcType, msg, ver, lvl)
+    }
 }
 
-public logToServer(msg, lvl) {
-    String addr = parent ? parent?.getLogServerAddr() : getLogServerAddr()
-    if(addr) {
-        Map params = [
-            method: "POST",
-            path: "/gelf",
-            headers: [
-                HOST: addr,
-                'Content-Type': "application/json"
-            ],
-            body: [short_message: msg, logLevel: lvl, host: "${getPlatform()} (${app?.getLabel()})"]
-        ]
-        params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel();
-        // params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = device?.getName(); params?.body?.deviceName = device?.displayName;
-        def result = new physicalgraph.device.HubAction(params)
-        sendHubCommand(result)
+public logToDevice(src, srcType, msg, ver, lvl) {
+    if(settings?.logDevice) {
+        settings?.logDevice?.sendLog(src, srcType, msg, ver, lvl)
     }
 }
 
