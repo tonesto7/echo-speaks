@@ -3226,7 +3226,6 @@ private logError(msg, noHist=false) { if(settings?.logError != false) { logToSer
 
 public logToServer(msg, lvl) {
     String addr = parent ? parent?.getLogServerAddr() : getLogServerAddr()
-    log.debug "addr: ${addr}"
     if(addr) {
         Map params = [
             method: "POST",
