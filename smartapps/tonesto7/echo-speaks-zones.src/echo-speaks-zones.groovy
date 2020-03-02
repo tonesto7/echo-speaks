@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.5.0.1" }
-String appModified() { return "2020-02-24" }
+String appVersion()  { return "3.6.0.0" }
+String appModified() { return "2020-03-02" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1651,8 +1651,8 @@ public logToServer(msg, lvl) {
             ],
             body: [short_message: msg, logLevel: lvl, host: "SmartThings"]
         ]
-        if(app != null) {  params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel(); }
-        if(device != null) { params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = device?.getName(); params?.body?.deviceName = device?.displayName; }
+        params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel();
+        // params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = device?.getName(); params?.body?.deviceName = device?.displayName;
         def result = new physicalgraph.device.HubAction(params)
         sendHubCommand(result)
     }

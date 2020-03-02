@@ -18,7 +18,7 @@
 //TODO: Restore beta to false and change url to master repo
 
 String devVersion()  { return "3.2.0.1"}
-String devModified() { return "2020-01-17" }
+String devModified() { return "2020-03-02" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return true }
