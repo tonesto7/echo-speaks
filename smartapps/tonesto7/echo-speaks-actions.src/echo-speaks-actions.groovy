@@ -4199,7 +4199,7 @@ public logToServer(msg, lvl) {
             body: [short_message: msg, logLevel: lvl, host: "SmartThings"]
         ]
         if(app != null) {  params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel(); }
-        if(device != null) { params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = app?.getName(); params?.body?.deviceName = device?.displayName; }
+        if(device != null) { params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = device?.getName(); params?.body?.deviceName = device?.displayName; }
         def result = new physicalgraph.device.HubAction(params)
         sendHubCommand(result)
     }
