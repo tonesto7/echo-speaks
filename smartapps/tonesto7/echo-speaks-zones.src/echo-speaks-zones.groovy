@@ -1649,7 +1649,7 @@ public logToServer(msg, lvl) {
                 HOST: addr,
                 'Content-Type': "application/json"
             ],
-            body: [short_message: msg, logLevel: lvl, host: "SmartThings"]
+            body: [short_message: msg, logLevel: lvl, host: "${getPlatform()} (${app?.getLabel()})"]
         ]
         params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel();
         // params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = device?.getName(); params?.body?.deviceName = device?.displayName;

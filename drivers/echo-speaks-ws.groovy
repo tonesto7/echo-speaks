@@ -633,10 +633,10 @@ public logToServer(msg, lvl) {
                 HOST: addr,
                 'Content-Type': "application/json"
             ],
-            body: [short_message: msg, logLevel: lvl, host: "SmartThings"]
+            body: [short_message: msg, logLevel: lvl, host: "${getPlatform()} (${device?.displayName})"]
         ]
-        if(app != null) {  params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel(); }
-        if(device != null) { params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = device?.getName(); params?.body?.deviceName = device?.displayName; }
+        // params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel();
+        params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = device?.getName(); params?.body?.deviceName = device?.displayName;
         def result = new physicalgraph.device.HubAction(params)
         sendHubCommand(result)
     }
