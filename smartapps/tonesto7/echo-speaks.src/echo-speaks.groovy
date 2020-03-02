@@ -4966,7 +4966,7 @@ private logWarn(msg, noHist=false) { logToServer(msg, "warn"); if(settings?.logW
 private logError(msg, noHist=false) { logToServer(msg, "error"); if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 public getLogServerAddr() {
-    return appsettings?.log_address ?: null
+    return appSettings?.log_address ?: null
 }
 
 public logToServer(msg, lvl) {
