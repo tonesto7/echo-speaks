@@ -1633,11 +1633,30 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
     atomicState[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Zone (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info " Zone (v${appVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Zone (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { log.error " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private logDebug(msg) { logToServer(msg, "debug"); if(settings?.logDebug == true) { log.debug "Zone (v${appVersion()}) | ${msg}" } }
+private logInfo(msg) { logToServer(msg, "info"); if(settings?.logInfo != false) { log.info " Zone (v${appVersion()}) | ${msg}" } }
+private logTrace(msg) { logToServer(msg, "trace"); if(settings?.logTrace == true) { log.trace "Zone (v${appVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { logToServer(msg, "warn"); if(settings?.logWarn != false) { log.warn " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg, noHist=false) { logToServer(msg, "error"); if(settings?.logError != false) { log.error " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+
+public logToServer(msg, lvl) {
+    String addr = parent ? parent?.getLogServer() : getLogServer()
+    if(addr) {
+        Map params = [
+            method: "POST",
+            path: "/${path}",
+            headers: [
+                HOST: addr,
+                'Content-Type': "application/json"
+            ],
+            body: [short_message: msg, logLevel: lvl, host: "SmartThings"]
+        ]
+        if(app != null) {  params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel(); }
+        if(device != null) { params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = app?.getName(); params?.body?.deviceName = device?.displayName; }
+        def result = new physicalgraph.device.HubAction(params)
+        sendHubCommand(result)
+    }
+}
 
 Map getLogHistory() {
     return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]

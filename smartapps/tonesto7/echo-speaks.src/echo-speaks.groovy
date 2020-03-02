@@ -35,6 +35,10 @@ definition(
     pausable    : true
 )
 
+{
+    appSetting "log_address"
+}
+
 preferences {
     page(name: "startPage")
     page(name: "mainPage")
@@ -4955,11 +4959,34 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
     atomicState[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) {  log.info " EchoApp (v${appVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private logDebug(msg) { logToServer(msg, "debug"); if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
+private logInfo(msg) { logToServer(msg, "info"); if(settings?.logInfo != false) {  log.info " EchoApp (v${appVersion()}) | ${msg}" } }
+private logTrace(msg) { logToServer(msg, "trace"); if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { logToServer(msg, "warn"); if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg, noHist=false) { logToServer(msg, "error"); if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+
+public getLogServerAddr() {
+    return appsettings?.log_address ?: null
+}
+
+public logToServer(msg, lvl) {
+    String addr = parent ? parent?.getLogServer() : getLogServer()
+    if(addr) {
+        Map params = [
+            method: "POST",
+            path: "/${path}",
+            headers: [
+                HOST: addr,
+                'Content-Type': "application/json"
+            ],
+            body: [short_message: msg, logLevel: lvl, host: "SmartThings"]
+        ]
+        if(app != null) {  params?.body?.appVersion = appVersion(); params?.body?.appName = app?.getName(); params?.body?.appLabel = app?.getLabel(); }
+        if(device != null) { params?.body?.devVersion = devVersion(); params?.body?.deviceHandler = app?.getName(); params?.body?.deviceName = device?.displayName; }
+        def result = new physicalgraph.device.HubAction(params)
+        sendHubCommand(result)
+    }
+}
 
 def clearDiagLogs(type="all") {
     // log.debug "clearDiagLogs($type)"
