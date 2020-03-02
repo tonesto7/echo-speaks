@@ -2934,7 +2934,7 @@ public logToServer(msg, lvl) {
     if(addr) {
         Map params = [
             method: "POST",
-            path: "/${path}",
+            path: "/gelf",
             headers: [
                 HOST: addr,
                 'Content-Type': "application/json"
