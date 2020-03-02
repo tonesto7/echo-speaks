@@ -1,4 +1,19 @@
   ══════════
+  March 3rd, 2020
+ ══════════
+  Main App (v3.6.0.0)
+  • UPDATED: Reverted the device detection logic and added the data directly into the main app code.
+  • FIXED: Slight change to the getDeviceActivity() to make it more accurate.
+
+  Echo Device (v3.6.0.0)
+  • UPDATED: Log cleanups.
+
+  Server (v2.4.0)
+  • FIXED: Wakeup fixes.
+  • FIXED: Other optimizations and fixes.
+_____________________________________
+
+  ══════════
   February 17th, 2020
  ══════════
   Main App (v3.5.0.1)
