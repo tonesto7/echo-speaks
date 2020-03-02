@@ -4180,11 +4180,11 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
     atomicState[logKey as String] = eData
 }
-private logDebug(msg) { logToServer(msg, "debug"); if(settings?.logDebug == true) { log.debug "Action (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { logToServer(msg, "info"); if(settings?.logInfo != false) { log.info " Action (v${appVersion()}) | ${msg}" } }
-private logTrace(msg) { logToServer(msg, "trace"); if(settings?.logTrace == true) { log.trace "Action (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { logToServer(msg, "warn"); if(settings?.logWarn != false) { log.warn " Action (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { logToServer(msg, "error"); if(settings?.logError != false) { log.error "Action (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private logDebug(msg) { if(settings?.logDebug == true) { logToServer(msg, "debug"); log.debug "Action (v${appVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { logToServer(msg, "info"); log.info " Action (v${appVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { logToServer(msg, "trace"); log.trace "Action (v${appVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { logToServer(msg, "warn"); log.warn " Action (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { logToServer(msg, "error"); log.error "Action (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 public logToServer(msg, lvl) {
     String addr = parent ? parent?.getLogServerAddr() : getLogServerAddr()

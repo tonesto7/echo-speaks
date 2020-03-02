@@ -2857,11 +2857,11 @@ private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
     if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
     state[logKey as String] = eData
 }
-private logDebug(msg) { logToServer(msg, "debug"); if(settings?.logDebug == true) { log.debug "Echo (v${devVersion()}) | ${msg}" } }
-private logInfo(msg) { logToServer(msg, "info"); if(settings?.logInfo != false) { log.info " Echo (v${devVersion()}) | ${msg}" } }
-private logTrace(msg) { logToServer(msg, "trace"); if(settings?.logTrace == true) { log.trace "Echo (v${devVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { logToServer(msg, "warn"); if(settings?.logWarn != false) { log.warn " Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
-private logError(msg, noHist=false) { logToServer(msg, "error"); if(settings?.logError != false) { log.error "Echo (v${devVersion()}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
+private logDebug(msg) { if(settings?.logDebug == true) { logToServer(msg, "debug"); log.debug "Echo (v${devVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { logToServer(msg, "info"); log.info " Echo (v${devVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { logToServer(msg, "trace"); log.trace "Echo (v${devVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { logToServer(msg, "warn"); log.warn " Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { logToServer(msg, "error"); log.error "Echo (v${devVersion()}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
 
 public logToServer(msg, lvl) {
     String addr = parent ? parent?.getLogServerAddr() : getLogServerAddr()
