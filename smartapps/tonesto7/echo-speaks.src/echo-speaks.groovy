@@ -4917,13 +4917,10 @@ private logTrace(msg) { if(settings?.logTrace == true) { sendLog(msg, "trace"); 
 private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { sendLog(msg, "warn");  log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
 private logError(msg, noHist=false) { if(settings?.logError != false) { sendLog(msg, "error"); log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
-public hasLogDevice() { return (settings?.logDevice?.size()) }
+public hasLogDevice() { return (settings?.logDevice != null) }
 public sendLog(msg, lvl) {
     if(settings?.logDevice) {
-        def ver = (!device) ? appVersion() : devVersion();
-        def srcType = (!device) ? "app" : "device";
-        def src = (!device) ? app?.getLabel() : device?.displayName;
-        logToDevice(src, srcType, msg, ver, lvl)
+        parent?.logToDevice(app?.getLabel(), "app", msg, appVersion(), lvl)
     }
 }
 

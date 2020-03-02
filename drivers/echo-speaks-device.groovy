@@ -2866,10 +2866,7 @@ private logError(msg, noHist=false) { if(settings?.logError != false) { sendLog(
 
 public sendLog(msg, lvl) {
     if(state?.useLogDevice) {
-        def ver = (!device) ? appVersion() : devVersion();
-        def srcType = (!device) ? "app" : "device";
-        def src = (!device) ? app?.getLabel() : device?.displayName;
-        parent?.logToDevice(src, srcType, msg, ver, lvl)
+        parent?.logToDevice(device?.displayName, "device", msg, devVersion(), lvl)
     }
 }
 
