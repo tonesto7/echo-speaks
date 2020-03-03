@@ -73,7 +73,6 @@ def updated() {
 
 def initialize() {
     log.info "initialize() called"
-    state?.useLogDevice = (parent?.hasLogDevice() == true)
     close()
     state?.amazonDomain = parent?.getAmazonDomain()
     state?.cookie = parent?.getCookieVal()
@@ -617,17 +616,11 @@ private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
 	if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
 	state[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { sendLog(msg, "debug"); log.debug "Echo (v${devVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { sendLog(msg, "info"); log.info " Echo (v${devVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { sendLog(msg, "trace"); log.trace "Echo (v${devVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { sendLog(msg, "warn"); log.warn " Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { sendLog(msg, "error"); log.error "Echo (v${devVersion()}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
-
-public sendLog(msg, lvl) {
-    if(state?.useLogDevice) {
-        parent?.logToDevice(device?.displayName, "device", msg, devVersion(), lvl)
-    }
-}
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Socket (v${devVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info " Socket (v${devVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Socket (v${devVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Socket (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Socket (v${devVersion()}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
 
 Map getLogHistory() {
     return [ warnings: state?.warnHistory ?: [], errors: state?.errorHistory ?: [], speech: state?.speechHistory ?: [] ]

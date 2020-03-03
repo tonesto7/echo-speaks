@@ -544,16 +544,14 @@ def updated() {
 }
 
 def initialize() {
-    state?.useLogDevice = (parent?.hasLogDevice() == true)
     logInfo("${device?.displayName} Executing initialize()")
-    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
-    sendEvent(name: "DeviceWatch-Enroll", value: new groovy.json.JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), displayed: false)
+    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online", display: false, displayed: false)
+    sendEvent(name: "DeviceWatch-Enroll", value: new groovy.json.JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), display: false, displayed: false)
     resetQueue()
     stateCleanup()
     if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
     schedDataRefresh(true)
     refreshData(true)
-    //TODO: Add Queue cleanup task to schedule.  If q_speakingNow != true
     //TODO: Have the queue validated based on the last time it was processed and have it cleanup if it's been too long
 }
 
@@ -3246,17 +3244,11 @@ private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
     if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
     state[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { sendLog(msg, "debug"); log.debug "Echo (v${devVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { sendLog(msg, "info"); log.info " Echo (v${devVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { sendLog(msg, "trace"); log.trace "Echo (v${devVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { sendLog(msg, "warn"); log.warn " Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { sendLog(msg, "error"); log.error "Echo (v${devVersion()}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
-
-public sendLog(msg, lvl) {
-    if(state?.useLogDevice) {
-        parent?.logToDevice(device?.displayName, "device", msg, devVersion(), lvl)
-    }
-}
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info " Echo (v${devVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Echo (v${devVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Echo (v${devVersion()}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
 
 Map getLogHistory() {
     return [ warnings: state?.warnHistory ?: [], errors: state?.errorHistory ?: [], speech: state?.speechHistory ?: [] ]

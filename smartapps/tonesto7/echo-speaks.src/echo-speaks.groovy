@@ -722,9 +722,9 @@ def settingsPage() {
             input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
             input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
         }
-        section(sTS("GrayLog Device"), hideWhenEmpty: true) {
-            input "logDevice", "device.GrayLogDevice", title: inTS("Gray Log Devices?", getAppImg("debug", true)), required: false, submitOnChange: true, image: getAppImg("debug")
-        }
+        // section(sTS("GrayLog Device"), hideWhenEmpty: true) {
+        //     input "logDevice", "device.GrayLogDevice", title: inTS("Gray Log Devices?", getAppImg("debug", true)), required: false, submitOnChange: true, image: getAppImg("debug")
+        // }
         if(advLogsActive()) { logsEnabled() }
         showDevSharePrefs()
         section(sTS("Diagnostic Data:")) {
@@ -4907,18 +4907,18 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
     atomicState[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { sendLog(msg, "debug"); log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { sendLog(msg, "info"); log.info " EchoApp (v${appVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { sendLog(msg, "trace"); log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { sendLog(msg, "warn");  log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { sendLog(msg, "error"); log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info " EchoApp (v${appVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
-public hasLogDevice() { return (settings?.logDevice != null) }
-public sendLog(msg, lvl) {
-    if(settings?.logDevice) {
-        parent?.logToDevice(app?.getLabel(), "app", msg, appVersion(), lvl)
-    }
-}
+// public hasLogDevice() { return (settings?.logDevice != null) }
+// public sendLog(msg, lvl) {
+//     if(settings?.logDevice) {
+//         parent?.logToDevice(app?.getLabel(), "app", msg, appVersion(), lvl)
+//     }
+// }
 
 public logToDevice(src, srcType, msg, ver, lvl) {
     if(settings?.logDevice) {

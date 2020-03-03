@@ -1817,7 +1817,6 @@ def updated() {
 
 def initialize() {
     // logInfo("Initialize Event Received...")
-    state?.useLogDevice = (parent?.hasLogDevice() == true)
     unsubscribe()
     unschedule()
     if(settings?.duplicateFlag == true && state?.dupPendingSetup == false) {
@@ -4179,17 +4178,11 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
     atomicState[logKey as String] = eData
 }
-private logDebug(msg) { if(settings?.logDebug == true) { sendLog(msg, "debug"); log.debug "Action (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { sendLog(msg, "info"); log.info " Action (v${appVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { sendLog(msg, "trace"); log.trace "Action (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { sendLog(msg, "warn"); log.warn " Action (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { sendLog(msg, "error"); log.error "Action (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
-
-public sendLog(msg, lvl) {
-    if(state?.useLogDevice) {
-        parent?.logToDevice(app?.getLabel(), "app", msg, appVersion(), lvl)
-    }
-}
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Action (v${appVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info " Action (v${appVersion()}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Action (v${appVersion()}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Action (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Action (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 Map getLogHistory() {
     return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
