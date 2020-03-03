@@ -2,26 +2,48 @@
     "appDataVer": "3.4",
     "versions": {
         "mainApp": {
-            "ver": "3.5.0.0"
+            "ver": "3.6.0.0"
         },
         "actionApp": {
-            "ver": "3.5.0.0"
+            "ver": "3.6.0.0"
         },
         "zoneApp": {
-            "ver": "3.5.0.0"
+            "ver": "3.6.0.0"
         },
         "echoDevice": {
-            "ver": "3.5.0.0"
+            "ver": "3.6.0.0"
         },
         "wsDevice": {
-            "ver": "3.2.0.1"
+            "ver": "3.3.0.0"
         },
         "server": {
-            "ver": "2.3.0"
+            "ver": "2.4.0"
         }
     },
-    "amazonDomains": ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx", "amazon.es", "amazon.in"],
-    "locales": ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY", "es-ES"],
+    "amazonDomains": [
+        "amazon.com",
+        "amazon.ca",
+        "amazon.co.uk",
+        "amazon.com.au",
+        "amazon.de",
+        "amazon.it",
+        "amazon.com.br",
+        "amazon.com.mx",
+        "amazon.es",
+        "amazon.in"
+    ],
+    "locales": [
+        "en-US",
+        "en-CA",
+        "de-DE",
+        "en-GB",
+        "it-IT",
+        "en-AU",
+        "pt-BR",
+        "es-MX",
+        "es-UY",
+        "es-ES"
+    ],
     "settings": {
         "sendMetrics": true,
         "database": {
@@ -127,7 +149,10 @@
         },
         "A3BRT6REMPQWA8": {
             "name": "Bose Home Speaker 450",
-            "caps": ["a", "t"],
+            "caps": [
+                "a",
+                "t"
+            ],
             "image": "sonos_generic"
         },
         "A1H0CMF1XM0ZP4": {

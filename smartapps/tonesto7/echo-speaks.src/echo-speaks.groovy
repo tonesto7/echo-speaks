@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.5.0.0" }
-String appModified()  { return "2020-02-10" }
+String appVersion()   { return "3.6.0.0" }
+String appModified()  { return "2020-03-03" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3500, wsDevice: 3200, actionApp: 3500, zoneApp: 3500, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3600, wsDevice: 3300, actionApp: 3600, zoneApp: 3600, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -62,6 +62,7 @@ preferences {
     page(name: "announcePage")
     page(name: "sequencePage")
     page(name: "viewZoneHistory")
+    page(name: "viewActionHistory")
     page(name: "setNotificationTimePage")
     page(name: "actionDuplicationPage")
     page(name: "zoneDuplicationPage")
@@ -464,8 +465,11 @@ def actionsPage() {
                 }
             }
         }
-
         if(actApps?.size()) {
+            section (sTS("Action History:")) {
+                href "viewActionHistory", title: inTS("View Action History", getAppImg("tasks", true)), description: "(Grouped by Action)", image: getAppImg("tasks"), state: "complete"
+            }
+
             section (sTS("Global Actions Management:"), hideable: true, hidden: true) {
                 if(activeActions?.size()) {
                     input "pauseChildActions", "bool", title: inTS("Pause all actions?", getAppImg("pause_orange", true)), description: "When pausing all Actions you can either restore all or open each action and manually unpause it.",
@@ -588,9 +592,23 @@ def viewZoneHistory() {
         List zApps = getZoneApps()
         zApps?.each { z->
             section(z?.getLabel()) {
-                List items = z?.getZoneHistory(true) ?: []
-                items?.each { item->
-                    paragraph item as String
+                Map items = z?.getZoneHistory(true) ?: [:]
+                items?.each { k, v->
+                    paragraph title: k, pTS(v)
+                }
+            }
+        }
+    }
+}
+
+def viewActionHistory() {
+    return dynamicPage(name: "viewActionHistory", uninstall: false, install: false) {
+        List actApps = getActionApps()
+        actApps?.each { a->
+            section(a?.getLabel()) {
+                Map items = a?.getActionHistory(true) ?: [:]
+                items?.each { k, v->
+                    paragraph title: k, pTS(v)
                 }
             }
         }
@@ -704,6 +722,9 @@ def settingsPage() {
             input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
             input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
         }
+        // section(sTS("GrayLog Device"), hideWhenEmpty: true) {
+        //     input "logDevice", "device.GrayLogDevice", title: inTS("Gray Log Devices?", getAppImg("debug", true)), required: false, submitOnChange: true, image: getAppImg("debug")
+        // }
         if(advLogsActive()) { logsEnabled() }
         showDevSharePrefs()
         section(sTS("Diagnostic Data:")) {
@@ -956,7 +977,7 @@ def announcePage() {
 Map seqItemsAvail() {
     return [
         other: [
-            "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
+            "weather":null, "traffic":null, "flashbriefing":null, "goodnews":null, "goodmorning":null, "goodnight":null, "cleanup":null,
             "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
             "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
@@ -1278,7 +1299,10 @@ def uninstalled() {
 }
 
 private appCleanup() {
-    List items = ["availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal", "updNotifyWaitVal", "lastDevActivity"]
+    List items = [
+        "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
+        "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData"
+    ]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
     state?.resumeConfig = false
@@ -1295,14 +1319,13 @@ private appCleanup() {
 
 void wsEvtHandler(evt) {
     // log.debug "evt: ${evt}"
-    if(evt && evt?.id && (evt?.attributes?.size() || evts?.triggers?.size())) {
+    if(evt && evt?.id && (evt?.attributes?.size() || evt?.triggers?.size())) {
         if("bluetooth" in evt?.triggers) { getBluetoothData() }
+        if("activity" in evt?.triggers) { getDeviceActivity(null, true) }
         if(evt?.all == true) {
             getEsDevices()?.each { eDev->
-                if(evt?.attributes?.size()) {
-                    evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
-                }
-                if(evt?.triggers?.size()) { it?.websocketUpdEvt(evt?.triggers) }
+                if(evt?.attributes?.size()) { evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) } }
+                if(evt?.triggers?.size()) { eDev?.websocketUpdEvt(evt?.triggers) }
             }
         } else {
             def eDev = findEchoDevice(evt?.id as String)
@@ -1544,7 +1567,6 @@ Boolean serverConfigured() {
 }
 
 def getCookieData() {
-    logTrace("getCookieData() Request Received...")
     Map resp = state?.cookieData ?: [:]
     resp["refreshDt"] = getTsVal("lastCookieRrshDt") ?: null
     def json = new groovy.json.JsonOutput().toJson(resp)
@@ -1656,7 +1678,7 @@ def clearServerAuth() {
 private wakeupServer(c=false, g=false) {
     Map params = [
         uri: getServerHostURL(),
-        path: "/",
+        path: "/config",
         contentType: "text/html",
         requestContentType: "text/html"
     ]
@@ -1757,7 +1779,7 @@ Boolean validateCookie(frc=false) {
                 if(aData?.customerName) { state?.customerName = aData?.customerName }
                 valid = (resp?.data?.authentication?.authenticated != false)
             }
-            logInfo("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
+            logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
             authValidationEvent(valid, "validateCookie")
         }
     } catch(ex) {
@@ -1887,10 +1909,8 @@ private getOtherData() {
     getDoNotDisturb()
     getBluetoothDevices()
     getMusicProviders()
-    getDeviceActivity()
     // getCustomerData()
     // getAlexaSkills()
-    runIn(10, "updDeviceSupportCacheData")
 }
 
 private getBluetoothDevices() {
@@ -1932,7 +1952,7 @@ def getBluetoothData(serialNumber) {
     return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
 }
 
-def getDeviceActivity() {
+def getDeviceActivity(serialNum, frc=false) {
     try {
         Map params = [
             uri: getAmazonUrl(),
@@ -1941,42 +1961,39 @@ def getDeviceActivity() {
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
             contentType: "application/json"
         ]
-        Boolean wasLastDevice = false
-        Map aData = null
-        def test = true
-        if(getLastTsValSecs("lastDevActChk") > 10) {
+        Map lastActData = atomicState?.lastDevActivity ?: null
+        // log.debug "activityData(IN): $lastActData"
+        Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
+        // log.debug "lastUpdSec: $lastUpdSec"
+        if(frc || lastUpdSec >= 5) {
+            updTsVal("lastDevActChk")
             httpGet(params) { response->
-                // log.debug("X-Amz-Cf-Id: ${response?.getHeaders("X-Amz-Cf-Id")}")
-                // log.debug("X-Amz-Cf-Pop: ${response?.getHeaders("X-Amz-Cf-Pop")}")
                 if (response?.data && response?.data?.activities != null) {
-                    updTsVal("lastDevActChk")
-                    def lastCommand = response?.data?.activities?.find { it?.domainAttributes && it?.domainAttributes?.startsWith("{") && it?.activityStatus?.equals("SUCCESS") && it?.sourceDeviceIds?.get(0)?.deviceType != null }
+                    def lastCommand = response?.data?.activities?.find {
+                        (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
+                        it?.activityStatus?.equals("SUCCESS") &&
+                        (it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) || it?.utteranceId?.startsWith("Vox:")) &&
+                        it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
+                    }
                     if (lastCommand) {
                         def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
                         def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
-                        aData = [:]
-                        aData[lastDevice?.serialNumber] = [spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp]
+                        lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
+                        atomicState?.lastDevActivity = lastActData
                     }
-                    atomicState?.lastDevActivity = aData
                 }
             }
         }
+        if(lastActData && lastActData?.size() && lastActData?.serialNumber == serialNum) {
+            // log.debug "activityData(OUT): $lastActData"
+            return lastActData
+        } else { return null }
     } catch (ex) {
         if(!ex?.message == "Bad Request") {
             respExceptionHandler(ex, "getDeviceActivity")
         }
         // log.error "getDeviceActivity error: ${ex.message}"
     }
-}
-
-public getActivityData(serialNum) {
-    if(getLastTsValSecs("lastDevActChk") > 30) { getDeviceActivity() }
-    Map aData = atomicState?.lastDevActivity ?: null
-    if(aData && aData?.size() && aData[serialNum]) {
-        aData[serialNum]?.lastSpokenTo = true
-        // log.debug "aData: ${aData[serialNum]}"
-        return aData[serialNum]
-    } else { return null }
 }
 
 private getDoNotDisturb() {
@@ -2088,8 +2105,8 @@ def checkGuardSupportResponse(response, data) {
     Boolean guardSupported = false
     try {
         def respLen = response?.data?.toString()?.length() ?: null
-        logInfo("GuardSupport Response Length: ${respLen}")
         if(isST() && response?.data && respLen && respLen > 485000) {
+            logInfo("GuardSupport Response Length: ${respLen}")
             Map minUpdMap = getMinVerUpdsRequired()
             if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
                 wakeupServer(false, true)
@@ -2290,6 +2307,8 @@ def respExceptionHandler(ex, String mName, ignOn401=false, ignNullMsg=false) {
         logError("${mName} | Request Timeout | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.UnknownHostException) {
         logError("${mName} | HostName Not Found (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
+    } else if(ex instanceof java.net.NoRouteToHostException) {
+        logError("${mName} | No Route to Connection (Possibly a Local Internet Issue) | Msg: ${ex?.getMessage()}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
@@ -2364,7 +2383,7 @@ private getEchoDevices() {
 }
 
 def echoDevicesResponse(response, data) {
-    List ignoreTypes = state?.devTypeIgnoreData ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
+    List ignoreTypes = getDeviceIgnoreData() ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     List removeCaps = [
         "SUPPORTS_CONNECTED_HOME", "SUPPORTS_CONNECTED_HOME_ALL", "SUPPORTS_CONNECTED_HOME_CLOUD_ONLY", "ALLOW_LOG_UPLOAD", "FACTORY_RESET_DEVICE", "DIALOG_INTERFACE_VERSION",
@@ -2393,52 +2412,14 @@ def echoDevicesResponse(response, data) {
     }
 }
 
-private getDeviceSupportData(type) {
-    def dsData = getDevSupVal(type) ?: null
-    if(!dsData) {
-        if(state?.tempDevSupData && state?.tempDevSupData[type]) {
-            // log.debug "state.tempDevSupData[$type]: ${state?.tempDevSupData[type]}"
-            dsData = state?.tempDevSupData[type]
-        } else {
-            Map params = [ uri: "${getFbConfigUrl()}devices.json?orderBy=%22ignore%22&endAt=false", contentType: "application/json" ]
-            def data = getWebData(params, "deviceSupportData", false)
-            if(data && data?.size()) {
-                state?.tempDevSupData = data
-                dsData = data[type]
-            }
-        }
-        if(dsData) { updDevSupVal(type, dsData) }
-    }
-    return dsData
-}
-
-private updDeviceSupportCacheData() {
-    Map dsData = state?.devSupMap ?: [:]
-    if(dsData && dsData?.size() && getLastTsValSecs("lastDevSupCacheUpdDt") > 86400/2) {
-        Map params = [ uri: "${getFbConfigUrl()}devices.json?orderBy=%22ignore%22&endAt=false", contentType: "application/json" ]
-        def data = getWebData(params, "deviceSupportData_${k}", false)
-        if(data && data != null) {
-            dsData?.each { k,v ->
-                updDevSupVal(k, data[k])
-            }
-            updTsVal("lastDevSupCacheUpdDt")
-        }
-    }
-}
-
 private getDeviceIgnoreData() {
-    List iData = state?.devTypeIgnoreData ?: null
-    if( !iData?.size() || getLastTsValSecs("lastDevIgnoreUpdDt") > 86400 ) {
-        Map params = [uri: "${getFbConfigUrl()}devices.json?orderBy=%22ignore%22&startAt=true", contentType: "application/json"]
-        def data = getWebData(params, "deviceIgnoreData", false)
-        if(data && data?.size()) {
-            iData = data?.keySet()
-            state?.devTypeIgnoreData = iData
-            updTsVal("lastDevIgnoreUpdDt")
-            log.debug "devTypeIgnoreData: ${iData}"
-        }
+    Map dData = deviceSupportMap()?.types ?: [:]
+    if(dData?.size()) {
+        List o = dData?.findAll { it?.value?.ignore == true }?.collect { it?.key as String }
+        // log.debug "devTypeIgnoreData: ${o}"
+        return o
     }
-    return iData
+    return null
 }
 
 def getUnknownDevices() {
@@ -2651,9 +2632,7 @@ private Map getMinVerUpdsRequired() {
 }
 
 public getDeviceStyle(String family, String type) {
-    // if(!state?.appData || !state?.appData?.deviceSupport) { checkVersionData(true) }
-    // Map typeData = state?.appData?.deviceSupport ?: [:]
-    Map typeData = getDeviceSupportData(type) ?: [:]
+    Map typeData = deviceSupportMap()?.types[type] ?: [:]
     if(typeData) {
         return typeData
     } else { return [name: "Echo Unknown $type", image: "unknown", allowTTS: false] }
@@ -2664,38 +2643,40 @@ public Map getDeviceFamilyMap() {
     return state?.appData?.deviceFamilies ?: [:]
 }
 
-// public Map getDeviceTypesMap() {
-//     if(!state?.appData || !state?.appData?.deviceTypes) { checkVersionData(true) }
-//     return state?.appData?.deviceTypes ?: [:]
-// }
-
-private getDevicesFromSerialList(serialNumberList) {
-    //logTrace("getDevicesFromSerialList called with: ${ serialNumberList}")
-    if (serialNumberList == null) {
+private getDevicesFromSerialList(serialList) {
+    //logTrace("getDevicesFromSerialList called with: ${serialList}")
+    if (serialList == null) {
        logDebug("SerialNumberList is null")
-       return;
+       return null;
     }
-    def devicesList = serialNumberList.findResults { echoKey ->
-        String dni = [app?.id, "echoSpeaks", echoKey].join("|")
-        getChildDevice(dni)
+    List devs = []
+    serialList?.each { ser ->
+        def d = findEchoDevice(ser)
+        if(d) devs?.push(d)
     }
-    //log.debug "Device list: ${ devicesList}"
-    return devicesList
+    //log.debug "Device list: ${devs}"
+    return devs
 }
 
 // This is called by the device handler to send playback data to cluster members
 public sendPlaybackStateToClusterMembers(whaKey, data) {
     //logTrace("sendPlaybackStateToClusterMembers: key: ${ whaKey}")
-    def echoDeviceMap = state?.echoDeviceMap
-    def whaMap = echoDeviceMap[whaKey]
-    def clusterMembers = whaMap?.clusterMembers
+    try {
+        Map echoDeviceMap = state?.echoDeviceMap
+        def whaMap = echoDeviceMap[whaKey]
+        def clusterMembers = whaMap?.clusterMembers
 
-    if (clusterMembers) {
-        def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
-        clusterMemberDevices?.each { it?.playbackStateHandler(data, true) }
-    } else {
-        // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
-        //log.debug "sendPlaybackStateToClusterMembers: no data found for ${whaKey} (first refresh?)"
+        if (clusterMembers) {
+            def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
+            if(clusterMemberDevices) {
+                clusterMemberDevices?.each { it?.playbackStateHandler(data, true) }
+            }
+        } else {
+            // The lookup will fail during initial refresh because echoDeviceMap isn't available yet
+            //log.debug "sendPlaybackStateToClusterMembers: no data found for ${whaKey} (first refresh?)"
+        }
+    } catch (ex) {
+        log.error "sendPlaybackStateToClusterMembers Error: ${ex}"
     }
 }
 
@@ -3995,7 +3976,7 @@ String getActionsDesc() {
 String getZoneDesc() {
     def zones = getZoneApps()
     def actZones = getActiveZoneNames()?.sort()?.collect { "\u2022 ${it}" }
-    log.debug "actZones: $actZones"
+    // log.debug "actZones: $actZones"
     def paused = zones?.findAll { it?.isPaused() == true }
     def active = zones?.findAll { it?.isPaused() != true }
     String str = ""
@@ -4017,8 +3998,6 @@ String getInputToStringDesc(inpt, addSpace = null) {
     //log.debug "str: $str"
     return (str != "") ? "${str}" : null
 }
-
-
 
 def appInfoSect()	{
     Map codeVer = state?.codeVersions ?: null
@@ -4929,10 +4908,23 @@ private addToLogHistory(String logKey, msg, Integer max=10) {
     atomicState[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) {  log.info " EchoApp (v${appVersion()}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info " EchoApp (v${appVersion()}) | ${msg}" } }
 private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
 private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
 private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+
+// public hasLogDevice() { return (settings?.logDevice != null) }
+// public sendLog(msg, lvl) {
+//     if(settings?.logDevice) {
+//         parent?.logToDevice(app?.getLabel(), "app", msg, appVersion(), lvl)
+//     }
+// }
+
+public logToDevice(src, srcType, msg, ver, lvl) {
+    if(settings?.logDevice) {
+        settings?.logDevice?.sendLog(src, srcType, msg, ver, lvl)
+    }
+}
 
 def clearDiagLogs(type="all") {
     // log.debug "clearDiagLogs($type)"
@@ -4951,4 +4943,142 @@ Map getLogHistory() {
 void clearLogHistory() {
     atomicState?.warnHistory = []
     atomicState?.errorHistory = []
+}
+
+private Map deviceSupportMap() {
+    return [
+        types: [
+            "A10A33FOX2NUBK": [ caps: [ "a", "t" ], image: "echo_spot_gen1", name: "Echo Spot" ],
+            "A10L5JEZTKKCZ8": [ caps: [ "a", "t" ], image: "vobot_bunny", name: "Vobot Bunny" ],
+            "A112LJ20W14H95": [ ignore: true ],
+            "A12GXV8XMS007S": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen1)" ],
+            "A15ERDAKK5HQQG": [ image: "sonos_generic", name: "Sonos" ],
+            "A16MZVIFVHX6P6": [ caps: [ "a", "t" ], image: "unknown", name: "Generic Echo" ],
+            "A17LGWINFBUTZZ": [ caps: [ "t", "a" ], image: "roav_viva", name: "Anker Roav Viva" ],
+            "A18BI6KPKDOEI4": [ caps: [ "a", "t" ], image: "ecobee4", name: "Ecobee4" ],
+            "A18O6U1UQFJ0XK": [ caps: [ "a", "t" ], image: "echo_plus_gen2", name: "Echo Plus (Gen2)" ],
+            "A1C66CX2XD756O": [ caps: [ "a", "t" ], image: "amazon_tablet", name: "Fire Tablet HD" ],
+            "A1DL2DVDQVK3Q" :  [ blocked: true, ignore: true, name: "Mobile App" ],
+            "A1F8D55J0FWDTN": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV (Toshiba)" ],
+            "A1GC6GEE1XF1G9": [ ignore: true ],
+            "A1H0CMF1XM0ZP4": [ blocked: true, name: "Bose SoundTouch 30" ],
+            "A1J16TEDOYCZTN": [ caps: [ "a", "t" ], image: "amazon_tablet", name: "Fire Tablet" ],
+            "A1JJ0KFC4ZPNJ3": [ caps: [ "a", "t" ], image: "echo_input", name: "Echo Input" ],
+            "A1M0A9L9HDBID3": [ caps: [ "t" ], image: "one-link", name: "One-Link Safe and Sound" ],
+            "A1MPSLFC7L5AFK": [ ignore: true ],
+            "A1N9SW0I0LUX5Y": [ blocked: false, caps: [ "a", "t" ], image: "unknown", name: "Ford/Lincoln Alexa App" ],
+            "A1NL4BVLQ4L3N3": [ caps: [ "a", "t" ], image: "echo_show_gen1", name: "Echo Show (Gen1)" ],
+            "A1ORT4KZ23OY88": [ ignore: true ],
+            "A1P31Q3MOWSHOD": [ caps: [ "t", "a" ], image: "halo_speaker", name: "Zolo Halo Speaker" ],
+            "A1Q7QCGNMXAKYW": [ blocked: true, image: "amazon_tablet", name: "Generic Tablet" ],
+            "A1RABVCI4QCIKC": [ caps: [ "a", "t" ], image: "echo_dot_gen3", name: "Echo Dot (Gen3)" ],
+            "A1RTAM01W29CUP": [ caps: [ "a", "t" ], image: "alexa_windows", name: "Windows App" ],
+            "A1VS6XVTGTLC00": [ ignore: true ],
+            "A1VZJGJYCRI78V": [ ignore: true ],
+            "A1W2YILXTG9HA7": [ caps: [ "t", "a" ], image: "unknown", name: "Nextbase 522GW Dashcam" ],
+            "A1X7HJX9QL16M5": [ blocked: true, ignore: true, name: "Bespoken.io" ],
+            "A1Z88NGR2BK6A2": [ caps: [ "a", "t" ], image: "echo_show_gen2", name: "Echo Show 8" ],
+            "A1ZB65LA390I4K": [ ignore: true ],
+            "A21X6I4DKINIZU": [ ignore: true ],
+            "A21Z3CGI8UIP0F": [ ignore: true ],
+            "A25EC4GIHFOCSG": [ blocked: true, name: "Unrecognized Media Player" ],
+            "A27VEYGQBW3YR5": [ caps: [ "a", "t" ], image: "echo_link", name: "Echo Link" ],
+            "A2825NDLA7WDZV": [ ignore: true ],
+            "A29L394LN0I8HN": [ ignore: true ],
+            "A2C8J6UHV0KFCV": [ ignore: true ],
+            "A2E0SNTXJVT7WK": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen2)" ],
+            "A2GFL5ZMWNE0PX": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen3)" ],
+            "A2HZENIFNYTXZD": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
+            "A2IVLV5VM2W81": [  ignore: true ],
+            "A2J0R2SD7G9LPA": [ caps: [ "a", "t" ], image: "lenovo_smarttab_m10", name: "Lenovo SmartTab M10" ],
+            "A2JKHJ0PX4J3L3": [ caps: [ "a", "t" ], image: "firetv_cube", name: "Fire TV Cube (Gen2)" ],
+            "A2LH725P8DQR2A": [ caps: [ "a", "t" ], image: "fabriq_riff", name: "Fabriq Riff" ],
+            "A2LWARUGJLBYEW": [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick (Gen2)" ],
+            "A2M35JJZWCQOMZ": [ caps: [ "a", "t" ], image: "echo_plus_gen1", name: "Echo Plus (Gen1)" ],
+            "A2M4YX06LWP8WI": [ caps: [ "a", "t" ], image: "amazon_tablet", name: "Fire Tablet" ],
+            "A2OSP3UA4VC85F": [ image: "sonos_generic", name: "Sonos" ],
+            "A2R2GLZH1DFYQO": [ caps: [ "t", "a" ], image: "halo_speaker", name: "Zolo Halo Speaker" ],
+            "A2RJLFEH0UEKI9": [ ignore: true ],
+            "A2T0P32DY3F7VB": [ ignore: true ],
+            "A2TF17PFR55MTB": [ ignore: true ],
+            "A2TOXM6L8SFS8A": [ ignore: true ],
+            "A2V3E2XUH5Z7M8": [ ignore: true ],
+            "A2WN1FJ2HG09UN": [ ignore: true ],
+            "A2X8WT9JELC577": [ caps: [ "a", "t" ], image: "ecobee4", name: "Ecobee5" ],
+            "A2XPGY5LRKB9BE": [ caps: [ "a", "t" ], image: "unknown", name: "Fitbit Versa 2" ],
+            "A2Y04QPFCANLPQ": [ caps: [ "a", "t" ], image: "unknown", name: "Bose QuietComfort 35 II" ],
+            "A2ZOTUOF1IBEYI": [ ignore: true ],
+            "A303PJF6ISQ7IC": [ caps: [ "a", "t" ], image: "echo_auto", name: "Echo Auto" ],
+            "A30YDR2MK8HMRV": [ caps: [ "a", "t" ], image: "echo_dot_clock", name: "Echo Dot Clock" ],
+            "A32DDESGESSHZA": [ caps: [ "a", "t" ], image: "echo_dot_gen3",  "name" : "Echo Dot (Gen3)" ],
+            "A32DOYMUN6DTXA": [ caps: [ "a", "t" ],  image: "echo_dot_gen3",  "name" : "Echo Dot (Gen3)" ],
+            "A347G2JC8I4HC7": [ caps: [ "a", "t" ], image: "unknown", name: "Roav Car Charger Pro" ],
+            "A37CFAHI1O0CXT": [ image: "logitech_blast", name: "Logitech Blast" ],
+            "A37M7RU8Z6ZFB": [ ignore: true ],
+            "A37SHHQ3NUL7B5": [ blocked: true, name: "Bose Home Speaker 500" ],
+            "A38949IHXHRQ5P": [ caps: [ "a", "t" ], image: "echo_tap", name: "Echo Tap" ],
+            "A38BPK7OW001EX": [ blocked: true, name: "Raspberry Alexa" ],
+            "A38EHHIB10L47V": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
+            "A3B50IC5QPZPWP": [ ignore: true ],
+            "A3B5K1G3EITBIF": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
+            "A3BRT6REMPQWA8": [ caps: [ "a", "t" ], image: "sonos_generic", name: "Bose Home Speaker 450" ],
+            "A3C9PE6TNYLTCH": [ image: "echo_wha", name: "Multiroom" ],
+            "A3F1S88NTZZXS9": [ blocked: true, image: "dash_wand", name: "Dash Wand" ],
+            "A3FX4UWTP28V1P": [ caps: [ "a", "t" ], image: "echo_plus_gen2", name: "Echo (Gen3)" ],
+            "A3H674413M2EKB": [ ignore: true ],
+            "A3HF4YRA2L7XGC": [ caps: [ "a", "t" ], image: "firetv_cube", name: "Fire TV Cube" ],
+            "A3L0T0VL9A921N": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
+            "A3NPD82ABCPIDP": [ caps: [ "t" ], image: "sonos_beam", name: "Sonos Beam" ],
+            "A3NVKTZUPX1J3X": [ blocked: true, name: "Unknown Device" ],
+            "A3NWHXTQ4EBCZS": [ ignore: true ],
+            "A3QPPX1R9W5RJV": [ caps: [ "a", "t" ], image: "fabriq_chorus", name: "Fabriq Chorus" ],
+            "A3R9S4ZZECZ6YL": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 10" ],
+            "A3RBAYBE7VM004": [ caps: [ "a", "t" ], image: "echo_studio", name: "Echo Studio" ],
+            "A3S5BH2HU6VAYF": [ caps: [ "a", "t" ], image: "echo_dot_gen2", name: "Echo Dot (Gen2)" ],
+            "A3SSG6GR8UU7SN": [ caps: [ "a", "t" ], image: "echo_sub_gen1", name: "Echo Sub" ],
+            "A3SSWQ04XYPXBH": [ blocked: true, image: "amazon_tablet", name: "Generic Tablet" ],
+            "A3TCJ8RTT3NVI7": [ ignore: true ],
+            "A3VRME03NAXFUB": [ caps: [ "a", "t" ], image: "echo_flex", name: "Echo Flex" ],
+            "A4ZP7ZC4PI6TO": [ caps: [ "a", "t" ], image: "echo_show_5", name: "Echo Show 5 (Gen1)" ],
+            "A7WXQPH584YP":  [ caps: [ "a", "t" ], image: "echo_gen2", name: "Echo (Gen2)" ],
+            "A81PNL0A63P93": [ caps: [ "a", "t" ], image: "unknown", name: "Home Remote" ],
+            "AB72C64C86AW2": [ caps: [ "a", "t" ], image: "echo_gen1", name: "Echo (Gen1)" ],
+            "ABP0V5EHO8A4U": [ ignore: true ],
+            "AD2YUJTRVBNOF": [ ignore: true ],
+            "ADQRVG6LYK4LQ": [ ignore: true ],
+            "ADVBD696BHNV5": [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick (Gen1)" ],
+            "AE7X7Z227NFNS": [ caps: [ "a", "t" ], image: "unknown", name: "HiMirror Mini" ],
+            "AF473ZSOIRKFJ": [ caps: [ "a", "t" ], image: "unknown", name: "Onkyo VC-PX30" ],
+            "AFF50AL5E3DIU": [ caps: [ "a", "t" ], image: "insignia_firetv",  "name" : "Fire TV (Insignia)" ],
+            "AGZWSPR7FLP9E": [ ignore: true ],
+            "AILBSA2LNTOYL": [ ignore: true ],
+            "AKKLQD9FZWWQS": [ blocked: true, caps: [ "a", "t" ], image: "unknown", name: "Jabra Elite" ],
+            "AKNO1N0KSFN8L": [ caps: [ "a", "t" ], image: "echo_dot_gen1", name: "Echo Dot (Gen1)" ],
+            "AKPGW064GI9HE": [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick 4K (Gen3)" ],
+            "AO6HHP9UE6EOF": [ caps: [ "a", "t" ], image: "unknown", name: "Unknown Media Device" ],
+            "AP1F6KUH00XPV": [ blocked: true, name: "Stereo/Subwoofer Pair" ],
+            "AP4RS91ZQ0OOI": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV (Toshiba)" ],
+            "ATH4K2BAIXVHQ": [ ignore: true ],
+            "AUPUQSVCVHXP0": [ ignore: true ],
+            "AVD3HM0HOJAAL": [ image: "sonos_generic", name: "Sonos" ],
+            "AVE5HX13UR5NO": [ caps: [ "a", "t" ], image: "logitech_zero_touch", name: "Logitech Zero Touch" ],
+            "AVN2TMX8MU2YM": [ blocked: true, name: "Bose Home Speaker 500" ],
+            "AWZZ5CVHX2CD":  [ caps: [ "a", "t" ], image: "echo_show_gen2", name: "Echo Show (Gen2)" ],
+            "A2C8J6UHV0KFCV": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Gear" ],
+            "AUPUQSVCVHXP0": [ caps: [ "a", "t" ], image: "unknown", name: "Ecobee Switch+" ],
+            "A2RJLFEH0UEKI9": [ ignore: true ],
+            "AKOAGQTKAS9YB": [ ignore: true ],
+            "A37M7RU8Z6ZFB": [ caps: [ "a", "t" ], image: "unknown", name: "Garmin Speak" ],
+            "A2WN1FJ2HG09UN": [ caps: [ "a", "t" ], image: "unknown", name: "Ultimate Alexa App" ],
+            "A2BRQDVMSZD13S": [ caps: [ "a", "t" ], image: "unknown", name: "SURE Universal Remote" ],
+            "A3TCJ8RTT3NVI7": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Listens" ]
+        ],
+        families: [
+            block: [ "AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP" ],
+            echo: [ "ROOK", "KNIGHT", "ECHO" ],
+            other: [ "REAVER", "FIRE_TV", "FIRE_TV_CUBE", "ALEXA_AUTO", "MMSDK" ],
+            tablet: [ "TABLET" ],
+            wha: [ "WHA" ]
+        ]
+    ]
 }

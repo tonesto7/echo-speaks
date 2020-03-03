@@ -15,10 +15,9 @@
  // This is based on the Amazon WebSocket used on Alexa.amazon.com and is ported from Javascript to Groovy and inspired from the work of @Apollon77 Alexa-Remote
 
 // NOTICE: This device will not work on SmartThings
-//TODO: Restore beta to false and change url to master repo
 
-String devVersion()  { return "3.2.0.1"}
-String devModified() { return "2020-01-17" }
+String devVersion()  { return "3.3.0.0"}
+String devModified() { return "2020-03-03" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return true }
@@ -390,7 +389,7 @@ private commandEvtHandler(msg) {
                 break
             case "PUSH_ACTIVITY":
                 logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
-                def keys = msg?.payload?.key?.entityId?.tokenize("#")
+                def keys = msg?.payload?.key?.entryId?.tokenize("#")
                 if(keys?.size() && keys[2]) {
                     sendEvt = true
                     evt?.id = keys[2]

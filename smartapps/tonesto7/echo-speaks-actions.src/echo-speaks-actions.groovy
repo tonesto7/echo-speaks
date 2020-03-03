@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.5.0.0" }
-String appModified() { return "2020-02-10" }
+String appVersion()  { return "3.6.0.0" }
+String appModified() { return "2020-03-03" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -56,6 +56,7 @@ preferences {
     page(name: "actTierStopTasksPage")
     page(name: "actNotifPage")
     page(name: "actNotifTimePage")
+    page(name: "actionHistoryPage")
     page(name: "searchTuneInResultsPage")
     page(name: "uninstallPage")
     page(name: "namePage")
@@ -131,7 +132,7 @@ private buildActTypeEnum() {
     Map buildItems = [:]
     buildItems["Speech"] = ["speak":"Speak", "announcement":"Announcement", "speak_tiered":"Speak (Tiered)", "announcement_tiered":"Announcement (Tiered)"]?.sort{ it?.key }
     buildItems["Built-in Sounds"] = ["sounds":"Play a Sound"]?.sort{ it?.key }
-    buildItems["Built-in Responses"] = ["weather":"Weather Report", "builtin":"Birthday, Compliments, Facts, Jokes, Stories, Traffic, and more...", "calendar":"Read Calendar Events"]?.sort{ it?.key }
+    buildItems["Built-in Responses"] = ["weather":"Weather Report", "builtin":"Birthday, Compliments, Facts, Jokes, News, Stories, Traffic, and more...", "calendar":"Read Calendar Events"]?.sort{ it?.key }
     buildItems["Media/Playback"] = ["music":"Play Music/Playlists", "playback":"Playback/Volume Control"]?.sort{ it?.key }
     buildItems["Alarms/Reminders"] = ["alarm":"Create Alarm", "reminder":"Create Reminder"]?.sort{ it?.key }
     buildItems["Devices Settings"] = ["wakeword":"Change Wake Word", "dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control"]?.sort{ it?.key }
@@ -190,6 +191,10 @@ def mainPage() {
             }
         }
 
+        section(sTS("Action History")) {
+            href "actionHistoryPage", title: inTS("View Action History", getAppImg("tasks", true)), description: "", image: getAppImg("tasks")
+        }
+
         section(sTS("Preferences")) {
             href "prefsPage", title: inTS("Debug/Preferences", getAppImg("settings", true)), description: "", image: getAppImg("settings")
             if(state?.isInstalled) {
@@ -239,6 +244,20 @@ def namePage() {
     return dynamicPage(name: "namePage", install: true, uninstall: false) {
         section(sTS("Name this Automation:")) {
             input "appLbl", "text", title: inTS("Label this Action", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
+        }
+    }
+}
+
+def actionHistoryPage() {
+    return dynamicPage(name: "actionHistoryPage", install: false, uninstall: false) {
+        section() {
+            getActionHistory()
+        }
+        if(atomicState?.actionHistory?.size()) {
+            section("") {
+                input "clearActionHistory", "bool", title: inTS("Clear Action History?", getAppImg("reset", true)), description: "Clears Stored Action History.", defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(settings?.clearActionHistory) { settingUpdate("clearActionHistory", "false", "bool"); atomicState?.actionHistory = []; }
+            }
         }
     }
 }
@@ -1107,8 +1126,8 @@ def actionsPage() {
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
                         Map builtinOpts = [
-                            "playSingASong":"Sing a Song", "playFlashBrief":"Flash Briefing", "playFunFact": "Fun Fact", "playTraffic": "Traffic", "playJoke":"Joke",
-                            "playTellStory":"Tell Story", "sayGoodbye": "Say Goodbye", "sayGoodNight": "Say Goodnight", "sayBirthday": "Happy Birthday",
+                            "playSingASong": "Sing a Song", "playFlashBrief": "Flash Briefing (News)", "playGoodNews": "Good News Only", "playFunFact": "Fun Fact", "playTraffic": "Traffic", "playJoke": "Joke",
+                            "playTellStory": "Tell Story", "sayGoodbye": "Say Goodbye", "sayGoodNight": "Say Goodnight", "sayBirthday": "Happy Birthday",
                             "sayCompliment": "Give Compliment", "sayGoodMorning": "Good Morning", "sayWelcomeHome": "Welcome Home"
                         ]
                         section(sTS("BuiltIn Speech Config:")) {
@@ -2410,8 +2429,8 @@ private tierEvtHandler(evt=null) {
     Map tierMap = getTierMap() ?: [:]
     Map tierState = atomicState?.actTierState ?: [:]
     Boolean schedNext = false
-    // log.debug "tierState: ${tierState}"
-    // log.debug "tierMap: ${tierMap}"
+    log.debug "tierState: ${tierState}"
+    log.debug "tierMap: ${tierMap}"
     if(tierMap && tierMap?.size()) {
         Map newEvt = tierState?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, deviceId: evt?.deviceId, date: evt?.date]
         Integer curPass = (tierState?.cycle && tierState?.cycle?.toString()?.isNumber()) ? tierState?.cycle?.toInteger()+1 : 1
@@ -2426,7 +2445,7 @@ private tierEvtHandler(evt=null) {
             if(tierMap[curPass]?.volume?.restore) tierState?.volume?.restore = tierMap[curPass]?.volume?.restore ?: null
             tierState?.evt = newEvt
             tierState?.lastMsg = (curPass+1 > tierMap?.size())
-            // log.trace("tierSize: (${tierMap?.size()}) | cycle: ${tierState?.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState?.schedDelay}) | Message: (${tierState?.message}) | LastMsg: (${tierState?.lastMsg})")
+            log.trace("tierSize: (${tierMap?.size()}) | cycle: ${tierState?.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState?.schedDelay}) | Message: (${tierState?.message}) | LastMsg: (${tierState?.lastMsg})")
             atomicState?.actTierState = tierState
             tierSchedHandler([sched: schedNext, tierState: tierState])
         } else {
@@ -2982,6 +3001,46 @@ String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=
     return "Invalid Text Received... Please verify Action configuration..."
 }
 
+public getActionHistory(asObj=false) {
+    List eHist = atomicState?.actionHistory ?: []
+    Boolean isST = isST()
+    Map output = [:]
+    if(eHist?.size()) {
+        eHist?.each { h->
+            String str = ""
+            str += !isST ? "Trigger: [${h?.evtName}]" : ""
+            str += "${!isST ? "\n" : ""}Device: [${h?.evtDevice}]"
+            str += "\nCondition Status: ${h?.active ? "Passed" : "Failed"}"
+            str += "\nConditions Passed: ${h?.passed}"
+            str += "\nConditions Blocks: ${h?.blocks}"
+            str += h?.test ? "\nTest Mode: true" : ""
+            str += h?.isRepeat ? "\nRepeat: true" : ""
+            str += "\nDateTime: ${h?.dt}"
+            output[h?.evtName] = str
+        }
+    } else { output["Oops..."] = "No History Items Found..." }
+    if(!asObj) {
+        output?.each { k,v-> paragraph title: k, pTS(v) }
+    } else { return output }
+}
+
+private addToActHistory(evt, data, Integer max=10) {
+    Boolean ssOk = (stateSizePerc() > 70)
+    List eData = atomicState?.actionHistory ?: []
+    eData?.push([
+        dt: getDtNow(),
+        active: (data?.status?.ok == true),
+        evtName: evt?.name,
+        evtDevice: evt?.displayName,
+        blocks: data?.status?.blocks,
+        passed: data?.status?.passed,
+        test: data?.test,
+        isRepeat: data?.isRepeat
+    ])
+    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
+    atomicState?.actionHistory = eData
+}
+
 private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, isRptAct=false, tierData=null) {
     def startTime = now()
     logTrace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
@@ -2989,6 +3048,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     Map condStatus = conditionStatus()
     // log.debug "condStatus: ${condStatus}"
     Boolean actOk = getConfStatusItem("actions")
+    addToActHistory(evt, [status: condStatus, test: testMode, src: src, isRepeat: isRptAct] )
     Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
     List actDevices = settings?.act_EchoDevices ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
@@ -3960,6 +4020,23 @@ String getConditionsDesc() {
     }
 }
 
+String attUnit(attr) {
+    switch(attr) {
+        case "humidity":
+        case "level":
+        case "battery":
+            return " percent"
+        case "temperature":
+            return " degrees"
+        case "illuminance":
+            return " lux"
+        case "power":
+            return " watts"
+        default:
+            return ""
+    }
+}
+
 def getZoneStatus() {
     def echoZones = settings?.act_EchoZones ?: []
     def res = [:]
@@ -4309,9 +4386,9 @@ public getDuplSettingData() {
             text: ["appLbl"]
         ],
         ends: [
-            bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear"],
+            bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db"],
             enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_webCorePistons", "_rt", "_rt_wd"],
-            number: ["_wait", "_low", "_high", "_equal", "_delay", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat", "_rt_ed"],
+            number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore"],
             text: ["_txt", "_sms_numbers"],
             time: ["_time_start", "_time_stop", "_scheduled_time"]
         ],
