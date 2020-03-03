@@ -32,7 +32,7 @@ metadata {
         capability "Speech Synthesis"
 
         attribute "alarmVolume", "number"
-        attribute "alexaNotifications", "JSON_OBJECT"
+        // attribute "alexaNotifications", "JSON_OBJECT"
         attribute "alexaPlaylists", "JSON_OBJECT"
         // attribute "alexaGuardStatus", "string"
         attribute "alexaWakeWord", "string"
@@ -80,6 +80,7 @@ metadata {
         command "playSingASong", ["number", "number"]
         command "playFlashBrief", ["number", "number"]
         command "playFunFact", ["number", "number"]
+        command "playGoodNews", ["number", "number"]
         command "playTraffic", ["number", "number"]
         command "playJoke", ["number", "number"]
         command "playSoundByName", ["string", "number", "number"]
@@ -113,7 +114,9 @@ metadata {
         command "executeRoutineId", ["string"]
         command "createAlarm", ["string", "string", "string"]
         command "createReminder", ["string", "string", "string"]
+        // command "createReminderNew", ["string", "string", "string", "string", "string"]
         command "removeNotification", ["string"]
+        // command "removeAllNotificationsByType", ["string"]
         command "setWakeWord", ["string"]
         command "renameDevice", ["string"]
         command "storeCurrentVolume"
@@ -315,7 +318,7 @@ Boolean isCommandTypeAllowed(String type, noLogs=false) {
                 warnMsg = "OOPS... Spotify is NOT Supported by this Device!!!"
                 break
             case "flashBriefing":
-                warnMsg = "OOPS... Flash Briefs are NOT Supported by this Device!!!"
+                warnMsg = "OOPS... Flash Briefs and Good News are NOT Supported by this Device!!!"
                 break
         }
         if(warnMsg && !noLogs) { logWarn(warnMsg, true) }
@@ -427,13 +430,13 @@ void websocketUpdEvt(triggers) {
                 case "queue":
                     runIn(4, "getPlaylists")
                 case "notif":
-                    runIn(2, "getNotifications")
+                    // runIn(2, "getNotifications")
                     break
                 case "bluetooth":
                     runIn(2, "getBluetoothDevices")
                     break
                 case "notification":
-                    runIn(2, "getNotifications")
+                    // runIn(2, "getNotifications")
                     break
                 case "online":
                     setOnlineStatus(true)
@@ -504,7 +507,7 @@ private refreshStage2() {
     }
     if((state?.permissions?.alarms == true) || (state?.permissions?.reminders == true)) {
         if(state?.permissions?.alarms == true) { getAlarmVolume() }
-        getNotifications()
+        // getNotifications()
     }
 
     if(state?.permissions?.bluetoothControl && !wsActive) {
@@ -852,9 +855,9 @@ private getNotifications(type="Reminder", all=false) {
                     newList?.push(li)
                 }
             }
-            if(isStateChange(device, "alexaNotifications", newList?.toString())) {
-                sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
-            }
+            // if(isStateChange(device, "alexaNotifications", newList?.toString())) {
+            //     sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
+            // }
             // log.trace "notifications: $newList"
             return newList
         }
@@ -1017,15 +1020,15 @@ def respExceptionHandler(ex, String mName, clearOn401=false, ignNullMsg=false) {
             logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        if(settings?.ignoreTimeoutErrors == true) logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
+        if(settings?.ignoreTimeoutErrors == false) logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.UnknownHostException) {
         logError("${mName} | HostName Not Found | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        if(settings?.ignoreTimeoutErrors == true) logError("${mName} | Request Timeout (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
+        if(settings?.ignoreTimeoutErrors == false) logError("${mName} | Request Timeout (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.NoRouteToHostException) {
         logError("${mName} | No Route to Connection (Possibly a Local Internet Issue) | Msg: ${ex}")
     } else if(ex instanceof javax.net.ssl.SSLHandshakeException) {
-        if(settings?.ignoreTimeoutErrors == true) logError("${mName} | Remote Connection Closed (Possibly an Amazon/Internet Issue) | Msg: ${ex}")
+        if(settings?.ignoreTimeoutErrors == false) logError("${mName} | Remote Connection Closed (Possibly an Amazon/Internet Issue) | Msg: ${ex}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
@@ -1409,6 +1412,16 @@ def playFlashBrief(volume=null, restoreVolume=null) {
             if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
             sendMultiSequenceCommand(seqs, "playFlashBrief")
         } else { doSequenceCmd("playFlashBrief", "flashbriefing") }
+    }
+}
+
+def playGoodNews(volume=null, restoreVolume=null) {
+    if(isCommandTypeAllowed("flashBriefing")) {
+        if(volume != null) {
+            List seqs = [[command: "volume", value: volume], [command: "goodnews"]]
+            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
+            sendMultiSequenceCommand(seqs, "playGoodNews")
+        } else { doSequenceCmd("playGoodNews", "goodnews") }
     }
 }
 
@@ -2382,7 +2395,7 @@ def sendTestAlexaMsg() {
 Map seqItemsAvail() {
     return [
         other: [
-            "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
+            "weather":null, "traffic":null, "flashbriefing":null, "goodnews":null, "goodmorning":null, "goodnight":null, "cleanup":null,
             "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
             "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
             "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
@@ -3116,6 +3129,10 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
                 seqNode?.operationPayload?.connectionRequest = [uri: "connection://AMAZON.Read.EmailSummary/amzn1.alexa-speechlet-client.DOMAIN:ALEXA_CONNECT", input: [:] ]
                 seqNode?.operationPayload?.remove('deviceType')
                 seqNode?.operationPayload?.remove('deviceSerialNumber')
+                break
+            case "goodnews":
+                seqNode?.type = "Alexa.GoodNews.Play"
+                seqNode?.skillId = "amzn1.ask.1p.goodnews"
                 break
             default:
                 return null

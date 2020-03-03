@@ -977,7 +977,7 @@ def announcePage() {
 Map seqItemsAvail() {
     return [
         other: [
-            "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
+            "weather":null, "traffic":null, "flashbriefing":null, "goodnews":null, "goodmorning":null, "goodnight":null, "cleanup":null,
             "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
             "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",

@@ -2,7 +2,7 @@
   March 3rd, 2020
  ══════════
   Main App (v3.6.0.0)
-  • UPDATED: Reverted the device detection logic and added the data directly into the main app code.
+  • UPDATED: Moved the device detection data into the app code to significantly reduce platform load and web calls (over 1 million requests an hour across the platform).
   • FIXED: Changes to the getDeviceActivity() logic to make it quicker and more accurate.
   • FIXED: Device Activity which was ruined after my last update.
   • FIXED: WebSocket Events not updating device info (Hubitat Only).
@@ -14,11 +14,14 @@
   • FIXED: Bugs fixed and optimizations.
 
   Echo Device (v3.6.0.0)
+  • ADDED: Good News command that only plays back good news.
   • FIXED: Issue with Queue not working.
   • FIXED: Issue with Queue getting stuck in rare scenarios..
   • FIXED: Device Activity which was ruined after my last update.
   • FIXED: WebSocket Events not updating device info (Hubitat Only).
   • FIXED: Cleaned up device events filling up device history (ST)
+  • FIXED: Reduced the number of Amazon web calls per device.
+  • REMOVED: Removing the alexaNotifications attribute for now until I rebuild the Notifications features
   • UPDATED: Log cleanups.
 
   WebSocket Device (v3.3.0.0)
