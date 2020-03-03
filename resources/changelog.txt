@@ -6,6 +6,8 @@
   • FIXED: Slight change to the getDeviceActivity() to make it more accurate.
 
   Echo Device (v3.6.0.0)
+  • FIXED: Issue with Queue not working.
+  • FIXED: Issue with Queue getting stuck in rare scenarios..
   • UPDATED: Log cleanups.
 
   Server (v2.4.0)

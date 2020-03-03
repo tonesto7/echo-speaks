@@ -15,11 +15,11 @@
  */
 
 String appVersion()   { return "3.6.0.0" }
-String appModified()  { return "2020-03-02" }
+String appModified()  { return "2020-03-03" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3600, wsDevice: 3200, actionApp: 3600, zoneApp: 3600, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3600, wsDevice: 3300, actionApp: 3600, zoneApp: 3600, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -1993,6 +1993,7 @@ def getDeviceActivity() {
 public getActivityData(serialNum) {
     if(getLastTsValSecs("lastDevActChk") > 10) { getDeviceActivity() }
     Map aData = atomicState?.lastDevActivity ?: null
+    log.debug "activityData: $aData"
     if(aData && aData?.size() && aData[serialNum]) {
         aData[serialNum]?.lastSpokenTo = true
         // log.debug "aData: ${aData[serialNum]}"
