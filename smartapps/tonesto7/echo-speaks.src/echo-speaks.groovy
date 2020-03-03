@@ -1678,7 +1678,7 @@ def clearServerAuth() {
 private wakeupServer(c=false, g=false) {
     Map params = [
         uri: getServerHostURL(),
-        path: "/",
+        path: "/config",
         contentType: "text/html",
         requestContentType: "text/html"
     ]
