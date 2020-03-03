@@ -2430,7 +2430,7 @@ private tierEvtHandler(evt=null) {
     Map tierState = atomicState?.actTierState ?: [:]
     Boolean schedNext = false
     log.debug "tierState: ${tierState}"
-    log.debug "tierMap: ${tierMap}"
+    // log.debug "tierMap: ${tierMap}"
     if(tierMap && tierMap?.size()) {
         Map newEvt = tierState?.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, deviceId: evt?.deviceId, date: evt?.date]
         Integer curPass = (tierState?.cycle && tierState?.cycle?.toString()?.isNumber()) ? tierState?.cycle?.toInteger()+1 : 1
@@ -3004,28 +3004,32 @@ String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=
 public getActionHistory(asObj=false) {
     List eHist = atomicState?.actionHistory ?: []
     Boolean isST = isST()
-    Map output = [:]
+    List output = []
     if(eHist?.size()) {
         eHist?.each { h->
             String str = ""
-            str += !isST ? "Trigger: [${h?.evtName}]" : ""
-            str += "${!isST ? "\n" : ""}Device: [${h?.evtDevice}]"
+            str += "Trigger: [${h?.evtName}]"
+            str += "\nDevice: [${h?.evtDevice}]"
             str += "\nCondition Status: ${h?.active ? "Passed" : "Failed"}"
             str += "\nConditions Passed: ${h?.passed}"
             str += "\nConditions Blocks: ${h?.blocks}"
             str += h?.test ? "\nTest Mode: true" : ""
+            str += h?.isTier ? "\nTest Cmd: true" : ""
             str += h?.isRepeat ? "\nRepeat: true" : ""
+            str += "\nSource: ${h?.src}"
             str += "\nDateTime: ${h?.dt}"
-            output[h?.evtName] = str
+            output?.push(str)
         }
-    } else { output["Oops..."] = "No History Items Found..." }
+    } else { output.push("No History Items Found...") }
     if(!asObj) {
-        output?.each { k,v-> paragraph title: k, pTS(v) }
-    } else { return output }
+        output?.each { i-> paragraph pTS(i) }
+    } else {
+        return output
+    }
 }
 
 private addToActHistory(evt, data, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() > 70)
+    Boolean ssOk = (stateSizePerc() <= 70)
     List eData = atomicState?.actionHistory ?: []
     eData?.push([
         dt: getDtNow(),
@@ -3035,9 +3039,15 @@ private addToActHistory(evt, data, Integer max=10) {
         blocks: data?.status?.blocks,
         passed: data?.status?.passed,
         test: data?.test,
+        isTierCmd: data?.isTier,
         isRepeat: data?.isRepeat
     ])
-    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
+    if(!ssOk || eData?.size() > max) {
+        // if(!ssOk) log.warn "stateOk: ${ssOk}"
+        // if(eData?.size() > max) log.warn "Action History (${eData?.size()}) has more than ${max} items... | Need to drop: (${(eData?.size()-max)})"
+        eData = eData?.drop( (eData?.size()-max)+1 )
+    }
+    log.debug "actionHistory Size: ${eData?.size()}"
     atomicState?.actionHistory = eData
 }
 
@@ -3048,7 +3058,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     Map condStatus = conditionStatus()
     // log.debug "condStatus: ${condStatus}"
     Boolean actOk = getConfStatusItem("actions")
-    addToActHistory(evt, [status: condStatus, test: testMode, src: src, isRepeat: isRptAct] )
+    addToActHistory(evt, [status: condStatus, test: testMode, src: src, isRepeat: isRptAct, isTier: (tierData != null)] )
     Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
     List actDevices = settings?.act_EchoDevices ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
@@ -4171,7 +4181,7 @@ String getAppDebugDesc() {
 }
 
 private addToLogHistory(String logKey, msg, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() > 70)
+    Boolean ssOk = (stateSizePerc() <= 70)
     List eData = atomicState[logKey as String] ?: []
     if(eData?.find { it?.message == msg }) { return; }
     eData.push([dt: getDtNow(), message: msg])

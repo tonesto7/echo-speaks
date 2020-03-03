@@ -777,9 +777,9 @@ def zoneTimeStopCondHandler() {
 }
 
 private addToZoneHistory(evt, condStatus, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() > 70)
+    Boolean ssOk = (stateSizePerc() <= 70)
     List eData = atomicState?.zoneHistory ?: []
-    eData.push([dt: getDtNow(), active: (condStatus?.ok == true), evtName: evt?.name, evtDevice: evt?.displayName, blocks: condStatus?.blocks, passed: condStatus?.passed])
+    eData?.push([dt: getDtNow(), active: (condStatus?.ok == true), evtName: evt?.name, evtDevice: evt?.displayName, blocks: condStatus?.blocks, passed: condStatus?.passed])
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
     atomicState?.zoneHistory = eData
 }
@@ -851,21 +851,21 @@ def updateZoneStatus(data) {
 public getZoneHistory(asObj=false) {
     List zHist = atomicState?.zoneHistory ?: []
     Boolean isST = isST()
-    Map output = [:]
+    List output = []
     if(zHist?.size()) {
         zHist?.each { h->
             String str = ""
-            str += !isST ? "Trigger: [${h?.evtName}]" : ""
-            str += "${!isST ? "\n" : ""}Device: [${h?.evtDevice}]"
+            str += "Trigger: [${h?.evtName}]"
+            str += "\nDevice: [${h?.evtDevice}]"
             str += "\nZone Status: ${h?.active ? "Activate" : "Deactivate"}"
             str += "\nConditions Passed: ${h?.passed}"
             str += "\nConditions Blocks: ${h?.blocks}"
             str += "\nDateTime: ${h?.dt}"
-            output[h?.evtName] = str
+            output?.push(str)
         }
-    } else { output["Oops..."] = "No History Items Found..." }
+    } else { output?.push("No History Items Found...") }
     if(!asObj) {
-        output?.each { k,v-> paragraph title: k, pTS(v) }
+        output?.each { i-> paragraph pTS(i) }
     } else { return output }
 }
 
@@ -1627,7 +1627,7 @@ Integer stateSize() {
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 
 private addToLogHistory(String logKey, msg, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() > 70)
+    Boolean ssOk = (stateSizePerc() <= 70)
     List eData = atomicState[logKey as String] ?: []
     eData.push([dt: getDtNow(), message: msg])
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }

@@ -4900,7 +4900,7 @@ String getAppDebugDesc() {
 }
 
 private addToLogHistory(String logKey, msg, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() > 70)
+    Boolean ssOk = (stateSizePerc() <= 70)
     List eData = atomicState[logKey as String] ?: []
     if(eData?.find { it?.message == msg }) { return; }
     eData?.push([dt: getDtNow(), message: msg])
