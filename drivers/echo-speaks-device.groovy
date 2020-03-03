@@ -495,6 +495,7 @@ private refreshData(full=false) {
 }
 
 private refreshStage2() {
+    // log.trace("refreshStage2()...")
     Boolean wsActive = (state?.websocketActive == true)
     if(state?.permissions?.wakeWord) {
         getWakeWord()
@@ -2481,8 +2482,8 @@ private stateCleanup() {
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
 }
 
-def resetQueue() {
-    logTrace("resetQueue()")
+def resetQueue(src="") {
+    logTrace("resetQueue($src)")
     Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("qItem_") }
     cmdQueue?.each { cmdKey, cmdData -> state?.remove(cmdKey) }
     unschedule("queueCheck")
@@ -2526,7 +2527,7 @@ private schedQueueCheck(Integer delay=30, overwrite=true, data=null, src) {
     if(data) { opts["data"] = data }
     runIn(delay, "queueCheck", opts)
     state?.q_recheckScheduled = true
-    // log.debug "Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | q_recheckScheduled: (${state?.q_recheckScheduled}) | Source: (${src})"
+    logDebug("Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | q_recheckScheduled: (${state?.q_recheckScheduled}) | Source: (${src})")
 }
 
 public queueEchoCmd(type, msgLen, headers, body=null, firstRun=false) {
@@ -2572,7 +2573,7 @@ private queueCheck(data) {
                 schedQueueCheck(delay, true, null, "queueCheck(filling)")
             } else {
                 logWarn("queueCheck | Queue Item Count (${qSize}) is abnormally high... Resetting Queue", true)
-                resetQueue()
+                resetQueue("queueCheck | High Item Count")
                 return
             }
         } else { state?.q_blocked = false }
@@ -2585,7 +2586,7 @@ private queueCheck(data) {
         return
     } else {
         logDebug("queueCheck | Nothing in the Queue | Performing Queue Reset...")
-        resetQueue()
+        resetQueue("queueCheck | Queue Empty")
         return
     }
 }
@@ -2617,12 +2618,12 @@ void processCmdQueue() {
 }
 
 Integer getAdjCmdDelay(elap, reqDelay) {
-    if(elap && reqDelay) {
+    if((elap >= 0) && (reqDelay >= 0)) {
         Integer res = (elap - reqDelay)?.abs()
-        // log.debug "getAdjCmdDelay | reqDelay: $reqDelay | elap: $elap | res: ${res+3}"
+        logTrace("getAdjCmdDelay | reqDelay: $reqDelay | elap: $elap | del: ${res < 3 ? 3 : res+3}")
         return res < 3 ? 3 : res+3
     }
-    return 5
+    return del
 }
 
 def testMultiCmd() {
@@ -2630,9 +2631,9 @@ def testMultiCmd() {
 }
 
 private speechCmd(headers=[:], isQueueCmd=false) {
-    if(isQueueCmd) log.warn "Blocked: ${state?.q_blocked} | cycleCnt: ${state?.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
+    // if(isQueueCmd) log.warn "QueueBlocked: ${state?.q_blocked} | cycleCnt: ${state?.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
     state?.q_speakingNow = true
-    def tr = "speechCmd (${headers?.cmdDesc}) | Msg: ${headers?.message}"
+    String tr = "speechCmd (${headers?.cmdDesc}) | Msg: ${headers?.message}"
     tr += headers?.newVolume ? " | SetVolume: (${headers?.newVolume})" : ""
     tr += headers?.oldVolume ? " | Restore Volume: (${headers?.oldVolume})" : ""
     tr += headers?.msgDelay  ? " | RecheckSeconds: (${headers?.msgDelay})" : ""
@@ -2669,11 +2670,15 @@ private speechCmd(headers=[:], isQueueCmd=false) {
         }
         Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state?.q_speakingNow == true))
         if(!isQueueCmd) { logItems?.push("│ SentToQueue: (${sendToQueue})") }
-        log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
+        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | QueueSize: (${getQueueSize()}) | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
             queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
             runIn((settings?.autoResetQueue ?: 180), "resetQueue")
-            if(!isFirstCmd) { return }
+            if(!isFirstCmd) {
+                // log.debug "lastTtsCmdSec: ${getLastTtsCmdSec()} | Last Delay: ${state?.q_lastTtsCmdDelay}"
+                if(state?.q_lastTtsCmdDelay && getLastTtsCmdSec() > state?.q_lastTtsCmdDelay + 15) schedQueueCheck(3, true, null, "speechCmd(QueueStuck)")
+                return
+            }
         }
     }
     try {
@@ -2741,7 +2746,7 @@ private postCmdProcess(resp, statusCode, data) {
                 logDebug("Command Completed | Removing Queue Item: ${data?.queueKey}")
                 state?.remove(data?.queueKey as String)
             }
-            def pi = "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"}"
+            String pi = data?.cmdDesc ?: "Command"
             pi += data?.isSSML ? " (SSML)" : ""
             pi += " Sent"
             pi += " | (${data?.message})"
@@ -2750,7 +2755,7 @@ private postCmdProcess(resp, statusCode, data) {
             pi += logDebug && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""
             pi += logDebug && data?.qId ? " | QueueID: (${data?.qId})" : ""
             pi += " | QueueItems: (${getQueueSize()})"
-            pi += " | Execution Time: (${execTime}ms)"
+            // pi += " | Time to Execute Msg: (${execTime}ms)"
             logInfo("${pi}")
 
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
@@ -2784,7 +2789,7 @@ private postCmdProcess(resp, statusCode, data) {
         } else {
             logError("postCmdProcess Error | status: ${statusCode} | Msg: ${respMsg}")
             logSpeech(data?.message, statusCode, respMsg)
-            resetQueue()
+            resetQueue("postCmdProcess | Error")
             return
         }
     }
