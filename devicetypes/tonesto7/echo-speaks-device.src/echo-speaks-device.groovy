@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.6.0.0" }
-String devModified()  { return "2020-03-02" }
+String devModified() { return "2020-03-02" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -509,7 +509,7 @@ metadata {
             input "sendDevNotifAsAnnouncement", "bool", required: false, title: "Send Device Notifications as Announcements?", description: "", defaultValue: false
             input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
             input "ttsWordDelay", "number", required: true, title: "Speech queue delay (per character)", description: "Currently there is a 2 second delay per every 14 characters.", defaultValue: 2
-            input "autoResetQueue", "number", required: false, title: "Auto reset queue (xx seconds) after last speak command", description: "This will reset the queue 3 minutes after last message sent.", defaultValue: 18
+            input "autoResetQueue", "number", required: false, title: "Auto reset queue (xx seconds) after last speak command", description: "This will reset the queue 3 minutes after last message sent.", defaultValue: 180
         }
     }
 }
@@ -856,6 +856,7 @@ private refreshData(full=false) {
 }
 
 private refreshStage2() {
+    // log.trace("refreshStage2()...")
     Boolean wsActive = (state?.websocketActive == true)
     if(state?.permissions?.wakeWord) {
         getWakeWord()
@@ -2652,8 +2653,13 @@ String uriSpeechParser(uri) {
 
 def speechTest(ttsMsg) {
     List items = [
-        "Testing Testing 1, 2, 3",
-        "Yay!, I'm Alive... Hopefully you can hear me speaking?",
+        """<speak><say-as interpret-as="interjection">abracadabra!</say-as>, You asked me to speak and I did!.</speak>""",
+        """<speak><say-as interpret-as="interjection">pew pew</say-as>, <say-as interpret-as="interjection">guess what</say-as>? I'm pretty awesome.</speak>""",
+        """<speak><say-as interpret-as="interjection">knock knock</say-as>., Please let me in. It's your favorite assistant...</speak>""",
+        """<speak><voice name="Ivy">This is Ivy. Testing Testing, 1, 2, 3</voice></speak>""",
+        """<speak><say-as interpret-as="interjection">yay</say-as>, I'm Alive... Hopefully you can hear me speaking?</speak>""",
+        """<speak>Hi, I am Alexa. <voice name="Matthew">Hi, I am Matthew.</voice><voice name="Kendra">Hi, I am Kendra.</voice> <voice name="Joanna">Hi, I am Joanna.</voice><voice name="Kimberly">Hi, I am Kimberly.</voice> <voice name="Ivy">Hi, I am Ivy.</voice><voice name="Joey">, and I am Joey.</voice> Don't we make a great team?</speak>""",
+        "Testing Testing, 1, 2, 3.",
         "Everybody have fun tonight. Everybody have fun tonight. Everybody Wang Chung tonight. Everybody have fun.",
         "Being able to make me say whatever you want is the coolest thing since sliced bread!",
         "I said a hip hop, Hippie to the hippie, The hip, hip a hop, and you don't stop, a rock it out, Bubba to the bang bang boogie, boobie to the boogie To the rhythm of the boogie the beat, Now, what you hear is not a test, I'm rappin' to the beat",
@@ -2842,8 +2848,8 @@ private stateCleanup() {
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
 }
 
-def resetQueue() {
-    logTrace("resetQueue()")
+def resetQueue(src="") {
+    logTrace("resetQueue($src)")
     Map cmdQueue = state?.findAll { it?.key?.toString()?.startsWith("qItem_") }
     cmdQueue?.each { cmdKey, cmdData -> state?.remove(cmdKey) }
     unschedule("queueCheck")
@@ -2887,7 +2893,7 @@ private schedQueueCheck(Integer delay=30, overwrite=true, data=null, src) {
     if(data) { opts["data"] = data }
     runIn(delay, "queueCheck", opts)
     state?.q_recheckScheduled = true
-    // log.debug "Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | q_recheckScheduled: (${state?.q_recheckScheduled}) | Source: (${src})"
+    logDebug("Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | q_recheckScheduled: (${state?.q_recheckScheduled}) | Source: (${src})")
 }
 
 public queueEchoCmd(type, msgLen, headers, body=null, firstRun=false) {
@@ -2933,7 +2939,7 @@ private queueCheck(data) {
                 schedQueueCheck(delay, true, null, "queueCheck(filling)")
             } else {
                 logWarn("queueCheck | Queue Item Count (${qSize}) is abnormally high... Resetting Queue", true)
-                resetQueue()
+                resetQueue("queueCheck | High Item Count")
                 return
             }
         } else { state?.q_blocked = false }
@@ -2946,7 +2952,7 @@ private queueCheck(data) {
         return
     } else {
         logDebug("queueCheck | Nothing in the Queue | Performing Queue Reset...")
-        resetQueue()
+        resetQueue("queueCheck | Queue Empty")
         return
     }
 }
@@ -2978,12 +2984,12 @@ void processCmdQueue() {
 }
 
 Integer getAdjCmdDelay(elap, reqDelay) {
-    if(elap && reqDelay) {
+    if((elap >= 0) && (reqDelay >= 0)) {
         Integer res = (elap - reqDelay)?.abs()
-        // log.debug "getAdjCmdDelay | reqDelay: $reqDelay | elap: $elap | res: ${res+3}"
+        logTrace("getAdjCmdDelay | reqDelay: $reqDelay | elap: $elap | del: ${res < 3 ? 3 : res+3}")
         return res < 3 ? 3 : res+3
     }
-    return 5
+    return del
 }
 
 def testMultiCmd() {
@@ -2991,10 +2997,9 @@ def testMultiCmd() {
 }
 
 private speechCmd(headers=[:], isQueueCmd=false) {
-    //TODO: Look into adding an expiration timestamp for automatic removal from the queue
-    // if(isQueueCmd) log.warn "Blocked: ${state?.q_blocked} | cycleCnt: ${state?.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
+    // if(isQueueCmd) log.warn "QueueBlocked: ${state?.q_blocked} | cycleCnt: ${state?.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
     state?.q_speakingNow = true
-    def tr = "speechCmd (${headers?.cmdDesc}) | Msg: ${headers?.message}"
+    String tr = "speechCmd (${headers?.cmdDesc}) | Msg: ${headers?.message}"
     tr += headers?.newVolume ? " | SetVolume: (${headers?.newVolume})" : ""
     tr += headers?.oldVolume ? " | Restore Volume: (${headers?.oldVolume})" : ""
     tr += headers?.msgDelay  ? " | RecheckSeconds: (${headers?.msgDelay})" : ""
@@ -3031,11 +3036,15 @@ private speechCmd(headers=[:], isQueueCmd=false) {
         }
         Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state?.q_speakingNow == true))
         if(!isQueueCmd) { logItems?.push("│ SentToQueue: (${sendToQueue})") }
-        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
+        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | QueueSize: (${getQueueSize()}) | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
             queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
             runIn((settings?.autoResetQueue ?: 180), "resetQueue")
-            if(!isFirstCmd) { return }
+            if(!isFirstCmd) {
+                // log.debug "lastTtsCmdSec: ${getLastTtsCmdSec()} | Last Delay: ${state?.q_lastTtsCmdDelay}"
+                if(state?.q_lastTtsCmdDelay && getLastTtsCmdSec() > state?.q_lastTtsCmdDelay + 15) schedQueueCheck(3, true, null, "speechCmd(QueueStuck)")
+                return
+            }
         }
     }
     try {
@@ -3103,7 +3112,7 @@ private postCmdProcess(resp, statusCode, data) {
                 logDebug("Command Completed | Removing Queue Item: ${data?.queueKey}")
                 state?.remove(data?.queueKey as String)
             }
-            def pi = "${data?.cmdDesc ? "${data?.cmdDesc}" : "Command"}"
+            String pi = data?.cmdDesc ?: "Command"
             pi += data?.isSSML ? " (SSML)" : ""
             pi += " Sent"
             pi += " | (${data?.message})"
@@ -3112,7 +3121,7 @@ private postCmdProcess(resp, statusCode, data) {
             pi += logDebug && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" : ""
             pi += logDebug && data?.qId ? " | QueueID: (${data?.qId})" : ""
             pi += " | QueueItems: (${getQueueSize()})"
-            pi += " | Execution Time: (${execTime}ms)"
+            // pi += " | Time to Execute Msg: (${execTime}ms)"
             logInfo("${pi}")
 
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
@@ -3146,7 +3155,7 @@ private postCmdProcess(resp, statusCode, data) {
         } else {
             logError("postCmdProcess Error | status: ${statusCode} | Msg: ${respMsg}")
             logSpeech(data?.message, statusCode, respMsg)
-            resetQueue()
+            resetQueue("postCmdProcess | Error")
             return
         }
     }
