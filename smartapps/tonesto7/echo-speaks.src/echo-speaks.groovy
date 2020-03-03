@@ -1319,14 +1319,13 @@ private appCleanup() {
 
 void wsEvtHandler(evt) {
     // log.debug "evt: ${evt}"
-    if(evt && evt?.id && (evt?.attributes?.size() || evts?.triggers?.size())) {
+    if(evt && evt?.id && (evt?.attributes?.size() || evt?.triggers?.size())) {
         if("bluetooth" in evt?.triggers) { getBluetoothData() }
+        if("activity" in evt?.triggers) { getDeviceActivity(null, true) }
         if(evt?.all == true) {
             getEsDevices()?.each { eDev->
-                if(evt?.attributes?.size()) {
-                    evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
-                }
-                if(evt?.triggers?.size()) { it?.websocketUpdEvt(evt?.triggers) }
+                if(evt?.attributes?.size()) { evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) } }
+                if(evt?.triggers?.size()) { eDev?.websocketUpdEvt(evt?.triggers) }
             }
         } else {
             def eDev = findEchoDevice(evt?.id as String)
@@ -1910,7 +1909,6 @@ private getOtherData() {
     getDoNotDisturb()
     getBluetoothDevices()
     getMusicProviders()
-    // getDeviceActivity()
     // getCustomerData()
     // getAlexaSkills()
 }
@@ -1954,7 +1952,7 @@ def getBluetoothData(serialNumber) {
     return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName as String } ?: [], curConnName: curConnName]
 }
 
-def getDeviceActivity() {
+def getDeviceActivity(serialNum, frc=false) {
     try {
         Map params = [
             uri: getAmazonUrl(),
@@ -1963,42 +1961,39 @@ def getDeviceActivity() {
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
             contentType: "application/json"
         ]
-        Boolean wasLastDevice = false
-        Map aData = null
-        if(getLastTsValSecs("lastDevActChk") > 10) {
+        Map lastActData = atomicState?.lastDevActivity ?: null
+        // log.debug "activityData(IN): $lastActData"
+        Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
+        // log.debug "lastUpdSec: $lastUpdSec"
+        if(frc || lastUpdSec >= 5) {
+            updTsVal("lastDevActChk")
             httpGet(params) { response->
-                // log.debug("X-Amz-Cf-Id: ${response?.getHeaders("X-Amz-Cf-Id")}")
-                // log.debug("X-Amz-Cf-Pop: ${response?.getHeaders("X-Amz-Cf-Pop")}")
                 if (response?.data && response?.data?.activities != null) {
-                    updTsVal("lastDevActChk")
-                    def lastCommand = response?.data?.activities?.find { it?.domainAttributes && it?.domainAttributes?.startsWith("{") && it?.activityStatus?.equals("SUCCESS") && it?.sourceDeviceIds?.get(0)?.deviceType != null }
+                    def lastCommand = response?.data?.activities?.find {
+                        (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
+                        it?.activityStatus?.equals("SUCCESS") &&
+                        (it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) || it?.utteranceId?.startsWith("Vox:")) &&
+                        it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
+                    }
                     if (lastCommand) {
                         def lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand?.description)
                         def lastDevice = lastCommand?.sourceDeviceIds?.get(0)
-                        aData = [:]
-                        aData[lastDevice?.serialNumber] = [spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp]
+                        lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
+                        atomicState?.lastDevActivity = lastActData
                     }
-                    atomicState?.lastDevActivity = aData
                 }
             }
         }
+        if(lastActData && lastActData?.size() && lastActData?.serialNumber == serialNum) {
+            // log.debug "activityData(OUT): $lastActData"
+            return lastActData
+        } else { return null }
     } catch (ex) {
         if(!ex?.message == "Bad Request") {
             respExceptionHandler(ex, "getDeviceActivity")
         }
         // log.error "getDeviceActivity error: ${ex.message}"
     }
-}
-
-public getActivityData(serialNum) {
-    if(getLastTsValSecs("lastDevActChk") > 10) { getDeviceActivity() }
-    Map aData = atomicState?.lastDevActivity ?: null
-    log.debug "activityData: $aData"
-    if(aData && aData?.size() && aData[serialNum]) {
-        aData[serialNum]?.lastSpokenTo = true
-        // log.debug "aData: ${aData[serialNum]}"
-        return aData[serialNum]
-    } else { return null }
 }
 
 private getDoNotDisturb() {

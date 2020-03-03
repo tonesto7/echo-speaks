@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.6.0.0" }
-String devModified() { return "2020-03-02" }
+String devModified() { return "2020-03-03" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -160,6 +160,7 @@ def installed() {
     sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
     sendEvent(name: "trackDescription", value: "")
     sendEvent(name: "lastSpeakCmd", value: "Nothing sent yet...")
+    sendEvent(name: "wasLastSpokenToDevice", value: false)
     sendEvent(name: "doNotDisturb", value: false)
     sendEvent(name: "onlineStatus", value: "online")
     sendEvent(name: "followUpMode", value: false)
@@ -443,9 +444,7 @@ void websocketUpdEvt(triggers) {
                 case "activity":
                     runIn(2, "getDeviceActivity")
                     break
-
             }
-            //TODO: BUILD A DATA REFRESH QUEUE System
         }
     }
 }
@@ -489,7 +488,9 @@ private refreshData(full=false) {
             getDeviceSettings()
         }
         if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
-        getDeviceActivity()
+        if(!wsActive) {
+            getDeviceActivity()
+        }
         runIn(3, "refreshStage2")
     } else { state?.fullRefreshOk = false }
 }
@@ -516,11 +517,11 @@ private refreshStage2() {
 public setOnlineStatus(Boolean isOnline) {
     String onlStatus = (isOnline ? "online" : "offline")
     if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString())) {
-        sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), displayed: false, isStateChange: true)
+        sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), display: false, displayed: false)
     }
     if(isStateChange(device, "onlineStatus", onlStatus?.toString())) {
         logDebug("OnlineStatus has changed to (${onlStatus})")
-        sendEvent(name: "onlineStatus", value: onlStatus?.toString(), displayed: true, isStateChange: true)
+        sendEvent(name: "onlineStatus", value: onlStatus?.toString(), display: true, displayed: true)
     }
 }
 
@@ -612,7 +613,7 @@ def playbackStateHandler(playerInfo, isGroupResponse=false) {
         sendEvent(name: "audioTrackData", value: new groovy.json.JsonOutput().toJson(trackData), display: false, displayed: false)
     }
 
-    // Group response data never has valida data for volume
+    //NOTE: Group response data never has valid data for volume
     if(!isGroupResponse && playerInfo?.volume) {
         if(playerInfo?.volume?.volume != null) {
             Integer level = playerInfo?.volume?.volume
@@ -652,7 +653,7 @@ private getAlarmVolume() {
             // logTrace("getAlarmVolume: $sData")
             if(sData && isStateChange(device, "alarmVolume", (sData?.volumeLevel ?: 0)?.toString())) {
                 logDebug("Alarm Volume Changed to ${(sData?.volumeLevel ?: 0)}")
-                sendEvent(name: "alarmVolume", value: (sData?.volumeLevel ?: 0), display: false, displayed: false)
+                sendEvent(name: "alarmVolume", value: (sData?.volumeLevel ?: 0), display: true, displayed: true)
             }
         }
     } catch (ex) {
@@ -847,7 +848,7 @@ private getNotifications(type="Reminder", all=false) {
                 List items = sData?.notifications ? sData?.notifications?.findAll { (it?.status in s) && (it?.type == type) && it?.deviceSerialNumber == state?.serialNumber } : []
                 items?.each { item->
                     Map li = [:]
-                    item?.keySet()?.each { key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration']) { li[key] = item[key] } }
+                    item?.keySet()?.each { key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration', 'status']) { li[key] = item[key] } }
                     newList?.push(li)
                 }
             }
@@ -865,18 +866,21 @@ private getNotifications(type="Reminder", all=false) {
 
 private getDeviceActivity() {
     try {
-        def aData = parent?.getActivityData(state?.serialNumber) ?: null
-        Boolean wasLastDevice = (aData?.lastSpokenTo == true)
-        if (aData != null) {
-            if(isStateChange(device, "lastVoiceActivity", aData?.spokenText?.toString())) {
-                sendEvent(name: "lastVoiceActivity", value: aData?.spokenText?.toString(), display: false, displayed: false)
-            }
-            if(isStateChange(device, "lastSpokenToTime", aData?.lastSpokenDt?.toString())) {
-                sendEvent(name: "lastSpokenToTime", value: aData?.lastSpokenDt?.toString(), display: false, displayed: false)
+        Map actData = parent?.getDeviceActivity(state?.serialNumber) ?: null
+        Boolean wasLastDevice = (actData && actData?.serialNumber == state?.serialNumber)
+        if(actData) {
+            if (wasLastDevice) {
+                if(isStateChange(device, "lastVoiceActivity", actData?.spokenText?.toString())) {
+                    log.debug("lastVoiceActivity: ${actData?.spokenText}")
+                    sendEvent(name: "lastVoiceActivity", value: actData?.spokenText?.toString(), display: false, displayed: false)
+                }
+                if(isStateChange(device, "lastSpokenToTime", actData?.lastSpokenDt?.toString())) {
+                    sendEvent(name: "lastSpokenToTime", value: actData?.lastSpokenDt?.toString(), display: false, displayed: false)
+                }
             }
         }
         if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice?.toString())) {
-            logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
+            // log.debug("wasLastSpokenToDevice: ${wasLastDevice}")
             sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
         }
     } catch (ex) {
@@ -1163,8 +1167,8 @@ def setLevel(level) {
     if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
         if(level != device?.currentValue('level')) {
             sendSequenceCommand("VolumeCommand", "volume", level)
-            sendEvent(name: "level", value: level?.toInteger(), display: false, displayed: false)
-            sendEvent(name: "volume", value: level?.toInteger(), display: false, displayed: false)
+            sendEvent(name: "level", value: level?.toInteger(), display: true, displayed: true)
+            sendEvent(name: "volume", value: level?.toInteger(), display: true, displayed: true)
         }
     }
 }
@@ -1184,7 +1188,7 @@ def setAlarmVolume(vol) {
                 volumeLevel: vol
             ]
         ], [cmdDesc: "AlarmVolume"])
-        sendEvent(name: "alarmVolume", value: vol, display: false, displayed: false)
+        sendEvent(name: "alarmVolume", value: vol, display: true, displayed: true)
     }
 }
 
@@ -2766,11 +2770,11 @@ private postCmdProcess(resp, statusCode, data) {
             if(data?.cmdDesc && data?.cmdDesc == "SpeakCommand" && data?.message) {
                 state?.lastTtsCmdDt = getDtNow()
                 String lastMsg = data?.message as String ?: "Nothing to Show Here..."
-                sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Speech text: ${lastMsg}", display: true, displayed: true)
+                sendEvent(name: "lastSpeakCmd", value: "${lastMsg}", descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true)
                 sendEvent(name: "lastCmdSentDt", value: "${state?.lastTtsCmdDt}", descriptionText: "Last Command Timestamp: ${state?.lastTtsCmdDt}", display: false, displayed: false)
                 if(data?.oldVolume || data?.newVolume) {
-                    sendEvent(name: "level", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: false, displayed: false)
-                    sendEvent(name: "volume", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: false, displayed: false)
+                    sendEvent(name: "level", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: true, displayed: true)
+                    sendEvent(name: "volume", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: true, displayed: true)
                 }
                 schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), data?.msgDelay), true, null, "postCmdProcess(adjDelay)")
                 logSpeech(data?.message, statusCode, null)

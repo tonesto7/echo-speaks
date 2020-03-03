@@ -3,12 +3,26 @@
  ══════════
   Main App (v3.6.0.0)
   • UPDATED: Reverted the device detection logic and added the data directly into the main app code.
-  • FIXED: Slight change to the getDeviceActivity() to make it more accurate.
+  • FIXED: Changes to the getDeviceActivity() logic to make it quicker and more accurate.
+  • FIXED: Device Activity which was ruined after my last update.
+  • FIXED: WebSocket Events not updating device info (Hubitat Only).
+
+  Action App (v3.6.0.0)
+  • FIXED: Bugs fixed and optimizations.
+
+  Zone App (v3.6.0.0)
+  • FIXED: Bugs fixed and optimizations.
 
   Echo Device (v3.6.0.0)
   • FIXED: Issue with Queue not working.
   • FIXED: Issue with Queue getting stuck in rare scenarios..
+  • FIXED: Device Activity which was ruined after my last update.
+  • FIXED: WebSocket Events not updating device info (Hubitat Only).
+  • FIXED: Cleaned up device events filling up device history (ST)
   • UPDATED: Log cleanups.
+
+  WebSocket Device (v3.3.0.0)
+  • FIXED: WebSocket Events not working for Device Activity (Hubitat Only).
 
   Server (v2.4.0)
   • FIXED: Wakeup fixes.
