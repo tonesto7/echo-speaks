@@ -2630,8 +2630,7 @@ def testMultiCmd() {
 }
 
 private speechCmd(headers=[:], isQueueCmd=false) {
-    //TODO: Look into adding an expiration timestamp for automatic removal from the queue
-    // if(isQueueCmd) log.warn "Blocked: ${state?.q_blocked} | cycleCnt: ${state?.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
+    if(isQueueCmd) log.warn "Blocked: ${state?.q_blocked} | cycleCnt: ${state?.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
     state?.q_speakingNow = true
     def tr = "speechCmd (${headers?.cmdDesc}) | Msg: ${headers?.message}"
     tr += headers?.newVolume ? " | SetVolume: (${headers?.newVolume})" : ""
@@ -2670,7 +2669,7 @@ private speechCmd(headers=[:], isQueueCmd=false) {
         }
         Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state?.q_speakingNow == true))
         if(!isQueueCmd) { logItems?.push("│ SentToQueue: (${sendToQueue})") }
-        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
+        log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()})() | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
             queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
             runIn((settings?.autoResetQueue ?: 180), "resetQueue")
