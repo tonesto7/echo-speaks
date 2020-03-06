@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()   { return "3.6.0.0" }
-String appModified()  { return "2020-03-03" }
+String appVersion()   { return "3.6.1.0" }
+String appModified()  { return "2020-03-05" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -877,8 +877,9 @@ def notifPrefPage() {
                     input (name: "misPollNotifyMsgWaitVal", type: "enum", title: inTS("Send Reminder After?", getAppImg("reminder", true)), description: "Default: 1 Hour", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
                 }
             }
-            section(sTS("Cookie Refresh Alert:")) {
+            section(sTS("Cookie Alerts:")) {
                 input (name: "sendCookieRefreshMsg", type: "bool", title: inTS("Send on Refreshed Cookie?", getAppImg("cookie", true)), defaultValue: false, submitOnChange: true, image: getAppImg("cookie"))
+                input (name: "sendCookieInvalidMsg", type: "bool", title: inTS("Send on Invalid Cookie?", getAppImg("cookie", true)), defaultValue: true, submitOnChange: true, image: getAppImg("cookie"))
             }
             section(sTS("Code Update Alerts:")) {
                 input "sendAppUpdateMsg", "bool", title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update")
@@ -1630,7 +1631,10 @@ private authEvtHandler(Boolean isAuth, String src=null) {
     if(isAuth == false && !state?.noAuthActive) {
         clearCookieData()
         noAuthReminder()
-        sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
+        if(settings?.sendCookieInvalidMsg != false && getLastTsValSecs("lastCookieInvalidMsgDt") > 28800) {
+            sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
+            updTsVal("lastCookieInvalidMsgDt")
+        }
         runEvery1Hour("noAuthReminder")
         state?.noAuthActive = true
         state?.authEvtClearReason = [dt: getDtNow(), src: src]
@@ -1725,7 +1729,10 @@ def cookieRefreshResp(response, data) {
         // log.debug "rData: $rData"
         if (rData && rData?.result && rData?.result?.size()) {
             logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
-            if(settings?.sendCookieRefreshMsg == true) { sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!") }
+            if(settings?.sendCookieRefreshMsg == true && getLastTsValSecs("lastCookieRfshMsgDt") > 15) {
+                sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!")
+                updTsVal("lastCookieRfshMsgDt")
+            }
             // log.debug "refreshAlexaCookie Response: ${rData?.result}"
         }
     } catch(ex) {
@@ -2592,8 +2599,10 @@ def receiveEventData(Map evtData, String src) {
                 }
                 if(!isST()) {
                     String wsChildHandlerName = "Echo Speaks WS"
-                    def wsDevice = getChildDevice("echoSpeaks_websocket")
-                    if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
+                    def oldWsDev = getChildDevice("echoSpeaks_websocket")
+                    if(oldWsDev) { isST() ? deleteChildDevice("echoSpeaks_websocket", true) : deleteChildDevice("echoSpeaks_websocket") }
+                    def wsDevice = getChildDevice("${app?.getId()}|echoSpeaks_websocket")
+                    if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "${app?.getId()}|echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
                     updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastTsValSecs("lastDevDataUpdDt")/60).toFloat()?.round(1)} minutes)")
@@ -4900,7 +4909,7 @@ String getAppDebugDesc() {
 }
 
 private addToLogHistory(String logKey, msg, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() > 70)
+    Boolean ssOk = (stateSizePerc() <= 70)
     List eData = atomicState[logKey as String] ?: []
     if(eData?.find { it?.message == msg }) { return; }
     eData?.push([dt: getDtNow(), message: msg])
