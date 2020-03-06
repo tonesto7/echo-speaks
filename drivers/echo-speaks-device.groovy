@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.6.0.0" }
-String devModified() { return "2020-03-03" }
+String devVersion()  { return "3.6.1.0" }
+String devModified() { return "2020-03-06" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }

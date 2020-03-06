@@ -1,20 +1,23 @@
-  ══════════
+ ══════════
   March 6th, 2020
  ══════════
   Main App (v3.6.1.0)
-  • UPDATED: Device detection metadata is now embedded into the app code to significantly reduce platform load and web calls (over 1 million requests an hour across the ST platform alone).
-  • FIXED: Changes to the getDeviceActivity() logic to make it actually work (since the last update broke it), and should update quicker and more accurately.
-  • FIXED: WebSocket Events not updating device info (Hubitat Only).
+  • ADDED: Notification options on whether to alert when cookie is invalid.
+  • FIXED: Added rate-limit to invalid cookie notifications.
+  • FIXED: Logging Storage State Size Fix.
+  • ADDED: WebSocket device id changed to add the the parent app id so you can have multiple instances (Hubitat Only).
 
-  Action App (v3.6.0.0)
-  • FIXED: Bugs fixed and optimizations.
+  Action App (v3.6.1.0)
+  • FIXED: Logging Storage State Size Fix.
 
-  Zone App (v3.6.0.0)
-  • FIXED: Bugs fixed and optimizations.
+  Zone App (v3.6.1.0)
+  • FIXED: Logging Storage State Size Fix.
 
+  Echo Device (v3.6.1.0)
+  • FIXED: Logging Storage State Size Fix.
 _____________________________________
 
-  ══════════
+ ══════════
   March 3rd, 2020
  ══════════
   Main App (v3.6.0.0)
