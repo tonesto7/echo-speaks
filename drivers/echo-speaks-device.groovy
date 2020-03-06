@@ -2296,9 +2296,10 @@ def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
 
 String uriSpeechParser(uri) {
     // Thanks @fkrlaframboise for this idea.  It never for one second occurred to me to parse out the trackUri...
+    // log.debug "uri: $uri"
     if (uri?.toString()?.contains("/")) {
         Integer sInd = uri?.lastIndexOf("/") + 1
-        uri = uri?.substring(sInd, uri?.size())?.toLowerCase()?.replace(".mp3", "")
+        uri = uri?.substring(sInd, uri?.size())?.toLowerCase()?.replaceAll("_", " ")?.replace(".mp3", "")
         logDebug("uriSpeechParser | tts: $uri")
         return uri
     }
