@@ -1,4 +1,23 @@
-  ══════════
+ ══════════
+  March 6th, 2020
+ ══════════
+  Main App (v3.6.1.0)
+  • ADDED: Notification options on whether to alert when cookie is invalid.
+  • FIXED: Added rate-limit to invalid cookie notifications.
+  • FIXED: Logging Storage State Size Fix.
+  • ADDED: WebSocket device id changed to add the the parent app id so you can have multiple instances (Hubitat Only).
+
+  Action App (v3.6.1.0)
+  • FIXED: Logging Storage State Size Fix.
+
+  Zone App (v3.6.1.0)
+  • FIXED: Logging Storage State Size Fix.
+
+  Echo Device (v3.6.1.0)
+  • FIXED: Logging Storage State Size Fix.
+_____________________________________
+
+ ══════════
   March 3rd, 2020
  ══════════
   Main App (v3.6.0.0)

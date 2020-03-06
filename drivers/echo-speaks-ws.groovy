@@ -17,7 +17,7 @@
 // NOTICE: This device will not work on SmartThings
 
 String devVersion()  { return "3.3.0.0"}
-String devModified() { return "2020-03-03" }
+String devModified() { return "2020-03-06" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return true }
@@ -608,12 +608,12 @@ def parseDt(dt, dtFmt) {
     return Date.parse(dtFmt, dt)
 }
 private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() > 70)
+    Boolean ssOk = (stateSizePerc() <= 70)
     List eData = state?.containsKey(logKey as String) ? state[logKey as String] : []
     if(eData?.find { it?.message == msg }) { return; }
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
-	if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+	if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
 	state[logKey as String] = eData
 }
 private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Socket (v${devVersion()}) | ${msg}" } }
