@@ -3461,34 +3461,34 @@ private getDiagDataJson() {
                     ]
                 ],
                 stateUsage: "${stateSizePerc()}%",
-                warnings: appWarnings,
-                errors: appErrors
+                warnings: appWarnings ?: [],
+                errors: appErrors ?: []
             ],
             actions: [
                 version: state?.codeVersions?.actionApp ?: null,
                 count: actApps?.size() ?: 0,
-                warnings: actWarnings,
-                errors: actErrors
+                warnings: actWarnings ?: [],
+                errors: actErrors ?: []
             ],
-            zoness: [
+            zones: [
                 version: state?.codeVersions?.zoneApp ?: null,
                 count: zoneApps?.size() ?: 0,
-                warnings: zoneWarnings,
-                errors: zoneErrors
+                warnings: zoneWarnings ?: [],
+                errors: zoneErrors ?: []
             ],
             devices: [
                 version: state?.codeVersions?.echoDevice ?: null,
                 count: echoDevs?.size() ?: 0,
                 lastDataUpdDt: getTsVal("lastDevDataUpdDt"),
                 models: state?.deviceStyleCnts ?: [:],
-                warnings: devWarnings,
-                errors: devErrors,
+                warnings: devWarnings ?: [],
+                errors: devErrors ?: [],
                 speech: devSpeech
             ],
             socket: [
                 version: state?.codeVersions?.wsDevice ?: null,
-                warnings: sockWarnings,
-                errors: sockErrors,
+                warnings: sockWarnings ?: [],
+                errors: sockErrors ?: [],
                 active: state?.websocketActive,
                 lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
             ],
@@ -3944,8 +3944,8 @@ String getNotifSchedDesc(min=false) {
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
     def qDays = getQuietDays()
-    notifDesc += days ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl) ? "\n" : ""} • Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
-    notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || days) ? "\n" : ""} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
+    notifDesc += dayInput && qDays ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl) ? "\n" : ""} • Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
+    notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || (dayInput && qDays)) ? "\n" : ""} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
     return (notifDesc != "") ? "${notifDesc}" : null
 }
 
