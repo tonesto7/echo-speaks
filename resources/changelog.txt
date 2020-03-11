@@ -1,4 +1,14 @@
  ══════════
+  March 11th, 2020
+ ══════════
+  Main App (v3.6.1.1)
+  • FIXED: Scenario where cookie auth failed and server wakeup request was still being sent every 5 minutes.
+
+  Server (v2.4.1)
+  • FIXED: Cookies being cleared by server after v2.4.0 upgrade.
+_____________________________________
+
+ ══════════
   March 6th, 2020
  ══════════
   Main App (v3.6.1.0)

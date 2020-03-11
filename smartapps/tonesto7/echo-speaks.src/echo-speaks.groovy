@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()   { return "3.6.1.0" }
-String appModified()  { return "2020-03-06" }
+String appVersion()   { return "3.6.1.1" }
+String appModified()  { return "2020-03-11" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -1679,30 +1679,31 @@ def clearServerAuth() {
     }
 }
 
-private wakeupServer(c=false, g=false) {
+private wakeupServer(c=false, g=false, src) {
     Map params = [
         uri: getServerHostURL(),
-        path: "/config",
-        contentType: "text/html",
-        requestContentType: "text/html"
+        path: "/wakeup",
+        headers: [wakesrc: src],
+        contentType: "text/plain",
+        requestContentType: "text/plain"
     ]
-    execAsyncCmd("get", "wakeupServerResp", params, [execDt: now(), refreshCookie: c, updateGuard: g])
+    if(!getCookieVal() || !getCsrfVal()) { logWarn("wakeupServer | Cookie or CSRF Missing... Skipping Wakeup"); return; }
+    execAsyncCmd("post", "wakeupServerResp", params, [execDt: now(), refreshCookie: c, updateGuard: g, wakesrc: src])
 }
 
 private runCookieRefresh() {
     settingUpdate("refreshCookie", "false", "bool")
     if(getLastTsValSecs("lastCookieRrshDt", 500000) < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return; }
-    wakeupServer(true)
+    wakeupServer(true, false, "runCookieRefresh")
 }
 
 def wakeupServerResp(response, data) {
     def rData = null
     try { rData = response?.data ?: null }
     catch(ex) { logError("wakeupServerResp Exception: ${ex}") }
-    if (rData) {
-        // log.debug "rData: $rData"
-        updTsVal("lastServerWakeDt")
-        logInfo("wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
+    updTsVal("lastServerWakeDt")
+    if (rData && rData == "OK") {
+        logInfo("wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms) | Source: (${data?.wakesrc})")
         if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
         if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
     }
@@ -2116,7 +2117,7 @@ def checkGuardSupportResponse(response, data) {
             logInfo("GuardSupport Response Length: ${respLen}")
             Map minUpdMap = getMinVerUpdsRequired()
             if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
-                wakeupServer(false, true)
+                wakeupServer(false, true, "checkGuardSupport")
                 logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
             } else {
                 logWarn("Can't check for Guard Support because server version is out of date...  Please update to the latest version...")
@@ -2866,7 +2867,7 @@ private healthCheck() {
         runCookieRefresh()
     } else if (getLastTsValSecs("lastGuardSupChkDt") > 43200) {
         checkGuardSupport()
-    } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer() }
+    } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
     if(!isST() && getSocketDevice()?.isSocketActive() != true) { getSocketDevice()?.triggerInitialize() }
     if(state?.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(!getOk2Notify()) { return }
@@ -3461,34 +3462,34 @@ private getDiagDataJson() {
                     ]
                 ],
                 stateUsage: "${stateSizePerc()}%",
-                warnings: appWarnings,
-                errors: appErrors
+                warnings: appWarnings ?: [],
+                errors: appErrors ?: []
             ],
             actions: [
                 version: state?.codeVersions?.actionApp ?: null,
                 count: actApps?.size() ?: 0,
-                warnings: actWarnings,
-                errors: actErrors
+                warnings: actWarnings ?: [],
+                errors: actErrors ?: []
             ],
-            zoness: [
+            zones: [
                 version: state?.codeVersions?.zoneApp ?: null,
                 count: zoneApps?.size() ?: 0,
-                warnings: zoneWarnings,
-                errors: zoneErrors
+                warnings: zoneWarnings ?: [],
+                errors: zoneErrors ?: []
             ],
             devices: [
                 version: state?.codeVersions?.echoDevice ?: null,
                 count: echoDevs?.size() ?: 0,
                 lastDataUpdDt: getTsVal("lastDevDataUpdDt"),
                 models: state?.deviceStyleCnts ?: [:],
-                warnings: devWarnings,
-                errors: devErrors,
+                warnings: devWarnings ?: [],
+                errors: devErrors ?: [],
                 speech: devSpeech
             ],
             socket: [
                 version: state?.codeVersions?.wsDevice ?: null,
-                warnings: sockWarnings,
-                errors: sockErrors,
+                warnings: sockWarnings ?: [],
+                errors: sockErrors ?: [],
                 active: state?.websocketActive,
                 lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
             ],
@@ -3625,7 +3626,7 @@ def execDiagCmds() {
                 status = validateCookie(true);
                 break
             case "wakeupServer":
-                wakeupServer()
+                wakeupServer(false, false, "Diagnostic Command")
                 status = true
                 break
             case "cookieRefresh":
@@ -3944,8 +3945,8 @@ String getNotifSchedDesc(min=false) {
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
     def qDays = getQuietDays()
-    notifDesc += days ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl) ? "\n" : ""} • Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
-    notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || days) ? "\n" : ""} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
+    notifDesc += dayInput && qDays ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl) ? "\n" : ""} • Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
+    notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || (dayInput && qDays)) ? "\n" : ""} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : ""
     return (notifDesc != "") ? "${notifDesc}" : null
 }
 
