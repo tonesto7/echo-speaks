@@ -193,8 +193,8 @@ def authStatusPage() {
             section(sTS("Cookie Tools: (Tap to show)"), hideable: true, hidden: true) {
                 String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
                 input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every?\n(in days)", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
-                if(refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
-                if(refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
+                if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
+                if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
                 if(!isST()) { paragraph pTS("in Days (1-5 max)", null, false, "gray") }
                 // Refreshes the cookie
                 input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? "" : null)
@@ -1428,6 +1428,7 @@ mappings {
     path("/diagData")                   { action: [GET: "getDiagData"] }
     path("/diagCmds/:cmd")              { action: [GET: "execDiagCmds"] }
     path("/diagDataJson")               { action: [GET: "getDiagDataJson"] }
+    path("/diagDataText")               { action: [GET: "getDiagDataText"] }
 }
 
 String getCookieVal() { return (state?.cookieData && state?.cookieData?.localCookie) ? state?.cookieData?.localCookie as String : null }
@@ -3389,7 +3390,7 @@ Map getAvailableSounds() {
 |    Diagnostic Data
 *******************************************/
 
-private getDiagDataJson() {
+private getDiagDataJson(asObj = false) {
     try {
         updChildVers()
         def echoDevs = getEsDevices()
@@ -3546,10 +3547,23 @@ private getDiagDataJson() {
             ]
         ]
         def json = new groovy.json.JsonOutput().toJson(output)
+        if(asObj) {
+            return json
+        }
         render contentType: "application/json", data: json, status: 200
     } catch (ex) {
         logError("getDiagData: Exception: ${ex}")
+        if(asObj) { return null }
         render contentType: "application/json", data: [status: "failed", error: ex], status: 500
+    }
+}
+
+private getDiagDataText() {
+    def jsonIn = getDiagDataJson(true)
+    def txtOut = null
+    if(jsonIn) {
+        def o = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
+        render contentType: "text/plain", data: o, status: 200
     }
 }
 
@@ -3560,50 +3574,81 @@ def getDiagData() {
         <html lang="en">
             <head>
                 <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <meta http-equiv="x-ua-compatible" content="ie=edge">
+                <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+                <meta name="description" content="${title}">
+                <meta name="author" content="Anthony S.">
+                <meta http-equiv="cleartype" content="on">
+                <meta name="MobileOptimized" content="320">
+                <meta name="HandheldFriendly" content="True">
                 <title>Echo Speak Diagnostics</title>
-                <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
-                <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
-                <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/css/mdb.min.css" rel="stylesheet">
+                <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+                <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.14.0/css/mdb.min.css" rel="stylesheet">
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
-                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.4.1/js/bootstrap.min.js"></script>
                 <script>
                     let cmdUrl = '${getAppEndpointUrl("diagCmds")}';
                 </script>
+                <style>
+                    .bg-less-dark { background-color: #373c40 !important; color: #fff !important;}
+                    .rounded-15 { border-radius: 15px !important; }
+                    .rounded-5 { border-radius: 5px !important; }
+                    .btn-matrix button { width: 135px; }
+                    .btn-matrix > .btn:nth-child(Xn+X+1) { clear: left; margin-left: 0; }
+                    .btn-matrix > .btn:nth-child(n+X+1) { margin-top: -1px; }
+                    .btn-matrix > .btn:first-child { border-bottom-left-radius: 0; }
+                    .btn-matrix > .btn:nth-child(X) { border-top-right-radius: 4px !important; }
+                    .btn-matrix > .btn:nth-last-child(X) { border-bottom-left-radius: 4px !important; }
+                    .btn-matrix > .btn:last-child { border-top-right-radius: 0; }
+                    .btn-matrix { margin: 20px; flex-wrap: wrap;}
+                    .valign-center { display: grid; vertical-align: middle; align-items: center;}
+                </style>
             </head>
-            <body>
+            <body class="bg-less-dark">
                 <div class="container-fluid">
                     <div class="text-center">
                         <h3 class="mt-4 mb-0">Echo Speaks Diagnostics</h3>
                         <p>(v${appVersion()})</p>
                     </div>
+                    <div class="text-center">
+                        <h5 class="mt-4 mb-0">Diagnostic Data</h5>
+                    </div>
                     <div class="px-0">
                         <div class="d-flex justify-content-center">
-                            <button id="emailBtn" onclick="location.href='mailto:${ema?.toString()}?subject=Echo%20Speaks%20Diagnostics&body=${getAppEndpointUrl("diagData")}'" class="btn btn-sm btn-success px-3 my-2 mx-3" type="button"><i class="fas fa-envelope mr-1"></i>Email Link to Dev</button>
-                            <button id="jsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info px-3 my-2 mx-3" type="button"><i class="fas fa-code mr-1"></i>View JSON</button>
+                            <div class="btn-group btn-matrix mt-1">
+                                <button id="emailBtn" onclick="location.href='mailto:${ema?.toString()}?subject=Echo%20Speaks%20Diagnostics&body=${getAppEndpointUrl("diagData")}'" class="btn btn-sm btn-success rounded-15 p-2 my-2 mx-3" type="button"><div class="valign-center"><i class="fas fa-envelope fa-2x m-1"></i><span class="">Share with Developer</span></div></button>
+                                <button id="asJsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info rounded-15 p-2 my-2 mx-3" type="button"><div class="valign-center"><i class="fas fa-code fa-2x m-1"></i><span>View Data as JSON</span></div></button>
+                                <button id="asTextBtn" onclick="location.href='${getAppEndpointUrl("diagDataText")}'" class="btn btn-sm btn-dark rounded-15 p-2 my-2 mx-3" type="button"><div class="valign-center"><i class="fas fa-file-alt fa-2x m-1"></i><span>View Data as Text</span></div></button>
+                            </div>
                         </div>
                     </div>
                     <div class="text-center">
-                        <h4 class="my-4">Remote Commands</h4>
+                        <h5 class="mt-4 mb-0">Remote Commands</h5>
                     </div>
-                    <div>
+                    <div class="px-0">
                         <div class="d-flex justify-content-center">
-                            <section class="">
-                                <button id="wakeupServer" data-cmdtype="wakeupServer" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Wakeup Server</button>
-                                <button id="validateAuth" data-cmdtype="validateAuth" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Validate Auth</button>
-                                <button id="clearLogs" data-cmdtype="clearLogs" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Clear Logs</button>
-                                <button id="execUpdate" data-cmdtype="execUpdate" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Execute Update()</button>
-                                <button id="forceDeviceSync" data-cmdtype="forceDeviceSync" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Device Auth Sync</button>
-                                <button id="cookieRefresh" data-cmdtype="cookieRefresh" class="btn btn-sm btn-error px-3 my-2 mx-3 cmd_btn" type="button"><i class="fas fa-x mr-1"></i>Refresh Cookie</button>
+                            <section class="btn-group btn-matrix mt-1">
+                                <button id="wakeupServer" data-cmdtype="wakeupServer" class="btn btn-sm btn-outline-light rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-server fa-2x m-1"></i><span>Wakeup Server</span></div></button>
+                                <button id="forceDeviceSync" data-cmdtype="forceDeviceSync" class="btn btn-sm btn-outline-light rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-sync fa-2x m-1"></i><span>Device Auth Sync</span></div></button>
+                                <button id="execUpdate" data-cmdtype="execUpdate" class="btn btn-sm btn-outline-light rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-arrow-circle-up fa-2x m-1"></i><span>Execute Update()</span></div></button>
+                                <button id="validateAuth" data-cmdtype="validateAuth" class="btn btn-sm btn-outline-warning rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-check fa-2x m-1"></i><span>Validate Auth</span></div></button>
+                                <button id="clearLogs" data-cmdtype="clearLogs" class="btn btn-sm btn-outline-warning rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-broom fa-2x m-1"></i><span>Clear Logs</span></div></button>
+                                <button id="cookieRefresh" data-cmdtype="cookieRefresh" class="btn btn-sm btn-outline-danger rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-cookie-bite fa-2x m-1"></i><span>Refresh Cookie</span></div></button>
                             </section>
+                        </div>
+                    </div>
+                    <div class="w-100" style="position: fixed; bottom: 0;">
+                        <div class="form-group ml-0 mr-4">
+                            <label for="exampleFormControlTextarea1">External URL (Click/Tap to Select)</label>
+                            <textarea class="form-control z-depth-1" id="exampleFormControlTextarea1" onclick="this.focus();this.select()" rows="3" readonly>${getAppEndpointUrl("diagData")}</textarea>
                         </div>
                     </div>
                 </div>
             </body>
-            <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
+            <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.14.0/js/mdb.min.js"></script>
             <script>
                 \$('.cmd_btn').click(function() { console.log('cmd_btn type: ', \$(this).attr("data-cmdtype")); execCmd(\$(this).attr("data-cmdtype")); });
                 function execCmd(cmd) { if(!cmd) return; \$.getJSON(cmdUrl.replace('diagCmds', `diagCmds/\${cmd}`), function(result){ console.log(result); }); }
