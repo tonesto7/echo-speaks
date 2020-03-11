@@ -3574,21 +3574,29 @@ def getDiagData() {
         <html lang="en">
             <head>
                 <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <meta http-equiv="x-ua-compatible" content="ie=edge">
+                <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+                <meta name="description" content="${title}">
+                <meta name="author" content="Anthony S.">
+                <meta http-equiv="cleartype" content="on">
+                <meta name="MobileOptimized" content="320">
+                <meta name="HandheldFriendly" content="True">
                 <title>Echo Speak Diagnostics</title>
-                <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
-                <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
-                <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/css/mdb.min.css" rel="stylesheet">
+                <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+                <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.14.0/css/mdb.min.css" rel="stylesheet">
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
                 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
-                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+                <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.4.1/js/bootstrap.min.js"></script>
                 <script>
                     let cmdUrl = '${getAppEndpointUrl("diagCmds")}';
                 </script>
                 <style>
-                    .btn-matrix button { width: 140px; }
+                    .bg-less-dark { background-color: #373c40 !important; color: #fff !important;}
+                    .rounded-15 { border-radius: 15px !important; }
+                    .rounded-5 { border-radius: 5px !important; }
+                    .btn-matrix button { width: 135px; }
                     .btn-matrix > .btn:nth-child(Xn+X+1) { clear: left; margin-left: 0; }
                     .btn-matrix > .btn:nth-child(n+X+1) { margin-top: -1px; }
                     .btn-matrix > .btn:first-child { border-bottom-left-radius: 0; }
@@ -3596,55 +3604,51 @@ def getDiagData() {
                     .btn-matrix > .btn:nth-last-child(X) { border-bottom-left-radius: 4px !important; }
                     .btn-matrix > .btn:last-child { border-top-right-radius: 0; }
                     .btn-matrix { margin: 20px; flex-wrap: wrap;}
-                    .valign-center { display: inline-flex; vertical-align: middle; align-items: center; }
-                    .diagurl { display: block; margin-left: auto; margin-right: auto; }
+                    .valign-center { display: grid; vertical-align: middle; align-items: center;}
                 </style>
             </head>
-            <body>
+            <body class="bg-less-dark">
                 <div class="container-fluid">
                     <div class="text-center">
                         <h3 class="mt-4 mb-0">Echo Speaks Diagnostics</h3>
                         <p>(v${appVersion()})</p>
                     </div>
+                    <div class="text-center">
+                        <h5 class="mt-4 mb-0">Diagnostic Data</h5>
+                    </div>
                     <div class="px-0">
                         <div class="d-flex justify-content-center">
                             <div class="btn-group btn-matrix mt-1">
-                                <button id="emailBtn" onclick="location.href='mailto:${ema?.toString()}?subject=Echo%20Speaks%20Diagnostics&body=${getAppEndpointUrl("diagData")}'" class="btn btn-sm btn-success px-3 my-2 mx-3" type="button">
-                                    <div class="valign-center"><i class="fas fa-envelope fa-2x mr-1"></i><span>Email Link to Developer</span></div>
-                                </button>
-                                <button id="asJsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info px-3 my-2 mx-3" type="button">
-                                    <div class="valign-center"><i class="fas fa-code fa-2x mr-1"></i><span>View Data as JSON</span></div>
-                                </button>
-                                <button id="asTextBtn" onclick="location.href='${getAppEndpointUrl("diagDataText")}'" class="btn btn-sm btn-dark px-3 my-2 mx-3" type="button">
-                                    <div class="valign-center"><i class="fas fa-file-alt fa-2x mr-1"></i><span>View Data as Text</span></div>
-                                </button>
+                                <button id="emailBtn" onclick="location.href='mailto:${ema?.toString()}?subject=Echo%20Speaks%20Diagnostics&body=${getAppEndpointUrl("diagData")}'" class="btn btn-sm btn-success rounded-15 p-2 my-2 mx-3" type="button"><div class="valign-center"><i class="fas fa-envelope fa-2x m-1"></i><span class="">Share with Developer</span></div></button>
+                                <button id="asJsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info rounded-15 p-2 my-2 mx-3" type="button"><div class="valign-center"><i class="fas fa-code fa-2x m-1"></i><span>View Data as JSON</span></div></button>
+                                <button id="asTextBtn" onclick="location.href='${getAppEndpointUrl("diagDataText")}'" class="btn btn-sm btn-dark rounded-15 p-2 my-2 mx-3" type="button"><div class="valign-center"><i class="fas fa-file-alt fa-2x m-1"></i><span>View Data as Text</span></div></button>
                             </div>
                         </div>
                     </div>
                     <div class="text-center">
-                        <h4 class="mt-4 mb-1">Remote Commands</h4>
+                        <h5 class="mt-4 mb-0">Remote Commands</h5>
                     </div>
                     <div class="px-0">
                         <div class="d-flex justify-content-center">
                             <section class="btn-group btn-matrix mt-1">
-                                <button id="wakeupServer" data-cmdtype="wakeupServer" class="btn btn-sm btn-outline-dark px-3 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-server fa-2x mr-1"></i><span>Wakeup Server</span></div></button>
-                                <button id="forceDeviceSync" data-cmdtype="forceDeviceSync" class="btn btn-sm btn-outline-dark px-3 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-sync fa-2x mr-1"></i><span>Device Auth Sync</span></div></button>
-                                <button id="execUpdate" data-cmdtype="execUpdate" class="btn btn-sm btn-outline-dark px-3 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-arrow-circle-up fa-2x mr-1"></i><span>Execute Update()</span></div></button>
-                                <button id="validateAuth" data-cmdtype="validateAuth" class="btn btn-sm btn-outline-warning px-3 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-check fa-2x mr-1"></i><span>Validate Auth</span></div></button>
-                                <button id="clearLogs" data-cmdtype="clearLogs" class="btn btn-sm btn-outline-warning px-3 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-broom fa-2x mr-1"></i><span>Clear Logs</span></div></button>
-                                <button id="cookieRefresh" data-cmdtype="cookieRefresh" class="btn btn-sm btn-outline-danger px-3 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-cookie-bite fa-2x mr-1"></i><span>Refresh Cookie</span></div></button>
+                                <button id="wakeupServer" data-cmdtype="wakeupServer" class="btn btn-sm btn-outline-light rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-server fa-2x m-1"></i><span>Wakeup Server</span></div></button>
+                                <button id="forceDeviceSync" data-cmdtype="forceDeviceSync" class="btn btn-sm btn-outline-light rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-sync fa-2x m-1"></i><span>Device Auth Sync</span></div></button>
+                                <button id="execUpdate" data-cmdtype="execUpdate" class="btn btn-sm btn-outline-light rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-arrow-circle-up fa-2x m-1"></i><span>Execute Update()</span></div></button>
+                                <button id="validateAuth" data-cmdtype="validateAuth" class="btn btn-sm btn-outline-warning rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-check fa-2x m-1"></i><span>Validate Auth</span></div></button>
+                                <button id="clearLogs" data-cmdtype="clearLogs" class="btn btn-sm btn-outline-warning rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-broom fa-2x m-1"></i><span>Clear Logs</span></div></button>
+                                <button id="cookieRefresh" data-cmdtype="cookieRefresh" class="btn btn-sm btn-outline-danger rounded-5 p-2 my-2 mx-3 cmd_btn" type="button"><div class="valign-center"><i class="fas fa-cookie-bite fa-2x m-1"></i><span>Refresh Cookie</span></div></button>
                             </section>
                         </div>
                     </div>
                     <div class="w-100" style="position: fixed; bottom: 0;">
                         <div class="form-group ml-0 mr-4">
-                            <label for="exampleFormControlTextarea1">External URL: (Click/Tap to Select)</label>
+                            <label for="exampleFormControlTextarea1">External URL (Click/Tap to Select)</label>
                             <textarea class="form-control z-depth-1" id="exampleFormControlTextarea1" onclick="this.focus();this.select()" rows="3" readonly>${getAppEndpointUrl("diagData")}</textarea>
                         </div>
                     </div>
                 </div>
             </body>
-            <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.8/js/mdb.min.js"></script>
+            <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.14.0/js/mdb.min.js"></script>
             <script>
                 \$('.cmd_btn').click(function() { console.log('cmd_btn type: ', \$(this).attr("data-cmdtype")); execCmd(\$(this).attr("data-cmdtype")); });
                 function execCmd(cmd) { if(!cmd) return; \$.getJSON(cmdUrl.replace('diagCmds', `diagCmds/\${cmd}`), function(result){ console.log(result); }); }
