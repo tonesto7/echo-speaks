@@ -1182,10 +1182,11 @@ private getPlaylists() {
         httpGet(params) { response->
             def sData = response?.data ?: null
             // logTrace("getPlaylistsHandler: ${sData}")
-            Map playlists = sData ? sData?.playlists : "{}"
-            if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
-                // log.trace "Alexa Playlists Changed to ${playlists}"
-                sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
+            def playlist = sData ? sData?.playlists : [:]
+            def playlistJson = new groovy.json.JsonOutput().toJson(playlist)
+            if(isStateChange(device, "alexaPlaylists", playlistJson?.toString())) {
+                // log.trace "Alexa Playlists Changed to ${playlistJson}"
+                sendEvent(name: "alexaPlaylists", value: playlistJson?.toString(), display: false, displayed: false)
             }
         }
     } catch (ex) {
