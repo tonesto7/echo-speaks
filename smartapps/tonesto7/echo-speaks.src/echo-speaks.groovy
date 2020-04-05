@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.6.1.1" }
-String appModified()  { return "2020-03-11" }
+String appVersion()   { return "3.6.2.0" }
+String appModified()  { return "2020-04-05" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3600, wsDevice: 3300, actionApp: 3600, zoneApp: 3600, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3620, wsDevice: 3300, actionApp: 3610, zoneApp: 3610, server: 240] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
