@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.6.1.0" }
-String devModified() { return "2020-03-06" }
+String devVersion()  { return "3.6.2.0" }
+String devModified() { return "2020-04-05" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -41,6 +41,7 @@ metadata {
         attribute "currentAlbum", "string"
         attribute "currentStation", "string"
         attribute "deviceFamily", "string"
+        attribute "deviceSerial", "string"
         attribute "deviceStatus", "string"
         attribute "deviceStyle", "string"
         attribute "deviceType", "string"
@@ -744,6 +745,10 @@ void updateDeviceStatus(Map devData) {
         String devFamily = devData?.deviceFamily ?: ""
         if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
             sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
+        }
+
+        if(isStateChange(device, "deviceSerial", devData?.serialNumber?.toString())) {
+            sendEvent(name: "deviceSerial", value: devData?.serialNumber?.toString(), descriptionText: "Echo Device SerialNumber is ${devData?.serialNumber}", display: true, displayed: true)
         }
 
         String devType = devData?.deviceType ?: ""
