@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.1.0" }
-String appModified() { return "2020-03-06" }
+String appVersion()  { return "3.6.2.0" }
+String appModified() { return "2020-04-12" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -3096,7 +3096,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
                     if(activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType?.replaceAll("_tiered", ""), data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType?.replaceAll("_tiered", ""), title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType?.replaceAll("_tiered", ""), data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType?.replaceAll("_tiered", ""), title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: true, displayed: true)
                         logDebug("Sending Speech Text: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}${actDelay ? " | Delay: (${actDelay})" : ""}")
                     } else {
                         if(actType in ["speak", "speak_tiered"]) {
@@ -3137,7 +3137,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "sequence":
                 if(actConf[actType] && actConf[actType]?.text) {
                     if(activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType, message: actConf[actType]?.text, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType, message: actConf[actType]?.text, delay: actDelayMs], isStateChange: true, display: true, displayed: true)
                         logDebug("Sending Sequence Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
@@ -3154,7 +3154,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "dnd":
                 if(actConf[actType] && actConf[actType]?.cmd) {
                     if(actType == "playback" && activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: true, displayed: true)
                         logDebug("Sending Sequence Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
@@ -3194,7 +3194,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "sounds":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.name) {
                     if(activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.name, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.name, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: true, displayed: true)
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
@@ -3229,7 +3229,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "music":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.provider && actConf[actType]?.search) {
                     if(activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType, search: actConf[actType]?.search, provider: convMusicProvider(actConf[actType]?.provider), changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType, search: actConf[actType]?.search, provider: convMusicProvider(actConf[actType]?.provider), changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: true, displayed: true)
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
