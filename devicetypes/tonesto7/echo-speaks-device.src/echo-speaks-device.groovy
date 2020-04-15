@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.6.2.0" }
-String devModified() { return "2020-04-05" }
+String devModified() { return "2020-04-12" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -1138,10 +1138,10 @@ def getBluetoothDevices() {
     // logDebug("Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
     String pairedNames = (btData && btData?.pairedNames) ? btData?.pairedNames?.join(",") : null
-    // if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
+    if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
         // log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
-    // }
+    }
 
     if(isStateChange(device, "btDevicesPaired", pairedNames?.toString())) {
         logDebug("Paired Bluetooth Devices: ${pairedNames}")
