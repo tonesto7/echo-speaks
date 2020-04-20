@@ -7,12 +7,14 @@
 
   Action App (v3.6.1.0)
   * FIXED: Minor bugs squashed.
+  * ADDED: Support for Change in btDevicesPaired attribute
 
   Zone App (v3.6.1.0)
   * FIXED: Minor bugs squashed.
 
   Echo Device (v3.6.2.0)
   * FIXED: alexaPlaylists, btDevicesPaired attributes to return valid JSON data now (#279).
+  * ADDED: deviceSerial attribute included now for devs to access the info (#268).
 _____________________________________
 
  ══════════

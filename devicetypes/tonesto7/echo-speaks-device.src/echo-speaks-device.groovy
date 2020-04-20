@@ -725,7 +725,7 @@ void updateDeviceStatus(Map devData) {
         state?.hasClusterMembers = devData?.hasClusterMembers
         state?.isWhaDevice = (devData?.permissionMap?.isMultiroomDevice == true)
         // log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
-        log.trace "permissions: ${state?.permissions}"
+        // log.trace "permissions: ${state?.permissions}"
         List permissionList = permissions?.findAll { it?.value == true }?.collect { it?.key }
         if(isStateChange(device, "permissions", permissionList?.toString())) {
             sendEvent(name: "permissions", value: permissionList, display: false, displayed: false)
@@ -1139,14 +1139,17 @@ def getBluetoothDevices() {
     // logDebug("Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
     String pairedNames = (btData && btData?.pairedNames) ? btData?.pairedNames?.join(",") : null
+    Map btMap = [:]
+    btMap?.names = (btData?.pairedNames && btData?.pairedNames?.size()) ? btData?.pairedNames?.collect { it as String } : []
+    def btPairedJson = new groovy.json.JsonOutput().toJson(btMap)
+    if(isStateChange(device, "btDevicesPaired", btPairedJson?.toString())) {
+        logDebug("Paired Bluetooth Devices: ${btPairedJson?.toString()}")
+        sendEvent(name: "btDevicesPaired", value: btPairedJson, descriptionText: "Paired Bluetooth Devices: ${btPairedJson}", display: true, displayed: true)
+    }
+
     if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
         // log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
-    }
-    def btPairedJson = new groovy.json.JsonOutput().toJson(pairedNames)
-    if(isStateChange(device, "btDevicesPaired", btPairedJson?.toString())) {
-        logDebug("Paired Bluetooth Devices: ${pairedNames}")
-        sendEvent(name: "btDevicesPaired", value: btPairedJson, descriptionText: "Paired Bluetooth Devices: ${btPairedJson}", display: true, displayed: true)
     }
 }
 

@@ -776,15 +776,17 @@ def getBluetoothDevices() {
     // logDebug("Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
     String pairedNames = (btData && btData?.pairedNames) ? btData?.pairedNames?.join(",") : null
+    Map btMap = [:]
+    btMap?.names = (btData?.pairedNames && btData?.pairedNames?.size()) ? btData?.pairedNames?.collect { it as String } : []
+    def btPairedJson = new groovy.json.JsonOutput().toJson(btMap)
+    if(isStateChange(device, "btDevicesPaired", btPairedJson?.toString())) {
+        logDebug("Paired Bluetooth Devices: ${btPairedJson?.toString()}")
+        sendEvent(name: "btDevicesPaired", value: btPairedJson, descriptionText: "Paired Bluetooth Devices: ${btPairedJson}", display: true, displayed: true)
+    }
+
     if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
         // log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
-    }
-
-    def btPairedJson = new groovy.json.JsonOutput().toJson(pairedNames)
-    if(isStateChange(device, "btDevicesPaired", btPairedJson?.toString())) {
-        logDebug("Paired Bluetooth Devices: ${pairedNames}")
-        sendEvent(name: "btDevicesPaired", value: btPairedJson, descriptionText: "Paired Bluetooth Devices: ${btPairedJson}", display: true, displayed: true)
     }
 }
 

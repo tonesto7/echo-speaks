@@ -1315,7 +1315,10 @@ def actionsPage() {
                         section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                         if(devsCnt >= 1) {
                             devices?.each { cDev->
-                                List btDevs = cDev?.hasAttribute("btDevicesPaired") ? cDev?.currentValue("btDevicesPaired")?.split(",") : []
+
+                                def btData = cDev?.hasAttribute("btDevicesPaired") ? cDev?.currentValue("btDevicesPaired") : null
+                                log.debug "Bluetooth Paired: ${parseJson(btData)}"
+                                List btDevs = (btData) ? parseJson(btData)?.names : []
                                 // log.debug "btDevs: $btDevs"
                                 section(sTS("${cDev?.getLabel()}:")) {
                                     if(btDevs?.size()) {
