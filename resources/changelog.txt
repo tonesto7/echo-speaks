@@ -1,4 +1,21 @@
  ══════════
+  March 18th, 2020
+ ══════════
+  Main App (v3.6.2.0)
+  * FIXED:
+  * ADDED: Amazon.fr locale support (@Adrew)
+
+  Action App (v3.6.1.0)
+  * FIXED: Minor bugs squashed.
+
+  Zone App (v3.6.1.0)
+  * FIXED: Minor bugs squashed.
+
+  Echo Device (v3.6.2.0)
+  * FIXED: alexaPlaylists, btDevicesPaired attributes to return valid JSON data now (#279).
+_____________________________________
+
+ ══════════
   March 11th, 2020
  ══════════
   Main App (v3.6.1.1)

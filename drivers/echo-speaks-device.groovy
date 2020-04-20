@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.6.2.0" }
-String devModified() { return "2020-04-12" }
+String devModified() { return "2020-04-18" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -781,9 +781,10 @@ def getBluetoothDevices() {
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
     }
 
-    if(isStateChange(device, "btDevicesPaired", pairedNames?.toString())) {
+    def btPairedJson = new groovy.json.JsonOutput().toJson(pairedNames)
+    if(isStateChange(device, "btDevicesPaired", btPairedJson?.toString())) {
         logDebug("Paired Bluetooth Devices: ${pairedNames}")
-        sendEvent(name: "btDevicesPaired", value: pairedNames, descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
+        sendEvent(name: "btDevicesPaired", value: btPairedJson, descriptionText: "Paired Bluetooth Devices: ${btPairedJson}", display: true, displayed: true)
     }
 }
 
