@@ -807,11 +807,11 @@ def checkZoneStatus(evt) {
 def sendZoneStatus() {
     Boolean active = (conditionStatus()?.ok == true)
     // state?.zoneConditionsOk = active
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true, display: true, displayed: true)
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true, display: false, displayed: false)
 }
 
 def sendZoneRemoved() {
-    sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: getZoneName()], isStateChange: true, display: true, displayed: true)
+    sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: getZoneName()], isStateChange: true, display: false, displayed: false)
 }
 
 def updateZoneStatus(data) {
@@ -825,7 +825,7 @@ def updateZoneStatus(data) {
         log.debug("Setting Zone (${getZoneName()}) Status to (${active ? "Active" : "Inactive"})")
         state?.zoneConditionsOk = active
         addToZoneHistory(data?.evtData, condStatus)
-        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: [ name: getZoneName(), active: active ], isStateChange: true, display: true, displayed: true)
+        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: [ name: getZoneName(), active: active ], isStateChange: true, display: false, displayed: false)
         if(isZoneNotifConfigured()) {
             Boolean ok2Send = true
             String msgTxt = null

@@ -2,13 +2,15 @@
   March 22nd, 2020
  ══════════
   Main App (v3.6.2.0)
-  * FIXED:
+  * ADDED: More Device Identifier
   * ADDED: Amazon.fr locale support (@Adrew)
+  * UPDATED: Cleaned up some of the location events to stop spaming the mobile app events.
 
   Action App (v3.6.1.0)
   * FIXED: Minor bugs squashed.
   * ADDED: Support for Change in btDevicesPaired attribute.
   * ADDED: New repeat count setting to limit repeat until actions.
+  * UPDATED: Cleaned up some of the location events to stop spaming the mobile app events.
 
   Zone App (v3.6.2.0)
   * FIXED: Minor bugs squashed.
@@ -16,6 +18,7 @@
   Echo Device (v3.6.2.0)
   * FIXED: alexaPlaylists, btDevicesPaired attributes to return valid JSON data now (#279).
   * ADDED: deviceSerial attribute included now for devs to access the info (#268).
+  * UPDATED: Cleaned up some of the location events to stop spaming the mobile app events.
 _____________________________________
 
  ══════════
