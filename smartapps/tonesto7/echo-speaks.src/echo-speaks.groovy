@@ -15,7 +15,7 @@
  */
 
 String appVersion()   { return "3.6.2.0" }
-String appModified()  { return "2020-04-18" }
+String appModified()  { return "2020-04-22" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -5059,11 +5059,17 @@ private Map deviceSupportMap() {
             "A2TOXM6L8SFS8A": [ ignore: true ],
             "A2V3E2XUH5Z7M8": [ ignore: true ],
             "A2WN1FJ2HG09UN": [ ignore: true ],
+            "A18TCD9FP10WJ9": [ ignore: true ],
+            "A1FWRGKHME4LXH": [ ignore: true ],
+            "A3L2K717GERE73": [ ignore: true, image: "unknown", name: "Voice in a Can (iOS)" ],
+            "A222D4HGE48EOR": [ ignore: true, image: "unknown", name: "Voice in a Can (Apple Watch)" ],
+            "A19JK51Y4N50K5": [ ignore: true, image: "unknown", name: "Jabra(?)" ],
             "A2X8WT9JELC577": [ caps: [ "a", "t" ], image: "ecobee4", name: "Ecobee5" ],
             "A2XPGY5LRKB9BE": [ caps: [ "a", "t" ], image: "unknown", name: "Fitbit Versa 2" ],
             "A2Y04QPFCANLPQ": [ caps: [ "a", "t" ], image: "unknown", name: "Bose QuietComfort 35 II" ],
             "A2ZOTUOF1IBEYI": [ ignore: true ],
             "A303PJF6ISQ7IC": [ caps: [ "a", "t" ], image: "echo_auto", name: "Echo Auto" ],
+            "A195TXHV1M5D4A": [ caps: [ "a", "t" ], image: "echo_auto", name: "Echo Auto" ],
             "A30YDR2MK8HMRV": [ caps: [ "a", "t" ], image: "echo_dot_clock", name: "Echo Dot Clock" ],
             "A32DDESGESSHZA": [ caps: [ "a", "t" ], image: "echo_dot_gen3",  "name" : "Echo Dot (Gen3)" ],
             "A32DOYMUN6DTXA": [ caps: [ "a", "t" ],  image: "echo_dot_gen3",  "name" : "Echo Dot (Gen3)" ],
@@ -5074,8 +5080,9 @@ private Map deviceSupportMap() {
             "A38949IHXHRQ5P": [ caps: [ "a", "t" ], image: "echo_tap", name: "Echo Tap" ],
             "A38BPK7OW001EX": [ blocked: true, name: "Raspberry Alexa" ],
             "A38EHHIB10L47V": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
-            "A3B50IC5QPZPWP": [ ignore: true ],
+            "A3B50IC5QPZPWP": [ caps: [ "a", "t" ], image: "unknown", name: "Polk Command Bar" ],
             "A3B5K1G3EITBIF": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
+            "A3CY98NH016S5F": [ caps: [ "a", "t" ], image: "unknown", name: "Facebook Portal Mini" ],
             "A3BRT6REMPQWA8": [ caps: [ "a", "t" ], image: "sonos_generic", name: "Bose Home Speaker 450" ],
             "A3C9PE6TNYLTCH": [ image: "echo_wha", name: "Multiroom" ],
             "A3F1S88NTZZXS9": [ blocked: true, image: "dash_wand", name: "Dash Wand" ],

@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.6.2.0" }
-String devModified() { return "2020-04-18" }
+String devModified() { return "2020-04-22" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -25,7 +25,7 @@ metadata {
         capability "Audio Notification"
         capability "Audio Track Data" // To support SharpTools.io Album Art feature
         capability "Audio Volume"
-        capability "Media Presets"
+        // capability "Media Presets"
         capability "Music Player"
         capability "Notification"
         capability "Refresh"
