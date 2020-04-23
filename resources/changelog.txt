@@ -1,18 +1,19 @@
  ══════════
-  March 22nd, 2020
+  April 22nd, 2020
  ══════════
   Main App (v3.6.2.0)
   * ADDED: More Device Identifier
   * ADDED: Amazon.fr locale support (@Adrew)
   * UPDATED: Cleaned up some of the location events to stop spaming the mobile app events.
 
-  Action App (v3.6.1.0)
+  Action App (v3.6.2.0)
   * FIXED: Minor bugs squashed.
   * ADDED: Support for Change in btDevicesPaired attribute.
   * ADDED: New repeat count setting to limit repeat until actions.
   * UPDATED: Cleaned up some of the location events to stop spaming the mobile app events.
 
   Zone App (v3.6.2.0)
+  * UPDATED: Cleaned up some of the location events to stop spamming the mobile app events.
   * FIXED: Minor bugs squashed.
 
   Echo Device (v3.6.2.0)
@@ -79,7 +80,7 @@ _____________________________________
   * FIXED: WebSocket Events not working for Device Activity (Hubitat Only).
 
   Server (v2.4.0)
-  * ADDED: The server now validates the cookies received from Hubitat and ST apps and if it's invalid will send the command to HE/ST to clear the cookies from the app and devices.  This will stop the app from trying to constantly wakeup the server (causing overage of free heroku services).
+  * ADDED: The server now validates the cookies received from Hubitat and ST apps and if it’s invalid will send the command to HE/ST to clear the cookies from the app and devices.  This will stop the app from trying to constantly wakeup the server (causing overage of free heroku services).
   * FIXED: Minor fixes to the Heroku server wakeup logic.
   * FIXED: Other optimizations and fixes.
 _____________________________________
@@ -100,8 +101,8 @@ _____________________________________
   Main App (v3.5.0.0)
   * UPDATED: Overhauled the way supported device data is loaded to reduce state size consumption.  All data is pulled from a Firebase Database now.
   * ADDED: Device Activity data is now loaded from the smartapp and available to the devices to reduce the many reduntant calls to the API which causes rate-limiting. #230
-  * FIXED: Stopped removing ' character from speech text builder. #226
-  * FIXED: Lot's of other minor UI and logic bugfixes.
+  * FIXED: Stopped removing ‘ character from speech text builder. #226
+  * FIXED: Lot’s of other minor UI and logic bugfixes.
 
   Action App (v3.5.0.0)
   * FIXED: Resolved issue with multiple actions conditions being ignored #232
@@ -254,6 +255,6 @@ _____________________________________
 
  Echo Device (v3.3.0.0)
   * ADDED: Support for the new Sounds Command (Play built in sounds available under alexa routines).
-  * ADDED: new command ```playSoundByName()``` Should support any Alexa Skills Kit Sound File that starts with 'amzn_sfx_'.
+  * ADDED: new command ```playSoundByName()``` Should support any Alexa Skills Kit Sound File that starts with ‘amzn_sfx_’.
 
 _____________________________________
