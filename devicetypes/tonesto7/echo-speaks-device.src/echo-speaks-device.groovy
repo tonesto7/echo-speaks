@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.6.1.0" }
-String devModified() { return "2020-03-06" }
+String devVersion()  { return "3.6.2.0" }
+String devModified() { return "2020-04-22" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -25,6 +25,7 @@ metadata {
         capability "Audio Notification"
         capability "Audio Track Data" // To support SharpTools.io Album Art feature
         capability "Audio Volume"
+        // capability "Media Presets"
         capability "Music Player"
         capability "Notification"
         capability "Refresh"
@@ -41,6 +42,7 @@ metadata {
         attribute "currentAlbum", "string"
         attribute "currentStation", "string"
         attribute "deviceFamily", "string"
+        attribute "deviceSerial", "string"
         attribute "deviceStatus", "string"
         attribute "deviceStyle", "string"
         attribute "deviceType", "string"
@@ -746,6 +748,10 @@ void updateDeviceStatus(Map devData) {
             sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
         }
 
+        if(isStateChange(device, "deviceSerial", devData?.serialNumber?.toString())) {
+            sendEvent(name: "deviceSerial", value: devData?.serialNumber?.toString(), descriptionText: "Echo Device SerialNumber is ${devData?.serialNumber}", display: true, displayed: true)
+        }
+
         String devType = devData?.deviceType ?: ""
         if(isStateChange(device, "deviceType", devType?.toString())) {
             sendEvent(name: "deviceType", value: devType?.toString(), display: false, displayed: false)
@@ -1133,14 +1139,17 @@ def getBluetoothDevices() {
     // logDebug("Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state?.bluetoothObjs = btObjs
     String pairedNames = (btData && btData?.pairedNames) ? btData?.pairedNames?.join(",") : null
-    // if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
+    Map btMap = [:]
+    btMap?.names = (btData?.pairedNames && btData?.pairedNames?.size()) ? btData?.pairedNames?.collect { it as String } : []
+    def btPairedJson = new groovy.json.JsonOutput().toJson(btMap)
+    if(isStateChange(device, "btDevicesPaired", btPairedJson?.toString())) {
+        logDebug("Paired Bluetooth Devices: ${btPairedJson?.toString()}")
+        sendEvent(name: "btDevicesPaired", value: btPairedJson, descriptionText: "Paired Bluetooth Devices: ${btPairedJson}", display: true, displayed: true)
+    }
+
+    if(isStateChange(device, "btDeviceConnected", curConnName?.toString())) {
         // log.info "Bluetooth Device Connected: (${curConnName})"
         sendEvent(name: "btDeviceConnected", value: curConnName?.toString(), descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
-    // }
-
-    if(isStateChange(device, "btDevicesPaired", pairedNames?.toString())) {
-        logDebug("Paired Bluetooth Devices: ${pairedNames}")
-        sendEvent(name: "btDevicesPaired", value: pairedNames, descriptionText: "Paired Bluetooth Devices: ${pairedNames}", display: true, displayed: true)
     }
 }
 
@@ -1182,10 +1191,11 @@ private getPlaylists() {
         httpGet(params) { response->
             def sData = response?.data ?: null
             // logTrace("getPlaylistsHandler: ${sData}")
-            Map playlists = sData ? sData?.playlists : "{}"
-            if(isStateChange(device, "alexaPlaylists", playlists?.toString())) {
-                // log.trace "Alexa Playlists Changed to ${playlists}"
-                sendEvent(name: "alexaPlaylists", value: playlists, display: false, displayed: false)
+            def playlist = sData ? sData?.playlists : [:]
+            def playlistJson = new groovy.json.JsonOutput().toJson(playlist)
+            if(isStateChange(device, "alexaPlaylists", playlistJson?.toString())) {
+                // log.trace "Alexa Playlists Changed to ${playlistJson}"
+                sendEvent(name: "alexaPlaylists", value: playlistJson?.toString(), display: false, displayed: false)
             }
         }
     } catch (ex) {

@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.1.0" }
-String appModified() { return "2020-03-06" }
+String appVersion()  { return "3.6.2.0" }
+String appModified() { return "2020-04-22" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -592,6 +592,9 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     input "trig_${inType}_after", "number", title: inTS("Only after (${settings?."trig_${inType}_cmd"}) for (xx) seconds?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     if(settings?."trig_${inType}_after") {
                         input "trig_${inType}_after_repeat", "number", title: inTS("Repeat every (xx) seconds until it's not ${settings?."trig_${inType}_cmd"}?", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                        if(settings?."trig_${inType}_after_repeat") {
+                            input "trig_${inType}_after_repeat_cnt", "number", title: inTS("Only repeat this many times? (Optional)", getAppImg("question", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("question")
+                        }
                     }
                 }
                 if(!settings?."trig_${inType}_after") {
@@ -1315,7 +1318,8 @@ def actionsPage() {
                         section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                         if(devsCnt >= 1) {
                             devices?.each { cDev->
-                                List btDevs = cDev?.hasAttribute("btDevicesPaired") ? cDev?.currentValue("btDevicesPaired")?.split(",") : []
+                                def btData = cDev?.hasAttribute("btDevicesPaired") ? cDev?.currentValue("btDevicesPaired") : null
+                                List btDevs = (btData) ? parseJson(btData)?.names : []
                                 // log.debug "btDevs: $btDevs"
                                 section(sTS("${cDev?.getLabel()}:")) {
                                     if(btDevs?.size()) {
@@ -2249,6 +2253,7 @@ def devAfterEvtHandler(evt) {
     String dc = settings?."trig_${evt?.name}_cmd" ?: null
     Integer dcaf = settings?."trig_${evt?.name}_after" ?: null
     Integer dcafr = settings?."trig_${evt?.name}_after_repeat" ?: null
+    Integer dcafrc = settings?."trig_${evt?.name}_after_repeat_cnt" ?: null
     String eid = "${evt?.deviceId}_${evt?.name}"
     Boolean schedChk = (dc && dcaf && evt?.value == dc)
     logTrace( "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})")
@@ -2260,7 +2265,7 @@ def devAfterEvtHandler(evt) {
     }
     ok = schedChk
     if(ok) { aEvtMap["${evt?.deviceId}_${evt?.name}"] =
-        [ dt: evt?.date?.toString(), deviceId: evt?.deviceId as String, displayName: evt?.displayName, name: evt?.name, value: evt?.value, triggerState: dc, wait: dcaf ?: null, isRepeat: false, repeatWait: dcafr ?: null ]
+        [ dt: evt?.date?.toString(), deviceId: evt?.deviceId as String, displayName: evt?.displayName, name: evt?.name, value: evt?.value, triggerState: dc, wait: dcaf ?: null, isRepeat: false, repeatWait: dcafr ?: null, repeatCnt: 0, repeatCntMax: dcafrc ]
     }
     atomicState?.afterEvtMap = aEvtMap
     if(ok) {
@@ -2286,6 +2291,9 @@ def afterEvtCheckHandler() {
             def prevDt = nextVal?.isRepeat && nextVal?.repeatDt ? parseDate(nextVal?.repeatDt?.toString()) : parseDate(nextVal?.dt?.toString())
             def fullDt = parseDate(nextVal?.dt?.toString())
             def devs = settings?."trig_${nextVal?.name}" ?: null
+            // log.debug "nextVal: $nextVal"
+            Integer repeatCnt = (nextVal?.repeatCnt >= 0) ? nextVal?.repeatCnt + 1 : 1
+            Integer repeatCntMax = nextVal?.repeatCntMax ?: null
             Boolean isRepeat = nextVal?.isRepeat ?: false
             Boolean hasRepeat = (settings?."trig_${nextVal?.name}_after_repeat" != null)
             if(prevDt) {
@@ -2295,13 +2303,15 @@ def afterEvtCheckHandler() {
                 Integer reqDur = (nextVal?.isRepeat && nextVal?.repeatWait) ? nextVal?.repeatWait : nextVal?.wait ?: null
                 timeLeft = (reqDur - evtElap)
                 aEvtMap[nextItem?.key]?.timeLeft = timeLeft
-                //log.warn "After Debug | TimeLeft: ${timeLeft}(<=4 ${(timeLeft <= 4)}) | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat}"
+                aEvtMap[nextItem?.key]?.repeatCnt = repeatCnt
+                // log.warn "After Debug | TimeLeft: ${timeLeft}(<=4 ${(timeLeft <= 4)}) | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax}"
                 if(timeLeft <= 4 && nextVal?.deviceId && nextVal?.name) {
                     timeLeft = reqDur
                     // log.debug "reqDur: $reqDur | evtElap: ${evtElap} | timeLeft: $timeLeft"
                     Boolean skipEvt = (nextVal?.triggerState && nextVal?.deviceId && nextVal?.name && devs) ? !devCapValEqual(devs, nextVal?.deviceId as String, nextVal?.name, nextVal?.triggerState) : true
+                    Boolean skipEvtCnt = (repeatCntMax && (repeatCnt > repeatCntMax))
                     aEvtMap[nextItem?.key]?.timeLeft = timeLeft
-                    if(!skipEvt) {
+                    if(!skipEvt && !skipEvtCnt) {
                         if(hasRepeat) {
                             // log.warn "Last Repeat ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | Required: ${reqDur}"
                             aEvtMap[nextItem?.key]?.repeatDt = formatDt(new Date())
@@ -2314,7 +2324,11 @@ def afterEvtCheckHandler() {
                         }
                     } else {
                         aEvtMap?.remove(nextId)
-                        logInfo("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) state is already ${nextVal?.triggerState} | Skipping Action...")
+                        if(!skipEvt && skipEvtCnt) {
+                            logInfo("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) has repeated ${repeatCntMax} times | Skipping Action Repeat...")
+                        } else {
+                            logInfo("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) state is already ${nextVal?.triggerState} | Skipping Action...")
+                        }
                     }
                 }
             }
@@ -3020,7 +3034,7 @@ public getActionHistory(asObj=false) {
             str += "\nDateTime: ${h?.dt}"
             output?.push(str)
         }
-    } else { output.push("No History Items Found...") }
+    } else { output?.push("No History Items Found...") }
     if(!asObj) {
         output?.each { i-> paragraph pTS(i) }
     } else {
@@ -3047,7 +3061,7 @@ private addToActHistory(evt, data, Integer max=10) {
         // if(eData?.size() > max) log.warn "Action History (${eData?.size()}) has more than ${max} items... | Need to drop: (${(eData?.size()-max)})"
         eData = eData?.drop( (eData?.size()-max)+1 )
     }
-    log.debug "actionHistory Size: ${eData?.size()}"
+    // log.debug "actionHistory Size: ${eData?.size()}"
     atomicState?.actionHistory = eData
 }
 
@@ -3096,7 +3110,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
                     if(activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType?.replaceAll("_tiered", ""), data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType?.replaceAll("_tiered", ""), title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType?.replaceAll("_tiered", ""), data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType?.replaceAll("_tiered", ""), title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending Speech Text: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}${actDelay ? " | Delay: (${actDelay})" : ""}")
                     } else {
                         if(actType in ["speak", "speak_tiered"]) {
@@ -3137,7 +3151,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "sequence":
                 if(actConf[actType] && actConf[actType]?.text) {
                     if(activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType, message: actConf[actType]?.text, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType, message: actConf[actType]?.text, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending Sequence Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
@@ -3154,7 +3168,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "dnd":
                 if(actConf[actType] && actConf[actType]?.cmd) {
                     if(actType == "playback" && activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending Sequence Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
@@ -3178,7 +3192,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "weather":
                 if(actConf[actType] && actConf[actType]?.cmd) {
                     if(activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
@@ -3194,7 +3208,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "sounds":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.name) {
                     if(activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.name, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.name, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
@@ -3229,7 +3243,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
             case "music":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.provider && actConf[actType]?.search) {
                     if(activeZones?.size()) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType, search: actConf[actType]?.search, provider: convMusicProvider(actConf[actType]?.provider), changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType, search: actConf[actType]?.search, provider: convMusicProvider(actConf[actType]?.provider), changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: true, displayed: true)
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
@@ -3961,6 +3975,7 @@ String getTriggersDesc(hideDesc=false) {
                         }
                         str += settings?."${sPre}${evt}_after"              ? "    \u25E6 Only After: (${settings?."${sPre}${evt}_after"} sec)\n" : ""
                         str += settings?."${sPre}${evt}_after_repeat"       ? "    \u25E6 Repeat Every: (${settings?."${sPre}${evt}_after_repeat"} sec)\n" : ""
+                        str += settings?."${sPre}${evt}_after_repeat_cnt"   ? "    \u25E6 Repeat Count: (${settings?."${sPre}${evt}_after_repeat_cnt"})\n" : ""
                         str += (settings?."${sPre}${evt}_all" == true)      ? "    \u25E6 Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
                         str += settings?."${sPre}${evt}_once"               ? "    \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : ""
                         str += settings?."${sPre}${evt}_wait"               ? "    \u25E6 Wait: (${settings?."${sPre}${evt}_wait"})\n" : ""

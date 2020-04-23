@@ -2,16 +2,16 @@
     "appDataVer": "4.0",
     "versions": {
         "mainApp": {
-            "ver": "3.6.1.1"
+            "ver": "3.6.2.0"
         },
         "actionApp": {
-            "ver": "3.6.1.0"
+            "ver": "3.6.2.0"
         },
         "zoneApp": {
-            "ver": "3.6.1.0"
+            "ver": "3.6.2.0"
         },
         "echoDevice": {
-            "ver": "3.6.1.0"
+            "ver": "3.6.2.0"
         },
         "wsDevice": {
             "ver": "3.3.0.0"
@@ -30,7 +30,8 @@
         "amazon.com.br",
         "amazon.com.mx",
         "amazon.es",
-        "amazon.in"
+        "amazon.in",
+        "amazon.fr"
     ],
     "locales": [
         "en-US",
@@ -42,7 +43,8 @@
         "pt-BR",
         "es-MX",
         "es-UY",
-        "es-ES"
+        "es-ES",
+        "fr-FR"
     ],
     "settings": {
         "sendMetrics": true,

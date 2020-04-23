@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.1.0" }
-String appModified() { return "2020-03-06" }
+String appVersion()  { return "3.6.2.0" }
+String appModified() { return "2020-04-22" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -807,11 +807,11 @@ def checkZoneStatus(evt) {
 def sendZoneStatus() {
     Boolean active = (conditionStatus()?.ok == true)
     // state?.zoneConditionsOk = active
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true)
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true, display: false, displayed: false)
 }
 
 def sendZoneRemoved() {
-    sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: getZoneName()], isStateChange: true)
+    sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: getZoneName()], isStateChange: true, display: false, displayed: false)
 }
 
 def updateZoneStatus(data) {
@@ -825,7 +825,7 @@ def updateZoneStatus(data) {
         log.debug("Setting Zone (${getZoneName()}) Status to (${active ? "Active" : "Inactive"})")
         state?.zoneConditionsOk = active
         addToZoneHistory(data?.evtData, condStatus)
-        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: [ name: getZoneName(), active: active ], isStateChange: true)
+        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: [ name: getZoneName(), active: active ], isStateChange: true, display: false, displayed: false)
         if(isZoneNotifConfigured()) {
             Boolean ok2Send = true
             String msgTxt = null
