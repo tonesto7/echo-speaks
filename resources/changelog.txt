@@ -1,141 +1,161 @@
  ══════════
+  March 22nd, 2020
+ ══════════
+  Main App (v3.6.2.0)
+  * FIXED:
+  * ADDED: Amazon.fr locale support (@Adrew)
+
+  Action App (v3.6.1.0)
+  * FIXED: Minor bugs squashed.
+  * ADDED: Support for Change in btDevicesPaired attribute.
+  * ADDED: New repeat count setting to limit repeat until actions.
+
+  Zone App (v3.6.2.0)
+  * FIXED: Minor bugs squashed.
+
+  Echo Device (v3.6.2.0)
+  * FIXED: alexaPlaylists, btDevicesPaired attributes to return valid JSON data now (#279).
+  * ADDED: deviceSerial attribute included now for devs to access the info (#268).
+_____________________________________
+
+ ══════════
   March 11th, 2020
  ══════════
   Main App (v3.6.1.1)
-  • FIXED: Scenario where cookie auth failed and server wakeup request was still being sent every 5 minutes.
+  * FIXED: Scenario where cookie auth failed and server wakeup request was still being sent every 5 minutes.
 
   Server (v2.4.1)
-  • FIXED: Cookies being cleared by server after v2.4.0 upgrade.
+  * FIXED: Cookies being cleared by server after v2.4.0 upgrade.
 _____________________________________
 
  ══════════
   March 6th, 2020
  ══════════
   Main App (v3.6.1.0)
-  • ADDED: Notification options on whether to alert when cookie is invalid.
-  • FIXED: Added rate-limit to invalid cookie notifications.
-  • FIXED: Logging Storage State Size Fix.
-  • ADDED: WebSocket device id changed to add the the parent app id so you can have multiple instances (Hubitat Only).
+  * ADDED: Notification options on whether to alert when cookie is invalid.
+  * FIXED: Added rate-limit to invalid cookie notifications.
+  * FIXED: Logging Storage State Size Fix.
+  * ADDED: WebSocket device id changed to add the the parent app id so you can have multiple instances (Hubitat Only).
 
   Action App (v3.6.1.0)
-  • FIXED: Logging Storage State Size Fix.
+  * FIXED: Logging Storage State Size Fix.
 
   Zone App (v3.6.1.0)
-  • FIXED: Logging Storage State Size Fix.
+  * FIXED: Logging Storage State Size Fix.
 
   Echo Device (v3.6.1.0)
-  • FIXED: Logging Storage State Size Fix.
+  * FIXED: Logging Storage State Size Fix.
 _____________________________________
 
  ══════════
   March 3rd, 2020
  ══════════
   Main App (v3.6.0.0)
-  • UPDATED: Device detection metadata is now embedded into the app code to significantly reduce platform load and web calls (over 1 million requests an hour across the ST platform alone).
-  • FIXED: Changes to the getDeviceActivity() logic to make it actually work (since the last update broke it), and should update quicker and more accurately.
-  • FIXED: WebSocket Events not updating device info (Hubitat Only).
+  * UPDATED: Device detection metadata is now embedded into the app code to significantly reduce platform load and web calls (over 1 million requests an hour across the ST platform alone).
+  * FIXED: Changes to the getDeviceActivity() logic to make it actually work (since the last update broke it), and should update quicker and more accurately.
+  * FIXED: WebSocket Events not updating device info (Hubitat Only).
 
   Action App (v3.6.0.0)
-  • FIXED: Bugs fixed and optimizations.
+  * FIXED: Bugs fixed and optimizations.
 
   Zone App (v3.6.0.0)
-  • FIXED: Bugs fixed and optimizations.
+  * FIXED: Bugs fixed and optimizations.
 
   Echo Device (v3.6.0.0)
-  • ADDED: Good News command that only plays back good news.
-  • FIXED: Issue with Queue not working.
-  • FIXED: Issue with Queue getting stuck in rare scenarios..
-  • FIXED: Device Activity which was ruined after my last update.
-  • FIXED: WebSocket Events not updating device info (Hubitat Only).
-  • FIXED: Cleaned up device events filling up device history (ST)
-  • FIXED: Reduced the number of Amazon web calls per device.
-  • REMOVED: Removing the alexaNotifications attribute for now until I rebuild the Notifications features
-  • UPDATED: Log cleanups.
+  * ADDED: Good News command that only plays back good news.
+  * FIXED: Issue with Queue not working.
+  * FIXED: Issue with Queue getting stuck in rare scenarios..
+  * FIXED: Device Activity which was ruined after my last update.
+  * FIXED: WebSocket Events not updating device info (Hubitat Only).
+  * FIXED: Cleaned up device events filling up device history (ST)
+  * FIXED: Reduced the number of Amazon web calls per device.
+  * REMOVED: Removing the alexaNotifications attribute for now until I rebuild the Notifications features
+  * UPDATED: Log cleanups.
 
   WebSocket Device (v3.3.0.0)
-  • FIXED: WebSocket Events not working for Device Activity (Hubitat Only).
+  * FIXED: WebSocket Events not working for Device Activity (Hubitat Only).
 
   Server (v2.4.0)
-  • ADDED: The server now validates the cookies received from Hubitat and ST apps and if it's invalid will send the command to HE/ST to clear the cookies from the app and devices.  This will stop the app from trying to constantly wakeup the server (causing overage of free heroku services).
-  • FIXED: Minor fixes to the Heroku server wakeup logic.
-  • FIXED: Other optimizations and fixes.
+  * ADDED: The server now validates the cookies received from Hubitat and ST apps and if it's invalid will send the command to HE/ST to clear the cookies from the app and devices.  This will stop the app from trying to constantly wakeup the server (causing overage of free heroku services).
+  * FIXED: Minor fixes to the Heroku server wakeup logic.
+  * FIXED: Other optimizations and fixes.
 _____________________________________
 
   ══════════
   February 17th, 2020
  ══════════
   Main App (v3.5.0.1)
-  • UPDATED: Log cleanups.
+  * UPDATED: Log cleanups.
 
   Echo Device (v3.5.0.1)
-  • UPDATED: Log cleanups.
+  * UPDATED: Log cleanups.
 _____________________________________
 
  ══════════
   February 9th, 2020
  ══════════
   Main App (v3.5.0.0)
-  • UPDATED: Overhauled the way supported device data is loaded to reduce state size consumption.  All data is pulled from a Firebase Database now.
-  • ADDED: Device Activity data is now loaded from the smartapp and available to the devices to reduce the many reduntant calls to the API which causes rate-limiting. #230
-  • FIXED: Stopped removing ' character from speech text builder. #226
-  • FIXED: Lot's of other minor UI and logic bugfixes.
+  * UPDATED: Overhauled the way supported device data is loaded to reduce state size consumption.  All data is pulled from a Firebase Database now.
+  * ADDED: Device Activity data is now loaded from the smartapp and available to the devices to reduce the many reduntant calls to the API which causes rate-limiting. #230
+  * FIXED: Stopped removing ' character from speech text builder. #226
+  * FIXED: Lot's of other minor UI and logic bugfixes.
 
   Action App (v3.5.0.0)
-  • FIXED: Resolved issue with multiple actions conditions being ignored #232
-  • ADDED: You can now define volumes for each tier in tiered actions.
-  • FIXED: Other bugfixes.
+  * FIXED: Resolved issue with multiple actions conditions being ignored #232
+  * ADDED: You can now define volumes for each tier in tiered actions.
+  * FIXED: Other bugfixes.
 
   Zone App (v3.5.0.0)
-  • FIXED: Other bugfixes.
+  * FIXED: Other bugfixes.
 
   Echo Device (v3.5.0.0)
-  • FIXED: Alarm/Reminder creation fixes (@TonyFleisher) #200
-  • UPDATED: Support for the new device activity logic.
+  * FIXED: Alarm/Reminder creation fixes (@TonyFleisher) #200
+  * UPDATED: Support for the new device activity logic.
 _____________________________________
 
  ══════════
   January 24th, 2020
  ══════════
   Main App (v3.4.0.0)
-  • ADDED: Ability to control SHM based on switches #217 #214
-  • FIXED: Other bugfixes.
+  * ADDED: Ability to control SHM based on switches #217 #214
+  * FIXED: Other bugfixes.
 
   Action App (v3.4.0.0)
-  • FIXED: Volume Control Actions #147
-  • FIXED: Alarm/Reminder creation changes (@JDiaz11) #200
-  • FIXED: Other bugfixes.
+  * FIXED: Volume Control Actions #147
+  * FIXED: Alarm/Reminder creation changes (@JDiaz11) #200
+  * FIXED: Other bugfixes.
 
   Zone App (v3.4.0.0)
-  • FIXED: Zone Activation Notifications #211
-  • FIXED: Zone Deactivation based on time in condition #212
-  • FIXED: Other bugfixes.
+  * FIXED: Zone Activation Notifications #211
+  * FIXED: Zone Deactivation based on time in condition #212
+  * FIXED: Other bugfixes.
 
   Echo Device (v3.4.0.0)
-  • FIXED: Alarm/Reminder creation changes (@JDiaz11) #200
-  • FIXED: Other bugfixes.
+  * FIXED: Alarm/Reminder creation changes (@JDiaz11) #200
+  * FIXED: Other bugfixes.
 _____________________________________
 
  ══════════
   January 17th, 2020
  ══════════
   Zone App (v3.3.3.0)
-  • FIXED: Activate and Deactivate delays are now working again
+  * FIXED: Activate and Deactivate delays are now working again
 
   Main App (v3.3.3.0)
-  • FIXED: Issue with conditions.
+  * FIXED: Issue with conditions.
 _____________________________________
 
  ══════════
   January 7th, 2020
  ══════════
   Zone App (v3.3.2.0)
-  • FIXED: Issue with action and zone conditions.
+  * FIXED: Issue with action and zone conditions.
 
   Main App (v3.3.2.0)
-  • FIXED: Issue with conditions.
+  * FIXED: Issue with conditions.
 
   Action App (v3.3.2.0)
-  • FIXED: Issue with conditions.
+  * FIXED: Issue with conditions.
 
 _____________________________________
 
@@ -143,7 +163,7 @@ _____________________________________
   December 28th, 2019
  ══════════
   Zone App (v3.3.1.2)
-  • FIXED: Issue with zone delay setting conversion
+  * FIXED: Issue with zone delay setting conversion
 
 _____________________________________
 
@@ -151,10 +171,10 @@ _____________________________________
   December 23rd, 2019
  ══════════
   Main App (v3.3.1.2)
-  • FIXED: Issue with %duration_min% not being highlighter.
+  * FIXED: Issue with %duration_min% not being highlighter.
 
   Action App (v3.3.1.2)
-  • FIXED: Issue with %duration% variables appending .0
+  * FIXED: Issue with %duration% variables appending .0
 
 _____________________________________
 
@@ -162,13 +182,13 @@ _____________________________________
   December 19th, 2019
  ══════════
   Main App (v3.3.1.1)
-  • ADDED: Ability to clear zones when none are installed #156.
+  * ADDED: Ability to clear zones when none are installed #156.
 
   Action App (v3.3.1.1)
-  • UPDATED: Rebuilt the condition evaluation logic to fix #182 #183.
+  * UPDATED: Rebuilt the condition evaluation logic to fix #182 #183.
 
   Zones App (v3.3.1.1)
-  • UPDATED: Rebuilt the condition evaluation logic to fix #182 #183.
+  * UPDATED: Rebuilt the condition evaluation logic to fix #182 #183.
 
 _____________________________________
 
@@ -176,21 +196,21 @@ _____________________________________
   December 17th, 2019
  ══════════
   Main App (v3.3.1.0)
-  • FIXED: More zone condition and activation fixes.
-  • ADDED: New Zone history viewer in the Zones page.
-  • ADDED: Alexa Routines now allow you to add a name to them so the app now supports the name field(Meaning your actions routines will be easy to identify).
-  • ADDED: new amazon.in domain name.
+  * FIXED: More zone condition and activation fixes.
+  * ADDED: New Zone history viewer in the Zones page.
+  * ADDED: Alexa Routines now allow you to add a name to them so the app now supports the name field(Meaning your actions routines will be easy to identify).
+  * ADDED: new amazon.in domain name.
 
   Action App (v3.3.1.0)
-  • ADDED: Use Accelerometer devices as triggers and conditions #175.
-  • ADDED: Alexa Routines now allow you to add a name to them so the app now supports the name field(Meaning your actions routines will be easy to identify).
-  • ADDED: Support for duration in minutes text variable (#179).
-  • FIXED: Other bug fixes.
+  * ADDED: Use Accelerometer devices as triggers and conditions #175.
+  * ADDED: Alexa Routines now allow you to add a name to them so the app now supports the name field(Meaning your actions routines will be easy to identify).
+  * ADDED: Support for duration in minutes text variable (#179).
+  * FIXED: Other bug fixes.
 
   Zones App (v3.3.1.0)
-  • ADDED: Use Accelerometer devices under conditions #175.
-  • ADDED: Zone Activation changes are now logged so you can view them.
-  • FIXED: Other bug fixes.
+  * ADDED: Use Accelerometer devices under conditions #175.
+  * ADDED: Zone Activation changes are now logged so you can view them.
+  * FIXED: Other bug fixes.
 
 _____________________________________
 
@@ -198,19 +218,19 @@ _____________________________________
   December 7th, 2019
  ══════════
  Main App (v3.3.0.1)
-  • FIXED: When zones were removed they we not being removed from Main app and actions.
-  • ADDED: Zone Maintenance section to pause/unpause all zones as well as clear all stored zone data and force all zones to report in.
-  • ADDED: new amazon.es locale and a new way to distribute new locales remotely
+  * FIXED: When zones were removed they we not being removed from Main app and actions.
+  * ADDED: Zone Maintenance section to pause/unpause all zones as well as clear all stored zone data and force all zones to report in.
+  * ADDED: new amazon.es locale and a new way to distribute new locales remotely
 
  Action App (v3.3.0.1)
-  • FIXED: Zone refresh bugfixes when zones where removed.
-  • FIXED: Other bug fixes.
+  * FIXED: Zone refresh bugfixes when zones where removed.
+  * FIXED: Other bug fixes.
 
  Zones App (v3.3.0.1)
-  • FIXED: Minor UI tweaks and zone status bugfixes.
+  * FIXED: Minor UI tweaks and zone status bugfixes.
 
  Echo Device (v3.3.0.1)
-  • ADDED: Icons for facebook portal.
+  * ADDED: Icons for facebook portal.
 
 _____________________________________
 
@@ -218,19 +238,19 @@ _____________________________________
   November 25th, 2019
  ══════════
  Main App (v3.3.0.0)
-  • UPDATED: The unknown devices reporting to include capabilities.
-  • ADDED: Support for the new Sounds commands in the devices and actions.
+  * UPDATED: The unknown devices reporting to include capabilities.
+  * ADDED: Support for the new Sounds commands in the devices and actions.
 
  Action App (v3.3.0.0)
-  • ADDED: Support for the new Sounds Action Type (Play built in sounds available under alexa routines).
-  • FIXED: Bug that caused white screen after selecting sequence action type.
-  • FIXED: Other bug fixes.
+  * ADDED: Support for the new Sounds Action Type (Play built in sounds available under alexa routines).
+  * FIXED: Bug that caused white screen after selecting sequence action type.
+  * FIXED: Other bug fixes.
 
  Zones App (v3.3.0.0)
-  • ADDED: Support for the new Sounds commands in actions.
+  * ADDED: Support for the new Sounds commands in actions.
 
  Echo Device (v3.3.0.0)
-  • ADDED: Support for the new Sounds Command (Play built in sounds available under alexa routines).
-  • ADDED: new command ```playSoundByName()``` Should support any Alexa Skills Kit Sound File that starts with 'amzn_sfx_'.
+  * ADDED: Support for the new Sounds Command (Play built in sounds available under alexa routines).
+  * ADDED: new command ```playSoundByName()``` Should support any Alexa Skills Kit Sound File that starts with 'amzn_sfx_'.
 
 _____________________________________
