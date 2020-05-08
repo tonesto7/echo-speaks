@@ -1318,7 +1318,7 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
             triggerDataRrsh()
         } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
         logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
-        return rData?.id || null
+        return rData?.id
     } catch (ex) {
         respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
     }
@@ -2140,14 +2140,17 @@ def removeNotification(String id) {
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
             String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[id]
+            logDebug("Found ID translation ${id}=${translatedID}")
             if (translatedID) {
                 sendAmazonCommand("DELETE", [
                     uri: getAmazonUrl(),
-                    path: "/api/notifications/${id}",
+                    path: "/api/notifications/${translatedID}",
                     headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                     contentType: "application/json",
                     body: []
                 ], [cmdDesc: "RemoveNotification"])
+                
+                state.createdNotifications[id] = null
             } else { logWarn("removeNotification Unable to Find Translated ID for ${id}", true) }
         } else { logWarn("removeNotification is Missing the Required (id) Parameter!!!", true) }
     }
@@ -2189,7 +2192,7 @@ private createNotification(type, opts) {
     if (notifKey) {
         String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[notifKey]
         if (translatedID) {
-            logWarn("createNotification found existing notification named ${notifKey}, removing that first")
+            logWarn("createNotification found existing notification named ${notifKey}=${translatedID}, removing that first")
             removeNotification(notifKey)
         }
     }
