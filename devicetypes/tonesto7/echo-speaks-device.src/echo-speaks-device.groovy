@@ -2149,7 +2149,7 @@ def removeNotification(String id) {
                     contentType: "application/json",
                     body: []
                 ], [cmdDesc: "RemoveNotification"])
-                
+
                 state.createdNotifications[id] = null
             } else { logWarn("removeNotification Unable to Find Translated ID for ${id}", true) }
         } else { logWarn("removeNotification is Missing the Required (id) Parameter!!!", true) }
