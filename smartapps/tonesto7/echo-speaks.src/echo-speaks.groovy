@@ -938,7 +938,7 @@ def speechPage() {
             if(test_speechDevices?.size() >= 3) { paragraph "Amazon will Rate Limit more than 3 device commands at a time.  There will be a delay in the other devices but they should play the test after a few seconds", state: null}
             input "test_speechVolume", "number", title: inTS("Speak at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
             input "test_speechRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
-            input "test_speechMessage", "text", title: inTS("Message to Speak"), defaultValue: "This is a speach test for your Echo speaks device!!!", required: true, submitOnChange: true
+            input "test_speechMessage", "text", title: inTS("Message to Speak"), defaultValue: "This is a speech test for your Echo speaks device!!!", required: true, submitOnChange: true
         }
         if(settings?.test_speechDevices) {
             section() {
