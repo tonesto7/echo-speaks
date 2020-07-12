@@ -2,5 +2,5 @@
     "versions": {
         "server": "2.4.1"
     },
-    "notices": []
+    "notices": ["Amazon has recently added so new methods of protection to the login process, these changes have broken the login proxy used by this app.  Workarounds are be investigated and fixes will be deployed when they are found."]
 }
