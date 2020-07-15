@@ -1,6 +1,6 @@
 {
     "versions": {
-        "server": "2.4.1"
+        "server": "2.5.0"
     },
-    "notices": ["Amazon has recently added so new methods of protection to the login process, these changes have broken the login proxy used by this app.  Workarounds are be investigated and fixes will be deployed when they are found."]
+    "notices": ["Amazon made changes to the login process which broke the existing server.  I have just released a version 2.5.0 which should address the signon issues."]
 }
