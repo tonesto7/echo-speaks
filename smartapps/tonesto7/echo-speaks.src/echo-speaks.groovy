@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.6.2.0" }
-String appModified()  { return "2020-04-22" }
+String appVersion()   { return "3.6.3.0" }
+String appModified()  { return "2020-07-15" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3620, wsDevice: 3300, actionApp: 3620, zoneApp: 3620, server: 240] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3630, wsDevice: 3300, actionApp: 3630, zoneApp: 3630, server: 230] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -1261,12 +1261,14 @@ def initialize() {
     if(!state?.resumeConfig) {
         updateZoneSubscriptions()
         validateCookie(true)
-        runEvery1Minute("getOtherData")
-        runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
-        // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
-        runIn(11, "postInitialize")
-        getOtherData()
-        getEchoDevices()
+        if(state?.noAuthActive != true) {
+            runEvery1Minute("getOtherData")
+            runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
+            // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
+            runIn(11, "postInitialize")
+            getOtherData()
+            getEchoDevices()
+        } else { unschedule("getEchoDevices") }
     }
 }
 
@@ -1274,7 +1276,6 @@ private stateMigrationChk() {
     if(!getAppFlag("stateMapConverted")) { stateMapMigration() }
     return
 }
-
 
 def updateZoneSubscriptions() {
     if(state?.zoneEvtsActive != true) {
@@ -1285,6 +1286,7 @@ def updateZoneSubscriptions() {
 }
 
 def postInitialize() {
+    logTrace("postInitialize")
     runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
     appCleanup()
     reInitChildDevices()
@@ -1626,10 +1628,25 @@ private updateChildAuth(Boolean isValid) {
     (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { (isValid) ? it?.updateCookies([cookie: getCookieVal(), csrf: getCsrfVal()]) : it?.removeCookies(true); }
 }
 
+private authValidationEvent(Boolean valid, String src=null) {
+    Integer listSize = 3
+    List eList = atomicState?.authValidHistory ?: [true, true, true]
+    eList?.push(valid)
+    if(eList?.size() > listSize) { eList = eList?.drop( eList?.size()-listSize ) }
+    atomicState?.authValidHistory = eList
+    if(eList?.every { it == false }) {
+        if(state?.noAuthActive != true) {
+            logError("The last 3 authentication checks have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
+        }
+        authEvtHandler(false, src)
+        return
+    } else { authEvtHandler(true) }
+}
+
 private authEvtHandler(Boolean isAuth, String src=null) {
     // log.debug "authEvtHandler(${isAuth})"
     state?.authValid = (isAuth == true)
-    if(isAuth == false && !state?.noAuthActive) {
+    if(isAuth == false && state?.noAuthActive != true) {
         clearCookieData()
         noAuthReminder()
         if(settings?.sendCookieInvalidMsg != false && getLastTsValSecs("lastCookieInvalidMsgDt") > 28800) {
@@ -1638,14 +1655,12 @@ private authEvtHandler(Boolean isAuth, String src=null) {
         }
         runEvery1Hour("noAuthReminder")
         state?.noAuthActive = true
-        state?.authEvtClearReason = [dt: getDtNow(), src: src]
+        atomicState?.authEvtClearReason = [dt: getDtNow(), src: src]
         updateChildAuth(isAuth)
-    } else {
-        if(state?.noAuthActive) {
-            unschedule("noAuthReminder")
-            state?.noAuthActive = false
-            runIn(10, "initialize", [overwrite: true])
-        }
+    } else if (isAuth == true && state?.noAuthActive == true) {
+        unschedule("noAuthReminder")
+        state?.noAuthActive = false
+        runIn(10, "initialize", [overwrite: true])
     }
 }
 
@@ -1656,6 +1671,8 @@ Boolean isAuthValid(methodName) {
     }
     return true
 }
+
+private noAuthReminder() { logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...") }
 
 String toQueryString(Map m) {
     return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort().join("&")
@@ -1843,21 +1860,6 @@ private userCommIds() {
         respExceptionHandler(ex, "userCommIds")
     }
 }
-
-private authValidationEvent(Boolean valid, String src=null) {
-    Integer listSize = 3
-    List eList = atomicState?.authValidHistory ?: [true, true, true]
-    eList.push(valid)
-    if(eList?.size() > listSize) { eList = eList?.drop( eList?.size()-listSize ) }
-    atomicState?.authValidHistory = eList
-    if(eList?.every { it == false }) {
-        logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
-        authEvtHandler(false, src)
-        return
-    } else { authEvtHandler(true) }
-}
-
-private noAuthReminder() { logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...") }
 
 public childInitiatedRefresh() {
     Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)?.abs()

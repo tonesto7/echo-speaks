@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.2.0" }
-String appModified() { return "2020-04-22" }
+String appVersion()  { return "3.6.3.0" }
+String appModified() { return "2020-07-15" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -65,7 +65,7 @@ preferences {
 def startPage() {
     if(parent != null) {
         if(!state?.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
-        else { state?.isParent = false; return (checkMinVersion()) ? codeUpdatePage() : mainPage(); }
+        else { state?.isParent = false; return (minVersionFailed()) ? codeUpdatePage() : mainPage(); }
     } else { return uhOhPage(); }
 }
 
@@ -2038,7 +2038,7 @@ Boolean schedulesConfigured() {
 }
 
 private subscribeToEvts() {
-    if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
+    if(minVersionFailed ()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
     settings?.triggerEvents?.each { te->
         if(te == "scheduled" || settings?."trig_${te}") {
@@ -3626,7 +3626,15 @@ public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.val
 //Builds Map Message object to send to Pushover Manager
 private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
-Boolean checkMinVersion() { return (versionStr2Int(appVersion()) < parent?.minVersions()["actionApp"]) }
+Boolean minVersionFailed() {
+    try {
+        Integer minDevVer = parent?.minVersions()["actionApp"] ?: null
+        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
+        else { return false }
+    } catch (e) { 
+        return false
+    }
+}
 
 
 /************************************************************************************************************
