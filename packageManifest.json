@@ -1,9 +1,9 @@
 {
     "packageName": "Echo Speaks",
     "author": "Anthony S.",
-    "version": "3.6.3.0",
+    "version": "3.6.2.0",
     "minimumHEVersion": "1.0.0",
-    "dateReleased": "2020-07-10",
+    "dateReleased": "2020-04-22",
     "licenseFile": "",
     "releaseNotes": "",
     "apps": [{
@@ -13,7 +13,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
             "required": true,
             "oauth": true,
-            "version": "3.6.3.0"
+            "version": "3.6.2.0"
         },
         {
             "id": "cd4762db-aa0b-4d32-98ca-06de955dbc33",
@@ -22,7 +22,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
             "required": true,
             "oauth": false,
-            "version": "3.6.3.0"
+            "version": "3.6.2.0"
         },
         {
             "id": "50ad91a0-eb51-4d6f-98d2-f1654221baa9",
@@ -31,7 +31,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks-zones.src/echo-speaks-zones.groovy",
             "required": true,
             "oauth": false,
-            "version": "3.6.3.0"
+            "version": "3.6.2.0"
         }
     ],
     "drivers": [{
@@ -40,7 +40,7 @@
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy",
             "required": true,
-            "version": "3.6.3.0"
+            "version": "3.6.2.0"
         },
         {
             "id": "e708fa5f-91be-421a-848c-e989406317bd",
@@ -48,7 +48,7 @@
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-ws.groovy",
             "required": true,
-            "version": "3.3.1.0"
+            "version": "3.3.0.0"
         }
     ]
 }

@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.6.3.0" }
-String devModified() { return "2020-07-15" }
+String devVersion()  { return "3.6.2.0" }
+String devModified() { return "2020-04-22" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -551,7 +551,7 @@ def initialize() {
     sendEvent(name: "DeviceWatch-Enroll", value: new groovy.json.JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), display: false, displayed: false)
     resetQueue()
     stateCleanup()
-    if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
+    if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
     schedDataRefresh(true)
     refreshData(true)
     //TODO: Have the queue validated based on the last time it was processed and have it cleanup if it's been too long
@@ -591,13 +591,11 @@ public updateCookies(cookies) {
 }
 
 public removeCookies(isParent=false) {
-    if(state?.cookie != null && state?.authValid != false && state?.refreshScheduled != false) {
-        logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
-        state?.cookie = null
-        state?.authValid = false
-        state?.refreshScheduled = false
-    }
+    logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
     unschedule("refreshData")
+    state?.cookie = null
+    state?.authValid = false
+    state?.refreshScheduled = false
 }
 
 Boolean isAuthOk(noLogs=false) {
@@ -847,7 +845,7 @@ private refreshData(full=false) {
         return
     }
     if(!isAuthOk()) {return}
-    if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
+    if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
     // logTrace("permissions: ${state?.permissions}")
     if(state?.permissions?.mediaPlayer == true && (full || state?.fullRefreshOk || !wsActive)) {
         getPlaybackState()
@@ -1320,7 +1318,7 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
             triggerDataRrsh()
         } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
         logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
-        return rData?.id || null
+        return rData?.id
     } catch (ex) {
         respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
     }
@@ -3198,16 +3196,7 @@ private postCmdProcess(resp, statusCode, data) {
 ******************************************************/
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
-// Checks to make sure the code running meets the minimum version required to support the main parent app.
-Boolean minVersionFailed() {
-    try {
-        Integer minDevVer = parent?.minVersions()["echoDevice"] ?: null
-        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
-        else { return false }
-    } catch (e) { 
-        return false
-    }
-}
+Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVersions()["echoDevice"]) }
 def getDtNow() {
     def now = new Date()
     return formatDt(now, false)
