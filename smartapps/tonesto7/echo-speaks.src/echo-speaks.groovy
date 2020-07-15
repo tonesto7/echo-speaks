@@ -19,7 +19,7 @@ String appModified()  { return "2020-07-15" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3630, wsDevice: 3300, actionApp: 3630, zoneApp: 3630, server: 230] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3630, wsDevice: 3310, actionApp: 3630, zoneApp: 3630, server: 250] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -5063,6 +5063,10 @@ private Map deviceSupportMap() {
             "A2WN1FJ2HG09UN": [ ignore: true ],
             "A18TCD9FP10WJ9": [ ignore: true ],
             "A1FWRGKHME4LXH": [ ignore: true ],
+            "A26TRKU1GG059T": [ ignore: true ],
+            "A2S24G29BFP88":  [ ignore: true, image: "unknown", name: "Ford/Lincoln Alexa App" ],
+            "A1NAFO69AAQ16Bk":  [ ignore: true, image: "unknown", name: "Wyze Band" ],
+            "A1NAFO69AAQ16B":  [ ignore: true, image: "unknown", name: "Wyze Band" ],
             "A3L2K717GERE73": [ ignore: true, image: "unknown", name: "Voice in a Can (iOS)" ],
             "A222D4HGE48EOR": [ ignore: true, image: "unknown", name: "Voice in a Can (Apple Watch)" ],
             "A19JK51Y4N50K5": [ ignore: true, image: "unknown", name: "Jabra(?)" ],
@@ -5084,20 +5088,27 @@ private Map deviceSupportMap() {
             "A38EHHIB10L47V": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
             "A3B50IC5QPZPWP": [ caps: [ "a", "t" ], image: "unknown", name: "Polk Command Bar" ],
             "A3B5K1G3EITBIF": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
+            "A3D4YURNTARP5K": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal TV" ],
             "A3CY98NH016S5F": [ caps: [ "a", "t" ], image: "unknown", name: "Facebook Portal Mini" ],
             "A3BRT6REMPQWA8": [ caps: [ "a", "t" ], image: "sonos_generic", name: "Bose Home Speaker 450" ],
             "A3C9PE6TNYLTCH": [ image: "echo_wha", name: "Multiroom" ],
             "A3F1S88NTZZXS9": [ blocked: true, image: "dash_wand", name: "Dash Wand" ],
             "A3FX4UWTP28V1P": [ caps: [ "a", "t" ], image: "echo_plus_gen2", name: "Echo (Gen3)" ],
             "A3H674413M2EKB": [ ignore: true ],
+            "A3KULB3NQN7Z1F": [ caps: [ "a", "t" ], image: "unknown", name: "Unknown TV" ],
+            "A18TCD9FP10WJ9": [ caps: [ "a", "t" ], image: "unknown", name: "Orbi Voice" ],
+            "AGHZIK8D6X7QR": [ caps: [ "a", "t" ], image: "unknown", name: "Fire TV" ],
             "A3HF4YRA2L7XGC": [ caps: [ "a", "t" ], image: "firetv_cube", name: "Fire TV Cube" ],
             "A3L0T0VL9A921N": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
             "A3NPD82ABCPIDP": [ caps: [ "t" ], image: "sonos_beam", name: "Sonos Beam" ],
-            "A3NVKTZUPX1J3X": [ blocked: true, name: "Unknown Device" ],
+            "A3NVKTZUPX1J3X": [ ignore: true, name: "Onkyp VC30" ],
             "A3NWHXTQ4EBCZS": [ ignore: true ],
+            "A2RG3FY1YV97SS": [ ignore: true ],
+            "A3K69RS3EIMXPI": [ caps: [ "a", "t" ], image: "unknown", name: "Hisense Smart TV" ],
             "A3QPPX1R9W5RJV": [ caps: [ "a", "t" ], image: "fabriq_chorus", name: "Fabriq Chorus" ],
             "A3R9S4ZZECZ6YL": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 10" ],
             "A3RBAYBE7VM004": [ caps: [ "a", "t" ], image: "echo_studio", name: "Echo Studio" ],
+            "A2RU4B77X9R9NZ": [ caps: [ "a", "t" ], image: "echo_link_amp", name: "Echo Link Amp" ],
             "A3S5BH2HU6VAYF": [ caps: [ "a", "t" ], image: "echo_dot_gen2", name: "Echo Dot (Gen2)" ],
             "A3SSG6GR8UU7SN": [ caps: [ "a", "t" ], image: "echo_sub_gen1", name: "Echo Sub" ],
             "A3SSWQ04XYPXBH": [ blocked: true, image: "amazon_tablet", name: "Generic Tablet" ],

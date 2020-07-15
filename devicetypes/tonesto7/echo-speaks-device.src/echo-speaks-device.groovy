@@ -51,6 +51,7 @@ metadata {
         attribute "followUpMode", "string"
         attribute "lastCmdSentDt", "string"
         attribute "lastSpeakCmd", "string"
+        attribute "lastAnnouncement", "string"
         attribute "lastSpokenToTime", "number"
         attribute "lastVoiceActivity", "string"
         attribute "lastUpdated", "string"
@@ -1195,7 +1196,7 @@ private getPlaylists() {
             // logTrace("getPlaylistsHandler: ${sData}")
             def playlist = sData ? sData?.playlists : [:]
             def playlistJson = new groovy.json.JsonOutput().toJson(playlist)
-            if(isStateChange(device, "alexaPlaylists", playlistJson?.toString())) {
+            if(isStateChange(device, "alexaPlaylists", playlistJson?.toString()) && playlistJson?.toString()?.length() < 1024) {
                 // log.trace "Alexa Playlists Changed to ${playlistJson}"
                 sendEvent(name: "alexaPlaylists", value: playlistJson?.toString(), display: false, displayed: false)
             }
@@ -1869,6 +1870,7 @@ def playAnnouncement(String msg, volume=null, restoreVolume=null) {
             if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
             sendMultiSequenceCommand(seqs, "playAnnouncement")
         } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
+        sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
     }
 }
 
@@ -1880,6 +1882,7 @@ def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) 
             if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
             sendMultiSequenceCommand(seqs, "playAnnouncement")
         } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
+        sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
     }
 }
 
