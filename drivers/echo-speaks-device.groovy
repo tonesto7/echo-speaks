@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.6.2.0" }
-String devModified() { return "2020-04-22" }
+String devVersion()  { return "3.6.3.0" }
+String devModified() { return "2020-07-15" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -23,7 +23,7 @@ metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
         // capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
-        // capability "Audio Track Data" // Not Compatible with Hubitat
+        // capability "Audio Track Data" // To support SharpTools.io Album Art feature
         capability "Audio Volume"
         capability "Music Player"
         capability "Notification"
@@ -64,8 +64,6 @@ metadata {
         attribute "wakeWords", "enum"
         attribute "wifiNetwork", "string"
         attribute "wasLastSpokenToDevice", "string"
-	    
-	attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
 
         command "playText", ["string"] //This command is deprecated in ST but will work
         command "playTextAndResume"
@@ -190,7 +188,7 @@ def initialize() {
     sendEvent(name: "DeviceWatch-Enroll", value: new groovy.json.JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), display: false, displayed: false)
     resetQueue()
     stateCleanup()
-    if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
+    if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
     schedDataRefresh(true)
     refreshData(true)
     //TODO: Have the queue validated based on the last time it was processed and have it cleanup if it's been too long
@@ -230,11 +228,13 @@ public updateCookies(cookies) {
 }
 
 public removeCookies(isParent=false) {
-    logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
+    if(state?.cookie != null && state?.authValid != false && state?.refreshScheduled != false) {
+        logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
+        state?.cookie = null
+        state?.authValid = false
+        state?.refreshScheduled = false
+    }
     unschedule("refreshData")
-    state?.cookie = null
-    state?.authValid = false
-    state?.refreshScheduled = false
 }
 
 Boolean isAuthOk(noLogs=false) {
@@ -484,7 +484,7 @@ private refreshData(full=false) {
         return
     }
     if(!isAuthOk()) {return}
-    if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
+    if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
     // logTrace("permissions: ${state?.permissions}")
     if(state?.permissions?.mediaPlayer == true && (full || state?.fullRefreshOk || !wsActive)) {
         getPlaybackState()
@@ -2832,7 +2832,16 @@ private postCmdProcess(resp, statusCode, data) {
 ******************************************************/
 String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
-Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVersions()["echoDevice"]) }
+// Checks to make sure the code running meets the minimum version required to support the main parent app.
+Boolean minVersionFailed() {
+    try {
+        Integer minDevVer = parent?.minVersions()["echoDevice"] ?: null
+        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
+        else { return false }
+    } catch (e) { 
+        return false
+    }
+}
 def getDtNow() {
     def now = new Date()
     return formatDt(now, false)

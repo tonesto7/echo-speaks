@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.2.0" }
-String appModified() { return "2020-04-22" }
+String appVersion()  { return "3.6.3.0" }
+String appModified() { return "2020-07-15" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -65,7 +65,7 @@ preferences {
 def startPage() {
     if(parent != null) {
         if(!state?.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
-        else { state?.isParent = false; return (checkMinVersion()) ? codeUpdatePage() : mainPage(); }
+        else { state?.isParent = false; return (minVersionFailed()) ? codeUpdatePage() : mainPage(); }
     } else { return uhOhPage(); }
 }
 
@@ -112,7 +112,7 @@ private buildTriggerEnum() {
         //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
         // buildItems?.Location?.scene = "Scenes"
     }
-    buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power", "acceleration":"Accelerometers"]?.sort{ it?.value }
+    buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power", "acceleration":"Accelorometers"]?.sort{ it?.value }
     buildItems["Actionable Devices"] = ["lock":"Locks", "button":"Buttons", "switch":"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
     if(!isST()) {
         buildItems["Actionable Devices"]?.remove("button")
@@ -423,7 +423,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt("acceleration")) {
-                trigNonNumSect("acceleration", "accelerationSensor", "Accelerometers", "Accelerometers", ["active", "inactive", "any"], "changes to", ["active", "inactive"], "acceleration", trigItemCnt++)
+                trigNonNumSect("acceleration", "accelerationSensor", "Accelorometers", "Accelorometers", ["active", "inactive", "any"], "changes to", ["active", "inactive"], "acceleration", trigItemCnt++)
             }
 
             if (valTrigEvt("door")) {
@@ -723,7 +723,7 @@ def conditionsPage() {
 
         condNonNumSect("contact", "contactSensor", "Door, Window, Contact Sensors Conditions", "Contact Sensors", ["open","closed"], "are", "contact")
 
-        condNonNumSect("acceleration", "accelerationSensor", "Accelerometer Conditions", "Accelerometer Sensors", ["active","inactive"], "are", "acceleration")
+        condNonNumSect("acceleration", "accelerationSensor", "Accelorometer Conditions", "Accelorometer Sensors", ["active","inactive"], "are", "acceleration")
 
         condNonNumSect("lock", "lock", "Lock Conditions", "Smart Locks", ["locked", "unlocked"], "are", "lock")
 
@@ -2038,7 +2038,7 @@ Boolean schedulesConfigured() {
 }
 
 private subscribeToEvts() {
-    if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
+    if(minVersionFailed ()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
     settings?.triggerEvents?.each { te->
         if(te == "scheduled" || settings?."trig_${te}") {
@@ -3626,7 +3626,15 @@ public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.val
 //Builds Map Message object to send to Pushover Manager
 private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
-Boolean checkMinVersion() { return (versionStr2Int(appVersion()) < parent?.minVersions()["actionApp"]) }
+Boolean minVersionFailed() {
+    try {
+        Integer minDevVer = parent?.minVersions()["actionApp"] ?: null
+        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
+        else { return false }
+    } catch (e) { 
+        return false
+    }
+}
 
 
 /************************************************************************************************************
