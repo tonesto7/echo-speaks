@@ -700,7 +700,9 @@ def conditionsPage() {
                 paragraph pTS("Notice:\n${(settings?.cond_require_all == true) ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
             }
         }
+        if(!multiConds && settings?.cond_require_all == true) { settingUpdate("cond_require_all", "false", "bool") }
         section(sTS("Time/Date")) {
+            // input "test_time", "time", title: "Trigger Time?", required: false, submitOnChange: true, image: getAppImg("clock")
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getAppImg("clock")
             input "cond_days", "enum", title: inTS("Days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
             input "cond_months", "enum", title: inTS("Months of the year", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: monthEnum(), image: getAppImg("day_calendar")
@@ -2689,7 +2691,9 @@ Boolean timeCondOk() {
             startTime = toDateTime(startTime)
             stopTime = toDateTime(stopTime)
         }
-        return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
+        Boolean isBtwn = timeOfDayIsBetween(startTime, stopTime, now, location?.timeZone)
+        log.debug "TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}"
+        return isBtwn
     } else { return null }
 }
 
@@ -3871,10 +3875,10 @@ Boolean isMonthOfYear(opts) {
     return ( opts?.contains(dtMap?.monthName) )
 }
 
-Boolean isTimeOfDay(startTime, stopTime) {
+Boolean isTimeBetween(startTime, stopTime, curTime= new Date()) {
     if(!startTime && !stopTime) { return true }
     if(!isST()) { startTime = toDateTime(startTime); stopTime = toDateTime(stopTime); }
-    return timeOfDayIsBetween(startTime, stopTime, new Date(), location.timeZone)
+    return timeOfDayIsBetween(startTime, stopTime, curTime, location?.timeZone)
 }
 
 /******************************************

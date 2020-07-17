@@ -1,4 +1,30 @@
  ══════════
+  July 15th, 2020
+ ══════════
+  Main App (v3.6.3.0)
+  * UPDATED: Device Support table updates
+  * FIXED: Stopped constant spamming of the logs when the cookie was cleared or expired.
+
+  Action App (v3.6.3.0)
+  * FIXED: Error java.lang.NullPointerException: Cannot get property 'actionApp' on null object.
+
+  Zone App (v3.6.3.0)
+  * FIXED: Error java.lang.NullPointerException: Cannot get property 'ZoneApp' on null object.
+
+  Echo Device (v3.6.3.0)
+  * FIXED: Error java.lang.NullPointerException: Cannot get property 'echoDevice' on null object.
+  * FIXED: alexaPlaylists length > 1024 error on Hubitat. #329
+  * ADDED: New attribute for lastAnnouncement text @mayhew132 #333
+
+  WebSocket  Device (v3.6.1.0)
+  * FIXED: Error java.lang.NullPointerException: Cannot get property 'wsDevice' on null object.
+
+  Server (v2.5.0)
+  * UPDATED: Fixes for Amazon login flow/verifications changes.
+  * FIXED: Bug fixes.
+_____________________________________
+
+ ══════════
   April 22nd, 2020
  ══════════
   Main App (v3.6.2.0)
