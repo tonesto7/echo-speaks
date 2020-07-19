@@ -52,7 +52,7 @@ def startPage() {
     if(parent != null) {
         if(!state?.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
         else {
-            state?.isParent = false; return (checkMinVersion()) ? codeUpdatePage() : mainPage();
+            state?.isParent = false; return (minVersionFailed()) ? codeUpdatePage() : mainPage();
         }
     } else { return uhOhPage() }
 }
@@ -518,7 +518,7 @@ private healthCheck() {
 private condItemSet(String key) { return (settings?.containsKey("cond_${key}") && settings["cond_${key}"]) }
 
 private subscribeToEvts() {
-    if(checkMinVersion()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
+    if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
     state?.handleGuardEvents = false
     List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "shade", "valve", "door", "contact", "acceleration", "switch", "battery", "level"]
@@ -1606,7 +1606,15 @@ public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.val
 //Builds Map Message object to send to Pushover Manager
 private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
-Boolean checkMinVersion() { return (versionStr2Int(appVersion()) < parent?.minVersions()["zoneApp"]) }
+Boolean minVersionFailed() {
+    try {
+        Integer minDevVer = parent?.minVersions()["zoneApp"] ?: null
+        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
+        else { return false }
+    } catch (e) { 
+        return false
+    }
+}
 Boolean isPaused() { return (settings?.zonePause == true) }
 
 String okSym() { return "\u2713" }

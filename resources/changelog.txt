@@ -1,4 +1,26 @@
  ══════════
+  July 19th, 2020
+ ══════════
+  Main App (v3.6.3.1)
+  * FIXED: Code merge reversions.
+
+  Action App (v3.6.3.1)
+  * FIXED: Code merge reversions.
+
+  Zone App (v3.6.3.1)
+  * FIXED: Code merge reversions.
+
+  Echo Device (v3.6.3.1)
+  * FIXED: Code merge reversions.
+
+  WebSocket  Device (v3.6.1.1)
+  * FIXED: Code merge reversions.
+
+  Server (v2.5.1)
+  * UPDATED: Minor tweaks to Amazon login flow (Still can't fix issues for UK users yet).
+_____________________________________
+
+ ══════════
   July 15th, 2020
  ══════════
   Main App (v3.6.3.0)

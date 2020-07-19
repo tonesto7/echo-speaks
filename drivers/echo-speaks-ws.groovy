@@ -16,7 +16,7 @@
 
 // NOTICE: This device will not work on SmartThings
 
-String devVersion()  { return "3.3.1.0"}
+String devVersion()  { return "3.3.1.1"}
 String devModified() { return "2020-07-19" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -74,6 +74,7 @@ def updated() {
 def initialize() {
     log.info "initialize() called"
     close()
+    if(minVersionFailed()) { logError("CODE UPDATE REQUIRED to RESUME operation. No WebSocket Connections will be made."); return; }
     state?.amazonDomain = parent?.getAmazonDomain()
     state?.cookie = parent?.getCookieVal()
     if(state?.cookie && settings?.autoConnectWs != false) {
@@ -574,7 +575,15 @@ Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
 
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
-Boolean checkMinVersion() { return (versionStr2Int(devVersion()) < parent?.minVersions()["echoDevice"]) }
+Boolean minVersionFailed() {
+    try {
+        Integer minDevVer = parent?.minVersions()["wsDevice"] ?: null
+        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
+        else { return false }
+    } catch (e) { 
+        return false
+    }
+}
 def getDtNow() {
 	def now = new Date()
 	return formatDt(now, false)
