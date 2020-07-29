@@ -3,7 +3,7 @@
     "author": "Anthony S.",
     "version": "3.6.3.1",
     "minimumHEVersion": "1.0.0",
-    "dateReleased": "2020-07-19",
+    "dateReleased": "2020-07-29",
     "licenseFile": "",
     "releaseNotes": "",
     "apps": [{
@@ -40,7 +40,7 @@
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy",
             "required": true,
-            "version": "3.6.3.1"
+            "version": "3.6.3.2"
         },
         {
             "id": "e708fa5f-91be-421a-848c-e989406317bd",
