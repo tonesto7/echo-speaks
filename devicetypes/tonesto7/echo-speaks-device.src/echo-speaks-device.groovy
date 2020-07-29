@@ -14,7 +14,7 @@
  */
 
 String devVersion()  { return "3.6.3.1" }
-String devModified() { return "2020-07-19" }
+String devModified() { return "2020-07-29" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -1247,7 +1247,7 @@ private getDeviceActivity() {
         if(actData) {
             if (wasLastDevice) {
                 if(isStateChange(device, "lastVoiceActivity", actData?.spokenText?.toString())) {
-                    log.debug("lastVoiceActivity: ${actData?.spokenText}")
+                    logDebug("lastVoiceActivity: ${actData?.spokenText}")
                     sendEvent(name: "lastVoiceActivity", value: actData?.spokenText?.toString(), display: false, displayed: false)
                 }
                 if(isStateChange(device, "lastSpokenToTime", actData?.lastSpokenDt?.toString())) {
