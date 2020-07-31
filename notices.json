@@ -1,6 +1,6 @@
 {
     "versions": {
-        "server": "2.5.0"
+        "server": "2.6.0"
     },
-    "notices": ["Amazon made changes to the login process which broke the existing server.  I have just released a version 2.5.0 which should address the signon issues."]
+    "notices": []
 }

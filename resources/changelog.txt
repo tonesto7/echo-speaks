@@ -1,4 +1,13 @@
  ══════════
+  July 29th, 2020
+ ══════════
+  Echo Device (v3.6.3.2)
+  * FIXED: lastVoiceActivity logs from showing when debug is disabled
+
+  Server (v2.6.0)
+  * FIXED: Should resolve issues with logins outside of the US
+_____________________________________
+ ══════════
   July 19th, 2020
  ══════════
   Main App (v3.6.3.1)
