@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.3.1" }
-String appModified() { return "2020-07-19" }
+String appVersion()  { return "3.6.3.2" }
+String appModified() { return "2020-08-18" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -1746,7 +1746,7 @@ private echoDevicesInputByPerm(type) {
             input "act_EchoZones", "enum", title: inTS("Zone(s) to Use", getAppImg("es_groups", true)), description: "Select the Zones", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings?.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
         }
         if(settings?.act_EchoZones?.size() && echoDevs?.size() && !settings?.act_EchoDevices?.size()) {
-            paragraph pTS("There may times when none of your zones are active at the time of action execution.\nYou have the option to select devices to use when no zones are available.", null, false, "#2678D9")
+            paragraph pTS("There may be times when none of your zones are active at the time of action execution.\nYou have the option to select devices to use when no zones are available.", null, false, "#2678D9")
         }
         if(echoDevs?.size()) {
             Boolean devsOpt = (settings?.act_EchoZones?.size())
@@ -1763,7 +1763,7 @@ private actionVolumeInputs(devices, showVolOnly=false, showAlrmVol=false) {
             input "act_alarm_volume", "number", title: inTS("Alarm Volume\n(Optional)", getAppImg("speed_knob", true)), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
         }
     } else {
-        if(devices && settings?.actionType in ["speak", "announcement", "weather", "sounds", "builtin", "music", "calendar", "playback"]) {
+        if((devices || settings?.act_EchoZones) && settings?.actionType in ["speak", "announcement", "weather", "sounds", "builtin", "music", "calendar", "playback"]) {
             Map volMap = devsSupportVolume(devices)
             section(sTS("Volume Options:")) {
                 if(volMap?.n?.size() > 0 && volMap?.n?.size() < devices?.size()) { paragraph "Some of the selected devices do not support volume control" }
