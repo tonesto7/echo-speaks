@@ -4,6 +4,8 @@
     "version": "3.6.3.1",
     "minimumHEVersion": "1.0.0",
     "dateReleased": "2020-07-29",
+    "documentationLink": "https://tonesto7.github.io/echo-speaks-docs",
+	"communityLink": "https://community.hubitat.com/t/release-echo-speaks-v3-actions/22879/992",
     "licenseFile": "",
     "releaseNotes": "Please see Changelog at https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/changelog.txt for recent changes.",
     "apps": [{
