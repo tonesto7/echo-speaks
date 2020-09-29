@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.6.3.1" }
-String appModified()  { return "2020-07-19" }
+String appVersion()   { return "3.6.4.0" }
+String appModified()  { return "2020-09-29" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3631, wsDevice: 3311, actionApp: 3631, zoneApp: 3631, server: 250] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3640, wsDevice: 3311, actionApp: 3631, zoneApp: 3631, server: 250] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -1094,7 +1094,8 @@ private executeTuneInSearch() {
         query: [ query: settings?.test_tuneinSearchQuery, mediaOwnerCustomerId: state?.deviceOwnerCustomerId ],
         headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
         requestContentType: "application/json",
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20
     ]
     Map results = [:]
     try {
@@ -1688,7 +1689,7 @@ Integer cookieRefreshSeconds() { return (settings?.refreshCookieDays ?: 5)*86400
 
 def clearServerAuth() {
     logDebug("serverUrl: ${getServerHostURL()}")
-    Map params = [ uri: getServerHostURL(), path: "/clearAuth" ]
+    Map params = [ uri: getServerHostURL(), path: "/clearAuth", timeout: 20 ]
     def execDt = now()
     httpGet(params) { resp->
         // log.debug "resp: ${resp.status} | data: ${resp?.data}"
@@ -1704,7 +1705,8 @@ private wakeupServer(c=false, g=false, src) {
         path: "/wakeup",
         headers: [wakesrc: src],
         contentType: "text/plain",
-        requestContentType: "text/plain"
+        requestContentType: "text/plain",
+        timeout: 20
     ]
     if(!getCookieVal() || !getCsrfVal()) { logWarn("wakeupServer | Cookie or CSRF Missing... Skipping Wakeup"); return; }
     execAsyncCmd("post", "wakeupServerResp", params, [execDt: now(), refreshCookie: c, updateGuard: g, wakesrc: src])
@@ -1737,7 +1739,8 @@ private cookieRefresh() {
     Map params = [
         uri: getServerHostURL(),
         path: "/refreshCookie",
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20
     ]
     execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
 }
@@ -1775,7 +1778,8 @@ private apiHealthCheck(frc=false) {
             path: "/api/ping",
             query: ["_": ""],
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
-            contentType: "plain/text"
+            contentType: "plain/text",
+            timeout: 20,
         ]
         httpGet(params) { resp->
             logDebug("API Health Check Resp: (${resp?.getData()})")
@@ -1796,7 +1800,8 @@ Boolean validateCookie(frc=false) {
             path: "/api/bootstrap",
             query: ["version": 0],
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
-            contentType: "application/json"
+            contentType: "application/json",
+            timeout: 20,
         ]
         httpGet(params) { resp->
             Map aData = resp?.data?.authentication ?: null
@@ -1826,7 +1831,8 @@ private getCustomerData(frc=false) {
             path: "/api/get-customer-pfm",
             query: [_: now()],
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
-            contentType: "application/json"
+            contentType: "application/json",
+            timeout: 20,
         ]
         httpGet(params) { resp->
             Map pData = resp?.data ?: null
@@ -1849,7 +1855,8 @@ private userCommIds() {
             uri: "https://alexa-comms-mobile-service.${getAmazonDomain()}",
             path: "/accounts",
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
-            contentType: "application/json"
+            contentType: "application/json",
+            timeout: 20
         ]
         httpGet(params) { response->
             List resp = response?.data ?: []
@@ -1895,7 +1902,8 @@ private getMusicProviders() {
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1", "Routines-Version": "1.1.210292" ],
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20
     ]
     Map items = [:]
     try {
@@ -1932,7 +1940,8 @@ private getBluetoothDevices() {
         path: "/api/bluetooth",
         query: [cached: true, _: new Date()?.getTime()],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20
     ]
     Map btResp = [:]
     try {
@@ -1971,7 +1980,8 @@ def getDeviceActivity(serialNum, frc=false) {
             path: "/api/activities",
             query: [ size: 5, offset: 1 ],
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
-            contentType: "application/json"
+            contentType: "application/json",
+            timeout: 20
         ]
         Map lastActData = atomicState?.lastDevActivity ?: null
         // log.debug "activityData(IN): $lastActData"
@@ -2015,6 +2025,7 @@ private getDoNotDisturb() {
         query: [_: now()],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
+        timeout: 20
     ]
     Map dndResp = [:]
     try {
@@ -2043,7 +2054,8 @@ public getAlexaRoutines(autoId=null, utterOnly=false) {
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
         query: [ limit: 100 ],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20
     ]
 
     def rtResp = [:]
@@ -2108,6 +2120,7 @@ def checkGuardSupport() {
         query: [ cached: true, _: new Date().getTime() ],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
         contentType: "application/json",
+        timeout: 20,
     ]
     execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
 }
@@ -2171,6 +2184,7 @@ def checkGuardSupportFromServer() {
         path: "/agsData",
         requestContentType: "application/json",
         contentType: "application/json",
+        timeout: 20,
     ]
     execAsyncCmd("get", "checkGuardSupportServerResponse", params, [execDt: now()])
 }
@@ -2211,6 +2225,7 @@ private getGuardState() {
         path: "/api/phoenix/state",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
+        timeout: 20,
         body: [ stateRequests: [ [entityId: state?.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
     try {
@@ -2243,6 +2258,7 @@ private setGuardState(guardState) {
             path: "/api/phoenix/state",
             headers: [cookie: getCookieVal(), csrf: getCsrfVal()],
             contentType: "application/json",
+            timeout: 20,
             body: body?.toString()
         ]
         httpPutJson(params) { response ->
@@ -2274,6 +2290,7 @@ private getAlexaSkills() {
             csrf: getCsrfVal()
         ],
         contentType: "application/json",
+        timeout: 20,
     ]
     try {
         httpGet(params) { response->
@@ -2387,7 +2404,8 @@ private getEchoDevices() {
         path: "/api/devices-v2/device",
         query: [ cached: true, _: new Date().getTime() ],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20,
     ]
     state?.deviceRefreshInProgress = true
     state?.refreshDeviceData = false
@@ -2832,6 +2850,7 @@ private sendSequenceCommand(type, command, value) {
         path: "/api/behaviors/preview",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
+        timeout: 20,
         body: new groovy.json.JsonOutput().toJson(seqObj)
     ], [cmdDesc: "SequenceCommand (${type})"])
 }
@@ -3146,7 +3165,7 @@ def queueFirebaseData(url, path, data, cmdType=null, type=null) {
     logTrace("queueFirebaseData(${path}, ${data}, $cmdType, $type")
     Boolean result = false
     def json = new groovy.json.JsonOutput().prettyPrint(data)
-    Map params = [uri: url as String, path: path as String, requestContentType: "application/json", contentType: "application/json", body: json.toString()]
+    Map params = [uri: url as String, path: path as String, requestContentType: "application/json", contentType: "application/json", timeout: 20, body: json.toString()]
     String typeDesc = type ? type as String : "Data"
     try {
         if(!cmdType || cmdType == "put") {
@@ -3308,7 +3327,8 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
 private getConfigData() {
     Map params = [
         uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData.json",
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20,
     ]
     def data = getWebData(params, "appData", false)
     if(data) {
@@ -3321,7 +3341,8 @@ private getConfigData() {
 private getNoticeData() {
     Map params = [
         uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/notices.json",
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20,
     ]
     def data = getWebData(params, "noticeData", false)
     if(data) {

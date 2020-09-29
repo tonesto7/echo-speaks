@@ -2,7 +2,7 @@
     "appDataVer": "4.0",
     "versions": {
         "mainApp": {
-            "ver": "3.6.3.1"
+            "ver": "3.6.4.0"
         },
         "actionApp": {
             "ver": "3.6.3.1"
@@ -11,7 +11,7 @@
             "ver": "3.6.3.1"
         },
         "echoDevice": {
-            "ver": "3.6.3.2"
+            "ver": "3.6.4.0"
         },
         "wsDevice": {
             "ver": "3.3.1.1"
@@ -20,32 +20,8 @@
             "ver": "2.6.0"
         }
     },
-    "amazonDomains": [
-        "amazon.com",
-        "amazon.ca",
-        "amazon.co.uk",
-        "amazon.com.au",
-        "amazon.de",
-        "amazon.it",
-        "amazon.com.br",
-        "amazon.com.mx",
-        "amazon.es",
-        "amazon.in",
-        "amazon.fr"
-    ],
-    "locales": [
-        "en-US",
-        "en-CA",
-        "de-DE",
-        "en-GB",
-        "it-IT",
-        "en-AU",
-        "pt-BR",
-        "es-MX",
-        "es-UY",
-        "es-ES",
-        "fr-FR"
-    ],
+    "amazonDomains": ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx", "amazon.es", "amazon.in", "amazon.fr"],
+    "locales": ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY", "es-ES", "fr-FR"],
     "settings": {
         "sendMetrics": true,
         "database": {
@@ -55,31 +31,10 @@
         }
     },
     "deviceFamilies": {
-        "block": [
-            "AMAZONMOBILEMUSIC_ANDROID",
-            "AMAZONMOBILEMUSIC_IOS",
-            "TBIRD_IOS",
-            "TBIRD_ANDROID",
-            "VOX",
-            "MSHOP"
-        ],
-        "echo": [
-            "ROOK",
-            "KNIGHT",
-            "ECHO"
-        ],
-        "other": [
-            "REAVER",
-            "FIRE_TV",
-            "FIRE_TV_CUBE",
-            "ALEXA_AUTO",
-            "MMSDK"
-        ],
-        "tablet": [
-            "TABLET"
-        ],
-        "wha": [
-            "WHA"
-        ]
+        "block": ["AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP"],
+        "echo": ["ROOK", "KNIGHT", "ECHO"],
+        "other": ["REAVER", "FIRE_TV", "FIRE_TV_CUBE", "ALEXA_AUTO", "MMSDK"],
+        "tablet": ["TABLET"],
+        "wha": ["WHA"]
     }
 }

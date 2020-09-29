@@ -1,4 +1,14 @@
  ══════════
+  September 29th, 2020
+ ══════════
+  Echo Device (v3.6.4.0)
+  * FIXED: Added timeout of 20 seconds to all http requests in an effort to reduce hubitat platform issues with failed call threads not closing and eventually crashing the hub.
+
+  Main App (v3.6.4.0)
+  * FIXED: Added timeout of 20 seconds to all http requests in an effort to reduce hubitat platform issues with failed call threads not closing and eventually crashing the hub.
+_____________________________________
+
+ ══════════
   July 29th, 2020
  ══════════
   Echo Device (v3.6.3.2)
