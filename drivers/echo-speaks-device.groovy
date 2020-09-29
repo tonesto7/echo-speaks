@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.6.3.2" }
-String devModified() { return "2020-07-29" }
+String devVersion()  { return "3.6.4.0" }
+String devModified() { return "2020-09-29" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -542,7 +542,8 @@ private getPlaybackState(isGroupResponse=false) {
         path: "/api/np/player",
         query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType, screenWidth: 2560, _: now() ],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20
     ]
     Map playerInfo = [:]
     try {
@@ -657,6 +658,7 @@ private getAlarmVolume() {
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         query: [_: new Date().getTime()],
         contentType: "application/json",
+        timeout: 20
     ]
     try {
         httpGet(params) { response->
@@ -679,6 +681,7 @@ private getWakeWord() {
         query: [cached: true, _: new Date().getTime()],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
+        timeout: 20
     ]
     try {
         httpGet(params) { response->
@@ -705,6 +708,7 @@ private getWifiDetails() {
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType ],
         contentType: "application/json",
+        timeout: 20
     ]
     try {
         httpGet(params) { response->
@@ -731,6 +735,7 @@ private getDeviceSettings() {
         query: [cached: true, _: new Date().getTime()],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
+        timeout: 20
     ]
     try {
         httpGet(params) { response->
@@ -758,6 +763,7 @@ private getAvailableWakeWords() {
         query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType, softwareVersion: device.currentValue('firmwareVer') ],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
+        timeout: 20
     ]
     try {
         httpGet(params) { response->
@@ -827,7 +833,8 @@ private getPlaylists() {
         path: "/api/cloudplayer/playlists",
         query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType, mediaOwnerCustomerId: state?.deviceOwnerCustomerId, screenWidth: 2560 ],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20
     ]
     try {
         httpGet(params) { response->
@@ -851,7 +858,8 @@ private getNotifications(type="Reminder", all=false) {
         path: "/api/notifications",
         query: [cached: true],
         headers: [Cookie: getCookieVal(), csrf: getCsrfVal()],
-        contentType: "application/json"
+        contentType: "application/json",
+        timeout: 20,
     ]
     try {
         httpGet(params) { response->
@@ -1666,6 +1674,7 @@ private Map validateMusicSearch(searchPhrase, providerId, sleepSeconds=null) {
         path: "/api/behaviors/operation/validate",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
+        timeout: 20,
         body: new groovy.json.JsonOutput().toJson(validObj)
     ]
     Map result = null
@@ -1720,6 +1729,7 @@ def setWakeWord(String newWord) {
             path: "/api/wake-word/${state?.serialNumber}",
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
             contentType: "application/json",
+            timeout: 20,
             body: [
                 active: true,
                 deviceSerialNumber: state?.serialNumber,
@@ -1784,14 +1794,18 @@ def removeNotification(String id) {
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
             String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[id]
+            logDebug("Found ID translation ${id}=${translatedID}")
             if (translatedID) {
                 sendAmazonCommand("DELETE", [
                     uri: getAmazonUrl(),
-                    path: "/api/notifications/${id}",
+                    path: "/api/notifications/${translatedID}",
                     headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                     contentType: "application/json",
+                    timeout: 20,
                     body: []
                 ], [cmdDesc: "RemoveNotification"])
+
+                state.createdNotifications[id] = null
             } else { logWarn("removeNotification Unable to Find Translated ID for ${id}", true) }
         } else { logWarn("removeNotification is Missing the Required (id) Parameter!!!", true) }
     }
@@ -1809,6 +1823,7 @@ def removeAllNotificationsByType(String type) {
                         path: "/api/notifications/${item?.id}",
                         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                         contentType: "application/json",
+                        timeout: 20,
                         body: []
                     ], [cmdDesc: "RemoveNotification"])
                 } else { logWarn("removeAllNotificationByType($type) Unable to Find ID for ${item?.id}", true) }
@@ -1833,7 +1848,7 @@ private createNotification(type, opts) {
     if (notifKey) {
         String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[notifKey]
         if (translatedID) {
-            logWarn("createNotification found existing notification named ${notifKey}, removing that first")
+            logWarn("createNotification found existing notification named ${notifKey}=${translatedID}, removing that first")
             removeNotification(notifKey)
         }
     }
@@ -1849,6 +1864,7 @@ private createNotification(type, opts) {
         path: "/api/notifications/create${type}",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
+        timeout: 20,
         body: [
             type: type,
             status: "ON",
@@ -2168,6 +2184,7 @@ def renameDevice(newName) {
         path: "/api/devices-v2/device/${state?.serialNumber}",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
+        timeout: 20,
         body: [
             serialNumber: state?.serialNumber,
             deviceType: state?.deviceType,
@@ -2187,6 +2204,7 @@ def connectBluetooth(String btNameOrAddr) {
                 path: "/api/bluetooth/pair-sink/${state?.deviceType}/${state?.serialNumber}",
                 headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                 contentType: "application/json",
+                timeout: 20,
                 body: [ bluetoothDeviceAddress: curBtAddr ]
             ], [cmdDesc: "connectBluetooth($btNameOrAddr)"])
             sendEvent(name: "btDeviceConnected", value: btNameOrAddr, display: true, displayed: true)
@@ -2204,6 +2222,7 @@ def disconnectBluetooth() {
                 path: "/api/bluetooth/disconnect-sink/${state?.deviceType}/${state?.serialNumber}",
                 headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                 contentType: "application/json",
+                timeout: 20,
                 body: [ bluetoothDeviceAddress: curBtAddr ]
             ], [cmdDesc: "disconnectBluetooth"])
         } else { logError("DisconnectBluetooth Error: Unable to find the connected bluetooth device address...") }
@@ -2220,6 +2239,7 @@ def removeBluetooth(String btNameOrAddr) {
                 path: "/api/bluetooth/unpair-sink/${state?.deviceType}/${state?.serialNumber}",
                 headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
                 contentType: "application/json",
+                timeout: 20,
                 body: [ bluetoothDeviceAddress: curBtAddr, bluetoothDeviceClass: "OTHER" ]
             ], [cmdDesc: "removeBluetooth(${btNameOrAddr})"])
         } else { logError("RemoveBluetooth Error: Unable to find the connected bluetooth device address...") }
@@ -2751,6 +2771,7 @@ private speechCmd(headers=[:], isQueueCmd=false) {
                 path: "/api/behaviors/preview",
                 headers: headerMap,
                 contentType: "application/json",
+                timeout: 20,
                 body: bodyObj
             ]
             Map extData = [
