@@ -1,9 +1,9 @@
 {
     "packageName": "Echo Speaks",
     "author": "Anthony S.",
-    "version": "3.6.4.0",
+    "version": "3.6.4.1",
     "minimumHEVersion": "1.0.0",
-    "dateReleased": "2020-07-29",
+    "dateReleased": "2020-10-09",
     "documentationLink": "https://tonesto7.github.io/echo-speaks-docs",
     "communityLink": "https://community.hubitat.com/t/release-echo-speaks-v3-actions/22879/992",
     "licenseFile": "",
@@ -15,7 +15,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
             "required": true,
             "oauth": true,
-            "version": "3.6.4.0"
+            "version": "3.6.4.1"
         },
         {
             "id": "cd4762db-aa0b-4d32-98ca-06de955dbc33",
@@ -24,7 +24,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
             "required": true,
             "oauth": false,
-            "version": "3.6.3.1"
+            "version": "3.6.4.0"
         },
         {
             "id": "50ad91a0-eb51-4d6f-98d2-f1654221baa9",
@@ -33,7 +33,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks-zones.src/echo-speaks-zones.groovy",
             "required": true,
             "oauth": false,
-            "version": "3.6.3.1"
+            "version": "3.6.4.0"
         }
     ],
     "drivers": [{
@@ -42,7 +42,7 @@
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy",
             "required": true,
-            "version": "3.6.4.0"
+            "version": "3.6.4.1"
         },
         {
             "id": "e708fa5f-91be-421a-848c-e989406317bd",
