@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.3.2" }
-String appModified() { return "2020-08-18" }
+String appVersion()  { return "3.6.4.0" }
+String appModified() { return "2020-10-09" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -3246,6 +3246,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
 
             case "music":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.provider && actConf[actType]?.search) {
+                    log.debug "musicProvider: ${actConf[actType]?.provider} | ${convMusicProvider(actConf[actType]?.provider)}"
                     if(activeZones?.size()) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType, search: actConf[actType]?.search, provider: convMusicProvider(actConf[actType]?.provider), changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: true, displayed: true)
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}${changeVol ? " | Volume: ${changeVol}" : ""}${restoreVol ? " | Restore Volume: ${restoreVol}" : ""}")
@@ -4104,7 +4105,7 @@ String getActionDesc() {
         str += settings?.act_volume_change ? "New Volume: (${settings?.act_volume_change})\n" : ""
         str += settings?.act_volume_restore ? "Restore Volume: (${settings?.act_volume_restore})\n" : ""
         str += settings?.act_delay ? "Delay: (${settings?.act_delay})\n" : ""
-        str += settings?."act_${settings?.actionType}_txt" ? "Using Default Response: (True)\n" : ""
+        str += settings?.actionType in ["speak", "announcement", "speak_tiered", "announcement_tiered"] && settings?."act_${settings?.actionType}_txt" ? "Using Default Response: (True)\n" : ""
         def trigTasks = !isTierAct ? actTaskDesc("act_") : null
         str += trigTasks ? "${trigTasks}" : ""
         // str += settings?.act_switches_on ? "Switches On: (${settings?.act_switches_on?.size()})\n" : ""
@@ -4239,7 +4240,7 @@ String convMusicProvider(String prov) {
             return "TUNEIN"
         case "Pandora":
             return "PANDORA"
-        case "Sirius Xm":
+        case "SiriusXM":
             return "SIRIUSXM"
         case "Spotify":
             return "SPOTIFY"
