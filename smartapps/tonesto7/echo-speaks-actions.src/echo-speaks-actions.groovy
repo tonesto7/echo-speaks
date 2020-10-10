@@ -116,7 +116,7 @@ private buildTriggerEnum() {
     buildItems["Actionable Devices"] = ["lock":"Locks", "button":"Buttons", "switch":"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
     if(!isST()) {
         buildItems["Actionable Devices"]?.remove("button")
-        // buildItems["Button Devices"] = ["pushableButton":"Pushable Buttons", "releasableButton":"Releasable Button", "holdableButton":"Holdable Button", "doubleTapableButton":"Double Tapable Button"]?.sort{ it?.value }
+        buildItems["Button Devices"] = ["pushed":"Button (Pushable)", "released":"Button (Releasable)", "held":"Button (Holdable)", "doubleTapped":"Button (Double Tapable)"]?.sort{ it?.value }
     }
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
@@ -124,7 +124,7 @@ private buildTriggerEnum() {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
         // log.debug "enumOpts: $enumOpts"
         return enumOpts
-    } else { return buildItems?.collectEntries { it?.value } }
+    } else { return buildItems?.collectEntries { it?.value }?.sort { it?.key } }
 }
 
 private buildActTypeEnum() {
@@ -451,11 +451,62 @@ def triggersPage() {
 
             if (valTrigEvt("button") && isST()) {
                 section (sTS("Button Events"), hideable: true) {
-                    input "trig_button", "capability.button", title: inTS("Buttons", getAppImg("button", true)), required: !(settings?.trig_smoke), multiple: true, submitOnChange: true, image: getAppImg("button")
+                    input "trig_button", "capability.button", title: inTS("Buttons", getAppImg("button", true)), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
                     if (settings?.trig_button) {
                         input "trig_button_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["pushed", "held", "any"], required: true, submitOnChange: true, image: getAppImg("command")
                         if(settings?.trig_button_cmd) {
                             triggerVariableDesc("button", false, trigItemCnt++)
+                        }
+                    }
+                }
+            }
+            if (valTrigEvt("pushed")) {
+                section (sTS("Button Pushed Events"), hideable: true) {
+                    input "trig_pushed", "capability.pushableButton", title: inTS("Pushable Buttons", getAppImg("button", true)), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
+                    if (settings?.trig_pushed) {
+                        input "trig_pushed_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["pushed"], required: true, multiple: false, defaulValue: "pushed", submitOnChange: true, image: getAppImg("command")
+                        input "trig_pushed_nums", "enum", title: inTS("button numbers?", getAppImg("command", true)), options: 1..8, required: true, multiple: true,  submitOnChange: true, image: getAppImg("command")
+                        if(settings?.trig_pushed_nums) {
+                            triggerVariableDesc("pushed", false, trigItemCnt++)
+                        }
+                    }
+                }
+            }
+
+            if (valTrigEvt("released")) {
+                section (sTS("Button Released Events"), hideable: true) {
+                    input "trig_released", "capability.releasableButton", title: inTS("Releasable Buttons", getAppImg("button", true)), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
+                    if (settings?.trig_released) {
+                        input "trig_released_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["released"], required: true, multiple: false, defaulValue: "released", submitOnChange: true, image: getAppImg("command")
+                        input "trig_released_nums", "enum", title: inTS("button numbers?", getAppImg("command", true)), options: 1..8, required: true, multiple: true, submitOnChange: true, image: getAppImg("command")
+                        if(settings?.trig_released_nums) {
+                            triggerVariableDesc("released", false, trigItemCnt++)
+                        }
+                    }
+                }
+            }
+
+            if (valTrigEvt("held")) {
+                section (sTS("Button Held Events"), hideable: true) {
+                    input "trig_held", "capability.holdableButton", title: inTS("Holdable Buttons", getAppImg("button", true)), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
+                    if (settings?.trig_held) {
+                        input "trig_held_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["held"], required: true, multiple: false, defaulValue: "held", submitOnChange: true, image: getAppImg("command")
+                        input "trig_held_nums", "enum", title: inTS("button numbers?", getAppImg("command", true)), options: 1..8, required: true,  multiple: true, submitOnChange: true, image: getAppImg("command")
+                        if(settings?.trig_held_nums) {
+                            triggerVariableDesc("held", false, trigItemCnt++)
+                        }
+                    }
+                }
+            }
+
+            if (valTrigEvt("doubleTapped")) {
+                section (sTS("Button Double Tap Events"), hideable: true) {
+                    input "trig_doubleTapped", "capability.doubleTapableButton", title: inTS("Double Tap Buttons", getAppImg("button", true)), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
+                    if (settings?.trig_doubleTapped) {
+                        input "trig_doubleTapped_cmd", "enum", title: inTS("changes to?", getAppImg("command", true)), options: ["doubleTapped"], required: true, multiple: false, defaulValue: "doubleTapped", submitOnChange: true, image: getAppImg("command")
+                        input "trig_doubleTapped_nums", "enum", title: inTS("button numbers?", getAppImg("command", true)), options: 1..8, required: true, multiple: true, submitOnChange: true, image: getAppImg("command")
+                        if(settings?.trig_doubleTapped_nums) {
+                            triggerVariableDesc("doubleTapped", false, trigItemCnt++)
                         }
                     }
                 }
@@ -649,7 +700,10 @@ Boolean deviceTriggers() {
         (settings?.trig_shade && settings?.trig_shade_cmd) || (settings?.trig_door && settings?.trig_door_cmd) || (settings?.trig_valve && settings?.trig_valve_cmd) ||
         (settings?.trig_switch && settings?.trig_switch_cmd) || (settings?.trig_level && settings?.trig_level_cmd) || (settings?.trig_lock && settings?.trig_lock_cmd) ||
         (settings?.trig_battery && settings?.trig_battery_cmd) || (thermostatTriggers()) ||
-        (settings?.trig_button && settings?.trig_button_cmd)
+        (settings?.trig_button && settings?.trig_button_cmd) || (settings?.trig_pushed && settings?.trig_pushed_cmd && settings?.trig_pushed_nums) ||
+        (settings?.trig_released && settings?.trig_released_cmd && settings?.trig_released_nums) || 
+        (settings?.trig_held && settings?.trig_held_cmd && settings?.trig_held_nums) || 
+        (settings?.trig_doubleTapped && settings?.trig_doubleTapped_cmd && settings?.trig_doubleTapped_nums)
     )
 }
 
@@ -1903,7 +1957,7 @@ private actionCleanup() {
         List trigKeys = settings?.findAll { it?.key?.startsWith("trig_") && !(it?.key?.tokenize("_")[1] in settings?.triggerEvents) }?.keySet()?.collect { it?.tokenize("_")[1] as String }?.unique()
         // log.debug "trigKeys: $trigKeys"
         if(trigKeys?.size()) {
-            trigKeys?.each { tk-> setItems?.push("trig_${tk}"); ["wait", "all", "cmd", "once", "after", "txt"]?.each { ei-> setItems?.push("trig_${tk}_${ei}"); }; }
+            trigKeys?.each { tk-> setItems?.push("trig_${tk}"); ["wait", "all", "cmd", "once", "after", "txt", "nums"]?.each { ei-> setItems?.push("trig_${tk}_${ei}"); }; }
         }
     }
 
@@ -2353,7 +2407,7 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     Boolean dcavg = (!dca && settings?."trig_${evt?.name}_avg" == true)
     Boolean dco = (!settings?."trig_${evt?.name}_after" && settings?."trig_${evt?.name}_once" == true)
     Integer dcw = (!settings?."trig_${evt?.name}_after" && settings?."trig_${evt?.name}_wait") ? settings?."trig_${evt?.name}_wait" : null
-    logTrace( "Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (AfterEvt)" : ""}")
+    logTrace("Device Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (AfterEvt)" : ""}")
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     switch(evt?.name) {
         case "switch":
@@ -2377,6 +2431,15 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
                 }
             }
             break
+        case "pushed":
+        case "released":
+        case "held":
+        case "doubleTapped":
+            def dcn = settings?."trig_${evt?.name}_nums"
+            if(d?.size() && dc && dcn && dcn?.size() > 0) {
+                if(dcn?.contains(evt?.value)) { evtOk = true; }
+            }
+            break;
         case "humidity":
         case "temperature":
         case "power":
@@ -2892,6 +2955,10 @@ Map getRandomTrigEvt() {
         valve: getRandomItem(["open", "closed"]),
         shade: getRandomItem(["open", "closed"]),
         button: getRandomItem(["pushed", "held"]),
+        pushed: getRandomItem(["pushed"]),
+        released: getRandomItem(["released"]),
+        held: getRandomItem(["held"]),
+        doubleTapped: getRandomItem(["doubleTapped"]),
         smoke: getRandomItem(["detected", "clear"]),
         carbonMonoxide: getRandomItem(["detected", "clear"]),
         temperature: getRandomItem(30..80),
@@ -3006,6 +3073,11 @@ String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=
                 case "smoke":
                 case "carbonMonoxide":
                     return "${evt?.name} is ${evt?.value} on ${evt?.displayName}!"
+                case "pushed":
+                case "held":
+                case "released":
+                case "doubleTapped":
+                    return "Button ${getRandomItem(1..8)} was ${evt?.name == "doubleTapped" ? "double tapped" : evt?.name} on ${evt?.displayName}"
                 default:
                     if(evtAd && devs?.size()>1) {
                         return "All ${devs?.size()}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : ""} devices are ${evt?.value}"
@@ -3657,7 +3729,7 @@ public  webCore_icon(){return "https://cdn.rawgit.com/ady624/webCoRE/master/reso
 *******************************************/
 
 Double getDevValueAvg(devs, attr) {
-    List vals = devs?.findAll { it?."current${attr?.capitalize()}"?.isNumber() }?.collect { it?."current${attr?.capitalize()}" as Double }
+    List vals = devs?.findAll { it?."current${attr?.capitalize()}" != null && it?."current${attr?.capitalize()}"?.isNumber() }?.collect { it?."current${attr?.capitalize()}" as Double }
     return vals?.size() ? (vals?.sum()/vals?.size())?.round(1) as Double : null
 }
 
@@ -3986,6 +4058,7 @@ String getTriggersDesc(hideDesc=false) {
                         } else {
                             str += settings?."${sPre}${evt}_cmd"  ? "    \u25E6 Trigger State: (${settings?."${sPre}${evt}_cmd"})\n" : ""
                         }
+                        str += settings?."${sPre}${evt}_nums"              ? "    \u25E6 Button Numbers: ${settings?."${sPre}${evt}_nums"}\n" : ""
                         str += settings?."${sPre}${evt}_after"              ? "    \u25E6 Only After: (${settings?."${sPre}${evt}_after"} sec)\n" : ""
                         str += settings?."${sPre}${evt}_after_repeat"       ? "    \u25E6 Repeat Every: (${settings?."${sPre}${evt}_after_repeat"} sec)\n" : ""
                         str += settings?."${sPre}${evt}_after_repeat_cnt"   ? "    \u25E6 Repeat Count: (${settings?."${sPre}${evt}_after_repeat_cnt"})\n" : ""
@@ -4425,7 +4498,7 @@ public getDuplSettingData() {
         ],
         ends: [
             bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db"],
-            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_webCorePistons", "_rt", "_rt_wd"],
+            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_webCorePistons", "_rt", "_rt_wd", "_nums"],
             number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore"],
             text: ["_txt", "_sms_numbers"],
             time: ["_time_start", "_time_stop", "_scheduled_time"]
@@ -4441,6 +4514,10 @@ public getDuplSettingData() {
             _motion: "motionSensor",
             _level: "switchLevel",
             _button: "button",
+            _pushed: "pushableButton",
+            _held: "holdableButton",
+            _released: "releasableButton",
+            _doubleTapped: "doubleTapableButton",
             _presence: "presenceSensor",
             _switch: "switch",
             _power: "powerMeter",
