@@ -2558,9 +2558,10 @@ private tierSchedHandler(data) {
 Map deviceEvtProcNumValue(evt, List devs = null, String cmd = null, Double dcl = null, Double dch = null, Double dce = null, Boolean dca = false, Boolean dcavg=false) {
     Boolean evtOk = false
     Boolean evtAd = false
-    // log.debug "deviceEvtProcNumValue | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}"
+    log.debug "deviceEvtProcNumValue | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}"
     if(devs?.size() && cmd && evt?.value?.toString()?.isNumber()) {
         Double evtValue = (dcavg ? getDevValueAvg(devs, evt?.name) : evt?.value) as Double
+        log.debug "evtValue: ${evtValue}"
         switch(cmd) {
             case "equals":
                 if(!dca && dce && dce?.toDouble() == evtValue) {
@@ -3729,7 +3730,7 @@ public  webCore_icon(){return "https://cdn.rawgit.com/ady624/webCoRE/master/reso
 *******************************************/
 
 Double getDevValueAvg(devs, attr) {
-    List vals = devs?.findAll { it?."current${attr?.capitalize()}" != null && it?."current${attr?.capitalize()}"?.isNumber() }?.collect { it?."current${attr?.capitalize()}" as Double }
+    List vals = devs?.findAll { it?."current${attr?.capitalize()}" != null && it?."current${attr?.capitalize()}" != 0 }?.collect { it?."current${attr?.capitalize()}" as Double }
     return vals?.size() ? (vals?.sum()/vals?.size())?.round(1) as Double : null
 }
 

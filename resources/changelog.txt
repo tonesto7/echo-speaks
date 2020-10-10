@@ -12,6 +12,7 @@
   Action App (v3.6.4.0)
   * ADDED: Support for buttons under Hubitat.  There are 4 types (pushableButton, releasableButton, holdableButton, doubleTapableButtons)
   * FIXED: SiriusXM music searches using Actions.
+  * FIXED: Occasional isNumber() exception when using more than one temp sensor as a trigger is now resolved.
   * FIXED: Other minor bugfixes and UI tweaks.
 
   Zone App (v3.6.4.0)
