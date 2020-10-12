@@ -1,11 +1,41 @@
  ══════════
+  October 12th, 2020
+ ══════════
+  Main App (v3.6.4.2)
+  * FIXED: Rare scenario where auth was valid and noAuthActive state was true causing devices to not update there version info and stop functioning
+
+_____________________________________   
+
+ ══════════
+  October 9th, 2020
+ ══════════
+  Main App (v3.6.4.1)
+  * FIXED: Bumped device version to latest release.
+  * UPDATED: Added new device id's for devices reported through GitHub.
+
+  Echo Device (v3.6.4.1)
+  * FIXED: SiriusXM music searches using Actions.
+  * REMOVED: Web calls for Wifi Details to reduce the amount of requests.
+
+  Action App (v3.6.4.0)
+  * ADDED: Support for buttons under Hubitat.  There are 4 types (pushableButton, releasableButton, holdableButton, doubleTapableButtons)
+  * FIXED: SiriusXM music searches using Actions.
+  * FIXED: Occasional isNumber() exception when using more than one temp sensor as a trigger is now resolved.
+  * FIXED: Other minor bugfixes and UI tweaks.
+
+  Zone App (v3.6.4.0)
+  * FIXED: Other minor bugfixes.
+_____________________________________   
+ 
+ ══════════
   September 29th, 2020
  ══════════
+  Main App (v3.6.4.0)
+  * FIXED: Added timeout of 20 seconds to all http requests in an effort to reduce hubitat platform issues with failed call threads not closing and eventually crashing the hub.
+  
   Echo Device (v3.6.4.0)
   * FIXED: Added timeout of 20 seconds to all http requests in an effort to reduce hubitat platform issues with failed call threads not closing and eventually crashing the hub.
 
-  Main App (v3.6.4.0)
-  * FIXED: Added timeout of 20 seconds to all http requests in an effort to reduce hubitat platform issues with failed call threads not closing and eventually crashing the hub.
 _____________________________________
 
  ══════════

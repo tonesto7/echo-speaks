@@ -19,7 +19,7 @@
             "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks.1x.png",
             "published": true,
             "oAuth": true,
-            "version": "3.6.4.0",
+            "version": "3.6.4.2",
             "appSettings": {},
             "appUrl": "smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy"
         },
@@ -28,7 +28,7 @@
                 "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
                 "published": true,
                 "oAuth": false,
-                "version": "3.6.3.1",
+                "version": "3.6.4.0",
                 "appSettings": {},
                 "appUrl": "smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
                 "optional": false
@@ -38,7 +38,7 @@
                 "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
                 "published": true,
                 "oAuth": false,
-                "version": "3.6.3.1",
+                "version": "3.6.4.0",
                 "appSettings": {},
                 "appUrl": "smartapps/tonesto7/echo-speaks-zones.src/echo-speaks-zones.groovy",
                 "optional": false
@@ -49,7 +49,7 @@
         "name": "Echo Speaks Device",
         "iconUrl": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_dot_gen1.png",
         "published": true,
-        "version": "3.6.4.0",
+        "version": "3.6.4.1",
         "appUrl": "deviceTypes/tonesto7/echo-speaks-device.src/echo-speaks-device.groovy",
         "optional": false
     }]

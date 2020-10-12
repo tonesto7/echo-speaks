@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.6.4.0" }
-String devModified() { return "2020-09-29" }
+String devVersion()  { return "3.6.4.1" }
+String devModified() { return "2020-10-09" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -64,7 +64,7 @@ metadata {
 
         attribute "volume", "number"
         attribute "wakeWords", "enum"
-        attribute "wifiNetwork", "string"
+        // attribute "wifiNetwork", "string"
         attribute "wasLastSpokenToDevice", "string"
 
         command "playText", ["string"] //This command is deprecated in ST but will work
@@ -856,7 +856,7 @@ private refreshData(full=false) {
     }
     if(!isWHA) {
         if (full || state?.fullRefreshOk) {
-            if(isEchoDev) { getWifiDetails() }
+            // if(isEchoDev) { getWifiDetails() }
             getDeviceSettings()
         }
         if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
@@ -1062,32 +1062,31 @@ private getWakeWord() {
     }
 }
 
-private getWifiDetails() {
-    Map params = [
-        uri: getAmazonUrl(),
-        path: "/api/device-wifi-details",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-        query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType ],
-        contentType: "application/json",
-        timeout: 20
-    ]
-    try {
-        httpGet(params) { response->
-            def sData = response?.data ?: null
-            // log.debug "sData: $sData"
-            if(sData && sData?.wakeWords) {
-                def wakeWord = sData?.wakeWords?.find { it?.deviceSerialNumber == state?.serialNumber } ?: null
-                // logTrace("getWakeWord: ${wakeWord?.wakeWord}")
-                if(isStateChange(device, "alexaWakeWord", wakeWord?.wakeWord?.toString())) {
-                    logDebug("Wake Word Changed to ${(wakeWord?.wakeWord)}")
-                    sendEvent(name: "alexaWakeWord", value: wakeWord?.wakeWord, display: false, displayed: false)
-                }
-            }
-        }
-    } catch (ex) {
-        respExceptionHandler(ex, "getWifiDetails")
-    }
-}
+// private getWifiDetails() {
+//     Map params = [
+//         uri: getAmazonUrl(),
+//         path: "/api/device-wifi-details",
+//         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+//         query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType ],
+//         contentType: "application/json",
+//         timeout: 20
+//     ]
+//     try {
+//         httpGet(params) { response->
+//             def sData = response?.data ?: null
+//             // log.debug "sData: $sData"
+//             if(sData && sData?.essid) {
+//                 // logTrace("wifiSSID: ${sData?.essid}")
+//                 if(isStateChange(device, "wifiNetwork", sData?.essid?.toString())) {
+//                     logDebug("Wi-Fi SSID Changed to ${sData?.essid}")
+//                     sendEvent(name: "wifiNetwork", value: sData?.essid, display: false, displayed: false)
+//                 }
+//             }
+//         }
+//     } catch (ex) {
+//         respExceptionHandler(ex, "getWifiDetails")
+//     }
+// }
 
 private getDeviceSettings() {
     Map params = [
@@ -1918,7 +1917,7 @@ def playAnnouncementAll(String msg, String title=null) {
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
-    // logTrace("searchMusic(${searchPhrase}, ${providerId})")
+    logDebug("searchMusic(${searchPhrase}, ${providerId})")
     if(isCommandTypeAllowed(getCommandTypeForProvider(providerId))) {
         doSearchMusicCmd(searchPhrase, providerId, volume, sleepSeconds)
     } else { logWarn("searchMusic not supported for ${providerId}", true) }
@@ -1926,6 +1925,7 @@ def searchMusic(String searchPhrase, String providerId, volume=null, sleepSecond
 
 String getCommandTypeForProvider(String providerId) {
     def commandType = providerId
+    // logDebug("getCommandTypeForProvider(${providerId})")
     switch (providerId) {
         case "AMAZON_MUSIC":
             commandType = "amazonMusic"

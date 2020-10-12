@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.6.4.0" }
-String appModified()  { return "2020-09-29" }
+String appVersion()   { return "3.6.4.2" }
+String appModified()  { return "2020-10-12" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3640, wsDevice: 3311, actionApp: 3631, zoneApp: 3631, server: 250] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3641, wsDevice: 3311, actionApp: 3640, zoneApp: 3640, server: 250] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -1663,6 +1663,11 @@ private authEvtHandler(Boolean isAuth, String src=null) {
         unschedule("noAuthReminder")
         state?.noAuthActive = false
         runIn(10, "initialize", [overwrite: true])
+    } else if (isAuth == true && state?.noAuthActive == true) {
+        logWarn("OOPS Somehow your Auth is Valid but the NoAuthActive State is true.  Clearing noAuthActive flag to allow device refresh")
+        unschedule("noAuthReminder")
+        state?.noAuthActive = false
+        // runIn(10, "initialize", [overwrite: true])
     }
 }
 
@@ -4083,9 +4088,9 @@ def appInfoSect()	{
     String str = ""
     Boolean isNote = false
     if(codeVer && (codeVer?.server || codeVer?.actionApp || codeVer?.echoDevice)) {
+        str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
         str += (codeVer && codeVer?.actionApp) ? bulletItem(str, "Action: (v${codeVer?.actionApp})") : ""
         str += (codeVer && codeVer?.zoneApp) ? bulletItem(str, "Zone: (v${codeVer?.zoneApp})") : ""
-        str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
         str += (!isST() && codeVer && codeVer?.wsDevice) ? bulletItem(str, "Socket: (v${codeVer?.wsDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
     }
@@ -5068,6 +5073,7 @@ private Map deviceSupportMap() {
             "A2E0SNTXJVT7WK": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen2)" ],
             "A2GFL5ZMWNE0PX": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen3)" ],
             "A2HZENIFNYTXZD": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
+            "A52ARKF0HM2T4": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal+" ],
             "A2IVLV5VM2W81": [  ignore: true ],
             "A2J0R2SD7G9LPA": [ caps: [ "a", "t" ], image: "lenovo_smarttab_m10", name: "Lenovo SmartTab M10" ],
             "A2JKHJ0PX4J3L3": [ caps: [ "a", "t" ], image: "firetv_cube", name: "Fire TV Cube (Gen2)" ],
@@ -5115,6 +5121,7 @@ private Map deviceSupportMap() {
             "A3BRT6REMPQWA8": [ caps: [ "a", "t" ], image: "sonos_generic", name: "Bose Home Speaker 450" ],
             "A3C9PE6TNYLTCH": [ image: "echo_wha", name: "Multiroom" ],
             "A3F1S88NTZZXS9": [ blocked: true, image: "dash_wand", name: "Dash Wand" ],
+            "A2WFDCBDEXOXR8": [ blocked: true, image: "unknown", name: "Bose Soundbar 700" ],
             "A3FX4UWTP28V1P": [ caps: [ "a", "t" ], image: "echo_plus_gen2", name: "Echo (Gen3)" ],
             "A3H674413M2EKB": [ ignore: true ],
             "A3KULB3NQN7Z1F": [ caps: [ "a", "t" ], image: "unknown", name: "Unknown TV" ],
@@ -5122,17 +5129,22 @@ private Map deviceSupportMap() {
             "AGHZIK8D6X7QR": [ caps: [ "a", "t" ], image: "unknown", name: "Fire TV" ],
             "A3HF4YRA2L7XGC": [ caps: [ "a", "t" ], image: "firetv_cube", name: "Fire TV Cube" ],
             "A3L0T0VL9A921N": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
+            "AVU7CPPF2ZRAS": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
             "A3NPD82ABCPIDP": [ caps: [ "t" ], image: "sonos_beam", name: "Sonos Beam" ],
             "A3NVKTZUPX1J3X": [ ignore: true, name: "Onkyp VC30" ],
             "A3NWHXTQ4EBCZS": [ ignore: true ],
             "A2RG3FY1YV97SS": [ ignore: true ],
+            "A3IYPH06PH1HRA": [ caps: [ "a", "t" ], image: "echo_frames", name: "Echo Frames" ],
+            "AKO51L5QAQKL2": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Jams" ],
             "A3K69RS3EIMXPI": [ caps: [ "a", "t" ], image: "unknown", name: "Hisense Smart TV" ],
+            "A1QKZ9D0IJY332": [ caps: [ "a", "t" ], image: "unknown", name: "Samsung TV 2020-U" ],
             "A3QPPX1R9W5RJV": [ caps: [ "a", "t" ], image: "fabriq_chorus", name: "Fabriq Chorus" ],
             "A3R9S4ZZECZ6YL": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 10" ],
             "A3RBAYBE7VM004": [ caps: [ "a", "t" ], image: "echo_studio", name: "Echo Studio" ],
             "A2RU4B77X9R9NZ": [ caps: [ "a", "t" ], image: "echo_link_amp", name: "Echo Link Amp" ],
             "A3S5BH2HU6VAYF": [ caps: [ "a", "t" ], image: "echo_dot_gen2", name: "Echo Dot (Gen2)" ],
             "A3SSG6GR8UU7SN": [ caps: [ "a", "t" ], image: "echo_sub_gen1", name: "Echo Sub" ],
+            "A3BW5ZVFHRCQPO": [ caps: [ "a", "t" ], image: "unknown", name: "BMW Alexa Integration" ],
             "A3SSWQ04XYPXBH": [ blocked: true, image: "amazon_tablet", name: "Generic Tablet" ],
             "A3TCJ8RTT3NVI7": [ ignore: true ],
             "A3VRME03NAXFUB": [ caps: [ "a", "t" ], image: "echo_flex", name: "Echo Flex" ],
@@ -5140,6 +5152,8 @@ private Map deviceSupportMap() {
             "A7WXQPH584YP":  [ caps: [ "a", "t" ], image: "echo_gen2", name: "Echo (Gen2)" ],
             "A81PNL0A63P93": [ caps: [ "a", "t" ], image: "unknown", name: "Home Remote" ],
             "AB72C64C86AW2": [ caps: [ "a", "t" ], image: "echo_gen1", name: "Echo (Gen1)" ],
+            "A1SCI5MODUBAT1": [ caps: [ "a", "t"], image: "unknown", name: "Pioneer DMH-W466NEX" ],
+            "A1ETW4IXK2PYBP": [ caps: [ "a", "t"], image: "unknown", name: "Talk to Alexa" ],
             "ABP0V5EHO8A4U": [ ignore: true ],
             "AD2YUJTRVBNOF": [ ignore: true ],
             "ADQRVG6LYK4LQ": [ ignore: true ],
@@ -5155,6 +5169,7 @@ private Map deviceSupportMap() {
             "AO6HHP9UE6EOF": [ caps: [ "a", "t" ], image: "unknown", name: "Unknown Media Device" ],
             "AP1F6KUH00XPV": [ blocked: true, name: "Stereo/Subwoofer Pair" ],
             "AP4RS91ZQ0OOI": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV (Toshiba)" ],
+            "AFF5OAL5E3DIU": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV" ],
             "ATH4K2BAIXVHQ": [ ignore: true ],
             "AUPUQSVCVHXP0": [ ignore: true ],
             "AVD3HM0HOJAAL": [ image: "sonos_generic", name: "Sonos" ],
