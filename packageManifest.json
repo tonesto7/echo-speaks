@@ -1,9 +1,9 @@
 {
     "packageName": "Echo Speaks",
     "author": "Anthony S.",
-    "version": "3.6.4.1",
+    "version": "3.6.4.2",
     "minimumHEVersion": "1.0.0",
-    "dateReleased": "2020-10-09",
+    "dateReleased": "2020-10-12",
     "documentationLink": "https://tonesto7.github.io/echo-speaks-docs",
     "communityLink": "https://community.hubitat.com/t/release-echo-speaks-v3-actions/22879/992",
     "licenseFile": "",
@@ -15,7 +15,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
             "required": true,
             "oauth": true,
-            "version": "3.6.4.1"
+            "version": "3.6.4.2"
         },
         {
             "id": "cd4762db-aa0b-4d32-98ca-06de955dbc33",

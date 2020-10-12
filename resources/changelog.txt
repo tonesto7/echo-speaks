@@ -1,4 +1,12 @@
  ══════════
+  October 12th, 2020
+ ══════════
+  Main App (v3.6.4.2)
+  * FIXED: Rare scenario where auth was valid and noAuthActive state was true causing devices to not update there version info and stop functioning
+
+_____________________________________   
+
+ ══════════
   October 9th, 2020
  ══════════
   Main App (v3.6.4.1)

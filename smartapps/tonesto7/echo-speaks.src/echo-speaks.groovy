@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()   { return "3.6.4.1" }
-String appModified()  { return "2020-10-09" }
+String appVersion()   { return "3.6.4.2" }
+String appModified()  { return "2020-10-12" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
@@ -1663,6 +1663,11 @@ private authEvtHandler(Boolean isAuth, String src=null) {
         unschedule("noAuthReminder")
         state?.noAuthActive = false
         runIn(10, "initialize", [overwrite: true])
+    } else if (isAuth == true && state?.noAuthActive == true) {
+        logWarn("OOPS Somehow your Auth is Valid but the NoAuthActive State is true.  Clearing noAuthActive flag to allow device refresh")
+        unschedule("noAuthReminder")
+        state?.noAuthActive = false
+        // runIn(10, "initialize", [overwrite: true])
     }
 }
 
@@ -4083,9 +4088,9 @@ def appInfoSect()	{
     String str = ""
     Boolean isNote = false
     if(codeVer && (codeVer?.server || codeVer?.actionApp || codeVer?.echoDevice)) {
+        str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
         str += (codeVer && codeVer?.actionApp) ? bulletItem(str, "Action: (v${codeVer?.actionApp})") : ""
         str += (codeVer && codeVer?.zoneApp) ? bulletItem(str, "Zone: (v${codeVer?.zoneApp})") : ""
-        str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
         str += (!isST() && codeVer && codeVer?.wsDevice) ? bulletItem(str, "Socket: (v${codeVer?.wsDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
     }
