@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.4.0" }
-String appModified() { return "2020-10-09" }
+String appVersion()  { return "3.6.4.1" }
+String appModified() { return "2020-10-13" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -768,7 +768,7 @@ def conditionsPage() {
             }
         }
         section (sTS("Alarm Conditions")) {
-            input "cond_alarm", "enum", title: inTS("${getAlarmSystemName()} is...", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
+            input "cond_alarm", "enum", title: inTS("${getAlarmSystemName()} is...", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true, image: getAppImg("alarm_home")
         }
 
         condNonNumSect("switch", "switch", "Switches/Outlets Conditions", "Switches/Outlets", ["on","off"], "are", "switch")
@@ -2734,7 +2734,7 @@ private clearAfterCheckSchedule() {
 /***********************************************************************************************************
    CONDITIONS HANDLER
 ************************************************************************************************************/
-Boolean reqAllCond() { return (multipleConditions() && settings?.cond_require_all == true)}
+Boolean reqAllCond() { return ( !multipleConditions() || (multipleConditions() && settings?.cond_require_all == true))}
 
 Boolean timeCondOk() {
     def startTime = null
@@ -3558,7 +3558,7 @@ Map weeksOfMonthMap() { return ["1":"1st Week", "2":"2nd Week", "3":"3rd Week", 
 Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 Map getAlarmTrigOpts() {
-    return isST() ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armAway":"Armed Away","armHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
+    return isST() ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
 }
 
 def getShmIncidents() {

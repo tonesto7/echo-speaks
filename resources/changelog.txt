@@ -1,3 +1,16 @@
+  ══════════
+  October 13th, 2020
+ ══════════
+  Main App (v3.6.4.3)
+  * UPDATED: Bumped device version to latest release.
+
+  Action App (v3.6.4.1)
+  * FIXED: HSM Triggers and Conditions under Hubitat.
+
+  Zone App (v3.6.4.1)
+  * FIXED: HSM Triggers and Conditions under Hubitat.
+_____________________________________  
+ 
  ══════════
   October 12th, 2020
  ══════════
