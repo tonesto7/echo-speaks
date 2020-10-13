@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.4.0" }
-String appModified() { return "2020-10-09" }
+String appVersion()  { return "3.6.4.1" }
+String appModified() { return "2020-10-13" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -223,7 +223,7 @@ def conditionsPage() {
         }
 
         section (sTS("Alarm Conditions")) {
-            input "cond_alarm", "enum", title: inTS("${getAlarmSystemName()} is...", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
+            input "cond_alarm", "enum", title: inTS("${getAlarmSystemName()} is...", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true, image: getAppImg("alarm_home")
             if(settings?.cond_alarm) {
                 input "cond_alarm_db", "bool", title: inTS("Deactivate Zone immediately when Alarm condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
             }
@@ -564,7 +564,7 @@ String attributeConvert(String attr) {
 /***********************************************************************************************************
    CONDITIONS HANDLER
 ************************************************************************************************************/
-Boolean reqAllCond() { return (multipleConditions() && settings?.cond_require_all == true)}
+Boolean reqAllCond() { return (!multipleConditions() || (multipleConditions() && settings?.cond_require_all == true) ) }
 
 Boolean timeCondOk() {
     def startTime = null
@@ -1473,7 +1473,7 @@ List monthEnum() {
 }
 
 Map getAlarmTrigOpts() {
-    return isST() ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armAway":"Armed Away","armHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
+    return isST() ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
 }
 
 def getShmIncidents() {
