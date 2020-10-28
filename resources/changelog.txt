@@ -1,3 +1,14 @@
+ ══════════
+  October 28th, 2020
+ ══════════
+  Main App (v3.6.4.4)
+  * ADDED: Added durationval and durationvalmin variables to response designer.  This will remove the ago from the current duration variable.
+
+  Action App (v3.6.4.2)
+  * ADDED: Added durationval and durationvalmin variables to response designer.  This will remove the ago from the current duration variable.
+
+_____________________________________   
+  
   ══════════
   October 13th, 2020
  ══════════

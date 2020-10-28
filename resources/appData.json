@@ -2,10 +2,10 @@
     "appDataVer": "4.0",
     "versions": {
         "mainApp": {
-            "ver": "3.6.4.3"
+            "ver": "3.6.4.4"
         },
         "actionApp": {
-            "ver": "3.6.4.1"
+            "ver": "3.6.4.2"
         },
         "zoneApp": {
             "ver": "3.6.4.1"
