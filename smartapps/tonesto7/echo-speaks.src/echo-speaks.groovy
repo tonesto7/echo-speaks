@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.6.4.3" }
-String appModified()  { return "2020-10-13" }
+String appVersion()   { return "3.6.4.4" }
+String appModified()  { return "2020-10-28" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3641, wsDevice: 3311, actionApp: 3641, zoneApp: 3641, server: 250] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3641, wsDevice: 3311, actionApp: 3642, zoneApp: 3641, server: 250] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -4345,6 +4345,8 @@ def renderTextEditPage() {
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Date/Time" data-ssml="evtdatetime">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Duration (Seconds)" data-ssml="evtduration">
                                                                 <input class="ssml-button" type="button" unselectable="on" value="Duration (Minutes)" data-ssml="evtdurationmin">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Duration Value (Seconds)" data-ssml="evtdurationval">
+                                                                <input class="ssml-button" type="button" unselectable="on" value="Duration Value (Minutes)" data-ssml="evtdurationvalmin">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -4799,6 +4801,12 @@ def renderTextEditPage() {
                                     break;
                                 case 'evtdurationmin':
                                     insertSsml(editor, '%durationmin%', false);
+                                    break;
+                                case 'evtdurationval':
+                                    insertSsml(editor, '%durationval%', false);
+                                    break;
+                                case 'evtdurationvalmin':
+                                    insertSsml(editor, '%durationvalmin%', false);
                                     break;
                                 default:
                                     break;
