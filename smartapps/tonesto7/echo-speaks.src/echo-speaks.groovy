@@ -14,12 +14,12 @@
  *
  */
 
-String appVersion()   { return "3.6.5.0" }
-String appModified()  { return "2020-11-04" }
+String appVersion()   { return "3.6.4.4" }
+String appModified()  { return "2020-10-28" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3650, wsDevice: 3311, actionApp: 3650, zoneApp: 3650, server: 250] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3641, wsDevice: 3311, actionApp: 3642, zoneApp: 3641, server: 250] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",
@@ -981,9 +981,8 @@ Map seqItemsAvail() {
             "weather":null, "traffic":null, "flashbriefing":null, "goodnews":null, "goodmorning":null, "goodnight":null, "cleanup":null,
             "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
             "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
-            "date": null, "time": null,
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message", "email": null, "textcmd": "voice command as text"
+            "announcementall": "message", "pushnotification": "message", "email": null
         ],
         // dnd: [
         //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
