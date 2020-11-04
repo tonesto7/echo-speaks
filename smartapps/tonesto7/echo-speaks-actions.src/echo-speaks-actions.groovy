@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.4.2" }
-String appModified() { return "2020-10-28" }
+String appVersion()  { return "3.6.5.0" }
+String appModified() { return "2020-11-04" }
 String appAuthor()   { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -136,7 +136,7 @@ private buildActTypeEnum() {
     buildItems["Media/Playback"] = ["music":"Play Music/Playlists", "playback":"Playback/Volume Control"]?.sort{ it?.key }
     buildItems["Alarms/Reminders"] = ["alarm":"Create Alarm", "reminder":"Create Reminder"]?.sort{ it?.key }
     buildItems["Devices Settings"] = ["wakeword":"Change Wake Word", "dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control"]?.sort{ it?.key }
-    buildItems["Custom"] = ["sequence":"Execute Sequence", "alexaroutine": "Execute Alexa Routine(s)"]?.sort{ it?.key }
+    buildItems["Custom"] = ["voicecmd":"Execute a voice command","sequence":"Execute Sequence", "alexaroutine": "Execute Alexa Routine(s)"]?.sort{ it?.key }
     if(isST()) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
         return enumOpts
@@ -909,6 +909,7 @@ String actionTypeDesc() {
         playback: "Allows you to control the media playback state or volume level of your Echo devices.",
         builtin: "Builtin items are things like Sing a Song, Tell a Joke, Say Goodnight, etc.",
         sounds: "Plays a selected amazon sound item.",
+        voicecmd: "Executes a text based command just as if it was spoken to the device",
         music: "Allows playback of various Songs/Radio using any connected music provider",
         calendar: "This will read out events in your calendar (Requires accounts to be configured in the alexa app. Must not have PIN.)",
         alarm: "This will allow you to create Alexa alarm clock notifications.",
@@ -1100,6 +1101,18 @@ def actionsPage() {
                             actionExecMap?.config[actionType as String]?.deviceObjs = devObj
                         }
                         if(state?.showSpeakEvtVars || settings?.act_announcement_txt || (isTierAct && isTierActConfigured())) { done = true } else { done = false }
+                    } else { done = false }
+                    break
+
+                case "voicecmd":
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
+                    echoDevicesInputByPerm("voicecmd")
+                    if(settings?.act_EchoDevices) {
+                        section(sTS("Action Type Config:")) {
+                            input "act_voicecmd_txt", "text", title: inTS("Enter voice command text", getAppImg("text", true)), submitOnChange: true, required: false, image: getAppImg("text")
+                        }
+                        actionExecMap?.config?.voicecmd = [text: settings?.act_voicecmd_txt]
+                        if(act_voicecmd_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
 
@@ -1792,7 +1805,7 @@ private getLastEchoSpokenTo() {
 private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
     Boolean capOk = (type in ["TTS", "announce"])
-    Boolean zonesOk = (settings?.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "sequence", "weather", "calendar", "music", "sounds", "builtin"])
+    Boolean zonesOk = (settings?.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "voicecmd", "sequence", "weather", "calendar", "music", "sounds", "builtin"])
     Map echoZones = (capOk && zonesOk) ? parent?.getZones() : [:]
     section(sTS("Alexa Devices${echoZones?.size() ? " & Zones" : ""}:")) {
         if(echoZones?.size()) {
@@ -3226,6 +3239,21 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                     }
                 }
                 break
+            case "voicecmd":
+                if(actConf[actType] && actConf[actType]?.text) {
+                    if(activeZones?.size()) {
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones?.collect { it?.key as String }, cmd: actType, message: actConf[actType]?.text, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        logDebug("Sending VoiceCmd Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}")
+                    } else if(actDevices?.size()) {
+                        actDevices?.each { dev->
+                            if(isST && actDelayMs) {
+                                dev?.voiceCmdAsText(actConf[actType]?.text as String, [delay: actDelayMs])
+                            } else { dev?.executeSequenceCommand(actConf[actType]?.text as String) }
+                        }
+                        logDebug("Sending VoiceCmd Command to Zones: (${actConf[actType]?.text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : ""}")
+                    }
+                }
+                break
 
             case "sequence":
                 if(actConf[actType] && actConf[actType]?.text) {
@@ -3248,7 +3276,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
                 if(actConf[actType] && actConf[actType]?.cmd) {
                     if(actType == "playback" && activeZones?.size()) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones?.collect { it?.key as String }, cmd: actConf[actType]?.cmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending Sequence Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}")
+                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones?.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : ""}")
                     } else if(actDevices?.size()) {
                         actDevices?.each { dev->
                             if(isST && actDelayMs) {
@@ -4338,8 +4366,10 @@ Map seqItemsAvail() {
             "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
             "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
             "sound": "name",
+            "date":null, "time":null
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message", "email": null
+            "announcementall": "message", "pushnotification": "message", "email": null,
+            "textcmd": "voice command as text"
         ],
         // dnd: [
         //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
