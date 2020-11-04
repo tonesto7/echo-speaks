@@ -25,7 +25,7 @@ String appModified()  { return "2020-11-04" }
 String appAuthor()    { return "Anthony S." }
 Boolean isBeta()      { return false }
 Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3650, wsDevice: 3311, actionApp: 3650, zoneApp: 3650, server: 250] } //These values define the minimum versions of code this app will work with.
+Map minVersions()     { return [echoDevice: 3650, wsDevice: 3400, actionApp: 3650, zoneApp: 3650, server: 250] } //These values define the minimum versions of code this app will work with.
 
 definition(
     name        : "Echo Speaks",

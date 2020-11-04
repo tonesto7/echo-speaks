@@ -16,8 +16,8 @@
 
 // NOTICE: This device will not work on SmartThings
 
-String devVersion()  { return "3.3.1.1"}
-String devModified() { return "2020-07-19" }
+String devVersion()  { return "3.4.0.0"}
+String devModified() { return "2020-11-04" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return true }
@@ -159,19 +159,20 @@ def webSocketStatus(String status){
 def parse(message) {
     // log.debug "parsed ${message}"
     def newMsg = strFromHex(message)
-    log.debug "decodedMsg: ${newMsg}"
+    // log.debug "decodedMsg: ${newMsg}"
     if(newMsg) {
-        if(newMsg == """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
+        if(newMsg == """0x37a3b607 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
+        // if(newMsg == """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
             sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString())
             pauseExecution(1000)
             sendWsMsg(strToHex(encodeGWHandshake()))
-            log.trace("Gateway Handshake Message Sent (Step 2)")
+            logTrace("Gateway Handshake Message Sent (Step 2)")
         } else if (newMsg?.startsWith("MSG 0x00000361 ") && newMsg?.endsWith(" END FABE")) {
             sendWsMsg(strToHex(encodeGWRegister()))
-            log.trace("Gateway Registration Message Sent (Step 3)")
+            logTrace("Gateway Registration Message Sent (Step 3)")
             pauseExecution(1000)
             sendWsMsg(strToHex(encodePing()))
-            log.trace("Encoded Ping Message Sent (Step 4)")
+            logTrace("Encoded Ping Message Sent (Step 4)")
         }
         parseIncomingMessage(newMsg as String)
     }
