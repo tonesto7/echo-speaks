@@ -14,6 +14,12 @@
  *
  */
 
+ // TODO: Create a new @field static map for containing the state database
+ // Have a central method to read/write the data to the memory.  
+ // Backup the data using a single state blob.  
+ // Use a parameter in the in central method to tell it to update the state blob with the latest mem map
+ // Maybe use the health check to occasionally write the data to state?
+
 String appVersion()   { return "3.6.5.0" }
 String appModified()  { return "2020-11-04" }
 String appAuthor()    { return "Anthony S." }
@@ -1348,11 +1354,13 @@ private findEchoDevice(serial) {
 }
 
 void webSocketStatus(Boolean active) {
+    log.trace "webSocketStatus... | Active: ${active}"
     state?.websocketActive = active
     runIn(3, "updChildSocketStatus")
 }
 
 private updChildSocketStatus() {
+    log.trace "updChildSocketStatus... | Active: ${state?.websocketActive}"
     def active = (state?.websocketActive == true)
     getEsDevices()?.each { it?.updSocketStatus(active) }
     updTsVal("lastWebsocketUpdDt")
@@ -3095,9 +3103,17 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
 Boolean childInstallOk() { return (state?.childInstallOkFlag == true) }
 String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
 String getPublicImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
-String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
+String sTS(String t, String i = null, bold=false) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${bold ? "<b>" : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}</h3>""" }
+String s3TS(String t, String st, String i = null, c="#1A77C9") { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : ""}""" }
 String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 String inTS(String t, String i = null, color=null, under=true) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
+String htmlLine(color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
+def appFooter() {
+	section() {
+		paragraph htmlLine("orange")
+		paragraph """<div style='color:orange;text-align:center'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
+	}       
+}
 
 String actChildName(){ return "Echo Speaks - Actions" }
 String zoneChildName(){ return "Echo Speaks - Zones" }
@@ -4082,6 +4098,30 @@ String getInputToStringDesc(inpt, addSpace = null) {
     }
     //log.debug "str: $str"
     return (str != "") ? "${str}" : null
+}
+
+def appInfoSect2() {
+    Map codeVer = state?.codeVersions ?: null
+    Boolean isNote = false
+    String tStr = """<small style="color: gray;"><b>Version:</b> v${appVersion()}</small>${state?.pluginDetails?.version ? """<br><small style="color: gray;"><b>Plugin:</b> v${state?.pluginDetails?.version}</small>""" : ""}"""
+    section (s3TS(app?.name, tStr, getAppImg("hb_tonesto7@2x", true), "orange")) {
+        Map minUpdMap = getMinVerUpdsRequired()
+        List codeUpdItems = codeUpdateItems(true)
+        if(minUpdMap?.updRequired && minUpdMap?.updItems?.size()) {
+            isNote=true
+            String str3 = """<small style="color: red;"><b>Updates Required:</b></small>"""
+            minUpdMap?.updItems?.each { item-> str3 += """<br><small style="color: red;">  \u2022 ${item}</small>""" }
+            str3 += """<br><br><small style="color: red; font-weight: bold;">If you just updated the code please press Done/Next to let the app process the changes.</small>"""
+            paragraph str3
+        } else if(codeUpdItems?.size()) {
+            isNote=true
+            String str2 = """<small style="color: red;"><b>Code Updates Available:</b></small>"""
+            codeUpdItems?.each { item-> str2 += """<br><small style="color: red;">  \u2022 ${item}</small>""" }
+            paragraph str2
+        }
+        if(!isNote) { paragraph """<small style="color: gray;">No Issues to Report</small>""" }
+        paragraph htmlLine("orange")
+	}
 }
 
 def appInfoSect()	{

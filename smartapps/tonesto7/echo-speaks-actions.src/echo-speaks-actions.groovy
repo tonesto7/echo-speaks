@@ -4366,7 +4366,7 @@ Map seqItemsAvail() {
             "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
             "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
             "sound": "name",
-            "date":null, "time":null
+            "date":null, "time":null,
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
             "announcementall": "message", "pushnotification": "message", "email": null,
             "textcmd": "voice command as text"
