@@ -13,8 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.6.4.1" }
-String devModified() { return "2020-10-09" }
+String devVersion()  { return "3.6.5.0" }
+String devModified() { return "2020-11-04" }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
 Boolean isWS()       { return false }
@@ -138,6 +138,7 @@ metadata {
         command "disconnectBluetooth"
         command "removeBluetooth", ["string"]
         command "sendAnnouncementToDevices", ["string", "string", "string", "number", "number"]
+        command "voiceCmdAsText", ["string"]
     }
 
     tiles (scale: 2) {
@@ -2798,8 +2799,9 @@ Map seqItemsAvail() {
             "dnd_duration":"2H30M", "dnd_time":"00:30",
             "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
             "sound": "message",
+            "date": null, "time": null,
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message", "email": null
+            "announcementall": "message", "pushnotification": "message", "email": null, "textcmd": "voice command as text"
         ],
         music: [
             "amazonmusic": "AMAZON_MUSIC", "applemusic": "APPLE_MUSIC", "iheartradio": "I_HEART_RADIO", "pandora": "PANDORA",
@@ -3424,8 +3426,20 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
             case "calendarnext":
                 seqNode?.type = "Alexa.Calendar.PlayNext"
                 break
+            case "date":
+                seqNode?.type = "Alexa.Date.Play"
+                seqNode?.skillId = "amzn1.ask.1p.dateandtime"
+                break
+            case "time":
+                seqNode?.type = "Alexa.Time.Play"
+                seqNode?.skillId = "amzn1.ask.1p.dateandtime"
+                break
             case "stop":
+                remDevSpecifics = true
                 seqNode?.type = "Alexa.DeviceControls.Stop"
+                seqNode?.skillId = "amzn1.ask.1p.alexadevicecontrols"
+                seqNode?.operationPayload?.devices = [ [deviceType: state?.deviceType, deviceSerialNumber: state?.serialNumber] ]
+                seqNode?.operationPayload?.isAssociatedDevice = false
                 break
             case "stopalldevices":
                 remDevSpecifics = true
@@ -3532,6 +3546,11 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
             case "goodnews":
                 seqNode?.type = "Alexa.GoodNews.Play"
                 seqNode?.skillId = "amzn1.ask.1p.goodnews"
+                break
+            case "textcmd":
+                seqNode?.type = "Alexa.TextCommand"
+                seqNode?.skillId = "amzn1.ask.1p.tellalexa"
+                seqNode?.text = value
                 break
             default:
                 return null

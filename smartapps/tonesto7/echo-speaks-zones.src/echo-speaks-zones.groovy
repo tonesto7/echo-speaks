@@ -14,8 +14,8 @@
  *
  */
 
-String appVersion()  { return "3.6.4.1" }
-String appModified() { return "2020-10-13" }
+String appVersion()  { return "3.6.5.0" }
+String appModified() { return "2020-11-04" }
 String appAuthor()	 { return "Anthony S." }
 Boolean isBeta()     { return false }
 Boolean isST()       { return (getPlatform() == "SmartThings") }
@@ -923,6 +923,15 @@ public zoneCmdHandler(evt) {
                     if(isST() && delay) {
                         zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol, [delay: delay])
                     } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol) }
+                }
+                break
+
+            case "voicecmd":
+                logDebug("Sending VoiceCmd Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : ""}")
+                zoneDevs?.devices?.each { dev->
+                    if(isST() && delay) {
+                        dev?.voiceCmdAsText(data?.message, [delay: delay])
+                    } else { dev?.voiceCmdAsText(data?.message) }
                 }
                 break
             case "sequence":
