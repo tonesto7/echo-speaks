@@ -1,5 +1,5 @@
 /**
- *	Echo Speaks WebSocket
+ *	Echo Speaks WebSocket  (Hubitat)
  *
  *  Copyright 2019, 2020 Anthony Santilli
  *
