@@ -66,7 +66,7 @@ preferences {
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String appVersionFLD  = "3.6.5.0"
-@Field static final String appModifiedFLD = "11-10-2020"
+@Field static final String appModifiedFLD = "11-18-2020"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
@@ -78,7 +78,6 @@ preferences {
 @Field static final String sBULLET        = '\u2022'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
-@Field volatile static Map historyMapFLD = [:]
 @Field static Map cookieDataFLD          = [:]
 @Field static Map echoDeviceMapFLD       = [:]
 @Field static Map guardDataFLD           = [:]
@@ -1427,13 +1426,21 @@ mappings {
 }
 
 String getCookieVal() {
-    if(cookieDataFLD != null) { return cookieDataFLD?.localCookie as String }
-    else { Map cookieData = state?.cookieData ?: null; if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD = cookie; }; return cookieDataFLD?.localCookie as String ?: null; }
+    if(cookieDataFLD != null && cookieDataFLD?.localCookie != null) { return cookieDataFLD?.localCookie as String }
+    else { 
+        Map cookieData = state?.cookieData ?: null
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD = cookieData; } 
+        return cookieDataFLD?.localCookie as String ?: null
+    }
 }
 
 String getCsrfVal() { 
-    if(cookieDataFLD != null) { return cookieDataFLD?.csrf as String }
-    else { Map cookieData = state?.cookieData ?: null; if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD = cookie; }; return cookieDataFLD?.csrf as String ?: null; }
+    if(cookieDataFLD != null && cookieDataFLD?.csrf != null) { return cookieDataFLD?.csrf as String }
+    else { 
+        Map cookieData = state?.cookieData ?: null 
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD = cookieData; } 
+        return cookieDataFLD?.csrf as String ?: null
+    }
 }
 
 def clearCloudConfig() {
@@ -5006,20 +5013,20 @@ private Map getLogHistory() {
 }
 private void clearHistory()  { historyMapFLD = [:]; mb(); }
 
+// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATE)
+@Field volatile static Map<String,Map> historyMapFLD = [:]
+
 // FIELD VARIABLE FUNCTIONS
-private void updMemStoreItem(key, val) {
+private void updMemStoreItem(String key, val) {
     String appId = app.getId()
-    Boolean aa = getTheLock(sHMLF, "updMemStoreItem(${key})")
-    log.trace "lock wait: ${aa}"
     Map memStore = historyMapFLD[appId] ?: [:]
     memStore[key] = val
     historyMapFLD[appId] = memStore
     historyMapFLD = historyMapFLD
     // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
-    releaseTheLock(sHMLF)
 }
 
-private List getMemStoreItem(key){
+private List getMemStoreItem(String key){
     String appId = app.getId()
     Map memStore = historyMapFLD[appId] ?: [:]
     return memStore[key] ?: null
@@ -5027,6 +5034,7 @@ private List getMemStoreItem(key){
 
 // Memory Barrier
 @Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+
 static void mb(String meth=sNULL){
     if((Boolean)theMBLockFLD.tryAcquire()){
         theMBLockFLD.release()
@@ -5035,9 +5043,10 @@ static void mb(String meth=sNULL){
 
 @Field static final String sHMLF = 'theHistMapLockFLD'
 @Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
+
 private Integer getSemaNum(String name) {
-	if(name==sHMLF) return 0
-    log.warning "unrecognized lock name..."
+    if(name == sHMLF) return 0 
+    log.warn "unrecognized lock name..."
     return 0
 	// Integer stripes=22
 	// if(name.isNumber()) return name.toInteger()%stripes
@@ -5045,7 +5054,8 @@ private Integer getSemaNum(String name) {
 	// return Math.abs(hash)%stripes
     // log.info "sema $name # $sema"
 }
-java.util.concurrent.Semaphore getSema(Integer snum){
+
+java.util.concurrent.Semaphore getSema(Integer snum) {
 	switch(snum) {
 		case 0: return histMapLockFLD
 		default: log.error "bad hash result $snum"
@@ -5080,7 +5090,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
     }
     lockTimesFLD[semaSNum] = now()
     lockTimesFLD = lockTimesFLD
-    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}"
+    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
     lockHolderFLD = lockHolderFLD
     return wait
 }
@@ -5091,8 +5101,8 @@ void releaseTheLock(String qname){
     def sema=getSema(semaNum)
     lockTimesFLD[semaSNum]=null
     lockTimesFLD=lockTimesFLD
-    // lockHolderFLD[semaSNum]=sNULL
-    // lockHolderFLD=lockHolderFLD
+    lockHolderFLD[semaSNum]=(String)null
+    lockHolderFLD=lockHolderFLD
     sema.release()
 }
 

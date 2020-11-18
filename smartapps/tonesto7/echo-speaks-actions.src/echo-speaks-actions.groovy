@@ -59,7 +59,7 @@ preferences {
 }
 
 @Field static final String appVersionFLD  = "3.6.5.0"
-@Field static final String appModifiedFLD = "11-16-2020"
+@Field static final String appModifiedFLD = "11-18-2020"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
@@ -69,12 +69,7 @@ preferences {
 @Field static final String sBLANK         = ''
 @Field static final String sBULLET        = '\u2022'
 
-// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATE)
-@Field volatile static Map historyMapFLD    = [:]
-@Field static Map actionExecMapFLD = [:]
-
 String appVersion()  { return appVersionFLD }
-
 
 def startPage() {
     if(parent != null) {
