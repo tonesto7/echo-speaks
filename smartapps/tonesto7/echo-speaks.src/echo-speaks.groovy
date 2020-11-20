@@ -66,7 +66,7 @@ preferences {
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String appVersionFLD  = "3.6.5.0"
-@Field static final String appModifiedFLD = "11-18-2020"
+@Field static final String appModifiedFLD = "11-19-2020"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
@@ -78,13 +78,14 @@ preferences {
 @Field static final String sBULLET        = '\u2022'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
-@Field static Map cookieDataFLD          = [:]
-@Field static Map echoDeviceMapFLD       = [:]
-@Field static Map guardDataFLD           = [:]
-@Field static Map tsDtMapFLD             = [:]
-@Field static Map zoneStatusMapFLD       = [:]
-@Field static Map bluetoothDataFLD       = [:]
-@Field static Map dndDataFLD             = [:]
+@Field volatile static Map<String,Map> historyMapFLD = [:]
+@Field static Map<String,Map> cookieDataFLD          = [:]
+@Field static Map<String,Map> echoDeviceMapFLD       = [:]
+@Field static Map<String,Map> guardDataFLD           = [:]
+@Field static Map<String,Map> tsDtMapFLD             = [:]
+@Field static Map<String,Map> zoneStatusMapFLD       = [:]
+@Field static Map<String,Map> bluetoothDataFLD       = [:]
+@Field static Map<String,Map> dndDataFLD             = [:]
 
 def startPage() {
     state?.isParent = true
@@ -1426,20 +1427,20 @@ mappings {
 }
 
 String getCookieVal() {
-    if(cookieDataFLD != null && cookieDataFLD?.localCookie != null) { return cookieDataFLD?.localCookie as String }
+    if(cookieDataFLD != null && cookieDataFLD[app?.getId()] && cookieDataFLD[app?.getId()]?.localCookie != null) { return cookieDataFLD[app?.getId()]?.localCookie as String }
     else { 
         Map cookieData = state?.cookieData ?: null
-        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD = cookieData; } 
-        return cookieDataFLD?.localCookie as String ?: null
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[app?.getId()] = cookieData } 
+        return cookieDataFLD[app?.getId()]?.localCookie as String ?: null
     }
 }
 
 String getCsrfVal() { 
-    if(cookieDataFLD != null && cookieDataFLD?.csrf != null) { return cookieDataFLD?.csrf as String }
+    if(cookieDataFLD != null && cookieDataFLD[app?.getId()] && cookieDataFLD[app?.getId()]?.csrf != null) { return cookieDataFLD[app?.getId()]?.csrf as String }
     else { 
         Map cookieData = state?.cookieData ?: null 
-        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD = cookieData; } 
-        return cookieDataFLD?.csrf as String ?: null
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[app?.getId()] = cookieData; } 
+        return cookieDataFLD[app?.getId()]?.csrf as String ?: null
     }
 }
 
@@ -1593,7 +1594,7 @@ def storeCookieData() {
         Map cookieItems = [:]
         data?.cookieData?.each { k,v-> cookieItems[k as String] = v as String }
         state?.cookieData = cookieItems
-        cookieDataFLD = cookieItems
+        cookieDataFLD[app?.getId()] = cookieItems
         updServerItem("onHeroku", (isStFLD || data?.onHeroku != false || (!data?.isLocal && settings?.useHeroku != false)))
         updServerItem("isLocal", (!isStFLD && data?.isLocal == true))
         updServerItem("serverHost", (data?.serverUrl ?: null))
@@ -1616,7 +1617,7 @@ def clearCookieData(src=null) {
     state?.authValid = false
     state?.remove("cookie")
     state?.remove("cookieData")
-    cookieDataFLD = null
+    cookieDataFLD[app?.getId()] = null
     remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
     unschedule("getOtherData")
@@ -5013,9 +5014,6 @@ private Map getLogHistory() {
 }
 private void clearHistory()  { historyMapFLD = [:]; mb(); }
 
-// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATE)
-@Field volatile static Map<String,Map> historyMapFLD = [:]
-
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, val) {
     String appId = app.getId()
@@ -5105,7 +5103,6 @@ void releaseTheLock(String qname){
     lockHolderFLD=lockHolderFLD
     sema.release()
 }
-
 
 public Map seqItemsAvail() { return seqItemsAvailFLD }
 @Field static final Map seqItemsAvailFLD = [

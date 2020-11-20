@@ -14,7 +14,6 @@
  */
 
  /* TODO: 
-    Change cookie state over to using a field variable 
     Use a call to the parent to get the token and compare it with the current field variable and update the variable if they are diffent
 */
 
@@ -22,7 +21,7 @@ import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String devVersionFLD  = "3.6.5.0"
-@Field static final String appModifiedFLD = "11-17-2020"
+@Field static final String appModifiedFLD = "11-19-2020"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -33,9 +32,15 @@ import groovy.transform.Field
 @Field static final String sBULLET        = '\u2022'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
-@Field volatile static Map historyMapFLD = [:]
-@Field static Map bluetoothDataFLD       = [:]
-@Field static Map dndDataFLD             = [:]
+// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
+@Field volatile static Map<String,Map> historyMapFLD = [:]
+@Field static Map<String,Map> cookieDataFLD          = [:]
+@Field static Map<String,Map> echoDeviceMapFLD       = [:]
+@Field static Map<String,Map> guardDataFLD           = [:]
+@Field static Map<String,Map> tsDtMapFLD             = [:]
+@Field static Map<String,Map> zoneStatusMapFLD       = [:]
+@Field static Map<String,Map> bluetoothDataFLD       = [:]
+@Field static Map<String,Map> dndDataFLD             = [:]
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
@@ -724,32 +729,6 @@ private getWakeWord() {
     }
 }
 
-// private getWifiDetails() {
-//     Map params = [
-//         uri: getAmazonUrl(),
-//         path: "/api/device-wifi-details",
-//         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-//         query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType ],
-//         contentType: "application/json",
-//         timeout: 20
-//     ]
-//     try {
-//         httpGet(params) { response->
-//             def sData = response?.data ?: null
-//             // log.debug "sData: $sData"
-//             if(sData && sData?.essid) {
-//                 // logTrace("wifiSSID: ${sData?.essid}")
-//                 if(isStateChange(device, "wifiNetwork", sData?.essid?.toString())) {
-//                     logDebug("Wi-Fi SSID Changed to ${sData?.essid}")
-//                     sendEvent(name: "wifiNetwork", value: sData?.essid, display: false, displayed: false)
-//                 }
-//             }
-//         }
-//     } catch (ex) {
-//         respExceptionHandler(ex, "getWifiDetails")
-//     }
-// }
-
 private getDeviceSettings() {
     Map params = [
         uri: getAmazonUrl(),
@@ -933,8 +912,23 @@ private getDeviceActivity() {
     }
 }
 
-String getCookieVal() { return (state?.cookie && state?.cookie?.cookie) ? state?.cookie?.cookie as String : null }
-String getCsrfVal() { return (state?.cookie && state?.cookie?.csrf) ? state?.cookie?.csrf as String : null }
+String getCookieVal() {
+    if(cookieDataFLD != null && cookieDataFLD[app?.getId()] && cookieDataFLD[app?.getId()]?.localCookie != null) { return cookieDataFLD[app?.getId()]?.localCookie as String }
+    else { 
+        Map cookieData = state?.cookie ?: null
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[app?.getId()] = cookieData } 
+        return cookieDataFLD[app?.getId()]?.localCookie as String ?: null
+    }
+}
+
+String getCsrfVal() { 
+    if(cookieDataFLD != null && cookieDataFLD[app?.getId()] && cookieDataFLD[app?.getId()]?.csrf != null) { return cookieDataFLD[app?.getId()]?.csrf as String }
+    else { 
+        Map cookieData = state?.cookie ?: null 
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[app?.getId()] = cookieData; } 
+        return cookieDataFLD[app?.getId()]?.csrf as String ?: null
+    }
+}
 
 /*******************************************************************
             Amazon Command Logic
@@ -947,14 +941,19 @@ private sendAmazonBasicCommand(String cmdType) {
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
         query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType ],
         contentType: "application/json",
-        body: [type: cmdType]
+        body: [type: cmdType],
+        timeout: 20
     ], [cmdDesc: cmdType])
 }
 
 private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
     if(method && callbackHandler && params) {
-        "asynchttp${method?.toString()?.toLowerCase()?.capitalize()}"("${callbackHandler}", params, otherData)
-    }
+        String m = method?.toString()?.toLowerCase()
+        if(isStFLD) {
+            include 'asynchttp_v1'
+            asynchttp_v1."${m}"(callbackHandler, params, otherData)
+        } else { "asynchttp${m?.capitalize()}"("${callbackHandler}", params, otherData) }
+    } else { logError("execAsyncCmd Error | Missing a required parameter") }
 }
 
 private String sendAmazonCommand(String method, Map params, Map otherData=null) {
@@ -1000,7 +999,8 @@ private sendSequenceCommand(type, command, value) {
         path: "/api/behaviors/preview",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
-        body: new groovy.json.JsonOutput().toJson(seqObj)
+        body: new groovy.json.JsonOutput().toJson(seqObj),
+        timeout: 20
     ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
@@ -2887,12 +2887,13 @@ Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")
 Boolean minVersionFailed() {
     try {
         Integer minDevVer = parent?.minVersions()["echoDevice"] ?: null
-        if(minDevVer != null && versionStr2Int(devVersionFLD < minDevVer) { return true }
+        if(minDevVer != null && versionStr2Int(devVersionFLD) < minDevVer) { return true }
         else { return false }
     } catch (e) { 
         return false
     }
 }
+
 def getDtNow() {
     def now = new Date()
     return formatDt(now, false)
@@ -2963,6 +2964,7 @@ private addToHistory(String logKey, data, Integer max=10) {
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
     updMemStoreItem(logKey, eData)
 }
+
 private void logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersionFLD}) | ${msg}" } }
 private void logInfo(msg) { if(settings?.logInfo != false) { log.info " Echo (v${devVersionFLD}) | ${msg}" } }
 private void logTrace(msg) { if(settings?.logTrace == true) { log.trace "Echo (v${devVersionFLD}) | ${msg}" } }
@@ -3230,26 +3232,24 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
 }
 
 // FIELD VARIABLE FUNCTIONS
-private void updMemStoreItem(key, val) {
+private void updMemStoreItem(String key, val) {
     String appId = app.getId()
-    Boolean aa = getTheLock(sHMLF, "updMemStoreItem(${key})")
-    log.trace "lock wait: ${aa}"
     Map memStore = historyMapFLD[appId] ?: [:]
     memStore[key] = val
     historyMapFLD[appId] = memStore
     historyMapFLD = historyMapFLD
     // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
-    releaseTheLock(sHMLF)
 }
 
-private List getMemStoreItem(key){
-    String appId = device?.getId()
+private List getMemStoreItem(String key){
+    String appId = app.getId()
     Map memStore = historyMapFLD[appId] ?: [:]
     return memStore[key] ?: null
 }
 
 // Memory Barrier
 @Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+
 static void mb(String meth=sNULL){
     if((Boolean)theMBLockFLD.tryAcquire()){
         theMBLockFLD.release()
@@ -3258,9 +3258,10 @@ static void mb(String meth=sNULL){
 
 @Field static final String sHMLF = 'theHistMapLockFLD'
 @Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
-private Integer getSemaNum(String name){
-	if(name==sHMLF) return 0
-    log.warning "unrecognized lock name..."
+
+private Integer getSemaNum(String name) {
+    if(name == sHMLF) return 0 
+    log.warn "unrecognized lock name..."
     return 0
 	// Integer stripes=22
 	// if(name.isNumber()) return name.toInteger()%stripes
@@ -3268,7 +3269,8 @@ private Integer getSemaNum(String name){
 	// return Math.abs(hash)%stripes
     // log.info "sema $name # $sema"
 }
-java.util.concurrent.Semaphore getSema(Integer snum){
+
+java.util.concurrent.Semaphore getSema(Integer snum) {
 	switch(snum) {
 		case 0: return histMapLockFLD
 		default: log.error "bad hash result $snum"
@@ -3303,7 +3305,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
     }
     lockTimesFLD[semaSNum] = now()
     lockTimesFLD = lockTimesFLD
-    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}"
+    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
     lockHolderFLD = lockHolderFLD
     return wait
 }
@@ -3314,7 +3316,7 @@ void releaseTheLock(String qname){
     def sema=getSema(semaNum)
     lockTimesFLD[semaSNum]=null
     lockTimesFLD=lockTimesFLD
-    // lockHolderFLD[semaSNum]=sNULL
-    // lockHolderFLD=lockHolderFLD
+    lockHolderFLD[semaSNum]=(String)null
+    lockHolderFLD=lockHolderFLD
     sema.release()
 }

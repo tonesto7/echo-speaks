@@ -3748,7 +3748,7 @@ Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")
 Boolean minVersionFailed() {
     try {
         Integer minDevVer = parent?.minVersions()["actionApp"] ?: null
-        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
+        if(minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer) { return true }
         else { return false }
     } catch (e) { 
         return false
