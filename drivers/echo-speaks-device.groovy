@@ -13,11 +13,34 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
-String devVersion()  { return "3.6.5.0" }
-String devModified() { return "2020-11-04" }
-Boolean isBeta()     { return false }
-Boolean isST()       { return (getPlatform() == "SmartThings") }
-Boolean isWS()       { return false }
+ /* TODO: 
+    Use a call to the parent to get the token and compare it with the current field variable and update the variable if they are diffent
+*/
+
+import groovy.transform.Field
+
+// STATICALLY DEFINED VARIABLES
+@Field static final String devVersionFLD  = "3.6.5.0"
+@Field static final String appModifiedFLD = "11-19-2020"
+@Field static final String branchFLD      = "master"
+@Field static final String platformFLD    = "Hubitat"
+@Field static final Boolean betaFLD       = false
+@Field static final Boolean isWsFLD       = false
+@Field static final String sNULL          = (String) null
+@Field static final List   lNULL          = (List) null
+@Field static final String sBLANK         = ''
+@Field static final String sBULLET        = '\u2022'
+
+// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
+// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
+@Field volatile static Map<String,Map> historyMapFLD = [:]
+@Field static Map<String,Map> cookieDataFLD          = [:]
+@Field static Map<String,Map> echoDeviceMapFLD       = [:]
+@Field static Map<String,Map> guardDataFLD           = [:]
+@Field static Map<String,Map> tsDtMapFLD             = [:]
+@Field static Map<String,Map> zoneStatusMapFLD       = [:]
+@Field static Map<String,Map> bluetoothDataFLD       = [:]
+@Field static Map<String,Map> dndDataFLD             = [:]
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
@@ -160,6 +183,9 @@ metadata {
         }
     }
 }
+
+String devVersion()  { return devVersionFLD }
+Boolean isWS()       { return false }
 
 def installed() {
     logInfo("${device?.displayName} Executing Installed...")
@@ -703,32 +729,6 @@ private getWakeWord() {
     }
 }
 
-// private getWifiDetails() {
-//     Map params = [
-//         uri: getAmazonUrl(),
-//         path: "/api/device-wifi-details",
-//         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-//         query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType ],
-//         contentType: "application/json",
-//         timeout: 20
-//     ]
-//     try {
-//         httpGet(params) { response->
-//             def sData = response?.data ?: null
-//             // log.debug "sData: $sData"
-//             if(sData && sData?.essid) {
-//                 // logTrace("wifiSSID: ${sData?.essid}")
-//                 if(isStateChange(device, "wifiNetwork", sData?.essid?.toString())) {
-//                     logDebug("Wi-Fi SSID Changed to ${sData?.essid}")
-//                     sendEvent(name: "wifiNetwork", value: sData?.essid, display: false, displayed: false)
-//                 }
-//             }
-//         }
-//     } catch (ex) {
-//         respExceptionHandler(ex, "getWifiDetails")
-//     }
-// }
-
 private getDeviceSettings() {
     Map params = [
         uri: getAmazonUrl(),
@@ -912,8 +912,23 @@ private getDeviceActivity() {
     }
 }
 
-String getCookieVal() { return (state?.cookie && state?.cookie?.cookie) ? state?.cookie?.cookie as String : null }
-String getCsrfVal() { return (state?.cookie && state?.cookie?.csrf) ? state?.cookie?.csrf as String : null }
+String getCookieVal() {
+    if(cookieDataFLD != null && cookieDataFLD[app?.getId()] && cookieDataFLD[app?.getId()]?.localCookie != null) { return cookieDataFLD[app?.getId()]?.localCookie as String }
+    else { 
+        Map cookieData = state?.cookie ?: null
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[app?.getId()] = cookieData } 
+        return cookieDataFLD[app?.getId()]?.localCookie as String ?: null
+    }
+}
+
+String getCsrfVal() { 
+    if(cookieDataFLD != null && cookieDataFLD[app?.getId()] && cookieDataFLD[app?.getId()]?.csrf != null) { return cookieDataFLD[app?.getId()]?.csrf as String }
+    else { 
+        Map cookieData = state?.cookie ?: null 
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[app?.getId()] = cookieData; } 
+        return cookieDataFLD[app?.getId()]?.csrf as String ?: null
+    }
+}
 
 /*******************************************************************
             Amazon Command Logic
@@ -926,18 +941,19 @@ private sendAmazonBasicCommand(String cmdType) {
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
         query: [ deviceSerialNumber: state?.serialNumber, deviceType: state?.deviceType ],
         contentType: "application/json",
-        body: [type: cmdType]
+        body: [type: cmdType],
+        timeout: 20
     ], [cmdDesc: cmdType])
 }
 
 private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
     if(method && callbackHandler && params) {
         String m = method?.toString()?.toLowerCase()
-        if(isST()) {
+        if(isStFLD) {
             include 'asynchttp_v1'
             asynchttp_v1."${m}"(callbackHandler, params, otherData)
         } else { "asynchttp${m?.capitalize()}"("${callbackHandler}", params, otherData) }
-    }
+    } else { logError("execAsyncCmd Error | Missing a required parameter") }
 }
 
 private String sendAmazonCommand(String method, Map params, Map otherData=null) {
@@ -983,7 +999,8 @@ private sendSequenceCommand(type, command, value) {
         path: "/api/behaviors/preview",
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
         contentType: "application/json",
-        body: new groovy.json.JsonOutput().toJson(seqObj)
+        body: new groovy.json.JsonOutput().toJson(seqObj),
+        timeout: 20
     ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
@@ -2785,7 +2802,7 @@ private speechCmd(headers=[:], isQueueCmd=false) {
             ]
             Map extData = [
                 cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
-                message: (headerMap?.message ? (isST() && msgLen > 700 ? headerMap?.message?.take(700) : headerMap?.message) : null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null),
+                message: (headerMap?.message ? headerMap?.message : null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null),
                 qId: (headerMap?.qId ?: null)
             ]
             httpPost(params) { response->
@@ -2865,17 +2882,18 @@ private postCmdProcess(resp, statusCode, data) {
 /*****************************************************
                 HELPER FUNCTIONS
 ******************************************************/
-String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/$imgName" }
+String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/$imgName" }
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 Boolean minVersionFailed() {
     try {
         Integer minDevVer = parent?.minVersions()["echoDevice"] ?: null
-        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
+        if(minDevVer != null && versionStr2Int(devVersionFLD) < minDevVer) { return true }
         else { return false }
     } catch (e) { 
         return false
     }
 }
+
 def getDtNow() {
     def now = new Date()
     return formatDt(now, false)
@@ -2926,30 +2944,41 @@ private logSpeech(msg, status, error=null) {
     if(error) o?.error = error
     addToLogHistory("speechHistory", msg, o, 5)
 }
-Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
-Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
+private Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
+private Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
+
 private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
     Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = state?.containsKey(logKey as String) ? state[logKey as String] : []
+    List eData = getMemStoreItem(logKey) ?: []
     if(eData?.find { it?.message == msg }) { return; }
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
     if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
-    state[logKey as String] = eData
+    updMemStoreItem(logKey, eData)
 }
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info " Echo (v${devVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Echo (v${devVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Echo (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Echo (v${devVersion()}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
+private addToHistory(String logKey, data, Integer max=10) {
+    Boolean ssOk = (stateSizePerc() > 70)
+    List eData = getMemStoreItem(logKey) ?: []
+    if(eData?.find { it?.data == data }) { return; }
+    eData?.push([dt: getDtNow(), data: data])
+    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+    updMemStoreItem(logKey, eData)
+}
+
+private void logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersionFLD}) | ${msg}" } }
+private void logInfo(msg) { if(settings?.logInfo != false) { log.info " Echo (v${devVersionFLD}) | ${msg}" } }
+private void logTrace(msg) { if(settings?.logTrace == true) { log.trace "Echo (v${devVersionFLD}) | ${msg}" } }
+private void logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Echo (v${devVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
+private void logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Echo (v${devVersionFLD}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
 
 Map getLogHistory() {
-    return [ warnings: state?.warnHistory ?: [], errors: state?.errorHistory ?: [], speech: state?.speechHistory ?: [] ]
+    return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [], speech: getMemStoreItem("speechHistory") ?: [] ]
 }
 public clearLogHistory() {
-    state?.warnHistory = []
-    state?.errorHistory = []
-    state?.speechHistory = []
+    updMemStoreItem("warnHistory"), [])
+    updMemStoreItem("errorHistory"),[])
+    updMemStoreItem("speechHistory", [])
+    mb()
 }
 
 private incrementCntByKey(String key) {
@@ -2989,17 +3018,6 @@ public Map getDeviceMetrics() {
         errItems?.each { k,v -> out?.errors[k?.toString()?.replace("err_", "") as String] = v as Integer ?: 0 }
     }
     return out
-}
-
-private getPlatform() {
-    String p = "SmartThings"
-    if(state?.hubPlatform == null) {
-        try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
-        // if (location?.hubs[0]?.id?.toString()?.length() > 5) { p = "SmartThings" } else { p = "Hubitat" }
-        state?.hubPlatform = p
-        logDebug("hubPlatform: (${state?.hubPlatform})")
-    }
-    return state?.hubPlatform
 }
 
 Map sequenceBuilder(cmd, val) {
@@ -3211,4 +3229,94 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
         logError("createSequenceNode Exception: ${ex}")
         return [:]
     }
+}
+
+// FIELD VARIABLE FUNCTIONS
+private void updMemStoreItem(String key, val) {
+    String appId = app.getId()
+    Map memStore = historyMapFLD[appId] ?: [:]
+    memStore[key] = val
+    historyMapFLD[appId] = memStore
+    historyMapFLD = historyMapFLD
+    // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
+}
+
+private List getMemStoreItem(String key){
+    String appId = app.getId()
+    Map memStore = historyMapFLD[appId] ?: [:]
+    return memStore[key] ?: null
+}
+
+// Memory Barrier
+@Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+
+static void mb(String meth=sNULL){
+    if((Boolean)theMBLockFLD.tryAcquire()){
+        theMBLockFLD.release()
+    }
+}
+
+@Field static final String sHMLF = 'theHistMapLockFLD'
+@Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
+
+private Integer getSemaNum(String name) {
+    if(name == sHMLF) return 0 
+    log.warn "unrecognized lock name..."
+    return 0
+	// Integer stripes=22
+	// if(name.isNumber()) return name.toInteger()%stripes
+	// Integer hash=smear(name.hashCode())
+	// return Math.abs(hash)%stripes
+    // log.info "sema $name # $sema"
+}
+
+java.util.concurrent.Semaphore getSema(Integer snum) {
+	switch(snum) {
+		case 0: return histMapLockFLD
+		default: log.error "bad hash result $snum"
+			return null
+	}
+}
+
+@Field volatile static Map<String,Long> lockTimesFLD = [:]
+@Field volatile static Map<String,String> lockHolderFLD = [:]
+
+Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
+    Long waitT = longWait ? 1000L : 60L
+    Boolean wait = false
+    Integer semaNum = getSemaNum(qname)
+    String semaSNum = semaNum.toString()
+    def sema = getSema(semaNum)
+    while(!((Boolean)sema.tryAcquire())) {
+        // did not get the lock
+        Long timeL = lockTimesFLD[semaSNum]
+        if(timeL == null){
+            timeL = now()
+            lockTimesFLD[semaSNum] = timeL
+            lockTimesFLD = lockTimesFLD
+        }
+        if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
+        pauseExecution(waitT)
+        wait = true
+        if((now() - timeL) > 30000L) {
+            releaseTheLock(qname)
+            if(devModeFLD) log.warn "overriding lock $meth"
+        }
+    }
+    lockTimesFLD[semaSNum] = now()
+    lockTimesFLD = lockTimesFLD
+    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
+    lockHolderFLD = lockHolderFLD
+    return wait
+}
+
+void releaseTheLock(String qname){
+    Integer semaNum=getSemaNum(qname)
+    String semaSNum=semaNum.toString()
+    def sema=getSema(semaNum)
+    lockTimesFLD[semaSNum]=null
+    lockTimesFLD=lockTimesFLD
+    lockHolderFLD[semaSNum]=(String)null
+    lockHolderFLD=lockHolderFLD
+    sema.release()
 }

@@ -1,5 +1,5 @@
 /**
- *  Echo Speaks Actions
+ *  Echo Speaks Actions (Hubitat)
  *
  *  Copyright 2018, 2019, 2020 Anthony Santilli
  *
@@ -13,13 +13,9 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+import groovy.transform.Field
 
-String appVersion()  { return "3.6.5.0" }
-String appModified() { return "2020-11-04" }
-String appAuthor()   { return "Anthony S." }
-Boolean isBeta()     { return false }
-Boolean isST()       { return (getPlatform() == "SmartThings") }
-
+// TODO: Fix act_delay to use a runIn timer on hubitat
 // TODO: Add Lock Code triggers
 // TODO: Create reports options
  /*
@@ -62,6 +58,19 @@ preferences {
     page(name: "namePage")
 }
 
+@Field static final String appVersionFLD  = "3.6.5.0"
+@Field static final String appModifiedFLD = "11-18-2020"
+@Field static final String branchFLD      = "master"
+@Field static final String platformFLD    = "Hubitat"
+@Field static final Boolean isStFLD       = false
+@Field static final Boolean betaFLD       = false
+@Field static final String sNULL          = (String) null
+@Field static final List   lNULL          = (List) null
+@Field static final String sBLANK         = ''
+@Field static final String sBULLET        = '\u2022'
+
+String appVersion()  { return appVersionFLD }
+
 def startPage() {
     if(parent != null) {
         if(!state?.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
@@ -81,13 +90,13 @@ def uhOhPage () {
             paragraph "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Actions can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them.", required: true,
             state: null, image: getAppImg("exclude")
         }
-        if(isST()) { remove("Remove this invalid Action", "WARNING!!!", "This is a BAD install of an Action SHOULD be removed") }
+        if(isStFLD) { remove("Remove this invalid Action", "WARNING!!!", "This is a BAD install of an Action SHOULD be removed") }
     }
 }
 
 def appInfoSect(sect=true)	{
     def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@' h:mm a", true) : null
-    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version: ${appVersion()}", image: getAppImg("es_actions") }
+    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version: ${appVersionFLD}", image: getAppImg("es_actions") }
 }
 
 List cleanedTriggerList() {
@@ -107,20 +116,20 @@ private buildTriggerEnum() {
     Map buildItems = [:]
     buildItems["Date/Time"] = ["scheduled":"Scheduled Time"]?.sort{ it?.key }
     buildItems["Location"] = ["mode":"Modes", "routineExecuted":"Routines"]?.sort{ it?.key }
-    if(!isST()) {
+    if(!isStFLD) {
         buildItems?.Location?.remove("routineExecuted")
         //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
         // buildItems?.Location?.scene = "Scenes"
     }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power", "acceleration":"Accelorometers"]?.sort{ it?.value }
     buildItems["Actionable Devices"] = ["lock":"Locks", "button":"Buttons", "switch":"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
-    if(!isST()) {
+    if(!isStFLD) {
         buildItems["Actionable Devices"]?.remove("button")
         buildItems["Button Devices"] = ["pushed":"Button (Pushable)", "released":"Button (Releasable)", "held":"Button (Holdable)", "doubleTapped":"Button (Double Tapable)"]?.sort{ it?.value }
     }
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
-    if(isST()) {
+    if(isStFLD) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
         // log.debug "enumOpts: $enumOpts"
         return enumOpts
@@ -137,7 +146,7 @@ private buildActTypeEnum() {
     buildItems["Alarms/Reminders"] = ["alarm":"Create Alarm", "reminder":"Create Reminder"]?.sort{ it?.key }
     buildItems["Devices Settings"] = ["wakeword":"Change Wake Word", "dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control"]?.sort{ it?.key }
     buildItems["Custom"] = ["voicecmd":"Execute a voice command","sequence":"Execute Sequence", "alexaroutine": "Execute Alexa Routine(s)"]?.sort{ it?.key }
-    if(isST()) {
+    if(isStFLD) {
         buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
         return enumOpts
     } else { return buildItems?.collectEntries { it?.value } }
@@ -163,7 +172,7 @@ def mainPage() {
             Boolean condConf = conditionsConfigured()
             Boolean actConf = executionConfigured()
             section(sTS("Configuration: Part 1")) {
-                if(isST()) {
+                if(isStFLD) {
                     input "actionType", "enum", title: inTS("Action Type", getAppImg("list", true)), description: "", groupedOptions: buildActTypeEnum(), multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
                 } else { input "actionType", "enum", title: inTS("Action Type", getAppImg("list", true)), description: "", options: buildActTypeEnum(), multiple: false, required: true, submitOnChange: true, image: getAppImg("list") }
             }
@@ -226,8 +235,8 @@ def mainPage() {
 def prefsPage() {
     return dynamicPage(name: "prefsPage", install: false, uninstall: false) {
         section(sTS("Logging:")) {
-            input "logInfo", "bool", title: inTS("Show Info Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logWarn", "bool", title: inTS("Show Warning Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logInfo",  "bool", title: inTS("Show Info Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logWarn",  "bool", title: inTS("Show Warning Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
             input "logError", "bool", title: inTS("Show Error Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
             input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
             input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only enable when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
@@ -253,10 +262,10 @@ def actionHistoryPage() {
         section() {
             getActionHistory()
         }
-        if(atomicState?.actionHistory?.size()) {
+        if(historyMapFLD["actionHistory"]?.size()) {
             section("") {
                 input "clearActionHistory", "bool", title: inTS("Clear Action History?", getAppImg("reset", true)), description: "Clears Stored Action History.", defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.clearActionHistory) { settingUpdate("clearActionHistory", "false", "bool"); atomicState?.actionHistory = []; }
+                if(settings?.clearActionHistory) { settingUpdate("clearActionHistory", "false", "bool"); historyMapFLD["actionHistory"] = []; }
             }
         }
     }
@@ -279,7 +288,7 @@ def triggersPage() {
         Boolean isTierAct = isTierAction()
         Boolean showSpeakEvtVars = false
         section (sTS("Select Capabilities")) {
-            if(isST()) {
+            if(isStFLD) {
                 input "triggerEvents", "enum", title: "Select Trigger Event(s)", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("trigger")
             } else {
                 input "triggerEvents", "enum", title: inTS("Select Trigger Event(s)", getAppImg("trigger", true)), options: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true
@@ -449,7 +458,7 @@ def triggersPage() {
                 // }
             }
 
-            if (valTrigEvt("button") && isST()) {
+            if (valTrigEvt("button") && isStFLD) {
                 section (sTS("Button Events"), hideable: true) {
                     input "trig_button", "capability.button", title: inTS("Buttons", getAppImg("button", true)), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
                     if (settings?.trig_button) {
@@ -885,13 +894,13 @@ def triggerVariableDesc(inType, showRepInputs=false, itemCnt=0) {
         // str += "Custom Text is only used when Speech or Announcement action type is selected in Step 4."
         paragraph pTS(str, getAppImg("info", true), false, "#2784D9"), required: true, state: "complete", image: getAppImg("info")
         //Custom Text Options
-        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: (isST() ? "external" : "external"), required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
+        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: "external", required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings?."trig_${inType}_txt" ? "complete" : ''),
                 description: settings?."trig_${inType}_txt" ?: "Open Response Designer...", image: getAppImg("text")
         if(showRepInputs) {
             if(settings?."trig_${inType}_after_repeat") {
                 //Custom Repeat Text Options
                 paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info")
-                href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: (isST() ? "external" : "external"), title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
+                href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: "external", title: inTS("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", getAppImg("text", true)),
                         description: settings?."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings?."trig_${inType}_after_repeat_txt" ? "complete" : '') , submitOnChange: true, required: false, image: getAppImg("text")
             }
         }
@@ -935,7 +944,7 @@ def actionTiersPage() {
                         input "act_tier_item_${ti}_delay", "number", title: inTS("Delay after Tier ${ti-1}\n(seconds)", getAppImg("equal", true)), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true, image: getAppImg("equal")
                     }
                     if(ti==1 || settings?."act_tier_item_${ti}_delay") {
-                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: (isST() ? "external" : "external"), required: true, title: inTS("Tier Item ${ti} Response", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
+                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: "external", required: true, title: inTS("Tier Item ${ti} Response", getAppImg("text", true)), state: (settings?."act_tier_item_${ti}_txt" ? "complete" : ""),
                                     description: settings?."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg("text")
                     }
                     input "act_tier_item_${ti}_volume_change", "number", title: inTS("Tier Item Volume", getAppImg("speed_knob", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("speed_knob")
@@ -1011,7 +1020,7 @@ def actTextOrTiersInput(type) {
         input "act_tier_stop_on_clear", "bool", title: inTS("Stop responses when trigger is cleared?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
-        href url: textUrl, style: (isST() ? "embedded" : "external"), required: false, title: inTS("Default Action Response\n(Optional)", getAppImg("text", true)), state: (settings?."${type}" ? "complete" : ""),
+        href url: textUrl, style: (isStFLD ? "embedded" : "external"), required: false, title: inTS("Default Action Response\n(Optional)", getAppImg("text", true)), state: (settings?."${type}" ? "complete" : ""),
                 description: settings?."${type}" ?: "Open Response Designer...", image: getAppImg("text")
     }
 }
@@ -1120,21 +1129,22 @@ def actionsPage() {
                     section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, "#2784D9"), state: "complete", image: getAppImg("info"); }
                     echoDevicesInputByPerm("TTS")
                     if(settings?.act_EchoDevices || settings?.act_EchoZones) {
+                        Map seqItemsAvail = parent?.seqItemsAvail()
                         section(sTS("Sequence Options Legend:"), hideable: true, hidden: false) {
                             String str1 = "Sequence Options:"
-                            seqItemsAvail()?.other?.sort()?.each { k, v->
+                            seqItemsAvail?.other?.sort()?.each { k, v->
                                 str1 += "${bulletItem(str1, "${k}${v != null ? "::${v}" : ""}")}"
                             }
                             String str4 = "DoNotDisturb Options:"
-                            seqItemsAvail()?.dnd?.sort()?.each { k, v->
+                            seqItemsAvail?.dnd?.sort()?.each { k, v->
                                 str4 += "${bulletItem(str4, "${k}${v != null ? "::${v}" : ""}")}"
                             }
                             String str2 = "Music Options:"
-                            seqItemsAvail()?.music?.sort()?.each { k, v->
+                            seqItemsAvail?.music?.sort()?.each { k, v->
                                 str2 += "${bulletItem(str2, "${k}${v != null ? "::${v}" : ""}")}"
                             }
                             String str3 = "Canned TTS Options:"
-                            seqItemsAvail()?.speech?.sort()?.each { k, v->
+                            seqItemsAvail?.speech?.sort()?.each { k, v->
                                 def newV = v
                                 if(v instanceof List) { newV = ""; v?.sort()?.each { newV += "     ${dashItem(newV, "${it}", true)}"; } }
                                 str3 += "${bulletItem(str3, "${k}${newV != null ? "::${newV}" : ""}")}"
@@ -1409,10 +1419,13 @@ def actionsPage() {
                     break
             }
             if(done) {
-                if(isST()) {
+                if(isStFLD) {
                     section(sTS("Delay Config:")) {
                         input "act_delay", "number", title: inTS("Delay Action in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                     }
+                }
+                section(sTS("Delay Config:")) {
+                    input "act_delay", "number", title: inTS("Delay Action in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                 }
                 if(isTierAct && settings?.act_tier_cnt > 1) {
                     section(sTS("Tier Action Start Tasks:")) {
@@ -1480,7 +1493,7 @@ def actTrigTasksPage(params) {
                 if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
                     paragraph pTS("Not all selected devices support color. So color options are hidden.", null, true, "red"), state: null, required: true
                 } else {
-                    input "${t}lights_color", "enum", title: inTS("To this color?\n(Optional)", getAppImg("command", true)), multiple: false, options: fillColorSettings()?.name, required: false, submitOnChange: true, image: getAppImg("color")
+                    input "${t}lights_color", "enum", title: inTS("To this color?\n(Optional)", getAppImg("command", true)), multiple: false, options: fillColorSettingsFLD?.name, required: false, submitOnChange: true, image: getAppImg("color")
                     if(settings?."${t}lights_color") {
                         input "${t}lights_color_delay", "number", title: inTS("Restore original light state after (x) seconds?\n(Optional)", getAppImg("delay", true)), required: true, submitOnChange: true, image: getAppImg("delay")
                     }
@@ -1510,16 +1523,16 @@ def actTrigTasksPage(params) {
         }
         section(sTS("Location Actions:")) {
             input "${t}mode_run", "enum", title: inTS("Set Location Mode${dMap?.def}\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
-            if(isST()) {
+            if(isStFLD) {
                 def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
                 input "${t}routine_run", "enum", title: inTS("Execute a routine${dMap?.def}\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
             }
         }
         section (sTS("Execute a webCoRE Piston:")) {
-            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : "")
             if(settings?.enableWebCoRE) {
                 if(!atomicState?.webCoRE) { webCoRE_init() }
-                input "${t == "act_" ? "" : t}webCorePistons", "enum", title: inTS("Execute Piston${dMap?.def}", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isST() ? webCore_icon() : "")
+                input "${t == "act_" ? "" : t}webCorePistons", "enum", title: inTS("Execute Piston${dMap?.def}", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : "")
             }
         }
         if(actTasksConfiguredByType(t)) {
@@ -1672,7 +1685,7 @@ def actNotifPage() {
             paragraph pTS("This will send a push notification the Alexa Mobile app.", null, false, "gray")
             input "notif_alexa_mobile", "bool", title: inTS("Send message to Alexa App?", getAppImg("notification", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
         }
-        if(isST()) {
+        if(isStFLD) {
             section(sTS("Pushover Support:")) {
                 input "notif_pushover", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover_icon", true)), required: false, submitOnChange: true, image: getAppImg("pushover")
                 if(settings?.notif_pushover == true) {
@@ -1867,7 +1880,7 @@ def condTimePage() {
 def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
         section("") { paragraph "This will delete this Echo Speaks Action." }
-        if(isST()) { remove("Remove ${app?.label} Action", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Action will be removed") }
+        if(isStFLD) { remove("Remove ${app?.label} Action", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Action will be removed") }
     }
 }
 
@@ -2126,8 +2139,8 @@ private subscribeToEvts() {
                     break
                 case "alarm":
                     // Location Alarm Events
-                    subscribe(location, (!isST() ? "hsmStatus" : "alarmSystemStatus"), alarmEvtHandler)
-                    if(!isST() && settings?.trig_alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
+                    subscribe(location, (!isStFLD ? "hsmStatus" : "alarmSystemStatus"), alarmEvtHandler)
+                    if(!isStFLD && settings?.trig_alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
                     break
                 case "mode":
                     // Location Mode Events
@@ -2764,10 +2777,10 @@ Boolean timeCondOk() {
         else if(settings?.cond_time_stop_type == "time" && settings?.cond_time_stop) { stopTime = settings?.cond_time_stop }
     } else { return null }
     if(startTime && stopTime) {
-        if(!isST()) {
+         if(!isStFLD) {
             startTime = toDateTime(startTime)
             stopTime = toDateTime(stopTime)
-        }
+         }
         Boolean isBtwn = timeOfDayIsBetween(startTime, stopTime, now, location?.timeZone)
         log.debug "TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}"
         return isBtwn
@@ -2984,7 +2997,7 @@ Map getRandomTrigEvt() {
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
-        routineExecuted: isST() ? getRandomItem(getLocationRoutines()) : null
+        routineExecuted: isStFLD ? getRandomItem(getLocationRoutines()) : null
     ]
     if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: "", value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
     // log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
@@ -3108,8 +3121,7 @@ String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=
 }
 
 public getActionHistory(asObj=false) {
-    List eHist = atomicState?.actionHistory ?: []
-    Boolean isST = isST()
+    List eHist = historyMapFLD["actionHistory"] ?: []
     List output = []
     if(eHist?.size()) {
         eHist?.each { h->
@@ -3136,7 +3148,7 @@ public getActionHistory(asObj=false) {
 
 private addToActHistory(evt, data, Integer max=10) {
     Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = atomicState?.actionHistory ?: []
+    List eData = getMemStoreItem("actionHistory") ?: []
     eData?.push([
         dt: getDtNow(),
         active: (data?.status?.ok == true),
@@ -3154,7 +3166,7 @@ private addToActHistory(evt, data, Integer max=10) {
         eData = eData?.drop( (eData?.size()-max)+1 )
     }
     // log.debug "actionHistory Size: ${eData?.size()}"
-    atomicState?.actionHistory = eData
+    updMemStoreItem("actionHistory", eData)
 }
 
 private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, isRptAct=false, tierData=null) {
@@ -3165,7 +3177,6 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     // log.debug "condStatus: ${condStatus}"
     Boolean actOk = getConfStatusItem("actions")
     addToActHistory(evt, [status: condStatus, test: testMode, src: src, isRepeat: isRptAct, isTier: (tierData != null)] )
-    Boolean isST = isST()
     Map actMap = state?.actionExecMap ?: null
     List actDevices = settings?.act_EchoDevices ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
     Map activeZones = settings?.act_EchoZones ? getActiveZones() : [:]
@@ -3482,7 +3493,7 @@ Map getInputData(inName) {
         desc: """<ul class="pl-3" style="list-style-type: bullet;">${desc}</ul>""",
         title: title,
         template: template,
-        version: appVersion()
+        version: appVersionFLD
     ]
     return o
 }
@@ -3577,7 +3588,7 @@ void settingUpdate(name, value, type=null) {
 
 void settingRemove(String name) {
     logTrace("settingRemove($name)...")
-    if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
+    if(name && settings?.containsKey(name as String)) { isStFLD ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
 }
 
 List weekDaysEnum() { return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] }
@@ -3588,7 +3599,7 @@ Map weeksOfMonthMap() { return ["1":"1st Week", "2":"2nd Week", "3":"3rd Week", 
 Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 Map getAlarmTrigOpts() {
-    return isST() ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
+    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
 }
 
 def getShmIncidents() {
@@ -3598,7 +3609,7 @@ def getShmIncidents() {
 
 public Map getActionMetrics() {
     Map out = [:]
-    out?.version = appVersion()
+    out?.version = appVersionFLD
     out?.type = settings?.actionType ?: null
     out?.delay = settings?.actDelay ?: 0
     out?.triggers = settings?.triggerEvents ?: []
@@ -3644,7 +3655,7 @@ Boolean notifTimeOk() {
         else if(settings?.notif_time_stop_type == "time" && settings?.notif_time_stop) { stopTime = settings?.notif_time_stop }
     } else { return true }
     if(startTime && stopTime) {
-        if(!isST()) {
+        if(!isStFLD) {
             startTime = toDateTime(startTime)
             stopTime = toDateTime(stopTime)
         }
@@ -3714,7 +3725,7 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
 
 Boolean isActNotifConfigured() {
     if(customMsgRequired() && (!settings?.notif_use_custom || settings?.notif_custom_message)) { return false }
-    return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_devs || settings?.notif_alexa_mobile || (isST() && settings?.notif_pushover && settings?.notif_pushover_devices))
+    return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_devs || settings?.notif_alexa_mobile || (isStFLD && settings?.notif_pushover && settings?.notif_pushover_devices))
 }
 
 //PushOver-Manager Input Generation Functions
@@ -3737,7 +3748,7 @@ Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")
 Boolean minVersionFailed() {
     try {
         Integer minDevVer = parent?.minVersions()["actionApp"] ?: null
-        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
+        if(minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer) { return true }
         else { return false }
     } catch (e) { 
         return false
@@ -3775,7 +3786,7 @@ List getLocationModes(Boolean sorted=false) {
 }
 
 List getLocationRoutines() {
-    return (isST()) ? location.helloHome?.getPhrases()*.label?.sort() : []
+   return (isStFLD) ? location.helloHome?.getPhrases()*.label?.sort() : []
 }
 
 def getRoutineById(rId) {
@@ -3847,7 +3858,7 @@ Boolean devCapValEqual(List devs, String devId, String cap, val) {
 }
 
 String getAlarmSystemName(abbr=false) {
-    return isST() ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
+    return isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 /******************************************
 |    Time and Date Conversion Functions
@@ -3989,7 +4000,7 @@ Boolean isMonthOfYear(opts) {
 
 Boolean isTimeBetween(startTime, stopTime, curTime= new Date()) {
     if(!startTime && !stopTime) { return true }
-    if(!isST()) { startTime = toDateTime(startTime); stopTime = toDateTime(stopTime); }
+    if(!isStFLD) { startTime = toDateTime(startTime); stopTime = toDateTime(stopTime); }
     return timeOfDayIsBetween(startTime, stopTime, curTime, location?.timeZone)
 }
 
@@ -4273,23 +4284,20 @@ def getRandomItem(items) {
     return list?.get(new Random().nextInt(list?.size()));
 }
 
-private getPlatform() {
-    def p = "SmartThings"
-    if(state?.hubPlatform == null) {
-        try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
-        // p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
-        state?.hubPlatform = p
-        // logDebug("hubPlatform: (${state?.hubPlatform})")
-    }
-    return state?.hubPlatform
-}
-
 Boolean showChgLogOk() { return (state?.isInstalled && state?.shownChgLog != true) }
-String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
-String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
-String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
-String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
-String inTS(String t, String i = null, color=null) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : ""}""" }
+String getAppImg(String imgName, frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
+String sTS(String t, String i = null, bold=false) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${bold ? "<b>" : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}</h3>""" }
+String s3TS(String t, String st, String i = null, c="#1A77C9") { return isStFLD ? t : """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : ""}""" }
+String pTS(String t, String i = null, bold=true, color=null) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+String inTS(String t, String i = null, color=null, under=true) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
+String htmlLine(color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
+def appFooter() {
+	section() {
+		paragraph htmlLine("orange")
+		paragraph """<div style='color:orange;text-align:center'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
+	}       
+}
 
 String bulletItem(String inStr, String strVal) { return "${inStr == "" ? "" : "\n"} \u2022 ${strVal}" }
 String dashItem(String inStr, String strVal, newLine=false) { return "${(inStr == "" && !newLine) ? "" : "\n"} - ${strVal}" }
@@ -4312,26 +4320,113 @@ String getAppDebugDesc() {
     return (str != "") ? "${str}" : null
 }
 
-private addToLogHistory(String logKey, msg, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = atomicState[logKey as String] ?: []
-    if(eData?.find { it?.message == msg }) { return; }
-    eData.push([dt: getDtNow(), message: msg])
+private addToLogHistory(String logKey, data, Integer max=10) {
+    Boolean ssOk = (stateSizePerc() > 70)
+    List eData = getMemStoreItem(logKey) ?: []
+    if(eData?.find { it?.data == data }) { return; }
+    eData?.push([dt: getDtNow(), data: data])
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
-    atomicState[logKey as String] = eData
+    updMemStoreItem(logKey, eData)
 }
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Action (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info " Action (v${appVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Action (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Action (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Action (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Action (v${appVersionFLD}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info " Action (v${appVersionFLD}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Action (v${appVersionFLD}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Action (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Action (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
-Map getLogHistory() {
-    return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
+private Map getLogHistory() {
+    return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [] ]
 }
-void clearLogHistory() {
-    atomicState?.warnHistory = []
-    atomicState?.errorHistory = []
+private void clearLogHistory()  { historyMapFLD["warnHistory"] = [:]; historyMapFLD["errorHistory"] = [:]; mb(); }
+
+// FIELD VARIABLE FUNCTIONS
+private void updMemStoreItem(key, val) {
+    String appId = app.getId()
+    Boolean aa = getTheLock(sHMLF, "updMemStoreItem(${key})")
+    // log.trace "lock wait: ${aa}"
+    Map memStore = historyMapFLD[appId] ?: [:]
+    memStore[key] = val
+    historyMapFLD[appId] = memStore
+    historyMapFLD = historyMapFLD
+    // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
+    releaseTheLock(sHMLF)
+}
+
+private List getMemStoreItem(key){
+    String appId = app.getId()
+    Map memStore = historyMapFLD[appId] ?: [:]
+    return memStore[key] ?: null
+}
+
+// Memory Barrier
+@Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+static void mb(String meth=sNULL){
+    if((Boolean)theMBLockFLD.tryAcquire()){
+        theMBLockFLD.release()
+    }
+}
+
+@Field static final String sHMLF = 'theHistMapLockFLD'
+@Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
+private Integer getSemaNum(String name) {
+	if(name==sHMLF) return 0
+    log.warn "unrecognized lock name..."
+    return 0
+	// Integer stripes=22
+	// if(name.isNumber()) return name.toInteger()%stripes
+	// Integer hash=smear(name.hashCode())
+	// return Math.abs(hash)%stripes
+    // log.info "sema $name # $sema"
+}
+java.util.concurrent.Semaphore getSema(Integer snum){
+	switch(snum) {
+		case 0: return histMapLockFLD
+		default: log.error "bad hash result $snum"
+			return null
+	}
+}
+
+@Field volatile static Map<String,Long> lockTimesFLD = [:]
+@Field volatile static Map<String,String> lockHolderFLD = [:]
+
+Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
+    Long waitT = longWait ? 1000L : 60L
+    Boolean wait = false
+    Integer semaNum = getSemaNum(qname)
+    String semaSNum = semaNum.toString()
+    def sema = getSema(semaNum)
+    while(!((Boolean)sema.tryAcquire())) {
+        // did not get the lock
+        Long timeL = lockTimesFLD[semaSNum]
+        if(timeL == null){
+            timeL = now()
+            lockTimesFLD[semaSNum] = timeL
+            lockTimesFLD = lockTimesFLD
+        }
+        if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
+        pauseExecution(waitT)
+        wait = true
+        if((now() - timeL) > 30000L) {
+            releaseTheLock(qname)
+            if(devModeFLD) log.warn "overriding lock $meth"
+        }
+    }
+    lockTimesFLD[semaSNum] = now()
+    lockTimesFLD = lockTimesFLD
+    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}"
+    lockHolderFLD = lockHolderFLD
+    return wait
+}
+
+void releaseTheLock(String qname){
+    Integer semaNum=getSemaNum(qname)
+    String semaSNum=semaNum.toString()
+    def sema=getSema(semaNum)
+    lockTimesFLD[semaSNum]=null
+    lockTimesFLD=lockTimesFLD
+    // lockHolderFLD[semaSNum]=sNULL
+    // lockHolderFLD=lockHolderFLD
+    sema.release()
 }
 
 String convMusicProvider(String prov) {
@@ -4359,36 +4454,9 @@ String convMusicProvider(String prov) {
             SEQUENCE TEST LOGIC
 *************************************************/
 
-Map seqItemsAvail() {
-    return [
-        other: [
-            "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
-            "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
-            "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
-            "sound": "name",
-            "date":null, "time":null,
-            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message", "email": null,
-            "textcmd": "voice command as text"
-        ],
-        // dnd: [
-        //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
-        //     "dnd_duration":"2H30M", "dnd_time":"00:30"
-        // ],
-        speech: [
-            "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
-        ],
-        music: [
-            "amazonmusic": "search term", "applemusic": "search term", "iheartradio": "search term", "pandora": "search term",
-            "spotify": "search term", "tunein": "search term", "cloudplayer": "search term"
-        ]
-    ]
-}
-
 def searchTuneInResultsPage() {
     return dynamicPage(name: "searchTuneInResultsPage", uninstall: false, install: false) {
         def results = executeTuneInSearch()
-        Boolean onST = isST()
         section(sTS("Search Results: (Query: ${settings?.tuneinSearchQuery})")) {
             if(results?.browseList && results?.browseList?.size()) {
                 results?.browseList?.eachWithIndex { item, i->
@@ -4399,18 +4467,18 @@ def searchTuneInResultsPage() {
                                 str += "ContentType: (${item2?.contentType})"
                                 str += "\nId: (${item2?.id})"
                                 str += "\nDescription: ${item2?.description}"
-                                if(onST) {
-                                    paragraph title: pTS(item2?.name?.take(75), (onST ? null : item2?.image)), str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: item2?.image ?: ""
-                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (onST ? null : item2?.image)), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: onST && item2?.image ? item2?.image : null }
+                                if(isStFLD) {
+                                    paragraph title: pTS(item2?.name?.take(75), (isStFLD ? null : item2?.image)), str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: item2?.image ?: ""
+                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (isStFLD ? null : item2?.image)), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : null), image: isStFLD && item2?.image ? item2?.image : null }
                             }
                         } else {
                             String str = ""
                             str += "ContentType: (${item?.contentType})"
                             str += "\nId: (${item?.id})"
                             str += "\nDescription: ${item?.description}"
-                            if(onST) {
-                                paragraph title: pTS(item?.name?.take(75), (onST ? null : item?.image)), str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: item?.image ?: ""
-                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (onST ? null : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: onST && item?.image ? item?.image : null }
+                            if(isStFLD) {
+                                paragraph title: pTS(item?.name?.take(75), (isStFLD ? null : item?.image)), str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: item?.image ?: ""
+                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (isStFLD ? null : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: isStFLD && item?.image ? item?.image : null }
                         }
                     }
                 }
@@ -4420,7 +4488,7 @@ def searchTuneInResultsPage() {
 }
 
 private getColorName(desiredColor, level=null) {
-    for (color in fillColorSettings()) {
+    for (color in fillColorSettingsFLD) {
         if (color?.name?.toLowerCase() == desiredColor?.toLowerCase()) {
             int hue = Math.round(color?.h / 3.6)
             level = level ?: color?.l
@@ -4463,114 +4531,62 @@ private restoreLightState(devs) {
     state?.remove("light_restore_map")
 }
 
-
-def fillColorSettings() {
-    return [
-        [name: "Soft White", rgb: "#B6DA7C", h: 83, s: 44, l: 67],              [name: "Warm White", rgb: "#DAF17E",	h: 51, s: 20, l: 100],      [name: "Very Warm White", rgb: "#DAF17E", h: 51, s: 60, l: 51],
-        [name: "Daylight White", rgb: "#CEF4FD", h: 191, s: 9, l: 90],          [name: "Daylight", rgb: "#CEF4FD", h: 191, s: 9, l: 90],            [name: "Cool White", rgb: "#F3F6F7", h: 187, s: 19, l: 96],
-        [name: "White", rgb: "#FFFFFF", h: 0, s: 0, l: 100],                    [name: "Alice Blue", rgb: "#F0F8FF", h: 208, s: 100, l: 97],        [name: "Antique White", rgb: "#FAEBD7", h: 34, s: 78, l: 91],
-        [name: "Aqua", rgb: "#00FFFF", h: 180, s: 100, l: 50],                  [name: "Aquamarine", rgb: "#7FFFD4", h: 160, s: 100, l: 75],        [name: "Azure", rgb: "#F0FFFF", h: 180, s: 100, l: 97],
-        [name: "Beige", rgb: "#F5F5DC", h: 60, s: 56, l: 91],                   [name: "Bisque", rgb: "#FFE4C4", h: 33, s: 100, l: 88],             [name: "Blanched Almond", rgb: "#FFEBCD", h: 36, s: 100, l: 90],
-        [name: "Blue", rgb: "#0000FF", h: 240, s: 100, l: 50],                  [name: "Blue Violet", rgb: "#8A2BE2", h: 271, s: 76, l: 53],        [name: "Brown", rgb: "#A52A2A", h: 0, s: 59, l: 41],
-        [name: "Burly Wood", rgb: "#DEB887", h: 34, s: 57, l: 70],              [name: "Cadet Blue", rgb: "#5F9EA0", h: 182, s: 25, l: 50],         [name: "Chartreuse", rgb: "#7FFF00", h: 90, s: 100, l: 50],
-        [name: "Chocolate", rgb: "#D2691E", h: 25, s: 75, l: 47],               [name: "Coral", rgb: "#FF7F50", h: 16, s: 100, l: 66],              [name: "Corn Flower Blue", rgb: "#6495ED", h: 219, s: 79, l: 66],
-        [name: "Corn Silk", rgb: "#FFF8DC", h: 48, s: 100, l: 93],              [name: "Crimson", rgb: "#DC143C", h: 348, s: 83, l: 58],            [name: "Cyan", rgb: "#00FFFF", h: 180, s: 100, l: 50],
-        [name: "Dark Blue", rgb: "#00008B", h: 240, s: 100, l: 27],             [name: "Dark Cyan", rgb: "#008B8B", h: 180, s: 100, l: 27],         [name: "Dark Golden Rod", rgb: "#B8860B", h: 43, s: 89, l: 38],
-        [name: "Dark Gray", rgb: "#A9A9A9", h: 0, s: 0, l: 66],                 [name: "Dark Green", rgb: "#006400", h: 120, s: 100, l: 20],        [name: "Dark Khaki", rgb: "#BDB76B", h: 56, s: 38, l: 58],
-        [name: "Dark Magenta", rgb: "#8B008B", h: 300, s: 100, l: 27],          [name: "Dark Olive Green", 	rgb: "#556B2F", h: 82, s: 39, l: 30],   [name: "Dark Orange", rgb: "#FF8C00", h: 33, s: 100, l: 50],
-        [name: "Dark Orchid", rgb: "#9932CC", h: 280, s: 61, l: 50],            [name: "Dark Red", rgb: "#8B0000", h: 0, s: 100, l: 27],            [name: "Dark Salmon", rgb: "#E9967A", h: 15, s: 72, l: 70],
-        [name: "Dark Sea Green", rgb: "#8FBC8F", h: 120, s: 25, l: 65],         [name: "Dark Slate Blue", rgb: "#483D8B", h: 248, s: 39, l: 39],    [name: "Dark Slate Gray", rgb: "#2F4F4F", h: 180, s: 25, l: 25],
-        [name: "Dark Turquoise", rgb: "#00CED1", h: 181, s: 100, l: 41],        [name: "Dark Violet", rgb: "#9400D3", h: 282, s: 100, l: 41],       [name: "Deep Pink", rgb: "#FF1493", h: 328, s: 100, l: 54],
-        [name: "Deep Sky Blue", rgb: "#00BFFF", h: 195, s: 100, l: 50],         [name: "Dim Gray", rgb: "#696969", h: 0, s: 0, l: 41],              [name: "Dodger Blue", rgb: "#1E90FF", h: 210, s: 100, l: 56],
-        [name: "Fire Brick", rgb: "#B22222", h: 0, s: 68, l: 42],               [name: "Floral White", rgb: "#FFFAF0", h: 40, s: 100, l: 97],       [name: "Forest Green", rgb: "#228B22", h: 120, s: 61, l: 34],
-        [name: "Fuchsia", rgb: "#FF00FF", h: 300, s: 100, l: 50],               [name: "Gainsboro", rgb: "#DCDCDC", h: 0, s: 0, l: 86],             [name: "Ghost White", rgb: "#F8F8FF", h: 240, s: 100, l: 99],
-        [name: "Gold", rgb: "#FFD700", h: 51, s: 100, l: 50],                   [name: "Golden Rod", rgb: "#DAA520", h: 43, s: 74, l: 49],          [name: "Gray", rgb: "#808080", h: 0, s: 0, l: 50],
-        [name: "Green", rgb: "#008000", h: 120, s: 100, l: 25],                 [name: "Green Yellow", rgb: "#ADFF2F", h: 84, s: 100, l: 59],       [name: "Honeydew", rgb: "#F0FFF0", h: 120, s: 100, l: 97],
-        [name: "Hot Pink", rgb: "#FF69B4", h: 330, s: 100, l: 71],              [name: "Indian Red", rgb: "#CD5C5C", h: 0, s: 53, l: 58],           [name: "Indigo", rgb: "#4B0082", h: 275, s: 100, l: 25],
-        [name: "Ivory", rgb: "#FFFFF0", h: 60, s: 100, l: 97],                  [name: "Khaki", rgb: "#F0E68C", h: 54, s: 77, l: 75],               [name: "Lavender", rgb: "#E6E6FA", h: 240, s: 67, l: 94],
-        [name: "Lavender Blush", rgb: "#FFF0F5", h: 340, s: 100, l: 97],        [name: "Lawn Green", rgb: "#7CFC00", h: 90, s: 100, l: 49],         [name: "Lemon Chiffon", rgb: "#FFFACD", h: 54, s: 100, l: 90],
-        [name: "Light Blue", rgb: "#ADD8E6", h: 195, s: 53, l: 79],             [name: "Light Coral", rgb: "#F08080", h: 0, s: 79, l: 72],          [name: "Light Cyan", rgb: "#E0FFFF", h: 180, s: 100, l: 94],
-        [name: "Light Golden Rod Yellow", rgb: "#FAFAD2", h: 60, s: 80, l: 90], [name: "Light Gray", rgb: "#D3D3D3", h: 0, s: 0, l: 83],            [name: "Light Green", rgb: "#90EE90", h: 120, s: 73, l: 75],
-        [name: "Light Pink", rgb: "#FFB6C1", h: 351, s: 100, l: 86],            [name: "Light Salmon", rgb: "#FFA07A", h: 17, s: 100, l: 74],       [name: "Light Sea Green", 	rgb: "#20B2AA", h: 177, s: 70, l: 41],
-        [name: "Light Sky Blue", 	rgb: "#87CEFA", h: 203, s: 92, l: 75],      [name: "Light Slate Gray", 	rgb: "#778899", h: 210, s: 14, l: 53],  [name: "Light Steel Blue", 	rgb: "#B0C4DE", h: 214, s: 41, l: 78],
-        [name: "Light Yellow", rgb: "#FFFFE0", h: 60, s: 100, l: 94],           [name: "Lime", rgb: "#00FF00", h: 120, s: 100, l: 50],              [name: "Lime Green", rgb: "#32CD32", h: 120, s: 61, l: 50],
-        [name: "Linen", rgb: "#FAF0E6", h: 30, s: 67, l: 94],                   [name: "Maroon", rgb: "#800000", h: 0, s: 100, l: 25],              [name: "Medium Aquamarine", rgb: "#66CDAA", h: 160, s: 51, l: 60],
-        [name: "Medium Blue", rgb: "#0000CD", h: 240, s: 100, l: 40],           [name: "Medium Orchid", rgb: "#BA55D3", h: 288, s: 59, l: 58],      [name: "Medium Purple", rgb: "#9370DB", h: 260, s: 60, l: 65],
-        [name: "Medium Sea Green", 	rgb: "#3CB371", h: 147, s: 50, l: 47],      [name: "Medium Slate Blue", rgb: "#7B68EE", h: 249, s: 80, l: 67],  [name: "Medium Spring Green", rgb: "#00FA9A", h: 157, s: 100, l: 49],
-        [name: "Medium Turquoise", 	rgb: "#48D1CC", h: 178, s: 60, l: 55],      [name: "Medium Violet Red", rgb: "#C71585", h: 322, s: 81, l: 43],  [name: "Midnight Blue", rgb: "#191970", h: 240, s: 64, l: 27],
-        [name: "Mint Cream", rgb: "#F5FFFA", h: 150, s: 100, l: 98],            [name: "Misty Rose", rgb: "#FFE4E1", h: 6, s: 100, l: 94],          [name: "Moccasin", rgb: "#FFE4B5", h: 38, s: 100, l: 85],
-        [name: "Navajo White", rgb: "#FFDEAD", h: 36, s: 100, l: 84],           [name: "Navy", rgb: "#000080", h: 240, s: 100, l: 25],              [name: "Old Lace", rgb: "#FDF5E6", h: 39, s: 85, l: 95],
-        [name: "Olive", rgb: "#808000", h: 60, s: 100, l: 25],                  [name: "Olive Drab", rgb: "#6B8E23", h: 80, s: 60, l: 35],          [name: "Orange", rgb: "#FFA500", h: 39, s: 100, l: 50],
-        [name: "Orange Red", rgb: "#FF4500", h: 16, s: 100, l: 50],             [name: "Orchid", rgb: "#DA70D6", h: 302, s: 59, l: 65],             [name: "Pale Golden Rod", rgb: "#EEE8AA", h: 55, s: 67, l: 80],
-        [name: "Pale Green", rgb: "#98FB98", h: 120, s: 93, l: 79],             [name: "Pale Turquoise", rgb: "#AFEEEE", h: 180, s: 65, l: 81],     [name: "Pale Violet Red", rgb: "#DB7093", h: 340, s: 60, l: 65],
-        [name: "Papaya Whip", rgb: "#FFEFD5", h: 37, s: 100, l: 92],            [name: "Peach Puff", rgb: "#FFDAB9", h: 28, s: 100, l: 86],         [name: "Peru", rgb: "#CD853F", h: 30, s: 59, l: 53],
-        [name: "Pink", rgb: "#FFC0CB", h: 350, s: 100, l: 88],                  [name: "Plum", rgb: "#DDA0DD", h: 300, s: 47, l: 75],               [name: "Powder Blue", rgb: "#B0E0E6", h: 187, s: 52, l: 80],
-        [name: "Purple", rgb: "#800080", h: 300, s: 100, l: 25],                [name: "Red", rgb: "#FF0000", h: 0, s: 100, l: 50],                 [name: "Rosy Brown", rgb: "#BC8F8F", h: 0, s: 25, l: 65],
-        [name: "Royal Blue", rgb: "#4169E1", h: 225, s: 73, l: 57],             [name: "Saddle Brown", rgb: "#8B4513", h: 25, s: 76, l: 31],        [name: "Salmon", rgb: "#FA8072", h: 6, s: 93, l: 71],
-        [name: "Sandy Brown", rgb: "#F4A460", h: 28, s: 87, l: 67],             [name: "Sea Green", rgb: "#2E8B57", h: 146, s: 50, l: 36],          [name: "Sea Shell", rgb: "#FFF5EE", h: 25, s: 100, l: 97],
-        [name: "Sienna", rgb: "#A0522D", h: 19, s: 56, l: 40],                  [name: "Silver", rgb: "#C0C0C0", h: 0, s: 0, l: 75],                [name: "Sky Blue", rgb: "#87CEEB", h: 197, s: 71, l: 73],
-        [name: "Slate Blue", rgb: "#6A5ACD", h: 248, s: 53, l: 58],             [name: "Slate Gray", rgb: "#708090", h: 210, s: 13, l: 50],         [name: "Snow", rgb: "#FFFAFA", h: 0, s: 100, l: 99],
-        [name: "Spring Green", rgb: "#00FF7F", h: 150, s: 100, l: 50],          [name: "Steel Blue", rgb: "#4682B4", h: 207, s: 44, l: 49],         [name: "Tan", rgb: "#D2B48C", h: 34, s: 44, l: 69],
-        [name: "Teal", rgb: "#008080", h: 180, s: 100, l: 25],                  [name: "Thistle", rgb: "#D8BFD8", h: 300, s: 24, l: 80],            [name: "Tomato", rgb: "#FF6347", h: 9, s: 100, l: 64],
-        [name: "Turquoise", rgb: "#40E0D0", h: 174, s: 72, l: 56],              [name: "Violet", rgb: "#EE82EE", h: 300, s: 76, l: 72],             [name: "Wheat", rgb: "#F5DEB3", h: 39, s: 77, l: 83],
-        [name: "White Smoke", rgb: "#F5F5F5", h: 0, s: 0, l: 96],               [name: "Yellow", rgb: "#FFFF00", h: 60, s: 100, l: 50],             [name: "Yellow Green", rgb: "#9ACD32", h: 80, s: 61, l: 50]
-    ]
-}
+@Field static final List fillColorSettingsFLD = [
+    [name: "Soft White", rgb: "#B6DA7C", h: 83, s: 44, l: 67],              [name: "Warm White", rgb: "#DAF17E",	h: 51, s: 20, l: 100],      [name: "Very Warm White", rgb: "#DAF17E", h: 51, s: 60, l: 51],
+    [name: "Daylight White", rgb: "#CEF4FD", h: 191, s: 9, l: 90],          [name: "Daylight", rgb: "#CEF4FD", h: 191, s: 9, l: 90],            [name: "Cool White", rgb: "#F3F6F7", h: 187, s: 19, l: 96],
+    [name: "White", rgb: "#FFFFFF", h: 0, s: 0, l: 100],                    [name: "Alice Blue", rgb: "#F0F8FF", h: 208, s: 100, l: 97],        [name: "Antique White", rgb: "#FAEBD7", h: 34, s: 78, l: 91],
+    [name: "Aqua", rgb: "#00FFFF", h: 180, s: 100, l: 50],                  [name: "Aquamarine", rgb: "#7FFFD4", h: 160, s: 100, l: 75],        [name: "Azure", rgb: "#F0FFFF", h: 180, s: 100, l: 97],
+    [name: "Beige", rgb: "#F5F5DC", h: 60, s: 56, l: 91],                   [name: "Bisque", rgb: "#FFE4C4", h: 33, s: 100, l: 88],             [name: "Blanched Almond", rgb: "#FFEBCD", h: 36, s: 100, l: 90],
+    [name: "Blue", rgb: "#0000FF", h: 240, s: 100, l: 50],                  [name: "Blue Violet", rgb: "#8A2BE2", h: 271, s: 76, l: 53],        [name: "Brown", rgb: "#A52A2A", h: 0, s: 59, l: 41],
+    [name: "Burly Wood", rgb: "#DEB887", h: 34, s: 57, l: 70],              [name: "Cadet Blue", rgb: "#5F9EA0", h: 182, s: 25, l: 50],         [name: "Chartreuse", rgb: "#7FFF00", h: 90, s: 100, l: 50],
+    [name: "Chocolate", rgb: "#D2691E", h: 25, s: 75, l: 47],               [name: "Coral", rgb: "#FF7F50", h: 16, s: 100, l: 66],              [name: "Corn Flower Blue", rgb: "#6495ED", h: 219, s: 79, l: 66],
+    [name: "Corn Silk", rgb: "#FFF8DC", h: 48, s: 100, l: 93],              [name: "Crimson", rgb: "#DC143C", h: 348, s: 83, l: 58],            [name: "Cyan", rgb: "#00FFFF", h: 180, s: 100, l: 50],
+    [name: "Dark Blue", rgb: "#00008B", h: 240, s: 100, l: 27],             [name: "Dark Cyan", rgb: "#008B8B", h: 180, s: 100, l: 27],         [name: "Dark Golden Rod", rgb: "#B8860B", h: 43, s: 89, l: 38],
+    [name: "Dark Gray", rgb: "#A9A9A9", h: 0, s: 0, l: 66],                 [name: "Dark Green", rgb: "#006400", h: 120, s: 100, l: 20],        [name: "Dark Khaki", rgb: "#BDB76B", h: 56, s: 38, l: 58],
+    [name: "Dark Magenta", rgb: "#8B008B", h: 300, s: 100, l: 27],          [name: "Dark Olive Green", 	rgb: "#556B2F", h: 82, s: 39, l: 30],   [name: "Dark Orange", rgb: "#FF8C00", h: 33, s: 100, l: 50],
+    [name: "Dark Orchid", rgb: "#9932CC", h: 280, s: 61, l: 50],            [name: "Dark Red", rgb: "#8B0000", h: 0, s: 100, l: 27],            [name: "Dark Salmon", rgb: "#E9967A", h: 15, s: 72, l: 70],
+    [name: "Dark Sea Green", rgb: "#8FBC8F", h: 120, s: 25, l: 65],         [name: "Dark Slate Blue", rgb: "#483D8B", h: 248, s: 39, l: 39],    [name: "Dark Slate Gray", rgb: "#2F4F4F", h: 180, s: 25, l: 25],
+    [name: "Dark Turquoise", rgb: "#00CED1", h: 181, s: 100, l: 41],        [name: "Dark Violet", rgb: "#9400D3", h: 282, s: 100, l: 41],       [name: "Deep Pink", rgb: "#FF1493", h: 328, s: 100, l: 54],
+    [name: "Deep Sky Blue", rgb: "#00BFFF", h: 195, s: 100, l: 50],         [name: "Dim Gray", rgb: "#696969", h: 0, s: 0, l: 41],              [name: "Dodger Blue", rgb: "#1E90FF", h: 210, s: 100, l: 56],
+    [name: "Fire Brick", rgb: "#B22222", h: 0, s: 68, l: 42],               [name: "Floral White", rgb: "#FFFAF0", h: 40, s: 100, l: 97],       [name: "Forest Green", rgb: "#228B22", h: 120, s: 61, l: 34],
+    [name: "Fuchsia", rgb: "#FF00FF", h: 300, s: 100, l: 50],               [name: "Gainsboro", rgb: "#DCDCDC", h: 0, s: 0, l: 86],             [name: "Ghost White", rgb: "#F8F8FF", h: 240, s: 100, l: 99],
+    [name: "Gold", rgb: "#FFD700", h: 51, s: 100, l: 50],                   [name: "Golden Rod", rgb: "#DAA520", h: 43, s: 74, l: 49],          [name: "Gray", rgb: "#808080", h: 0, s: 0, l: 50],
+    [name: "Green", rgb: "#008000", h: 120, s: 100, l: 25],                 [name: "Green Yellow", rgb: "#ADFF2F", h: 84, s: 100, l: 59],       [name: "Honeydew", rgb: "#F0FFF0", h: 120, s: 100, l: 97],
+    [name: "Hot Pink", rgb: "#FF69B4", h: 330, s: 100, l: 71],              [name: "Indian Red", rgb: "#CD5C5C", h: 0, s: 53, l: 58],           [name: "Indigo", rgb: "#4B0082", h: 275, s: 100, l: 25],
+    [name: "Ivory", rgb: "#FFFFF0", h: 60, s: 100, l: 97],                  [name: "Khaki", rgb: "#F0E68C", h: 54, s: 77, l: 75],               [name: "Lavender", rgb: "#E6E6FA", h: 240, s: 67, l: 94],
+    [name: "Lavender Blush", rgb: "#FFF0F5", h: 340, s: 100, l: 97],        [name: "Lawn Green", rgb: "#7CFC00", h: 90, s: 100, l: 49],         [name: "Lemon Chiffon", rgb: "#FFFACD", h: 54, s: 100, l: 90],
+    [name: "Light Blue", rgb: "#ADD8E6", h: 195, s: 53, l: 79],             [name: "Light Coral", rgb: "#F08080", h: 0, s: 79, l: 72],          [name: "Light Cyan", rgb: "#E0FFFF", h: 180, s: 100, l: 94],
+    [name: "Light Golden Rod Yellow", rgb: "#FAFAD2", h: 60, s: 80, l: 90], [name: "Light Gray", rgb: "#D3D3D3", h: 0, s: 0, l: 83],            [name: "Light Green", rgb: "#90EE90", h: 120, s: 73, l: 75],
+    [name: "Light Pink", rgb: "#FFB6C1", h: 351, s: 100, l: 86],            [name: "Light Salmon", rgb: "#FFA07A", h: 17, s: 100, l: 74],       [name: "Light Sea Green", 	rgb: "#20B2AA", h: 177, s: 70, l: 41],
+    [name: "Light Sky Blue", 	rgb: "#87CEFA", h: 203, s: 92, l: 75],      [name: "Light Slate Gray", 	rgb: "#778899", h: 210, s: 14, l: 53],  [name: "Light Steel Blue", 	rgb: "#B0C4DE", h: 214, s: 41, l: 78],
+    [name: "Light Yellow", rgb: "#FFFFE0", h: 60, s: 100, l: 94],           [name: "Lime", rgb: "#00FF00", h: 120, s: 100, l: 50],              [name: "Lime Green", rgb: "#32CD32", h: 120, s: 61, l: 50],
+    [name: "Linen", rgb: "#FAF0E6", h: 30, s: 67, l: 94],                   [name: "Maroon", rgb: "#800000", h: 0, s: 100, l: 25],              [name: "Medium Aquamarine", rgb: "#66CDAA", h: 160, s: 51, l: 60],
+    [name: "Medium Blue", rgb: "#0000CD", h: 240, s: 100, l: 40],           [name: "Medium Orchid", rgb: "#BA55D3", h: 288, s: 59, l: 58],      [name: "Medium Purple", rgb: "#9370DB", h: 260, s: 60, l: 65],
+    [name: "Medium Sea Green", 	rgb: "#3CB371", h: 147, s: 50, l: 47],      [name: "Medium Slate Blue", rgb: "#7B68EE", h: 249, s: 80, l: 67],  [name: "Medium Spring Green", rgb: "#00FA9A", h: 157, s: 100, l: 49],
+    [name: "Medium Turquoise", 	rgb: "#48D1CC", h: 178, s: 60, l: 55],      [name: "Medium Violet Red", rgb: "#C71585", h: 322, s: 81, l: 43],  [name: "Midnight Blue", rgb: "#191970", h: 240, s: 64, l: 27],
+    [name: "Mint Cream", rgb: "#F5FFFA", h: 150, s: 100, l: 98],            [name: "Misty Rose", rgb: "#FFE4E1", h: 6, s: 100, l: 94],          [name: "Moccasin", rgb: "#FFE4B5", h: 38, s: 100, l: 85],
+    [name: "Navajo White", rgb: "#FFDEAD", h: 36, s: 100, l: 84],           [name: "Navy", rgb: "#000080", h: 240, s: 100, l: 25],              [name: "Old Lace", rgb: "#FDF5E6", h: 39, s: 85, l: 95],
+    [name: "Olive", rgb: "#808000", h: 60, s: 100, l: 25],                  [name: "Olive Drab", rgb: "#6B8E23", h: 80, s: 60, l: 35],          [name: "Orange", rgb: "#FFA500", h: 39, s: 100, l: 50],
+    [name: "Orange Red", rgb: "#FF4500", h: 16, s: 100, l: 50],             [name: "Orchid", rgb: "#DA70D6", h: 302, s: 59, l: 65],             [name: "Pale Golden Rod", rgb: "#EEE8AA", h: 55, s: 67, l: 80],
+    [name: "Pale Green", rgb: "#98FB98", h: 120, s: 93, l: 79],             [name: "Pale Turquoise", rgb: "#AFEEEE", h: 180, s: 65, l: 81],     [name: "Pale Violet Red", rgb: "#DB7093", h: 340, s: 60, l: 65],
+    [name: "Papaya Whip", rgb: "#FFEFD5", h: 37, s: 100, l: 92],            [name: "Peach Puff", rgb: "#FFDAB9", h: 28, s: 100, l: 86],         [name: "Peru", rgb: "#CD853F", h: 30, s: 59, l: 53],
+    [name: "Pink", rgb: "#FFC0CB", h: 350, s: 100, l: 88],                  [name: "Plum", rgb: "#DDA0DD", h: 300, s: 47, l: 75],               [name: "Powder Blue", rgb: "#B0E0E6", h: 187, s: 52, l: 80],
+    [name: "Purple", rgb: "#800080", h: 300, s: 100, l: 25],                [name: "Red", rgb: "#FF0000", h: 0, s: 100, l: 50],                 [name: "Rosy Brown", rgb: "#BC8F8F", h: 0, s: 25, l: 65],
+    [name: "Royal Blue", rgb: "#4169E1", h: 225, s: 73, l: 57],             [name: "Saddle Brown", rgb: "#8B4513", h: 25, s: 76, l: 31],        [name: "Salmon", rgb: "#FA8072", h: 6, s: 93, l: 71],
+    [name: "Sandy Brown", rgb: "#F4A460", h: 28, s: 87, l: 67],             [name: "Sea Green", rgb: "#2E8B57", h: 146, s: 50, l: 36],          [name: "Sea Shell", rgb: "#FFF5EE", h: 25, s: 100, l: 97],
+    [name: "Sienna", rgb: "#A0522D", h: 19, s: 56, l: 40],                  [name: "Silver", rgb: "#C0C0C0", h: 0, s: 0, l: 75],                [name: "Sky Blue", rgb: "#87CEEB", h: 197, s: 71, l: 73],
+    [name: "Slate Blue", rgb: "#6A5ACD", h: 248, s: 53, l: 58],             [name: "Slate Gray", rgb: "#708090", h: 210, s: 13, l: 50],         [name: "Snow", rgb: "#FFFAFA", h: 0, s: 100, l: 99],
+    [name: "Spring Green", rgb: "#00FF7F", h: 150, s: 100, l: 50],          [name: "Steel Blue", rgb: "#4682B4", h: 207, s: 44, l: 49],         [name: "Tan", rgb: "#D2B48C", h: 34, s: 44, l: 69],
+    [name: "Teal", rgb: "#008080", h: 180, s: 100, l: 25],                  [name: "Thistle", rgb: "#D8BFD8", h: 300, s: 24, l: 80],            [name: "Tomato", rgb: "#FF6347", h: 9, s: 100, l: 64],
+    [name: "Turquoise", rgb: "#40E0D0", h: 174, s: 72, l: 56],              [name: "Violet", rgb: "#EE82EE", h: 300, s: 76, l: 72],             [name: "Wheat", rgb: "#F5DEB3", h: 39, s: 77, l: 83],
+    [name: "White Smoke", rgb: "#F5F5F5", h: 0, s: 0, l: 96],               [name: "Yellow", rgb: "#FFFF00", h: 60, s: 100, l: 50],             [name: "Yellow Green", rgb: "#9ACD32", h: 80, s: 61, l: 50]
+]
 
 //*******************************************************************
 //    CLONE CHILD LOGIC
 //*******************************************************************
 public getDuplSettingData() {
-    Map typeObj = [
-        stat: [
-            bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
-            enum: ["triggerEvents", "act_EchoDevices", "act_EchoZones", "zone_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard", "webCorePistons"],
-            mode: ["cond_mode", "trig_mode"],
-            number: [],
-            text: ["appLbl"]
-        ],
-        ends: [
-            bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db"],
-            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_webCorePistons", "_rt", "_rt_wd", "_nums"],
-            number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore"],
-            text: ["_txt", "_sms_numbers"],
-            time: ["_time_start", "_time_stop", "_scheduled_time"]
-        ],
-        caps: [
-            _acceleration: "accelerationSensor",
-            _battery: "battery",
-            _contact: "contactSensor",
-            _door: "garageDoorControl",
-            _temperature: "temperatureMeasurement",
-            _illuminance: "illuminanceMeasurement",
-            _humidity: "relativeHumidityMeasurement",
-            _motion: "motionSensor",
-            _level: "switchLevel",
-            _button: "button",
-            _pushed: "pushableButton",
-            _held: "holdableButton",
-            _released: "releasableButton",
-            _doubleTapped: "doubleTapableButton",
-            _presence: "presenceSensor",
-            _switch: "switch",
-            _power: "powerMeter",
-            _shade: "windowShades",
-            _water: "waterSensor",
-            _valve: "valve",
-            _thermostat: "thermostat",
-            _carbonMonoxide: "carbonMonoxideDetector",
-            _smoke: "smokeDetector",
-            _lock: "lock",
-            _lock_code: "lock",
-            _switches_off: "switch",
-            _switches_on: "switch",
-            _lights: "level",
-            _color: "colorControl"
-        ],
-        dev: [
-            _scene: "sceneActivator"
-        ]
-    ]
+    Map typeObj = parent?.getAppDuplTypes()
     Map setObjs = [:]
     typeObj?.stat?.each { sk,sv->
         sv?.each { svi-> if(settings?.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi] ] } }

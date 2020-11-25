@@ -1,5 +1,5 @@
 /**
- *  Echo Speaks SmartApp
+ *  Echo Speaks SmartApp (Hubitat)
  *
  *  Copyright 2018, 2019, 2020 Anthony Santilli
  *
@@ -14,18 +14,7 @@
  *
  */
 
- // TODO: Create a new @field static map for containing the state database
- // Have a central method to read/write the data to the memory.  
- // Backup the data using a single state blob.  
- // Use a parameter in the in central method to tell it to update the state blob with the latest mem map
- // Maybe use the health check to occasionally write the data to state?
-
-String appVersion()   { return "3.6.5.0" }
-String appModified()  { return "2020-11-04" }
-String appAuthor()    { return "Anthony S." }
-Boolean isBeta()      { return false }
-Boolean isST()        { return (getPlatform() == "SmartThings") }
-Map minVersions()     { return [echoDevice: 3650, wsDevice: 3400, actionApp: 3650, zoneApp: 3650, server: 250] } //These values define the minimum versions of code this app will work with.
+import groovy.transform.Field
 
 definition(
     name        : "Echo Speaks",
@@ -74,6 +63,29 @@ preferences {
     page(name: "zoneDuplicationPage")
     page(name: "uninstallPage")
 }
+
+// STATICALLY DEFINED VARIABLES
+@Field static final String appVersionFLD  = "3.6.5.0"
+@Field static final String appModifiedFLD = "11-19-2020"
+@Field static final String branchFLD      = "master"
+@Field static final String platformFLD    = "Hubitat"
+@Field static final Boolean isStFLD       = false
+@Field static final Boolean betaFLD       = false
+@Field static final Map minVersionsFLD    = [echoDevice: 3650, wsDevice: 3400, actionApp: 3650, zoneApp: 3650, server: 250]  //These values define the minimum versions of code this app will work with.
+@Field static final String sNULL          = (String) null
+@Field static final List   lNULL          = (List) null
+@Field static final String sBLANK         = ''
+@Field static final String sBULLET        = '\u2022'
+
+// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
+@Field volatile static Map<String,Map> historyMapFLD = [:]
+@Field static Map<String,Map> cookieDataFLD          = [:]
+@Field static Map<String,Map> echoDeviceMapFLD       = [:]
+@Field static Map<String,Map> guardDataFLD           = [:]
+@Field static Map<String,Map> tsDtMapFLD             = [:]
+@Field static Map<String,Map> zoneStatusMapFLD       = [:]
+@Field static Map<String,Map> bluetoothDataFLD       = [:]
+@Field static Map<String,Map> dndDataFLD             = [:]
 
 def startPage() {
     state?.isParent = true
@@ -189,8 +201,8 @@ def authStatusPage() {
                 String nextRfsh = nextCookieRefreshDur()
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
                 String stat = "Auth Status: (${(chk1 && chk2) ? "OK": "Invalid"})"
-                stat += "\n \u2022 Cookie: (${chk1 ? okSym() : notOkSym()})"
-                stat += "\n \u2022 CSRF Value: (${chk2 ? okSym() : notOkSym()})"
+                stat += "\n \u2022 Cookie: (${chk1 ? okSymFLD : notOkSymFLD})"
+                stat += "\n \u2022 CSRF Value: (${chk2 ? okSymFLD : notOkSymFLD})"
                 paragraph pTS(stat, null, false, (chk1 && chk2) ? "#2784D9" : "red"), state: ((chk1 && chk2) ? "complete" : null), required: true
                 paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", null, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : null), required: true
                 paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", null, false, "#2784D9"), state: "complete", required: true
@@ -201,16 +213,16 @@ def authStatusPage() {
                 input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every?\n(in days)", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
                 if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
                 if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
-                if(!isST()) { paragraph pTS("in Days (1-5 max)", null, false, "gray") }
+                if(!isStFLD) { paragraph pTS("in Days (1-5 max)", null, false, "gray") }
                 // Refreshes the cookie
                 input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? "" : null)
-                if(!isST()) { paragraph pTS(ckDesc, null, false, pastDayChkOk ? null : "red") }
+                if(!isStFLD) { paragraph pTS(ckDesc, null, false, pastDayChkOk ? null : "red") }
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", null, false, "#2784D9"), state: "complete"
                 // Clears cookies for app and devices
                 input "resetCookies", "bool", title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "Clear all stored cookie data from the app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(!isST()) { paragraph pTS("Clear all stored cookie data from the app and devices.", null, false, "gray") }
+                if(!isStFLD) { paragraph pTS("Clear all stored cookie data from the app and devices.", null, false, "gray") }
                 input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(!isST()) { paragraph pTS("Force devices to synchronize their stored cookies.", null, false, "gray") }
+                if(!isStFLD) { paragraph pTS("Force devices to synchronize their stored cookies.", null, false, "gray") }
                 if(settings?.refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh"); }
                 if(settings?.resetCookies) { clearCookieData("resetCookieToggle") }
                 if(settings?.refreshDevCookies) { refreshDevCookies() }
@@ -228,16 +240,16 @@ def servPrefPage() {
     Boolean newInstall = (state?.isInstalled != true)
     Boolean resumeConf = (state?.resumeConfig == true)
     return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : ""), uninstall: (state?.serviceConfigured != true)) {
-        Boolean hasChild = ((isST() ? app?.getChildDevices(true) : getChildDevices())?.size())
-        Boolean onHeroku = (isST() || settings?.useHeroku != false)
+        Boolean hasChild = ((isStFLD ? app?.getChildDevices(true) : getChildDevices())?.size())
+        Boolean onHeroku = (isStFLD || settings?.useHeroku != false)
         Boolean authValid = (state?.authValid == true)
 
-        if(!isST() && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
+        if(!isStFLD && settings?.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
         if(settings?.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
         if(settings?.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
 
         if(!state?.serviceConfigured) {
-            if(!isST()) {
+            if(!isStFLD) {
                 section(sTS("Server Deployment Option:")) {
                     input "useHeroku", "bool", title: inTS("Deploy server to Heroku?", getAppImg("heroku", true)), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("heroku")
                     if(settings?.useHeroku == false) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
@@ -278,7 +290,7 @@ def servPrefPage() {
         section(sTS("Reset Options (Tap to show):"), hideable: true, hidden: true) {
             input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
                 required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-            if(!isST()) { paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", null, false, "gray") }
+            if(!isStFLD) { paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", null, false, "gray") }
             if(settings?.resetService) { clearCloudConfig() }
         }
         state?.resumeConfig = false
@@ -464,7 +476,7 @@ def actionsPage() {
         else { section("") { paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started") } }
         section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
-            if(actApps?.size() && isST()) {
+            if(actApps?.size() && isStFLD) {
                 input "actionDuplicateSelect", "enum", title: inTS("Duplicate Existing Action", getAppImg("es_actions", true)), description: "Tap to select...", options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
                 if(settings?.actionDuplicateSelect) {
                     href "actionDuplicationPage", title: inTS("Create Duplicate Action?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
@@ -481,7 +493,7 @@ def actionsPage() {
                     input "pauseChildActions", "bool", title: inTS("Pause all actions?", getAppImg("pause_orange", true)), description: "When pausing all Actions you can either restore all or open each action and manually unpause it.",
                             defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
                     if(settings?.pauseChildActions) { settingUpdate("pauseChildActions", "false", "bool"); runIn(3, "executeActionPause"); }
-                    if(!isST()) { paragraph pTS("When pausing all Actions you can either restore all or open each action and manually unpause it.", null, false, "gray") }
+                    if(!isStFLD) { paragraph pTS("When pausing all Actions you can either restore all or open each action and manually unpause it.", null, false, "gray") }
                 }
                 if(pausedActions?.size()) {
                     input "unpauseChildActions", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
@@ -561,7 +573,7 @@ def zonesPage() {
         }
         section() {
             app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
-            if(zApps?.size() && isST()) {
+            if(zApps?.size() && isStFLD) {
                 input "zoneDuplicateSelect", "enum", title: inTS("Duplicate Existing Zone", getAppImg("es_groups", true)), description: "Tap to select...", options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
                 if(settings?.zoneDuplicateSelect) {
                     href "zoneDuplicationPage", title: inTS("Create Duplicate Zone?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
@@ -578,7 +590,7 @@ def zonesPage() {
                 input "pauseChildZones", "bool", title: inTS("Pause all Zones?", getAppImg("pause_orange", true)), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
                         defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
                 if(settings?.pauseChildZones) { settingUpdate("pauseChildZones", "false", "bool"); runIn(3, "executeZonePause"); }
-                if(!isST()) { paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", null, false, "gray") }
+                if(!isStFLD) { paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", null, false, "gray") }
             }
             if(pausedZones?.size()) {
                 input "unpauseChildZone", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
@@ -693,7 +705,7 @@ private devCleanupSect() {
 
 private List getRemovableDevs() {
     Map eDevs = state?.echoDeviceMap ?: [:]
-    List cDevs = (isST() ? app?.getChildDevices(true) : app?.getChildDevices())
+    List cDevs = (isStFLD ? app?.getChildDevices(true) : app?.getChildDevices())
     List remDevs = []
     cDevs?.each { cDev->
         if(cDev?.deviceNetworkId?.toString() == "echoSpeaks_websocket") { return }
@@ -743,7 +755,7 @@ def settingsPage() {
 
 def deviceListPage() {
     return dynamicPage(name: "deviceListPage", install: false) {
-        Boolean onST = isST()
+        Boolean onST = isStFLD
         section(sTS("Discovered Devices:")) {
             state?.echoDeviceMap?.sort { it?.value?.name }?.each { k,v->
                 String str = "Status: (${v?.online ? "Online" : "Offline"})"
@@ -766,7 +778,6 @@ def deviceListPage() {
 
 def unrecogDevicesPage() {
     return dynamicPage(name: "unrecogDevicesPage", install: false) {
-        Boolean onST = isST()
         Map skDevMap = state?.skippedDevices ?: [:]
         Map ignDevs = skDevMap?.findAll { (it?.value?.reason == "In Ignore Device Input") }
         Map unDevs = skDevMap?.findAll { (it?.value?.reason != "In Ignore Device Input") }
@@ -775,7 +786,7 @@ def unrecogDevicesPage() {
                 unDevs?.sort { it?.value?.name }?.each { k,v->
                     String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${v?.desc}\nFamily: ${v?.family}\nType: ${v?.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
                     str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
-                    if(onST) {
+                    if(isStFLD) {
                         paragraph title: pTS(v?.name, getAppImg(v?.image, true), false), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
                     } else { href "unrecogDevicesPage", title: inTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
                 }
@@ -789,7 +800,7 @@ def unrecogDevicesPage() {
                 ignDevs?.sort { it?.value?.name }?.each { k,v->
                     String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${v?.desc}\nFamily: ${v?.family}\nType: ${v?.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
                     str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
-                    if(onST) {
+                    if(isStFLD) {
                         paragraph title: pTS(v?.name, getAppImg(v?.image, true), false, "#2784D9"), str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image)
                     } else { href "unrecogDevicesPage", title: inTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : null), image: getAppImg(v?.image) }
                 }
@@ -803,7 +814,7 @@ def showDevSharePrefs() {
         paragraph title: "What is this used for?", pTS("These options send non-user identifiable information and error data to diagnose catch trending issues.", null, false)
         input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
         if(settings?.optOutMetrics != true) {
-            href url: getAppEndpointUrl("renderMetricData"), style: (isST() ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
+            href url: getAppEndpointUrl("renderMetricData"), style: (isStFLD ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
         }
     }
     if(optOutMetrics != true && state?.isInstalled && state?.serviceConfigured && !state?.resumeConfig) {
@@ -918,7 +929,7 @@ def setNotificationTimePage() {
 def uninstallPage() {
     dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
         section("") { paragraph "This will remove the app, all devices, all actions, all zones.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
-        if(isST()) { remove("Remove App, Devices, Actions, and Zones!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nAll items will be removed") }
+        if(isStFLD) { remove("Remove App, Devices, Actions, and Zones!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nAll items will be removed") }
     }
 }
 
@@ -979,30 +990,6 @@ def announcePage() {
             }
         }
     }
-}
-
-Map seqItemsAvail() {
-    return [
-        other: [
-            "weather":null, "traffic":null, "flashbriefing":null, "goodnews":null, "goodmorning":null, "goodnight":null, "cleanup":null,
-            "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
-            "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
-            "date": null, "time": null,
-            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message", "email": null, "textcmd": "voice command as text"
-        ],
-        // dnd: [
-        //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
-        //     "dnd_duration":"2H30M", "dnd_time":"00:30"
-        // ],
-        speech: [
-            "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
-        ],
-        music: [
-            "amazonmusic": "search term", "applemusic": "search term", "iheartradio": "search term", "pandora": "search term",
-            "spotify": "search term", "tunein": "search term", "cloudplayer": "search term"
-        ]
-    ]
 }
 
 def sequencePage() {
@@ -1155,7 +1142,7 @@ def musicSearchTestPage() {
 def searchTuneInResultsPage() {
     return dynamicPage(name: "searchTuneInResultsPage", uninstall: false, install: false) {
         def results = executeTuneInSearch()
-        Boolean onST = isST()
+        Boolean onST = isStFLD
         section(sTS("Search Results: (Query: ${settings?.test_tuneinSearchQuery})")) {
             if(results?.browseList && results?.browseList?.size()) {
                 results?.browseList?.eachWithIndex { item, i->
@@ -1187,27 +1174,27 @@ def searchTuneInResultsPage() {
 }
 
 private getChildDeviceBySerial(String serial) {
-    def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    def childDevs = isStFLD ? app?.getChildDevices(true) : app?.getChildDevices()
     return childDevs?.find { it?.deviceNetworkId?.tokenize("|")?.contains(serial) } ?: null
 }
 
 public getChildDeviceByCap(String cap) {
-    def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    def childDevs = isStFLD ? app?.getChildDevices(true) : app?.getChildDevices()
     return childDevs?.find { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) } ?: null
 }
 
 public getDevicesFromList(List ids) {
-    def cDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    def cDevs = isStFLD ? app?.getChildDevices(true) : app?.getChildDevices()
     return cDevs?.findAll { it?.id in ids } ?: null
 }
 
 public getDeviceFromId(String id) {
-    def cDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    def cDevs = isStFLD ? app?.getChildDevices(true) : app?.getChildDevices()
     return cDevs?.find { it?.id == id } ?: null
 }
 
 public getChildDevicesByCap(String cap) {
-    def childDevs = isST() ? app?.getChildDevices(true) : app?.getChildDevices()
+    def childDevs = isStFLD ? app?.getChildDevices(true) : app?.getChildDevices()
     return childDevs?.findAll { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) } ?: null
 }
 
@@ -1230,7 +1217,7 @@ def donationPage() {
 
 def installed() {
     logInfo("Installed Event Received...")
-    state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: "Not Set", showDonation: false, sentMetrics: false, shownChgLog: true]
+    state?.installData = [initVer: appVersionFLD, dt: getDtNow().toString(), updatedDt: "Not Set", showDonation: false, sentMetrics: false, shownChgLog: true]
     state?.isInstalled = true
     sendInstallData()
     initialize()
@@ -1239,7 +1226,7 @@ def installed() {
 def updated() {
     logInfo("Updated Event Received...")
     if(!state?.isInstalled) { state?.isInstalled = true }
-    if(!state?.installData) { state?.installData = [initVer: appVersion(), dt: getDtNow().toString(), updatedDt: getDtNow().toString(), shownDonation: false, sentMetrics: false] }
+    if(!state?.installData) { state?.installData = [initVer: appVersionFLD, dt: getDtNow().toString(), updatedDt: getDtNow().toString(), shownDonation: false, sentMetrics: false] }
     unsubscribe()
     state?.zoneEvtsActive = false
     unschedule()
@@ -1250,10 +1237,9 @@ def updated() {
 def initialize() {
     if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if(settings?.optOutMetrics == true && state?.appGuid) { if(removeInstallData()) { state?.appGuid = null } }
-    if(!state?.resumeConfig) { subscribe(app, onAppTouch) }
     if(guardAutoConfigured()) {
         if(settings?.guardAwayAlarm && settings?.guardHomeAlarm) {
-            subscribe(location, "${!isST() ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
+            subscribe(location, "${!isStFLD ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
         }
         if(settings?.guardAwayModes && settings?.guardHomeModes) {
             subscribe(location, "mode", guardTriggerEvtHandler)
@@ -1313,7 +1299,8 @@ def uninstalled() {
 private appCleanup() {
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
-        "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData"
+        "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
+        "warnHistory", "errorHistory", "bluetoothData", "dndData"
     ]
     items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
     state?.pollBlocked = false
@@ -1412,11 +1399,11 @@ def getActionApps() {
 }
 
 def getEsDevices() {
-    return (isST() ? app?.getChildDevices(true) : getChildDevices())?.findAll { it?.isWS() == false }
+    return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.findAll { it?.isWS() == false }
 }
 
 def getSocketDevice() {
-    return (isST() ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
+    return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
 }
 
 def getZoneApps() {
@@ -1425,11 +1412,6 @@ def getZoneApps() {
 
 def getZoneById(String id) {
     return getZoneApps()?.find { it?.id?.toString() == id }
-}
-
-def onAppTouch(evt) {
-    // logTrace("appTouch...")
-    updated()
 }
 
 mappings {
@@ -1444,8 +1426,23 @@ mappings {
     path("/diagDataText")               { action: [GET: "getDiagDataText"] }
 }
 
-String getCookieVal() { return (state?.cookieData && state?.cookieData?.localCookie) ? state?.cookieData?.localCookie as String : null }
-String getCsrfVal() { return (state?.cookieData && state?.cookieData?.csrf) ? state?.cookieData?.csrf as String : null }
+String getCookieVal() {
+    if(cookieDataFLD != null && cookieDataFLD[app?.getId()] && cookieDataFLD[app?.getId()]?.localCookie != null) { return cookieDataFLD[app?.getId()]?.localCookie as String }
+    else { 
+        Map cookieData = state?.cookieData ?: null
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[app?.getId()] = cookieData } 
+        return cookieDataFLD[app?.getId()]?.localCookie as String ?: null
+    }
+}
+
+String getCsrfVal() { 
+    if(cookieDataFLD != null && cookieDataFLD[app?.getId()] && cookieDataFLD[app?.getId()]?.csrf != null) { return cookieDataFLD[app?.getId()]?.csrf as String }
+    else { 
+        Map cookieData = state?.cookieData ?: null 
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[app?.getId()] = cookieData; } 
+        return cookieDataFLD[app?.getId()]?.csrf as String ?: null
+    }
+}
 
 def clearCloudConfig() {
     logTrace("clearCloudConfig called...")
@@ -1462,8 +1459,8 @@ String getEnvParamsStr() {
     Map envParams = [:]
     envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
     envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}"
-    envParams["hubPlatform"] = "${getPlatform()}"
-    envParams["useHeroku"] = (isST() || settings?.useHeroku != false)
+    envParams["hubPlatform"] = "${platformFLD}"
+    envParams["useHeroku"] = (isStFLD || settings?.useHeroku != false)
     envParams["serviceDebug"] = "false"
     envParams["serviceTrace"] = "false"
     envParams["amazonDomain"] = settings?.amazonDomain as String ?: "amazon.com"
@@ -1480,11 +1477,11 @@ private checkIfCodeUpdated() {
     // updChildVers()
     logDebug("Code versions: ${state?.codeVersions}")
     if(state?.codeVersions) {
-        if(state?.codeVersions?.mainApp != appVersion()) {
+        if(state?.codeVersions?.mainApp != appVersionFLD) {
             checkVersionData(true)
             chgs?.push("mainApp")
             state?.pollBlocked = true
-            updCodeVerMap("mainApp", appVersion())
+            updCodeVerMap("mainApp", appVersionFLD)
             Map iData = atomicState?.installData ?: [:]
             iData["updatedDt"] = getDtNow().toString()
             iData["shownChgLog"] = false
@@ -1494,7 +1491,7 @@ private checkIfCodeUpdated() {
             atomicState?.installData = iData
             codeUpdated = true
         }
-        def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+        def cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
         def echoDev = cDevs?.find { !it?.isWS() }
         if(echoDev && codeVersions?.echoDevice && state?.codeVersions?.echoDevice != echoDev?.devVersion()) {
             chgs?.push("echoDevice")
@@ -1502,7 +1499,7 @@ private checkIfCodeUpdated() {
             updCodeVerMap("echoDevice", echoDev?.devVersion())
             codeUpdated = true
         }
-        if(!isST()) {
+        if(!isStFLD) {
             def wsDev = cDevs?.find { it?.isWS() }
             if(wsDev && state?.codeVersions?.wsDevice && state?.codeVersions?.wsDevice != wsDev?.devVersion()) {
                 chgs?.push("wsDevice")
@@ -1565,15 +1562,15 @@ def processData() {
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
-            updServerItem("onHeroku", (isST() || data?.onHeroku != false || (!data?.isLocal && settings?.useHeroku != false)))
-            updServerItem("isLocal", (!isST() && data?.isLocal == true))
+            updServerItem("onHeroku", (isStFLD || data?.onHeroku != false || (!data?.isLocal && settings?.useHeroku != false)))
+            updServerItem("isLocal", (!isStFLD && data?.isLocal == true))
             updServerItem("serverHost", (data?.serverUrl ?: null))
             logTrace("processData Received | Version: ${data?.version} | onHeroku: ${data?.onHeroku} | serverUrl: ${data?.serverUrl}")
             updCodeVerMap("server", data?.version)
             state?.serviceConfigured = true
         } else { log.debug "data: $data" }
     }
-    def json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersion()])
+    def json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersionFLD])
     render contentType: "application/json", data: json, status: 200
 }
 
@@ -1597,8 +1594,9 @@ def storeCookieData() {
         Map cookieItems = [:]
         data?.cookieData?.each { k,v-> cookieItems[k as String] = v as String }
         state?.cookieData = cookieItems
-        updServerItem("onHeroku", (isST() || data?.onHeroku != false || (!data?.isLocal && settings?.useHeroku != false)))
-        updServerItem("isLocal", (!isST() && data?.isLocal == true))
+        cookieDataFLD[app?.getId()] = cookieItems
+        updServerItem("onHeroku", (isStFLD || data?.onHeroku != false || (!data?.isLocal && settings?.useHeroku != false)))
+        updServerItem("isLocal", (!isStFLD && data?.isLocal == true))
         updServerItem("serverHost", (data?.serverUrl ?: null))
         updCodeVerMap("server", data?.version)
     }
@@ -1619,6 +1617,7 @@ def clearCookieData(src=null) {
     state?.authValid = false
     state?.remove("cookie")
     state?.remove("cookieData")
+    cookieDataFLD[app?.getId()] = null
     remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
     unschedule("getOtherData")
@@ -1636,7 +1635,7 @@ private refreshDevCookies() {
 }
 
 private updateChildAuth(Boolean isValid) {
-    (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { (isValid) ? it?.updateCookies([cookie: getCookieVal(), csrf: getCsrfVal()]) : it?.removeCookies(true); }
+    (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { (isValid) ? it?.updateCookies([cookie: getCookieVal(), csrf: getCsrfVal()]) : it?.removeCookies(true); }
 }
 
 private authValidationEvent(Boolean valid, String src=null) {
@@ -1813,7 +1812,7 @@ Boolean validateCookie(frc=false) {
             uri: getAmazonUrl(),
             path: "/api/bootstrap",
             query: ["version": 0],
-            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
             contentType: "application/json",
             timeout: 20,
         ]
@@ -1844,7 +1843,7 @@ private getCustomerData(frc=false) {
             uri: getAmazonUrl(),
             path: "/api/get-customer-pfm",
             query: [_: now()],
-            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
             contentType: "application/json",
             timeout: 20,
         ]
@@ -1868,7 +1867,7 @@ private userCommIds() {
         Map params = [
             uri: "https://alexa-comms-mobile-service.${getAmazonDomain()}",
             path: "/accounts",
-            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
             contentType: "application/json",
             timeout: 20
         ]
@@ -1898,12 +1897,12 @@ public childInitiatedRefresh() {
 public updChildVers() {
     def cApps = getActionApps()
     def zApps = getZoneApps()
-    def cDevs = (isST() ? app?.getChildDevices(true) : getChildDevices())
+    def cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
     def eDevs = cDevs?.findAll { it?.isWS() != true }
     updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
     updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
     updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
-    if(!isST()) {
+    if(!isStFLD) {
         def wDevs = cDevs?.findAll { it?.isWS() == true }
         updCodeVerMap("wsDevice", wDevs?.size() ? wDevs[0]?.devVersion() : null)
     }
@@ -1948,7 +1947,7 @@ private getOtherData() {
 }
 
 private getBluetoothDevices() {
-    if(state?.websocketActive && state?.bluetoothData && getLastTsValSecs("bluetoothUpdDt") < 3600) { return }
+    if(state?.websocketActive && bluetoothDataFLD && getLastTsValSecs("bluetoothUpdDt") < 3600) { return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
@@ -1962,12 +1961,12 @@ private getBluetoothDevices() {
         httpGet(params) { response ->
             btResp = response?.data ?: [:]
             // log.debug "Bluetooth Items: ${btResp}"
-            state?.bluetoothData = btResp
+            bluetoothDataFLD = btResp
             updTsVal("bluetoothUpdDt")
         }
     } catch (ex) {
         respExceptionHandler(ex, "getBluetoothDevices", true)
-        if(!state?.bluetoothData) { state?.bluetoothData = [:] }
+        if(!bluetoothDataFLD) { bluetoothDataFLD = [:] }
     }
 }
 
@@ -1975,7 +1974,7 @@ def getBluetoothData(serialNumber) {
     // logTrace("getBluetoothData: ${serialNumber}")
     String curConnName = null
     Map btObjs = [:]
-    Map btData = state?.bluetoothData ?: [:]
+    Map btData = bluetoothDataFLD ?: [:]
     Map bluData = btData && btData?.bluetoothStates?.size() ? btData?.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
     if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
         def bData = bluData?.pairedDeviceList?.findAll { (it?.deviceClass != "GADGET") }
@@ -2046,18 +2045,18 @@ private getDoNotDisturb() {
         httpGet(params) { response ->
             dndResp = response?.data ?: [:]
             // log.debug "DoNotDisturb Data: ${dndResp}"
-            state?.dndData = dndResp
+            dndDataFLD = dndResp
         }
     } catch (ex) {
         respExceptionHandler(ex, "getDoNotDisturb", true)
-        if(!state?.dndData) { state?.dndData = dndResp }
+        if(!dndDataFLD) { dndDataFLD = dndResp }
     }
 
 }
 
 def getDndEnabled(serialNumber) {
     // logTrace("getBluetoothData: ${serialNumber}")
-    Map sData = state?.dndData ?: [:]
+    Map sData = dndDataFLD ?: [:]
     def dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
     return (dndData && dndData?.enabled == true)
 }
@@ -2144,7 +2143,7 @@ def checkGuardSupportResponse(response, data) {
     Boolean guardSupported = false
     try {
         def respLen = response?.data?.toString()?.length() ?: null
-        if(isST() && response?.data && respLen && respLen > 485000) {
+        if(isStFLD && response?.data && respLen && respLen > 485000) {
             logInfo("GuardSupport Response Length: ${respLen}")
             Map minUpdMap = getMinVerUpdsRequired()
             if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
@@ -2457,7 +2456,7 @@ def echoDevicesResponse(response, data) {
 }
 
 private getDeviceIgnoreData() {
-    Map dData = deviceSupportMap()?.types ?: [:]
+    Map dData = deviceSupportMapFLD?.types ?: [:]
     if(dData?.size()) {
         List o = dData?.findAll { it?.value?.ignore == true }?.collect { it?.key as String }
         // log.debug "devTypeIgnoreData: ${o}"
@@ -2634,10 +2633,10 @@ def receiveEventData(Map evtData, String src) {
                     }
                     curDevFamily?.push(echoValue?.deviceStyle?.name)
                 }
-                if(!isST()) {
+                if(!isStFLD) {
                     String wsChildHandlerName = "Echo Speaks WS"
                     def oldWsDev = getChildDevice("echoSpeaks_websocket")
-                    if(oldWsDev) { isST() ? deleteChildDevice("echoSpeaks_websocket", true) : deleteChildDevice("echoSpeaks_websocket") }
+                    if(oldWsDev) { isStFLD ? deleteChildDevice("echoSpeaks_websocket", true) : deleteChildDevice("echoSpeaks_websocket") }
                     def wsDevice = getChildDevice("${app?.getId()}|echoSpeaks_websocket")
                     if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "${app?.getId()}|echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
                     updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
@@ -2645,6 +2644,7 @@ def receiveEventData(Map evtData, String src) {
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastTsValSecs("lastDevDataUpdDt")/60).toFloat()?.round(1)} minutes)")
                 updTsVal("lastDevDataUpdDt")
                 state?.echoDeviceMap = echoDeviceMap
+                echoDeviceMapFLD = echoDeviceMap
                 state?.allEchoDevices = allEchoDevices
                 state?.skippedDevices = skippedDevices
                 state?.deviceStyleCnts = curDevFamily?.countBy { it }
@@ -2665,20 +2665,24 @@ def receiveEventData(Map evtData, String src) {
     }
 }
 
+public static Map minVersions() {
+    return minVersionsFLD
+}
+
 private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
     Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones"]
-    if(!isST()) { codeItems?.wsDevice = "Echo Speaks Websocket" }
+    if(!isStFLD) { codeItems?.wsDevice = "Echo Speaks Websocket" }
     Map codeVers = state?.codeVersions ?: [:]
     codeVers?.each { k,v->
-        if(codeItems?.containsKey(k as String) && v != null && (versionStr2Int(v) < minVersions()[k as String])) { updRequired = true; updItems?.push(codeItems[k]); }
+        if(codeItems?.containsKey(k as String) && v != null && (versionStr2Int(v) < minVersionsFLD[k as String])) { updRequired = true; updItems?.push(codeItems[k]); }
     }
     return [updRequired: updRequired, updItems: updItems]
 }
 
 public getDeviceStyle(String family, String type) {
-    Map typeData = deviceSupportMap()?.types[type] ?: [:]
+    Map typeData = deviceSupportMapFLD?.types[type] ?: [:]
     if(typeData) {
         return typeData
     } else { return [name: "Echo Unknown $type", image: "unknown", allowTTS: false] }
@@ -2733,8 +2737,7 @@ private removeDevices(all=false) {
         def items = app.getChildDevices()?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : null }
         logWarn("removeDevices(${all ? "all" : ""}) | In Use: (${all ? 0 : devList?.size()}) | Removing: (${items?.size()})", true)
         if(items?.size() > 0) {
-            Boolean isST = isST()
-            items?.each {  isST ? deleteChildDevice(it as String, true) : deleteChildDevice(it as String) }
+            items?.each {  isStFLD ? deleteChildDevice(it as String, true) : deleteChildDevice(it as String) }
         }
     } catch (ex) { logError("Device Removal Failed: ${ex}") }
 }
@@ -2818,7 +2821,7 @@ Map createSequenceNode(command, value, Map deviceData = [:]) {
 private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
     if(method && callbackHandler && params) {
         String m = method?.toString()?.toLowerCase()
-        if(isST()) {
+        if(isStFLD) {
             include 'asynchttp_v1'
             asynchttp_v1."${m}"(callbackHandler, params, otherData)
         } else { "asynchttp${m?.capitalize()}"("${callbackHandler}", params, otherData) }
@@ -2905,7 +2908,7 @@ private healthCheck() {
     } else if (getLastTsValSecs("lastGuardSupChkDt") > 43200) {
         checkGuardSupport()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
-    if(!isST() && getSocketDevice()?.isSocketActive() != true) { getSocketDevice()?.triggerInitialize() }
+    if(!isStFLD && getSocketDevice()?.isSocketActive() != true) { getSocketDevice()?.triggerInitialize() }
     if(state?.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(!getOk2Notify()) { return }
     missPollNotify((settings?.sendMissedPollMsg == true), (settings?.misPollNotifyMsgWaitVal as Integer ?: 3600))
@@ -2939,7 +2942,7 @@ private missPollNotify(Boolean on, Integer wait) {
             updTsVal("lastMissedPollMsgDt")
         }
         if(state?.authValid) {
-            (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
+            (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
         }
     }
 }
@@ -3021,7 +3024,7 @@ Boolean quietTimeOk() {
     } else { return true }
     if(strtTime && stopTime) {
         // log.debug "quietTimeOk | Start: ${strtTime} | Stop: ${stopTime}"
-        if(!isST()) {
+        if(!isStFLD) {
             strtTime = toDateTime(strtTime)
             stopTime = toDateTime(stopTime)
         }
@@ -3101,12 +3104,12 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
 }
 
 Boolean childInstallOk() { return (state?.childInstallOkFlag == true) }
-String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
-String getPublicImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
-String sTS(String t, String i = null, bold=false) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${bold ? "<b>" : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}</h3>""" }
-String s3TS(String t, String st, String i = null, c="#1A77C9") { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : ""}""" }
-String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
-String inTS(String t, String i = null, color=null, under=true) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
+String getAppImg(String imgName, frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getPublicImg(String imgName, frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
+String sTS(String t, String i = null, bold=false) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${bold ? "<b>" : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}</h3>""" }
+String s3TS(String t, String st, String i = null, c="#1A77C9") { return isStFLD ? t : """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : ""}""" }
+String pTS(String t, String i = null, bold=true, color=null) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+String inTS(String t, String i = null, color=null, under=true) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
 String htmlLine(color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
 def appFooter() {
 	section() {
@@ -3121,7 +3124,7 @@ String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs
 String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def updateDocsInput() { href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")}
 
-String getAppEndpointUrl(subPath)   { return isST() ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
+String getAppEndpointUrl(subPath)   { return isStFLD ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
@@ -3158,16 +3161,16 @@ Integer getDaysSinceUpdated() {
     }
 }
 
-String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
-Boolean showChgLogOk() { return (state?.isInstalled && (state?.curAppVer != appVersion() || state?.installData?.shownChgLog != true)) }
+String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
+Boolean showChgLogOk() { return (state?.isInstalled && (state?.curAppVer != appVersionFLD || state?.installData?.shownChgLog != true)) }
 def changeLogPage() {
     def execTime = now()
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
-            paragraph title: "Release Notes", pTS(isST() ? "" : "Release Notes", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
+            paragraph title: "Release Notes", pTS(isStFLD ? "" : "Release Notes", getAppImg("whats_new", true), true), state: "complete", image: getAppImg("whats_new")
             paragraph pTS(changeLogData(), null, false, "gray")
         }
-        state?.curAppVer = appVersion()
+        state?.curAppVer = appVersionFLD
         updInstData("shownChgLog", true)
     }
 }
@@ -3233,7 +3236,7 @@ def processFirebaseResponse(resp, data) {
         } else if(resp?.status == 400) {
             logError("processFirebaseResponse: 'Bad Request': ${resp?.status}")
         } else { logWarn("processFirebaseResponse: 'Unexpected' Response: ${resp?.status}") }
-        if (isST() && resp?.hasError()) { logError("processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}") }
+        // if (isStFLD && resp?.hasError()) { logError("processFirebaseResponse: errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}") }
     } catch(ex) {
         logError("processFirebaseResponse (type: $typeDesc) Exception: ${ex}")
     }
@@ -3259,7 +3262,7 @@ private createMetricsDataJson(rendAsMap=false) {
         Map swVer = state?.codeVersions
         Map deviceUsageMap = [:]
         Map deviceErrorMap = [:]
-        (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { d->
+        (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { d->
             Map obj = d?.getDeviceMetrics()
             if(obj?.usage?.size()) { obj?.usage?.each { k,v-> deviceUsageMap[k as String] = (deviceUsageMap[k as String] ? deviceUsageMap[k as String] + v : v) } }
             if(obj?.errors?.size()) { obj?.errors?.each { k,v-> deviceErrorMap[k as String] = (deviceErrorMap[k as String] ? deviceErrorMap[k as String] + v : v) } }
@@ -3276,12 +3279,12 @@ private createMetricsDataJson(rendAsMap=false) {
             installDt: state?.installData?.dt,
             updatedDt: state?.installData?.updatedDt,
             timeZone: location?.timeZone?.ID?.toString(),
-            hubPlatform: getPlatform(),
+            hubPlatform: platformFLD,
             authValid: (state?.authValid == true),
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
             serverPlatform: (getServerItem("onHeroku") == true) ? "Cloud" : "Local",
-            versions: [app: appVersion(), server: swVer?.server ?: "N/A", actions: swVer?.actionApp ?: "N/A", zones: swVer?.zoneApp ?: "N/A", device: swVer?.echoDevice ?: "N/A", socket: swVer?.wsDevice ?: "N/A"],
+            versions: [app: appVersionFLD, server: swVer?.server ?: "N/A", actions: swVer?.actionApp ?: "N/A", zones: swVer?.zoneApp ?: "N/A", device: swVer?.echoDevice ?: "N/A", socket: swVer?.wsDevice ?: "N/A"],
             detections: [skippedDevices: getSkippedDevsAnon()],
             actions: actData,
             zones: zoneData,
@@ -3333,7 +3336,7 @@ Boolean appUpdAvail() { return (state?.appData?.versions && state?.codeVersions?
 Boolean actionUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.actionApp && codeUpdIsAvail(state?.appData?.versions?.actionApp?.ver, state?.codeVersions?.actionApp, "action_app")) }
 Boolean zoneUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.zoneApp && codeUpdIsAvail(state?.appData?.versions?.zoneApp?.ver, state?.codeVersions?.zoneApp, "zone_app")) }
 Boolean echoDevUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.echoDevice && codeUpdIsAvail(state?.appData?.versions?.echoDevice?.ver, state?.codeVersions?.echoDevice, "dev")) }
-Boolean socketUpdAvail() { return (!isST() && state?.appData?.versions && state?.codeVersions?.wsDevice && codeUpdIsAvail(state?.appData?.versions?.wsDevice?.ver, state?.codeVersions?.wsDevice, "socket")) }
+Boolean socketUpdAvail() { return (!isStFLD && state?.appData?.versions && state?.codeVersions?.wsDevice && codeUpdIsAvail(state?.appData?.versions?.wsDevice?.ver, state?.codeVersions?.wsDevice, "socket")) }
 Boolean serverUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.server && codeUpdIsAvail(state?.appData?.versions?.server?.ver, state?.codeVersions?.server, "server")) }
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 
@@ -3348,7 +3351,7 @@ private checkVersionData(now = false) { //This reads a JSON file from GitHub wit
 
 private getConfigData() {
     Map params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/appData.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/appData.json",
         contentType: "application/json",
         timeout: 20,
     ]
@@ -3393,44 +3396,42 @@ private getWebData(params, desc, text=true) {
 
 
 // TODO: https://m.media-amazon.com/images/G/01/mobile-apps/dex/ask-tech-docs/ask-soundlibrary._TTH_.json
-Map getAvailableSounds() {
-    return [
-        // Bells and Buzzer
-        bells: "bell_02",
-        buzzer: "buzzers_pistols_01",
-        church_bell: "amzn_sfx_church_bell_1x_02",
-        doorbell1: "amzn_sfx_doorbell_01",
-        doorbell2: "amzn_sfx_doorbell_chime_01",
-        doorbell3: "amzn_sfx_doorbell_chime_02",
-        // Holidays
-        xmas_bells: "christmas_05",
-        halloween_door: "horror_10",
-        // Misc
-        air_horn: "air_horn_03",
-        boing1: "boing_01",
-        boing2: "boing_03",
-        camera: "camera_01",
-        squeaky_door: "squeaky_12",
-        ticking_clock: "clock_01",
-        trumpet: "amzn_sfx_trumpet_bugle_04",
-        // Animals
-        cat_meow: "amzn_sfx_cat_meow_1x_01",
-        dog_bark: "amzn_sfx_dog_med_bark_1x_02",
-        lion_roar: "amzn_sfx_lion_roar_02",
-        rooster: "amzn_sfx_rooster_crow_01",
-        wolf_howl: "amzn_sfx_wolf_howl_02",
-        // Scifi
-        aircraft: "futuristic_10",
-        engines: "amzn_sfx_scifi_engines_on_02",
-        red_alert: "amzn_sfx_scifi_alarm_04",
-        shields: "amzn_sfx_scifi_sheilds_up_01",
-        sirens: "amzn_sfx_scifi_alarm_01",
-        zap: "zap_01",
-        // Crowds
-        applause: "amzn_sfx_crowd_applause_01",
-        cheer: "amzn_sfx_large_crowd_cheer_01"
-    ]
-}
+@Field static final Map getAvailableSoundsFLD = [
+    // Bells and Buzzer
+    bells: "bell_02",
+    buzzer: "buzzers_pistols_01",
+    church_bell: "amzn_sfx_church_bell_1x_02",
+    doorbell1: "amzn_sfx_doorbell_01",
+    doorbell2: "amzn_sfx_doorbell_chime_01",
+    doorbell3: "amzn_sfx_doorbell_chime_02",
+    // Holidays
+    xmas_bells: "christmas_05",
+    halloween_door: "horror_10",
+    // Misc
+    air_horn: "air_horn_03",
+    boing1: "boing_01",
+    boing2: "boing_03",
+    camera: "camera_01",
+    squeaky_door: "squeaky_12",
+    ticking_clock: "clock_01",
+    trumpet: "amzn_sfx_trumpet_bugle_04",
+    // Animals
+    cat_meow: "amzn_sfx_cat_meow_1x_01",
+    dog_bark: "amzn_sfx_dog_med_bark_1x_02",
+    lion_roar: "amzn_sfx_lion_roar_02",
+    rooster: "amzn_sfx_rooster_crow_01",
+    wolf_howl: "amzn_sfx_wolf_howl_02",
+    // Scifi
+    aircraft: "futuristic_10",
+    engines: "amzn_sfx_scifi_engines_on_02",
+    red_alert: "amzn_sfx_scifi_alarm_04",
+    shields: "amzn_sfx_scifi_sheilds_up_01",
+    sirens: "amzn_sfx_scifi_alarm_01",
+    zap: "zap_01",
+    // Crowds
+    applause: "amzn_sfx_crowd_applause_01",
+    cheer: "amzn_sfx_large_crowd_cheer_01"
+]
 
 /******************************************
 |    Diagnostic Data
@@ -3481,7 +3482,7 @@ private getDiagDataJson(asObj = false) {
         Map output = [
             diagDt: getDtNow()?.toString(),
             app: [
-                version: appVersion(),
+                version: appVersionFLD,
                 installed: state?.installData?.dt,
                 updated: state?.installData?.updatedDt,
                 timeZone: location?.timeZone?.ID?.toString(),
@@ -3541,7 +3542,7 @@ private getDiagDataJson(asObj = false) {
                 lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
             ],
             hub: [
-                platform: getPlatform(),
+                platform: platformFLD,
                 firmware: location?.hubs[0]?.getFirmwareVersionString() ?: null,
                 type: location?.hubs[0]?.getType() ?: null
             ],
@@ -3657,7 +3658,7 @@ def getDiagData() {
                 <div class="container-fluid">
                     <div class="text-center">
                         <h3 class="mt-4 mb-0">Echo Speaks Diagnostics</h3>
-                        <p>(v${appVersion()})</p>
+                        <p>(v${appVersionFLD})</p>
                     </div>
                     <div class="text-center">
                         <h5 class="mt-4 mb-0">Diagnostic Data</h5>
@@ -3732,7 +3733,7 @@ def execDiagCmds() {
                 break
         }
     }
-    def json = new groovy.json.JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersion()])
+    def json = new groovy.json.JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersionFLD])
     render contentType: "application/json", data: json, status: 200
 }
 
@@ -3974,7 +3975,7 @@ void settingUpdate(name, value, type=null) {
 
 void settingRemove(String name) {
     logTrace("settingRemove($name)...")
-    if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
+    if(name && settings?.containsKey(name as String)) { isStFLD ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
 }
 
 private updCodeVerMap(key, val) {
@@ -4103,7 +4104,7 @@ String getInputToStringDesc(inpt, addSpace = null) {
 def appInfoSect2() {
     Map codeVer = state?.codeVersions ?: null
     Boolean isNote = false
-    String tStr = """<small style="color: gray;"><b>Version:</b> v${appVersion()}</small>${state?.pluginDetails?.version ? """<br><small style="color: gray;"><b>Plugin:</b> v${state?.pluginDetails?.version}</small>""" : ""}"""
+    String tStr = """<small style="color: gray;"><b>Version:</b> v${appVersionFLD}</small>${state?.pluginDetails?.version ? """<br><small style="color: gray;"><b>Plugin:</b> v${state?.pluginDetails?.version}</small>""" : ""}"""
     section (s3TS(app?.name, tStr, getAppImg("hb_tonesto7@2x", true), "orange")) {
         Map minUpdMap = getMinVerUpdsRequired()
         List codeUpdItems = codeUpdateItems(true)
@@ -4132,11 +4133,11 @@ def appInfoSect()	{
         str += (codeVer && codeVer?.echoDevice) ? bulletItem(str, "Device: (v${codeVer?.echoDevice})") : ""
         str += (codeVer && codeVer?.actionApp) ? bulletItem(str, "Action: (v${codeVer?.actionApp})") : ""
         str += (codeVer && codeVer?.zoneApp) ? bulletItem(str, "Zone: (v${codeVer?.zoneApp})") : ""
-        str += (!isST() && codeVer && codeVer?.wsDevice) ? bulletItem(str, "Socket: (v${codeVer?.wsDevice})") : ""
+        str += (codeVer && codeVer?.wsDevice) ? bulletItem(str, "Socket: (v${codeVer?.wsDevice})") : ""
         str += (codeVer && codeVer?.server) ? bulletItem(str, "Server: (v${codeVer?.server})") : ""
     }
     section() {
-        href "changeLogPage", title: inTS("${app?.name} (v${appVersion()})", getAppImg("echo_speaks_3.2x", true), null, false), description: str, image: getAppImg("echo_speaks_3.2x")
+        href "changeLogPage", title: inTS("${app?.name} (v${appVersionFLD})", getAppImg("echo_speaks_3.2x", true), null, false), description: str, image: getAppImg("echo_speaks_3.2x")
         if(!state?.isInstalled) {
             paragraph pTS("--NEW Install--", null, true, "#2784D9"), state: "complete"
         } else {
@@ -4210,7 +4211,7 @@ Boolean getAccessToken() {
 }
 
 private getTextEditChild(id) {
-    if(!isST()) {
+    if(!isStFLD) {
         Long longId = id as Long
         return getChildAppById(longId) ?: null
     } else { return getActionApps()?.find { it?.id == id } ?: null }
@@ -4218,7 +4219,7 @@ private getTextEditChild(id) {
 
 def renderConfig() {
     String title = "Echo Speaks"
-    Boolean heroku = (isST() || (settings?.useHeroku == null || settings?.useHeroku != false))
+    Boolean heroku = (isStFLD || (settings?.useHeroku == null || settings?.useHeroku != false))
     String oStr = !heroku ? """
         <div id="localServerDiv" class="w-100 mb-3">
             <div class="my-2 text-left">
@@ -4241,7 +4242,7 @@ def renderConfig() {
             </div>
             <div class="my-2 text-center">
                 <h5>2. Tap Button to deploy to Heroku</h5>
-                <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/${isBeta() ? "dev" : "master"}${getEnvParamsStr()}">
+                <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/${betaFLD ? "dev" : "master"}${getEnvParamsStr()}">
                     <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
                 </a>
             </div>
@@ -4869,7 +4870,7 @@ def textEditProcessing() {
     def resp = request?.JSON ?: null
     def actApp = getTextEditChild(actId)
     Boolean status = (actApp && actApp?.updateTxtEntry(resp))
-    def json = new groovy.json.JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersion()])
+    def json = new groovy.json.JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersionFLD])
     render contentType: "application/json", data: json, status: 200
 }
 
@@ -4886,43 +4887,13 @@ String getTextEditorPath(cId, inName) {
     return getAppEndpointUrl("textEditor/${cId}/${inName}") as String
 }
 
-def okSym() {
-    return "\u2713"
-}
-def notOkSym() {
-    return "\u2715"
-}
 
-String getObjType(obj) {
-    if(obj instanceof String) {return "String"}
-    else if(obj instanceof GString) {return "GString"}
-    else if(obj instanceof Map) {return "Map"}
-    else if(obj instanceof List) {return "List"}
-    else if(obj instanceof ArrayList) {return "ArrayList"}
-    else if(obj instanceof Integer) {return "Integer"}
-    else if(obj instanceof BigInteger) {return "BigInteger"}
-    else if(obj instanceof Long) {return "Long"}
-    else if(obj instanceof Boolean) {return "Boolean"}
-    else if(obj instanceof BigDecimal) {return "BigDecimal"}
-    else if(obj instanceof Float) {return "Float"}
-    else if(obj instanceof Byte) {return "Byte"}
-    else if(obj instanceof Date) {return "Date"}
-    else { return "unknown"}
-}
-
-private List amazonDomainOpts() { return (state?.appData && state?.appData?.amazonDomains?.size()) ? state?.appData?.amazonDomains : ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx"] }
-private List localeOpts() { return (state?.appData && state?.appData?.locales?.size()) ? state?.appData?.locales : ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY"] }
-
-private getPlatform() {
-    def p = "SmartThings"
-    if(state?.hubPlatform == null) {
-        try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
-        // p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
-        state?.hubPlatform = p
-    }
-    // log.debug "hubPlatform: (${state?.hubPlatform})"
-    return state?.hubPlatform
-}
+@Field static final String okSymFLD       = "\u2713"
+@Field static final String notOkSymFLD    = "\u2715"
+@Field static final List amazonDomainsFLD = ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx"]
+@Field static final List localesFLD       = ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY"]
+private List amazonDomainOpts() { return (state?.appData && state?.appData?.amazonDomains?.size()) ? state?.appData?.amazonDomains : amazonDomainsFLD }
+private List localeOpts() { return (state?.appData && state?.appData?.locales?.size()) ? state?.appData?.locales : localesFLD }
 
 Boolean isContactOpen(sensors) {
     if(sensors) { sensors?.each { if(sensors?.currentSwitch == "open") { return true } } }
@@ -4954,15 +4925,15 @@ Boolean isInAlarmMode(modes) {
 }
 
 String getAlarmSystemName(abbr=false) {
-    return isST() ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
+    return isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 
 List getAlarmModes() {
-    return isST() ? ["off", "stay", "away"] : ["disarm", "armNight", "armHome", "armAway"]
+    return isStFLD ? ["off", "stay", "away"] : ["disarm", "armNight", "armHome", "armAway"]
 }
 
 String getAlarmSystemStatus() {
-    if(isST()) {
+    if(isStFLD) {
         def cur = location?.currentState("alarmSystemStatus")?.value
         def inc = getShmIncidents()
         if(inc != null && inc?.size()) { cur = 'alarm_active' }
@@ -4976,7 +4947,7 @@ def getShmIncidents() {
 }
 
 public setAlarmSystemMode(mode) {
-    if(!isST()) {
+    if(!isStFLD) {
         switch(mode) {
             case "armAway":
             case "away":
@@ -4994,31 +4965,11 @@ public setAlarmSystemMode(mode) {
         }
     }
     logInfo("Setting the ${getAlarmSystemName()} Mode to (${mode})...")
-    sendLocationEvent(name: (isST() ? 'alarmSystemStatus' : 'hsmSetArm'), value: mode.toString())
+    sendLocationEvent(name: (isStFLD ? 'alarmSystemStatus' : 'hsmSetArm'), value: mode.toString())
 }
 
-public JsonElementsParser(root) {
-    if (root instanceof List) {
-        root.collect {
-            if (it instanceof Map) { JsonElementsParser(it) }
-            else if (it instanceof List) { JsonElementsParser(it) }
-            else if (it == null) { null }
-            else {
-                if(it?.toString()?.startsWith("{") && it?.toString()?.endsWith("}")) { it = JsonElementsParser(parseJson(it?.toString())) }
-                else { it }
-            }
-        }
-    } else if (root instanceof Map) {
-        root.each {
-            if (it.value instanceof Map) { JsonElementsParser(it.value) }
-            else if (it.value instanceof List) { it.value = JsonElementsParser(it.value) }
-            else if (it.value == null) { it.value }
-        }
-    }
-}
-
-Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
-Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
+private Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
+private Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
 
 List logLevels() {
     List lItems = ["logInfo", "logWarn", "logDebug", "logError", "logTrace"]
@@ -5032,214 +4983,366 @@ String getAppDebugDesc() {
     return (str != "") ? "${str}" : null
 }
 
-private addToLogHistory(String logKey, msg, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = atomicState[logKey as String] ?: []
-    if(eData?.find { it?.message == msg }) { return; }
-    eData?.push([dt: getDtNow(), message: msg])
+private addToLogHistory(String logKey, data, Integer max=10) {
+    Boolean ssOk = (stateSizePerc() > 70)
+    List eData = getMemStoreItem(logKey) ?: []
+    if(eData?.find { it?.data == data }) { return; }
+    eData?.push([dt: getDtNow(), data: data])
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
-    atomicState[logKey as String] = eData
+    updMemStoreItem(logKey, eData)
 }
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info " EchoApp (v${appVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "EchoApp (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
-// public hasLogDevice() { return (settings?.logDevice != null) }
-// public sendLog(msg, lvl) {
-//     if(settings?.logDevice) {
-//         parent?.logToDevice(app?.getLabel(), "app", msg, appVersion(), lvl)
-//     }
-// }
-
-public logToDevice(src, srcType, msg, ver, lvl) {
-    if(settings?.logDevice) {
-        settings?.logDevice?.sendLog(src, srcType, msg, ver, lvl)
-    }
-}
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug "EchoApp (v${appVersionFLD}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info " EchoApp (v${appVersionFLD}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace "EchoApp (v${appVersionFLD}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " EchoApp (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "EchoApp (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 def clearDiagLogs(type="all") {
     // log.debug "clearDiagLogs($type)"
     if(type=="all") {
         clearLogHistory()
         getActionApps()?.each { ca-> ca?.clearLogHistory() }
-        (isST() ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.clearLogHistory() }
+        (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.clearLogHistory() }
         return true
     }
     return false
 }
 
-Map getLogHistory() {
-    return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
+private Map getLogHistory() {
+    return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [] ]
 }
-void clearLogHistory() {
-    atomicState?.warnHistory = []
-    atomicState?.errorHistory = []
+private void clearHistory()  { historyMapFLD = [:]; mb(); }
+
+// FIELD VARIABLE FUNCTIONS
+private void updMemStoreItem(String key, val) {
+    String appId = app.getId()
+    Map memStore = historyMapFLD[appId] ?: [:]
+    memStore[key] = val
+    historyMapFLD[appId] = memStore
+    historyMapFLD = historyMapFLD
+    // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
 }
 
-private Map deviceSupportMap() {
-    return [
-        types: [
-            "A10A33FOX2NUBK": [ caps: [ "a", "t" ], image: "echo_spot_gen1", name: "Echo Spot" ],
-            "A10L5JEZTKKCZ8": [ caps: [ "a", "t" ], image: "vobot_bunny", name: "Vobot Bunny" ],
-            "A112LJ20W14H95": [ ignore: true ],
-            "A12GXV8XMS007S": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen1)" ],
-            "A15ERDAKK5HQQG": [ image: "sonos_generic", name: "Sonos" ],
-            "A16MZVIFVHX6P6": [ caps: [ "a", "t" ], image: "unknown", name: "Generic Echo" ],
-            "A17LGWINFBUTZZ": [ caps: [ "t", "a" ], image: "roav_viva", name: "Anker Roav Viva" ],
-            "A18BI6KPKDOEI4": [ caps: [ "a", "t" ], image: "ecobee4", name: "Ecobee4" ],
-            "A18O6U1UQFJ0XK": [ caps: [ "a", "t" ], image: "echo_plus_gen2", name: "Echo Plus (Gen2)" ],
-            "A1C66CX2XD756O": [ caps: [ "a", "t" ], image: "amazon_tablet", name: "Fire Tablet HD" ],
-            "A1DL2DVDQVK3Q" :  [ blocked: true, ignore: true, name: "Mobile App" ],
-            "A1F8D55J0FWDTN": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV (Toshiba)" ],
-            "A1GC6GEE1XF1G9": [ ignore: true ],
-            "A1H0CMF1XM0ZP4": [ blocked: true, name: "Bose SoundTouch 30" ],
-            "A1J16TEDOYCZTN": [ caps: [ "a", "t" ], image: "amazon_tablet", name: "Fire Tablet" ],
-            "A1JJ0KFC4ZPNJ3": [ caps: [ "a", "t" ], image: "echo_input", name: "Echo Input" ],
-            "A1M0A9L9HDBID3": [ caps: [ "t" ], image: "one-link", name: "One-Link Safe and Sound" ],
-            "A1MPSLFC7L5AFK": [ ignore: true ],
-            "A1N9SW0I0LUX5Y": [ blocked: false, caps: [ "a", "t" ], image: "unknown", name: "Ford/Lincoln Alexa App" ],
-            "A1NL4BVLQ4L3N3": [ caps: [ "a", "t" ], image: "echo_show_gen1", name: "Echo Show (Gen1)" ],
-            "A1ORT4KZ23OY88": [ ignore: true ],
-            "A1P31Q3MOWSHOD": [ caps: [ "t", "a" ], image: "halo_speaker", name: "Zolo Halo Speaker" ],
-            "A1Q7QCGNMXAKYW": [ blocked: true, image: "amazon_tablet", name: "Generic Tablet" ],
-            "A1RABVCI4QCIKC": [ caps: [ "a", "t" ], image: "echo_dot_gen3", name: "Echo Dot (Gen3)" ],
-            "A1RTAM01W29CUP": [ caps: [ "a", "t" ], image: "alexa_windows", name: "Windows App" ],
-            "A1VS6XVTGTLC00": [ ignore: true ],
-            "A1VZJGJYCRI78V": [ ignore: true ],
-            "A1W2YILXTG9HA7": [ caps: [ "t", "a" ], image: "unknown", name: "Nextbase 522GW Dashcam" ],
-            "A1X7HJX9QL16M5": [ blocked: true, ignore: true, name: "Bespoken.io" ],
-            "A1Z88NGR2BK6A2": [ caps: [ "a", "t" ], image: "echo_show_gen2", name: "Echo Show 8" ],
-            "A1ZB65LA390I4K": [ ignore: true ],
-            "A21X6I4DKINIZU": [ ignore: true ],
-            "A21Z3CGI8UIP0F": [ ignore: true ],
-            "A25EC4GIHFOCSG": [ blocked: true, name: "Unrecognized Media Player" ],
-            "A27VEYGQBW3YR5": [ caps: [ "a", "t" ], image: "echo_link", name: "Echo Link" ],
-            "A2825NDLA7WDZV": [ ignore: true ],
-            "A29L394LN0I8HN": [ ignore: true ],
-            "A2C8J6UHV0KFCV": [ ignore: true ],
-            "A2E0SNTXJVT7WK": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen2)" ],
-            "A2GFL5ZMWNE0PX": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen3)" ],
-            "A2HZENIFNYTXZD": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
-            "A52ARKF0HM2T4": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal+" ],
-            "A2IVLV5VM2W81": [  ignore: true ],
-            "A2J0R2SD7G9LPA": [ caps: [ "a", "t" ], image: "lenovo_smarttab_m10", name: "Lenovo SmartTab M10" ],
-            "A2JKHJ0PX4J3L3": [ caps: [ "a", "t" ], image: "firetv_cube", name: "Fire TV Cube (Gen2)" ],
-            "A2LH725P8DQR2A": [ caps: [ "a", "t" ], image: "fabriq_riff", name: "Fabriq Riff" ],
-            "A2LWARUGJLBYEW": [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick (Gen2)" ],
-            "A2M35JJZWCQOMZ": [ caps: [ "a", "t" ], image: "echo_plus_gen1", name: "Echo Plus (Gen1)" ],
-            "A2M4YX06LWP8WI": [ caps: [ "a", "t" ], image: "amazon_tablet", name: "Fire Tablet" ],
-            "A2OSP3UA4VC85F": [ image: "sonos_generic", name: "Sonos" ],
-            "A2R2GLZH1DFYQO": [ caps: [ "t", "a" ], image: "halo_speaker", name: "Zolo Halo Speaker" ],
-            "A2RJLFEH0UEKI9": [ ignore: true ],
-            "A2T0P32DY3F7VB": [ ignore: true ],
-            "A2TF17PFR55MTB": [ ignore: true ],
-            "A2TOXM6L8SFS8A": [ ignore: true ],
-            "A2V3E2XUH5Z7M8": [ ignore: true ],
-            "A2WN1FJ2HG09UN": [ ignore: true ],
-            "A18TCD9FP10WJ9": [ ignore: true ],
-            "A1FWRGKHME4LXH": [ ignore: true ],
-            "A26TRKU1GG059T": [ ignore: true ],
-            "A2S24G29BFP88":  [ ignore: true, image: "unknown", name: "Ford/Lincoln Alexa App" ],
-            "A1NAFO69AAQ16Bk":  [ ignore: true, image: "unknown", name: "Wyze Band" ],
-            "A1NAFO69AAQ16B":  [ ignore: true, image: "unknown", name: "Wyze Band" ],
-            "A3L2K717GERE73": [ ignore: true, image: "unknown", name: "Voice in a Can (iOS)" ],
-            "A222D4HGE48EOR": [ ignore: true, image: "unknown", name: "Voice in a Can (Apple Watch)" ],
-            "A19JK51Y4N50K5": [ ignore: true, image: "unknown", name: "Jabra(?)" ],
-            "A2X8WT9JELC577": [ caps: [ "a", "t" ], image: "ecobee4", name: "Ecobee5" ],
-            "A2XPGY5LRKB9BE": [ caps: [ "a", "t" ], image: "unknown", name: "Fitbit Versa 2" ],
-            "A2Y04QPFCANLPQ": [ caps: [ "a", "t" ], image: "unknown", name: "Bose QuietComfort 35 II" ],
-            "A2ZOTUOF1IBEYI": [ ignore: true ],
-            "A303PJF6ISQ7IC": [ caps: [ "a", "t" ], image: "echo_auto", name: "Echo Auto" ],
-            "A195TXHV1M5D4A": [ caps: [ "a", "t" ], image: "echo_auto", name: "Echo Auto" ],
-            "A30YDR2MK8HMRV": [ caps: [ "a", "t" ], image: "echo_dot_clock", name: "Echo Dot Clock" ],
-            "A32DDESGESSHZA": [ caps: [ "a", "t" ], image: "echo_dot_gen3",  "name" : "Echo Dot (Gen3)" ],
-            "A32DOYMUN6DTXA": [ caps: [ "a", "t" ],  image: "echo_dot_gen3",  "name" : "Echo Dot (Gen3)" ],
-            "A347G2JC8I4HC7": [ caps: [ "a", "t" ], image: "unknown", name: "Roav Car Charger Pro" ],
-            "A37CFAHI1O0CXT": [ image: "logitech_blast", name: "Logitech Blast" ],
-            "A37M7RU8Z6ZFB": [ ignore: true ],
-            "A37SHHQ3NUL7B5": [ blocked: true, name: "Bose Home Speaker 500" ],
-            "A38949IHXHRQ5P": [ caps: [ "a", "t" ], image: "echo_tap", name: "Echo Tap" ],
-            "A38BPK7OW001EX": [ blocked: true, name: "Raspberry Alexa" ],
-            "A38EHHIB10L47V": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
-            "A3B50IC5QPZPWP": [ caps: [ "a", "t" ], image: "unknown", name: "Polk Command Bar" ],
-            "A3B5K1G3EITBIF": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
-            "A3D4YURNTARP5K": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal TV" ],
-            "A3CY98NH016S5F": [ caps: [ "a", "t" ], image: "unknown", name: "Facebook Portal Mini" ],
-            "A3BRT6REMPQWA8": [ caps: [ "a", "t" ], image: "sonos_generic", name: "Bose Home Speaker 450" ],
-            "A3C9PE6TNYLTCH": [ image: "echo_wha", name: "Multiroom" ],
-            "A3F1S88NTZZXS9": [ blocked: true, image: "dash_wand", name: "Dash Wand" ],
-            "A2WFDCBDEXOXR8": [ blocked: true, image: "unknown", name: "Bose Soundbar 700" ],
-            "A3FX4UWTP28V1P": [ caps: [ "a", "t" ], image: "echo_plus_gen2", name: "Echo (Gen3)" ],
-            "A3H674413M2EKB": [ ignore: true ],
-            "A3KULB3NQN7Z1F": [ caps: [ "a", "t" ], image: "unknown", name: "Unknown TV" ],
-            "A18TCD9FP10WJ9": [ caps: [ "a", "t" ], image: "unknown", name: "Orbi Voice" ],
-            "AGHZIK8D6X7QR": [ caps: [ "a", "t" ], image: "unknown", name: "Fire TV" ],
-            "A3HF4YRA2L7XGC": [ caps: [ "a", "t" ], image: "firetv_cube", name: "Fire TV Cube" ],
-            "A3L0T0VL9A921N": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
-            "AVU7CPPF2ZRAS": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
-            "A3NPD82ABCPIDP": [ caps: [ "t" ], image: "sonos_beam", name: "Sonos Beam" ],
-            "A3NVKTZUPX1J3X": [ ignore: true, name: "Onkyp VC30" ],
-            "A3NWHXTQ4EBCZS": [ ignore: true ],
-            "A2RG3FY1YV97SS": [ ignore: true ],
-            "A3IYPH06PH1HRA": [ caps: [ "a", "t" ], image: "echo_frames", name: "Echo Frames" ],
-            "AKO51L5QAQKL2": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Jams" ],
-            "A3K69RS3EIMXPI": [ caps: [ "a", "t" ], image: "unknown", name: "Hisense Smart TV" ],
-            "A1QKZ9D0IJY332": [ caps: [ "a", "t" ], image: "unknown", name: "Samsung TV 2020-U" ],
-            "A3QPPX1R9W5RJV": [ caps: [ "a", "t" ], image: "fabriq_chorus", name: "Fabriq Chorus" ],
-            "A3R9S4ZZECZ6YL": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 10" ],
-            "A3RBAYBE7VM004": [ caps: [ "a", "t" ], image: "echo_studio", name: "Echo Studio" ],
-            "A2RU4B77X9R9NZ": [ caps: [ "a", "t" ], image: "echo_link_amp", name: "Echo Link Amp" ],
-            "A3S5BH2HU6VAYF": [ caps: [ "a", "t" ], image: "echo_dot_gen2", name: "Echo Dot (Gen2)" ],
-            "A3SSG6GR8UU7SN": [ caps: [ "a", "t" ], image: "echo_sub_gen1", name: "Echo Sub" ],
-            "A3BW5ZVFHRCQPO": [ caps: [ "a", "t" ], image: "unknown", name: "BMW Alexa Integration" ],
-            "A3SSWQ04XYPXBH": [ blocked: true, image: "amazon_tablet", name: "Generic Tablet" ],
-            "A3TCJ8RTT3NVI7": [ ignore: true ],
-            "A3VRME03NAXFUB": [ caps: [ "a", "t" ], image: "echo_flex", name: "Echo Flex" ],
-            "A4ZP7ZC4PI6TO": [ caps: [ "a", "t" ], image: "echo_show_5", name: "Echo Show 5 (Gen1)" ],
-            "A7WXQPH584YP":  [ caps: [ "a", "t" ], image: "echo_gen2", name: "Echo (Gen2)" ],
-            "A81PNL0A63P93": [ caps: [ "a", "t" ], image: "unknown", name: "Home Remote" ],
-            "AB72C64C86AW2": [ caps: [ "a", "t" ], image: "echo_gen1", name: "Echo (Gen1)" ],
-            "A1SCI5MODUBAT1": [ caps: [ "a", "t"], image: "unknown", name: "Pioneer DMH-W466NEX" ],
-            "A1ETW4IXK2PYBP": [ caps: [ "a", "t"], image: "unknown", name: "Talk to Alexa" ],
-            "ABP0V5EHO8A4U": [ ignore: true ],
-            "AD2YUJTRVBNOF": [ ignore: true ],
-            "ADQRVG6LYK4LQ": [ ignore: true ],
-            "ADVBD696BHNV5": [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick (Gen1)" ],
-            "AE7X7Z227NFNS": [ caps: [ "a", "t" ], image: "unknown", name: "HiMirror Mini" ],
-            "AF473ZSOIRKFJ": [ caps: [ "a", "t" ], image: "unknown", name: "Onkyo VC-PX30" ],
-            "AFF50AL5E3DIU": [ caps: [ "a", "t" ], image: "insignia_firetv",  "name" : "Fire TV (Insignia)" ],
-            "AGZWSPR7FLP9E": [ ignore: true ],
-            "AILBSA2LNTOYL": [ ignore: true ],
-            "AKKLQD9FZWWQS": [ blocked: true, caps: [ "a", "t" ], image: "unknown", name: "Jabra Elite" ],
-            "AKNO1N0KSFN8L": [ caps: [ "a", "t" ], image: "echo_dot_gen1", name: "Echo Dot (Gen1)" ],
-            "AKPGW064GI9HE": [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick 4K (Gen3)" ],
-            "AO6HHP9UE6EOF": [ caps: [ "a", "t" ], image: "unknown", name: "Unknown Media Device" ],
-            "AP1F6KUH00XPV": [ blocked: true, name: "Stereo/Subwoofer Pair" ],
-            "AP4RS91ZQ0OOI": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV (Toshiba)" ],
-            "AFF5OAL5E3DIU": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV" ],
-            "ATH4K2BAIXVHQ": [ ignore: true ],
-            "AUPUQSVCVHXP0": [ ignore: true ],
-            "AVD3HM0HOJAAL": [ image: "sonos_generic", name: "Sonos" ],
-            "AVE5HX13UR5NO": [ caps: [ "a", "t" ], image: "logitech_zero_touch", name: "Logitech Zero Touch" ],
-            "AVN2TMX8MU2YM": [ blocked: true, name: "Bose Home Speaker 500" ],
-            "AWZZ5CVHX2CD":  [ caps: [ "a", "t" ], image: "echo_show_gen2", name: "Echo Show (Gen2)" ],
-            "A2C8J6UHV0KFCV": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Gear" ],
-            "AUPUQSVCVHXP0": [ caps: [ "a", "t" ], image: "unknown", name: "Ecobee Switch+" ],
-            "A2RJLFEH0UEKI9": [ ignore: true ],
-            "AKOAGQTKAS9YB": [ ignore: true ],
-            "A37M7RU8Z6ZFB": [ caps: [ "a", "t" ], image: "unknown", name: "Garmin Speak" ],
-            "A2WN1FJ2HG09UN": [ caps: [ "a", "t" ], image: "unknown", name: "Ultimate Alexa App" ],
-            "A2BRQDVMSZD13S": [ caps: [ "a", "t" ], image: "unknown", name: "SURE Universal Remote" ],
-            "A3TCJ8RTT3NVI7": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Listens" ]
-        ],
-        families: [
-            block: [ "AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP" ],
-            echo: [ "ROOK", "KNIGHT", "ECHO" ],
-            other: [ "REAVER", "FIRE_TV", "FIRE_TV_CUBE", "ALEXA_AUTO", "MMSDK" ],
-            tablet: [ "TABLET" ],
-            wha: [ "WHA" ]
-        ]
-    ]
+private List getMemStoreItem(String key){
+    String appId = app.getId()
+    Map memStore = historyMapFLD[appId] ?: [:]
+    return memStore[key] ?: null
 }
+
+// Memory Barrier
+@Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+
+static void mb(String meth=sNULL){
+    if((Boolean)theMBLockFLD.tryAcquire()){
+        theMBLockFLD.release()
+    }
+}
+
+@Field static final String sHMLF = 'theHistMapLockFLD'
+@Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
+
+private Integer getSemaNum(String name) {
+    if(name == sHMLF) return 0 
+    log.warn "unrecognized lock name..."
+    return 0
+	// Integer stripes=22
+	// if(name.isNumber()) return name.toInteger()%stripes
+	// Integer hash=smear(name.hashCode())
+	// return Math.abs(hash)%stripes
+    // log.info "sema $name # $sema"
+}
+
+java.util.concurrent.Semaphore getSema(Integer snum) {
+	switch(snum) {
+		case 0: return histMapLockFLD
+		default: log.error "bad hash result $snum"
+			return null
+	}
+}
+
+@Field volatile static Map<String,Long> lockTimesFLD = [:]
+@Field volatile static Map<String,String> lockHolderFLD = [:]
+
+Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
+    Long waitT = longWait ? 1000L : 60L
+    Boolean wait = false
+    Integer semaNum = getSemaNum(qname)
+    String semaSNum = semaNum.toString()
+    def sema = getSema(semaNum)
+    while(!((Boolean)sema.tryAcquire())) {
+        // did not get the lock
+        Long timeL = lockTimesFLD[semaSNum]
+        if(timeL == null){
+            timeL = now()
+            lockTimesFLD[semaSNum] = timeL
+            lockTimesFLD = lockTimesFLD
+        }
+        if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
+        pauseExecution(waitT)
+        wait = true
+        if((now() - timeL) > 30000L) {
+            releaseTheLock(qname)
+            if(devModeFLD) log.warn "overriding lock $meth"
+        }
+    }
+    lockTimesFLD[semaSNum] = now()
+    lockTimesFLD = lockTimesFLD
+    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
+    lockHolderFLD = lockHolderFLD
+    return wait
+}
+
+void releaseTheLock(String qname){
+    Integer semaNum=getSemaNum(qname)
+    String semaSNum=semaNum.toString()
+    def sema=getSema(semaNum)
+    lockTimesFLD[semaSNum]=null
+    lockTimesFLD=lockTimesFLD
+    lockHolderFLD[semaSNum]=(String)null
+    lockHolderFLD=lockHolderFLD
+    sema.release()
+}
+
+public Map seqItemsAvail() { return seqItemsAvailFLD }
+@Field static final Map seqItemsAvailFLD = [
+    other: [
+        "weather":null, "traffic":null, "flashbriefing":null, "goodmorning":null, "goodnight":null, "cleanup":null,
+        "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
+        "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
+        "sound": "name",
+        "date":null, "time":null,
+        "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
+        "announcementall": "message", "pushnotification": "message", "email": null,
+        "textcmd": "voice command as text"
+    ],
+    // dnd: [
+    //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
+    //     "dnd_duration":"2H30M", "dnd_time":"00:30"
+    // ],
+    speech: [
+        "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
+    ],
+    music: [
+        "amazonmusic": "search term", "applemusic": "search term", "iheartradio": "search term", "pandora": "search term",
+        "spotify": "search term", "tunein": "search term", "cloudplayer": "search term"
+    ]
+]
+
+
+public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
+
+@Field static final Map appDuplicationTypesMapFLD = [
+    stat: [
+        bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
+        enum: ["triggerEvents", "act_EchoDevices", "act_EchoZones", "zone_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard", "webCorePistons"],
+        mode: ["cond_mode", "trig_mode"],
+        number: [],
+        text: ["appLbl"]
+    ],
+    ends: [
+        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db"],
+        enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_webCorePistons", "_rt", "_rt_wd", "_nums"],
+        number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore"],
+        text: ["_txt", "_sms_numbers"],
+        time: ["_time_start", "_time_stop", "_scheduled_time"]
+    ],
+    caps: [
+        _acceleration: "accelerationSensor",
+        _battery: "battery",
+        _contact: "contactSensor",
+        _door: "garageDoorControl",
+        _temperature: "temperatureMeasurement",
+        _illuminance: "illuminanceMeasurement",
+        _humidity: "relativeHumidityMeasurement",
+        _motion: "motionSensor",
+        _level: "switchLevel",
+        _button: "button",
+        _pushed: "pushableButton",
+        _held: "holdableButton",
+        _released: "releasableButton",
+        _doubleTapped: "doubleTapableButton",
+        _presence: "presenceSensor",
+        _switch: "switch",
+        _power: "powerMeter",
+        _shade: "windowShades",
+        _water: "waterSensor",
+        _valve: "valve",
+        _thermostat: "thermostat",
+        _carbonMonoxide: "carbonMonoxideDetector",
+        _smoke: "smokeDetector",
+        _lock: "lock",
+        _lock_code: "lock",
+        _switches_off: "switch",
+        _switches_on: "switch",
+        _lights: "level",
+        _color: "colorControl"
+    ],
+    dev: [
+        _scene: "sceneActivator"
+    ]
+]
+
+@Field static final Map deviceSupportMapFLD = [
+    types: [
+        "A10A33FOX2NUBK": [ caps: [ "a", "t" ], image: "echo_spot_gen1", name: "Echo Spot" ],
+        "A10L5JEZTKKCZ8": [ caps: [ "a", "t" ], image: "vobot_bunny", name: "Vobot Bunny" ],
+        "A112LJ20W14H95": [ ignore: true ],
+        "A12GXV8XMS007S": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen1)" ],
+        "A15ERDAKK5HQQG": [ image: "sonos_generic", name: "Sonos" ],
+        "A16MZVIFVHX6P6": [ caps: [ "a", "t" ], image: "unknown", name: "Generic Echo" ],
+        "A17LGWINFBUTZZ": [ caps: [ "t", "a" ], image: "roav_viva", name: "Anker Roav Viva" ],
+        "A18BI6KPKDOEI4": [ caps: [ "a", "t" ], image: "ecobee4", name: "Ecobee4" ],
+        "A18O6U1UQFJ0XK": [ caps: [ "a", "t" ], image: "echo_plus_gen2", name: "Echo Plus (Gen2)" ],
+        "A1C66CX2XD756O": [ caps: [ "a", "t" ], image: "amazon_tablet", name: "Fire Tablet HD" ],
+        "A1DL2DVDQVK3Q" :  [ blocked: true, ignore: true, name: "Mobile App" ],
+        "A1F8D55J0FWDTN": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV (Toshiba)" ],
+        "A1GC6GEE1XF1G9": [ ignore: true ],
+        "A1H0CMF1XM0ZP4": [ blocked: true, name: "Bose SoundTouch 30" ],
+        "A1J16TEDOYCZTN": [ caps: [ "a", "t" ], image: "amazon_tablet", name: "Fire Tablet" ],
+        "A1JJ0KFC4ZPNJ3": [ caps: [ "a", "t" ], image: "echo_input", name: "Echo Input" ],
+        "A1M0A9L9HDBID3": [ caps: [ "t" ], image: "one-link", name: "One-Link Safe and Sound" ],
+        "A1MPSLFC7L5AFK": [ ignore: true ],
+        "A1N9SW0I0LUX5Y": [ blocked: false, caps: [ "a", "t" ], image: "unknown", name: "Ford/Lincoln Alexa App" ],
+        "A1NL4BVLQ4L3N3": [ caps: [ "a", "t" ], image: "echo_show_gen1", name: "Echo Show (Gen1)" ],
+        "A1ORT4KZ23OY88": [ ignore: true ],
+        "A1P31Q3MOWSHOD": [ caps: [ "t", "a" ], image: "halo_speaker", name: "Zolo Halo Speaker" ],
+        "A1Q7QCGNMXAKYW": [ blocked: true, image: "amazon_tablet", name: "Generic Tablet" ],
+        "A1RABVCI4QCIKC": [ caps: [ "a", "t" ], image: "echo_dot_gen3", name: "Echo Dot (Gen3)" ],
+        "A1RTAM01W29CUP": [ caps: [ "a", "t" ], image: "alexa_windows", name: "Windows App" ],
+        "A1VS6XVTGTLC00": [ ignore: true ],
+        "A1VZJGJYCRI78V": [ ignore: true ],
+        "A1W2YILXTG9HA7": [ caps: [ "t", "a" ], image: "unknown", name: "Nextbase 522GW Dashcam" ],
+        "A1X7HJX9QL16M5": [ blocked: true, ignore: true, name: "Bespoken.io" ],
+        "A1Z88NGR2BK6A2": [ caps: [ "a", "t" ], image: "echo_show_gen2", name: "Echo Show 8" ],
+        "A1ZB65LA390I4K": [ ignore: true ],
+        "A21X6I4DKINIZU": [ ignore: true ],
+        "A21Z3CGI8UIP0F": [ ignore: true ],
+        "A25EC4GIHFOCSG": [ blocked: true, name: "Unrecognized Media Player" ],
+        "A27VEYGQBW3YR5": [ caps: [ "a", "t" ], image: "echo_link", name: "Echo Link" ],
+        "A2825NDLA7WDZV": [ ignore: true ],
+        "A29L394LN0I8HN": [ ignore: true ],
+        "A2C8J6UHV0KFCV": [ ignore: true ],
+        "A2E0SNTXJVT7WK": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen2)" ],
+        "A2GFL5ZMWNE0PX": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen3)" ],
+        "A2HZENIFNYTXZD": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
+        "A52ARKF0HM2T4": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal+" ],
+        "A2IVLV5VM2W81": [  ignore: true ],
+        "A2J0R2SD7G9LPA": [ caps: [ "a", "t" ], image: "lenovo_smarttab_m10", name: "Lenovo SmartTab M10" ],
+        "A2JKHJ0PX4J3L3": [ caps: [ "a", "t" ], image: "firetv_cube", name: "Fire TV Cube (Gen2)" ],
+        "A2LH725P8DQR2A": [ caps: [ "a", "t" ], image: "fabriq_riff", name: "Fabriq Riff" ],
+        "A2LWARUGJLBYEW": [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick (Gen2)" ],
+        "A2M35JJZWCQOMZ": [ caps: [ "a", "t" ], image: "echo_plus_gen1", name: "Echo Plus (Gen1)" ],
+        "A2M4YX06LWP8WI": [ caps: [ "a", "t" ], image: "amazon_tablet", name: "Fire Tablet" ],
+        "A2OSP3UA4VC85F": [ image: "sonos_generic", name: "Sonos" ],
+        "A2R2GLZH1DFYQO": [ caps: [ "t", "a" ], image: "halo_speaker", name: "Zolo Halo Speaker" ],
+        "A2RJLFEH0UEKI9": [ ignore: true ],
+        "A2T0P32DY3F7VB": [ ignore: true ],
+        "A2TF17PFR55MTB": [ ignore: true ],
+        "A2TOXM6L8SFS8A": [ ignore: true ],
+        "A2V3E2XUH5Z7M8": [ ignore: true ],
+        "A2WN1FJ2HG09UN": [ ignore: true ],
+        "A18TCD9FP10WJ9": [ ignore: true ],
+        "A1FWRGKHME4LXH": [ ignore: true ],
+        "A26TRKU1GG059T": [ ignore: true ],
+        "A2S24G29BFP88":  [ ignore: true, image: "unknown", name: "Ford/Lincoln Alexa App" ],
+        "A1NAFO69AAQ16Bk":  [ ignore: true, image: "unknown", name: "Wyze Band" ],
+        "A1NAFO69AAQ16B":  [ ignore: true, image: "unknown", name: "Wyze Band" ],
+        "A3L2K717GERE73": [ ignore: true, image: "unknown", name: "Voice in a Can (iOS)" ],
+        "A222D4HGE48EOR": [ ignore: true, image: "unknown", name: "Voice in a Can (Apple Watch)" ],
+        "A19JK51Y4N50K5": [ ignore: true, image: "unknown", name: "Jabra(?)" ],
+        "A2X8WT9JELC577": [ caps: [ "a", "t" ], image: "ecobee4", name: "Ecobee5" ],
+        "A2XPGY5LRKB9BE": [ caps: [ "a", "t" ], image: "unknown", name: "Fitbit Versa 2" ],
+        "A2Y04QPFCANLPQ": [ caps: [ "a", "t" ], image: "unknown", name: "Bose QuietComfort 35 II" ],
+        "A2ZOTUOF1IBEYI": [ ignore: true ],
+        "A303PJF6ISQ7IC": [ caps: [ "a", "t" ], image: "echo_auto", name: "Echo Auto" ],
+        "A195TXHV1M5D4A": [ caps: [ "a", "t" ], image: "echo_auto", name: "Echo Auto" ],
+        "A30YDR2MK8HMRV": [ caps: [ "a", "t" ], image: "echo_dot_clock", name: "Echo Dot Clock" ],
+        "A32DDESGESSHZA": [ caps: [ "a", "t" ], image: "echo_dot_gen3",  "name" : "Echo Dot (Gen3)" ],
+        "A32DOYMUN6DTXA": [ caps: [ "a", "t" ],  image: "echo_dot_gen3",  "name" : "Echo Dot (Gen3)" ],
+        "A347G2JC8I4HC7": [ caps: [ "a", "t" ], image: "unknown", name: "Roav Car Charger Pro" ],
+        "A37CFAHI1O0CXT": [ image: "logitech_blast", name: "Logitech Blast" ],
+        "A37M7RU8Z6ZFB": [ ignore: true ],
+        "A37SHHQ3NUL7B5": [ blocked: true, name: "Bose Home Speaker 500" ],
+        "A38949IHXHRQ5P": [ caps: [ "a", "t" ], image: "echo_tap", name: "Echo Tap" ],
+        "A38BPK7OW001EX": [ blocked: true, name: "Raspberry Alexa" ],
+        "A38EHHIB10L47V": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
+        "A3B50IC5QPZPWP": [ caps: [ "a", "t" ], image: "unknown", name: "Polk Command Bar" ],
+        "A3B5K1G3EITBIF": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
+        "A3D4YURNTARP5K": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal TV" ],
+        "A3CY98NH016S5F": [ caps: [ "a", "t" ], image: "unknown", name: "Facebook Portal Mini" ],
+        "A3BRT6REMPQWA8": [ caps: [ "a", "t" ], image: "sonos_generic", name: "Bose Home Speaker 450" ],
+        "A3C9PE6TNYLTCH": [ image: "echo_wha", name: "Multiroom" ],
+        "A3F1S88NTZZXS9": [ blocked: true, image: "dash_wand", name: "Dash Wand" ],
+        "A2WFDCBDEXOXR8": [ blocked: true, image: "unknown", name: "Bose Soundbar 700" ],
+        "A3FX4UWTP28V1P": [ caps: [ "a", "t" ], image: "echo_plus_gen2", name: "Echo (Gen3)" ],
+        "A3H674413M2EKB": [ ignore: true ],
+        "A3KULB3NQN7Z1F": [ caps: [ "a", "t" ], image: "unknown", name: "Unknown TV" ],
+        "A18TCD9FP10WJ9": [ caps: [ "a", "t" ], image: "unknown", name: "Orbi Voice" ],
+        "AGHZIK8D6X7QR": [ caps: [ "a", "t" ], image: "unknown", name: "Fire TV" ],
+        "A3HF4YRA2L7XGC": [ caps: [ "a", "t" ], image: "firetv_cube", name: "Fire TV Cube" ],
+        "A3L0T0VL9A921N": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
+        "AVU7CPPF2ZRAS": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 8" ],
+        "A3NPD82ABCPIDP": [ caps: [ "t" ], image: "sonos_beam", name: "Sonos Beam" ],
+        "A3NVKTZUPX1J3X": [ ignore: true, name: "Onkyp VC30" ],
+        "A3NWHXTQ4EBCZS": [ ignore: true ],
+        "A2RG3FY1YV97SS": [ ignore: true ],
+        "A3IYPH06PH1HRA": [ caps: [ "a", "t" ], image: "echo_frames", name: "Echo Frames" ],
+        "AKO51L5QAQKL2": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Jams" ],
+        "A3K69RS3EIMXPI": [ caps: [ "a", "t" ], image: "unknown", name: "Hisense Smart TV" ],
+        "A1QKZ9D0IJY332": [ caps: [ "a", "t" ], image: "unknown", name: "Samsung TV 2020-U" ],
+        "A3QPPX1R9W5RJV": [ caps: [ "a", "t" ], image: "fabriq_chorus", name: "Fabriq Chorus" ],
+        "A3R9S4ZZECZ6YL": [ caps: [ "a", "t" ], image: "tablet_hd10", name: "Fire Tablet HD 10" ],
+        "A3RBAYBE7VM004": [ caps: [ "a", "t" ], image: "echo_studio", name: "Echo Studio" ],
+        "A2RU4B77X9R9NZ": [ caps: [ "a", "t" ], image: "echo_link_amp", name: "Echo Link Amp" ],
+        "A3S5BH2HU6VAYF": [ caps: [ "a", "t" ], image: "echo_dot_gen2", name: "Echo Dot (Gen2)" ],
+        "A3SSG6GR8UU7SN": [ caps: [ "a", "t" ], image: "echo_sub_gen1", name: "Echo Sub" ],
+        "A3BW5ZVFHRCQPO": [ caps: [ "a", "t" ], image: "unknown", name: "BMW Alexa Integration" ],
+        "A3SSWQ04XYPXBH": [ blocked: true, image: "amazon_tablet", name: "Generic Tablet" ],
+        "A3TCJ8RTT3NVI7": [ ignore: true ],
+        "A3VRME03NAXFUB": [ caps: [ "a", "t" ], image: "echo_flex", name: "Echo Flex" ],
+        "A4ZP7ZC4PI6TO": [ caps: [ "a", "t" ], image: "echo_show_5", name: "Echo Show 5 (Gen1)" ],
+        "A7WXQPH584YP":  [ caps: [ "a", "t" ], image: "echo_gen2", name: "Echo (Gen2)" ],
+        "A81PNL0A63P93": [ caps: [ "a", "t" ], image: "unknown", name: "Home Remote" ],
+        "AB72C64C86AW2": [ caps: [ "a", "t" ], image: "echo_gen1", name: "Echo (Gen1)" ],
+        "A1SCI5MODUBAT1": [ caps: [ "a", "t"], image: "unknown", name: "Pioneer DMH-W466NEX" ],
+        "A1ETW4IXK2PYBP": [ caps: [ "a", "t"], image: "unknown", name: "Talk to Alexa" ],
+        "ABP0V5EHO8A4U": [ ignore: true ],
+        "AD2YUJTRVBNOF": [ ignore: true ],
+        "ADQRVG6LYK4LQ": [ ignore: true ],
+        "ADVBD696BHNV5": [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick (Gen1)" ],
+        "AE7X7Z227NFNS": [ caps: [ "a", "t" ], image: "unknown", name: "HiMirror Mini" ],
+        "AF473ZSOIRKFJ": [ caps: [ "a", "t" ], image: "unknown", name: "Onkyo VC-PX30" ],
+        "AFF50AL5E3DIU": [ caps: [ "a", "t" ], image: "insignia_firetv",  "name" : "Fire TV (Insignia)" ],
+        "AGZWSPR7FLP9E": [ ignore: true ],
+        "AILBSA2LNTOYL": [ ignore: true ],
+        "AKKLQD9FZWWQS": [ blocked: true, caps: [ "a", "t" ], image: "unknown", name: "Jabra Elite" ],
+        "AKNO1N0KSFN8L": [ caps: [ "a", "t" ], image: "echo_dot_gen1", name: "Echo Dot (Gen1)" ],
+        "AKPGW064GI9HE": [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick 4K (Gen3)" ],
+        "AO6HHP9UE6EOF": [ caps: [ "a", "t" ], image: "unknown", name: "Unknown Media Device" ],
+        "AP1F6KUH00XPV": [ blocked: true, name: "Stereo/Subwoofer Pair" ],
+        "AP4RS91ZQ0OOI": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV (Toshiba)" ],
+        "AFF5OAL5E3DIU": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV" ],
+        "ATH4K2BAIXVHQ": [ ignore: true ],
+        "AUPUQSVCVHXP0": [ ignore: true ],
+        "AVD3HM0HOJAAL": [ image: "sonos_generic", name: "Sonos" ],
+        "AVE5HX13UR5NO": [ caps: [ "a", "t" ], image: "logitech_zero_touch", name: "Logitech Zero Touch" ],
+        "AVN2TMX8MU2YM": [ blocked: true, name: "Bose Home Speaker 500" ],
+        "AWZZ5CVHX2CD":  [ caps: [ "a", "t" ], image: "echo_show_gen2", name: "Echo Show (Gen2)" ],
+        "A2C8J6UHV0KFCV": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Gear" ],
+        "AUPUQSVCVHXP0": [ caps: [ "a", "t" ], image: "unknown", name: "Ecobee Switch+" ],
+        "A2RJLFEH0UEKI9": [ ignore: true ],
+        "AKOAGQTKAS9YB": [ ignore: true ],
+        "A37M7RU8Z6ZFB": [ caps: [ "a", "t" ], image: "unknown", name: "Garmin Speak" ],
+        "A2WN1FJ2HG09UN": [ caps: [ "a", "t" ], image: "unknown", name: "Ultimate Alexa App" ],
+        "A2BRQDVMSZD13S": [ caps: [ "a", "t" ], image: "unknown", name: "SURE Universal Remote" ],
+        "A3TCJ8RTT3NVI7": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Listens" ]
+    ],
+    families: [
+        block: [ "AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP" ],
+        echo: [ "ROOK", "KNIGHT", "ECHO" ],
+        other: [ "REAVER", "FIRE_TV", "FIRE_TV_CUBE", "ALEXA_AUTO", "MMSDK" ],
+        tablet: [ "TABLET" ],
+        wha: [ "WHA" ]
+    ]
+]

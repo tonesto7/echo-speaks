@@ -1,5 +1,5 @@
 /**
- *  Echo Speaks - Zones
+ *  Echo Speaks - Zones (Hubitat)
  *
  *  Copyright 2018, 2019, 2020 Anthony Santilli
  *
@@ -13,12 +13,7 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
-
-String appVersion()  { return "3.6.5.0" }
-String appModified() { return "2020-11-04" }
-String appAuthor()	 { return "Anthony S." }
-Boolean isBeta()     { return false }
-Boolean isST()       { return (getPlatform() == "SmartThings") }
+import groovy.transform.Field
 
 definition(
     name: "Echo Speaks - Zones",
@@ -48,6 +43,19 @@ preferences {
     page(name: "namePage")
 }
 
+@Field static final String appVersionFLD  = "3.6.5.0"
+@Field static final String appModifiedFLD = "11-18-2020"
+@Field static final String branchFLD      = "master"
+@Field static final String platformFLD    = "Hubitat"
+@Field static final Boolean isStFLD       = false
+@Field static final Boolean betaFLD       = false
+@Field static final String sNULL          = (String) null
+@Field static final List   lNULL          = (List) null
+@Field static final String sBLANK         = ''
+@Field static final String sBULLET        = '\u2022'
+
+String appVersion()  { return appVersionFLD }
+
 def startPage() {
     if(parent != null) {
         if(!state?.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
@@ -59,7 +67,7 @@ def startPage() {
 
 def appInfoSect(sect=true)	{
     def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@'h:mm a", true) : null
-    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version: ${appVersion()}", image: getAppImg("es_groups") }
+    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version: ${appVersionFLD}", image: getAppImg("es_groups") }
 }
 
 def codeUpdatePage () {
@@ -74,7 +82,7 @@ def uhOhPage () {
             def str = "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Zones can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them."
             paragraph str, required: true, state: null, image: getAppImg("exclude")
         }
-        if(isST()) { remove("Remove this bad Zone", "WARNING!!!", "BAD Zone SHOULD be removed") }
+        if(isStFLD) { remove("Remove this bad Zone", "WARNING!!!", "BAD Zone SHOULD be removed") }
     }
 }
 
@@ -155,10 +163,10 @@ def zoneHistoryPage() {
         section() {
             getZoneHistory()
         }
-        if(atomicState?.zoneHistory?.size()) {
+        if(historyMapFLD["zoneHistory"]?.size()) {
             section("") {
                 input "clearZoneHistory", "bool", title: inTS("Clear Zone History?", getAppImg("reset", true)), description: "Clears Stored Zone History.", defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.clearZoneHistory) { settingUpdate("clearZoneHistory", "false", "bool"); atomicState?.zoneHistory = []; }
+                if(settings?.clearZoneHistory) { settingUpdate("clearZoneHistory", "false", "bool"); historyMapFLD["zoneHistory"] = []; }
             }
         }
     }
@@ -188,7 +196,7 @@ def namePage() {
 def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
         section("") { paragraph "This will delete this Echo Speaks Zone." }
-        if(isST()) { remove("Remove ${app?.label} Zone", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Zone will be removed") }
+        if(isStFLD) { remove("Remove ${app?.label} Zone", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Zone will be removed") }
     }
 }
 
@@ -347,7 +355,7 @@ def zoneNotifPage() {
                 paragraph pTS("This will send a push notification the Alexa Mobile app.", null, false, "gray")
                 input "notif_alexa_mobile", "bool", title: inTS("Send message to Alexa App?", getAppImg("notification", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
             }
-            if(isST()) {
+            if(isStFLD) {
                 section(sTS("Pushover Support:")) {
                     input "notif_pushover", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover_icon", true)), required: false, submitOnChange: true, image: getAppImg("pushover")
                     if(settings?.notif_pushover == true) {
@@ -539,7 +547,7 @@ private subscribeToEvts() {
         if(settings?."cond_${si}") {
             switch(si as String) {
                 case "alarm":
-                    subscribe(location, (!isST() ? "hsmStatus" : "alarmSystemStatus"), zoneEvtHandler)
+                    subscribe(location, (!isStFLD ? "hsmStatus" : "alarmSystemStatus"), zoneEvtHandler)
                     break
                 case "mode":
                     if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
@@ -581,7 +589,7 @@ Boolean timeCondOk() {
         else if(settings?.cond_time_stop_type == "time" && settings?.cond_time_stop) { stopTime = settings?.cond_time_stop }
     } else { return null }
     if(startTime && stopTime) {
-        if(!isST()) {
+        if(!isStFLD) {
             startTime = toDateTime(startTime)
             stopTime = toDateTime(stopTime)
         }
@@ -778,10 +786,10 @@ def zoneTimeStopCondHandler() {
 
 private addToZoneHistory(evt, condStatus, Integer max=10) {
     Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = atomicState?.zoneHistory ?: []
+    List eData = getMemStoreItem("zoneHistory") ?: []
     eData?.push([dt: getDtNow(), active: (condStatus?.ok == true), evtName: evt?.name, evtDevice: evt?.displayName, blocks: condStatus?.blocks, passed: condStatus?.passed])
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
-    atomicState?.zoneHistory = eData
+    updMemStoreItem("zoneHistory", eData)
 }
 
 def checkZoneStatus(evt) {
@@ -849,8 +857,7 @@ def updateZoneStatus(data) {
 }
 
 public getZoneHistory(asObj=false) {
-    List zHist = atomicState?.zoneHistory ?: []
-    Boolean isST = isST()
+    List zHist = getMemStoreItem("zoneHistory") ?: []
     List output = []
     if(zHist?.size()) {
         zHist?.each { h->
@@ -904,13 +911,13 @@ public zoneCmdHandler(evt) {
                 logDebug("Sending Speak Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 if(data?.changeVol || data?.restoreVol) {
                     zoneDevs?.devices?.each { dev->
-                        if(isST() && delay) {
+                        if(isStFLD && delay) {
                             dev?.setVolumeSpeakAndRestore(data?.changeVol, data?.message, data?.restoreVol, [delay: delay])
                         } else { dev?.setVolumeSpeakAndRestore(data?.changeVol, data?.message, data?.restoreVol) }
                     }
                 } else {
                     zoneDevs?.devices?.each { dev->
-                        if(isST() && delay) {
+                        if(isStFLD && delay) {
                             dev?.speak(data?.message, [delay: delay])
                         } else { dev?.speak(data?.message) }
                     }
@@ -920,7 +927,7 @@ public zoneCmdHandler(evt) {
                 if(zoneDevs?.devices?.size() > 0 && zoneDevs?.devObj) {
                     logDebug("Sending Announcement Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                    if(isST() && delay) {
+                    if(isStFLD && delay) {
                         zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol, [delay: delay])
                     } else { zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol) }
                 }
@@ -929,7 +936,7 @@ public zoneCmdHandler(evt) {
             case "voicecmd":
                 logDebug("Sending VoiceCmd Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : ""}")
                 zoneDevs?.devices?.each { dev->
-                    if(isST() && delay) {
+                    if(isStFLD && delay) {
                         dev?.voiceCmdAsText(data?.message, [delay: delay])
                     } else { dev?.voiceCmdAsText(data?.message) }
                 }
@@ -937,7 +944,7 @@ public zoneCmdHandler(evt) {
             case "sequence":
                 logDebug("Sending Sequence Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : ""}")
                 zoneDevs?.devices?.each { dev->
-                    if(isST() && delay) {
+                    if(isStFLD && delay) {
                         dev?.executeSequenceCommand(data?.message, [delay: delay])
                     } else { dev?.executeSequenceCommand(data?.message) }
                 }
@@ -948,7 +955,7 @@ public zoneCmdHandler(evt) {
             case "playback":
                 log.debug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 zoneDevs?.devices?.each { dev->
-                    if(isST() && delay) {
+                    if(isStFLD && delay) {
                         if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay]) }
                         if(data?.cmd == "volume" && data?.changeVol) { dev?.setVolume(data?.changeVol, [delay: delay]) }
                     } else {
@@ -960,7 +967,7 @@ public zoneCmdHandler(evt) {
             case "sounds":
                 log.debug("Sending ${data?.cmd?.toString()?.capitalize()} | Name: ${data?.message} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
                 zoneDevs?.devices?.each { dev->
-                    if(isST() && delay) {
+                    if(isStFLD && delay) {
                         dev?."${data?.cmd}"(data?.message, data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay])
                     } else {
                         dev?."${data?.cmd}"(data?.message, data?.changeVol ?: null, data?.restoreVol ?: null)
@@ -969,7 +976,7 @@ public zoneCmdHandler(evt) {
                 break
             case "music":
                 logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data?.provider} | Search: ${data?.search}${delay ? " | Delay: (${delay})" : ""}${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}")
-                if(isST() && delay) {
+                if(isStFLD && delay) {
                     dev?."${data?.cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol, [delay: delay])
                 } else {
                     dev?."${data?.cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol)
@@ -1015,7 +1022,7 @@ List getLocationModes(Boolean sorted=false) {
 }
 
 List getLocationRoutines() {
-    return (isST()) ? location.helloHome?.getPhrases()*.label?.sort() : []
+    return (isStFLD) ? location.helloHome?.getPhrases()*.label?.sort() : []
 }
 
 Boolean isInMode(modes, not=false) {
@@ -1072,12 +1079,12 @@ Boolean devCapValEqual(List devs, String devId, String cap, val) {
 }
 
 String getAlarmSystemName(abbr=false) {
-    return isST() ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
+    return isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 
 public Map getZoneMetrics() {
     Map out = [:]
-    out?.version = appVersion()
+    out?.version = appVersionFLD
     out?.activeDelay = settings?.zone_active_delay ?: 0
     out?.inactiveDelay = settings?.zone_inactive_delay ?: 0
     out?.zoneDevices = settings?.zone_EchoDevices ?: []
@@ -1226,7 +1233,7 @@ Boolean isDayOfWeek(opts) {
 
 Boolean isTimeOfDay(startTime, stopTime) {
     if(!startTime && !stopTime) { return true }
-    if(!isST()) { startTime = toDateTime(startTime); stopTime = toDateTime(stopTime); }
+    if(!isStFLD) { startTime = toDateTime(startTime); stopTime = toDateTime(stopTime); }
     return timeOfDayIsBetween(startTime, stopTime, new Date(), location.timeZone)
 }
 
@@ -1470,7 +1477,7 @@ void settingUpdate(name, value, type=null) {
 
 void settingRemove(String name) {
     logTrace("settingRemove($name)...")
-    if(name && settings?.containsKey(name as String)) { isST() ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
+    if(name && settings?.containsKey(name as String)) { isStFLD ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
 }
 
 List weekDaysEnum() {
@@ -1482,7 +1489,7 @@ List monthEnum() {
 }
 
 Map getAlarmTrigOpts() {
-    return isST() ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
+    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
 }
 
 def getShmIncidents() {
@@ -1523,7 +1530,7 @@ Boolean notifTimeOk() {
         else if(settings?.notif_time_stop_type == "time" && settings?.notif_time_stop) { stopTime = settings?.notif_time_stop }
     } else { return true }
     if(startTime && stopTime) {
-        if(!isST()) {
+        if(!isStFLD) {
             startTime = toDateTime(startTime)
             stopTime = toDateTime(stopTime)
         }
@@ -1594,7 +1601,7 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
 Boolean isZoneNotifConfigured() {
     return (
         (settings?.notif_active_message || settings?.notif_inactive_message) &&
-        (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_devs || settings?.notif_alexa_mobile || (isST() && settings?.notif_pushover && settings?.notif_pushover_devices))
+        (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_devs || settings?.notif_alexa_mobile || (isStFLD && settings?.notif_pushover && settings?.notif_pushover_devices))
     )
 }
 
@@ -1618,7 +1625,7 @@ Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")
 Boolean minVersionFailed() {
     try {
         Integer minDevVer = parent?.minVersions()["zoneApp"] ?: null
-        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
+        if(minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer) { return true }
         else { return false }
     } catch (e) { 
         return false
@@ -1628,11 +1635,11 @@ Boolean isPaused() { return (settings?.zonePause == true) }
 
 String okSym() { return "\u2713" }
 String notOkSym() { return "\u2715" }
-String getAppImg(String imgName, frc=false) { return (frc || isST()) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
-String getPublicImg(String imgName) { return isST() ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
-String sTS(String t, String i = null) { return isST() ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
-String pTS(String t, String i = null, bold=true, color=null) { return isST() ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
-String inTS(String t, String i = null, color=null) { return isST() ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : ""}""" }
+String getAppImg(String imgName, frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
+String sTS(String t, String i = null) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
+String pTS(String t, String i = null, bold=true, color=null) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+String inTS(String t, String i = null, color=null) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : ""}""" }
 
 String bulletItem(String inStr, String strVal) { return "${inStr == "" ? "" : "\n"} \u2022 ${strVal}" }
 String dashItem(String inStr, String strVal, newLine=false) { return "${(inStr == "" && !newLine) ? "" : "\n"} - ${strVal}" }
@@ -1643,84 +1650,124 @@ Integer stateSize() {
 }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 
-private addToLogHistory(String logKey, msg, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = atomicState[logKey as String] ?: []
-    eData.push([dt: getDtNow(), message: msg])
-    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
-    atomicState[logKey as String] = eData
+private addToLogHistory(String logKey, data, Integer max=10) {
+    Boolean ssOk = (stateSizePerc() > 70)
+    List eData = getMemStoreItem(logKey) ?: []
+    if(eData?.find { it?.data == data }) { return; }
+    eData?.push([dt: getDtNow(), data: data])
+    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+    updMemStoreItem(logKey, eData)
 }
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Zone (v${appVersion()}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info " Zone (v${appVersion()}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Zone (v${appVersion()}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { log.error " Zone (v${appVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Zone (v${appVersionFLD}) | ${msg}" } }
+private logInfo(msg) { if(settings?.logInfo != false) { log.info " Zone (v${appVersionFLD}) | ${msg}" } }
+private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Zone (v${appVersionFLD}) | ${msg}" } }
+private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Zone (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private logError(msg, noHist=false) { if(settings?.logError != false) { log.error " Zone (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
-Map getLogHistory() {
-    return [ warnings: atomicState?.warnHistory ?: [], errors: atomicState?.errorHistory ?: [] ]
+private Map getLogHistory() {
+    return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [] ]
+}
+private void clearHistory()  { historyMapFLD = [:]; mb(); }
+
+// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATE)
+@Field static Map actionExecMapFLD = [:]
+@Field volatile static Map<String,Map> historyMapFLD = [:]
+
+// FIELD VARIABLE FUNCTIONS
+private void updMemStoreItem(String key, val) {
+    String appId = app.getId()
+    Map memStore = historyMapFLD[appId] ?: [:]
+    memStore[key] = val
+    historyMapFLD[appId] = memStore
+    historyMapFLD = historyMapFLD
+    // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
 }
 
-private getPlatform() {
-    def p = "SmartThings"
-    if(state?.hubPlatform == null) {
-        try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
-        // p = (location?.hubs[0]?.id?.toString()?.length() > 5) ? "SmartThings" : "Hubitat"
-        state?.hubPlatform = p
-        log.debug "hubPlatform: (${state?.hubPlatform})"
+private List getMemStoreItem(String key){
+    String appId = app.getId()
+    Map memStore = historyMapFLD[appId] ?: [:]
+    return memStore[key] ?: null
+}
+
+// Memory Barrier
+@Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+
+static void mb(String meth=sNULL){
+    if((Boolean)theMBLockFLD.tryAcquire()){
+        theMBLockFLD.release()
     }
-    return state?.hubPlatform
+}
+
+@Field static final String sHMLF = 'theHistMapLockFLD'
+@Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
+
+private Integer getSemaNum(String name) {
+    if(name == sHMLF) return 0 
+    log.warn "unrecognized lock name..."
+    return 0
+	// Integer stripes=22
+	// if(name.isNumber()) return name.toInteger()%stripes
+	// Integer hash=smear(name.hashCode())
+	// return Math.abs(hash)%stripes
+    // log.info "sema $name # $sema"
+}
+
+java.util.concurrent.Semaphore getSema(Integer snum) {
+	switch(snum) {
+		case 0: return histMapLockFLD
+		default: log.error "bad hash result $snum"
+			return null
+	}
+}
+
+@Field volatile static Map<String,Long> lockTimesFLD = [:]
+@Field volatile static Map<String,String> lockHolderFLD = [:]
+
+Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
+    Long waitT = longWait ? 1000L : 60L
+    Boolean wait = false
+    Integer semaNum = getSemaNum(qname)
+    String semaSNum = semaNum.toString()
+    def sema = getSema(semaNum)
+    while(!((Boolean)sema.tryAcquire())) {
+        // did not get the lock
+        Long timeL = lockTimesFLD[semaSNum]
+        if(timeL == null){
+            timeL = now()
+            lockTimesFLD[semaSNum] = timeL
+            lockTimesFLD = lockTimesFLD
+        }
+        if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
+        pauseExecution(waitT)
+        wait = true
+        if((now() - timeL) > 30000L) {
+            releaseTheLock(qname)
+            if(devModeFLD) log.warn "overriding lock $meth"
+        }
+    }
+    lockTimesFLD[semaSNum] = now()
+    lockTimesFLD = lockTimesFLD
+    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
+    lockHolderFLD = lockHolderFLD
+    return wait
+}
+
+void releaseTheLock(String qname){
+    Integer semaNum=getSemaNum(qname)
+    String semaSNum=semaNum.toString()
+    def sema=getSema(semaNum)
+    lockTimesFLD[semaSNum]=null
+    lockTimesFLD=lockTimesFLD
+    lockHolderFLD[semaSNum]=(String)null
+    lockHolderFLD=lockHolderFLD
+    sema.release()
 }
 
 //*******************************************************************
 //    CLONE CHILD LOGIC
 //*******************************************************************
 public getDuplSettingData() {
-    Map typeObj = [
-        stat: [
-            bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
-            enum: ["triggerEvents", "act_EchoDevices", "act_EchoZones", "zone_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard", "webCorePistons"],
-            mode: ["cond_mode", "trig_mode"],
-            number: [],
-            text: ["appLbl"]
-        ],
-        ends: [
-            bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db"],
-            enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_webCorePistons", "_rt", "_rt_wd"],
-            number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore"],
-            text: ["_txt", "_sms_numbers"],
-            time: ["_time_start", "_time_stop", "_scheduled_time"]
-        ],
-        caps: [
-            _acceleration: "accelerationSensor",
-            _battery: "battery",
-            _contact: "contactSensor",
-            _door: "garageDoorControl",
-            _temperature: "temperatureMeasurement",
-            _illuminance: "illuminanceMeasurement",
-            _humidity: "relativeHumidityMeasurement",
-            _motion: "motionSensor",
-            _level: "switchLevel",
-            _button: "button",
-            _presence: "presenceSensor",
-            _switch: "switch",
-            _power: "powerMeter",
-            _shade: "windowShades",
-            _water: "waterSensor",
-            _valve: "valve",
-            _thermostat: "thermostat",
-            _carbonMonoxide: "carbonMonoxideDetector",
-            _smoke: "smokeDetector",
-            _lock: "lock",
-            _lock_code: "lock",
-            _switches_off: "switch",
-            _switches_on: "switch",
-            _lights: "level",
-            _color: "colorControl"
-        ],
-        dev: [
-            _scene: "sceneActivator"
-        ]
-    ]
+    Map typeObj = parent?.getAppDuplTypes()
     Map setObjs = [:]
     typeObj?.stat?.each { sk,sv->
         sv?.each { svi-> if(settings?.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi] ] } }
