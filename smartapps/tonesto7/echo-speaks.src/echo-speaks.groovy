@@ -143,7 +143,7 @@ def mainPage() {
                 def ls = getLoginStatusDesc()
                 href "authStatusPage", title: inTS("Login Status | Service Management", getAppImg("settings", true)), description: (ls ? "${ls}\n\nTap to modify" : "Tap to configure"), state: (ls ? "complete" : sNULL), image: getAppImg("settings")
             }
-            if(!state?.shownDevSharePage) { showDevSharePrefs() }
+            if(!(Boolean)state.shownDevSharePage) { showDevSharePrefs() }
             section(sTS("Notifications:")) {
                 def t0 = getAppNotifConfDesc()
                 href "notifPrefPage", title: inTS("Manage Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : sNULL), image: getAppImg("notification2")
@@ -811,7 +811,7 @@ def showDevSharePrefs() {
     section(sTS("Share Data with Developer:")) {
         paragraph title: "What is this used for?", pTS("These options send non-user identifiable information and error data to diagnose catch trending issues.", sNULL, false)
         input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
-        if(!(Boolean) settings.optOutMetrics) {
+        if(!(Boolean)settings.optOutMetrics) {
             href url: getAppEndpointUrl("renderMetricData"), style: (isStFLD ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
         }
     }
@@ -819,7 +819,7 @@ def showDevSharePrefs() {
         section() { input "sendMetricsNow", "bool", title: inTS("Send Metrics Now?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
         if(sendMetricsNow) { sendInstallData() }
     }
-    state?.shownDevSharePage = true
+    state.shownDevSharePage = true
 }
 
 Map getDeviceList(Boolean isInputEnum=false, List filters=[]) {
@@ -5079,13 +5079,22 @@ String getAppDebugDesc() {
 
 void addToLogHistory(String logKey, String msg, Integer max=10) {
     Boolean ssOk = true // (stateSizePerc() <= 70)
-    List<Map> eData = getMemStoreItem(logKey)
-    eData = eData ?: []
-    if(eData.find { (String)it.message == msg }) { return }
-    eData.push([dt: getDtNow(), message: msg])
+
+    Boolean aa = getTheLock(sHMLF, "addToHistory(${logKey})")
+    // log.trace "lock wait: ${aa}"
+
+    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
+    List<Map> eData = (List)memStore[logKey] ?: []
+    if(eData.find { it?.message == msg }) {
+        releaseTheLock(sHMLF)
+        return
+    }
+    eData.push([dt: getDtNow(), gt: now(), message: msg])
     Integer lsiz=eData.size()
     if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
     updMemStoreItem(logKey, eData)
+
+    releaseTheLock(sHMLF)
 }
 
 void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug "EchoApp (v${appVersionFLD}) | ${msg}" } }
@@ -5117,14 +5126,29 @@ void clearDiagLogs(String type="all") {
 }
 
 Map getLogHistory() {
+    Boolean aa = getTheLock(sHMLF, "getCmdHistory")
+    // log.trace "lock wait: ${aa}"
+
     List warn = getMemStoreItem("warnHistory")
     warn = warn ?: []
     List errs = getMemStoreItem("errorHistory")
     errs = errs ?: []
-    return [ warnings: warn, errors: errs ]
+
+    releaseTheLock(sHMLF)
+
+    return [ warnings: []+warn, errors: []+errs ]
 }
 
-private void clearHistory()  { String appId = app.getId(); historyMapFLD[appId] = [:]; historyMapFLD = historyMapFLD }
+private void clearHistory() {
+    String appId = app.getId()
+    Boolean aa = getTheLock(sHMLF, "clearHistory")
+    // log.trace "lock wait: ${aa}"
+
+    historyMapFLD[appId] = [:]
+    historyMapFLD = historyMapFLD
+
+    releaseTheLock(sHMLF)
+}
 
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, List val) {
