@@ -990,7 +990,7 @@ def announcePage() {
     }
 }
 
-@Field static final Map seqItemsAvailFLD = [
+@Field final Map seqItemsAvailFLD = [
         other: [
             "weather":sNULL, "traffic":sNULL, "flashbriefing":sNULL, "goodnews":sNULL, "goodmorning":sNULL, "goodnight":sNULL, "cleanup":sNULL,
             "singasong":sNULL, "tellstory":sNULL, "funfact":sNULL, "joke":sNULL, "playsearch":sNULL, "calendartoday":sNULL,
