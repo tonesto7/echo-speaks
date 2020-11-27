@@ -74,8 +74,8 @@ String appVersion()  { return appVersionFLD }
 def startPage() {
     if(parent != null) {
         if(!state?.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
-        else { state?.isParent = false; return (minVersionFailed()) ? codeUpdatePage() : mainPage(); }
-    } else { return uhOhPage(); }
+        else { state?.isParent = false; return (minVersionFailed()) ? codeUpdatePage() : mainPage() }
+    } else { return uhOhPage() }
 }
 
 def codeUpdatePage () {
@@ -130,7 +130,7 @@ private buildTriggerEnum() {
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     if(isStFLD) {
-        buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
+        buildItems?.each { String key, val-> addInputGrp(enumOpts, key, val) }
         // log.debug "enumOpts: $enumOpts"
         return enumOpts
     } else { return buildItems?.collectEntries { it?.value }?.sort { it?.key } }
@@ -147,7 +147,7 @@ private buildActTypeEnum() {
     buildItems["Devices Settings"] = ["wakeword":"Change Wake Word", "dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control"]?.sort{ it?.key }
     buildItems["Custom"] = ["voicecmd":"Execute a voice command","sequence":"Execute Sequence", "alexaroutine": "Execute Alexa Routine(s)"]?.sort{ it?.key }
     if(isStFLD) {
-        buildItems?.each { key, val-> addInputGrp(enumOpts, key, val) }
+        buildItems?.each { String key, val-> addInputGrp(enumOpts, key, val) }
         return enumOpts
     } else { return buildItems?.collectEntries { it?.value } }
 }
@@ -262,10 +262,14 @@ def actionHistoryPage() {
         section() {
             getActionHistory()
         }
-        if(historyMapFLD["actionHistory"]?.size()) {
+        if(((List)getMemStoreItem("actionHistory")).size()) {
             section("") {
                 input "clearActionHistory", "bool", title: inTS("Clear Action History?", getAppImg("reset", true)), description: "Clears Stored Action History.", defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.clearActionHistory) { settingUpdate("clearActionHistory", "false", "bool"); historyMapFLD["actionHistory"] = []; }
+                //private List getMemStoreItem(String key){
+                if(settings.clearActionHistory) {
+                    settingUpdate("clearActionHistory", "false", "bool")
+                    clearActHistory()
+                }
             }
         }
     }
@@ -2024,12 +2028,12 @@ private actionCleanup() {
     setItems?.unique()?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
-Boolean isPaused() { return (settings?.actionPause == true) }
+Boolean isPaused() { return ((Boolean)settings.actionPause) }
 public triggerInitialize() { runIn(3, "initialize") }
 private valTrigEvt(key) { return (key in settings?.triggerEvents) }
 
-public updatePauseState(Boolean pause) {
-    if(settings?.actionPause != pause) {
+public void updatePauseState(Boolean pause) {
+    if((Boolean)settings.actionPause != pause) {
         logDebug("Received Request to Update Pause State to (${pause})")
         settingUpdate("actionPause", "${pause}", "bool")
         runIn(4, "updated")
@@ -2247,7 +2251,7 @@ def scheduleTrigEvt(evt=null) {
 }
 
 def alarmEvtHandler(evt) {
-    def evtDelay = now() - evt?.date?.getTime()
+    Long evtDelay = now() - evt?.date?.getTime()
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     // Boolean dco = (settings?."trig_alarm_once" == true)
     // Integer dcw = settings?."trig_alarm_wait" ?: null
@@ -2327,7 +2331,7 @@ def afterEvtCheckWatcher() {
 }
 
 def devAfterEvtHandler(evt) {
-    def evtDelay = now() - evt?.date?.getTime()
+    Long evtDelay = now() - evt?.date?.getTime()
     Boolean ok = true
     Map aEvtMap = atomicState?.afterEvtMap ?: [:]
     Boolean aftWatSched = state?.afterEvtCheckWatcherSched ?: false
@@ -2424,7 +2428,7 @@ def afterEvtCheckHandler() {
 }
 
 def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
-    def evtDelay = now() - evt?.date?.getTime()
+    Long evtDelay = now() - evt?.date?.getTime()
     Boolean evtOk = false
     Boolean evtAd = false
     List d = settings?."trig_${evt?.name}"
@@ -2615,7 +2619,7 @@ Map deviceEvtProcNumValue(evt, List devs = null, String cmd = null, Double dcl =
 }
 
 def thermostatEvtHandler(evt) {
-    def evtDelay = now() - evt?.date?.getTime()
+    Long evtDelay = now() - evt?.date?.getTime()
     Boolean evtOk = false
     Boolean evtAd = false
     List d = settings?."trig_${evt?.name}"
@@ -3120,11 +3124,11 @@ String getResponseItem(evt, tierMsg=null, evtAd=false, isRepeat=false, testMode=
     return "Invalid Text Received... Please verify Action configuration..."
 }
 
-public getActionHistory(asObj=false) {
-    List eHist = historyMapFLD["actionHistory"] ?: []
+public getActionHistory(Boolean asObj=false) {
+    List eHist = getMemStoreItem("actionHistory")
     List output = []
-    if(eHist?.size()) {
-        eHist?.each { h->
+    if(eHist.size()) {
+        eHist.each { Map h->
             String str = ""
             str += "Trigger: [${h?.evtName}]"
             str += "\nDevice: [${h?.evtDevice}]"
@@ -3136,20 +3140,25 @@ public getActionHistory(asObj=false) {
             str += h?.isRepeat ? "\nRepeat: true" : ""
             str += "\nSource: ${h?.src}"
             str += "\nDateTime: ${h?.dt}"
-            output?.push(str)
+            output.push(str)
         }
-    } else { output?.push("No History Items Found...") }
+    } else { output.push("No History Items Found...") }
     if(!asObj) {
-        output?.each { i-> paragraph pTS(i) }
+        output.each { i-> paragraph pTS(i) }
     } else {
         return output
     }
 }
 
 private addToActHistory(evt, data, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = getMemStoreItem("actionHistory") ?: []
-    eData?.push([
+    Boolean ssOk = true // (stateSizePerc() <= 70)
+
+    Boolean aa = getTheLock(sHMLF, "addToActHistory")
+    // log.trace "lock wait: ${aa}"
+
+    List eData = getMemStoreItem("actionHistory")
+    if(eData == null)eData = []
+    eData.push([
         dt: getDtNow(),
         active: (data?.status?.ok == true),
         evtName: evt?.name,
@@ -3160,17 +3169,31 @@ private addToActHistory(evt, data, Integer max=10) {
         isTierCmd: data?.isTier,
         isRepeat: data?.isRepeat
     ])
-    if(!ssOk || eData?.size() > max) {
+    Integer lsiz=eData.size()
+    if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
+
+//    if(!ssOk || eData?.size() > max) {
         // if(!ssOk) log.warn "stateOk: ${ssOk}"
         // if(eData?.size() > max) log.warn "Action History (${eData?.size()}) has more than ${max} items... | Need to drop: (${(eData?.size()-max)})"
-        eData = eData?.drop( (eData?.size()-max)+1 )
-    }
+//        eData = eData?.drop( (eData?.size()-max)+1 )
+//    }
     // log.debug "actionHistory Size: ${eData?.size()}"
     updMemStoreItem("actionHistory", eData)
+
+    releaseTheLock(sHMLF)
 }
 
-private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, isRptAct=false, tierData=null) {
-    def startTime = now()
+void clearActHistory(){
+    Boolean aa = getTheLock(sHMLF, "clearActHistory")
+    // log.trace "lock wait: ${aa}"
+    updMemStoreItem("actionHistory", [])
+
+    releaseTheLock(sHMLF)
+
+}
+
+private executeAction(evt = null, Boolean testMode=false, String src=null, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
+    Long startTime = now()
     logTrace( "executeAction${src ? "($src)" : ""}${testMode ? " | [TestMode]" : ""}${allDevsResp ? " | [AllDevsResp]" : ""}${isRptAct ? " | [RepeatEvt]" : ""}")
     if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return; }
     Map condStatus = conditionStatus()
@@ -3181,7 +3204,7 @@ private executeAction(evt = null, testMode=false, src=null, allDevsResp=false, i
     List actDevices = settings?.act_EchoDevices ? parent?.getDevicesFromList(settings?.act_EchoDevices) : []
     Map activeZones = settings?.act_EchoZones ? getActiveZones() : [:]
     // log.debug "activeZones: $activeZones"
-    String actMsgTxt = null
+    String actMsgTxt = (String)null
     String actType = settings?.actionType
     Boolean firstTierMsg = (tierData && tierData?.isFirst == true)
     Boolean lastTierMsg = (tierData && tierData?.isLast == true)
@@ -3603,7 +3626,7 @@ Map getAlarmTrigOpts() {
 }
 
 def getShmIncidents() {
-    def incidentThreshold = now() - 604800000
+    Long incidentThreshold = now() - 604800000L
     return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
 }
 
@@ -4291,6 +4314,9 @@ String sTS(String t, String i = null, bold=false) { return isStFLD ? t : """<h3>
 String s3TS(String t, String st, String i = null, c="#1A77C9") { return isStFLD ? t : """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : ""}""" }
 String pTS(String t, String i = null, bold=true, color=null) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 String inTS(String t, String i = null, color=null, under=true) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
+
+/* """ */
+
 String htmlLine(color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
 def appFooter() {
 	section() {
@@ -4320,42 +4346,77 @@ String getAppDebugDesc() {
     return (str != "") ? "${str}" : null
 }
 
-private addToLogHistory(String logKey, data, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() > 70)
-    List eData = getMemStoreItem(logKey) ?: []
-    if(eData?.find { it?.data == data }) { return; }
-    eData?.push([dt: getDtNow(), data: data])
-    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
-    updMemStoreItem(logKey, eData)
-}
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Action (v${appVersionFLD}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info " Action (v${appVersionFLD}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Action (v${appVersionFLD}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Action (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Action (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private addToLogHistory(String logKey, String data, Integer max=10) {
+    Boolean ssOk = true // (stateSizePerc() > 70)
+   String appId=app.getId()
 
-private Map getLogHistory() {
-    return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [] ]
-}
-private void clearLogHistory()  { historyMapFLD["warnHistory"] = [:]; historyMapFLD["errorHistory"] = [:]; mb(); }
-
-// FIELD VARIABLE FUNCTIONS
-private void updMemStoreItem(key, val) {
-    String appId = app.getId()
-    Boolean aa = getTheLock(sHMLF, "updMemStoreItem(${key})")
+    Boolean aa = getTheLock(sHMLF, "addToHistory(${logKey})")
     // log.trace "lock wait: ${aa}"
+
+    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
+    List<Map> eData = (List)memStore[logKey] ?: []
+    if(eData.find { it?.data == data }) {
+        releaseTheLock(sHMLF)
+        return
+    }
+    eData.push([dt: getDtNow(), data: data])
+    Integer lsiz=eData.size()
+    if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
+    updMemStoreItem(logKey, eData)
+
+    releaseTheLock(sHMLF)
+}
+
+private void logDebug(String msg) { if(settings.logDebug == true) { log.debug "Action (v${appVersionFLD}) | ${msg}" } }
+private void logInfo(String msg) { if(settings.logInfo != false) { log.info " Action (v${appVersionFLD}) | ${msg}" } }
+private void logTrace(String msg) { if(settings.logTrace == true) { log.trace "Action (v${appVersionFLD}) | ${msg}" } }
+private void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) { log.warn " Action (v${appVersionFLD}) | ${msg}" }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error "Action (v${appVersionFLD}) | ${msg}" }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+
+Map getLogHistory() {
+    Boolean aa = getTheLock(sHMLF, "getLogHistory")
+    // log.trace "lock wait: ${aa}"
+
+    List warn = getMemStoreItem("warnHistory")
+    warn = warn ?: []
+    List errs = getMemStoreItem("errorHistory")
+    errs = errs ?: []
+
+    releaseTheLock(sHMLF)
+
+    return [ warnings: []+warn, errors: []+errs ]
+}
+
+private void clearLogHistory() {
+    String appId = app.getId()
+
+    Boolean aa = getTheLock(sHMLF, "clearLogHistory")
+    // log.trace "lock wait: ${aa}"
+
+    Map memStore = historyMapFLD[appId] ?: [:]
+    memStore["warnHistory"] = []
+    memStore["errorHistory"] = []
+    historyMapFLD[appId] = memStore
+    historyMapFLD = historyMapFLD
+
+    releaseTheLock(sHMLF)
+}
+
+@Field volatile static Map<String,Map> historyMapFLD = [:]
+// FIELD VARIABLE FUNCTIONS
+private void updMemStoreItem(String key, List val) {
+    String appId = app.getId()
     Map memStore = historyMapFLD[appId] ?: [:]
     memStore[key] = val
     historyMapFLD[appId] = memStore
     historyMapFLD = historyMapFLD
     // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
-    releaseTheLock(sHMLF)
 }
 
-private List getMemStoreItem(key){
+private List getMemStoreItem(String key){
     String appId = app.getId()
-    Map memStore = historyMapFLD[appId] ?: [:]
-    return memStore[key] ?: null
+    Map<String, List> memStore = historyMapFLD[appId] ?: [:]
+    return (List)memStore[key] ?: []
 }
 
 // Memory Barrier
