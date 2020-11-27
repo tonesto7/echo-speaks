@@ -3242,7 +3242,8 @@ Integer getDaysSinceUpdated() {
 }
 
 String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
-Boolean showChgLogOk() { return ((Boolean)state.isInstalled && (state?.curAppVer != appVersionFLD || ((Boolean)getInstData('shownChgLog') != true) )) }
+Boolean showChgLogOk() { return ((Boolean)state.isInstalled && !((String)state.curAppVer == appVersionFLD && (Boolean)getInstData('shownChgLog')) ) }
+
 def changeLogPage() {
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
@@ -3927,7 +3928,7 @@ void updInstData(String key, val) {
 
 private getInstData(String key) {
     Map iMap = state.installData
-    if(val && iMap && iMap[val]) { return iMap[val] }
+    if(key && iMap && iMap[key]) { return iMap[key] }
     return null
 }
 
@@ -3953,10 +3954,10 @@ private void remTsVal(key) {
         }
 }
 
-private String getTsVal(String val) {
+private String getTsVal(String key) {
         String appId=app.getId()
         Map tsMap=tsDtMapFLD[appId]
-        if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
+        if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
         return sNULL
 }
 
@@ -3978,9 +3979,9 @@ void remDevSupVal(key) {
     }
 }
 
-private getDevSupVal(String val) {
+private getDevSupVal(String key) {
     Map dsMap = atomicState?.devSupMap
-    if(val && dsMap && dsMap[val]) { return dsMap[val] }
+    if(key && dsMap && dsMap[key]) { return dsMap[key] }
     return null
 }
 
@@ -4002,9 +4003,9 @@ void remServerItem(key) {
     }
 }
 
-def getServerItem(val) {
+def getServerItem(key) {
     Map sMap = atomicState?.serverDataMap
-    if(val && sMap && sMap[val]) { return sMap[val] }
+    if(key && sMap && sMap[key]) { return sMap[key] }
     return null
 }
 
@@ -4026,9 +4027,9 @@ void remAppFlag(key) {
     }
 }
 
-Boolean getAppFlag(String val) {
+Boolean getAppFlag(String key) {
     def aMap = atomicState?.appFlagsMap
-    if(val && aMap && aMap[val]) { return (Boolean)aMap[val] }
+    if(key && aMap && aMap[key]) { return (Boolean)aMap[key] }
     return false
 }
 
