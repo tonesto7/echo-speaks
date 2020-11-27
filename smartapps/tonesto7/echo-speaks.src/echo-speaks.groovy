@@ -30,12 +30,12 @@ import groovy.transform.Field
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 @Field volatile static Map<String,Map> historyMapFLD = [:]
-@Field static Map<String,Map> cookieDataFLD          = [:]
-@Field static Map<String,Map> echoDeviceMapFLD       = [:]
+@Field volatile static Map<String,Map> cookieDataFLD          = [:]
+@Field volatile static Map<String,Map> echoDeviceMapFLD       = [:]
 @Field static Map<String,Map> guardDataFLD           = [:]
 @Field static Map<String,Map> zoneStatusMapFLD       = [:]
-@Field static Map<String,Map> bluetoothDataFLD       = [:]
-@Field static Map<String,Map> dndDataFLD             = [:]
+@Field volatile static Map<String,Map> bluetoothDataFLD       = [:]
+@Field volatile static Map<String,Map> dndDataFLD             = [:]
 
 definition(
     name        : "Echo Speaks",
@@ -1349,7 +1349,7 @@ void wsEvtHandler(evt) {
     // log.debug "evt: ${evt}"
     if(evt && evt?.id && (evt?.attributes?.size() || evt?.triggers?.size())) {
         if("bluetooth" in evt?.triggers) { Map a=getBluetoothData() }
-        if("activity" in evt?.triggers) { Map a=getDeviceActivity(null, true) }
+        if("activity" in evt?.triggers) { Map a=getDeviceActivity(sNULL, true) }
         if(evt?.all == true) {
             getEsDevices()?.each { eDev->
                 if(evt?.attributes?.size()) { evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) } }
@@ -1467,6 +1467,7 @@ String getCookieVal() {
         Map cookieData = state.cookieData
         //if (cookieData && cookieData.localCookie && cookieData.csrf) cookieDataFLD[myId] = cookieData
         cookieDataFLD[myId] = cookieData
+        cookieDataFLD = cookieDataFLD
     }
     return cookieDataFLD[myId]?.localCookie ? (String)cookieDataFLD[myId].localCookie : sNULL
 }
@@ -1477,6 +1478,7 @@ String getCsrfVal() {
         Map cookieData = state.cookieData
         //if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[myId] = cookieData; }
         cookieDataFLD[myId] = cookieData
+        cookieDataFLD = cookieDataFLD
     }
     return cookieDataFLD[myId]?.csrf ?  (String)cookieDataFLD[myId].csrf : sNULL
 }
@@ -1618,8 +1620,9 @@ Boolean serverConfigured() {
 }
 
 def getCookieData() {
-    Map resp = state?.cookieData ?: [:]
-    resp["refreshDt"] = getTsVal("lastCookieRrshDt") ?: null
+    Map resp = state.cookieData ?: [:]
+    String aa = getTsVal("lastCookieRrshDt")
+    resp["refreshDt"] = aa ?: null
     def json = new groovy.json.JsonOutput().toJson(resp)
     incrementCntByKey("getCookieCnt")
     render contentType: "application/json", data: json
@@ -1628,18 +1631,27 @@ def getCookieData() {
 def storeCookieData() {
     logTrace("storeCookieData Request Received...")
     Map data = request?.JSON as Map
-    if(data && data?.cookieData) {
+    Map cookieItems = [:]
+
+    if(data && data.cookieData) {
         logTrace("cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
-        Map cookieItems = [:]
-        data?.cookieData?.each { String k,v-> cookieItems[k] = v as String }
+
+        data.cookieData.each { String k,v-> cookieItems[k] = v as String }
         state.cookieData = cookieItems
-        updServerItem("onHeroku", (isStFLD || data?.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
-        updServerItem("isLocal", (!isStFLD && data?.isLocal == true))
-        updServerItem("serverHost", ((String)data?.serverUrl ?: sNULL))
-        updCodeVerMap("server", (String)data?.version)
+        String myId=app.getId()
+        cookieDataFLD[myId] = cookieItems
+        cookieDataFLD = cookieDataFLD
     }
+
+    if(data) {
+        updServerItem("isLocal", (!isStFLD && data.isLocal == true))
+        updServerItem("onHeroku", (isStFLD || data.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
+        updServerItem("serverHost", ((String)data.serverUrl ?: sNULL))
+        updCodeVerMap("server", (String)data.version)
+    }
+
     // log.debug "csrf: ${state?.cookieData?.csrf}"
-    if(state.cookieData?.localCookie && state.cookieData?.csrf != null) {
+    if(cookieItems.localCookie && cookieItems.csrf) {
         logInfo("Cookie data was updated | Reinitializing App... | Polling should restart in 10 seconds...")
         Boolean a=validateCookie(true)
         state.serviceConfigured = true
@@ -1653,11 +1665,11 @@ void clearCookieData(String src=sNULL, Boolean callSelf=false) {
     logTrace("clearCookieData(${src ?: sBLANK}, $callSelf)")
     settingUpdate("resetCookies", "false", "bool")
     if(!callSelf) authEvtHandler(false, "clearCookieData")
-//    state.authValid = false
     state.remove("cookie")
     state.remove("cookieData")
     String myId=app.getId()
     cookieDataFLD[myId] = [:]
+    cookieDataFLD = cookieDataFLD
     remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
     unschedule("getOtherData")
@@ -1678,13 +1690,18 @@ private updateChildAuth(Boolean isValid) {
     (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { (isValid) ? it?.updateCookies([cookie: getCookieVal(), csrf: getCsrfVal()]) : it?.removeCookies(true) }
 }
 
+@Field volatile static Map<String,List> authValidMapFLD             = [:]
+
 void authValidationEvent(Boolean valid, String src=sNULL) {
     Integer listSize = 3
-    List eList = atomicState?.authValidHistory
+    String myId=app.getId()
+    List eList = authValidMapFLD[myId]
     eList = eList ?: [true, true, true]
     eList.push(valid)
     if(eList.size() > listSize) { eList = eList.drop( eList.size()-listSize ) }
-    atomicState.authValidHistory = eList
+    authValidMapFLD[myId]= eList
+    authValidMapFLD[myId]= authValidMapFLD[myId]
+    state.authValidHistory = eList
     if(eList.every { it == false }) {
         if(!(Boolean)state.noAuthActive) {
             logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
@@ -2005,10 +2022,12 @@ void getBluetoothDevices() {
     ]
     Map btResp = [:]
     try {
+        logTrace("getBluetoothDevices")
         httpGet(params) { response ->
             btResp = response?.data ?: [:]
             // log.debug "Bluetooth Items: ${btResp}"
-            bluetoothData[myId] = btResp
+            bluetoothDataFLD[myId] = btResp
+            bluetoothDataFLD=bluetoothDataFLD
             updTsVal("bluetoothUpdDt")
         }
     } catch (ex) {
@@ -2034,7 +2053,9 @@ Map getBluetoothData(serialNumber) {
     return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName?.toString()?.replaceAll("\ufffd", "") } ?: [], curConnName: curConnName?.replaceAll("\ufffd", "")]
 }
 
-Map getDeviceActivity(serialNum, Boolean frc=false) {
+@Field volatile static Map<String,Map> devActivityMapFLD = [:]
+
+Map getDeviceActivity(String serialNum, Boolean frc=false) {
     if(!isAuthValid("getDeviceActivity")) { return [:]}
     try {
         Map params = [
@@ -2045,12 +2066,15 @@ Map getDeviceActivity(serialNum, Boolean frc=false) {
             contentType: "application/json",
             timeout: 20
         ]
-        Map lastActData = atomicState?.lastDevActivity
+        String appId=app.getId()
+        //Map lastActData = atomicState?.lastDevActivity
+        Map lastActData = devActivityMapFLD[appId]
         lastActData = lastActData ?: null
         // log.debug "activityData(IN): $lastActData"
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
         if(frc || lastUpdSec >= 5) {
+            logTrace("getDeviceActivity($serialNum,$frc)")
             updTsVal("lastDevActChk")
             httpGet(params) { response->
                 if (response?.data && response?.data?.activities != null) {
@@ -2064,12 +2088,15 @@ Map getDeviceActivity(serialNum, Boolean frc=false) {
                         Map lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand.description)
                         def lastDevice = lastCommand.sourceDeviceIds?.get(0)
                         lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
-                        atomicState.lastDevActivity = lastActData
+
+                        devActivityMapFLD[appId]=lastActData
+                        devActivityMapFLD=devActivityMapFLD
+//                        atomicState.lastDevActivity = lastActData
                     }
                 }
             }
         }
-        if(lastActData && lastActData?.size() && lastActData?.serialNumber == serialNum) {
+        if(serialNum && lastActData && lastActData.size() && lastActData.serialNumber == serialNum) {
             // log.debug "activityData(OUT): $lastActData"
             return lastActData
         }
@@ -2083,7 +2110,7 @@ Map getDeviceActivity(serialNum, Boolean frc=false) {
 }
 
 void getDoNotDisturb() {
-    if(!isAuthValid("getDoNotDistrib")) { return }
+    if(!isAuthValid("getDoNotDisturb")) { return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
@@ -2095,23 +2122,24 @@ void getDoNotDisturb() {
     Map dndResp = [:]
     String myId=app.getId()
     try {
+        logTrace("getDoNotDisturb")
         httpGet(params) { response ->
             dndResp = response?.data ?: [:]
             // log.debug "DoNotDisturb Data: ${dndResp}"
             dndDataFLD[myId] = dndResp
+            dndDataFLD=dndDataFLD
         }
     } catch (ex) {
         respExceptionHandler(ex, "getDoNotDisturb", true)
-        if(!dndDataFLD[myId]) { dndDataFLD[myId] = dndResp }
+        if(!dndDataFLD[myId]) { dndDataFLD[myId] = [:] }
     }
-
 }
 
-Boolean getDndEnabled(serialNumber) {
+Boolean getDndEnabled(String serialNumber) {
     // logTrace("getBluetoothData: ${serialNumber}")
     String myId=app.getId()
-    Map sData = dndDataFLD[myId] ?: [:]
-    Map dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
+    Map sData = dndDataFLD[myId]
+    Map dndData = sData && sData.doNotDisturbDeviceStatusList?.size() ? sData.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
     return (dndData && dndData?.enabled == true)
 }
 
@@ -2128,6 +2156,7 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
 
     Map rtResp = [:]
     try {
+        logTrace("getAlexaRoutines($autoId, $utterOnly)")
         httpGet(params) { response ->
             rtResp = response?.data ?: [:]
             // log.debug "alexaRoutines: $rtResp"
@@ -2576,7 +2605,7 @@ def receiveEventData(Map evtData, String src) {
                     Boolean bypassBlock = ((Boolean)settings.bypassDeviceBlocks && !isInIgnoreInput)
 
                     if(!bypassBlock && (!familyAllowed?.ok || isBlocked || (!allowTTS && !isMediaPlayer) || isInIgnoreInput)) {
-                        logDebug("familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
+                        logTrace("familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
                         if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
                             List reasons = []
                             if(deviceStyleData?.blocked) {
@@ -2691,18 +2720,20 @@ def receiveEventData(Map evtData, String src) {
                     }
                     curDevFamily?.push(echoValue?.deviceStyle?.name)
                 }
+                String myId=app.getId()
                 if(!isStFLD) {
                     String wsChildHandlerName = "Echo Speaks WS"
                     def oldWsDev = getChildDevice("echoSpeaks_websocket")
                     if(oldWsDev) { isStFLD ? deleteChildDevice("echoSpeaks_websocket", true) : deleteChildDevice("echoSpeaks_websocket") }
-                    def wsDevice = getChildDevice("${app.getId()}|echoSpeaks_websocket")
-                    if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "${app.getId()}|echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
+                    def wsDevice = getChildDevice("${myId}|echoSpeaks_websocket")
+                    if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "${myId}|echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
                     updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastTsValSecs("lastDevDataUpdDt")/60).toFloat()?.round(1)} minutes)")
                 updTsVal("lastDevDataUpdDt")
                 state.echoDeviceMap = echoDeviceMap
-                echoDeviceMapFLD = echoDeviceMap
+                echoDeviceMapFLD[myId] = echoDeviceMap
+                echoDeviceMapFLD = echoDeviceMapFLD
                 state.allEchoDevices = allEchoDevices
                 state.skippedDevices = skippedDevices
                 state.deviceStyleCnts = curDevFamily?.countBy { it }
@@ -3390,12 +3421,13 @@ String createMetricsDataJson() {
     }
 }
 
-private incrementCntByKey(String key) {
-    long evtCnt = state?."${key}" ?: 0
+void incrementCntByKey(String key) {
+    Long evtCnt = (Long)state?."${key}"
+    evtCnt = evtCnt != null ? evtCnt : 0L
     // evtCnt = evtCnt?.toLong()+1
     evtCnt++
     // logTrace("${key?.toString()?.capitalize()}: $evtCnt", true)
-    state?."${key}" = evtCnt?.toLong()
+    state."${key}" = evtCnt
 }
 
 // ******************************************
@@ -3636,7 +3668,7 @@ private getDiagDataJson(Boolean asObj = false) {
                 cookieValidationState: (Boolean)state.authValid,
                 cookieValidDate: getTsVal("lastCookieChkDt") ?: null,
                 cookieValidDur: getTsVal("lastCookieChkDt") ? seconds2Duration(getLastTsValSecs("lastCookieChkDt")) : null,
-                cookieValidHistory: state?.authValidHistory,
+                cookieValidHistory: (List)state.authValidHistory,
                 cookieLastRefreshDate: getTsVal("lastCookieRrshDt") ?: null,
                 cookieLastRefreshDur: getTsVal("lastCookieRrshDt") ? seconds2Duration(getLastTsValSecs("lastCookieRrshDt")) : null,
                 cookieInvalidReason: (!(Boolean)state.authValid && state.authEvtClearReason) ? state?.authEvtClearReason : (String)null,
