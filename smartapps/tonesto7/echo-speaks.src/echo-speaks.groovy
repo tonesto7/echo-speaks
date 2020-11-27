@@ -5083,6 +5083,7 @@ String getAppDebugDesc() {
 
 void addToLogHistory(String logKey, String msg, Integer max=10) {
     Boolean ssOk = true // (stateSizePerc() <= 70)
+    String appId=app.getId()
 
     Boolean aa = getTheLock(sHMLF, "addToHistory(${logKey})")
     // log.trace "lock wait: ${aa}"
@@ -5130,17 +5131,30 @@ void clearDiagLogs(String type="all") {
 }
 
 Map getLogHistory() {
-    Boolean aa = getTheLock(sHMLF, "getCmdHistory")
+    Boolean aa = getTheLock(sHMLF, "getLogHistory")
     // log.trace "lock wait: ${aa}"
 
     List warn = getMemStoreItem("warnHistory")
-    warn = warn ?: []
     List errs = getMemStoreItem("errorHistory")
-    errs = errs ?: []
 
     releaseTheLock(sHMLF)
 
     return [ warnings: []+warn, errors: []+errs ]
+}
+
+private void clearLogHistory() {
+    String appId = app.getId()
+
+    Boolean aa = getTheLock(sHMLF, "clearLogHistory")
+    // log.trace "lock wait: ${aa}"
+
+    Map memStore = historyMapFLD[appId] ?: [:]
+    memStore["warnHistory"] = []
+    memStore["errorHistory"] = []
+    historyMapFLD[appId] = memStore
+    historyMapFLD = historyMapFLD
+
+    releaseTheLock(sHMLF)
 }
 
 private void clearHistory() {
@@ -5166,8 +5180,8 @@ private void updMemStoreItem(String key, List val) {
 
 private List<Map> getMemStoreItem(String key){
     String appId = app.getId()
-    Map memStore = historyMapFLD[appId] ?: [:]
-    return memStore[key] ?: null
+    Map<String, List> memStore = historyMapFLD[appId] ?: [:]
+    return (List)memStore[key] ?: []
 }
 
 // Memory Barrier
