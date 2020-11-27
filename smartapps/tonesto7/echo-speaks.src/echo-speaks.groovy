@@ -1287,7 +1287,7 @@ def initialize() {
             runIn(11, "postInitialize")
             getOtherData()
             getEchoDevices()
-        } else { unschedule("getEchoDevices"); unschedule("getOtherData"); }
+        } else { unschedule("getEchoDevices"); unschedule("getOtherData") }
     }
 }
 
@@ -1380,7 +1380,7 @@ private updChildSocketStatus() {
 
 def zoneStateHandler(evt) {
     String id = evt?.value?.toString()
-    Map data = evt?.jsonData;
+    Map data = evt?.jsonData
     // log.trace "zone: ${id} | Data: $data"
     if(data && id) {
         Map zoneMap = atomicState?.zoneStatusMap
@@ -1392,7 +1392,7 @@ def zoneStateHandler(evt) {
 
 def zoneRemovedHandler(evt) {
     String id = evt?.value?.toString()
-    Map data = evt?.jsonData;
+    Map data = evt?.jsonData
     log.trace "zone removed: ${id} | Data: $data"
     if(data && id) {
         Map zoneMap = atomicState?.zoneStatusMap
@@ -1487,18 +1487,18 @@ void clearCloudConfig() {
 }
 
 String getEnvParamsStr() {
-    Map envParams = [:]
-    envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}"
-    envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}"
-    envParams["hubPlatform"] = "${platformFLD}"
-    envParams["useHeroku"] = (isStFLD || (Boolean)settings.useHeroku != false)
+    Map<String, String> envParams = [:]
+    envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}".toString()
+    envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}".toString()
+    envParams["hubPlatform"] = platformFLD
+    envParams["useHeroku"] = (isStFLD || (Boolean)settings.useHeroku).toString()
     envParams["serviceDebug"] = "false"
     envParams["serviceTrace"] = "false"
     envParams["amazonDomain"] = (String)settings.amazonDomain ?: "amazon.com"
     envParams["regionLocale"] = (String)settings.regionLocale ?: "en-US"
-    envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com"
+    envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com".toString()
     String envs = ""
-    envParams?.each { String k, String v-> envs += "&env[${k}]=${v}".toString() }
+    envParams.each { String k, String v-> envs += "&env[${k}]=${v}".toString() }
     return envs
 }
 
@@ -1526,33 +1526,33 @@ Boolean checkIfCodeUpdated() {
         }
         List cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
         def echoDev = cDevs?.find { !it?.isWS() }
-        if(echoDev && codeVer.echoDevice != echoDev?.devVersion()) {
+        if(echoDev && (String)codeVer.echoDevice != (String)echoDev?.devVersion()) {
             chgs.push("echoDevice")
             state.pollBlocked = true
-            updCodeVerMap("echoDevice", echoDev?.devVersion())
+            updCodeVerMap("echoDevice", (String)echoDev?.devVersion())
             codeUpdated = true
         }
         if(!isStFLD) {
             def wsDev = cDevs?.find { it?.isWS() }
-            if(wsDev && codeVer.wsDevice != wsDev?.devVersion()) {
+            if(wsDev && (String)codeVer.wsDevice != (String)wsDev?.devVersion()) {
                 chgs.push("wsDevice")
-                updCodeVerMap("wsDevice", wsDev?.devVersion())
+                updCodeVerMap("wsDevice", (String)wsDev?.devVersion())
                 codeUpdated = true
             }
         }
         List cApps = getActionApps()
-        if(cApps?.size() && codeVer.actionApp != cApps[0]?.appVersionFLD) {
+        if(cApps?.size() && (String)codeVer.actionApp != (String)cApps[0]?.appVersionFLD) {
             chgs.push("actionApp")
             state.pollBlocked = true
-            updCodeVerMap("actionApp", cApps[0]?.appVersionFLD)
+            updCodeVerMap("actionApp", (String)cApps[0]?.appVersionFLD)
             codeUpdated = true
         }
         List zApps = getZoneApps()
-        if(zApps?.size() && codeVer.zoneApp != zApps[0]?.appVersionFLD) {
+        if(zApps?.size() && (String)codeVer.zoneApp != (String)zApps[0]?.appVersionFLD) {
             chgs.push("zoneApp")
             state.pollBlocked = true
             // log.debug "zoneVer: ${zApps[0]?.appVersionFLD}"
-            updCodeVerMap("zoneApp", zApps[0]?.appVersionFLD)
+            updCodeVerMap("zoneApp", (String)zApps[0]?.appVersionFLD)
             codeUpdated = true
         }
     }
@@ -1595,7 +1595,7 @@ def processData() {
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
-            updServerItem("onHeroku", (isStFLD || data?.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku != false)))
+            updServerItem("onHeroku", (isStFLD || data?.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
             updServerItem("isLocal", (!isStFLD && data?.isLocal == true))
             updServerItem("serverHost", ((String)data?.serverUrl ?: sNULL))
             logTrace("processData Received | Version: ${data?.version} | onHeroku: ${data?.onHeroku} | serverUrl: ${data?.serverUrl}")
@@ -1643,13 +1643,14 @@ def storeCookieData() {
     }
 }
 
-void clearCookieData(src=null) {
-    logTrace("clearCookieData(${src ?: ""})")
+void clearCookieData(src=sNULL) {
+    logTrace("clearCookieData(${src ?: sBLANK})")
     settingUpdate("resetCookies", "false", "bool")
     state.authValid = false
     state.remove("cookie")
     state.remove("cookieData")
-    cookieDataFLD[app.getId()] = [:]
+    String myId=app.getId()
+    cookieDataFLD[myId] = [:]
     remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
     unschedule("getOtherData")
@@ -1726,8 +1727,8 @@ String toQueryString(Map m) {
 }
 
 String getServerHostURL() {
-    String srvHost = getServerItem("serverHost")
-    return ((Boolean)getServerItem("isLocal") && srvHost) ? (srvHost ?: sNULL) : "https://${getRandAppName()}.herokuapp.com"
+    String srvHost = (String)getServerItem("serverHost")
+    return ((Boolean)getServerItem("isLocal") && srvHost) ? (srvHost ?: sNULL) : "https://${getRandAppName()}.herokuapp.com".toString()
 }
 
 Integer cookieRefreshSeconds() { return ((Integer)settings.refreshCookieDays ?: 5)*86400 as Integer }
@@ -1797,7 +1798,7 @@ def cookieRefreshResp(response, data) {
         // log.debug "rData: $rData"
         if (rData && rData?.result && rData?.result?.size()) {
             logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
-            if((Boolean)settings.sendCookieRefreshMsg == true && getLastTsValSecs("lastCookieRfshMsgDt") > 15) {
+            if((Boolean)settings.sendCookieRefreshMsg && getLastTsValSecs("lastCookieRfshMsgDt") > 15) {
                 sendMsg("${app.name} Cookie Refresh", "Amazon Cookie was Refreshed Successfully!!!")
                 updTsVal("lastCookieRfshMsgDt")
             }
@@ -1828,7 +1829,7 @@ Boolean apiHealthCheck(Boolean frc=false) {
         ]
         httpGet(params) { resp->
             logDebug("API Health Check Resp: (${resp?.getData()})")
-            return (resp?.getData().toString() == "healthy")
+            return (resp?.getData()?.toString() == "healthy")
         }
     } catch(ex) {
         respExceptionHandler(ex, "apiHealthCheck")
@@ -1870,12 +1871,12 @@ Boolean validateCookie(Boolean frc=false) {
 
 private getCustomerData(frc=false) {
     try {
-        if(!frc && state?.amazonCustomerData && getLastTsValSecs("lastCustDataUpdDt") < 3600) { return state?.amazonCustomerData }
-        def execDt = now()
+        if(!frc && state.amazonCustomerData && getLastTsValSecs("lastCustDataUpdDt") < 3600) { return state.amazonCustomerData }
+        Long execDt = now()
         Map params = [
             uri: getAmazonUrl(),
             path: "/api/get-customer-pfm",
-            query: [_: now()],
+            query: ["_": execDt],
             headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
             contentType: "application/json",
             timeout: 20,
@@ -1917,7 +1918,7 @@ private userCommIds() {
 
 public childInitiatedRefresh() {
     Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)?.abs()
-    if(state?.deviceRefreshInProgress == false && lastRfsh > 120) {
+    if(!(Boolean)state.deviceRefreshInProgress && lastRfsh > 120) {
         logDebug("A Child Device is requesting a Device List Refresh...")
         updTsVal("lastChildInitRefreshDt")
         getOtherData()
@@ -2010,7 +2011,7 @@ Map getBluetoothData(serialNumber) {
     String curConnName = sNULL
     Map btObjs = [:]
     Map btData = bluetoothDataFLD[myId] ?: [:]
-    Map bluData = btData && btData?.bluetoothStates?.size() ? btData?.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
+    Map bluData = btData && btData.bluetoothStates?.size() ? btData.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
     if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
         def bData = bluData?.pairedDeviceList?.findAll { (it?.deviceClass != "GADGET") }
         bData?.findAll { it?.address != null }?.each {
@@ -2078,11 +2079,11 @@ void getDoNotDisturb() {
         timeout: 20
     ]
     Map dndResp = [:]
+    String myId=app.getId()
     try {
         httpGet(params) { response ->
             dndResp = response?.data ?: [:]
             // log.debug "DoNotDisturb Data: ${dndResp}"
-            String myId=app.getId()
             dndDataFLD[myId] = dndResp
         }
     } catch (ex) {
@@ -2100,7 +2101,7 @@ Boolean getDndEnabled(serialNumber) {
     return (dndData && dndData?.enabled == true)
 }
 
-public getAlexaRoutines(autoId=null, Boolean utterOnly=false) {
+public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
@@ -2110,7 +2111,7 @@ public getAlexaRoutines(autoId=null, Boolean utterOnly=false) {
         timeout: 20
     ]
 
-    def rtResp = [:]
+    Map rtResp = [:]
     try {
         httpGet(params) { response ->
             rtResp = response?.data ?: [:]
@@ -2121,17 +2122,18 @@ public getAlexaRoutines(autoId=null, Boolean utterOnly=false) {
                 } else {
                     Map items = [:]
                     Integer cnt = 1
-                    if(rtResp?.size()) {
-                        rtResp?.findAll { it?.status == "ENABLED" }?.each { item->
+                    if(rtResp.size()) {
+                        rtResp.findAll { it?.status == "ENABLED" }?.each { item->
+                            String myK = item?.automationId.toString()
                             if(item?.name != null) {
-                                items[item?.automationId] = item?.name
+                                items[myK] = item?.name
                             } else {
                                 if(item?.triggers?.size()) {
                                     item?.triggers?.each { trg->
                                         if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
-                                            items[item?.automationId] = trg?.payload?.utterance as String
+                                            items[myK] = trg?.payload?.utterance as String
                                         } else {
-                                            items[item?.automationId] = "Unlabeled Routine ($cnt)"
+                                            items[myK] = "Unlabeled Routine ($cnt)"
                                             cnt++
                                         }
                                     }
@@ -2146,8 +2148,8 @@ public getAlexaRoutines(autoId=null, Boolean utterOnly=false) {
         }
     } catch (ex) {
         respExceptionHandler(ex, "getAlexaRoutines", true)
-        return rtResp
     }
+    return rtResp
 }
 
 Boolean executeRoutineById(String routineId) {
@@ -2155,7 +2157,7 @@ Boolean executeRoutineById(String routineId) {
     Map routineData = getAlexaRoutines(routineId)
     if(routineData && routineData?.sequence) {
         sendSequenceCommand("ExecuteRoutine", routineData, null)
-        // log.debug "Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${routineId}"
+        logDebug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${routineId}")
         return true
     } else {
         logError("No Routine Data Returned for ID: (${routineId})")
@@ -2164,7 +2166,7 @@ Boolean executeRoutineById(String routineId) {
 }
 
 void checkGuardSupport() {
-    Long execDt = now()
+//    Long execDt = now()
     if(!isAuthValid("checkGuardSupport")) { return }
     Map params = [
         uri: getAmazonUrl(),
@@ -2459,13 +2461,14 @@ private getEchoDevices() {
         contentType: "application/json",
         timeout: 20,
     ]
-    state?.deviceRefreshInProgress = true
+    state.deviceRefreshInProgress = true
     state.refreshDeviceData = false
     execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
 }
 
 def echoDevicesResponse(response, data) {
-    List ignoreTypes = getDeviceIgnoreData() ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
+    List ignoreTypes = getDeviceIgnoreData()
+    ignoreTypes = ignoreTypes ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     List removeCaps = [
         "SUPPORTS_CONNECTED_HOME", "SUPPORTS_CONNECTED_HOME_ALL", "SUPPORTS_CONNECTED_HOME_CLOUD_ONLY", "ALLOW_LOG_UPLOAD", "FACTORY_RESET_DEVICE", "DIALOG_INTERFACE_VERSION",
@@ -2473,7 +2476,7 @@ def echoDevicesResponse(response, data) {
     ]
     try {
         // log.debug "json response is: ${response.json}"
-        state?.deviceRefreshInProgress=false
+        state.deviceRefreshInProgress=false
         List eDevData = response?.json?.devices ?: []
         Map echoDevices = [:]
         if(eDevData?.size()) {
@@ -2494,8 +2497,9 @@ def echoDevicesResponse(response, data) {
     }
 }
 
-private getDeviceIgnoreData() {
-    Map dData = deviceSupportMapFLD.types ?: [:]
+private List getDeviceIgnoreData() {
+    Map dData = deviceSupportMapFLD.types
+    dData = dData ?: [:]
     if(dData?.size()) {
         List o = dData?.findAll { it?.value?.ignore == true }?.collect { it?.key as String }
         // log.debug "devTypeIgnoreData: ${o}"
@@ -2504,11 +2508,11 @@ private getDeviceIgnoreData() {
     return null
 }
 
-def getUnknownDevices() {
+List getUnknownDevices() {
     List items = []
-    state?.unknownDevices?.each {
+    state.unknownDevices?.each {
         it?.description = "What kind of device/model?(PLEASE UPDATE THIS)"
-        if(items?.size() < 5) items?.push(it)
+        if(items.size() < 5) items.push(it)
     }
     return items
 }
@@ -2532,9 +2536,9 @@ def receiveEventData(Map evtData, String src) {
 
             if (evtData?.echoDevices?.size()) {
                 Long execTime = evtData?.execDt ? (now()-(Long)evtData.execDt) : 0L
-                Map echoDeviceMap = [:]
-                Map allEchoDevices = [:]
-                Map skippedDevices = [:]
+                Map<String, Map> echoDeviceMap = [:]
+                Map<String, Map> allEchoDevices = [:]
+                Map<String, Map> skippedDevices = [:]
                 List unknownDevices = []
                 List curDevFamily = []
                 Integer cnt = 0
@@ -2552,11 +2556,11 @@ def receiveEventData(Map evtData, String src) {
                     Boolean isInIgnoreInput = (echoValue?.serialNumber in settings.echoDeviceFilter)
                     Boolean allowTTS = (deviceStyleData?.caps && deviceStyleData?.caps?.contains("t"))
                     Boolean isMediaPlayer = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
-                    Boolean volumeSupport = (echoValue?.capabilities.contains("VOLUME_SETTING"))
-                    Boolean unsupportedDevice = ((familyAllowed?.ok == false && familyAllowed?.reason == "Unknown Reason") || isBlocked == true)
-                    Boolean bypassBlock = ((Boolean)settings.bypassDeviceBlocks == true && !isInIgnoreInput)
+                    Boolean volumeSupport = (echoValue?.capabilities?.contains("VOLUME_SETTING"))
+                    Boolean unsupportedDevice = ((!familyAllowed?.ok && familyAllowed?.reason == "Unknown Reason") || isBlocked)
+                    Boolean bypassBlock = ((Boolean)settings.bypassDeviceBlocks && !isInIgnoreInput)
 
-                    if(!bypassBlock && (familyAllowed?.ok == false || isBlocked == true || (!allowTTS && !isMediaPlayer) || isInIgnoreInput)) {
+                    if(!bypassBlock && (!familyAllowed?.ok || isBlocked || (!allowTTS && !isMediaPlayer) || isInIgnoreInput)) {
                         logDebug("familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
                         if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
                             List reasons = []
@@ -2583,7 +2587,7 @@ def receiveEventData(Map evtData, String src) {
                     }
                     // if(isBypassBlock && familyAllowed?.reason == "Family Blocked" || isBlocked == true) { return }
 
-                    echoValue["unsupported"] = (unsupportedDevice == true)
+                    echoValue["unsupported"] = (unsupportedDevice)
                     echoValue["authValid"] = (Boolean)state.authValid
                     echoValue["amazonDomain"] = (settings.amazonDomain ?: "amazon.com")
                     echoValue["regionLocale"] = (settings.regionLocale ?: "en-US")
@@ -2597,10 +2601,10 @@ def receiveEventData(Map evtData, String src) {
                     permissions["announce"] = (deviceStyleData?.caps && deviceStyleData?.caps?.contains("a"))
                     permissions["volumeControl"] = volumeSupport
                     permissions["mediaPlayer"] = isMediaPlayer
-                    permissions["amazonMusic"] = (echoValue?.capabilities.contains("AMAZON_MUSIC"))
-                    permissions["tuneInRadio"] = (echoValue?.capabilities.contains("TUNE_IN"))
-                    permissions["iHeartRadio"] = (echoValue?.capabilities.contains("I_HEART_RADIO"))
-                    permissions["pandoraRadio"] = (echoValue?.capabilities.contains("PANDORA"))
+                    permissions["amazonMusic"] = (echoValue?.capabilities?.contains("AMAZON_MUSIC"))
+                    permissions["tuneInRadio"] = (echoValue?.capabilities?.contains("TUNE_IN"))
+                    permissions["iHeartRadio"] = (echoValue?.capabilities?.contains("I_HEART_RADIO"))
+                    permissions["pandoraRadio"] = (echoValue?.capabilities?.contains("PANDORA"))
                     permissions["appleMusic"] = (evtData?.musicProviders.containsKey("APPLE_MUSIC"))
                     permissions["siriusXm"] = (evtData?.musicProviders?.containsKey("SIRIUSXM"))
                     // permissions["tidal"] = true
@@ -2624,7 +2628,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["hasClusterMembers"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
 
                     if(deviceStyleData?.name?.toString()?.toLowerCase()?.contains("unknown")) {
-                        unknownDevices?.push([
+                        unknownDevices.push([
                             name: echoValue?.accountName,
                             family: echoValue?.deviceFamily,
                             type: echoValue?.deviceType,
@@ -2638,17 +2642,17 @@ def receiveEventData(Map evtData, String src) {
                         name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey,
                         style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: isMediaPlayer, announceSupport: permissions?.announce,
                         ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers,
-                        musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", "), supported: (unsupportedDevice != true)
+                        musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", "), supported: (!unsupportedDevice)
                     ]
 
                     String dni = [app?.id, "echoSpeaks", echoKey].join("|")
                     def childDevice = getChildDevice(dni)
-                    String devLabel = "${(Boolean)settings.addEchoNamePrefix != false ? "Echo - " : ""}${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
+                    String devLabel = "${(Boolean)settings.addEchoNamePrefix ? "Echo - " : ""}${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : ""}"
                     String childHandlerName = "Echo Speaks Device"
-                    Boolean autoRename = ((Boolean)settings.autoRenameDevices != false)
+                    Boolean autoRename = ((Boolean)settings.autoRenameDevices)
                     if (!childDevice) {
                         // log.debug "childDevice not found | autoCreateDevices: ${settings.autoCreateDevices}"
-                        if((Boolean)settings.autoCreateDevices != false) {
+                        if((Boolean)settings.autoCreateDevices) {
                             try{
                                 logInfo("Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)${((Boolean)settings.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : "" }")
                                 childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
@@ -2659,8 +2663,8 @@ def receiveEventData(Map evtData, String src) {
                     }
                     if(childDevice) {
                         //Check and see if name needs a refresh
-                        String curLbl = childDevice?.getLabel()
-                        if(autoRename && childDevice?.name as String != childHandlerName) { childDevice?.name = childHandlerName as String }
+                        String curLbl = (String)childDevice?.getLabel()
+                        if(autoRename && (String)childDevice?.name != childHandlerName) { childDevice.name = childHandlerName }
                         // log.debug "curLbl: ${curLbl} | newLbl: ${devLabel} | autoRename: ${autoRename}"
                         if(autoRename && (curLbl != devLabel)) {
                             logDebug("Amazon Device Name Change Detected... Updating Device Name to (${devLabel}) | Old Name: (${curLbl})")
@@ -2668,7 +2672,7 @@ def receiveEventData(Map evtData, String src) {
                         }
                         // logInfo("Sending Device Data Update to ${devLabel} | Last Updated (${getLastTsValSecs("lastDevDataUpdDt")}sec ago)")
                         childDevice?.updateDeviceStatus(echoValue)
-                        updCodeVerMap("echoDevice", childDevice?.devVersion()) // Update device versions in codeVersions state Map
+                        updCodeVerMap("echoDevice", (String)childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
                     curDevFamily?.push(echoValue?.deviceStyle?.name)
                 }
@@ -2678,7 +2682,7 @@ def receiveEventData(Map evtData, String src) {
                     if(oldWsDev) { isStFLD ? deleteChildDevice("echoSpeaks_websocket", true) : deleteChildDevice("echoSpeaks_websocket") }
                     def wsDevice = getChildDevice("${app.getId()}|echoSpeaks_websocket")
                     if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "${app.getId()}|echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
-                    updCodeVerMap("echoDeviceWs", wsDevice?.devVersion())
+                    updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastTsValSecs("lastDevDataUpdDt")/60).toFloat()?.round(1)} minutes)")
                 updTsVal("lastDevDataUpdDt")
@@ -2720,7 +2724,7 @@ private Map getMinVerUpdsRequired() {
     return [updRequired: updRequired, updItems: updItems]
 }
 
-Map getDeviceStyle(String family, String type) {
+static Map getDeviceStyle(String family, String type) {
     Map typeData = deviceSupportMapFLD.types[type] ?: [:]
     if(typeData) {
         return typeData
@@ -3549,7 +3553,7 @@ private getDiagDataJson(Boolean asObj = false) {
                     resumeConfig: (Boolean)state.resumeConfig,
                     serviceConfigured: (Boolean)state.serviceConfigured,
                     refreshDeviceData: (Boolean)state.refreshDeviceData,
-                    deviceRefreshInProgress: state?.deviceRefreshInProgress,
+                    deviceRefreshInProgress: (Boolean)state.deviceRefreshInProgress,
                     noAuthActive: (Boolean)state.noAuthActive,
                     missPollRepair: (Boolean)state.missPollRepair,
                     pushTested: state?.pushTested,
