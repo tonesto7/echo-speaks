@@ -208,14 +208,14 @@ def installed() {
 
 def updated() {
     logTrace("${device?.displayName} Executing Updated()")
-    state?.fullRefreshOk = true
+    state.fullRefreshOk = true
     initialize()
 }
 
 def initialize() {
     logInfo("${device?.displayName} Executing initialize()")
-    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online", display: false, displayed: false)
-    sendEvent(name: "DeviceWatch-Enroll", value: new groovy.json.JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), display: false, displayed: false)
+//    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online", display: false, displayed: false)
+//    sendEvent(name: "DeviceWatch-Enroll", value: new groovy.json.JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), display: false, displayed: false)
     resetQueue()
     stateCleanup()
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
@@ -230,55 +230,54 @@ def postInstall() {
 }
 
 public triggerInitialize() { runIn(3, "initialize") }
-String getEchoDeviceType() { return state?.deviceType ?: null }
-String getEchoSerial() { return state?.serialNumber ?: null }
+String getEchoDeviceType() { return state.deviceType ?: (String)null }
+String getEchoSerial() { return state.serialNumber ?: (String)null }
 
-String getHealthStatus(lower=false) {
+String getHealthStatus(Boolean lower=false) {
     String res = device?.getStatus()
-    if(lower) { return res?.toString()?.toLowerCase() }
-    return res as String
+    if(lower) { return res?.toLowerCase() }
+    return res
 }
 
-def getShortDevName(){
+String getShortDevName(){
     return device?.displayName?.replace("Echo - ", "")
 }
 
-public setAuthState(authenticated) {
-    state?.authValid = (authenticated == true)
-    if(authenticated != true && state?.refreshScheduled) {
+public void setAuthState(authenticated) {
+    state.authValid = (authenticated == true)
+    if(authenticated != true && state.refreshScheduled) {
         removeCookies()
     }
 }
 
-public updateCookies(cookies) {
+public void updateCookies(Map cookies) {
     logWarn("Cookies Update by Parent.  Re-Initializing Device in 5 Seconds...")
-    state?.cookie = cookies
-    state?.authValid = true
+    state.cookie = cookies
+    state.authValid = true
     runIn(5, "initialize")
 }
 
-public removeCookies(isParent=false) {
-    if(state?.cookie != null && state?.authValid != false && state?.refreshScheduled != false) {
+public void removeCookies(Boolean isParent=false) {
+    if(state.cookie != null || state.authValid != false || state.refreshScheduled != false) {
         logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
-        unschedule("refreshData")
-        state?.cookie = null
-        state?.authValid = false
-        state?.refreshScheduled = false
+        if(state.refreshScheduled) { unschedule("refreshData"); state.refreshScheduled = false; }
+        state.cookie = null
+        state.authValid = false
     }
 }
 
-Boolean isAuthOk(noLogs=false) {
-    if(state?.authValid != true) {
-        if(state?.refreshScheduled) { unschedule("refreshData"); state?.refreshScheduled = false; }
-        if(state?.cookie != null) {
+Boolean isAuthOk(Boolean noLogs=false) {
+    if(state.authValid != true) {
+        if(state.refreshScheduled) { unschedule("refreshData"); state.refreshScheduled = false; }
+        if(state.cookie != null) {
             if(!noLogs) { logWarn("Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!!", true) }
-            state?.remove("cookie")
+            state.remove("cookie")
         }
         return false
     } else { return true }
 }
 
-Boolean isCommandTypeAllowed(String type, noLogs=false) {
+Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
     Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
     if(!isOnline) { if(!noLogs) { logWarn("Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})", true) }; return false; }
     if(!isAuthOk(noLogs)) { return false }
@@ -499,9 +498,9 @@ private triggerDataRrsh(parentRefresh=false) {
 }
 
 public schedDataRefresh(frc) {
-    if(frc || state?.refreshScheduled != true) {
+    if(frc || state.refreshScheduled != true) {
         runEvery1Minute("refreshData")
-        state?.refreshScheduled = true
+        state.refreshScheduled = true
     }
 }
 
@@ -555,9 +554,9 @@ private refreshStage2() {
 
 public setOnlineStatus(Boolean isOnline) {
     String onlStatus = (isOnline ? "online" : "offline")
-    if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString())) {
-        sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), display: false, displayed: false)
-    }
+//    if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString())) {
+//        sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), display: false, displayed: false)
+//    }
     if(isStateChange(device, "onlineStatus", onlStatus?.toString())) {
         logDebug("OnlineStatus has changed to (${onlStatus})")
         sendEvent(name: "onlineStatus", value: onlStatus?.toString(), display: true, displayed: true)
@@ -782,7 +781,8 @@ private getAvailableWakeWords() {
 }
 
 def getBluetoothDevices() {
-    Map btData = parent?.getBluetoothData(state?.serialNumber) ?: [:]
+    Map btData = parent?.getBluetoothData(state?.serialNumber)
+    btData = btData ?: [:]
     String curConnName = btData?.curConnName ?: null
     Map btObjs = btData?.btObjs ?: [:]
     // logDebug("Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
@@ -802,9 +802,10 @@ def getBluetoothDevices() {
     }
 }
 
-def updGuardStatus(val=null) {
+def updGuardStatus(String val=null) {
     //TODO: Update this because it's not working
-    String gState = val ?: (state?.permissions?.guardSupported ? (parent?.getAlexaGuardStatus() ?: "Unknown") : "Not Supported")
+    String t0 = val ?: (state?.permissions?.guardSupported ? parent?.getAlexaGuardStatus() : (String)null)
+    String gState = val ?: (state?.permissions?.guardSupported ? (t0 ?: "Unknown") : "Not Supported")
     if(isStateChange(device, "alexaGuardStatus", gState?.toString())) {
         sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)
         logDebug("Alexa Guard Status: (${gState})")
@@ -890,7 +891,8 @@ private getNotifications(type="Reminder", all=false) {
 
 private getDeviceActivity() {
     try {
-        Map actData = parent?.getDeviceActivity(state?.serialNumber) ?: null
+        Map actData = parent?.getDeviceActivity(state?.serialNumber)
+        actData = actData ?: null
         Boolean wasLastDevice = (actData && actData?.serialNumber == state?.serialNumber)
         if(actData) {
             if (wasLastDevice) {
@@ -913,20 +915,20 @@ private getDeviceActivity() {
 }
 
 String getCookieVal() {
-    if(cookieDataFLD != null && cookieDataFLD[app?.getId()] && cookieDataFLD[app?.getId()]?.localCookie != null) { return cookieDataFLD[app?.getId()]?.localCookie as String }
+    if(cookieDataFLD != null && cookieDataFLD[device.getId()] && cookieDataFLD[device.getId()]?.localCookie != null) { return cookieDataFLD[device.getId()]?.localCookie as String }
     else { 
         Map cookieData = state?.cookie ?: null
-        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[app?.getId()] = cookieData } 
-        return cookieDataFLD[app?.getId()]?.localCookie as String ?: null
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[device.getId()] = cookieData }
+        return cookieDataFLD[device.getId()]?.localCookie as String ?: null
     }
 }
 
 String getCsrfVal() { 
-    if(cookieDataFLD != null && cookieDataFLD[app?.getId()] && cookieDataFLD[app?.getId()]?.csrf != null) { return cookieDataFLD[app?.getId()]?.csrf as String }
+    if(cookieDataFLD != null && cookieDataFLD[device.getId()] && cookieDataFLD[device.getId()]?.csrf != null) { return cookieDataFLD[device.getId()]?.csrf as String }
     else { 
         Map cookieData = state?.cookie ?: null 
-        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[app?.getId()] = cookieData; } 
-        return cookieDataFLD[app?.getId()]?.csrf as String ?: null
+        if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[device.getId()] = cookieData; }
+        return cookieDataFLD[device.getId()]?.csrf as String ?: null
     }
 }
 
@@ -2886,7 +2888,8 @@ String getAppImg(imgName) { return "https://raw.githubusercontent.com/tonesto7/e
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 Boolean minVersionFailed() {
     try {
-        Integer minDevVer = parent?.minVersions()["echoDevice"] ?: null
+        Integer t0 = parent?.minVersions()["echoDevice"]
+        Integer minDevVer = t0 ?: null
         if(minDevVer != null && versionStr2Int(devVersionFLD) < minDevVer) { return true }
         else { return false }
     } catch (e) { 
@@ -2947,44 +2950,53 @@ private logSpeech(msg, status, error=null) {
 private Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length(); }
 private Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0); }
 
-private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = getMemStoreItem(logKey) ?: []
+private addToLogHistory(String logKey, String msg, statusData, Integer max=10) {
+    Boolean ssOk = true //(stateSizePerc() <= 70)
+    String appId = device.getId()
+
+    Map memStore = historyMapFLD[appId] ?: [:]
+    List eData = (List)memStore[logKey] ?: []
     if(eData?.find { it?.message == msg }) { return; }
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
-    if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+    Integer lsiz=eData.size()
+    if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
     updMemStoreItem(logKey, eData)
 }
 private addToHistory(String logKey, data, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() > 70)
-    List eData = getMemStoreItem(logKey) ?: []
-    if(eData?.find { it?.data == data }) { return; }
-    eData?.push([dt: getDtNow(), data: data])
-    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+    Boolean ssOk = true // (stateSizePerc() > 70)
+    String appId = device.getId()
+
+    Map memStore = historyMapFLD[appId] ?: [:]
+    List eData = (List)memStore[logKey] ?: []
+    if(eData.find { it?.data == data }) { return; }
+    eData.push([dt: getDtNow(), data: data])
+    Integer lsiz=eData.size()
+    if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
     updMemStoreItem(logKey, eData)
 }
 
-private void logDebug(msg) { if(settings?.logDebug == true) { log.debug "Echo (v${devVersionFLD}) | ${msg}" } }
-private void logInfo(msg) { if(settings?.logInfo != false) { log.info " Echo (v${devVersionFLD}) | ${msg}" } }
-private void logTrace(msg) { if(settings?.logTrace == true) { log.trace "Echo (v${devVersionFLD}) | ${msg}" } }
-private void logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Echo (v${devVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
-private void logError(msg, noHist=false) { if(settings?.logError != false) { log.error "Echo (v${devVersionFLD}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
+private void logDebug(String msg) { if(settings.logDebug == true) { log.debug "Echo (v${devVersionFLD}) | ${msg}" } }
+private void logInfo(msg) { if(settings.logInfo != false) { log.info " Echo (v${devVersionFLD}) | ${msg}" } }
+private void logTrace(String msg) { if(settings.logTrace == true) { log.trace "Echo (v${devVersionFLD}) | ${msg}" } }
+private void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) { log.warn " Echo (v${devVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
+private void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error "Echo (v${devVersionFLD}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
 
 Map getLogHistory() {
     return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [], speech: getMemStoreItem("speechHistory") ?: [] ]
 }
 public clearLogHistory() {
-    updMemStoreItem("warnHistory"), [])
-    updMemStoreItem("errorHistory"),[])
+    updMemStoreItem("warnHistory", [])
+    updMemStoreItem("errorHistory",[])
     updMemStoreItem("speechHistory", [])
     mb()
 }
 
-private incrementCntByKey(String key) {
-    long evtCnt = state?."${key}" ?: 0
+void incrementCntByKey(String key) {
+    Long evtCnt = state?."${key}"
+    evtCnt = evtCnt != null ? evtCnt : 0
     evtCnt++
-    state?."${key}" = evtCnt?.toLong()
+    state."${key}" = evtCnt
 }
 
 String getObjType(obj) {
@@ -3233,7 +3245,7 @@ Map createSequenceNode(command, value, devType=null, devSerial=null) {
 
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, val) {
-    String appId = app.getId()
+    String appId = device.getId()
     Map memStore = historyMapFLD[appId] ?: [:]
     memStore[key] = val
     historyMapFLD[appId] = memStore
@@ -3242,9 +3254,9 @@ private void updMemStoreItem(String key, val) {
 }
 
 private List getMemStoreItem(String key){
-    String appId = app.getId()
+    String appId = device.getId()
     Map memStore = historyMapFLD[appId] ?: [:]
-    return memStore[key] ?: null
+    return (List)memStore[key] ?: []
 }
 
 // Memory Barrier
@@ -3305,7 +3317,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
     }
     lockTimesFLD[semaSNum] = now()
     lockTimesFLD = lockTimesFLD
-    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
+    lockHolderFLD[semaSNum] = "${device.getId()} ${meth}".toString()
     lockHolderFLD = lockHolderFLD
     return wait
 }
