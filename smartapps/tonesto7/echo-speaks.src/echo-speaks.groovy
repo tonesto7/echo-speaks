@@ -3011,19 +3011,24 @@ void missPollNotify(Boolean on, Integer wait) {
 }
 
 void appUpdateNotify() {
-    Boolean on = ((Boolean)settings.sendAppUpdateMsg != false)
     Boolean appUpd = appUpdAvail()
     Boolean actUpd = actionUpdAvail()
     Boolean zoneUpd = zoneUpdAvail()
     Boolean echoDevUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
-    Integer updW = settings.updNotifyWaitVal
-    Integer secs=getLastTsValSecs("lastUpdMsgDt")
-    if(updW == null) { updW = 43200; settingUpdate("updNotifyWaitVal", 43200) }
-    if(secs > updW) {
-        if(on && (appUpd || actUpd || zoneUpd || echoDevUpd || socketUpd || servUpd)) {
-            state.updateAvailable = true
+    Boolean res=false
+    if(appUpd || actUpd || zoneUpd || echoDevUpd || socketUpd || servUpd) res=true
+
+    Integer secs
+    Integer updW
+    Boolean on=false
+    if(res) {
+        on = ((Boolean)settings.sendAppUpdateMsg != false)
+        updW = settings.updNotifyWaitVal
+        if(updW == null) { updW = 43200; settingUpdate("updNotifyWaitVal", 43200) }
+        secs=getLastTsValSecs("lastUpdMsgDt")
+        if(secs > updW && on) {
             String str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
@@ -3033,10 +3038,12 @@ void appUpdateNotify() {
             str += !servUpd ? "" : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             updTsVal("lastUpdMsgDt")
-            return
-        } else state.updateAvailable = false
+        }
     }
-    logDebug("appUpdateNotify() RESULT: ${(Boolean)state.updateAvailable} | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${secs} | updNotifyWaitVal: ${updW}")
+    state.updateAvailable = res
+    String msg="appUpdateNotify() RESULT: ${res} | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${secs} | updNotifyWaitVal: ${updW}"
+    if(res) logDebug(msg)
+    else logTrace(msg)
 }
 
 private List codeUpdateItems(Boolean shrt=false) {
