@@ -43,9 +43,9 @@ definition(
     author      : "Anthony Santilli",
     description : "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
     category    : "My Apps",
-    iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${state?.updateAvailable ? "_update" : sBLANK}.png",
-    iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${state?.updateAvailable ? "_update" : ""}.png",
-    iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${state?.updateAvailable ? "_update" : ""}.png",
+    iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
+    iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
+    iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
     importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
     oauth       : true,
     pausable    : true
@@ -261,7 +261,7 @@ def servPrefPage() {
                     paragraph pTS("You still need to Login to Amazon to complete the setup", sNULL, true, "red"), required: true, state: sNULL
                     if((Boolean)getServerItem("onHeroku")) {
                         href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                    } else if ((Boolean)getServerItem("isLocal")) {
+                    } else /*if ((Boolean)getServerItem("isLocal"))*/ {
                         href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
                     }
                 }
@@ -287,6 +287,10 @@ def servPrefPage() {
                 required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
             if(!isStFLD) { paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, "gray") }
             if(settings?.resetService) { clearCloudConfig() }
+        }
+        section(sTS("Documentation & Settings:")) {
+            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", image: getAppImg("documentation")
+            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
         }
         state.resumeConfig = false
     }
@@ -872,7 +876,7 @@ def notifPrefPage() {
                             input "pushoverSound", "enum", title: inTS("Notification Sound (Optional)"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
                         }
                     }
-                } else { paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, "#2784D9"), state: "complete" }
+                } else { paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, "#2784D9"), state: "complete" }
             }
         }
         if(settings?.smsNumbers?.toString()?.length()>=10 || settings.notif_devs || (Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) {
@@ -1102,6 +1106,7 @@ void executeSequence() {
 }
 
 Map executeTuneInSearch() {
+    if(!isAuthValid("executeTuneInSearch")) { return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/tunein/search",
@@ -1227,7 +1232,7 @@ def donationPage() {
     return dynamicPage(name: "donationPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
         section("") {
             def str = ""
-            str += "Hello User, \n\nPlease forgive the interuption but it's been 30 days since you installed/updated this SmartApp and I wanted to present you with this one time reminder that donations are accepted (We do not require them)."
+            str += "Hello User, \n\nPlease forgive the interuption but it's been 30 days since you installed/updated this App and I wanted to present you with this one time reminder that donations are accepted (We do not require them)."
             str += "\n\nIf you have been enjoying the software and devices please remember that we have spent thousand's of hours of our spare time working on features and stability for those applications and devices."
             str += "\n\nIf you have already donated, thank you very much for your support!"
             str += "\n\nIf you are just not interested in donating please ignore this message"
@@ -1432,6 +1437,7 @@ List getEsDevices() {
 }
 
 def getSocketDevice() {
+    //def wsDevice = getChildDevice("${app.getId()}|echoSpeaks_websocket")
     return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
 }
 
@@ -1507,7 +1513,7 @@ Boolean checkIfCodeUpdated() {
     List chgs = []
     // updChildVers()
     Map codeVer = state.codeVersions ?: null
-    logDebug("Code versions: ${codeVer}")
+    logTrace("Code versions: ${codeVer}")
     if(codeVer) {
         if(codeVer.mainApp != appVersionFLD) {
             checkVersionData(true)
@@ -1557,7 +1563,7 @@ Boolean checkIfCodeUpdated() {
         }
     }
     if(codeUpdated) {
-        logInfo("Code Version Change Detected... | Re-Initializing SmartApp in 5 seconds | Changes: ${chgs}")
+        logInfo("Code Version Change Detected... | Re-Initializing App in 5 seconds | Changes: ${chgs}")
         runIn(5, "postCodeUpdated", [overwrite: false])
         return true
     } else {
@@ -1572,7 +1578,7 @@ void postCodeUpdated() {
 }
 
 void resetQueues() {
-    getEsDevices()?.findAll { it?.isWS() != true }?.each { it?.resetQueue() }
+    getEsDevices()?.each { it?.resetQueue() }
 }
 
 void reInitChildDevices() {
@@ -1591,7 +1597,7 @@ void reInitChildActions() {
 }
 
 def processData() {
-    // logTrace("processData() | Data: ${request.JSON}")
+    logTrace("processData() | Data: ${request.JSON}")
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
@@ -1643,10 +1649,11 @@ def storeCookieData() {
     }
 }
 
-void clearCookieData(src=sNULL) {
-    logTrace("clearCookieData(${src ?: sBLANK})")
+void clearCookieData(String src=sNULL, Boolean callSelf=false) {
+    logTrace("clearCookieData(${src ?: sBLANK}, $callSelf)")
     settingUpdate("resetCookies", "false", "bool")
-    state.authValid = false
+    if(!callSelf) authEvtHandler(false, "clearCookieData")
+//    state.authValid = false
     state.remove("cookie")
     state.remove("cookieData")
     String myId=app.getId()
@@ -1682,15 +1689,15 @@ void authValidationEvent(Boolean valid, String src=sNULL) {
         if(!(Boolean)state.noAuthActive) {
             logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
         }
-        authEvtHandler(false, src)
-    } else { authEvtHandler(true) }
+        authEvtHandler(false, 'a_v_'+src)
+    } else { authEvtHandler(true, 'a_v_'+src) }
 }
 
 void authEvtHandler(Boolean isAuth, String src=sNULL) {
-    // log.debug "authEvtHandler(${isAuth})"
+    logDebug "authEvtHandler(${isAuth},$src)"
     state.authValid = isAuth
     if(!isAuth && !(Boolean)state.noAuthActive) {
-        clearCookieData()
+        clearCookieData('authHandler', true)
         noAuthReminder()
         if((Boolean)settings.sendCookieInvalidMsg && getLastTsValSecs("lastCookieInvalidMsgDt") > 28800) {
             sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
@@ -1818,6 +1825,7 @@ def cookieRefreshResp(response, data) {
 }
 
 Boolean apiHealthCheck(Boolean frc=false) {
+    if(!isAuthValid("apiHealthCheck")) { return false }
     try {
         Map params = [
             uri: getAmazonUrl(),
@@ -1872,6 +1880,7 @@ Boolean validateCookie(Boolean frc=false) {
 private getCustomerData(frc=false) {
     try {
         if(!frc && state.amazonCustomerData && getLastTsValSecs("lastCustDataUpdDt") < 3600) { return state.amazonCustomerData }
+        if(!isAuthValid("getCustomerData")) { return }
         Long execDt = now()
         Map params = [
             uri: getAmazonUrl(),
@@ -1897,6 +1906,7 @@ private getCustomerData(frc=false) {
 }
 
 private userCommIds() {
+    if(!isAuthValid("userCommIds")) { return }
     try {
         Map params = [
             uri: "https://alexa-comms-mobile-service.${getAmazonDomain()}",
@@ -1943,6 +1953,7 @@ public updChildVers() {
 }
 
 Map getMusicProviders(Boolean frc=false) {
+    if(!isAuthValid("getMusicProviders")) { return [:] }
     if(!frc && state.musicProviders && getLastTsValSecs("musicProviderUpdDt") < 3600) { return state.musicProviders }
     Map params = [
         uri: getAmazonUrl(),
@@ -1983,6 +1994,7 @@ private getOtherData() {
 void getBluetoothDevices() {
     String myId=app.getId()
     if((Boolean)state.websocketActive && bluetoothDataFLD[myId] && getLastTsValSecs("bluetoothUpdDt") < 3600) { return }
+    if(!isAuthValid("getBluetoothDevices")) { return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
@@ -2023,6 +2035,7 @@ Map getBluetoothData(serialNumber) {
 }
 
 Map getDeviceActivity(serialNum, Boolean frc=false) {
+    if(!isAuthValid("getDeviceActivity")) { return [:]}
     try {
         Map params = [
             uri: getAmazonUrl(),
@@ -2070,6 +2083,7 @@ Map getDeviceActivity(serialNum, Boolean frc=false) {
 }
 
 void getDoNotDisturb() {
+    if(!isAuthValid("getDoNotDistrib")) { return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
@@ -2102,6 +2116,7 @@ Boolean getDndEnabled(serialNumber) {
 }
 
 public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
+    if(!isAuthValid("getAlexaRoutines")) { return [:]}
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
@@ -2366,7 +2381,7 @@ def respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean ignNu
         def rData = ex?.getResponse()?.getData()
         def errMsg = ex?.getMessage()
         if(sCode == 401) {
-            if(ignOn401) authValidationEvent(false, "${mName}_${status}")
+            if(ignOn401) authValidationEvent(false, "${mName}_${sCode}")
         } else if (sCode == 400) {
             switch(errMsg) {
                 case "Bad Request":
@@ -2954,13 +2969,13 @@ void healthCheck() {
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
     if(!isStFLD){
         def dev= getSocketDevice()
-        if(dev?.isSocketActive() != true) { dev?.triggerInitialize() }
+        if(!(Boolean)dev?.isSocketActive()) { dev?.triggerInitialize() }
     }
     if((Boolean)state.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(advLogsActive()) { logsDisable() }
     appUpdateNotify()
 
-    if(!getOk2Notify()) { return }
+    //if(!getOk2Notify()) { return }
     missPollNotify((Boolean)settings.sendMissedPollMsg, (settings.misPollNotifyMsgWaitVal as Integer ?: 3600))
 }
 
@@ -3003,8 +3018,10 @@ void appUpdateNotify() {
     Boolean echoDevUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
-    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastTsValSecs("lastUpdMsgDt")} | updNotifyWaitVal: ${settings?.updNotifyWaitVal}")
-    if(settings.updNotifyWaitVal && getLastTsValSecs("lastUpdMsgDt") > settings.updNotifyWaitVal?.toInteger()) {
+    Integer updW = settings.updNotifyWaitVal
+    Integer secs=getLastTsValSecs("lastUpdMsgDt")
+    if(updW == null) { updW = 43200; settingUpdate("updNotifyWaitVal", 43200) }
+    if(secs > updW) {
         if(on && (appUpd || actUpd || zoneUpd || echoDevUpd || socketUpd || servUpd)) {
             state.updateAvailable = true
             String str = ""
@@ -3017,9 +3034,9 @@ void appUpdateNotify() {
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             updTsVal("lastUpdMsgDt")
             return
-        }
-        state.updateAvailable = false
+        } else state.updateAvailable = false
     }
+    logDebug("appUpdateNotify() RESULT: ${(Boolean)state.updateAvailable} | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${secs} | updNotifyWaitVal: ${updW}")
 }
 
 private List codeUpdateItems(Boolean shrt=false) {
@@ -3052,10 +3069,11 @@ Boolean getOk2Notify() {
     Boolean daysOk = quietDaysOk(settings.quietDays)
     Boolean timeOk = quietTimeOk()
     Boolean modesOk = quietModesOk(settings.quietModes)
-    logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
-    if(!(smsOk || pushOk || notifDevs || pushOver)) { return false }
-    if(!(daysOk && modesOk && timeOk)) { return false }
-    return true
+    Boolean result = null
+    if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
+    if(!(daysOk && modesOk && timeOk)) { result= false }
+    if(result==null) result=true
+    logDebug("getOk2Notify() RESULT: $result | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
 }
 
 Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) ? false : true }
@@ -3241,7 +3259,7 @@ def changeLogPage() {
 ******************************************/
 String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com/" }
 String getFbConfigUrl() { return state?.appData?.settings?.database?.configUrl ?: "https://echospeaks-config.firebaseio.com/" }
-Boolean metricsOk() { ((Boolean)settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
+Boolean metricsOk() { (!(Boolean)settings.optOutMetrics && state?.appData?.settings?.sendMetrics) }
 private generateGuid() { if(!(String)state.appGuid) { state.appGuid = UUID?.randomUUID().toString() } }
 void sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { Boolean aa=sendFirebaseData(getFbMetricsUrl(), "/clients/${(String)state.appGuid}.json", createMetricsDataJson(), "put", "heartbeat") } }
 Boolean removeInstallData() { return removeFirebaseData("/clients/${(String)state.appGuid}.json") }
@@ -3549,7 +3567,7 @@ private getDiagDataJson(Boolean asObj = false) {
                 lastVersionUpdDt: getTsVal("lastAppDataUpdDt"),
                 config: state?.appData?.appDataVer ?: null,
                 flags: [
-                    pollBlocked: (state.pollBlocked == true),
+                    pollBlocked: (Boolean)state.pollBlocked,
                     resumeConfig: (Boolean)state.resumeConfig,
                     serviceConfigured: (Boolean)state.serviceConfigured,
                     refreshDeviceData: (Boolean)state.refreshDeviceData,
