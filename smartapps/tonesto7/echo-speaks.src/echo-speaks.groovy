@@ -196,13 +196,13 @@ def authStatusPage() {
             section(sTS("Cookie Status:")) {
                 Boolean cookieValid = validateCookie(true)
                 Boolean chk1 = (state.cookieData && state.cookieData.localCookie)
-                Boolean chk2 = (state.cookieData /* && state.cookieData.csrf */ )
+                Boolean chk2 = (state.cookieData && state.cookieData.csrf  )
                 Boolean chk3 = (lastChkSec < 432000)
                 // Boolean chk4 = (cookieValid == true)
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
                 String stat = "Auth Status: (${(chk1 && chk2) ? "OK": "Invalid"})"
                 stat += "\n ${sBULLET} Cookie: (${chk1 ? okSymFLD : notOkSymFLD})"
-                stat += "\n \u2022 CSRF Value: (${chk2 ? ( (Boolean)getServerItem("isLocal") || state.cookieData.csrf ? okSymFLD : notOkSymFLD) : notOkSymFLD})"
+                stat += "\n \u2022 CSRF Value: (${chk2 ? okSymFLD : notOkSymFLD})"
                 paragraph pTS(stat, sNULL, false, (chk1 && chk2) ? "#2784D9" : "red"), state: ((chk1 && chk2) ? "complete" : sNULL), required: true
                 paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", sNULL, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : sNULL), required: true
                 paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", sNULL, false, "#2784D9"), state: "complete", required: true
@@ -1303,8 +1303,8 @@ def initialize() {
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
-            runEvery5Minutes("getOtherData")
-            runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
+            runEvery15Minutes("getOtherData")
+            runEvery30Minutes("getEchoDevices") //This will reload the device list from Amazon
             // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
             getOtherData()
@@ -1328,7 +1328,7 @@ def updateZoneSubscriptions() {
 
 def postInitialize() {
     logTrace("postInitialize")
-    runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
+    runEvery15Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
     appCleanup()
     reInitChildDevices()
 }
@@ -1389,14 +1389,14 @@ private findEchoDevice(String serial) {
 }
 
 void webSocketStatus(Boolean active) {
-    log.trace "webSocketStatus... | Active: ${active}"
+    logTrace "webSocketStatus... | Active: ${active}"
     state.websocketActive = active
     runIn(3, "updChildSocketStatus")
 }
 
 private updChildSocketStatus() {
     Boolean active = (Boolean)state.websocketActive
-    log.trace "updChildSocketStatus... | Active: ${active}"
+    logTrace "updChildSocketStatus... | Active: ${active}"
     getEsDevices()?.each { it?.updSocketStatus(active) }
     updTsVal("lastWebsocketUpdDt")
 }
@@ -1670,13 +1670,15 @@ def storeCookieData() {
     }
 
     // log.debug "csrf: ${state?.cookieData?.csrf}"
-    if(cookieItems.localCookie /* && cookieItems.csrf */) {
+    Boolean a=validateCookie(true)
+    if((Boolean)state.authValid && cookieItems.localCookie  && cookieItems.csrf ) {
         logInfo("Cookie data was updated | Reinitializing App... | Polling should restart in 10 seconds...")
-        Boolean a=validateCookie(true)
         state.serviceConfigured = true
         updTsVal("lastCookieRrshDt")
         checkGuardSupport()
         runIn(10, "initialize", [overwrite: true])
+    } else {
+        logWarn("Cookie data was updated but found invalid...")
     }
 }
 
@@ -1712,11 +1714,12 @@ private updateChildAuth(Boolean isValid) {
 @Field volatile static Map<String,List> authValidMapFLD             = [:]
 
 void authValidationEvent(Boolean valid, String src=sNULL) {
+    Boolean isValid = valid && getCookieVal() && getCsrfVal()
     Integer listSize = 3
     String myId=app.getId()
     List eList = authValidMapFLD[myId]
     eList = eList ?: [true, true, true]
-    eList.push(valid)
+    eList.push(isValid)
     if(eList.size() > listSize) { eList = eList.drop( eList.size()-listSize ) }
     authValidMapFLD[myId]= eList
     authValidMapFLD[myId]= authValidMapFLD[myId]
@@ -1743,14 +1746,15 @@ void authEvtHandler(Boolean isAuth, String src=sNULL) {
         state.noAuthActive = true
         state.authEvtClearReason = [dt: getDtNow(), src: src]
         updateChildAuth(isAuth)
-    } else if(!isAuth && (Boolean)state.noAuthActive) {
+    } else if(isAuth && (Boolean)state.noAuthActive) {
         unschedule("noAuthReminder")
         state.noAuthActive = false
         runIn(10, "initialize", [overwrite: true])
     } else if (isAuth && (Boolean)state.noAuthActive) {
-        logWarn("OOPS Somehow your Auth is Valid but the NoAuthActive State is true.  Clearing noAuthActive flag to allow device refresh")
-        unschedule("noAuthReminder")
-        state.noAuthActive = false
+        // waiting for initialize to run
+//        logWarn("OOPS Somehow your Auth is Valid but the NoAuthActive State is true.  Clearing noAuthActive flag to allow device refresh")
+//        unschedule("noAuthReminder")
+//        state.noAuthActive = false
         // runIn(10, "initialize", [overwrite: true])
     }
 }
@@ -1886,9 +1890,16 @@ Boolean apiHealthCheck(Boolean frc=false) {
 }
 
 Boolean validateCookie(Boolean frc=false) {
-    Boolean valid = false
+    Boolean valid = (Boolean)state.authValid
     try {
-        if((!frc && getLastTsValSecs("lastCookieChkDt", 3600) <= 900) || !getCookieVal() /* || !getCsrfVal()*/) { return valid }
+        if(!frc && valid && getLastTsValSecs("lastCookieChkDt", 3600) <= 900 && getCookieVal() && getCsrfVal()) { return valid }
+        if(frc && valid && getLastTsValSecs("lastCookieChkDt", 3600) <= 60 && getCookieVal() && getCsrfVal()) { return valid }
+        valid = false
+        if(!getCookieVal() || !getCsrfVal()) {
+            authValidationEvent(valid, "validateCookie")
+            return valid
+        }
+
         def execDt = now()
         Map params = [
             uri: getAmazonUrl(),
@@ -1906,15 +1917,15 @@ Boolean validateCookie(Boolean frc=false) {
                 if(aData?.customerId) { state.deviceOwnerCustomerId = aData.customerId }
                 if(aData?.customerName) { state.customerName = aData.customerName }
                 valid = (resp?.data?.authentication?.authenticated != false)
+                authValidationEvent(valid, "validateCookie")
+                updTsVal("lastCookieChkDt")
             }
             logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
-            authValidationEvent(valid, "validateCookie")
         }
     } catch(ex) {
         respExceptionHandler(ex, "validateCookie", true)
         incrementCntByKey("err_app_cookieValidCnt")
     }
-    updTsVal("lastCookieChkDt")
     return valid
 }
 
@@ -2083,7 +2094,7 @@ Map getBluetoothData(String serialNumber) {
 @Field volatile static Map<String,Map> devActivityMapFLD = [:]
 
 Map getDeviceActivity(String serialNum, Boolean frc=false) {
-    if(!isAuthValid("getDeviceActivity")) { return [:]}
+    if(!isAuthValid("getDeviceActivity")) { return null}
     try {
         Map params = [
             uri: getAmazonUrl(),
@@ -2101,7 +2112,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
 
-        if(frc || lastUpdSec >= 125) {
+        if((frc && lastUpdSec > 5) || lastUpdSec >= 125) {
             logTrace("getDeviceActivity($serialNum,$frc)")
             updTsVal("lastDevActChk")
             httpGet(params) { response->
