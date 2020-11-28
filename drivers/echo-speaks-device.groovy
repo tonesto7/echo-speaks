@@ -14,7 +14,7 @@
  */
 
  /* TODO: 
-    Use a call to the parent to get the token and compare it with the current field variable and update the variable if they are diffent
+    Use a call to the parent to get the token and compare it with the current field variable and update the variable if they are different
 */
 
 import groovy.transform.Field
@@ -390,9 +390,9 @@ void updateDeviceStatus(Map devData) {
         state?.regionLocale = devData?.regionLocale
         Map permissions = state?.permissions ?: [:]
         devData?.permissionMap?.each {k,v -> permissions[k] = v }
-        state?.permissions = permissions
-        state?.hasClusterMembers = devData?.hasClusterMembers
-        state?.isWhaDevice = (devData?.permissionMap?.isMultiroomDevice == true)
+        state.permissions = permissions
+        state.hasClusterMembers = devData?.hasClusterMembers
+        state.isWhaDevice = (devData?.permissionMap?.isMultiroomDevice == true)
         // log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
         // log.trace "permissions: ${state?.permissions}"
         List permissionList = permissions?.findAll { it?.value == true }?.collect { it?.key }
@@ -437,27 +437,27 @@ void updateDeviceStatus(Map devData) {
             sendEvent(name: "status", value: "stopped")
             sendEvent(name: "deviceStatus", value: "stopped_${state?.deviceStyle?.image}")
             sendEvent(name: "trackDescription", value: "")
-        } else { state?.fullRefreshOk = true; triggerDataRrsh(); }
+        } else { state.fullRefreshOk = true; triggerDataRrsh(); }
     }
     setOnlineStatus(isOnline)
     sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false, displayed: false)
     schedDataRefresh()
 }
 
-public updSocketStatus(active) {
+public void updSocketStatus(Boolean active) {
     if(active != true) { schedDataRefresh(true) }
-    state?.websocketActive = active
+    state.websocketActive = active
 }
 
 void websocketUpdEvt(triggers) {
     logDebug("websocketEvt: $triggers")
-    if(state?.isWhaDevice) { return }
+    if((Boolean)state.isWhaDevice) { return }
     if(triggers?.size()) {
         triggers?.each { k->
             switch(k) {
                 case "all":
-                    state?.fullRefreshOk = true
-                    runIn(2, "refreshData")
+                    state.fullRefreshOk = true
+                    runIn(2, "refreshData1")
                     break
                 case "media":
                     runIn(2, "getPlaybackState")
@@ -494,21 +494,25 @@ void refresh() {
 }
 
 private triggerDataRrsh(parentRefresh=false) {
-    runIn(4, parentRefresh ? "refresh" : "refreshData")
+    runIn(4, parentRefresh ? "refresh" : "refreshData1")
 }
 
 public schedDataRefresh(frc) {
     if(frc || state.refreshScheduled != true) {
-        runEvery1Minute("refreshData")
+        runEvery30Minutes("refreshData")
         state.refreshScheduled = true
     }
 }
 
-private refreshData(full=false) {
+void refreshData1() {
+    refreshData()
+}
+
+void refreshData(full=false) {
     // logTrace("trace", "refreshData()...")
-    Boolean wsActive = (state?.websocketActive == true)
-    Boolean isWHA = (state?.isWhaDevice == true)
-    Boolean isEchoDev = (state?.isEchoDevice == true)
+    Boolean wsActive = (state.websocketActive == true)
+    Boolean isWHA = (state.isWhaDevice == true)
+    Boolean isEchoDev = (state.isEchoDevice == true)
     if(device?.currentValue("onlineStatus") != "online") {
         logTrace("Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
         return
@@ -516,39 +520,39 @@ private refreshData(full=false) {
     if(!isAuthOk()) {return}
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return; }
     // logTrace("permissions: ${state?.permissions}")
-    if(state?.permissions?.mediaPlayer == true && (full || state?.fullRefreshOk || !wsActive)) {
+    if(state?.permissions?.mediaPlayer == true && (full || state.fullRefreshOk || !wsActive)) {
         getPlaybackState()
         if(!isWHA) { getPlaylists() }
     }
     if(!isWHA) {
-        if (full || state?.fullRefreshOk) {
+        if (full || state.fullRefreshOk) {
             // if(isEchoDev) { getWifiDetails() }
             getDeviceSettings()
         }
-        if(state?.permissions?.doNotDisturb == true) { getDoNotDisturb() }
+        if(state.permissions?.doNotDisturb == true) { getDoNotDisturb() }
         if(!wsActive) {
             getDeviceActivity()
         }
         runIn(3, "refreshStage2")
-    } else { state?.fullRefreshOk = false }
+    } else { state.fullRefreshOk = false }
 }
 
 private refreshStage2() {
     // log.trace("refreshStage2()...")
-    Boolean wsActive = (state?.websocketActive == true)
+    Boolean wsActive = (state.websocketActive == true)
     if(state?.permissions?.wakeWord) {
         getWakeWord()
         getAvailableWakeWords()
     }
-    if((state?.permissions?.alarms == true) || (state?.permissions?.reminders == true)) {
+    if((state.permissions?.alarms == true) || (state.permissions?.reminders == true)) {
         if(state?.permissions?.alarms == true) { getAlarmVolume() }
         // getNotifications()
     }
 
-    if(state?.permissions?.bluetoothControl && !wsActive) {
+    if(state.permissions?.bluetoothControl && !wsActive) {
         getBluetoothDevices()
     }
-    state?.fullRefreshOk = false
+    state.fullRefreshOk = false
     // updGuardStatus()
 }
 
@@ -822,7 +826,7 @@ private String getBtAddrByAddrOrName(String btNameOrAddr) {
 private getDoNotDisturb() {
     Boolean dndEnabled = (parent?.getDndEnabled(state?.serialNumber) == true)
     logTrace("getDoNotDisturb: $dndEnabled")
-    state?.doNotDisturb = dndEnabled
+    state.doNotDisturb = dndEnabled
     if(isStateChange(device, "doNotDisturb", (dndEnabled == true)?.toString())) {
         logDebug("Do Not Disturb: (${(dndEnabled == true)})")
         sendEvent(name: "doNotDisturb", value: (dndEnabled == true)?.toString(), descriptionText: "Do Not Disturb Enabled ${(dndEnabled == true)}", display: true, displayed: true)
