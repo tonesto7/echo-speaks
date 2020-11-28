@@ -259,11 +259,13 @@ def servPrefPage() {
             if(!authValid) {
                 section(sTS("Authentication:")) {
                     paragraph pTS("You still need to Login to Amazon to complete the setup", sNULL, true, "red"), required: true, state: sNULL
+                    String myUrl
                     if((Boolean)getServerItem("onHeroku")) {
-                        href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                    } else /*if ((Boolean)getServerItem("isLocal"))*/ {
-                        href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                        myUrl = "https://${getRandAppName()}.herokuapp.com/config"
+                    } else if ((Boolean)getServerItem("isLocal")) {
+                        myUrl = "${getServerHostURL()}/config"
                     }
+                    href url: myUrl, style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
                 }
             } else {
                 if((Boolean)getServerItem("onHeroku")) {
@@ -1286,7 +1288,7 @@ def initialize() {
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
-            runEvery1Minute("getOtherData")
+            runEvery2Minutes("getOtherData")
             runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
             // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
@@ -1779,6 +1781,7 @@ void wakeupServer(Boolean c=false, Boolean g=false, String src) {
         timeout: 20
     ]
     if(!getCookieVal() || !getCsrfVal()) { logWarn("wakeupServer | Cookie or CSRF Missing... Skipping Wakeup"); return; }
+    logTrace("wakeupServer")
     execAsyncCmd("post", "wakeupServerResp", params, [execDt: now(), refreshCookie: c, updateGuard: g, wakesrc: src])
 }
 
@@ -1812,6 +1815,7 @@ private cookieRefresh() {
         contentType: "application/json",
         timeout: 20
     ]
+    logTrace("cookieRefresh")
     execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
 }
 
@@ -1949,7 +1953,7 @@ public childInitiatedRefresh() {
         logDebug("A Child Device is requesting a Device List Refresh...")
         updTsVal("lastChildInitRefreshDt")
         getOtherData()
-        runIn(3, "getEchoDevices")
+        runIn(3, "getEchoDevices1")
     } else {
         logWarn("childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)")
     }
@@ -2073,7 +2077,8 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
         // log.debug "activityData(IN): $lastActData"
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
-        if(frc || lastUpdSec >= 5) {
+
+        if(frc || lastUpdSec >= 25) {
             logTrace("getDeviceActivity($serialNum,$frc)")
             updTsVal("lastDevActChk")
             httpGet(params) { response->
@@ -2220,6 +2225,7 @@ void checkGuardSupport() {
         contentType: "application/json",
         timeout: 20,
     ]
+    logTrace("checkGuardSupport")
     execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
 }
 
@@ -2284,6 +2290,7 @@ void checkGuardSupportFromServer() {
         contentType: "application/json",
         timeout: 20,
     ]
+    logTrace("checkGuardSupportFromServer")
     execAsyncCmd("get", "checkGuardSupportServerResponse", params, [execDt: now()])
 }
 
@@ -2494,7 +2501,11 @@ Map isFamilyAllowed(String family) {
     return [ok: false, reason: "Unknown Reason"]
 }
 
-private getEchoDevices() {
+void getEchoDevices1() {
+    getEchoDevices()
+}
+
+void getEchoDevices() {
     stateMigrationChk()
     if(!isAuthValid("getEchoDevices")) { return }
     def params = [
@@ -2507,10 +2518,11 @@ private getEchoDevices() {
     ]
     state.deviceRefreshInProgress = true
     state.refreshDeviceData = false
+    logTrace("getEchoDevices")
     execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
 }
 
-def echoDevicesResponse(response, data) {
+void echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceIgnoreData()
     ignoreTypes = ignoreTypes ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
@@ -2571,7 +2583,7 @@ def receiveEventData(Map evtData, String src) {
         logTrace("evtData(Keys): ${evtData?.keySet()}")
         if (evtData?.keySet()?.size()) {
             //List ignoreTheseDevs = settings.echoDeviceFilter ?: []
-            Boolean onHeroku = ((Boolean)getServerItem("onHeroku") && !(Boolean)getServerItem("isLocal"))
+            //Boolean onHeroku = ((Boolean)getServerItem("onHeroku") && !(Boolean)getServerItem("isLocal"))
 
             //Check for minimum versions before processing
             Map updReqMap = getMinVerUpdsRequired()
@@ -2986,7 +2998,18 @@ static Map notifValEnum(Boolean allowCust = true) {
 }
 
 void healthCheck() {
-    // logTrace("healthCheck", true)
+    logTrace("healthCheck")
+    if(settings.sendMissedPollMsg == null) {
+        settingUpdate('sendMissedPollMsg', 'true', 'bool')
+        settingUpdate('misPollNotifyWaitVal', 2700)
+        settingUpdate('misPollNotifyMsgWaitVal', 3600)
+    }
+    if(settings.logInfo == null) settingUpdate('logInfo', 'true', 'bool')
+    if(settings.logWarn == null) settingUpdate('logWarn', 'true', 'bool')
+    if(settings.logError == null) settingUpdate('logError', 'true', 'bool')
+    if(settings.logDebug == null) settingUpdate('logDebug', 'false', 'bool')
+    if(settings.logTrace == null) settingUpdate('logTrace', 'false', 'bool')
+
     checkVersionData()
     if(checkIfCodeUpdated()) {
         logWarn("Code Version Change Detected... Health Check will occur on next cycle.")
