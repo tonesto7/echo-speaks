@@ -74,16 +74,16 @@ def updated() {
 def initialize() {
     log.info "initialize() called"
     close()
-    if(minVersionFailed()) { logError("CODE UPDATE REQUIRED to RESUME operation. No WebSocket Connections will be made."); return; }
+    if(minVersionFailed()) { logError("CODE UPDATE REQUIRED to RESUME operation. No WebSocket Connections will be made."); return }
     state?.amazonDomain = parent?.getAmazonDomain()
     state?.cookie = parent?.getCookieVal()
     if(state?.cookie && settings?.autoConnectWs != false) {
         def serArr = state?.cookie =~ /ubid-[a-z]+=([^;]+);/
-        state?.wsSerial = serArr?.find() ? serArr[0..-1][0][1] : null
-        state?.wsDomain = (state?.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state?.amazonDomain}"
-        def msgId = Math.floor(1E9 * Math.random()) as BigInteger;
-        state?.messageId = state?.messageId ?: msgId
-        state?.messageInitCnt = 0
+        state.wsSerial = serArr?.find() ? serArr[0..-1][0][1] : null
+        state.wsDomain = (state?.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state?.amazonDomain}"
+        def msgId = Math.floor(1E9 * Math.random()) as BigInteger
+        state.messageId = state.messageId ?: msgId
+        state.messageInitCnt = 0
         connect()
     } else {
         logDebug("Skipping Socket Open... Cookie Data is Missing")
@@ -108,8 +108,9 @@ def connect() {
 }
 
 def close() {
-    state?.connectionActive = false;
     interfaces.webSocket.close()
+    updSocketStatus(false)
+//    state?.connectionActive = false;
 }
 
 def reconnectWebSocket() {
@@ -117,7 +118,8 @@ def reconnectWebSocket() {
     state.reconnectDelay = (state.reconnectDelay ?: 1) * 2
     // don't def the delay get too crazy, max it out at 10 minutes
     if(state.reconnectDelay > 600) state.reconnectDelay = 600
-    state?.connectionActive = false
+    updSocketStatus(false)
+//    state?.connectionActive = false
     runIn(state?.reconnectDelay, initialize)
 }
 
@@ -126,7 +128,7 @@ def sendWsMsg(String s) {
 }
 
 def updSocketStatus(Boolean active) {
-    parent?.webSocketStatus(false)
+    parent?.webSocketStatus(active)
     state?.connectionActive = active
 }
 
@@ -139,15 +141,17 @@ def webSocketStatus(String status){
     } else if(status == 'status: open') {
         logInfo("Alexa WS Connection is Open")
         // success! reset reconnect delay
-        pauseExecution(1000)
+//        pauseExecution(1000)
         state.reconnectDelay = 1
-        state?.connectionActive = true
+        state.connectionActive = true
         // log.trace("Connection Initiation (Step 1)")
-        sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE")?.toString())
+        runIn(1, "nextMsgSend")
+//        sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE")?.toString())
     } else if (status == "status: closing"){
         logWarn("WebSocket connection closing.")
-        parent?.webSocketStatus(false)
-        state?.connectionActive = false
+        updSocketStatus(false)
+//        parent?.webSocketStatus(false)
+//        state?.connectionActive = false
     } else if(status?.startsWith("send error: ")) {
         logError("Websocket Send Error: $status")
     } else {
@@ -156,25 +160,56 @@ def webSocketStatus(String status){
     }
 }
 
+def nextMsgSend(){
+    sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE")?.toString())
+    logTrace("Gateway Handshake Message Sent (Step 1)")
+}
+
+def nextMsgSend1(){
+    sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString())
+    logTrace("Gateway Handshake Message Sent (Step 2A)")
+}
+
+def nextMsgSend2(){
+    sendWsMsg(strToHex(encodeGWHandshake()))
+    logTrace("Gateway Handshake Message Sent (Step 2B)")
+}
+
+def nextMsgSend3(){
+    sendWsMsg(strToHex(encodeGWRegister()))
+    logTrace("Gateway Registration Message Sent (Step 3)")
+}
+
+def nextMsgSend4(){
+    sendWsMsg(strToHex(encodePing()))
+    logTrace("Encoded Ping Message Sent (Step 4)")
+}
+
 def parse(message) {
     // log.debug "parsed ${message}"
-    def newMsg = strFromHex(message)
-    // log.debug "decodedMsg: ${newMsg}"
+    String newMsg = strFromHex(message)
+    log.debug "decodedMsg: ${newMsg}"
     if(newMsg) {
         if(newMsg == """0x37a3b607 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
         // if(newMsg == """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
-            sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString())
-            pauseExecution(1000)
-            sendWsMsg(strToHex(encodeGWHandshake()))
-            logTrace("Gateway Handshake Message Sent (Step 2)")
+            runIn(4, "nextMsgSend1")
+//            sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString())
+//            pauseExecution(1000)
+            runIn(6, "nextMsgSend2")
+//            sendWsMsg(strToHex(encodeGWHandshake()))
+//            logTrace("Gateway Handshake Message Sent (Step 2)")
+            return
         } else if (newMsg?.startsWith("MSG 0x00000361 ") && newMsg?.endsWith(" END FABE")) {
-            sendWsMsg(strToHex(encodeGWRegister()))
-            logTrace("Gateway Registration Message Sent (Step 3)")
-            pauseExecution(1000)
-            sendWsMsg(strToHex(encodePing()))
-            logTrace("Encoded Ping Message Sent (Step 4)")
+            runIn(2, "nextMsgSend3")
+//            sendWsMsg(strToHex(encodeGWRegister()))
+//            logTrace("Gateway Registration Message Sent (Step 3)")
+//            pauseExecution(1000)
+            runIn(4, "nextMsgSend4")
+//            sendWsMsg(strToHex(encodePing()))
+//            logTrace("Encoded Ping Message Sent (Step 4)")
+//            return
         }
-        parseIncomingMessage(newMsg as String)
+        parseIncomingMessage(newMsg)
     }
 }
 
@@ -191,8 +226,8 @@ def readHex(str, ind, len, logs=false) {
     return res
 }
 
-def readString(str, ind, len, logs=false) {
-    def s = str[ind..len]
+String readString(String str, Integer ind, Integer len, Boolean logs=false) {
+    String s = str[ind..len]
     if(logs) log.debug "readString(ind: $ind, len: $len): ${s}"
     return s
 }
@@ -203,16 +238,16 @@ def parseString(String str, Integer ind, Integer len, Boolean logs=false) {
     return s
 }
 
-def parseIncomingMessage(data) {
+def parseIncomingMessage(String data) {
     // try {
         Integer idx = 0;
         Map message = [:]
-        String dStr = data?.toString()
-        Integer dLen = dStr?.length()
-        message?.service = readString(dStr, dLen-4, dLen-1)
+        String dStr = data
+        Integer dLen = dStr.length()
+        message.service = readString(dStr, dLen-4, dLen-1)
         // log.debug "Message Service: ${message?.service}"
 
-        if (message?.service == "TUNE") {
+        if ((String)message.service == "TUNE") {
             message?.checksum = readHex(dStr, idx, 10);
             idx += 11; // 10 + delimiter;
             def contentLength = readHex(dStr, idx, 10);
@@ -224,7 +259,7 @@ def parseIncomingMessage(data) {
                     // log.debug "TUNE: ${message?.content}"
                 } catch (e) {}
             }
-        } else if (message?.service == 'FABE') {
+        } else if ((String)message.service == 'FABE') {
             message?.messageType = readString(dStr, idx, 3);
             idx += 4;
             message?.channel = readHex(dStr, idx, 10);
@@ -264,8 +299,9 @@ def parseIncomingMessage(data) {
                     // log.debug "message.content: ${message?.content}"
                     state?.wsAckData = message?.content
                     logInfo("WebSocket Connection Established...")
-                    parent?.webSocketStatus(true)
-                    state?.connectionActive = true
+                    updSocketStatus(true)
+//                    parent?.webSocketStatus(true)
+//                    state?.connectionActive = true
                 }
             } else if (message?.channel == 866) { // 0x362 GW_CHANNEL
                 if (message?.content?.messageType == 'GWM') {
@@ -647,11 +683,11 @@ private incrementCntByKey(String key) {
 }
 
 String getObjType(obj) {
-	if(obj instanceof String) {return "String"}
-	else if(obj instanceof GString) {return "GString"}
+    if(obj instanceof String) {return "String"}
+        else if(obj instanceof GString) {return "GString"}
 	else if(obj instanceof Map) {return "Map"}
-    else if(obj instanceof LinkedHashMap) {return "LinkedHashMap"}
-    else if(obj instanceof HashMap) {return "HashMap"}
+	else if(obj instanceof LinkedHashMap) {return "LinkedHashMap"}
+	else if(obj instanceof HashMap) {return "HashMap"}
 	else if(obj instanceof List) {return "List"}
 	else if(obj instanceof ArrayList) {return "ArrayList"}
 	else if(obj instanceof Integer) {return "Integer"}
