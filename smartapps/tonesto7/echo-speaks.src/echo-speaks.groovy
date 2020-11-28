@@ -30,12 +30,12 @@ import groovy.transform.Field
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 @Field volatile static Map<String,Map> historyMapFLD = [:]
-@Field static Map<String,Map> cookieDataFLD          = [:]
-@Field static Map<String,Map> echoDeviceMapFLD       = [:]
+@Field volatile static Map<String,Map> cookieDataFLD          = [:]
+@Field volatile static Map<String,Map> echoDeviceMapFLD       = [:]
 @Field static Map<String,Map> guardDataFLD           = [:]
 @Field static Map<String,Map> zoneStatusMapFLD       = [:]
-@Field static Map<String,Map> bluetoothDataFLD       = [:]
-@Field static Map<String,Map> dndDataFLD             = [:]
+@Field volatile static Map<String,Map> bluetoothDataFLD       = [:]
+@Field volatile static Map<String,Map> dndDataFLD             = [:]
 
 definition(
     name        : "Echo Speaks",
@@ -43,9 +43,9 @@ definition(
     author      : "Anthony Santilli",
     description : "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
     category    : "My Apps",
-    iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${state?.updateAvailable ? "_update" : sBLANK}.png",
-    iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${state?.updateAvailable ? "_update" : ""}.png",
-    iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${state?.updateAvailable ? "_update" : ""}.png",
+    iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
+    iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
+    iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
     importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
     oauth       : true,
     pausable    : true
@@ -144,21 +144,26 @@ def mainPage() {
                 href "authStatusPage", title: inTS("Login Status | Service Management", getAppImg("settings", true)), description: (ls ? "${ls}\n\nTap to modify" : "Tap to configure"), state: (ls ? "complete" : sNULL), image: getAppImg("settings")
             }
             if(!(Boolean)state.shownDevSharePage) { showDevSharePrefs() }
-            section(sTS("Notifications:")) {
-                def t0 = getAppNotifConfDesc()
-                href "notifPrefPage", title: inTS("Manage Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : sNULL), image: getAppImg("notification2")
-            }
-
-            section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS("Device Testing", getAppImg("testing", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
-                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
-            }
+        }
+        section(sTS("Notifications:")) {
+            def t0 = getAppNotifConfDesc()
+            href "notifPrefPage", title: inTS("Manage Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : sNULL), image: getAppImg("notification2")
         }
         section(sTS("Documentation & Settings:")) {
             href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", image: getAppImg("documentation")
             href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
         }
+
+//        if((Boolean)state.isInstalled) {
+//        } else {
+//            paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, "#2784D9"), state: "complete"
+//        }
+
         if(!newInstall) {
+            section(sTS("Experimental Functions:")) {
+                href "deviceTestPage", title: inTS("Device Testing", getAppImg("testing", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
+                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
+            }
             section(sTS("Donations:")) {
                 href url: textDonateLink(), style: "external", required: false, title: inTS("Donations", getAppImg("donate", true)), description: "Tap to open browser", image: getAppImg("donate")
             }
@@ -174,7 +179,7 @@ def mainPage() {
         } else {
             showDevSharePrefs()
             section(sTS("Important Step:")) {
-                paragraph title: "Notice:", pTS("Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", sNULL, true, "red"), required: true, state: null
+                paragraph title: "Notice:", pTS("Please complete the install (hit done below) and then return to the Echo Speaks App to resume deployment and configuration of the server.", sNULL, true, "red"), required: true, state: null
                 state.resumeConfig = true
             }
         }
@@ -191,13 +196,13 @@ def authStatusPage() {
             section(sTS("Cookie Status:")) {
                 Boolean cookieValid = validateCookie(true)
                 Boolean chk1 = (state.cookieData && state.cookieData.localCookie)
-                Boolean chk2 = (state.cookieData && state.cookieData.csrf)
+                Boolean chk2 = (state.cookieData /* && state.cookieData.csrf */ )
                 Boolean chk3 = (lastChkSec < 432000)
                 // Boolean chk4 = (cookieValid == true)
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
                 String stat = "Auth Status: (${(chk1 && chk2) ? "OK": "Invalid"})"
                 stat += "\n ${sBULLET} Cookie: (${chk1 ? okSymFLD : notOkSymFLD})"
-                stat += "\n \u2022 CSRF Value: (${chk2 ? okSymFLD : notOkSymFLD})"
+                stat += "\n \u2022 CSRF Value: (${chk2 ? ( (Boolean)getServerItem("isLocal") || state.cookieData.csrf ? okSymFLD : notOkSymFLD) : notOkSymFLD})"
                 paragraph pTS(stat, sNULL, false, (chk1 && chk2) ? "#2784D9" : "red"), state: ((chk1 && chk2) ? "complete" : sNULL), required: true
                 paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", sNULL, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : sNULL), required: true
                 paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", sNULL, false, "#2784D9"), state: "complete", required: true
@@ -259,11 +264,13 @@ def servPrefPage() {
             if(!authValid) {
                 section(sTS("Authentication:")) {
                     paragraph pTS("You still need to Login to Amazon to complete the setup", sNULL, true, "red"), required: true, state: sNULL
+                    String myUrl
                     if((Boolean)getServerItem("onHeroku")) {
-                        href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                        myUrl = "https://${getRandAppName()}.herokuapp.com/config"
                     } else if ((Boolean)getServerItem("isLocal")) {
-                        href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                        myUrl = "${getServerHostURL()}/config"
                     }
+                    href url: myUrl, style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
                 }
             } else {
                 if((Boolean)getServerItem("onHeroku")) {
@@ -287,6 +294,10 @@ def servPrefPage() {
                 required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
             if(!isStFLD) { paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, "gray") }
             if(settings?.resetService) { clearCloudConfig() }
+        }
+        section(sTS("Documentation & Settings:")) {
+            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", image: getAppImg("documentation")
+            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
         }
         state.resumeConfig = false
     }
@@ -312,8 +323,8 @@ def deviceManagePage() {
         section(sTS("Alexa Devices:")) {
             if(!newInstall) {
                 List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }?.sort()
-                List skDevs = state.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
-                List ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+                Map skDevs = state.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
+                Map ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
                 if(devs?.size()) {
                     href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                 } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
@@ -815,7 +826,7 @@ def showDevSharePrefs() {
             href url: getAppEndpointUrl("renderMetricData"), style: (isStFLD ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
         }
     }
-    if(!(Boolean) settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
+    if(!(Boolean)settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
         section() { input "sendMetricsNow", "bool", title: inTS("Send Metrics Now?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
         if(sendMetricsNow) { sendInstallData() }
     }
@@ -847,20 +858,22 @@ def notifPrefPage() {
         section("") {
             paragraph title: "Notice:", pTS("The settings configure here are used by both the App and the Devices.", getAppImg("info", true), true, "#2784D9"), state: "complete"
         }
-        section(sTS("Push Messages:")) {
-            input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
-        }
-        section(sTS("SMS Text Messaging:")) {
-            paragraph pTS("To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344", sNULL, false)
-            input "smsNumbers", "text", title: inTS("Send SMS Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
-        }
+        if(isStFLD) {
+            section(sTS("Push Messages:")) {
+                input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
+            }
+            section(sTS("SMS Text Messaging:")) {
+                paragraph pTS("To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344", sNULL, false)
+                input "smsNumbers", "text", title: inTS("Send SMS Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+            }
+        } else { settingRemove('smsNumbers'); settingRemove('usePush') }
         section (sTS("Notification Devices:")) {
             input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
         }
-        section(sTS("Pushover Support:")) {
-            input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
-            if((Boolean) settings.pushoverEnabled) {
-                if((Boolean)state.isInstalled) {
+        if(isStFLD) {
+            section(sTS("Pushover Support:")) {
+                input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
+                if((Boolean) settings.pushoverEnabled) {
                     if(!state?.pushoverManager) {
                         paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
                         pushover_init()
@@ -872,12 +885,20 @@ def notifPrefPage() {
                             input "pushoverSound", "enum", title: inTS("Notification Sound (Optional)"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
                         }
                     }
-                } else { paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the SmartApps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, "#2784D9"), state: "complete" }
+//                    if((Boolean)state.isInstalled) {
+//                    } else { paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, "#2784D9"), state: "complete" }
+                }
             }
+        } else {
+            state.remove('pushoverManager')
+            settingRemove('pushoverEnabled')
+            settingRemove('pushoverDevices')
+            settingRemove('pushoverPriority')
+            settingRemove('pushoverSound')
         }
         if(settings?.smsNumbers?.toString()?.length()>=10 || settings.notif_devs || (Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) {
-            if(((Boolean)settings.usePush || settings?.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
-                if(sendMsg("Info", "Push Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
+            if(((Boolean)settings.usePush || settings.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
+                if(sendMsg("Info", "Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
                     state.pushTested = true
                 }
             }
@@ -1102,6 +1123,7 @@ void executeSequence() {
 }
 
 Map executeTuneInSearch() {
+    if(!isAuthValid("executeTuneInSearch")) { return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/tunein/search",
@@ -1227,7 +1249,7 @@ def donationPage() {
     return dynamicPage(name: "donationPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
         section("") {
             def str = ""
-            str += "Hello User, \n\nPlease forgive the interuption but it's been 30 days since you installed/updated this SmartApp and I wanted to present you with this one time reminder that donations are accepted (We do not require them)."
+            str += "Hello User, \n\nPlease forgive the interuption but it's been 30 days since you installed/updated this App and I wanted to present you with this one time reminder that donations are accepted (We do not require them)."
             str += "\n\nIf you have been enjoying the software and devices please remember that we have spent thousand's of hours of our spare time working on features and stability for those applications and devices."
             str += "\n\nIf you have already donated, thank you very much for your support!"
             str += "\n\nIf you are just not interested in donating please ignore this message"
@@ -1281,7 +1303,7 @@ def initialize() {
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
-            runEvery1Minute("getOtherData")
+            runEvery5Minutes("getOtherData")
             runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
             // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
@@ -1321,6 +1343,7 @@ def uninstalled() {
 }
 
 private appCleanup() {
+    logTrace("appCleanup")
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
@@ -1341,10 +1364,10 @@ private appCleanup() {
 }
 
 void wsEvtHandler(evt) {
-    // log.debug "evt: ${evt}"
+    logTrace("wsEvtHandler  evt: ${evt}")
     if(evt && evt?.id && (evt?.attributes?.size() || evt?.triggers?.size())) {
         if("bluetooth" in evt?.triggers) { Map a=getBluetoothData() }
-        if("activity" in evt?.triggers) { Map a=getDeviceActivity(null, true) }
+        if("activity" in evt?.triggers) { Map a=getDeviceActivity(sNULL, true) }
         if(evt?.all == true) {
             getEsDevices()?.each { eDev->
                 if(evt?.attributes?.size()) { evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) } }
@@ -1432,6 +1455,7 @@ List getEsDevices() {
 }
 
 def getSocketDevice() {
+    //def wsDevice = getChildDevice("${app.getId()}|echoSpeaks_websocket")
     return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
 }
 
@@ -1455,35 +1479,16 @@ mappings {
     path("/diagDataText")               { action: [GET: "getDiagDataText"] }
 }
 
-String getCookieVal() {
-    String myId=app.getId()
-    if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].localCookie != null)) {
-        Map cookieData = state.cookieData
-        //if (cookieData && cookieData.localCookie && cookieData.csrf) cookieDataFLD[myId] = cookieData
-        cookieDataFLD[myId] = cookieData
-    }
-    return cookieDataFLD[myId]?.localCookie ? (String)cookieDataFLD[myId].localCookie : sNULL
-}
-
-String getCsrfVal() { 
-    String myId=app.getId()
-    if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].csrf != null)) {
-        Map cookieData = state.cookieData
-        //if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[myId] = cookieData; }
-        cookieDataFLD[myId] = cookieData
-    }
-    return cookieDataFLD[myId]?.csrf ?  (String)cookieDataFLD[myId].csrf : sNULL
-}
-
 void clearCloudConfig() {
     logTrace("clearCloudConfig called...")
     settingUpdate("resetService", "false", "bool")
     unschedule("cloudServiceHeartbeat")
-    remServerItem(["useHeroku", "onHeroku", "serverHost", "isLocal"])
+    remServerItem(["onHeroku", "serverHost", "isLocal"])
+    settingRemove("useHeroku")
     state.remove("herokuName")
     state.serviceConfigured = false
     state.resumeConfig = true
-    if(!(Boolean)state.authValid) { clearCookieData("clearCloudConfig") }
+    clearCookieData("clearCloudConfig")
 }
 
 String getEnvParamsStr() {
@@ -1507,7 +1512,7 @@ Boolean checkIfCodeUpdated() {
     List chgs = []
     // updChildVers()
     Map codeVer = state.codeVersions ?: null
-    logDebug("Code versions: ${codeVer}")
+    logTrace("Code versions: ${codeVer}")
     if(codeVer) {
         if(codeVer.mainApp != appVersionFLD) {
             checkVersionData(true)
@@ -1557,7 +1562,7 @@ Boolean checkIfCodeUpdated() {
         }
     }
     if(codeUpdated) {
-        logInfo("Code Version Change Detected... | Re-Initializing SmartApp in 5 seconds | Changes: ${chgs}")
+        logInfo("Code Version Change Detected... | Re-Initializing App in 5 seconds | Changes: ${chgs}")
         runIn(5, "postCodeUpdated", [overwrite: false])
         return true
     } else {
@@ -1572,7 +1577,7 @@ void postCodeUpdated() {
 }
 
 void resetQueues() {
-    getEsDevices()?.findAll { it?.isWS() != true }?.each { it?.resetQueue() }
+    getEsDevices()?.each { it?.resetQueue() }
 }
 
 void reInitChildDevices() {
@@ -1591,7 +1596,7 @@ void reInitChildActions() {
 }
 
 def processData() {
-    // logTrace("processData() | Data: ${request.JSON}")
+    logTrace("processData() | Data: ${request.JSON}")
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
@@ -1612,28 +1617,60 @@ Boolean serverConfigured() {
 }
 
 def getCookieData() {
-    Map resp = state?.cookieData ?: [:]
-    resp["refreshDt"] = getTsVal("lastCookieRrshDt") ?: null
+    Map resp = state.cookieData ?: [:]
+    String aa = getTsVal("lastCookieRrshDt")
+    resp["refreshDt"] = aa ?: null
     def json = new groovy.json.JsonOutput().toJson(resp)
     incrementCntByKey("getCookieCnt")
     render contentType: "application/json", data: json
 }
 
+String getCookieVal() {
+    String myId=app.getId()
+    if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].localCookie != null)) {
+        Map cookieData = state.cookieData
+        //if (cookieData && cookieData.localCookie && cookieData.csrf) cookieDataFLD[myId] = cookieData
+        cookieDataFLD[myId] = cookieData
+        cookieDataFLD = cookieDataFLD
+    }
+    return cookieDataFLD[myId]?.localCookie ? (String)cookieDataFLD[myId].localCookie : sNULL
+}
+
+String getCsrfVal() { 
+    String myId=app.getId()
+    if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].csrf != null)) {
+        Map cookieData = state.cookieData
+        //if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[myId] = cookieData; }
+        cookieDataFLD[myId] = cookieData
+        cookieDataFLD = cookieDataFLD
+    }
+    return cookieDataFLD[myId]?.csrf ?  (String)cookieDataFLD[myId].csrf : sNULL
+}
+
 def storeCookieData() {
     logTrace("storeCookieData Request Received...")
     Map data = request?.JSON as Map
-    if(data && data?.cookieData) {
+    Map cookieItems = [:]
+
+    if(data && data.cookieData) {
         logTrace("cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
-        Map cookieItems = [:]
-        data?.cookieData?.each { String k,v-> cookieItems[k] = v as String }
+
+        data.cookieData.each { String k,v-> cookieItems[k] = v as String }
         state.cookieData = cookieItems
-        updServerItem("onHeroku", (isStFLD || data?.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
-        updServerItem("isLocal", (!isStFLD && data?.isLocal == true))
-        updServerItem("serverHost", ((String)data?.serverUrl ?: sNULL))
-        updCodeVerMap("server", (String)data?.version)
+        String myId=app.getId()
+        cookieDataFLD[myId] = cookieItems
+        cookieDataFLD = cookieDataFLD
     }
+
+    if(data) {
+        updServerItem("isLocal", (!isStFLD && data.isLocal == true))
+        updServerItem("onHeroku", (isStFLD || data.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
+        updServerItem("serverHost", ((String)data.serverUrl ?: sNULL))
+        updCodeVerMap("server", (String)data.version)
+    }
+
     // log.debug "csrf: ${state?.cookieData?.csrf}"
-    if(state.cookieData?.localCookie && state.cookieData?.csrf != null) {
+    if(cookieItems.localCookie /* && cookieItems.csrf */) {
         logInfo("Cookie data was updated | Reinitializing App... | Polling should restart in 10 seconds...")
         Boolean a=validateCookie(true)
         state.serviceConfigured = true
@@ -1643,14 +1680,15 @@ def storeCookieData() {
     }
 }
 
-void clearCookieData(src=sNULL) {
-    logTrace("clearCookieData(${src ?: sBLANK})")
+void clearCookieData(String src=sNULL, Boolean callSelf=false) {
+    logTrace("clearCookieData(${src ?: sBLANK}, $callSelf)")
     settingUpdate("resetCookies", "false", "bool")
-    state.authValid = false
+    if(!callSelf) authEvtHandler(false, "clearCookieData")
     state.remove("cookie")
     state.remove("cookieData")
     String myId=app.getId()
     cookieDataFLD[myId] = [:]
+    cookieDataFLD = cookieDataFLD
     remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
     unschedule("getOtherData")
@@ -1671,26 +1709,31 @@ private updateChildAuth(Boolean isValid) {
     (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { (isValid) ? it?.updateCookies([cookie: getCookieVal(), csrf: getCsrfVal()]) : it?.removeCookies(true) }
 }
 
+@Field volatile static Map<String,List> authValidMapFLD             = [:]
+
 void authValidationEvent(Boolean valid, String src=sNULL) {
     Integer listSize = 3
-    List eList = atomicState?.authValidHistory
+    String myId=app.getId()
+    List eList = authValidMapFLD[myId]
     eList = eList ?: [true, true, true]
     eList.push(valid)
     if(eList.size() > listSize) { eList = eList.drop( eList.size()-listSize ) }
-    atomicState.authValidHistory = eList
+    authValidMapFLD[myId]= eList
+    authValidMapFLD[myId]= authValidMapFLD[myId]
+    state.authValidHistory = eList
     if(eList.every { it == false }) {
         if(!(Boolean)state.noAuthActive) {
             logError("The last 3 Authentication Validations have failed | Clearing Stored Auth Data | Please login again using the Echo Speaks service...")
         }
-        authEvtHandler(false, src)
-    } else { authEvtHandler(true) }
+        authEvtHandler(false, 'a_v_'+src)
+    } else { authEvtHandler(true, 'a_v_'+src) }
 }
 
 void authEvtHandler(Boolean isAuth, String src=sNULL) {
-    // log.debug "authEvtHandler(${isAuth})"
+    logDebug "authEvtHandler(${isAuth},$src)"
     state.authValid = isAuth
     if(!isAuth && !(Boolean)state.noAuthActive) {
-        clearCookieData()
+        clearCookieData('authHandler', true)
         noAuthReminder()
         if((Boolean)settings.sendCookieInvalidMsg && getLastTsValSecs("lastCookieInvalidMsgDt") > 28800) {
             sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
@@ -1754,11 +1797,13 @@ void wakeupServer(Boolean c=false, Boolean g=false, String src) {
         requestContentType: "text/plain",
         timeout: 20
     ]
-    if(!getCookieVal() || !getCsrfVal()) { logWarn("wakeupServer | Cookie or CSRF Missing... Skipping Wakeup"); return; }
+//    if(!getCookieVal() || !getCsrfVal()) { logWarn("wakeupServer | Cookie or CSRF Missing... Skipping Wakeup"); return; }
+    logTrace("wakeupServer $c $g $src")
     execAsyncCmd("post", "wakeupServerResp", params, [execDt: now(), refreshCookie: c, updateGuard: g, wakesrc: src])
 }
 
 void runCookieRefresh() {
+    logTrace("runCookieRefresh")
     settingUpdate("refreshCookie", "false", "bool")
     if(getLastTsValSecs("lastCookieRrshDt", 500000) < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return; }
     wakeupServer(true, false, "runCookieRefresh")
@@ -1788,6 +1833,7 @@ private cookieRefresh() {
         contentType: "application/json",
         timeout: 20
     ]
+    logTrace("cookieRefresh")
     execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
 }
 
@@ -1818,6 +1864,7 @@ def cookieRefreshResp(response, data) {
 }
 
 Boolean apiHealthCheck(Boolean frc=false) {
+    if(!isAuthValid("apiHealthCheck")) { return false }
     try {
         Map params = [
             uri: getAmazonUrl(),
@@ -1827,6 +1874,7 @@ Boolean apiHealthCheck(Boolean frc=false) {
             contentType: "plain/text",
             timeout: 20,
         ]
+        logTrace("apiHealthCheck")
         httpGet(params) { resp->
             logDebug("API Health Check Resp: (${resp?.getData()})")
             return (resp?.getData()?.toString() == "healthy")
@@ -1840,7 +1888,7 @@ Boolean apiHealthCheck(Boolean frc=false) {
 Boolean validateCookie(Boolean frc=false) {
     Boolean valid = false
     try {
-        if((!frc && getLastTsValSecs("lastCookieChkDt", 3600) <= 900) || !getCookieVal() || !getCsrfVal()) { return valid }
+        if((!frc && getLastTsValSecs("lastCookieChkDt", 3600) <= 900) || !getCookieVal() /* || !getCsrfVal()*/) { return valid }
         def execDt = now()
         Map params = [
             uri: getAmazonUrl(),
@@ -1850,6 +1898,7 @@ Boolean validateCookie(Boolean frc=false) {
             contentType: "application/json",
             timeout: 20,
         ]
+        logTrace("validateCookie")
         httpGet(params) { resp->
             Map aData = resp?.data?.authentication ?: null
             if (aData) {
@@ -1869,9 +1918,10 @@ Boolean validateCookie(Boolean frc=false) {
     return valid
 }
 
-private getCustomerData(frc=false) {
+private getCustomerData(Boolean frc=false) {
     try {
         if(!frc && state.amazonCustomerData && getLastTsValSecs("lastCustDataUpdDt") < 3600) { return state.amazonCustomerData }
+        if(!isAuthValid("getCustomerData")) { return }
         Long execDt = now()
         Map params = [
             uri: getAmazonUrl(),
@@ -1881,6 +1931,7 @@ private getCustomerData(frc=false) {
             contentType: "application/json",
             timeout: 20,
         ]
+        logTrace("getCustomerData")
         httpGet(params) { resp->
             Map pData = resp?.data ?: null
             if (pData) {
@@ -1897,6 +1948,7 @@ private getCustomerData(frc=false) {
 }
 
 private userCommIds() {
+    if(!isAuthValid("userCommIds")) { return }
     try {
         Map params = [
             uri: "https://alexa-comms-mobile-service.${getAmazonDomain()}",
@@ -1905,6 +1957,7 @@ private userCommIds() {
             contentType: "application/json",
             timeout: 20
         ]
+        logTrace("userCommIds")
         httpGet(params) { response->
             List resp = response?.data ?: []
             Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == "true" }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
@@ -1922,7 +1975,7 @@ public childInitiatedRefresh() {
         logDebug("A Child Device is requesting a Device List Refresh...")
         updTsVal("lastChildInitRefreshDt")
         getOtherData()
-        runIn(3, "getEchoDevices")
+        runIn(3, "getEchoDevices1")
     } else {
         logWarn("childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)")
     }
@@ -1943,6 +1996,7 @@ public updChildVers() {
 }
 
 Map getMusicProviders(Boolean frc=false) {
+    if(!isAuthValid("getMusicProviders")) { return [:] }
     if(!frc && state.musicProviders && getLastTsValSecs("musicProviderUpdDt") < 3600) { return state.musicProviders }
     Map params = [
         uri: getAmazonUrl(),
@@ -1954,6 +2008,7 @@ Map getMusicProviders(Boolean frc=false) {
     ]
     Map items = [:]
     try {
+        logTrace("getMusicProviders")
         httpGet(params) { response ->
             List rData = response?.data ?: []
             if(rData?.size()) {
@@ -1983,6 +2038,7 @@ private getOtherData() {
 void getBluetoothDevices() {
     String myId=app.getId()
     if((Boolean)state.websocketActive && bluetoothDataFLD[myId] && getLastTsValSecs("bluetoothUpdDt") < 3600) { return }
+    if(!isAuthValid("getBluetoothDevices")) { return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
@@ -1993,10 +2049,12 @@ void getBluetoothDevices() {
     ]
     Map btResp = [:]
     try {
+        logTrace("getBluetoothDevices")
         httpGet(params) { response ->
             btResp = response?.data ?: [:]
             // log.debug "Bluetooth Items: ${btResp}"
-            bluetoothData[myId] = btResp
+            bluetoothDataFLD[myId] = btResp
+            bluetoothDataFLD=bluetoothDataFLD
             updTsVal("bluetoothUpdDt")
         }
     } catch (ex) {
@@ -2005,7 +2063,7 @@ void getBluetoothDevices() {
     }
 }
 
-Map getBluetoothData(serialNumber) {
+Map getBluetoothData(String serialNumber) {
     String myId=app.getId()
     // logTrace("getBluetoothData: ${serialNumber}")
     String curConnName = sNULL
@@ -2022,7 +2080,10 @@ Map getBluetoothData(serialNumber) {
     return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName?.toString()?.replaceAll("\ufffd", "") } ?: [], curConnName: curConnName?.replaceAll("\ufffd", "")]
 }
 
-Map getDeviceActivity(serialNum, Boolean frc=false) {
+@Field volatile static Map<String,Map> devActivityMapFLD = [:]
+
+Map getDeviceActivity(String serialNum, Boolean frc=false) {
+    if(!isAuthValid("getDeviceActivity")) { return [:]}
     try {
         Map params = [
             uri: getAmazonUrl(),
@@ -2032,12 +2093,16 @@ Map getDeviceActivity(serialNum, Boolean frc=false) {
             contentType: "application/json",
             timeout: 20
         ]
-        Map lastActData = atomicState?.lastDevActivity
+        String appId=app.getId()
+        //Map lastActData = atomicState?.lastDevActivity
+        Map lastActData = devActivityMapFLD[appId]
         lastActData = lastActData ?: null
         // log.debug "activityData(IN): $lastActData"
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
-        if(frc || lastUpdSec >= 5) {
+
+        if(frc || lastUpdSec >= 125) {
+            logTrace("getDeviceActivity($serialNum,$frc)")
             updTsVal("lastDevActChk")
             httpGet(params) { response->
                 if (response?.data && response?.data?.activities != null) {
@@ -2051,12 +2116,15 @@ Map getDeviceActivity(serialNum, Boolean frc=false) {
                         Map lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand.description)
                         def lastDevice = lastCommand.sourceDeviceIds?.get(0)
                         lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
-                        atomicState.lastDevActivity = lastActData
+
+                        devActivityMapFLD[appId]=lastActData
+                        devActivityMapFLD=devActivityMapFLD
+//                        atomicState.lastDevActivity = lastActData
                     }
                 }
             }
         }
-        if(lastActData && lastActData?.size() && lastActData?.serialNumber == serialNum) {
+        if(serialNum && lastActData && lastActData.size() && lastActData.serialNumber == serialNum) {
             // log.debug "activityData(OUT): $lastActData"
             return lastActData
         }
@@ -2070,6 +2138,7 @@ Map getDeviceActivity(serialNum, Boolean frc=false) {
 }
 
 void getDoNotDisturb() {
+    if(!isAuthValid("getDoNotDisturb")) { return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
@@ -2081,27 +2150,29 @@ void getDoNotDisturb() {
     Map dndResp = [:]
     String myId=app.getId()
     try {
+        logTrace("getDoNotDisturb")
         httpGet(params) { response ->
             dndResp = response?.data ?: [:]
             // log.debug "DoNotDisturb Data: ${dndResp}"
             dndDataFLD[myId] = dndResp
+            dndDataFLD=dndDataFLD
         }
     } catch (ex) {
         respExceptionHandler(ex, "getDoNotDisturb", true)
-        if(!dndDataFLD[myId]) { dndDataFLD[myId] = dndResp }
+        if(!dndDataFLD[myId]) { dndDataFLD[myId] = [:] }
     }
-
 }
 
-Boolean getDndEnabled(serialNumber) {
+Boolean getDndEnabled(String serialNumber) {
     // logTrace("getBluetoothData: ${serialNumber}")
     String myId=app.getId()
-    Map sData = dndDataFLD[myId] ?: [:]
-    Map dndData = sData?.doNotDisturbDeviceStatusList?.size() ? sData?.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
+    Map sData = dndDataFLD[myId]
+    Map dndData = sData && sData.doNotDisturbDeviceStatusList?.size() ? sData.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
     return (dndData && dndData?.enabled == true)
 }
 
 public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
+    if(!isAuthValid("getAlexaRoutines")) { return [:]}
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/automations${autoId ? "/${autoId}" : ""}",
@@ -2113,6 +2184,7 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
 
     Map rtResp = [:]
     try {
+        logTrace("getAlexaRoutines($autoId, $utterOnly)")
         httpGet(params) { response ->
             rtResp = response?.data ?: [:]
             // log.debug "alexaRoutines: $rtResp"
@@ -2167,6 +2239,11 @@ Boolean executeRoutineById(String routineId) {
 
 void checkGuardSupport() {
 //    Long execDt = now()
+    Integer lastUpdSec = getLastTsValSecs("lastGuardSupChkDt")
+    if(lastUpdSec < 125 ) {
+        if (state.alexaGuardSupported) { getGuardState() }
+        return
+    }
     if(!isAuthValid("checkGuardSupport")) { return }
     Map params = [
         uri: getAmazonUrl(),
@@ -2176,6 +2253,7 @@ void checkGuardSupport() {
         contentType: "application/json",
         timeout: 20,
     ]
+    logTrace("checkGuardSupport")
     execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
 }
 
@@ -2184,7 +2262,7 @@ void checkGuardSupportResponse(response, data) {
     Boolean guardSupported = false
     try {
         Integer respLen = response?.data?.toString()?.length() ?: null
-        if(isStFLD && response?.data && respLen && respLen > 485000) {
+        if(response?.data && respLen && respLen > 485000) {
             logInfo("GuardSupport Response Length: ${respLen}")
             Map minUpdMap = getMinVerUpdsRequired()
             if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
@@ -2240,6 +2318,7 @@ void checkGuardSupportFromServer() {
         contentType: "application/json",
         timeout: 20,
     ]
+    logTrace("checkGuardSupportFromServer")
     execAsyncCmd("get", "checkGuardSupportServerResponse", params, [execDt: now()])
 }
 
@@ -2283,6 +2362,7 @@ void getGuardState() {
         body: [ stateRequests: [ [entityId: state?.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
     try {
+        logTrace("getGuardState")
         httpPostJson(params) { resp ->
             Map respData = resp?.data ?: null
             if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
@@ -2315,6 +2395,7 @@ void setGuardState(String guardState) {
             timeout: 20,
             body: body
         ]
+        logTrace("setGuardState")
         httpPutJson(params) { response ->
             def resp = response?.data ?: null
             if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
@@ -2331,7 +2412,6 @@ void setGuardState(String guardState) {
 
 private getAlexaSkills() {
     Long execDt = now()
-    log.debug "getAlexaSkills"
     if(!isAuthValid("getAlexaSkills") || state?.amazonCustomerData) { return }
     if(state?.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
     Map params = [
@@ -2347,6 +2427,7 @@ private getAlexaSkills() {
         timeout: 20,
     ]
     try {
+        logTrace("getAlexaSkills")
         httpGet(params) { response->
             def respData = response?.data ?: null
             log.debug "respData: $respData"
@@ -2366,7 +2447,7 @@ def respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean ignNu
         def rData = ex?.getResponse()?.getData()
         def errMsg = ex?.getMessage()
         if(sCode == 401) {
-            if(ignOn401) authValidationEvent(false, "${mName}_${status}")
+            if(ignOn401) authValidationEvent(false, "${mName}_${sCode}")
         } else if (sCode == 400) {
             switch(errMsg) {
                 case "Bad Request":
@@ -2450,7 +2531,11 @@ Map isFamilyAllowed(String family) {
     return [ok: false, reason: "Unknown Reason"]
 }
 
-private getEchoDevices() {
+void getEchoDevices1() {
+    getEchoDevices()
+}
+
+void getEchoDevices() {
     stateMigrationChk()
     if(!isAuthValid("getEchoDevices")) { return }
     def params = [
@@ -2463,10 +2548,11 @@ private getEchoDevices() {
     ]
     state.deviceRefreshInProgress = true
     state.refreshDeviceData = false
+    logTrace("getEchoDevices")
     execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
 }
 
-def echoDevicesResponse(response, data) {
+void echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceIgnoreData()
     ignoreTypes = ignoreTypes ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
@@ -2527,7 +2613,7 @@ def receiveEventData(Map evtData, String src) {
         logTrace("evtData(Keys): ${evtData?.keySet()}")
         if (evtData?.keySet()?.size()) {
             //List ignoreTheseDevs = settings.echoDeviceFilter ?: []
-            Boolean onHeroku = ((Boolean)getServerItem("onHeroku") && !(Boolean)getServerItem("isLocal"))
+            //Boolean onHeroku = ((Boolean)getServerItem("onHeroku") && !(Boolean)getServerItem("isLocal"))
 
             //Check for minimum versions before processing
             Map updReqMap = getMinVerUpdsRequired()
@@ -2561,7 +2647,7 @@ def receiveEventData(Map evtData, String src) {
                     Boolean bypassBlock = ((Boolean)settings.bypassDeviceBlocks && !isInIgnoreInput)
 
                     if(!bypassBlock && (!familyAllowed?.ok || isBlocked || (!allowTTS && !isMediaPlayer) || isInIgnoreInput)) {
-                        logDebug("familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
+                        logTrace("familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
                         if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
                             List reasons = []
                             if(deviceStyleData?.blocked) {
@@ -2676,18 +2762,20 @@ def receiveEventData(Map evtData, String src) {
                     }
                     curDevFamily?.push(echoValue?.deviceStyle?.name)
                 }
+                String myId=app.getId()
                 if(!isStFLD) {
                     String wsChildHandlerName = "Echo Speaks WS"
                     def oldWsDev = getChildDevice("echoSpeaks_websocket")
                     if(oldWsDev) { isStFLD ? deleteChildDevice("echoSpeaks_websocket", true) : deleteChildDevice("echoSpeaks_websocket") }
-                    def wsDevice = getChildDevice("${app.getId()}|echoSpeaks_websocket")
-                    if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "${app.getId()}|echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
+                    def wsDevice = getChildDevice("${myId}|echoSpeaks_websocket")
+                    if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "${myId}|echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
                     updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastTsValSecs("lastDevDataUpdDt")/60).toFloat()?.round(1)} minutes)")
                 updTsVal("lastDevDataUpdDt")
                 state.echoDeviceMap = echoDeviceMap
-                echoDeviceMapFLD = echoDeviceMap
+                echoDeviceMapFLD[myId] = echoDeviceMap
+                echoDeviceMapFLD = echoDeviceMapFLD
                 state.allEchoDevices = allEchoDevices
                 state.skippedDevices = skippedDevices
                 state.deviceStyleCnts = curDevFamily?.countBy { it }
@@ -2940,7 +3028,18 @@ static Map notifValEnum(Boolean allowCust = true) {
 }
 
 void healthCheck() {
-    // logTrace("healthCheck", true)
+    logTrace("healthCheck")
+    if(settings.sendMissedPollMsg == null) {
+        settingUpdate('sendMissedPollMsg', 'true', 'bool')
+        settingUpdate('misPollNotifyWaitVal', 2700)
+        settingUpdate('misPollNotifyMsgWaitVal', 3600)
+    }
+    if(settings.logInfo == null) settingUpdate('logInfo', 'true', 'bool')
+    if(settings.logWarn == null) settingUpdate('logWarn', 'true', 'bool')
+    if(settings.logError == null) settingUpdate('logError', 'true', 'bool')
+    if(settings.logDebug == null) settingUpdate('logDebug', 'false', 'bool')
+    if(settings.logTrace == null) settingUpdate('logTrace', 'false', 'bool')
+
     checkVersionData()
     if(checkIfCodeUpdated()) {
         logWarn("Code Version Change Detected... Health Check will occur on next cycle.")
@@ -2954,13 +3053,13 @@ void healthCheck() {
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
     if(!isStFLD){
         def dev= getSocketDevice()
-        if(dev?.isSocketActive() != true) { dev?.triggerInitialize() }
+        if(!(Boolean)dev?.isSocketActive()) { dev?.triggerInitialize() }
     }
     if((Boolean)state.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(advLogsActive()) { logsDisable() }
     appUpdateNotify()
 
-    if(!getOk2Notify()) { return }
+    //if(!getOk2Notify()) { return }
     missPollNotify((Boolean)settings.sendMissedPollMsg, (settings.misPollNotifyMsgWaitVal as Integer ?: 3600))
 }
 
@@ -2996,17 +3095,24 @@ void missPollNotify(Boolean on, Integer wait) {
 }
 
 void appUpdateNotify() {
-    Boolean on = ((Boolean)settings.sendAppUpdateMsg != false)
     Boolean appUpd = appUpdAvail()
     Boolean actUpd = actionUpdAvail()
     Boolean zoneUpd = zoneUpdAvail()
     Boolean echoDevUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
-    logDebug("appUpdateNotify() | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${getLastTsValSecs("lastUpdMsgDt")} | updNotifyWaitVal: ${settings?.updNotifyWaitVal}")
-    if(settings.updNotifyWaitVal && getLastTsValSecs("lastUpdMsgDt") > settings.updNotifyWaitVal?.toInteger()) {
-        if(on && (appUpd || actUpd || zoneUpd || echoDevUpd || socketUpd || servUpd)) {
-            state.updateAvailable = true
+    Boolean res=false
+    if(appUpd || actUpd || zoneUpd || echoDevUpd || socketUpd || servUpd) res=true
+
+    Integer secs
+    Integer updW
+    Boolean on=false
+    if(res) {
+        on = ((Boolean)settings.sendAppUpdateMsg != false)
+        updW = settings.updNotifyWaitVal
+        if(updW == null) { updW = 43200; settingUpdate("updNotifyWaitVal", 43200) }
+        secs=getLastTsValSecs("lastUpdMsgDt")
+        if(secs > updW && on) {
             String str = ""
             str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
@@ -3016,10 +3122,12 @@ void appUpdateNotify() {
             str += !servUpd ? "" : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             updTsVal("lastUpdMsgDt")
-            return
         }
-        state.updateAvailable = false
     }
+    state.updateAvailable = res
+    String msg="appUpdateNotify() RESULT: ${res} | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${secs} | updNotifyWaitVal: ${updW}"
+    if(res) logDebug(msg)
+    else logTrace(msg)
 }
 
 private List codeUpdateItems(Boolean shrt=false) {
@@ -3052,10 +3160,11 @@ Boolean getOk2Notify() {
     Boolean daysOk = quietDaysOk(settings.quietDays)
     Boolean timeOk = quietTimeOk()
     Boolean modesOk = quietModesOk(settings.quietModes)
-    logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
-    if(!(smsOk || pushOk || notifDevs || pushOver)) { return false }
-    if(!(daysOk && modesOk && timeOk)) { return false }
-    return true
+    Boolean result = null
+    if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
+    if(!(daysOk && modesOk && timeOk)) { result= false }
+    if(result==null) result=true
+    logDebug("getOk2Notify() RESULT: $result | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
 }
 
 Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) ? false : true }
@@ -3104,7 +3213,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
             logInfo("sendMsg: Message Skipped During Quiet Time ($flatMsg)")
             if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
-            if(push || (Boolean)settings.usePush) {
+/*            if(push || (Boolean)settings.usePush) {
                 sentstr = "Push Message"
                 if(showEvt) {
                     sendPush(newMsg)	// sends push and notification feed
@@ -3120,13 +3229,13 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
                 if(settings.pushoverSound) { msgObj.sound = settings.pushoverSound }
                 buildPushMessage(settings.pushoverDevices, msgObj, true)
                 sent = true
-            }
+            }*/
             if(settings.notif_devs) {
                 sentstr = "Notification Devices"
                 settings.notif_devs?.each { it?.deviceNotification(msg) }
                 sent = true
             }
-
+/*
             String smsPhones = sms ? sms.toString() : (settings.smsNumbers?.toString() ?: null)
             if(smsPhones) {
                 List phones = smsPhones?.toString()?.split("\\,")
@@ -3140,7 +3249,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
                 }
                 sentstr = "Text Message to Phone [${phones}]"
                 sent = true
-            }
+            } */
             if(sent) {
                 state.lastMsg = flatMsg
                 updTsVal("lastMsgDt")
@@ -3185,6 +3294,7 @@ def updateDocsInput() { href url: documentationLink(), style: "external", requir
 String getAppEndpointUrl(subPath)   { return isStFLD ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
+/*
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
 private getPushoverDevices(){List opts=[];Map pmd=state?.pushoverManager?:[:];pmd?.apps?.each{k,v->if(v&&v?.devices&&v?.appId){Map dm=[:];v?.devices?.sort{}?.each{i->dm["${i}_${v?.appId}"]=i};addInputGrp(opts,v?.appName,dm)}};return opts}
@@ -3202,7 +3312,7 @@ public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.val
 //Builds Map Message object to send to Pushover Manager
 
 void buildPushMessage(List devices,Map msgData,Boolean timeStamp=false){if(!devices||!msgData){return};Map data=[:];data.appId=app.getId();data.devices=devices;data.msgData=msgData;if(timeStamp){data.msgData.timeStamp=new Date().getTime()};pushover_msg(devices,data)}
-
+*/
 /******************************************
 |       Changelog Logic
 ******************************************/
@@ -3224,7 +3334,8 @@ Integer getDaysSinceUpdated() {
 }
 
 String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
-Boolean showChgLogOk() { return ((Boolean)state.isInstalled && (state?.curAppVer != appVersionFLD || ((Boolean)getInstData('shownChgLog') != true) )) }
+Boolean showChgLogOk() { return ((Boolean)state.isInstalled && !((String)state.curAppVer == appVersionFLD && (Boolean)getInstData('shownChgLog')) ) }
+
 def changeLogPage() {
     return dynamicPage(name: "changeLogPage", title: "", nextPage: "mainPage", install: false) {
         section() {
@@ -3241,7 +3352,7 @@ def changeLogPage() {
 ******************************************/
 String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com/" }
 String getFbConfigUrl() { return state?.appData?.settings?.database?.configUrl ?: "https://echospeaks-config.firebaseio.com/" }
-Boolean metricsOk() { ((Boolean)settings?.optOutMetrics != true && state?.appData?.settings?.sendMetrics != false) }
+Boolean metricsOk() { (!(Boolean)settings.optOutMetrics && state?.appData?.settings?.sendMetrics) }
 private generateGuid() { if(!(String)state.appGuid) { state.appGuid = UUID?.randomUUID().toString() } }
 void sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { Boolean aa=sendFirebaseData(getFbMetricsUrl(), "/clients/${(String)state.appGuid}.json", createMetricsDataJson(), "put", "heartbeat") } }
 Boolean removeInstallData() { return removeFirebaseData("/clients/${(String)state.appGuid}.json") }
@@ -3364,12 +3475,13 @@ String createMetricsDataJson() {
     }
 }
 
-private incrementCntByKey(String key) {
-    long evtCnt = state?."${key}" ?: 0
+void incrementCntByKey(String key) {
+    Long evtCnt = (Long)state?."${key}"
+    evtCnt = evtCnt != null ? evtCnt : 0L
     // evtCnt = evtCnt?.toLong()+1
     evtCnt++
     // logTrace("${key?.toString()?.capitalize()}: $evtCnt", true)
-    state?."${key}" = evtCnt?.toLong()
+    state."${key}" = evtCnt
 }
 
 // ******************************************
@@ -3549,7 +3661,7 @@ private getDiagDataJson(Boolean asObj = false) {
                 lastVersionUpdDt: getTsVal("lastAppDataUpdDt"),
                 config: state?.appData?.appDataVer ?: null,
                 flags: [
-                    pollBlocked: (state.pollBlocked == true),
+                    pollBlocked: (Boolean)state.pollBlocked,
                     resumeConfig: (Boolean)state.resumeConfig,
                     serviceConfigured: (Boolean)state.serviceConfigured,
                     refreshDeviceData: (Boolean)state.refreshDeviceData,
@@ -3610,24 +3722,24 @@ private getDiagDataJson(Boolean asObj = false) {
                 cookieValidationState: (Boolean)state.authValid,
                 cookieValidDate: getTsVal("lastCookieChkDt") ?: null,
                 cookieValidDur: getTsVal("lastCookieChkDt") ? seconds2Duration(getLastTsValSecs("lastCookieChkDt")) : null,
-                cookieValidHistory: state?.authValidHistory,
+                cookieValidHistory: (List)state.authValidHistory,
                 cookieLastRefreshDate: getTsVal("lastCookieRrshDt") ?: null,
                 cookieLastRefreshDur: getTsVal("lastCookieRrshDt") ? seconds2Duration(getLastTsValSecs("lastCookieRrshDt")) : null,
                 cookieInvalidReason: (!(Boolean)state.authValid && state.authEvtClearReason) ? state?.authEvtClearReason : (String)null,
-                cookieRefreshDays: (Integer)settings?.refreshCookieDays,
+                cookieRefreshDays: (Integer)settings.refreshCookieDays,
                 cookieItems: [
-                    hasLocalCookie: (state?.cookieData && state?.cookieData?.localCookie),
-                    hasCSRF: (state?.cookieData && state?.cookieData?.csrf),
-                    hasDeviceId: (state?.cookieData && state?.cookieData?.deviceId),
-                    hasDeviceSerial: (state?.cookieData && state?.cookieData?.deviceSerial),
-                    hasLoginCookie: (state?.cookieData && state?.cookieData?.loginCookie),
-                    hasRefreshToken: (state?.cookieData && state?.cookieData?.refreshToken),
-                    hasFrc: (state?.cookieData && state?.cookieData?.frc),
-                    amazonPage: (state?.cookieData && state?.cookieData?.amazonPage) ? state?.cookieData?.amazonPage : null,
-                    refreshDt: (state?.cookieData && state?.cookieData?.refreshDt) ? state?.cookieData?.refreshDt : null,
-                    tokenDate: (state?.cookieData && state?.cookieData?.tokenDate) ? state?.cookieData?.tokenDate : null,
+                    hasLocalCookie: (state.cookieData && state.cookieData.localCookie),
+                    hasCSRF: (state.cookieData && state.cookieData.csrf),
+                    hasDeviceId: (state.cookieData && state.cookieData?.deviceId),
+                    hasDeviceSerial: (state.cookieData && state.cookieData?.deviceSerial),
+                    hasLoginCookie: (state.cookieData && state.cookieData?.loginCookie),
+                    hasRefreshToken: (state.cookieData && state.cookieData?.refreshToken),
+                    hasFrc: (state.cookieData && state.cookieData?.frc),
+                    amazonPage: (state.cookieData && state.cookieData?.amazonPage) ? state?.cookieData?.amazonPage : null,
+                    refreshDt: (state.cookieData && state.cookieData?.refreshDt) ? state?.cookieData?.refreshDt : null,
+                    tokenDate: (state.cookieData && state.cookieData?.tokenDate) ? state?.cookieData?.tokenDate : null,
                 ],
-                cookieData: (settings?.diagShareSensitveData == true) ? state?.cookieData ?: null : "Not Shared"
+                cookieData: (settings.diagShareSensitveData == true) ? state.cookieData ?: null : "Not Shared"
             ],
             alexaGuard: [
                 supported: (Boolean)state.alexaGuardSupported,
@@ -3909,16 +4021,19 @@ void updInstData(String key, val) {
 
 private getInstData(String key) {
     Map iMap = state.installData
-    if(val && iMap && iMap[val]) { return iMap[val] }
+    if(key && iMap && iMap[key]) { return iMap[key] }
     return null
 }
 
 @Field volatile static Map<String,Map> tsDtMapFLD=[:]
 
 private void updTsVal(String key, String dt=sNULL) {
+        String val = dt ?: getDtNow()
+        if(key == "lastCookieRrshDt") { updServerItem(key, val); return }
+
         String appId=app.getId()
         Map data=tsDtMapFLD[appId] ?: [:]
-        if(key) { data[key]=dt ?: getDtNow() }
+        if(key) data[key]=val
         tsDtMapFLD[appId]=data
         tsDtMapFLD=tsDtMapFLD
 }
@@ -3928,20 +4043,29 @@ private void remTsVal(key) {
         Map data=tsDtMapFLD[appId] ?: [:]
         if(key) {
                 if(key instanceof List) {
-                        key.each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
-                } else { if(data?.containsKey((String)key)) { data?.remove((String)key) } }
+                        key.each { String k->
+                            if(data?.containsKey(k)) { data?.remove(k) }
+                            if(k == "lastCookieRrshDt") { remServerItem(k) }
+                       }
+                } else {
+                    if(data?.containsKey((String)key)) { data?.remove((String)key) }
+                    if((String)key == "lastCookieRrshDt") { remServerItem((String)key) }
+                }
                 tsDtMapFLD[appId]=data
                 tsDtMapFLD=tsDtMapFLD
         }
 }
 
-private String getTsVal(String val) {
+private String getTsVal(String key) {
+        if(key == "lastCookieRrshDt") {
+            return (String)getServerItem(key)
+        }
         String appId=app.getId()
         Map tsMap=tsDtMapFLD[appId]
-        if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
+        if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
         return sNULL
 }
-
+/*
 void updDevSupVal(String key, val) {
     Map data = atomicState?.devSupMap
     data =  data ?: [:]
@@ -3960,17 +4084,24 @@ void remDevSupVal(key) {
     }
 }
 
-private getDevSupVal(String val) {
+private getDevSupVal(String key) {
     Map dsMap = atomicState?.devSupMap
-    if(val && dsMap && dsMap[val]) { return dsMap[val] }
+    if(key && dsMap && dsMap[key]) { return dsMap[key] }
     return null
 }
+*/
+@Field volatile static Map<String,Map> serverDataMapFLD=[:]
 
 void updServerItem(String key, val) {
     Map data = atomicState?.serverDataMap
     data =  data ?: [:]
-    if(key) { data[key] = val }
-    atomicState.serverDataMap = data
+    if(key) {
+        String appId=app.getId()
+        data[key] = val
+        atomicState.serverDataMap = data
+        serverDataMapFLD[appId]= [:]
+        serverDataMapFLD = serverDataMapFLD
+    }
 }
 
 void remServerItem(key) {
@@ -3979,14 +4110,27 @@ void remServerItem(key) {
     if(key) {
         if(key instanceof List) {
             key?.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
-        } else { if(data.containsKey(key)) { data.remove(key) } }
+        } else { if(data.containsKey((String)key)) { data.remove((String)key) } }
+        String appId=app.getId()
         atomicState?.serverDataMap = data
+        serverDataMapFLD[appId]= [:]
+        serverDataMapFLD = serverDataMapFLD
     }
 }
 
-def getServerItem(val) {
-    Map sMap = atomicState?.serverDataMap
-    if(val && sMap && sMap[val]) { return sMap[val] }
+def getServerItem(String key) {
+    String appId=app.getId()
+    Map fdata = serverDataMapFLD[appId]
+    if(fdata == null) fdata = [:]
+    if(key) {
+        if(fdata[key] == null) {
+            Map sMap = atomicState?.serverDataMap
+            if(sMap && sMap[key]) {
+                fdata[key]=sMap[key]
+            }
+        }
+        return fdata[key]
+    }
     return null
 }
 
@@ -4008,9 +4152,9 @@ void remAppFlag(key) {
     }
 }
 
-Boolean getAppFlag(String val) {
+Boolean getAppFlag(String key) {
     def aMap = atomicState?.appFlagsMap
-    if(val && aMap && aMap[val]) { return (Boolean)aMap[val] }
+    if(key && aMap && aMap[key]) { return (Boolean)aMap[key] }
     return false
 }
 
@@ -4018,7 +4162,7 @@ void stateMapMigration() {
     //Timestamp State Migrations
     Map tsItems = [
         "musicProviderUpdDt":"musicProviderUpdDt", "lastCookieChkDt":"lastCookieChkDt", "lastServerWakeDt":"lastServerWakeDt", "lastChildInitRefreshDt":"lastChildInitRefreshDt",
-        "lastCookieRefresh":"lastCookieRrshDt", "lastVerUpdDt":"lastAppDataUpdDt", "lastGuardSupportCheck":"lastGuardSupChkDt", "lastGuardStateUpd":"lastGuardStateUpdDt",
+        /* "lastCookieRefresh":"lastCookieRrshDt", */ "lastVerUpdDt":"lastAppDataUpdDt", "lastGuardSupportCheck":"lastGuardSupChkDt", "lastGuardStateUpd":"lastGuardStateUpdDt",
         "lastGuardStateCheck":"lastGuardStateChkDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt", "lastMisPollMsgDt":"lastMissedPollMsgDt",
         "lastUpdMsgDt":"lastUpdMsgDt", "lastMsgDt":"lastMsgDt"
     ]
@@ -4029,16 +4173,14 @@ void stateMapMigration() {
     flagItems?.each { String k, String v-> if(state.containsKey(k)) { updAppFlag(v, state[k]); state.remove(k); } }
 
     //Server Data Migrations
-    Map servItems = ["onHeroku":"onHeroku", "serverHost":"serverHost", "isLocal":"isLocal"]
+    Map servItems = ["onHeroku":"onHeroku", "serverHost":"serverHost", "isLocal":"isLocal", "lastCookieRefresh":"lastCookieRrshDt" ]
     servItems?.each { String k, String v-> if(state.containsKey(k)) { updServerItem(v, state[k]); state.remove(k); } }
     if(state.generatedHerokuName) { state.herokuName = state.generatedHerokuName; state.remove("generatedHerokuName") }
     updAppFlag("stateMapConverted", true)
 }
 
 Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
-        String appId=app.getId()
-        Map tsMap=tsDtMapFLD[appId] ?: [:]
-        return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
+        return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
 void settingUpdate(String name, value, String type=sNULL) {
@@ -4083,15 +4225,17 @@ String getAppNotifConfDesc() {
     if(pushStatus()) {
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
-        str += (Boolean)settings.usePush ? bulletItem(str, "Sending via: (Push)") : ""
-        str += (Boolean)settings.pushoverEnabled ? bulletItem(str, "Pushover: (Enabled)") : ""
+        Boolean notifDevs = (settings.notif_devs?.size())
+        str += notifDevs ? bulletItem(str, "Sending via: (Notfication Device)") : ""
+//        str += (Boolean)settings.usePush ? bulletItem(str, "Sending via: (Push)") : ""
+//        str += (Boolean)settings.pushoverEnabled ? bulletItem(str, "Pushover: (Enabled)") : ""
         // str += ((Boolean)settings?.pushoverEnabled && settings?.pushoverPriority) ? bulletItem(str, "Priority: (${settings?.pushoverPriority})") : ""
         // str += ((Boolean)settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : ""
-        str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : ""
+//        str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : ""
         str += (ap) ? "${str != "" ? "\n\n" : ""}Enabled Alerts:\n${ap}" : ""
         str += (ap && nd) ? "${str != "" ? "\n" : ""}\nQuiet Restrictions:\n${nd}" : ""
     }
-    return str != "" ? str : null
+    return str != "" ? str : (String)null
 }
 
 List getQuietDays() {
