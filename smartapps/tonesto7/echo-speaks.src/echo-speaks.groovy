@@ -1343,6 +1343,7 @@ def uninstalled() {
 }
 
 private appCleanup() {
+    logTrace("appCleanup")
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
@@ -1363,7 +1364,7 @@ private appCleanup() {
 }
 
 void wsEvtHandler(evt) {
-    // log.debug "evt: ${evt}"
+    logTrace("wsEvtHandler  evt: ${evt}")
     if(evt && evt?.id && (evt?.attributes?.size() || evt?.triggers?.size())) {
         if("bluetooth" in evt?.triggers) { Map a=getBluetoothData() }
         if("activity" in evt?.triggers) { Map a=getDeviceActivity(sNULL, true) }
@@ -2100,7 +2101,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
 
-        if(frc || lastUpdSec >= 25) {
+        if(frc || lastUpdSec >= 125) {
             logTrace("getDeviceActivity($serialNum,$frc)")
             updTsVal("lastDevActChk")
             httpGet(params) { response->
@@ -2238,6 +2239,11 @@ Boolean executeRoutineById(String routineId) {
 
 void checkGuardSupport() {
 //    Long execDt = now()
+    Integer lastUpdSec = getLastTsValSecs("lastGuardSupChkDt")
+    if(lastUpdSec < 125 ) {
+        if (state.alexaGuardSupported) { getGuardState() }
+        return
+    }
     if(!isAuthValid("checkGuardSupport")) { return }
     Map params = [
         uri: getAmazonUrl(),
@@ -2256,7 +2262,7 @@ void checkGuardSupportResponse(response, data) {
     Boolean guardSupported = false
     try {
         Integer respLen = response?.data?.toString()?.length() ?: null
-        if(isStFLD && response?.data && respLen && respLen > 485000) {
+        if(response?.data && respLen && respLen > 485000) {
             logInfo("GuardSupport Response Length: ${respLen}")
             Map minUpdMap = getMinVerUpdsRequired()
             if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
