@@ -144,21 +144,26 @@ def mainPage() {
                 href "authStatusPage", title: inTS("Login Status | Service Management", getAppImg("settings", true)), description: (ls ? "${ls}\n\nTap to modify" : "Tap to configure"), state: (ls ? "complete" : sNULL), image: getAppImg("settings")
             }
             if(!(Boolean)state.shownDevSharePage) { showDevSharePrefs() }
-            section(sTS("Notifications:")) {
-                def t0 = getAppNotifConfDesc()
-                href "notifPrefPage", title: inTS("Manage Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : sNULL), image: getAppImg("notification2")
-            }
-
-            section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS("Device Testing", getAppImg("testing", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
-                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
-            }
+        }
+        section(sTS("Notifications:")) {
+            def t0 = getAppNotifConfDesc()
+            href "notifPrefPage", title: inTS("Manage Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? "complete" : sNULL), image: getAppImg("notification2")
         }
         section(sTS("Documentation & Settings:")) {
             href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", image: getAppImg("documentation")
             href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
         }
+
+//        if((Boolean)state.isInstalled) {
+//        } else {
+//            paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, "#2784D9"), state: "complete"
+//        }
+
         if(!newInstall) {
+            section(sTS("Experimental Functions:")) {
+                href "deviceTestPage", title: inTS("Device Testing", getAppImg("testing", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
+                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
+            }
             section(sTS("Donations:")) {
                 href url: textDonateLink(), style: "external", required: false, title: inTS("Donations", getAppImg("donate", true)), description: "Tap to open browser", image: getAppImg("donate")
             }
@@ -174,7 +179,7 @@ def mainPage() {
         } else {
             showDevSharePrefs()
             section(sTS("Important Step:")) {
-                paragraph title: "Notice:", pTS("Please complete the install and return to the Echo Speaks App to resume deployment and configuration of the server.", sNULL, true, "red"), required: true, state: null
+                paragraph title: "Notice:", pTS("Please complete the install (hit done below) and then return to the Echo Speaks App to resume deployment and configuration of the server.", sNULL, true, "red"), required: true, state: null
                 state.resumeConfig = true
             }
         }
@@ -191,13 +196,13 @@ def authStatusPage() {
             section(sTS("Cookie Status:")) {
                 Boolean cookieValid = validateCookie(true)
                 Boolean chk1 = (state.cookieData && state.cookieData.localCookie)
-                Boolean chk2 = (state.cookieData && state.cookieData.csrf)
+                Boolean chk2 = (state.cookieData /* && state.cookieData.csrf */ )
                 Boolean chk3 = (lastChkSec < 432000)
                 // Boolean chk4 = (cookieValid == true)
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
                 String stat = "Auth Status: (${(chk1 && chk2) ? "OK": "Invalid"})"
                 stat += "\n ${sBULLET} Cookie: (${chk1 ? okSymFLD : notOkSymFLD})"
-                stat += "\n \u2022 CSRF Value: (${chk2 ? okSymFLD : notOkSymFLD})"
+                stat += "\n \u2022 CSRF Value: (${chk2 ? ( (Boolean)getServerItem("isLocal") || state.cookieData.csrf ? okSymFLD : notOkSymFLD) : notOkSymFLD})"
                 paragraph pTS(stat, sNULL, false, (chk1 && chk2) ? "#2784D9" : "red"), state: ((chk1 && chk2) ? "complete" : sNULL), required: true
                 paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", sNULL, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : sNULL), required: true
                 paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", sNULL, false, "#2784D9"), state: "complete", required: true
@@ -318,8 +323,8 @@ def deviceManagePage() {
         section(sTS("Alexa Devices:")) {
             if(!newInstall) {
                 List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }?.sort()
-                List skDevs = state.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
-                List ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+                Map skDevs = state.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
+                Map ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
                 if(devs?.size()) {
                     href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                 } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
@@ -821,7 +826,7 @@ def showDevSharePrefs() {
             href url: getAppEndpointUrl("renderMetricData"), style: (isStFLD ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
         }
     }
-    if(!(Boolean) settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
+    if(!(Boolean)settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
         section() { input "sendMetricsNow", "bool", title: inTS("Send Metrics Now?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
         if(sendMetricsNow) { sendInstallData() }
     }
@@ -853,20 +858,22 @@ def notifPrefPage() {
         section("") {
             paragraph title: "Notice:", pTS("The settings configure here are used by both the App and the Devices.", getAppImg("info", true), true, "#2784D9"), state: "complete"
         }
-        section(sTS("Push Messages:")) {
-            input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
-        }
-        section(sTS("SMS Text Messaging:")) {
-            paragraph pTS("To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344", sNULL, false)
-            input "smsNumbers", "text", title: inTS("Send SMS Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
-        }
+        if(isStFLD) {
+            section(sTS("Push Messages:")) {
+                input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
+            }
+            section(sTS("SMS Text Messaging:")) {
+                paragraph pTS("To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344", sNULL, false)
+                input "smsNumbers", "text", title: inTS("Send SMS Text to...\n(Optional)", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+            }
+        } else { settingRemove('smsNumbers'); settingRemove('usePush') }
         section (sTS("Notification Devices:")) {
             input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
         }
-        section(sTS("Pushover Support:")) {
-            input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
-            if((Boolean) settings.pushoverEnabled) {
-                if((Boolean)state.isInstalled) {
+        if(isStFLD) {
+            section(sTS("Pushover Support:")) {
+                input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
+                if((Boolean) settings.pushoverEnabled) {
                     if(!state?.pushoverManager) {
                         paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
                         pushover_init()
@@ -878,12 +885,20 @@ def notifPrefPage() {
                             input "pushoverSound", "enum", title: inTS("Notification Sound (Optional)"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
                         }
                     }
-                } else { paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, "#2784D9"), state: "complete" }
+//                    if((Boolean)state.isInstalled) {
+//                    } else { paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, "#2784D9"), state: "complete" }
+                }
             }
+        } else {
+            state.remove('pushoverManager')
+            settingRemove('pushoverEnabled')
+            settingRemove('pushoverDevices')
+            settingRemove('pushoverPriority')
+            settingRemove('pushoverSound')
         }
         if(settings?.smsNumbers?.toString()?.length()>=10 || settings.notif_devs || (Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) {
-            if(((Boolean)settings.usePush || settings?.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
-                if(sendMsg("Info", "Push Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
+            if(((Boolean)settings.usePush || settings.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
+                if(sendMsg("Info", "Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
                     state.pushTested = true
                 }
             }
@@ -1288,7 +1303,7 @@ def initialize() {
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
-            runEvery2Minutes("getOtherData")
+            runEvery5Minutes("getOtherData")
             runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
             // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
@@ -1463,37 +1478,16 @@ mappings {
     path("/diagDataText")               { action: [GET: "getDiagDataText"] }
 }
 
-String getCookieVal() {
-    String myId=app.getId()
-    if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].localCookie != null)) {
-        Map cookieData = state.cookieData
-        //if (cookieData && cookieData.localCookie && cookieData.csrf) cookieDataFLD[myId] = cookieData
-        cookieDataFLD[myId] = cookieData
-        cookieDataFLD = cookieDataFLD
-    }
-    return cookieDataFLD[myId]?.localCookie ? (String)cookieDataFLD[myId].localCookie : sNULL
-}
-
-String getCsrfVal() { 
-    String myId=app.getId()
-    if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].csrf != null)) {
-        Map cookieData = state.cookieData
-        //if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[myId] = cookieData; }
-        cookieDataFLD[myId] = cookieData
-        cookieDataFLD = cookieDataFLD
-    }
-    return cookieDataFLD[myId]?.csrf ?  (String)cookieDataFLD[myId].csrf : sNULL
-}
-
 void clearCloudConfig() {
     logTrace("clearCloudConfig called...")
     settingUpdate("resetService", "false", "bool")
     unschedule("cloudServiceHeartbeat")
-    remServerItem(["useHeroku", "onHeroku", "serverHost", "isLocal"])
+    remServerItem(["onHeroku", "serverHost", "isLocal"])
+    settingRemove("useHeroku")
     state.remove("herokuName")
     state.serviceConfigured = false
     state.resumeConfig = true
-    if(!(Boolean)state.authValid) { clearCookieData("clearCloudConfig") }
+    clearCookieData("clearCloudConfig")
 }
 
 String getEnvParamsStr() {
@@ -1630,6 +1624,28 @@ def getCookieData() {
     render contentType: "application/json", data: json
 }
 
+String getCookieVal() {
+    String myId=app.getId()
+    if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].localCookie != null)) {
+        Map cookieData = state.cookieData
+        //if (cookieData && cookieData.localCookie && cookieData.csrf) cookieDataFLD[myId] = cookieData
+        cookieDataFLD[myId] = cookieData
+        cookieDataFLD = cookieDataFLD
+    }
+    return cookieDataFLD[myId]?.localCookie ? (String)cookieDataFLD[myId].localCookie : sNULL
+}
+
+String getCsrfVal() { 
+    String myId=app.getId()
+    if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].csrf != null)) {
+        Map cookieData = state.cookieData
+        //if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[myId] = cookieData; }
+        cookieDataFLD[myId] = cookieData
+        cookieDataFLD = cookieDataFLD
+    }
+    return cookieDataFLD[myId]?.csrf ?  (String)cookieDataFLD[myId].csrf : sNULL
+}
+
 def storeCookieData() {
     logTrace("storeCookieData Request Received...")
     Map data = request?.JSON as Map
@@ -1653,7 +1669,7 @@ def storeCookieData() {
     }
 
     // log.debug "csrf: ${state?.cookieData?.csrf}"
-    if(cookieItems.localCookie && cookieItems.csrf) {
+    if(cookieItems.localCookie /* && cookieItems.csrf */) {
         logInfo("Cookie data was updated | Reinitializing App... | Polling should restart in 10 seconds...")
         Boolean a=validateCookie(true)
         state.serviceConfigured = true
@@ -1780,12 +1796,13 @@ void wakeupServer(Boolean c=false, Boolean g=false, String src) {
         requestContentType: "text/plain",
         timeout: 20
     ]
-    if(!getCookieVal() || !getCsrfVal()) { logWarn("wakeupServer | Cookie or CSRF Missing... Skipping Wakeup"); return; }
-    logTrace("wakeupServer")
+//    if(!getCookieVal() || !getCsrfVal()) { logWarn("wakeupServer | Cookie or CSRF Missing... Skipping Wakeup"); return; }
+    logTrace("wakeupServer $c $g $src")
     execAsyncCmd("post", "wakeupServerResp", params, [execDt: now(), refreshCookie: c, updateGuard: g, wakesrc: src])
 }
 
 void runCookieRefresh() {
+    logTrace("runCookieRefresh")
     settingUpdate("refreshCookie", "false", "bool")
     if(getLastTsValSecs("lastCookieRrshDt", 500000) < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return; }
     wakeupServer(true, false, "runCookieRefresh")
@@ -1856,6 +1873,7 @@ Boolean apiHealthCheck(Boolean frc=false) {
             contentType: "plain/text",
             timeout: 20,
         ]
+        logTrace("apiHealthCheck")
         httpGet(params) { resp->
             logDebug("API Health Check Resp: (${resp?.getData()})")
             return (resp?.getData()?.toString() == "healthy")
@@ -1869,7 +1887,7 @@ Boolean apiHealthCheck(Boolean frc=false) {
 Boolean validateCookie(Boolean frc=false) {
     Boolean valid = false
     try {
-        if((!frc && getLastTsValSecs("lastCookieChkDt", 3600) <= 900) || !getCookieVal() || !getCsrfVal()) { return valid }
+        if((!frc && getLastTsValSecs("lastCookieChkDt", 3600) <= 900) || !getCookieVal() /* || !getCsrfVal()*/) { return valid }
         def execDt = now()
         Map params = [
             uri: getAmazonUrl(),
@@ -1879,6 +1897,7 @@ Boolean validateCookie(Boolean frc=false) {
             contentType: "application/json",
             timeout: 20,
         ]
+        logTrace("validateCookie")
         httpGet(params) { resp->
             Map aData = resp?.data?.authentication ?: null
             if (aData) {
@@ -1898,7 +1917,7 @@ Boolean validateCookie(Boolean frc=false) {
     return valid
 }
 
-private getCustomerData(frc=false) {
+private getCustomerData(Boolean frc=false) {
     try {
         if(!frc && state.amazonCustomerData && getLastTsValSecs("lastCustDataUpdDt") < 3600) { return state.amazonCustomerData }
         if(!isAuthValid("getCustomerData")) { return }
@@ -1911,6 +1930,7 @@ private getCustomerData(frc=false) {
             contentType: "application/json",
             timeout: 20,
         ]
+        logTrace("getCustomerData")
         httpGet(params) { resp->
             Map pData = resp?.data ?: null
             if (pData) {
@@ -1936,6 +1956,7 @@ private userCommIds() {
             contentType: "application/json",
             timeout: 20
         ]
+        logTrace("userCommIds")
         httpGet(params) { response->
             List resp = response?.data ?: []
             Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == "true" }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
@@ -1986,6 +2007,7 @@ Map getMusicProviders(Boolean frc=false) {
     ]
     Map items = [:]
     try {
+        logTrace("getMusicProviders")
         httpGet(params) { response ->
             List rData = response?.data ?: []
             if(rData?.size()) {
@@ -2040,7 +2062,7 @@ void getBluetoothDevices() {
     }
 }
 
-Map getBluetoothData(serialNumber) {
+Map getBluetoothData(String serialNumber) {
     String myId=app.getId()
     // logTrace("getBluetoothData: ${serialNumber}")
     String curConnName = sNULL
@@ -2334,6 +2356,7 @@ void getGuardState() {
         body: [ stateRequests: [ [entityId: state?.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
     try {
+        logTrace("getGuardState")
         httpPostJson(params) { resp ->
             Map respData = resp?.data ?: null
             if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
@@ -2366,6 +2389,7 @@ void setGuardState(String guardState) {
             timeout: 20,
             body: body
         ]
+        logTrace("setGuardState")
         httpPutJson(params) { response ->
             def resp = response?.data ?: null
             if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
@@ -2382,7 +2406,6 @@ void setGuardState(String guardState) {
 
 private getAlexaSkills() {
     Long execDt = now()
-    log.debug "getAlexaSkills"
     if(!isAuthValid("getAlexaSkills") || state?.amazonCustomerData) { return }
     if(state?.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
     Map params = [
@@ -2398,6 +2421,7 @@ private getAlexaSkills() {
         timeout: 20,
     ]
     try {
+        logTrace("getAlexaSkills")
         httpGet(params) { response->
             def respData = response?.data ?: null
             log.debug "respData: $respData"
@@ -3183,7 +3207,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
             logInfo("sendMsg: Message Skipped During Quiet Time ($flatMsg)")
             if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
-            if(push || (Boolean)settings.usePush) {
+/*            if(push || (Boolean)settings.usePush) {
                 sentstr = "Push Message"
                 if(showEvt) {
                     sendPush(newMsg)	// sends push and notification feed
@@ -3199,13 +3223,13 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
                 if(settings.pushoverSound) { msgObj.sound = settings.pushoverSound }
                 buildPushMessage(settings.pushoverDevices, msgObj, true)
                 sent = true
-            }
+            }*/
             if(settings.notif_devs) {
                 sentstr = "Notification Devices"
                 settings.notif_devs?.each { it?.deviceNotification(msg) }
                 sent = true
             }
-
+/*
             String smsPhones = sms ? sms.toString() : (settings.smsNumbers?.toString() ?: null)
             if(smsPhones) {
                 List phones = smsPhones?.toString()?.split("\\,")
@@ -3219,7 +3243,7 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
                 }
                 sentstr = "Text Message to Phone [${phones}]"
                 sent = true
-            }
+            } */
             if(sent) {
                 state.lastMsg = flatMsg
                 updTsVal("lastMsgDt")
@@ -3264,6 +3288,7 @@ def updateDocsInput() { href url: documentationLink(), style: "external", requir
 String getAppEndpointUrl(subPath)   { return isStFLD ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
 
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
+/*
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
 private getPushoverDevices(){List opts=[];Map pmd=state?.pushoverManager?:[:];pmd?.apps?.each{k,v->if(v&&v?.devices&&v?.appId){Map dm=[:];v?.devices?.sort{}?.each{i->dm["${i}_${v?.appId}"]=i};addInputGrp(opts,v?.appName,dm)}};return opts}
@@ -3281,7 +3306,7 @@ public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.val
 //Builds Map Message object to send to Pushover Manager
 
 void buildPushMessage(List devices,Map msgData,Boolean timeStamp=false){if(!devices||!msgData){return};Map data=[:];data.appId=app.getId();data.devices=devices;data.msgData=msgData;if(timeStamp){data.msgData.timeStamp=new Date().getTime()};pushover_msg(devices,data)}
-
+*/
 /******************************************
 |       Changelog Logic
 ******************************************/
@@ -3695,20 +3720,20 @@ private getDiagDataJson(Boolean asObj = false) {
                 cookieLastRefreshDate: getTsVal("lastCookieRrshDt") ?: null,
                 cookieLastRefreshDur: getTsVal("lastCookieRrshDt") ? seconds2Duration(getLastTsValSecs("lastCookieRrshDt")) : null,
                 cookieInvalidReason: (!(Boolean)state.authValid && state.authEvtClearReason) ? state?.authEvtClearReason : (String)null,
-                cookieRefreshDays: (Integer)settings?.refreshCookieDays,
+                cookieRefreshDays: (Integer)settings.refreshCookieDays,
                 cookieItems: [
-                    hasLocalCookie: (state?.cookieData && state?.cookieData?.localCookie),
-                    hasCSRF: (state?.cookieData && state?.cookieData?.csrf),
-                    hasDeviceId: (state?.cookieData && state?.cookieData?.deviceId),
-                    hasDeviceSerial: (state?.cookieData && state?.cookieData?.deviceSerial),
-                    hasLoginCookie: (state?.cookieData && state?.cookieData?.loginCookie),
-                    hasRefreshToken: (state?.cookieData && state?.cookieData?.refreshToken),
-                    hasFrc: (state?.cookieData && state?.cookieData?.frc),
-                    amazonPage: (state?.cookieData && state?.cookieData?.amazonPage) ? state?.cookieData?.amazonPage : null,
-                    refreshDt: (state?.cookieData && state?.cookieData?.refreshDt) ? state?.cookieData?.refreshDt : null,
-                    tokenDate: (state?.cookieData && state?.cookieData?.tokenDate) ? state?.cookieData?.tokenDate : null,
+                    hasLocalCookie: (state.cookieData && state.cookieData.localCookie),
+                    hasCSRF: (state.cookieData && state.cookieData.csrf),
+                    hasDeviceId: (state.cookieData && state.cookieData?.deviceId),
+                    hasDeviceSerial: (state.cookieData && state.cookieData?.deviceSerial),
+                    hasLoginCookie: (state.cookieData && state.cookieData?.loginCookie),
+                    hasRefreshToken: (state.cookieData && state.cookieData?.refreshToken),
+                    hasFrc: (state.cookieData && state.cookieData?.frc),
+                    amazonPage: (state.cookieData && state.cookieData?.amazonPage) ? state?.cookieData?.amazonPage : null,
+                    refreshDt: (state.cookieData && state.cookieData?.refreshDt) ? state?.cookieData?.refreshDt : null,
+                    tokenDate: (state.cookieData && state.cookieData?.tokenDate) ? state?.cookieData?.tokenDate : null,
                 ],
-                cookieData: (settings?.diagShareSensitveData == true) ? state?.cookieData ?: null : "Not Shared"
+                cookieData: (settings.diagShareSensitveData == true) ? state.cookieData ?: null : "Not Shared"
             ],
             alexaGuard: [
                 supported: (Boolean)state.alexaGuardSupported,
@@ -3997,9 +4022,12 @@ private getInstData(String key) {
 @Field volatile static Map<String,Map> tsDtMapFLD=[:]
 
 private void updTsVal(String key, String dt=sNULL) {
+        String val = dt ?: getDtNow()
+        if(key == "lastCookieRrshDt") { updServerItem(key, val); return }
+
         String appId=app.getId()
         Map data=tsDtMapFLD[appId] ?: [:]
-        if(key) { data[key]=dt ?: getDtNow() }
+        if(key) data[key]=val
         tsDtMapFLD[appId]=data
         tsDtMapFLD=tsDtMapFLD
 }
@@ -4009,20 +4037,29 @@ private void remTsVal(key) {
         Map data=tsDtMapFLD[appId] ?: [:]
         if(key) {
                 if(key instanceof List) {
-                        key.each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
-                } else { if(data?.containsKey((String)key)) { data?.remove((String)key) } }
+                        key.each { String k->
+                            if(data?.containsKey(k)) { data?.remove(k) }
+                            if(k == "lastCookieRrshDt") { remServerItem(k) }
+                       }
+                } else {
+                    if(data?.containsKey((String)key)) { data?.remove((String)key) }
+                    if((String)key == "lastCookieRrshDt") { remServerItem((String)key) }
+                }
                 tsDtMapFLD[appId]=data
                 tsDtMapFLD=tsDtMapFLD
         }
 }
 
 private String getTsVal(String key) {
+        if(key == "lastCookieRrshDt") {
+            return (String)getServerItem(key)
+        }
         String appId=app.getId()
         Map tsMap=tsDtMapFLD[appId]
         if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
         return sNULL
 }
-
+/*
 void updDevSupVal(String key, val) {
     Map data = atomicState?.devSupMap
     data =  data ?: [:]
@@ -4046,12 +4083,19 @@ private getDevSupVal(String key) {
     if(key && dsMap && dsMap[key]) { return dsMap[key] }
     return null
 }
+*/
+@Field volatile static Map<String,Map> serverDataMapFLD=[:]
 
 void updServerItem(String key, val) {
     Map data = atomicState?.serverDataMap
     data =  data ?: [:]
-    if(key) { data[key] = val }
-    atomicState.serverDataMap = data
+    if(key) {
+        String appId=app.getId()
+        data[key] = val
+        atomicState.serverDataMap = data
+        serverDataMapFLD[appId]= [:]
+        serverDataMapFLD = serverDataMapFLD
+    }
 }
 
 void remServerItem(key) {
@@ -4060,14 +4104,27 @@ void remServerItem(key) {
     if(key) {
         if(key instanceof List) {
             key?.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
-        } else { if(data.containsKey(key)) { data.remove(key) } }
+        } else { if(data.containsKey((String)key)) { data.remove((String)key) } }
+        String appId=app.getId()
         atomicState?.serverDataMap = data
+        serverDataMapFLD[appId]= [:]
+        serverDataMapFLD = serverDataMapFLD
     }
 }
 
-def getServerItem(key) {
-    Map sMap = atomicState?.serverDataMap
-    if(key && sMap && sMap[key]) { return sMap[key] }
+def getServerItem(String key) {
+    String appId=app.getId()
+    Map fdata = serverDataMapFLD[appId]
+    if(fdata == null) fdata = [:]
+    if(key) {
+        if(fdata[key] == null) {
+            Map sMap = atomicState?.serverDataMap
+            if(sMap && sMap[key]) {
+                fdata[key]=sMap[key]
+            }
+        }
+        return fdata[key]
+    }
     return null
 }
 
@@ -4099,7 +4156,7 @@ void stateMapMigration() {
     //Timestamp State Migrations
     Map tsItems = [
         "musicProviderUpdDt":"musicProviderUpdDt", "lastCookieChkDt":"lastCookieChkDt", "lastServerWakeDt":"lastServerWakeDt", "lastChildInitRefreshDt":"lastChildInitRefreshDt",
-        "lastCookieRefresh":"lastCookieRrshDt", "lastVerUpdDt":"lastAppDataUpdDt", "lastGuardSupportCheck":"lastGuardSupChkDt", "lastGuardStateUpd":"lastGuardStateUpdDt",
+        /* "lastCookieRefresh":"lastCookieRrshDt", */ "lastVerUpdDt":"lastAppDataUpdDt", "lastGuardSupportCheck":"lastGuardSupChkDt", "lastGuardStateUpd":"lastGuardStateUpdDt",
         "lastGuardStateCheck":"lastGuardStateChkDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt", "lastMisPollMsgDt":"lastMissedPollMsgDt",
         "lastUpdMsgDt":"lastUpdMsgDt", "lastMsgDt":"lastMsgDt"
     ]
@@ -4110,16 +4167,14 @@ void stateMapMigration() {
     flagItems?.each { String k, String v-> if(state.containsKey(k)) { updAppFlag(v, state[k]); state.remove(k); } }
 
     //Server Data Migrations
-    Map servItems = ["onHeroku":"onHeroku", "serverHost":"serverHost", "isLocal":"isLocal"]
+    Map servItems = ["onHeroku":"onHeroku", "serverHost":"serverHost", "isLocal":"isLocal", "lastCookieRefresh":"lastCookieRrshDt" ]
     servItems?.each { String k, String v-> if(state.containsKey(k)) { updServerItem(v, state[k]); state.remove(k); } }
     if(state.generatedHerokuName) { state.herokuName = state.generatedHerokuName; state.remove("generatedHerokuName") }
     updAppFlag("stateMapConverted", true)
 }
 
 Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
-        String appId=app.getId()
-        Map tsMap=tsDtMapFLD[appId] ?: [:]
-        return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
+        return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
 void settingUpdate(String name, value, String type=sNULL) {
@@ -4164,15 +4219,17 @@ String getAppNotifConfDesc() {
     if(pushStatus()) {
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
-        str += (Boolean)settings.usePush ? bulletItem(str, "Sending via: (Push)") : ""
-        str += (Boolean)settings.pushoverEnabled ? bulletItem(str, "Pushover: (Enabled)") : ""
+        Boolean notifDevs = (settings.notif_devs?.size())
+        str += notifDevs ? bulletItem(str, "Sending via: (Notfication Device)") : ""
+//        str += (Boolean)settings.usePush ? bulletItem(str, "Sending via: (Push)") : ""
+//        str += (Boolean)settings.pushoverEnabled ? bulletItem(str, "Pushover: (Enabled)") : ""
         // str += ((Boolean)settings?.pushoverEnabled && settings?.pushoverPriority) ? bulletItem(str, "Priority: (${settings?.pushoverPriority})") : ""
         // str += ((Boolean)settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : ""
-        str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : ""
+//        str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : ""
         str += (ap) ? "${str != "" ? "\n\n" : ""}Enabled Alerts:\n${ap}" : ""
         str += (ap && nd) ? "${str != "" ? "\n" : ""}\nQuiet Restrictions:\n${nd}" : ""
     }
-    return str != "" ? str : null
+    return str != "" ? str : (String)null
 }
 
 List getQuietDays() {
