@@ -2646,7 +2646,7 @@ private void schedQueueCheck(Integer delay=30, Boolean overwrite=true, data=null
             //queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
 public queueEchoCmd(String type, Integer msgLen, Map headers, body=null, Boolean firstRun=false) {
     Integer qSize = getQueueSize()
-    if((Boolean)state.q_blocked == true) { log.warn "│ Queue Temporarily Blocked (${qSize} Items): | Working: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled})"; return; }
+    if((Boolean)state.q_blocked == true) { log.warn "│ Queue Temporarily Blocked (${qSize} Items): | Working: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled})"; return }
     List logItems = []
     Map dupItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
     logItems.push("│ Queue Active: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled}) ")
@@ -2717,7 +2717,7 @@ void processCmdQueue() {
         // logDebug("processCmdQueue | Key: ${cmdKey} | Queue Items: (${getQueueItems()})")
         cmdData.headers["queueKey"] = cmdKey
         Integer q_loopChkCnt = state.q_loopChkCnt ?: 0
-        if(state?.q_lastTtsMsg == cmdData.headers?.message && (getLastTtsCmdSec() <= 10)) { state.q_loopChkCnt = (q_loopChkCnt >= 1) ? q_loopChkCnt++ : 1 }
+        if(state?.q_lastTtsMsg == cmdData.headers?.message && (getLastTtsCmdSec() <= 10)) { state.q_loopChkCnt = (q_loopChkCnt >= 1) ? q_loopChkCnt+1 : 1 }
         // log.debug "q_loopChkCnt: ${state?.q_loopChkCnt}"
         if(state.q_loopChkCnt && (state.q_loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
             state.remove(cmdKey as String)
@@ -2917,7 +2917,7 @@ String getAppImg(String imgName) { return "https://raw.githubusercontent.com/ton
 Integer versionStr2Int(String str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 Boolean minVersionFailed() {
     try {
-        Integer t0 = parent?.minVersions()["echoDevice"]
+        Integer t0 = ((Map<String,Integer>)parent?.minVersions())["echoDevice"]
         Integer minDevVer = t0 ?: null
         if(minDevVer != null && versionStr2Int(devVersionFLD) < minDevVer) { return true }
         else { return false }
@@ -2932,7 +2932,7 @@ String getDtNow() {
 }
 
 String getIsoDtNow() {
-    def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf.format(new Date());
 }
@@ -2951,8 +2951,8 @@ Long GetTimeDiffSeconds(String strtDate, String stpDate=(String)null) {
         String stopVal = stpDate ? stpDate : formatDt(now, false)
         Long start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate).getTime()
         Long stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal).getTime()
-        Long diff = (Long) (stop - start) / 1000L
-        return Long
+        Long diff =  ((stop - start) / 1000L)
+        return diff
     } else { return null }
 }
 
@@ -2977,7 +2977,7 @@ private void logSpeech(String msg, status, String error=(String)null) {
     if(error) o.error = error
     addToLogHistory("speechHistory", msg, o, 5)
 }
-private Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j.length(); }
+private Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j.length() }
 private Integer stateSizePerc() { return (Integer) (((stateSize() / 100000)*100).toDouble().round(0)) }
 
 private void addToLogHistory(String logKey, String msg, statusData, Integer max=10) {
@@ -2997,8 +2997,8 @@ private void addToLogHistory(String logKey, String msg, statusData, Integer max=
 private void logDebug(String msg) { if(settings.logDebug == true) { log.debug "Echo (v${devVersionFLD}) | ${msg}" } }
 private void logInfo(String msg) { if(settings.logInfo != false) { log.info " Echo (v${devVersionFLD}) | ${msg}" } }
 private void logTrace(String msg) { if(settings.logTrace == true) { log.trace "Echo (v${devVersionFLD}) | ${msg}" } }
-private void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) { log.warn " Echo (v${devVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
-private void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error "Echo (v${devVersionFLD}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
+private void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) { log.warn " Echo (v${devVersionFLD}) | ${msg}" }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
+private void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error "Echo (v${devVersionFLD}) | ${msg}" }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15) } }
 /*
 private addToHistory(String logKey, data, Integer max=10) {
     Boolean ssOk = true // (stateSizePerc() > 70)
@@ -3187,7 +3187,7 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                 break
             case "volume":
                 seqNode.type = "Alexa.DeviceControls.Volume"
-                seqNode.operationPayload?.value = value;
+                seqNode.operationPayload?.value = value
                 break
             case "dnd_duration":
             case "dnd_time":
