@@ -822,9 +822,9 @@ def showDevSharePrefs() {
     section(sTS("Share Data with Developer:")) {
         paragraph title: "What is this used for?", pTS("These options send non-user identifiable information and error data to diagnose catch trending issues.", sNULL, false)
         input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
-        if(!(Boolean)settings.optOutMetrics) {
+//        if(!(Boolean)settings.optOutMetrics) {
             href url: getAppEndpointUrl("renderMetricData"), style: (isStFLD ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
-        }
+ //       }
     }
     if(!(Boolean)settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
         section() { input "sendMetricsNow", "bool", title: inTS("Send Metrics Now?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
@@ -1365,19 +1365,19 @@ private appCleanup() {
 
 void wsEvtHandler(evt) {
     logTrace("wsEvtHandler  evt: ${evt}")
-    if(evt && evt?.id && (evt?.attributes?.size() || evt?.triggers?.size())) {
-        if("bluetooth" in evt?.triggers) { Map a=getBluetoothData() }
-        if("activity" in evt?.triggers) { Map a=getDeviceActivity(sNULL, true) }
-        if(evt?.all == true) {
+    if(evt && evt.id && (evt.attributes?.size() || evt.triggers?.size())) {
+        if("bluetooth" in evt.triggers) { getBluetoothDevices(true) }
+        if("activity" in evt.triggers) { Map a=getDeviceActivity(sNULL, true) }
+        if(evt.all == true) {
             getEsDevices()?.each { eDev->
-                if(evt?.attributes?.size()) { evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) } }
-                if(evt?.triggers?.size()) { eDev?.websocketUpdEvt(evt?.triggers) }
+                if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) } }
+                if(evt.triggers?.size()) { eDev.websocketUpdEvt(evt.triggers) }
             }
         } else {
-            def eDev = findEchoDevice(evt?.id as String)
+            def eDev = findEchoDevice((String)evt.id)
             if(eDev) {
-                evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
-                if(evt?.triggers?.size()) { eDev?.websocketUpdEvt(evt?.triggers) }
+                evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) }
+                if(evt.triggers?.size()) { eDev?.websocketUpdEvt(evt.triggers) }
             }
         }
     }
@@ -2046,9 +2046,10 @@ private getOtherData() {
     // getAlexaSkills()
 }
 
-void getBluetoothDevices() {
+void getBluetoothDevices(Boolean frc=false) {
     String myId=app.getId()
-    if((Boolean)state.websocketActive && bluetoothDataFLD[myId] && getLastTsValSecs("bluetoothUpdDt") < 3600) { return }
+    Integer lastU = getLastTsValSecs("bluetoothUpdDt")
+    if( (frc && lastU < 60) || ((Boolean)state.websocketActive && bluetoothDataFLD[myId] && lastU < 3600) ) { return }
     if(!isAuthValid("getBluetoothDevices")) { return }
     Map params = [
         uri: getAmazonUrl(),
@@ -2075,11 +2076,21 @@ void getBluetoothDevices() {
 }
 
 Map getBluetoothData(String serialNumber) {
+    if(!isAuthValid("getBluetoothData")) { return [btObjs: [:], pairedNames: [], curConnName: ""] }
     String myId=app.getId()
     // logTrace("getBluetoothData: ${serialNumber}")
     String curConnName = sNULL
     Map btObjs = [:]
-    Map btData = bluetoothDataFLD[myId] ?: [:]
+    Map btData = bluetoothDataFLD[myId]
+    if(btData == null) {
+        getBluetoothDevices(true)
+        btData = bluetoothDataFLD[myId]
+        if(btData == null) {
+            bluetoothDataFLD[myId] = [:]
+            bluetoothDataFLD=bluetoothDataFLD
+            btData = [:]
+        }
+    }
     Map bluData = btData && btData.bluetoothStates?.size() ? btData.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
     if(blueData && bluData.size() && bluData.pairedDeviceList && bluData.pairedDeviceList?.size()) {
         def bData = bluData.pairedDeviceList.findAll { (it?.deviceClass != "GADGET") }
@@ -2095,7 +2106,7 @@ Map getBluetoothData(String serialNumber) {
 @Field volatile static Map<String,Map> devActivityMapFLD = [:]
 
 Map getDeviceActivity(String serialNum, Boolean frc=false) {
-    if(!isAuthValid("getDeviceActivity")) { return null}
+    if(!isAuthValid("getDeviceActivity")) { return null }
     try {
         Map params = [
             uri: getAmazonUrl(),
@@ -2106,14 +2117,13 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
             timeout: 20
         ]
         String appId=app.getId()
-        //Map lastActData = atomicState?.lastDevActivity
         Map lastActData = devActivityMapFLD[appId]
         lastActData = lastActData ?: null
         // log.debug "activityData(IN): $lastActData"
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
 
-        if((frc && lastUpdSec > 5) || lastUpdSec >= 125) {
+        if((frc && lastUpdSec > 5) || lastUpdSec >= 360) {
             logTrace("getDeviceActivity($serialNum,$frc)")
             updTsVal("lastDevActChk")
             httpGet(params) { response->
@@ -2131,7 +2141,6 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
 
                         devActivityMapFLD[appId]=lastActData
                         devActivityMapFLD=devActivityMapFLD
-//                        atomicState.lastDevActivity = lastActData
                     }
                 }
             }
@@ -2176,9 +2185,18 @@ void getDoNotDisturb() {
 }
 
 Boolean getDndEnabled(String serialNumber) {
-    // logTrace("getBluetoothData: ${serialNumber}")
+    if(!isAuthValid("getDndEnabled")) { return false }
     String myId=app.getId()
     Map sData = dndDataFLD[myId]
+    if(sData == null) {
+        getDoNotDisturb()
+        sData = dndDataFLD[myId]
+        if(sData == null) {
+            dndDataFLD[myId] = [:]
+            dndDataFLD=dndDataFLD
+            sData = [:]
+        }
+    }
     Map dndData = sData && sData.doNotDisturbDeviceStatusList?.size() ? sData.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
     return (dndData && dndData.enabled == true)
 }
@@ -2806,6 +2824,11 @@ def receiveEventData(Map evtData, String src) {
         logError("receiveEventData Error: ${ex}")
         incrementCntByKey("appErrorCnt")
     }
+}
+
+Map getEchoDeviceMap(){
+    state.echoDeviceMap = echoDeviceMap
+    echoDeviceMapFLD[myId] = echoDeviceMap
 }
 
 public static Map minVersions() {
@@ -3621,8 +3644,13 @@ private getWebData(Map params, String desc, Boolean text=true) {
 |    Diagnostic Data
 *******************************************/
 
+//ERS
+//@Field volatile static Map<String,Map> echoDeviceMapFLD       = [:]
+//@Field volatile static Map<String,Map> devActivityMapFLD = [:]
+
 private getDiagDataJson(Boolean asObj = false) {
     try {
+        String myId=app.getId()
         updChildVers()
         List echoDevs = getEsDevices()
         List actApps = getActionApps()
@@ -3775,7 +3803,9 @@ private getDiagDataJson(Boolean asObj = false) {
             versionChecks: [
                 minVersionUpdates: getMinVerUpdsRequired(),
                 updateItemsOther: codeUpdateItems()
-            ]
+            ],
+            bluetoothData: bluetoothDataFLD[myId],
+            dndData:  dndDataFLD[myId]
         ]
         String json = new groovy.json.JsonOutput().toJson(output)
         if(asObj) {
