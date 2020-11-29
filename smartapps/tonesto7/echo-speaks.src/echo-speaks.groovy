@@ -1980,7 +1980,7 @@ private userCommIds() {
     }
 }
 
-public childInitiatedRefresh() {
+public void childInitiatedRefresh() {
     Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)?.abs()
     if(!(Boolean)state.deviceRefreshInProgress && lastRfsh > 120) {
         logDebug("A Child Device is requesting a Device List Refresh...")
@@ -2081,14 +2081,15 @@ Map getBluetoothData(String serialNumber) {
     Map btObjs = [:]
     Map btData = bluetoothDataFLD[myId] ?: [:]
     Map bluData = btData && btData.bluetoothStates?.size() ? btData.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
-    if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
-        def bData = bluData?.pairedDeviceList?.findAll { (it?.deviceClass != "GADGET") }
+    if(blueData && bluData.size() && bluData.pairedDeviceList && bluData.pairedDeviceList?.size()) {
+        def bData = bluData.pairedDeviceList.findAll { (it?.deviceClass != "GADGET") }
         bData?.findAll { it?.address != null }?.each {
             btObjs[it?.address as String] = it
             if(it?.connected == true) { curConnName = it?.friendlyName as String }
         }
     }
-    return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName?.toString()?.replaceAll("\ufffd", "") } ?: [], curConnName: curConnName?.replaceAll("\ufffd", "")]
+    List tob = btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName?.toString()?.replaceAll("\ufffd", "") }
+    return [btObjs: btObjs, pairedNames: tob ?: [], curConnName: curConnName?.replaceAll("\ufffd", "")]
 }
 
 @Field volatile static Map<String,Map> devActivityMapFLD = [:]
@@ -2179,7 +2180,7 @@ Boolean getDndEnabled(String serialNumber) {
     String myId=app.getId()
     Map sData = dndDataFLD[myId]
     Map dndData = sData && sData.doNotDisturbDeviceStatusList?.size() ? sData.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
-    return (dndData && dndData?.enabled == true)
+    return (dndData && dndData.enabled == true)
 }
 
 public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
@@ -3638,27 +3639,27 @@ private getDiagDataJson(Boolean asObj = false) {
         List actErrors = []
         List zoneWarnings = []
         List zoneErrors = []
-        def ah = getLogHistory()
-        if(ah?.warnings?.size()) { appWarnings = appWarnings + ah?.warnings }
-        if(ah?.errors?.size()) { appErrors = appErrors + ah?.errors }
+        Map ah = getLogHistory()
+        if(ah.warnings.size()) { appWarnings = appWarnings + ah.warnings }
+        if(ah.errors.size()) { appErrors = appErrors + ah.errors }
         echoDevs?.each { dev->
-            Map h = dev?.getLogHistory()
-            if(h?.warnings?.size()) { devWarnings = devWarnings + h?.warnings }
-            if(h?.errors?.size()) { devErrors = devErrors + h?.errors }
-            if(h?.speech?.size()) { devSpeech = devSpeech + h?.speech }
+            Map h = (Map)dev?.getLogHistory()
+            if(h.warnings?.size()) { devWarnings = devWarnings + h.warnings }
+            if(h.errors?.size()) { devErrors = devErrors + h.errors }
+            if(h.speech?.size()) { devSpeech = devSpeech + h.speech }
         }
         if(wsDev) {
-            Map h = dev?.getLogHistory()
+            Map h = (Map)dev?.getLogHistory()
             if(h?.warnings?.size()) { sockWarnings = sockWarnings + h?.warnings }
             if(h?.errors?.size()) { sockErrors = sockErrors + h?.errors }
         }
         actApps?.each { act->
-            Map h = act?.getLogHistory()
+            Map h = (Map)act?.getLogHistory()
             if(h?.warnings?.size()) { actWarnings = actWarnings + h?.warnings }
             if(h?.errors?.size()) { actErrors = actErrors + h?.errors }
         }
         zoneApps?.each { zn->
-            Map h = zn?.getLogHistory()
+            Map h = (Map)zn?.getLogHistory()
             if(h?.warnings?.size()) { zoneWarnings = zoneWarnings + h?.warnings }
             if(h?.errors?.size()) { zoneErrors = zoneErrors + h?.errors }
         }
