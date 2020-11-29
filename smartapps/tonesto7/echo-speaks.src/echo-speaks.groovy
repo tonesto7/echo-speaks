@@ -5620,7 +5620,8 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
             "A37M7RU8Z6ZFB": [ caps: [ "a", "t" ], image: "unknown", name: "Garmin Speak" ],
             "A2WN1FJ2HG09UN": [ caps: [ "a", "t" ], image: "unknown", name: "Ultimate Alexa App" ],
             "A2BRQDVMSZD13S": [ caps: [ "a", "t" ], image: "unknown", name: "SURE Universal Remote" ],
-            "A3TCJ8RTT3NVI7": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Listens" ]
+            "A3TCJ8RTT3NVI7": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Listens" ],
+            "A3RMGO6LYLH7YN":  [ caps: [ "a", "t" ], image: "unknown", name: "Echo (Gen4)" ]
         ],
         families: [
             block: [ "AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP" ],
