@@ -400,33 +400,41 @@ void updateDeviceStatus(Map devData) {
         state.deviceStyle = devData?.deviceStyle
         // logInfo("deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
         state.deviceImage = deviceStyle?.image as String
+
+        Boolean chg=false
         if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
             sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
+            chg=true
         }
 
         String firmwareVer = devData?.softwareVersion ?: "Not Set"
         if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
             sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
+            chg=true
         }
 
         String devFamily = devData?.deviceFamily ?: sBLANK
         if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
             sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
+            chg=true
         }
 
         if(isStateChange(device, "deviceSerial", devData?.serialNumber?.toString())) {
             sendEvent(name: "deviceSerial", value: devData?.serialNumber?.toString(), descriptionText: "Echo Device SerialNumber is ${devData?.serialNumber}", display: true, displayed: true)
+            chg=true
         }
 
         String devType = devData?.deviceType ?: sBLANK
         if(isStateChange(device, "deviceType", devType?.toString())) {
             sendEvent(name: "deviceType", value: devType?.toString(), display: false, displayed: false)
+            chg=true
         }
 
         Map musicProviders = devData?.musicProviders ?: [:]
         String lItems = musicProviders?.collect{ it?.value }?.sort()?.join(", ")
         if(isStateChange(device, "supportedMusic", lItems?.toString())) {
             sendEvent(name: "supportedMusic", value: lItems?.toString(), display: false, displayed: false)
+            chg=true
         }
         // if(devData?.guardStatus) { updGuardStatus(devData?.guardStatus) }
         if(!isOnline) {
@@ -434,7 +442,7 @@ void updateDeviceStatus(Map devData) {
             sendEvent(name: "status", value: "stopped")
             sendEvent(name: "deviceStatus", value: "stopped_${state.deviceStyle?.image}")
             sendEvent(name: "trackDescription", value: sBLANK)
-        } else { state.fullRefreshOk = true; triggerDataRrsh() }
+        } else { if(chg) { state.fullRefreshOk = true; triggerDataRrsh('updateDeviceStatus') }}
     }
     setOnlineStatus(isOnline)
     sendEvent(name: "lastUpdated", value: formatDt(new Date()), display: false, displayed: false)
@@ -488,11 +496,12 @@ void websocketUpdEvt(List triggers) {
 void refresh() {
     logTrace("refresh()")
     parent?.childInitiatedRefresh()
-    triggerDataRrsh()
+    triggerDataRrsh('refresh')
 //    refreshData(true)
 }
 
-private triggerDataRrsh(Boolean parentRefresh=false) {
+private triggerDataRrsh(String src, Boolean parentRefresh=false) {
+    logTrace("triggerDataRrsh $src $parentRefresh")
     runIn(6, parentRefresh ? "refresh" : "refreshData1")
 }
 
@@ -508,7 +517,7 @@ void refreshData1() {
 }
 
 void refreshData(Boolean full=false) {
-    // logTrace("refreshData()...")
+    logTrace("refreshData($full)...")
     Boolean wsActive = (state.websocketActive == true)
     Boolean isWHA = (state.isWhaDevice == true)
 //    Boolean isEchoDev = (state.isEchoDevice == true)
@@ -963,6 +972,7 @@ private void sendAmazonBasicCommand(String cmdType) {
         body: [type: cmdType],
         timeout: 20
     ], [cmdDesc: cmdType])
+    triggerDataRrsh(cmdType)
 }
 
 private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
@@ -1002,8 +1012,8 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
                 break
         }
         if (otherData?.cmdDesc?.startsWith("connectBluetooth") || otherData?.cmdDesc?.startsWith("disconnectBluetooth") || otherData?.cmdDesc?.startsWith("removeBluetooth")) {
-            triggerDataRrsh()
-        } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh(true) }
+            triggerDataRrsh("sendAmazonCommand $method bluetooth")
+        } else if(otherData?.cmdDesc?.startsWith("renameDevice")) { triggerDataRrsh("sendAmazonCommand $method rename", true) }
         logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : ""} | ${otherData?.cmdDesc} was Successfully Sent!!!")
         return rData?.id ?: (String)null
     } catch (ex) {
@@ -1107,7 +1117,6 @@ def play() {
             // log.debug "deviceStatus: playing_${state?.deviceStyle?.image}"
             sendEvent(name: "deviceStatus", value: "playing_${state?.deviceStyle?.image}", display: false, displayed: false)
         }
-        triggerDataRrsh()
         return
     }
     logWarn("Uh-Oh... The play Command is NOT Supported by this Device!!!")
@@ -1134,7 +1143,6 @@ def pause() {
             // log.debug "deviceStatus: stopped_${state?.deviceStyle?.image}"
             sendEvent(name: "deviceStatus", value: "stopped_${state?.deviceStyle?.image}", display: false, displayed: false)
         }
-        triggerDataRrsh()
         return
     }
     logWarn("Uh-Oh... The pause Command is NOT Supported by this Device!!!")
@@ -1147,7 +1155,6 @@ def stop() {
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
         }
-        triggerDataRrsh()
     }
 }
 
@@ -1165,14 +1172,13 @@ def togglePlayback() {
 
 def stopAllDevices() {
     doSequenceCmd("StopAllDevicesCommand", "stopalldevices")
-    triggerDataRrsh()
+    triggerDataRrsh('stopAllDevices')
 }
 
 def previousTrack() {
     logTrace("previousTrack() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("PreviousCommand")
-        triggerDataRrsh()
     }
 }
 
@@ -1180,7 +1186,6 @@ def nextTrack() {
     logTrace("nextTrack() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("NextCommand")
-        triggerDataRrsh()
     }
 }
 
@@ -1199,7 +1204,6 @@ def repeat() {
     logTrace("repeat() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("RepeatCommand")
-        triggerDataRrsh()
     }
 }
 
@@ -1207,7 +1211,6 @@ def shuffle() {
     logTrace("shuffle() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("ShuffleCommand")
-        triggerDataRrsh()
     }
 }
 
