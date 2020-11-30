@@ -379,6 +379,7 @@ private commandEvtHandler(msg) {
     if(msg && msg?.command && msg?.payload) {
         switch(msg?.command as String) {
             case "PUSH_EQUALIZER_STATE_CHANGE":
+                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 // Black hole of unwanted events.
                 break
 
