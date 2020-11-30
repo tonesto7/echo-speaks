@@ -2678,20 +2678,20 @@ def receiveEventData(Map evtData, String src) {
 
                     if(!bypassBlock && (!familyAllowed?.ok || isBlocked || (!allowTTS && !isMediaPlayer) || isInIgnoreInput)) {
                         logTrace("familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
-                        if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
+                        if(!skippedDevices.containsKey(echoValue?.serialNumber as String)) {
                             List reasons = []
                             if(deviceStyleData?.blocked) {
-                                reasons?.push("Device Blocked by App Config")
+                                reasons.push("Device Blocked by App Config")
                             } else if(familyAllowed?.reason == "Family Blocked") {
-                                reasons?.push("Family Blocked by App Config")
+                                reasons.push("Family Blocked by App Config")
                             } else if (!familyAllowed?.ok) {
-                                reasons?.push(familyAllowed?.reason)
+                                reasons.push(familyAllowed?.reason)
                             } else if(isInIgnoreInput) {
-                                reasons?.push("In Ignore Device Input")
+                                reasons.push("In Ignore Device Input")
                                 logDebug("skipping ${echoValue?.accountName} because it is in the do not use list...")
                             } else {
-                                if(!allowTTS) { reasons?.push("No TTS") }
-                                if(!isMediaPlayer) { reasons?.push("No Media Controls") }
+                                if(!allowTTS) { reasons.push("No TTS") }
+                                if(!isMediaPlayer) { reasons.push("No Media Controls") }
                             }
                             skippedDevices[echoValue?.serialNumber as String] = [
                                 name: echoValue?.accountName, desc: deviceStyleData?.name, image: deviceStyleData?.image, family: echoValue?.deviceFamily,
@@ -2775,6 +2775,8 @@ def receiveEventData(Map evtData, String src) {
                             } catch(ex) {
                                 logError("AddDevice Error! | ${ex}")
                             }
+                        } else {
+                            logInfo("Found NEW Echo Speaks Device, but not creating HE device due to settings | Device Label: ($devLabel)${((Boolean)settings.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : "" }")
                         }
                     }
                     if(childDevice) {
