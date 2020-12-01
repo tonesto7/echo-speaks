@@ -39,18 +39,18 @@ preferences {
     input "autoConnectWs", "bool", required: false, title: "Auto Connect on Initialize?", defaultValue: true
 }
 
-def isSocketActive() { return (state?.connectionActive == true) }
+def isSocketActive() { return (state.connectionActive == true) }
 
 public updateCookies(cookies) {
     logWarn("Cookies Update by Parent.  Re-Initializing Device in 5 Seconds...")
-    state?.cookie = cookies
+    state.cookie = cookies
     runIn(10, "initialize")
 }
 
 public removeCookies(isParent=false) {
     logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
     close()
-    state?.cookie = null
+    state.cookie = null
 }
 
 def refresh() {
@@ -75,16 +75,16 @@ def initialize() {
     log.info "initialize() called"
     close()
     if(minVersionFailed()) { logError("CODE UPDATE REQUIRED to RESUME operation. No WebSocket Connections will be made."); return }
-    state?.amazonDomain = parent?.getAmazonDomain()
-    state?.cookie = parent?.getCookieVal()
-    if(state?.cookie && settings?.autoConnectWs != false) {
-        def serArr = state?.cookie =~ /ubid-[a-z]+=([^;]+);/
+    state.amazonDomain = parent?.getAmazonDomain()
+    state.cookie = parent?.getCookieVal()
+    if(state.cookie && settings?.autoConnectWs != false) {
+        def serArr = state.cookie =~ /ubid-[a-z]+=([^;]+);/
         state.wsSerial = serArr?.find() ? serArr[0..-1][0][1] : null
-        state.wsDomain = (state?.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state?.amazonDomain}"
+        state.wsDomain = (state.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state.amazonDomain}"
         def msgId = Math.floor(1E9 * Math.random()) as BigInteger
         state.messageId = state.messageId ?: msgId
         state.messageInitCnt = 0
-        connect()
+        runIn(2,"connect")
     } else {
         logDebug("Skipping Socket Open... Cookie Data is Missing")
     }
@@ -95,12 +95,13 @@ def connect() {
         Map headers = [
             "Connection": "keep-alive, Upgrade",
             "Upgrade": "websocket",
-            "Host": "dp-gw-na.${state?.amazonDomain}",
+            "Host": "dp-gw-na.${state.amazonDomain}",
             "Origin": "https://alexa.${state?.amazonDomain}",
             "Pragma": "no-cache",
             "Cache-Control": "no-cache",
             "Cookie": state?.cookie
         ]
+        logTrace("connect called")
         interfaces.webSocket.connect("https://dp-gw-na${state?.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state?.wsSerial}-${now()}", byteInterface: "true", pingInterval: 45, headers: headers)
     } catch(ex) {
         logError("WebSocket connect failed | ${ex}")
@@ -108,19 +109,19 @@ def connect() {
 }
 
 def close() {
+    log.info "close() called"
     interfaces.webSocket.close()
     updSocketStatus(false)
-//    state?.connectionActive = false;
 }
 
 def reconnectWebSocket() {
+    log.info "reconnectWebSocket() called"
     // first delay is 2 seconds, doubles every time
     state.reconnectDelay = (state.reconnectDelay ?: 1) * 2
     // don't def the delay get too crazy, max it out at 10 minutes
     if(state.reconnectDelay > 600) state.reconnectDelay = 600
     updSocketStatus(false)
-//    state?.connectionActive = false
-    runIn(state?.reconnectDelay, initialize)
+    runIn(state.reconnectDelay, initialize)
 }
 
 def sendWsMsg(String s) {
@@ -129,7 +130,7 @@ def sendWsMsg(String s) {
 
 def updSocketStatus(Boolean active) {
     parent?.webSocketStatus(active)
-    state?.connectionActive = active
+    state.connectionActive = active
 }
 
 def webSocketStatus(String status){
@@ -150,8 +151,6 @@ def webSocketStatus(String status){
     } else if (status == "status: closing"){
         logWarn("WebSocket connection closing.")
         updSocketStatus(false)
-//        parent?.webSocketStatus(false)
-//        state?.connectionActive = false
     } else if(status?.startsWith("send error: ")) {
         logError("Websocket Send Error: $status")
     } else {
@@ -297,11 +296,9 @@ def parseIncomingMessage(String data) {
                     message?.content?.timestampACK = readHex(dStr, idx, 18)
                     idx += 19 // 18 + delimiter;
                     // log.debug "message.content: ${message?.content}"
-                    state?.wsAckData = message?.content
+                    state.wsAckData = message?.content
                     logInfo("WebSocket Connection Established...")
                     updSocketStatus(true)
-//                    parent?.webSocketStatus(true)
-//                    state?.connectionActive = true
                 }
             } else if (message?.channel == 866) { // 0x362 GW_CHANNEL
                 if (message?.content?.messageType == 'GWM') {
@@ -598,7 +595,7 @@ String generateUUID() {
             a.push(Integer.toString(d as Integer, 16))
         } else a.push(c)
     }
-    state?.lastUsedGuid = a?.join("")
+    state.lastUsedGuid = a?.join("")
     return a?.join("")
 }
 def b(a, b) { for (a = c(a); 0 != b && 0 != a;) { a = Math.floor(a / 2); b--; }; return (a instanceof Double) ? a?.toInteger() : a }
@@ -606,8 +603,8 @@ def c(a) { return (0 > a) ? (4294967295 + a + 1) : a }
 Integer toUInt(byte x) { return ((int) x) & 0xff; }
 String strToHex(String arg, charset="UTF-8") { return String.format("%x", new BigInteger(1, arg.getBytes(charset))) }
 String strFromHex(str, charset="UTF-8") { return new String(str?.decodeHex()) }
-String getCookieVal() { return (state?.cookie && state?.cookie?.cookie) ? state?.cookie?.cookie as String : null }
-String getCsrfVal() { return (state?.cookie && state?.cookie?.csrf) ? state?.cookie?.csrf as String : null }
+String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.cookie?.cookie as String : null }
+String getCsrfVal() { return (state.cookie && state.cookie?.csrf) ? state.cookie?.csrf as String : null }
 
 Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length() }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
@@ -656,7 +653,7 @@ def parseDt(dt, dtFmt) {
 }
 private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
     Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = state?.containsKey(logKey as String) ? state[logKey as String] : []
+    List eData = state.containsKey(logKey as String) ? state[logKey as String] : []
     if(eData?.find { it?.message == msg }) { return; }
     if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
     else { eData.push([dt: getDtNow(), message: msg]) }
@@ -670,17 +667,17 @@ void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) {
 void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error "Socket (v${devVersion()}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
 
 Map getLogHistory() {
-    return [ warnings: state?.warnHistory ?: [], errors: state?.errorHistory ?: [], speech: state?.speechHistory ?: [] ]
+    return [ warnings: state.warnHistory ?: [], errors: state.errorHistory ?: [], speech: state.speechHistory ?: [] ]
 }
 public clearLogHistory() {
-    state?.warnHistory = []
-    state?.errorHistory = []
+    state.warnHistory = []
+    state.errorHistory = []
 }
 
 private incrementCntByKey(String key) {
 	Long evtCnt = state?."${key}" ?: 0L
 	evtCnt++
-	state?."${key}" = evtCnt?.toLong()
+	state."${key}" = evtCnt?.toLong()
 }
 
 String getObjType(obj) {
@@ -718,11 +715,11 @@ public Map getDeviceMetrics() {
 
 /*private getPlatform() {
     String p = "SmartThings"
-    if(state?.hubPlatform == null) {
+    if(state.hubPlatform == null) {
         try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
         // if (location?.hubs[0]?.id?.toString()?.length() > 5) { p = "SmartThings" } else { p = "Hubitat" }
-        state?.hubPlatform = p
-        logDebug("hubPlatform: (${state?.hubPlatform})")
+        state.hubPlatform = p
+        logDebug("hubPlatform: (${state.hubPlatform})")
     }
-    return state?.hubPlatform
+    return state.hubPlatform
 }*/
