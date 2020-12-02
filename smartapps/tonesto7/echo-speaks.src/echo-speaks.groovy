@@ -100,7 +100,8 @@ def mainPage() {
     Boolean tokenOk = getAccessToken()
     Boolean newInstall = !(Boolean)state.isInstalled
 //    Boolean resumeConf = ((Boolean)state.resumeConfig == true)
-    if((Boolean)state.refreshDeviceData) { getEchoDevices() }
+    //if((Boolean)state.refreshDeviceData) { getEchoDevices(true) }
+    getEchoDevices(true)
     return dynamicPage(name: "mainPage", uninstall: false, install: true) {
         appInfoSect()
         if(!tokenOk) {
@@ -123,8 +124,8 @@ def mainPage() {
             section(sTS("Alexa Devices:")) {
                 if(!newInstall) {
                     List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : ""}${it?.value?.supported == false ? " \u2639" : ""}" }
-                    //Map skDevs = state?.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
-                    //Map ignDevs = state?.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+                    //Map skDevs = state.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
+                    //Map ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
                     List remDevs = getRemovableDevs()
                     if(remDevs?.size()) {
                         href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: sNULL
@@ -196,13 +197,13 @@ def authStatusPage() {
             section(sTS("Cookie Status:")) {
                 Boolean cookieValid = validateCookie(true)
                 Boolean chk1 = (state.cookieData && state.cookieData.localCookie)
-                Boolean chk2 = (state.cookieData /* && state.cookieData.csrf */ )
+                Boolean chk2 = (state.cookieData && state.cookieData.csrf  )
                 Boolean chk3 = (lastChkSec < 432000)
                 // Boolean chk4 = (cookieValid == true)
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
                 String stat = "Auth Status: (${(chk1 && chk2) ? "OK": "Invalid"})"
                 stat += "\n ${sBULLET} Cookie: (${chk1 ? okSymFLD : notOkSymFLD})"
-                stat += "\n \u2022 CSRF Value: (${chk2 ? ( (Boolean)getServerItem("isLocal") || state.cookieData.csrf ? okSymFLD : notOkSymFLD) : notOkSymFLD})"
+                stat += "\n \u2022 CSRF Value: (${chk2 ? okSymFLD : notOkSymFLD})"
                 paragraph pTS(stat, sNULL, false, (chk1 && chk2) ? "#2784D9" : "red"), state: ((chk1 && chk2) ? "complete" : sNULL), required: true
                 paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", sNULL, false, chk3 ? "#2784D9" : "red"), state: (chk3 ? "complete" : sNULL), required: true
                 paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", sNULL, false, "#2784D9"), state: "complete", required: true
@@ -210,10 +211,10 @@ def authStatusPage() {
 
             section(sTS("Cookie Tools: (Tap to show)"), hideable: true, hidden: true) {
                 String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
-                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every?\n(in days)", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
-                if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
-                if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
-                if(!isStFLD) { paragraph pTS("in Days (1-5 max)", sNULL, false, "gray") }
+                input "refreshCookieDays", "number", title: inTS("Auto refresh cookie every?\n(in days)", getAppImg("day_calendar", true)), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
+//                if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
+//                if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
+//                if(!isStFLD) { paragraph pTS("in Days (1-5 max)", sNULL, false, "gray") }
                 // Refreshes the cookie
                 input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? "" : sNULL)
                 if(!isStFLD) { paragraph pTS(ckDesc, sNULL, false, pastDayChkOk ? sNULL : "red") }
@@ -224,7 +225,7 @@ def authStatusPage() {
                 input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 if(!isStFLD) { paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, "gray") }
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh") }
-                if(settings?.resetCookies) { clearCookieData("resetCookieToggle") }
+                if(settings.resetCookies) { clearCookieData("resetCookieToggle") }
                 if((Boolean)settings.refreshDevCookies) { refreshDevCookies() }
             }
         }
@@ -353,10 +354,10 @@ def alexaGuardPage() {
         section(sTS("Alexa Guard Control")) {
             input "alexaGuardAwayToggle", "bool", title: inTS(gStateTitle, getAppImg(gStateIcon, true)), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getAppImg(gStateIcon)
         }
-        if(settings?.alexaGuardAwayToggle != state?.alexaGuardAwayToggle) {
+        if(settings?.alexaGuardAwayToggle != state.alexaGuardAwayToggle) {
             setGuardState(settings?.alexaGuardAwayToggle == true ? "ARMED_AWAY" : "ARMED_STAY")
         }
-        state?.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
+        state.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
         section(sTS("Automate Guard Control")) {
             href "alexaGuardAutoPage", title: inTS("Automate Guard Changes", getAppImg("alarm_disarm", true)), description: guardAutoDesc(), image: getAppImg("alarm_disarm"), state: (guardAutoDesc() =="Tap to configure..." ? sNULL : "complete")
         }
@@ -453,7 +454,7 @@ def guardTriggerEvtHandler(evt) {
             if(!inAlarmAway && inAlarmHome) { newState = "ARMED_STAY" }
             break
     }
-    if(curState == newState) { logInfo("Skipping Guard Change... New Guard State is the same as current state: ($curState)") }
+    if(curState == newState) { logDebug("Skipping Guard Change... New Guard State is the same as current state: ($curState)") }
     if(newState && curState != newState) {
         if (newState == "ARMED_STAY") {
             unschedule("setGuardAway")
@@ -503,10 +504,10 @@ def actionsPage() {
                 }
                 if(pausedActions?.size()) {
                     input "unpauseChildActions", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
-                    if(settings?.unpauseChildActions) { settingUpdate("unpauseChildActions", "false", "bool"); runIn(3, "executeActionUnpause") }
+                    if(settings.unpauseChildActions) { settingUpdate("unpauseChildActions", "false", "bool"); runIn(3, "executeActionUnpause") }
                 }
                 input "reinitChildActions", "bool", title: inTS("Force Refresh all actions?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUpdate") }
+                if(settings.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUpdate") }
             }
         }
         state.childInstallOkFlag = true
@@ -595,7 +596,7 @@ def zonesPage() {
             if(activeZones?.size()) {
                 input "pauseChildZones", "bool", title: inTS("Pause all Zones?", getAppImg("pause_orange", true)), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
                         defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
-                if(settings?.pauseChildZones) { settingUpdate("pauseChildZones", "false", "bool"); runIn(3, "executeZonePause") }
+                if(settings.pauseChildZones) { settingUpdate("pauseChildZones", "false", "bool"); runIn(3, "executeZonePause") }
                 if(!isStFLD) { paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", sNULL, false, "gray") }
             }
             if(pausedZones?.size()) {
@@ -671,7 +672,7 @@ def devicePrefsPage() {
             input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
         }
         devCleanupSect()
-        if(!newInstall && !resumeConf) { state.refreshDeviceData = true }
+//        if(!newInstall && !resumeConf) { state.refreshDeviceData = true }
     }
 }
 
@@ -712,13 +713,18 @@ private devCleanupSect() {
 }
 
 private List getRemovableDevs() {
-    Map eDevs = state.echoDeviceMap ?: [:]
+    Map eDevs = getEchoDeviceMap()
+    eDevs = eDevs  ?: [:]
     List cDevs = (isStFLD ? app?.getChildDevices(true) : app?.getChildDevices())
     List remDevs = []
+    String myId=app.getId()
+    String nmS = 'echoSpeaks_websocket'
+    nmS = myId+'|'+nmS
+
     cDevs?.each { cDev->
-        if(cDev?.deviceNetworkId?.toString() == "echoSpeaks_websocket") { return }
+        if(cDev?.deviceNetworkId?.toString() == nmS) { return }
         List dni = cDev?.deviceNetworkId?.tokenize("|")
-        if(eDevs?.size() && dni[2] && !eDevs?.containsKey(dni[2])) { remDevs.push(cDev?.getLabel() as String) }
+        if(eDevs.size() && dni[2] && !eDevs.containsKey(dni[2])) { remDevs.push(cDev?.getLabel() as String) }
     }
     return remDevs ?: []
 }
@@ -765,7 +771,7 @@ def deviceListPage() {
     return dynamicPage(name: "deviceListPage", install: false) {
         Boolean onST = isStFLD
         section(sTS("Discovered Devices:")) {
-            state.echoDeviceMap?.sort { it?.value?.name }?.each { String k,Map v->
+            getEchoDeviceMap()?.sort { it?.value?.name }?.each { String k,Map v->
                 String str = "Status: (${v?.online ? "Online" : "Offline"})"
                 str += "\nStyle: ${v?.style?.name}"
                 str += "\nFamily: ${v?.family}"
@@ -822,9 +828,9 @@ def showDevSharePrefs() {
     section(sTS("Share Data with Developer:")) {
         paragraph title: "What is this used for?", pTS("These options send non-user identifiable information and error data to diagnose catch trending issues.", sNULL, false)
         input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
-        if(!(Boolean)settings.optOutMetrics) {
+//        if(!(Boolean)settings.optOutMetrics) {
             href url: getAppEndpointUrl("renderMetricData"), style: (isStFLD ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
-        }
+ //       }
     }
     if(!(Boolean)settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
         section() { input "sendMetricsNow", "bool", title: inTS("Send Metrics Now?", getAppImg("reset", true)), description: "", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
@@ -835,8 +841,9 @@ def showDevSharePrefs() {
 
 Map getDeviceList(Boolean isInputEnum=false, List filters=[]) {
     Map devMap = [:]
-    Map<String, Map> availDevs = state.echoDeviceMap ?: [:]
-    availDevs?.each { String key, Map val->
+    Map<String, Map> availDevs = getEchoDeviceMap() //state.echoDeviceMap
+    availDevs = availDevs ?: [:]
+    availDevs.each { String key, Map val->
         if(filters.size()) {
             if(filters.contains('tts') && val?.ttsSupport != true) { return }
             if(filters.contains('announce') && val?.ttsSupport != true && val?.announceSupport != true) { return }
@@ -874,7 +881,7 @@ def notifPrefPage() {
             section(sTS("Pushover Support:")) {
                 input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
                 if((Boolean) settings.pushoverEnabled) {
-                    if(!state?.pushoverManager) {
+                    if(!state.pushoverManager) {
                         paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
                         pushover_init()
                     } else {
@@ -897,7 +904,7 @@ def notifPrefPage() {
             settingRemove('pushoverSound')
         }
         if(settings?.smsNumbers?.toString()?.length()>=10 || settings.notif_devs || (Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) {
-            if(((Boolean)settings.usePush || settings.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state?.pushTested && state?.pushoverManager) {
+            if(((Boolean)settings.usePush || settings.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state.pushTested && state.pushoverManager) {
                 if(sendMsg("Info", "Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
                     state.pushTested = true
                 }
@@ -1135,8 +1142,10 @@ Map executeTuneInSearch() {
     ]
     Map results = [:]
     try {
-        httpGet(params) { response ->
-            results = response?.data ?: [:]
+        httpGet(params) { resp ->
+            results = resp?.data ?: [:]
+            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
+            if(resp?.status != 200) logWarn("${resp?.status} $params")
         }
     } catch (ex) {
         respExceptionHandler(ex, "executeTuneInSearch")
@@ -1275,15 +1284,16 @@ def updated() {
     if(!(Boolean)state.isInstalled) { state.isInstalled = true }
     if(!state.installData) { state.installData = [initVer: appVersionFLD, dt: getDtNow(), updatedDt: getDtNow(), shownDonation: false, sentMetrics: false] }
     unsubscribe()
-    state?.zoneEvtsActive = false
+    state.zoneEvtsActive = false
     unschedule()
     stateMigrationChk()
     initialize()
 }
 
 def initialize() {
-    if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
+    //if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if((Boolean)settings.optOutMetrics && (String)state.appGuid) { if(removeInstallData()) { state.appGuid = sNULL } }
+    subscribe(location, "systemStart", startHandler)
     if(guardAutoConfigured()) {
         if(settings.guardAwayAlarm && settings.guardHomeAlarm) {
             subscribe(location, "${!isStFLD ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
@@ -1303,13 +1313,25 @@ def initialize() {
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
-            runEvery5Minutes("getOtherData")
-            runEvery10Minutes("getEchoDevices") //This will reload the device list from Amazon
+            runEvery15Minutes("getOtherData")
+            runEvery3Hours("getEchoDevices") //This will reload the device list from Amazon
             // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
             getOtherData()
             getEchoDevices()
         } else { unschedule("getEchoDevices"); unschedule("getOtherData") }
+    }
+}
+
+void startHandler(evt){
+    logDebug('startHandler called')
+    runIn(6, restartSocket)
+}
+
+void restartSocket(){
+    if(!isStFLD){
+        def dev= getSocketDevice()
+        if(!(Boolean)dev?.isSocketActive()) { dev?.triggerInitialize() }
     }
 }
 
@@ -1319,16 +1341,16 @@ void stateMigrationChk() {
 
 
 def updateZoneSubscriptions() {
-    if(state?.zoneEvtsActive != true) {
+    if(state.zoneEvtsActive != true) {
         subscribe(location, "es3ZoneState", zoneStateHandler)
         subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
-        state?.zoneEvtsActive = true
+        state.zoneEvtsActive = true
     }
 }
 
 def postInitialize() {
     logTrace("postInitialize")
-    runEvery5Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
+    runEvery15Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
     appCleanup()
     reInitChildDevices()
 }
@@ -1354,7 +1376,7 @@ private appCleanup() {
     state.resumeConfig = false
     state.missPollRepair = false
     state.deviceRefreshInProgress = false
-    // state?.zoneStatusMap = [:]
+    // state.zoneStatusMap = [:]
 
     // Settings Cleanup
     List setItems = ["performBroadcast", "stHub", "cookieRefreshDays"]
@@ -1365,19 +1387,19 @@ private appCleanup() {
 
 void wsEvtHandler(evt) {
     logTrace("wsEvtHandler  evt: ${evt}")
-    if(evt && evt?.id && (evt?.attributes?.size() || evt?.triggers?.size())) {
-        if("bluetooth" in evt?.triggers) { Map a=getBluetoothData() }
-        if("activity" in evt?.triggers) { Map a=getDeviceActivity(sNULL, true) }
-        if(evt?.all == true) {
+    if(evt && evt.id && (evt.attributes?.size() || evt.triggers?.size())) {
+        if("bluetooth" in evt.triggers) { getBluetoothDevices(true) }
+        if("activity" in evt.triggers) { Map a=getDeviceActivity(sNULL, true) }
+        if(evt.all == true) {
             getEsDevices()?.each { eDev->
-                if(evt?.attributes?.size()) { evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) } }
-                if(evt?.triggers?.size()) { eDev?.websocketUpdEvt(evt?.triggers) }
+                if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) } }
+                if(evt.triggers?.size()) { eDev.websocketUpdEvt(evt.triggers) }
             }
         } else {
-            def eDev = findEchoDevice(evt?.id as String)
+            def eDev = findEchoDevice((String)evt.id)
             if(eDev) {
-                evt?.attributes?.each { k,v-> eDev?.sendEvent(name: k as String, value: v) }
-                if(evt?.triggers?.size()) { eDev?.websocketUpdEvt(evt?.triggers) }
+                evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) }
+                if(evt.triggers?.size()) { eDev?.websocketUpdEvt(evt.triggers) }
             }
         }
     }
@@ -1389,14 +1411,15 @@ private findEchoDevice(String serial) {
 }
 
 void webSocketStatus(Boolean active) {
-    log.trace "webSocketStatus... | Active: ${active}"
+    logTrace "webSocketStatus... | Active: ${active}"
     state.websocketActive = active
+    if(active) remTsVal('bluetoothUpdDt') // healthcheck will re-read
     runIn(3, "updChildSocketStatus")
 }
 
 private updChildSocketStatus() {
     Boolean active = (Boolean)state.websocketActive
-    log.trace "updChildSocketStatus... | Active: ${active}"
+    logTrace "updChildSocketStatus... | Active: ${active}"
     getEsDevices()?.each { it?.updSocketStatus(active) }
     updTsVal("lastWebsocketUpdDt")
 }
@@ -1455,8 +1478,11 @@ List getEsDevices() {
 }
 
 def getSocketDevice() {
-    //def wsDevice = getChildDevice("${app.getId()}|echoSpeaks_websocket")
-    return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
+    String myId=app.getId()
+    String nmS = 'echoSpeaks_websocket'
+    nmS = myId+'|'+nmS
+    return getChildDevice(nmS)
+//    return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
 }
 
 List getZoneApps() {
@@ -1586,13 +1612,13 @@ void reInitChildDevices() {
     reInitChildActions()
 }
 
-void reInitChildZones() {
-    getZoneApps()?.each { it?.triggerInitialize() }
-}
-
 void reInitChildActions() {
     getActionApps()?.each { it?.triggerInitialize() }
     runIn(3, "reInitChildZones")
+}
+
+void reInitChildZones() {
+    getZoneApps()?.each { it?.triggerInitialize() }
 }
 
 def processData() {
@@ -1669,14 +1695,16 @@ def storeCookieData() {
         updCodeVerMap("server", (String)data.version)
     }
 
-    // log.debug "csrf: ${state?.cookieData?.csrf}"
-    if(cookieItems.localCookie /* && cookieItems.csrf */) {
+    // log.debug "csrf: ${state.cookieData?.csrf}"
+    Boolean a=validateCookie(true)
+    if((Boolean)state.authValid && cookieItems.localCookie  && cookieItems.csrf ) {
         logInfo("Cookie data was updated | Reinitializing App... | Polling should restart in 10 seconds...")
-        Boolean a=validateCookie(true)
         state.serviceConfigured = true
         updTsVal("lastCookieRrshDt")
         checkGuardSupport()
         runIn(10, "initialize", [overwrite: true])
+    } else {
+        logWarn("Cookie data was updated but found invalid...")
     }
 }
 
@@ -1712,11 +1740,12 @@ private updateChildAuth(Boolean isValid) {
 @Field volatile static Map<String,List> authValidMapFLD             = [:]
 
 void authValidationEvent(Boolean valid, String src=sNULL) {
+    Boolean isValid = valid && getCookieVal() && getCsrfVal()
     Integer listSize = 3
     String myId=app.getId()
     List eList = authValidMapFLD[myId]
     eList = eList ?: [true, true, true]
-    eList.push(valid)
+    eList.push(isValid)
     if(eList.size() > listSize) { eList = eList.drop( eList.size()-listSize ) }
     authValidMapFLD[myId]= eList
     authValidMapFLD[myId]= authValidMapFLD[myId]
@@ -1743,14 +1772,15 @@ void authEvtHandler(Boolean isAuth, String src=sNULL) {
         state.noAuthActive = true
         state.authEvtClearReason = [dt: getDtNow(), src: src]
         updateChildAuth(isAuth)
-    } else if(!isAuth && (Boolean)state.noAuthActive) {
+    } else if(isAuth && (Boolean)state.noAuthActive) {
         unschedule("noAuthReminder")
         state.noAuthActive = false
         runIn(10, "initialize", [overwrite: true])
     } else if (isAuth && (Boolean)state.noAuthActive) {
-        logWarn("OOPS Somehow your Auth is Valid but the NoAuthActive State is true.  Clearing noAuthActive flag to allow device refresh")
-        unschedule("noAuthReminder")
-        state.noAuthActive = false
+        // waiting for initialize to run
+//        logWarn("OOPS Somehow your Auth is Valid but the NoAuthActive State is true.  Clearing noAuthActive flag to allow device refresh")
+//        unschedule("noAuthReminder")
+//        state.noAuthActive = false
         // runIn(10, "initialize", [overwrite: true])
     }
 }
@@ -1782,6 +1812,7 @@ void clearServerAuth() {
     Long execDt = now()
     httpGet(params) { resp->
         // log.debug "resp: ${resp.status} | data: ${resp?.data}"
+        if(resp?.status != 200) logWarn("${resp?.status} $params")
         if (resp?.status == 200) {
             logInfo("Clear Server Auth Completed... | Process Time: (${execDt ? (now()-execDt) : 0}ms)")
         }
@@ -1810,19 +1841,20 @@ void runCookieRefresh() {
 }
 
 def wakeupServerResp(response, data) {
-    def rData = null
-    try { rData = response?.data ?: null }
-    catch(ex) { logError("wakeupServerResp Exception: ${ex}") }
-    updTsVal("lastServerWakeDt")
-    if (rData && rData == "OK") {
-        logInfo("wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms) | Source: (${data?.wakesrc})")
-        if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
-        if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
-    }
+    try {
+        def rData = response?.data ?: null
+        if(response?.status != 200) logWarn("${response?.status} $data")
+        updTsVal("lastServerWakeDt")
+        if (rData && rData == "OK") {
+            logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms) | Source: (${data?.wakesrc})")
+            if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
+            if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
+        }
+    } catch(ex) { logError("wakeupServerResp Exception: ${ex}") }
 }
 
 private cookieRefresh() {
-    Map cookieData = state?.cookieData ?: [:]
+    Map cookieData = state.cookieData ?: [:]
     if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
         logError("Required Registration data is missing for Cookie Refresh")
         return
@@ -1838,9 +1870,9 @@ private cookieRefresh() {
 }
 
 def cookieRefreshResp(response, data) {
-    Map rData = null
     try {
-        rData = response?.data ? parseJson(response?.data?.toString()) : null
+       if(response?.status != 200) logWarn("${response?.status} $data")
+        Map rData = response?.data ? parseJson(response?.data?.toString()) : null
         // log.debug "rData: $rData"
         if (rData && rData?.result && rData?.result?.size()) {
             logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
@@ -1862,9 +1894,10 @@ def cookieRefreshResp(response, data) {
         } else { logError("cookieRefreshResp Exception: ${ex}") }
     }
 }
-
+/*
 Boolean apiHealthCheck(Boolean frc=false) {
-    if(!isAuthValid("apiHealthCheck")) { return false }
+    String meth = 'apiHealthCheck'
+    if(!isAuthValid(meth)) { return false }
     try {
         Map params = [
             uri: getAmazonUrl(),
@@ -1874,22 +1907,37 @@ Boolean apiHealthCheck(Boolean frc=false) {
             contentType: "plain/text",
             timeout: 20,
         ]
-        logTrace("apiHealthCheck")
+        logTrace(meth)
         httpGet(params) { resp->
             logDebug("API Health Check Resp: (${resp?.getData()})")
+            if(resp?.status != 200) logWarn("${resp?.status} $params")
+            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
             return (resp?.getData()?.toString() == "healthy")
         }
     } catch(ex) {
-        respExceptionHandler(ex, "apiHealthCheck")
+        respExceptionHandler(ex, meth)
     }
     return false
 }
-
+*/
 Boolean validateCookie(Boolean frc=false) {
-    Boolean valid = false
+    Boolean valid = (Boolean)state.authValid
+    Integer lastChk = getLastTsValSecs("lastCookieChkDt", 3600)
+    Integer lastSpoke = getLastTsValSecs("lastSpokeToAmazon", 3600)
+    Boolean cookieOk = getCookieVal() && getCsrfVal()
+    if(!frc && valid && lastChk <= 900 && cookieOk) { return valid }
+    if(!frc && valid && lastSpoke <= 900 && cookieOk) { return valid }
+    if(frc && valid && lastChk <= 60 && cookieOk) { return valid }
+
+    valid = false
+    String meth='validateCookie'
     try {
-        if((!frc && getLastTsValSecs("lastCookieChkDt", 3600) <= 900) || !getCookieVal() /* || !getCsrfVal()*/) { return valid }
-        def execDt = now()
+        if(!getCookieVal() || !getCsrfVal()) {
+            authValidationEvent(valid, meth)
+            return valid
+        }
+
+        Long execDt = now()
         Map params = [
             uri: getAmazonUrl(),
             path: "/api/bootstrap",
@@ -1898,24 +1946,59 @@ Boolean validateCookie(Boolean frc=false) {
             contentType: "application/json",
             timeout: 20,
         ]
-        logTrace("validateCookie")
-        httpGet(params) { resp->
+        logTrace(meth)
+        if(!frc) execAsyncCmd("get", "validateCookieResp", params, [:])
+        else {
+            httpGet(params) { resp->
+                valid = validateCookieResp(resp, [:])
+/*            if(resp?.status != 200) logWarn("${resp?.status} $params")
+            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
             Map aData = resp?.data?.authentication ?: null
             if (aData) {
                 // log.debug "aData: $aData"
                 if(aData?.customerId) { state.deviceOwnerCustomerId = aData.customerId }
                 if(aData?.customerName) { state.customerName = aData.customerName }
                 valid = (resp?.data?.authentication?.authenticated != false)
+                authValidationEvent(valid, meth)
+                updTsVal("lastCookieChkDt")
             }
-            logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)")
-            authValidationEvent(valid, "validateCookie")
+            logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-execDt)}ms)") */
+            }
         }
     } catch(ex) {
         respExceptionHandler(ex, "validateCookie", true)
         incrementCntByKey("err_app_cookieValidCnt")
     }
-    updTsVal("lastCookieChkDt")
     return valid
+}
+
+def validateCookieResp(resp, data){
+    try {
+        Boolean valid = false
+        String meth = 'validCookieResp'
+        if(resp?.status != 200) logWarn("${resp?.status} $meth")
+        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
+        def t0 = resp?.data
+        Map aData
+        if( t0 instanceof String)  aData = parseJson(resp?.data)
+        else aData =  resp?.data
+        aData = aData ?: null
+        aData = aData?.authentication ?: null
+//        Map aData = resp?.data?.authentication ?: null
+        if (aData) {
+//            log.debug "aData: $aData"
+            if(aData.customerId) { state.deviceOwnerCustomerId = aData.customerId }
+            if(aData.customerName) { state.customerName = aData.customerName }
+            valid = (aData?.authenticated != false)
+            authValidationEvent(valid, meth)
+            updTsVal("lastCookieChkDt")
+            return true
+       }
+    } catch(ex) { 
+        respExceptionHandler(ex, "validCookieResp", true)
+        incrementCntByKey("err_app_cookieValidCnt")
+    }
+    return false
 }
 
 private getCustomerData(Boolean frc=false) {
@@ -1933,12 +2016,15 @@ private getCustomerData(Boolean frc=false) {
         ]
         logTrace("getCustomerData")
         httpGet(params) { resp->
+            if(resp?.status != 200) logWarn("${resp?.status} $params")
+            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
             Map pData = resp?.data ?: null
             if (pData) {
                 Map d = [:]
                 if(pData?.marketPlaceLocale) { d["marketPlaceLocale"] = pData?.marketPlaceLocale }
                 if(pData?.marketPlaceId) { d["marketPlaceId"] = pData?.marketPlaceId }
-                state?.amazonCustomerData = d
+                state.amazonCustomerData = d
+                updTsVal("lastCustDataUpdDt")
             }
         }
     } catch(ex) {
@@ -1959,9 +2045,11 @@ private userCommIds() {
         ]
         logTrace("userCommIds")
         httpGet(params) { response->
+            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             List resp = response?.data ?: []
             Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == "true" }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
-            state?.accountCommIds = accItems
+            state.accountCommIds = accItems
             logDebug("Amazon User CommId's: (${accItems})")
         }
     } catch(ex) {
@@ -1969,7 +2057,7 @@ private userCommIds() {
     }
 }
 
-public childInitiatedRefresh() {
+public void childInitiatedRefresh() {
     Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)?.abs()
     if(!(Boolean)state.deviceRefreshInProgress && lastRfsh > 120) {
         logDebug("A Child Device is requesting a Device List Refresh...")
@@ -2010,6 +2098,8 @@ Map getMusicProviders(Boolean frc=false) {
     try {
         logTrace("getMusicProviders")
         httpGet(params) { response ->
+            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             List rData = response?.data ?: []
             if(rData?.size()) {
                 rData?.findAll { it?.availability == "AVAILABLE" }?.each { item->
@@ -2035,9 +2125,10 @@ private getOtherData() {
     // getAlexaSkills()
 }
 
-void getBluetoothDevices() {
+void getBluetoothDevices(Boolean frc=false) {
     String myId=app.getId()
-    if((Boolean)state.websocketActive && bluetoothDataFLD[myId] && getLastTsValSecs("bluetoothUpdDt") < 3600) { return }
+    Integer lastU = getLastTsValSecs("bluetoothUpdDt")
+    if( (frc && lastU < 60) || ((Boolean)state.websocketActive && bluetoothDataFLD[myId] && lastU < 10800) ) { return }
     if(!isAuthValid("getBluetoothDevices")) { return }
     Map params = [
         uri: getAmazonUrl(),
@@ -2050,12 +2141,18 @@ void getBluetoothDevices() {
     Map btResp = [:]
     try {
         logTrace("getBluetoothDevices")
-        httpGet(params) { response ->
+        if(!frc) execAsyncCmd("get", "getBluetoothResp", params, [:])
+        else {
+            httpGet(params) { response ->
+                getBluetoothResp(response, [:])
+/*            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             btResp = response?.data ?: [:]
             // log.debug "Bluetooth Items: ${btResp}"
             bluetoothDataFLD[myId] = btResp
             bluetoothDataFLD=bluetoothDataFLD
-            updTsVal("bluetoothUpdDt")
+            updTsVal("bluetoothUpdDt") */
+            }
         }
     } catch (ex) {
         respExceptionHandler(ex, "getBluetoothDevices", true)
@@ -2063,27 +2160,61 @@ void getBluetoothDevices() {
     }
 }
 
+void getBluetoothResp(resp, data) {
+    try {
+        String meth = 'getBluetoothResp'
+        if(resp?.status != 200) logWarn("${resp?.status} $meth")
+        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
+        def t0 = resp?.data
+        Map btResp
+        if( t0 instanceof String)  btResp = parseJson(resp?.data)
+        else btResp = resp?.data
+//        Map btResp = resp?.data ? parseJson(resp?.data?.toString()) : [:]
+//        Map btResp = resp?.data ?: [:]
+//        log.debug "Bluetooth Items: ${btResp}"
+        String myId=app.getId()
+        bluetoothDataFLD[myId] = btResp
+        bluetoothDataFLD=bluetoothDataFLD
+        updTsVal("bluetoothUpdDt")
+    } catch(ex) { 
+        respExceptionHandler(ex, "getBluetoothResp", true)
+        String myId=app.getId()
+        if(!bluetoothDataFLD[myId]) { bluetoothDataFLD[myId] = [:] }
+    }
+}
+
 Map getBluetoothData(String serialNumber) {
+    if(!isAuthValid("getBluetoothData")) { return [btObjs: [:], pairedNames: [], curConnName: ""] }
     String myId=app.getId()
     // logTrace("getBluetoothData: ${serialNumber}")
     String curConnName = sNULL
     Map btObjs = [:]
-    Map btData = bluetoothDataFLD[myId] ?: [:]
+    Map btData = bluetoothDataFLD[myId]
+    if(btData == null) {
+        getBluetoothDevices(true)
+        btData = bluetoothDataFLD[myId]
+        if(btData == null) {
+            bluetoothDataFLD[myId] = [:]
+            bluetoothDataFLD=bluetoothDataFLD
+            btData = [:]
+        }
+    }
     Map bluData = btData && btData.bluetoothStates?.size() ? btData.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
-    if(bluData?.size() && bluData?.pairedDeviceList && bluData?.pairedDeviceList?.size()) {
-        def bData = bluData?.pairedDeviceList?.findAll { (it?.deviceClass != "GADGET") }
+    if(bluData && bluData.size() && bluData.pairedDeviceList && bluData.pairedDeviceList?.size()) {
+        def bData = bluData.pairedDeviceList.findAll { (it?.deviceClass != "GADGET") }
         bData?.findAll { it?.address != null }?.each {
             btObjs[it?.address as String] = it
             if(it?.connected == true) { curConnName = it?.friendlyName as String }
         }
     }
-    return [btObjs: btObjs, pairedNames: btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName?.toString()?.replaceAll("\ufffd", "") } ?: [], curConnName: curConnName?.replaceAll("\ufffd", "")]
+    List tob = btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName?.toString()?.replaceAll("\ufffd", "") }
+    return [btObjs: btObjs, pairedNames: tob ?: [], curConnName: curConnName?.replaceAll("\ufffd", "")]
 }
 
 @Field volatile static Map<String,Map> devActivityMapFLD = [:]
 
 Map getDeviceActivity(String serialNum, Boolean frc=false) {
-    if(!isAuthValid("getDeviceActivity")) { return [:]}
+    if(!isAuthValid("getDeviceActivity")) { return null }
     try {
         Map params = [
             uri: getAmazonUrl(),
@@ -2094,17 +2225,18 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
             timeout: 20
         ]
         String appId=app.getId()
-        //Map lastActData = atomicState?.lastDevActivity
         Map lastActData = devActivityMapFLD[appId]
         lastActData = lastActData ?: null
         // log.debug "activityData(IN): $lastActData"
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
 
-        if(frc || lastUpdSec >= 125) {
+        if((frc && lastUpdSec > 5) || lastUpdSec >= 360) {
             logTrace("getDeviceActivity($serialNum,$frc)")
             updTsVal("lastDevActChk")
             httpGet(params) { response->
+                if(response?.status != 200) logWarn("${response?.status} $params")
+                if(response?.status == 200) updTsVal("lastSpokeToAmazon")
                 if (response?.data && response?.data?.activities != null) {
                     Map lastCommand = response?.data?.activities?.find {
                         (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
@@ -2119,7 +2251,6 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
 
                         devActivityMapFLD[appId]=lastActData
                         devActivityMapFLD=devActivityMapFLD
-//                        atomicState.lastDevActivity = lastActData
                     }
                 }
             }
@@ -2147,28 +2278,63 @@ void getDoNotDisturb() {
         contentType: "application/json",
         timeout: 20
     ]
-    Map dndResp = [:]
-    String myId=app.getId()
+//    Map dndResp = [:]
+//    String myId=app.getId()
     try {
         logTrace("getDoNotDisturb")
-        httpGet(params) { response ->
+        execAsyncCmd("get", "DnDResp", params, [:])
+/*        httpGet(params) { response ->
+            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             dndResp = response?.data ?: [:]
             // log.debug "DoNotDisturb Data: ${dndResp}"
             dndDataFLD[myId] = dndResp
             dndDataFLD=dndDataFLD
-        }
+        } */
     } catch (ex) {
         respExceptionHandler(ex, "getDoNotDisturb", true)
+        String myId=app.getId()
+        if(!dndDataFLD[myId]) { dndDataFLD[myId] = [:] }
+    }
+}
+
+void DnDResp(resp, data){
+    try {
+        String meth = 'DnDResp'
+        if(resp?.status != 200) logWarn("${resp?.status} $meth")
+        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
+        def t0 = resp?.data
+        def dndResp
+        if( t0 instanceof String)  dndResp = parseJson(resp?.data)
+        else dndResp = resp?.data
+//            def dndResp = resp?.data ? parseJson(resp?.data?.toString()) : [:]
+//            def dndResp = resp?.data ?: [:]
+//            log.debug "DoNotDisturb Data: ${dndResp}"
+            String myId=app.getId()
+            dndDataFLD[myId] = dndResp
+            dndDataFLD=dndDataFLD
+    } catch(ex) { 
+        respExceptionHandler(ex, "DnDResp", true)
+        String myId=app.getId()
         if(!dndDataFLD[myId]) { dndDataFLD[myId] = [:] }
     }
 }
 
 Boolean getDndEnabled(String serialNumber) {
-    // logTrace("getBluetoothData: ${serialNumber}")
+    if(!isAuthValid("getDndEnabled")) { return false }
     String myId=app.getId()
     Map sData = dndDataFLD[myId]
+    if(sData == null) {
+        getDoNotDisturb()
+        sData = dndDataFLD[myId]
+        if(sData == null) {
+            dndDataFLD[myId] = [:]
+            dndDataFLD=dndDataFLD
+            sData = [:]
+        }
+    }
     Map dndData = sData && sData.doNotDisturbDeviceStatusList?.size() ? sData.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
-    return (dndData && dndData?.enabled == true)
+    return (dndData && dndData.enabled == true)
 }
 
 public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
@@ -2186,6 +2352,8 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
     try {
         logTrace("getAlexaRoutines($autoId, $utterOnly)")
         httpGet(params) { response ->
+            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             rtResp = response?.data ?: [:]
             // log.debug "alexaRoutines: $rtResp"
             if(rtResp) {
@@ -2254,16 +2422,18 @@ void checkGuardSupport() {
         timeout: 20,
     ]
     logTrace("checkGuardSupport")
-    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
+    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now(), aws: true])
 }
 
 void checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
     Boolean guardSupported = false
     try {
+        if(response?.status != 200) logWarn("${response?.status} $data")
+        if(response?.status == 200 && data?.aws) updTsVal("lastSpokeToAmazon")
         Integer respLen = response?.data?.toString()?.length() ?: null
+        logTrace("GuardSupport Response Length: ${respLen}")
         if(response?.data && respLen && respLen > 485000) {
-            logInfo("GuardSupport Response Length: ${respLen}")
             Map minUpdMap = getMinVerUpdsRequired()
             if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
                 wakeupServer(false, true, "checkGuardSupport")
@@ -2276,7 +2446,7 @@ void checkGuardSupportResponse(response, data) {
         }
         Map resp = response?.data ? parseJson(response?.data?.toString()) : null
         if(resp && resp?.networkDetail) {
-            def details = parseJson(resp?.networkDetail as String)
+            Map details = parseJson(resp?.networkDetail as String)
             def locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
             if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
                 def guardKey = locDetails?.applianceDetails?.applianceDetails?.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
@@ -2293,7 +2463,8 @@ void checkGuardSupportResponse(response, data) {
             }
         } else { logError("checkGuardSupportResponse Error | No data received...") }
     } catch (ex) {
-        if(ex instanceof groovyx.net.http.HttpResponseException ) {
+        respExceptionHandler(ex, 'checkGuardSupportResponse', true)
+/*        if(ex instanceof groovyx.net.http.HttpResponseException ) {
             logError("checkGuardSupportResponse Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof java.net.SocketTimeoutException) {
             logError("checkGuardSupportResponse Response Socket Timeout | Msg: ${ex?.getMessage()}")
@@ -2301,7 +2472,7 @@ void checkGuardSupportResponse(response, data) {
             logError("checkGuardSupportResponse HostName Not Found | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
             logError("checkGuardSupportResponse Request Timeout | Msg: ${ex?.getMessage()}")
-        } else { logError("checkGuardSupportResponse Exception: ${ex}") }
+        } else { logError("checkGuardSupportResponse Exception: ${ex}") }*/
     }
     state.alexaGuardSupported = guardSupported
     updTsVal("lastGuardSupChkDt")
@@ -2325,11 +2496,12 @@ void checkGuardSupportFromServer() {
 void checkGuardSupportServerResponse(response, data) {
     Boolean guardSupported = false
     try {
-        def resp = response?.data ? parseJson(response?.data?.toString()) : null
+        if(response?.status != 200) logWarn("${response?.status} $data")
+        Map resp = response?.data ? parseJson(response?.data?.toString()) : null
         // log.debug "GuardSupport Server Response: ${resp}"
-        if(resp && resp?.guardData) {
+        if(resp && resp.guardData) {
             // log.debug "AGS Server Resp: ${resp?.guardData}"
-            state.guardData = resp?.guardData
+            state.guardData = resp.guardData
             guardSupported = true
         } else { logError("checkGuardSupportServerResponse Error | No data received...") }
     } catch (ex) {
@@ -2359,11 +2531,13 @@ void getGuardState() {
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
         contentType: "application/json",
         timeout: 20,
-        body: [ stateRequests: [ [entityId: state?.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
+        body: [ stateRequests: [ [entityId: state.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
     try {
         logTrace("getGuardState")
         httpPostJson(params) { resp ->
+            if(resp?.status != 200) logWarn("${resp?.status} $params")
+            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
             Map respData = resp?.data ?: null
             if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
                 def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
@@ -2386,7 +2560,7 @@ void setGuardState(String guardState) {
     guardState = guardStateConv(guardState)
     logDebug("setAlexaGuard($guardState)")
     try {
-        String body = new groovy.json.JsonOutput()?.toJson([ controlRequests: [ [ entityId: state?.guardData?.applianceId as String, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ])
+        String body = new groovy.json.JsonOutput()?.toJson([ controlRequests: [ [ entityId: state.guardData?.applianceId as String, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ])
         Map params = [
             uri: getAmazonUrl(),
             path: "/api/phoenix/state",
@@ -2397,6 +2571,8 @@ void setGuardState(String guardState) {
         ]
         logTrace("setGuardState")
         httpPutJson(params) { response ->
+            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             def resp = response?.data ?: null
             if(resp && !resp?.errors?.size() && resp?.controlResponses && resp?.controlResponses[0] && resp?.controlResponses[0]?.code && resp?.controlResponses[0]?.code == "SUCCESS") {
                 logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
@@ -2412,11 +2588,11 @@ void setGuardState(String guardState) {
 
 private getAlexaSkills() {
     Long execDt = now()
-    if(!isAuthValid("getAlexaSkills") || state?.amazonCustomerData) { return }
-    if(state?.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
+    if(!isAuthValid("getAlexaSkills") || state.amazonCustomerData) { return }
+    if(state.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
     Map params = [
         uri: "https://skills-store.${getAmazonDomain()}",
-        path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state?.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${now()}",
+        path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${now()}",
         headers: [
             Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
             Origin: getAmazonUrl(),
@@ -2429,6 +2605,8 @@ private getAlexaSkills() {
     try {
         logTrace("getAlexaSkills")
         httpGet(params) { response->
+            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             def respData = response?.data ?: null
             log.debug "respData: $respData"
             // log.debug respData[3]?.contents[3]?.contents?.products
@@ -2441,7 +2619,7 @@ private getAlexaSkills() {
     }
 }
 
-def respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean ignNullMsg=false) {
+void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean ignNullMsg=false) {
     if(ex instanceof groovyx.net.http.HttpResponseException ) {
         Integer sCode = ex?.getResponse()?.getStatus()
         def rData = ex?.getResponse()?.getData()
@@ -2535,10 +2713,13 @@ void getEchoDevices1() {
     getEchoDevices()
 }
 
-void getEchoDevices() {
+void getEchoDevices(Boolean lazy=false) {
     stateMigrationChk()
     if(!isAuthValid("getEchoDevices")) { return }
-    def params = [
+    String myId=app.getId()
+    Integer lastUpd = getLastTsValSecs("lastDevDataUpdDt")
+    if(echoDeviceMapFLD[myId] && (!lazy && lastUpd < 20) || (lazy && lastUpd <= 600)) { return }
+    Map params = [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
         query: [ cached: true, _: new Date().getTime() ],
@@ -2547,20 +2728,22 @@ void getEchoDevices() {
         timeout: 20,
     ]
     state.deviceRefreshInProgress = true
-    state.refreshDeviceData = false
+//    state.refreshDeviceData = false
     logTrace("getEchoDevices")
-    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
+    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now(), aws: true])
 }
 
 void echoDevicesResponse(response, data) {
     List ignoreTypes = getDeviceIgnoreData()
-    ignoreTypes = ignoreTypes ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
+//    ignoreTypes = ignoreTypes ?: ["A1DL2DVDQVK3Q", "A21Z3CGI8UIP0F", "A2825NDLA7WDZV", "A2IVLV5VM2W81", "A2TF17PFR55MTB", "A1X7HJX9QL16M5", "A2T0P32DY3F7VB", "A3H674413M2EKB", "AILBSA2LNTOYL"]
     List removeKeys = ["appDeviceList", "charging", "macAddress", "deviceTypeFriendlyName", "registrationId", "remainingBatteryLevel", "postalCode", "language"]
     List removeCaps = [
         "SUPPORTS_CONNECTED_HOME", "SUPPORTS_CONNECTED_HOME_ALL", "SUPPORTS_CONNECTED_HOME_CLOUD_ONLY", "ALLOW_LOG_UPLOAD", "FACTORY_RESET_DEVICE", "DIALOG_INTERFACE_VERSION",
         "SUPPORTS_SOFTWARE_VERSION", "REQUIRES_OOBE_FOR_SETUP", "DEREGISTER DEVICE", "PAIR_REMOTE", "SET_LOCALE", "DEREGISTER_FACTORY_RESET"
     ]
     try {
+        if(response?.status != 200) logWarn("${response?.status} $data")
+        if(response?.status == 200 && data?.aws) updTsVal("lastSpokeToAmazon")
         // log.debug "json response is: ${response.json}"
         state.deviceRefreshInProgress=false
         List eDevData = response?.json?.devices ?: []
@@ -2568,9 +2751,9 @@ void echoDevicesResponse(response, data) {
         if(eDevData?.size()) {
             eDevData?.each { eDevice->
                 if (!(eDevice?.deviceType in ignoreTypes) && !eDevice?.accountName?.startsWith("This Device")) {
-                    removeKeys?.each { rk-> eDevice?.remove(rk as String) }
+                    removeKeys.each { rk-> eDevice?.remove(rk as String) }
                     eDevice?.capabilities = eDevice?.capabilities?.findAll { !(it in removeCaps) }?.collect { it as String }
-                    if (eDevice?.deviceOwnerCustomerId != null) { state?.deviceOwnerCustomerId = eDevice?.deviceOwnerCustomerId }
+                    if (eDevice?.deviceOwnerCustomerId != null) { state.deviceOwnerCustomerId = eDevice.deviceOwnerCustomerId }
                     echoDevices[eDevice?.serialNumber] = eDevice
                 }
             }
@@ -2603,7 +2786,7 @@ List getUnknownDevices() {
     return items
 }
 
-def receiveEventData(Map evtData, String src) {
+void receiveEventData(Map evtData, String src) {
     try {
         if(checkIfCodeUpdated()) {
             logWarn("Possible Code Version Change Detected... Device Updates will occur on next cycle.")
@@ -2620,6 +2803,18 @@ def receiveEventData(Map evtData, String src) {
             Boolean updRequired = updReqMap?.updRequired
             List updRequiredItems = updReqMap?.updItems
 
+            String myId=app.getId()
+            if(!isStFLD) {
+                String wsChildHandlerName = "Echo Speaks WS"
+                String nmS = 'echoSpeaks_websocket'
+                def oldWsDev = getChildDevice(nmS)
+                if(oldWsDev) { isStFLD ? deleteChildDevice(nmS, true) : deleteChildDevice(nmS) }
+                nmS = myId+'|'+nmS
+                def wsDevice = getChildDevice(nmS)
+                if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, nmS, null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
+                updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
+            }
+
             if (evtData?.echoDevices?.size()) {
                 Long execTime = evtData?.execDt ? (now()-(Long)evtData.execDt) : 0L
                 Map<String, Map> echoDeviceMap = [:]
@@ -2628,7 +2823,7 @@ def receiveEventData(Map evtData, String src) {
                 List unknownDevices = []
                 List curDevFamily = []
                 Integer cnt = 0
-                String devAcctId = null
+                String devAcctId = (String)null
                 evtData?.echoDevices?.each { String echoKey, echoValue->
                     devAcctId = echoValue?.deviceAccountId
                     logTrace("echoDevice | $echoKey | ${echoValue}")
@@ -2648,20 +2843,20 @@ def receiveEventData(Map evtData, String src) {
 
                     if(!bypassBlock && (!familyAllowed?.ok || isBlocked || (!allowTTS && !isMediaPlayer) || isInIgnoreInput)) {
                         logTrace("familyAllowed(${echoValue?.deviceFamily}): ${familyAllowed?.ok} | Reason: ${familyAllowed?.reason} | isBlocked: ${isBlocked} | deviceType: ${echoValue?.deviceType} | tts: ${allowTTS} | volume: ${volumeSupport} | mediaPlayer: ${isMediaPlayer}")
-                        if(!skippedDevices?.containsKey(echoValue?.serialNumber as String)) {
+                        if(!skippedDevices.containsKey(echoValue?.serialNumber as String)) {
                             List reasons = []
                             if(deviceStyleData?.blocked) {
-                                reasons?.push("Device Blocked by App Config")
+                                reasons.push("Device Blocked by App Config")
                             } else if(familyAllowed?.reason == "Family Blocked") {
-                                reasons?.push("Family Blocked by App Config")
+                                reasons.push("Family Blocked by App Config")
                             } else if (!familyAllowed?.ok) {
-                                reasons?.push(familyAllowed?.reason)
+                                reasons.push(familyAllowed?.reason)
                             } else if(isInIgnoreInput) {
-                                reasons?.push("In Ignore Device Input")
+                                reasons.push("In Ignore Device Input")
                                 logDebug("skipping ${echoValue?.accountName} because it is in the do not use list...")
                             } else {
-                                if(!allowTTS) { reasons?.push("No TTS") }
-                                if(!isMediaPlayer) { reasons?.push("No Media Controls") }
+                                if(!allowTTS) { reasons.push("No TTS") }
+                                if(!isMediaPlayer) { reasons.push("No Media Controls") }
                             }
                             skippedDevices[echoValue?.serialNumber as String] = [
                                 name: echoValue?.accountName, desc: deviceStyleData?.name, image: deviceStyleData?.image, family: echoValue?.deviceFamily,
@@ -2678,7 +2873,7 @@ def receiveEventData(Map evtData, String src) {
                     echoValue["amazonDomain"] = (settings.amazonDomain ?: "amazon.com")
                     echoValue["regionLocale"] = (settings.regionLocale ?: "en-US")
                     echoValue["cookie"] = [cookie: getCookieVal(), csrf: getCsrfVal()]
-                    echoValue["deviceAccountId"] = echoValue?.deviceAccountId as String ?: null
+                    echoValue["deviceAccountId"] = echoValue?.deviceAccountId as String ?: (String)null
                     echoValue["deviceStyle"] = deviceStyleData
                     // log.debug "deviceStyle: ${echoValue?.deviceStyle}"
 
@@ -2721,7 +2916,7 @@ def receiveEventData(Map evtData, String src) {
                             permissions: permissions?.findAll {it?.value == true}?.collect {it?.key as String}?.join(", ")?.toString()
                         ])
                     }
-                    // echoValue["mainAccountCommsId"] = state?.accountCommIds?.find { it?.value?.signedInUser == true && it?.value?.isChild == false }?.key as String ?: null
+                    // echoValue["mainAccountCommsId"] = state.accountCommIds?.find { it?.value?.signedInUser == true && it?.value?.isChild == false }?.key as String ?: null
                     // logWarn("Device Permisions | Name: ${echoValue?.accountName} | $permissions")
 
                     echoDeviceMap[echoKey] = [
@@ -2745,6 +2940,9 @@ def receiveEventData(Map evtData, String src) {
                             } catch(ex) {
                                 logError("AddDevice Error! | ${ex}")
                             }
+                            runIn(10, "updChildSocketStatus")
+                        } else {
+                            logInfo("Found NEW Echo Speaks Device, but not creating HE device due to settings | Device Label: ($devLabel)${((Boolean)settings.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : "" }")
                         }
                     }
                     if(childDevice) {
@@ -2761,15 +2959,6 @@ def receiveEventData(Map evtData, String src) {
                         updCodeVerMap("echoDevice", (String)childDevice?.devVersion()) // Update device versions in codeVersions state Map
                     }
                     curDevFamily?.push(echoValue?.deviceStyle?.name)
-                }
-                String myId=app.getId()
-                if(!isStFLD) {
-                    String wsChildHandlerName = "Echo Speaks WS"
-                    def oldWsDev = getChildDevice("echoSpeaks_websocket")
-                    if(oldWsDev) { isStFLD ? deleteChildDevice("echoSpeaks_websocket", true) : deleteChildDevice("echoSpeaks_websocket") }
-                    def wsDevice = getChildDevice("${myId}|echoSpeaks_websocket")
-                    if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, "${myId}|echoSpeaks_websocket", null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
-                    updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastTsValSecs("lastDevDataUpdDt")/60).toFloat()?.round(1)} minutes)")
                 updTsVal("lastDevDataUpdDt")
@@ -2796,6 +2985,15 @@ def receiveEventData(Map evtData, String src) {
     }
 }
 
+Map<String,Map> getEchoDeviceMap(){
+    String myId=app.getId()
+    if(!echoDeviceMapFLD[myId]) {
+        echoDeviceMapFLD[myId] = state.echoDeviceMap
+        echoDeviceMapFLD = echoDeviceMapFLD
+    }
+    return echoDeviceMapFLD[myId]
+}
+
 public static Map minVersions() {
     return minVersionsFLD
 }
@@ -2820,7 +3018,7 @@ static Map getDeviceStyle(String family, String type) {
 }
 
 public Map getDeviceFamilyMap() {
-    if(!state?.appData || !state.appData?.deviceFamilies) { checkVersionData(true) }
+    if(!state.appData || !state.appData.deviceFamilies) { checkVersionData(true) }
     return state.appData?.deviceFamilies ?: [:]
 }
 
@@ -2843,7 +3041,7 @@ List getDevicesFromSerialList(List serialList) {
 public void sendPlaybackStateToClusterMembers(String whaKey, data) {
     //logTrace("sendPlaybackStateToClusterMembers: key: ${ whaKey}")
     try {
-        Map echoDeviceMap = state.echoDeviceMap
+        Map echoDeviceMap = getEchoDeviceMap() //state.echoDeviceMap
         Map whaMap = echoDeviceMap[whaKey]
         def clusterMembers = whaMap?.clusterMembers
 
@@ -2921,18 +3119,18 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 seqNode.operationPayload.expireAfter = "PT5S"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
                 seqNode.operationPayload.content = [[
-                    locale: (state?.regionLocale ?: "en-US"),
+                    locale: (state.regionLocale ?: "en-US"),
                     display: [ title: valObj[0], body: valObj[1] as String ],
                     speak: [ type: "text", value: valObj[1] as String ],
                 ]]
                 List announceDevs = []
                 if(settings.test_announceDevices) {
-                    Map eDevs = state.echoDeviceMap
+                    Map eDevs = getEchoDeviceMap() //state.echoDeviceMap
                     settings.test_announceDevices.each { dev->
                         announceDevs.push([deviceTypeId: eDevs[dev]?.type, deviceSerialNumber: dev])
                     }
                 }
-                seqNode.operationPayload.target = [ customerId : state?.deviceOwnerCustomerId, devices: announceDevs ]
+                seqNode.operationPayload.target = [ customerId : state.deviceOwnerCustomerId, devices: announceDevs ]
                 break
             default:
                 return
@@ -2967,6 +3165,8 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
         switch(method) {
             case "POST":
                 httpPostJson(params) { response->
+                    if(response?.status != 200) logWarn("${response?.status} $params")
+                    if(response?.status == 200) updTsVal("lastSpokeToAmazon")
                     rData = response?.data ?: null
                     rStatus = response?.status
                 }
@@ -2974,12 +3174,16 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
             case "PUT":
                 if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
                 httpPutJson(params) { response->
+                    if(response?.status != 200) logWarn("${response?.status} $params")
+                    if(response?.status == 200) updTsVal("lastSpokeToAmazon")
                     rData = response?.data ?: null
                     rStatus = response?.status
                 }
                 break
             case "DELETE":
                 httpDelete(params) { response->
+                    if(response?.status != 200) logWarn("${response?.status} $params")
+                    if(response?.status == 200) updTsVal("lastSpokeToAmazon")
                     rData = response?.data ?: null
                     rStatus = response?.status
                 }
@@ -3027,18 +3231,25 @@ static Map notifValEnum(Boolean allowCust = true) {
     return items
 }
 
+@Field volatile static Map<String,Boolean> healthChkMapFLD = [:]
+
 void healthCheck() {
     logTrace("healthCheck")
-    if(settings.sendMissedPollMsg == null) {
-        settingUpdate('sendMissedPollMsg', 'true', 'bool')
-        settingUpdate('misPollNotifyWaitVal', 2700)
-        settingUpdate('misPollNotifyMsgWaitVal', 3600)
+    String appId=app.getId()
+    if(!healthChkMapFLD[appId]) {
+        if(settings.sendMissedPollMsg == null) {
+            settingUpdate('sendMissedPollMsg', 'true', 'bool')
+            settingUpdate('misPollNotifyWaitVal', 2700)
+            settingUpdate('misPollNotifyMsgWaitVal', 3600)
+        }
+        if(settings.logInfo == null) settingUpdate('logInfo', 'true', 'bool')
+        if(settings.logWarn == null) settingUpdate('logWarn', 'true', 'bool')
+        if(settings.logError == null) settingUpdate('logError', 'true', 'bool')
+        if(settings.logDebug == null) settingUpdate('logDebug', 'false', 'bool')
+        if(settings.logTrace == null) settingUpdate('logTrace', 'false', 'bool')
+        healthChkMapFLD[appId] = true
+        healthChkMapFLD = healthChkMapFLD
     }
-    if(settings.logInfo == null) settingUpdate('logInfo', 'true', 'bool')
-    if(settings.logWarn == null) settingUpdate('logWarn', 'true', 'bool')
-    if(settings.logError == null) settingUpdate('logError', 'true', 'bool')
-    if(settings.logDebug == null) settingUpdate('logDebug', 'false', 'bool')
-    if(settings.logTrace == null) settingUpdate('logTrace', 'false', 'bool')
 
     checkVersionData()
     if(checkIfCodeUpdated()) {
@@ -3068,9 +3279,10 @@ public void logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { upd
 public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled") } }
 
 void missPollNotify(Boolean on, Integer wait) {
-    logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${getLastTsValSecs("lastDevDataUpdDt")}) | misPollNotifyWaitVal: (${settings.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${getLastTsValSecs("lastMissedPollMsgDt")})")
-    if(!on || !wait) { return }
-    if(getLastTsValSecs("lastDevDataUpdDt", 840) <= (settings.misPollNotifyWaitVal as Integer ?: 2700)) {
+    Integer lastDataUpd = getLastTsValSecs("lastDevDataUpdDt")
+    Integer lastMissPollM = getLastTsValSecs("lastMissedPollMsgDt")
+    logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${lastDataUpd}) | misPollNotifyWaitVal: (${settings.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${lastMissPollM})")
+    if(lastDataUpd <= ((settings.misPollNotifyWaitVal as Integer ?: 2700)+10800)) {
         state.missPollRepair = false
         return
     } else {
@@ -3079,18 +3291,18 @@ void missPollNotify(Boolean on, Integer wait) {
             initialize()
             return
         }
-        if(!(getLastTsValSecs("lastMissedPollMsgDt") > wait?.toInteger())) { return }
+        if(!(lastMissPollM > wait?.toInteger())) { on = false }
         String msg = ""
         if((Boolean)state.authValid) {
             msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue with the scheduling.  Please open the app and press Done/Save."
         } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
         logWarn("${msg.toString().replaceAll("\n", " ")}")
-        if(sendMsg("${app.name} ${(Boolean)state.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
+        if(on && sendMsg("${app.name} ${(Boolean)state.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
             updTsVal("lastMissedPollMsgDt")
         }
-        if((Boolean)state.authValid) {
+/*        if((Boolean)state.authValid) {
             (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
-        }
+        } */
     }
 }
 
@@ -3114,12 +3326,12 @@ void appUpdateNotify() {
         secs=getLastTsValSecs("lastUpdMsgDt")
         if(secs > updW && on) {
             String str = ""
-            str += !appUpd ? "" : "\nEcho Speaks App: v${state?.appData?.versions?.mainApp?.ver?.toString()}"
-            str += !actUpd ? "" : "\nEcho Speaks Actions: v${state?.appData?.versions?.actionApp?.ver?.toString()}"
-            str += !zoneUpd ? "" : "\nEcho Speaks Zones: v${state?.appData?.versions?.zoneApp?.ver?.toString()}"
-            str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state?.appData?.versions?.echoDevice?.ver?.toString()}"
-            str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state?.appData?.versions?.wsDevice?.ver?.toString()}"
-            str += !servUpd ? "" : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state?.appData?.versions?.server?.ver?.toString()}"
+            str += !appUpd ? "" : "\nEcho Speaks App: v${state.appData?.versions?.mainApp?.ver?.toString()}"
+            str += !actUpd ? "" : "\nEcho Speaks Actions: v${state.appData?.versions?.actionApp?.ver?.toString()}"
+            str += !zoneUpd ? "" : "\nEcho Speaks Zones: v${state.appData?.versions?.zoneApp?.ver?.toString()}"
+            str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state.appData?.versions?.echoDevice?.ver?.toString()}"
+            str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
+            str += !servUpd ? "" : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             updTsVal("lastUpdMsgDt")
         }
@@ -3139,12 +3351,12 @@ private List codeUpdateItems(Boolean shrt=false) {
     Boolean servUpd = serverUpdAvail()
     List updItems = []
     if(appUpd || actUpd || zoneUpd || devUpd || socketUpd || servUpd) {
-        if(appUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}App: (v${state?.appData?.versions?.mainApp?.ver?.toString()})")
-        if(actUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Actions: (v${state?.appData?.versions?.actionApp?.ver?.toString()})")
-        if(zoneUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Zones: (v${state?.appData?.versions?.zoneApp?.ver?.toString()})")
-        if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : "ES "}Device: (v${state?.appData?.versions?.echoDevice?.ver?.toString()})")
-        if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Websocket: (v${state?.appData?.versions?.wsDevice?.ver?.toString()})")
-        if(servUpd) updItems.push("${!shrt ? "\n" : ""}Server: (v${state?.appData?.versions?.server?.ver?.toString()})")
+        if(appUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}App: (v${state.appData?.versions?.mainApp?.ver?.toString()})")
+        if(actUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Actions: (v${state.appData?.versions?.actionApp?.ver?.toString()})")
+        if(zoneUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Zones: (v${state.appData?.versions?.zoneApp?.ver?.toString()})")
+        if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : "ES "}Device: (v${state.appData?.versions?.echoDevice?.ver?.toString()})")
+        if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : ""}Websocket: (v${state.appData?.versions?.wsDevice?.ver?.toString()})")
+        if(servUpd) updItems.push("${!shrt ? "\n" : ""}Server: (v${state.appData?.versions?.server?.ver?.toString()})")
     }
     return updItems
 }
@@ -3291,9 +3503,9 @@ static String documentationLink() { return "https://tonesto7.github.io/echo-spea
 static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def updateDocsInput() { href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: "complete", image: getAppImg("documentation")}
 
-String getAppEndpointUrl(subPath)   { return isStFLD ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
+String getAppEndpointUrl(subPath)   { return isStFLD ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}" }
 
-String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state?.accessToken}" }
+String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : ""}?access_token=${state.accessToken}" }
 /*
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
@@ -3350,9 +3562,9 @@ def changeLogPage() {
 /******************************************
 |    METRIC Logic
 ******************************************/
-String getFbMetricsUrl() { return state?.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com/" }
-String getFbConfigUrl() { return state?.appData?.settings?.database?.configUrl ?: "https://echospeaks-config.firebaseio.com/" }
-Boolean metricsOk() { (!(Boolean)settings.optOutMetrics && state?.appData?.settings?.sendMetrics) }
+String getFbMetricsUrl() { return state.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com/" }
+String getFbConfigUrl() { return state.appData?.settings?.database?.configUrl ?: "https://echospeaks-config.firebaseio.com/" }
+Boolean metricsOk() { (!(Boolean)settings.optOutMetrics && state.appData?.settings?.sendMetrics) }
 private generateGuid() { if(!(String)state.appGuid) { state.appGuid = UUID?.randomUUID().toString() } }
 void sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { Boolean aa=sendFirebaseData(getFbMetricsUrl(), "/clients/${(String)state.appGuid}.json", createMetricsDataJson(), "put", "heartbeat") } }
 Boolean removeInstallData() { return removeFirebaseData("/clients/${(String)state.appGuid}.json") }
@@ -3377,11 +3589,11 @@ Boolean queueFirebaseData(String url, String path, String data, String cmdType=s
     return result
 }
 
-Boolean removeFirebaseData(pathVal) {
+Boolean removeFirebaseData(String pathVal) {
     logTrace("removeFirebaseData(${pathVal})")
     Boolean result = true
     try {
-        httpDelete(uri: getFbMetricsUrl(), path: pathVal as String) { resp ->
+        httpDelete(uri: getFbMetricsUrl(), path: pathVal) { resp ->
             logDebug("Remove Firebase | resp: ${resp?.status}")
         }
     } catch (ex) {
@@ -3430,7 +3642,7 @@ private Map getSkippedDevsAnon() {
 String createMetricsDataJson() {
     try {
         generateGuid()
-        Map swVer = state?.codeVersions
+        Map swVer = state.codeVersions
         Map deviceUsageMap = [:]
         Map deviceErrorMap = [:]
         (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { d->
@@ -3460,10 +3672,10 @@ String createMetricsDataJson() {
             actions: actData,
             zones: zoneData,
             counts: [
-                deviceStyleCnts: state?.deviceStyleCnts ?: [:],
-                appHeartbeatCnt: state?.appHeartbeatCnt ?: 0,
-                getCookieCnt: state?.getCookieCnt ?: 0,
-                appErrorCnt: state?.appErrorCnt ?: 0,
+                deviceStyleCnts: state.deviceStyleCnts ?: [:],
+                appHeartbeatCnt: state.appHeartbeatCnt ?: 0,
+                getCookieCnt: state.getCookieCnt ?: 0,
+                appErrorCnt: state.appErrorCnt ?: 0,
                 deviceErrors: deviceErrorMap ?: [:],
                 deviceUsage: deviceUsageMap ?: [:]
             ]
@@ -3476,7 +3688,7 @@ String createMetricsDataJson() {
 }
 
 void incrementCntByKey(String key) {
-    Long evtCnt = (Long)state?."${key}"
+    Long evtCnt = (Long)state."${key}"
     evtCnt = evtCnt != null ? evtCnt : 0L
     // evtCnt = evtCnt?.toLong()+1
     evtCnt++
@@ -3504,12 +3716,12 @@ Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
     return result
 }
 
-Boolean appUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.mainApp && codeUpdIsAvail(state?.appData?.versions?.mainApp?.ver, state?.codeVersions?.mainApp, "main_app")) }
-Boolean actionUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.actionApp && codeUpdIsAvail(state?.appData?.versions?.actionApp?.ver, state?.codeVersions?.actionApp, "action_app")) }
-Boolean zoneUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.zoneApp && codeUpdIsAvail(state?.appData?.versions?.zoneApp?.ver, state?.codeVersions?.zoneApp, "zone_app")) }
-Boolean echoDevUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.echoDevice && codeUpdIsAvail(state?.appData?.versions?.echoDevice?.ver, state?.codeVersions?.echoDevice, "dev")) }
-Boolean socketUpdAvail() { return (!isStFLD && state?.appData?.versions && state?.codeVersions?.wsDevice && codeUpdIsAvail(state?.appData?.versions?.wsDevice?.ver, state?.codeVersions?.wsDevice, "socket")) }
-Boolean serverUpdAvail() { return (state?.appData?.versions && state?.codeVersions?.server && codeUpdIsAvail(state?.appData?.versions?.server?.ver, state?.codeVersions?.server, "server")) }
+Boolean appUpdAvail() { return (state.appData?.versions && state.codeVersions?.mainApp && codeUpdIsAvail(state.appData?.versions?.mainApp?.ver, state.codeVersions?.mainApp, "main_app")) }
+Boolean actionUpdAvail() { return (state.appData?.versions && state.codeVersions?.actionApp && codeUpdIsAvail(state.appData?.versions?.actionApp?.ver, state.codeVersions?.actionApp, "action_app")) }
+Boolean zoneUpdAvail() { return (state.appData?.versions && state.codeVersions?.zoneApp && codeUpdIsAvail(state.appData?.versions?.zoneApp?.ver, state.codeVersions?.zoneApp, "zone_app")) }
+Boolean echoDevUpdAvail() { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
+Boolean socketUpdAvail() { return (!isStFLD && state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
+Boolean serverUpdAvail() { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
 Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
 
 void checkVersionData(Boolean now = false) { //This reads a JSON file from GitHub with version numbers
@@ -3552,6 +3764,7 @@ private getWebData(Map params, String desc, Boolean text=true) {
     try {
         // log.trace("getWebData: ${desc} data")
         httpGet(params) { resp ->
+            if(resp?.status != 200) logWarn("${resp?.status} $params")
             if(resp?.data) {
                 if(text) { return resp.data?.text.toString() }
                 return resp.data
@@ -3609,8 +3822,13 @@ private getWebData(Map params, String desc, Boolean text=true) {
 |    Diagnostic Data
 *******************************************/
 
+//ERS
+//@Field volatile static Map<String,Map> echoDeviceMapFLD       = [:]
+//@Field volatile static Map<String,Map> devActivityMapFLD = [:]
+
 private getDiagDataJson(Boolean asObj = false) {
     try {
+        String myId=app.getId()
         updChildVers()
         List echoDevs = getEsDevices()
         List actApps = getActionApps()
@@ -3627,27 +3845,27 @@ private getDiagDataJson(Boolean asObj = false) {
         List actErrors = []
         List zoneWarnings = []
         List zoneErrors = []
-        def ah = getLogHistory()
-        if(ah?.warnings?.size()) { appWarnings = appWarnings + ah?.warnings }
-        if(ah?.errors?.size()) { appErrors = appErrors + ah?.errors }
+        Map ah = getLogHistory()
+        if(ah.warnings.size()) { appWarnings = appWarnings + ah.warnings }
+        if(ah.errors.size()) { appErrors = appErrors + ah.errors }
         echoDevs?.each { dev->
-            Map h = dev?.getLogHistory()
-            if(h?.warnings?.size()) { devWarnings = devWarnings + h?.warnings }
-            if(h?.errors?.size()) { devErrors = devErrors + h?.errors }
-            if(h?.speech?.size()) { devSpeech = devSpeech + h?.speech }
+            Map h = (Map)dev?.getLogHistory()
+            if(h.warnings?.size()) { devWarnings = devWarnings + h.warnings }
+            if(h.errors?.size()) { devErrors = devErrors + h.errors }
+            if(h.speech?.size()) { devSpeech = devSpeech + h.speech }
         }
         if(wsDev) {
-            Map h = dev?.getLogHistory()
+            Map h = (Map)dev?.getLogHistory()
             if(h?.warnings?.size()) { sockWarnings = sockWarnings + h?.warnings }
             if(h?.errors?.size()) { sockErrors = sockErrors + h?.errors }
         }
         actApps?.each { act->
-            Map h = act?.getLogHistory()
+            Map h = (Map)act?.getLogHistory()
             if(h?.warnings?.size()) { actWarnings = actWarnings + h?.warnings }
             if(h?.errors?.size()) { actErrors = actErrors + h?.errors }
         }
         zoneApps?.each { zn->
-            Map h = zn?.getLogHistory()
+            Map h = (Map)zn?.getLogHistory()
             if(h?.warnings?.size()) { zoneWarnings = zoneWarnings + h?.warnings }
             if(h?.errors?.size()) { zoneErrors = zoneErrors + h?.errors }
         }
@@ -3659,16 +3877,16 @@ private getDiagDataJson(Boolean asObj = false) {
                 updated: (String)getInstData('updatedDt'),
                 timeZone: location?.timeZone?.ID?.toString(),
                 lastVersionUpdDt: getTsVal("lastAppDataUpdDt"),
-                config: state?.appData?.appDataVer ?: null,
+                config: state.appData?.appDataVer ?: null,
                 flags: [
                     pollBlocked: (Boolean)state.pollBlocked,
                     resumeConfig: (Boolean)state.resumeConfig,
                     serviceConfigured: (Boolean)state.serviceConfigured,
-                    refreshDeviceData: (Boolean)state.refreshDeviceData,
+//                    refreshDeviceData: (Boolean)state.refreshDeviceData,
                     deviceRefreshInProgress: (Boolean)state.deviceRefreshInProgress,
                     noAuthActive: (Boolean)state.noAuthActive,
                     missPollRepair: (Boolean)state.missPollRepair,
-                    pushTested: state?.pushTested,
+                    pushTested: state.pushTested,
                     updateAvailable: (Boolean)state.updateAvailable,
                     devices: [
                         addEchoNamePrefix: (Boolean)settings.addEchoNamePrefix,
@@ -3686,31 +3904,31 @@ private getDiagDataJson(Boolean asObj = false) {
                 errors: appErrors ?: []
             ],
             actions: [
-                version: state?.codeVersions?.actionApp ?: null,
+                version: state.codeVersions?.actionApp ?: null,
                 count: actApps?.size() ?: 0,
                 warnings: actWarnings ?: [],
                 errors: actErrors ?: []
             ],
             zones: [
-                version: state?.codeVersions?.zoneApp ?: null,
+                version: state.codeVersions?.zoneApp ?: null,
                 count: zoneApps?.size() ?: 0,
                 warnings: zoneWarnings ?: [],
                 errors: zoneErrors ?: []
             ],
             devices: [
-                version: state?.codeVersions?.echoDevice ?: null,
+                version: state.codeVersions?.echoDevice ?: null,
                 count: echoDevs?.size() ?: 0,
                 lastDataUpdDt: getTsVal("lastDevDataUpdDt"),
-                models: state?.deviceStyleCnts ?: [:],
+                models: state.deviceStyleCnts ?: [:],
                 warnings: devWarnings ?: [],
                 errors: devErrors ?: [],
                 speech: devSpeech
             ],
             socket: [
-                version: state?.codeVersions?.wsDevice ?: null,
+                version: state.codeVersions?.wsDevice ?: null,
                 warnings: sockWarnings ?: [],
                 errors: sockErrors ?: [],
-                active: state?.websocketActive,
+                active: state.websocketActive,
                 lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
             ],
             hub: [
@@ -3725,7 +3943,7 @@ private getDiagDataJson(Boolean asObj = false) {
                 cookieValidHistory: (List)state.authValidHistory,
                 cookieLastRefreshDate: getTsVal("lastCookieRrshDt") ?: null,
                 cookieLastRefreshDur: getTsVal("lastCookieRrshDt") ? seconds2Duration(getLastTsValSecs("lastCookieRrshDt")) : null,
-                cookieInvalidReason: (!(Boolean)state.authValid && state.authEvtClearReason) ? state?.authEvtClearReason : (String)null,
+                cookieInvalidReason: (!(Boolean)state.authValid && state.authEvtClearReason) ? state.authEvtClearReason : (String)null,
                 cookieRefreshDays: (Integer)settings.refreshCookieDays,
                 cookieItems: [
                     hasLocalCookie: (state.cookieData && state.cookieData.localCookie),
@@ -3735,9 +3953,9 @@ private getDiagDataJson(Boolean asObj = false) {
                     hasLoginCookie: (state.cookieData && state.cookieData?.loginCookie),
                     hasRefreshToken: (state.cookieData && state.cookieData?.refreshToken),
                     hasFrc: (state.cookieData && state.cookieData?.frc),
-                    amazonPage: (state.cookieData && state.cookieData?.amazonPage) ? state?.cookieData?.amazonPage : null,
-                    refreshDt: (state.cookieData && state.cookieData?.refreshDt) ? state?.cookieData?.refreshDt : null,
-                    tokenDate: (state.cookieData && state.cookieData?.tokenDate) ? state?.cookieData?.tokenDate : null,
+                    amazonPage: (state.cookieData && state.cookieData?.amazonPage) ? state.cookieData?.amazonPage : null,
+                    refreshDt: (state.cookieData && state.cookieData?.refreshDt) ? state.cookieData?.refreshDt : null,
+                    tokenDate: (state.cookieData && state.cookieData?.tokenDate) ? state.cookieData?.tokenDate : null,
                 ],
                 cookieData: (settings.diagShareSensitveData == true) ? state.cookieData ?: null : "Not Shared"
             ],
@@ -3751,7 +3969,7 @@ private getDiagDataJson(Boolean asObj = false) {
                 stRespLimit: (Boolean)state.guardDataOverMaxSize
             ],
             server: [
-                version: state?.codeVersions?.server ?: null,
+                version: state.codeVersions?.server ?: null,
                 amazonDomain: settings?.amazonDomain,
                 amazonLocale: settings?.regionLocale,
                 lastServerWakeDt: getTsVal("lastServerWakeDt"),
@@ -3763,7 +3981,9 @@ private getDiagDataJson(Boolean asObj = false) {
             versionChecks: [
                 minVersionUpdates: getMinVerUpdsRequired(),
                 updateItemsOther: codeUpdateItems()
-            ]
+            ],
+            bluetoothData: bluetoothDataFLD[myId],
+            dndData:  dndDataFLD[myId]
         ]
         String json = new groovy.json.JsonOutput().toJson(output)
         if(asObj) {
@@ -4326,7 +4546,7 @@ String getInputToStringDesc(List inpt, Boolean addSpace=false) {
 def appInfoSect2() {
     Map codeVer = state.codeVersions ?: null
     Boolean isNote = false
-    String tStr = """<small style="color: gray;"><b>Version:</b> v${appVersionFLD}</small>${state?.pluginDetails?.version ? """<br><small style="color: gray;"><b>Plugin:</b> v${state?.pluginDetails?.version}</small>""" : ""}"""
+    String tStr = """<small style="color: gray;"><b>Version:</b> v${appVersionFLD}</small>${state.pluginDetails?.version ? """<br><small style="color: gray;"><b>Plugin:</b> v${state.pluginDetails?.version}</small>""" : ""}"""
 /* """ */
     section (s3TS(app?.name, tStr, getAppImg("hb_tonesto7@2x", true), "orange")) {
         Map minUpdMap = getMinVerUpdsRequired()
@@ -4425,7 +4645,7 @@ String randomString(Integer len) {
 
 Boolean getAccessToken() {
     try {
-        if(!state.accessToken) { state?.accessToken = createAccessToken() }
+        if(!state.accessToken) { state.accessToken = createAccessToken() }
         else { return true }
     } catch (ex) {
         logError("getAccessToken Exception: ${ex}")
@@ -5117,8 +5337,8 @@ String getTextEditorPath(cId, inName) {
 @Field static final List amazonDomainsFLD = ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx"]
 @Field static final List localesFLD       = ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY"]
 
-private List amazonDomainOpts() { return (state?.appData && state?.appData?.amazonDomains?.size()) ? state?.appData?.amazonDomains : amazonDomainsFLD }
-private List localeOpts() { return (state?.appData && state?.appData?.locales?.size()) ? state?.appData?.locales : localesFLD }
+private List amazonDomainOpts() { return (state.appData && state.appData?.amazonDomains?.size()) ? state.appData?.amazonDomains : amazonDomainsFLD }
+private List localeOpts() { return (state.appData && state.appData?.locales?.size()) ? state.appData?.locales : localesFLD }
 
 String getObjType(obj) {
     if(obj instanceof String) {return "String"}
@@ -5247,10 +5467,10 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
 }
 
 void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug "EchoApp (v${appVersionFLD}) | ${msg}" } }
-void logInfo(String msg) { if(!(Boolean)settings.logInfo) { log.info " EchoApp (v${appVersionFLD}) | ${msg}" } }
+void logInfo(String msg) { if((Boolean)settings.logInfo) { log.info " EchoApp (v${appVersionFLD}) | ${msg}" } }
 void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace "EchoApp (v${appVersionFLD}) | ${msg}" } }
-void logWarn(String msg, Boolean noHist=false) { if(!(Boolean)settings.logWarn) { log.warn " EchoApp (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-void logError(String msg, Boolean noHist=false) { if(!(Boolean)settings.logError) { log.error "EchoApp (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn " EchoApp (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+void logError(String msg, Boolean noHist=false) { if((Boolean)settings.logError) { log.error "EchoApp (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 // public hasLogDevice() { return (settings?.logDevice != null) }
 // public sendLog(msg, lvl) {
@@ -5608,7 +5828,8 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
             "A37M7RU8Z6ZFB": [ caps: [ "a", "t" ], image: "unknown", name: "Garmin Speak" ],
             "A2WN1FJ2HG09UN": [ caps: [ "a", "t" ], image: "unknown", name: "Ultimate Alexa App" ],
             "A2BRQDVMSZD13S": [ caps: [ "a", "t" ], image: "unknown", name: "SURE Universal Remote" ],
-            "A3TCJ8RTT3NVI7": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Listens" ]
+            "A3TCJ8RTT3NVI7": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Listens" ],
+            "A3RMGO6LYLH7YN":  [ caps: [ "a", "t" ], image: "unknown", name: "Echo (Gen4)" ]
         ],
         families: [
             block: [ "AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP" ],
