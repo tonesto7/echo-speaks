@@ -206,7 +206,6 @@ def installed() {
 
 def updated() {
     logTrace("${device?.displayName} Executing Updated()")
-    state.fullRefreshOk = true
     initialize()
 }
 
@@ -218,6 +217,7 @@ def initialize() {
     stateCleanup()
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return }
     schedDataRefresh(true)
+    parent?.updChildSocketStatus()
     refreshData(true)
     //TODO: Have the queue validated based on the last time it was processed and have it cleanup if it's been too long
 }
@@ -393,16 +393,19 @@ void updateDeviceStatus(Map devData) {
         state.isWhaDevice = (devData?.permissionMap?.isMultiroomDevice == true)
         // log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
         // log.trace "permissions: ${state?.permissions}"
+
+        Boolean chg=false
+
         List permissionList = permissions?.findAll { it?.value == true }?.collect { it?.key }
         if(isStateChange(device, "permissions", permissionList?.toString())) {
             sendEvent(name: "permissions", value: permissionList, display: false, displayed: false)
+            chg=true
         }
+
         Map deviceStyle = devData?.deviceStyle
         state.deviceStyle = devData?.deviceStyle
         // logInfo("deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
         state.deviceImage = deviceStyle?.image as String
-
-        Boolean chg=false
         if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
             sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
             chg=true
@@ -521,6 +524,8 @@ void refreshData(Boolean full=false) {
     logTrace("refreshData($full)...")
     Boolean wsActive = (state.websocketActive == true)
     Boolean isWHA = (state.isWhaDevice == true)
+    Boolean mfull = (state.fullRefreshOk == true)
+
 //    Boolean isEchoDev = (state.isEchoDevice == true)
     if(device?.currentValue("onlineStatus") != "online") {
         logTrace("Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
@@ -529,27 +534,31 @@ void refreshData(Boolean full=false) {
     if(!isAuthOk()) {return}
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return }
     // logTrace("permissions: ${state?.permissions}")
-    if(state.permissions?.mediaPlayer == true && (full || state.fullRefreshOk || !wsActive)) {
+    if(state.permissions?.mediaPlayer == true && (full || mfull || !wsActive)) {
         getPlaybackState()
         if(!isWHA) { getPlaylists() }
     }
     if(!isWHA) {
-        if (full || state.fullRefreshOk) {
+        if (full || mfull) {
             // if(isEchoDev) { getWifiDetails() }
             getDeviceSettings()
         }
         if(state.permissions?.doNotDisturb == true) { getDoNotDisturb() }
-        if(!wsActive) {
+        if(!wsActive || full || mfull) {
             getDeviceActivity()
         }
-        if((Boolean)state.fullRefreshOk) runIn(3, "refreshStage2")
+        if(!mfull && full) state.fullRefreshOk = true
+        if((Boolean)state.fullRefreshOk || full) runIn(3, "refreshStage2")
     } else { state.fullRefreshOk = false }
 }
 
 private refreshStage2() {
     // log.trace("refreshStage2()...")
     Boolean wsActive = (state.websocketActive == true)
-    if(state.permissions?.wakeWord) {
+    Boolean full = (state.fullRefreshOk == true)
+    state.fullRefreshOk = false
+
+    if(state.permissions?.wakeWord && full) {
         getWakeWord()
         getAvailableWakeWords()
     }
@@ -558,10 +567,9 @@ private refreshStage2() {
         // getNotifications()
     }
 
-    if(state.permissions?.bluetoothControl && !wsActive) {
+    if(state.permissions?.bluetoothControl && (!wsActive || full)) {
         getBluetoothDevices()
     }
-    state.fullRefreshOk = false
     // updGuardStatus()
 }
 
