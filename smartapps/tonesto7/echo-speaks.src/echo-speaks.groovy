@@ -1989,7 +1989,7 @@ def validateCookieResp(resp, data){
 //            log.debug "aData: $aData"
             if(aData.customerId) { state.deviceOwnerCustomerId = aData.customerId }
             if(aData.customerName) { state.customerName = aData.customerName }
-            valid = (resp?.data?.authentication?.authenticated != false)
+            valid = (aData?.authenticated != false)
             authValidationEvent(valid, meth)
             updTsVal("lastCookieChkDt")
             return true
@@ -2200,7 +2200,7 @@ Map getBluetoothData(String serialNumber) {
         }
     }
     Map bluData = btData && btData.bluetoothStates?.size() ? btData.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
-    if(blueData && bluData.size() && bluData.pairedDeviceList && bluData.pairedDeviceList?.size()) {
+    if(bluData && bluData.size() && bluData.pairedDeviceList && bluData.pairedDeviceList?.size()) {
         def bData = bluData.pairedDeviceList.findAll { (it?.deviceClass != "GADGET") }
         bData?.findAll { it?.address != null }?.each {
             btObjs[it?.address as String] = it
