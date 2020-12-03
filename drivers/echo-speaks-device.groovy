@@ -251,6 +251,7 @@ public void setAuthState(Boolean authenticated) {
 public void updateCookies(Map cookies) {
     logWarn("Cookies Update by Parent.  Re-Initializing Device in 5 Seconds...")
     state.cookie = cookies
+    cookieDataFLD = [:]
     setAuthState(true)
     runIn(5, "initialize")
 }
@@ -383,6 +384,7 @@ void updateDeviceStatus(Map devData) {
         // state?.mainAccountCommsId = devData?.mainAccountCommsId ?: null
         // log.debug "mainAccountCommsId: ${state?.mainAccountCommsId}"
         state.cookie = devData?.cookie
+        cookieDataFLD = [:]
         state.authValid = (devData?.authValid == true)
         state.amazonDomain = devData?.amazonDomain
         state.regionLocale = devData?.regionLocale
