@@ -17,7 +17,7 @@
 // NOTICE: This device will not work on SmartThings
 
 static String devVersion()  { return "3.4.0.0"}
-static String devModified() { return "2020-11-04" }
+static String devModified() { return "2020-12-04" }
 static Boolean isBeta()     { return false }
 static Boolean isST()       { return false }
 static Boolean isWS()       { return true }
