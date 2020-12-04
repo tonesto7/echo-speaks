@@ -133,7 +133,7 @@ def updSocketStatus(Boolean active) {
     state.connectionActive = active
 }
 
-def webSocketStatus(String status){
+def webSocketStatus(String status) {
     logDebug("Websocket Status Event | ${status}")
     if(status.startsWith('failure: ')) {
         logWarn("Websocket Failure Message: ${status}")
@@ -148,7 +148,7 @@ def webSocketStatus(String status){
         // log.trace("Connection Initiation (Step 1)")
         runIn(1, "nextMsgSend")
 //        sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE")?.toString())
-    } else if (status == "status: closing"){
+    } else if (status == "status: closing") {
         logWarn("WebSocket connection closing.")
         updSocketStatus(false)
     } else if(status?.startsWith("send error: ")) {
@@ -159,35 +159,35 @@ def webSocketStatus(String status){
     }
 }
 
-def nextMsgSend(){
+def nextMsgSend() {
     sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE")?.toString())
     logTrace("Gateway Handshake Message Sent (Step 1)")
 }
 
-def nextMsgSend1(){
-    sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString())
+def nextMsgSend1() {
+    sendWsMsg( strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString() )
     logTrace("Gateway Handshake Message Sent (Step 2A)")
 }
 
-def nextMsgSend2(){
-    sendWsMsg(strToHex(encodeGWHandshake()))
+def nextMsgSend2() {
+    sendWsMsg( strToHex(encodeGWHandshake()) )
     logTrace("Gateway Handshake Message Sent (Step 2B)")
 }
 
-def nextMsgSend3(){
-    sendWsMsg(strToHex(encodeGWRegister()))
+def nextMsgSend3() {
+    sendWsMsg( strToHex(encodeGWRegister()) )
     logTrace("Gateway Registration Message Sent (Step 3)")
 }
 
-def nextMsgSend4(){
-    sendWsMsg(strToHex(encodePing()))
+def nextMsgSend4() {
+    sendWsMsg( strToHex(encodePing()) )
     logTrace("Encoded Ping Message Sent (Step 4)")
 }
 
 def parse(message) {
     // log.debug "parsed ${message}"
     String newMsg = strFromHex(message)
-    log.debug "decodedMsg: ${newMsg}"
+    logDebug("decodedMsg: ${newMsg}")
     if(newMsg) {
         if(newMsg == """0x37a3b607 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
         // if(newMsg == """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
