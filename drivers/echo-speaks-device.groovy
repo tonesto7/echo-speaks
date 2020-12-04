@@ -26,8 +26,8 @@ import groovy.transform.Field
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean isWsFLD       = false
-@Field static final String sNULL          = (String) null
-@Field static final List   lNULL          = (List) null
+@Field static final String sNULL          = (String)null
+//@Field static final List   lNULL          = (List)null
 @Field static final String sBLANK         = ''
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
@@ -257,20 +257,22 @@ public void updateCookies(Map cookies) {
 }
 
 public void removeCookies(Boolean isParent=false) {
-    if(state.cookie != null || state.authValid != false || (Boolean)state.refreshScheduled) {
+    if(state.cookie != null || (Boolean)state.authValid != false || (Boolean)state.refreshScheduled) {
         logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
         if((Boolean)state.refreshScheduled) { unschedule("refreshData"); state.refreshScheduled = false }
         state.cookie = null
+        cookieDataFLD = [:]
         state.authValid = false
     }
 }
 
 Boolean isAuthOk(Boolean noLogs=false) {
-    if(state.authValid != true) {
+    if(!(Boolean)state.authValid) {
         if((Boolean)state.refreshScheduled) { unschedule("refreshData"); state.refreshScheduled = false }
         if(state.cookie != null) {
             if(!noLogs) { logWarn("Echo Speaks Authentication is no longer valid... Please login again and commands will be allowed again!!!", true) }
             state.remove("cookie")
+            cookieDataFLD = [:]
         }
         return false
     } else { return true }
@@ -284,7 +286,7 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
     if(!state.cookie || !state.cookie.cookie || !state.cookie.csrf) { if(!noLogs) { logWarn("Amazon Cookie State Values Missing: ${state.cookie}", true) }; setAuthState(false); return false }
     if(!(String)state.serialNumber) { if(!noLogs) { logWarn("SerialNumber State Value Missing: ${(String)state.serialNumber}", true) }; return false }
     if(!(String)state.deviceType) { if(!noLogs) { logWarn("DeviceType State Value Missing: ${(String)state.deviceType}", true) }; return false }
-    if(!state.deviceOwnerCustomerId) { if(!noLogs) { logWarn("OwnerCustomerId State Value Missing: ${state.deviceOwnerCustomerId}", true) }; return false }
+    if(!(String)state.deviceOwnerCustomerId) { if(!noLogs) { logWarn("OwnerCustomerId State Value Missing: ${(String)state.deviceOwnerCustomerId}", true) }; return false }
     if(state.isSupportedDevice == false) { logWarn("You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer", true); return true }
     if(!type) { if(!noLogs) { logWarn("Invalid Permissions Type Received: ${type}", true) }; return false }
     if(state.permissions == null) { if(!noLogs) { logWarn("Permissions State Object Missing: ${state.permissions}", true) }; return false }
@@ -378,7 +380,7 @@ void updateDeviceStatus(Map devData) {
         state.isEchoDevice = (devData?.isEchoDevice == true)
         state.serialNumber = (String)devData?.serialNumber
         state.deviceType = (String)devData?.deviceType
-        state.deviceOwnerCustomerId = devData?.deviceOwnerCustomerId
+        state.deviceOwnerCustomerId = (String)devData?.deviceOwnerCustomerId
         state.deviceAccountId = (String)devData?.deviceAccountId
         state.softwareVersion = devData?.softwareVersion
         // state?.mainAccountCommsId = devData?.mainAccountCommsId ?: null
@@ -386,8 +388,8 @@ void updateDeviceStatus(Map devData) {
         state.cookie = devData?.cookie
         cookieDataFLD = [:]
         state.authValid = (devData?.authValid == true)
-        state.amazonDomain = devData?.amazonDomain
-        state.regionLocale = devData?.regionLocale
+        state.amazonDomain = (String)devData?.amazonDomain
+        state.regionLocale = (String)devData?.regionLocale
         Map permissions = state.permissions ?: [:]
         devData.permissionMap?.each {String k,v -> permissions[k] = v }
         state.permissions = permissions
@@ -511,7 +513,7 @@ private triggerDataRrsh(String src, Boolean parentRefresh=false) {
     runIn(6, parentRefresh ? "refresh" : "refreshData1")
 }
 
-public schedDataRefresh(frc) {
+public schedDataRefresh(Boolean frc=false) {
     if(frc || !(Boolean)state.refreshScheduled) {
         runEvery30Minutes("refreshData")
         state.refreshScheduled = true
@@ -524,9 +526,9 @@ void refreshData1() {
 
 void refreshData(Boolean full=false) {
     logTrace("refreshData($full)...")
-    Boolean wsActive = (state.websocketActive == true)
-    Boolean isWHA = (state.isWhaDevice == true)
-    Boolean mfull = (state.fullRefreshOk == true)
+    Boolean wsActive = (Boolean)state.websocketActive
+    Boolean isWHA = (Boolean)state.isWhaDevice
+    Boolean mfull = (Boolean)state.fullRefreshOk
 
 //    Boolean isEchoDev = (state.isEchoDevice == true)
     if(device?.currentValue("onlineStatus") != "online") {
@@ -556,8 +558,8 @@ void refreshData(Boolean full=false) {
 
 private refreshStage2() {
     // log.trace("refreshStage2()...")
-    Boolean wsActive = (state.websocketActive == true)
-    Boolean full = (state.fullRefreshOk == true)
+    Boolean wsActive = (Boolean)state.websocketActive
+    Boolean full = (Boolean)state.fullRefreshOk
     state.fullRefreshOk = false
 
     if(state.permissions?.wakeWord && full) {
@@ -699,7 +701,7 @@ void playbackStateHandler(playerInfo, Boolean isGroupResponse=false) {
         }
     }
     // Update cluster (unless we remain paused)
-    if (state.hasClusterMembers && (playerInfo?.state == 'PLAYING' || isPlayStateChange)) {
+    if ((Boolean)state.hasClusterMembers && (playerInfo?.state == 'PLAYING' || isPlayStateChange)) {
         parent?.sendPlaybackStateToClusterMembers((String)state.serialNumber, playerInfo)
     }
 }
@@ -868,7 +870,7 @@ private getPlaylists() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/cloudplayer/playlists",
-        query: [ deviceSerialNumber: (String)state.serialNumber, deviceType: (String)state.deviceType, mediaOwnerCustomerId: state?.deviceOwnerCustomerId, screenWidth: 2560 ],
+        query: [ deviceSerialNumber: (String)state.serialNumber, deviceType: (String)state.deviceType, mediaOwnerCustomerId: (String)state.deviceOwnerCustomerId, screenWidth: 2560 ],
         headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
         contentType: "application/json",
         timeout: 20
@@ -953,23 +955,27 @@ private getDeviceActivity() {
 
 String getCookieVal() {
     String myId=parent.getId() //device.getId()
-    if(cookieDataFLD[myId] && cookieDataFLD[myId].cookie) { return cookieDataFLD[myId].cookie.cookie as String }
+    Map cookieData = cookieDataFLD[myId]
+    if(cookieData && cookieData.cookie) { return (String)cookieData.cookie.cookie }
     else { 
-        Map cookieData = state.cookie ?: null
         if (cookieDataFLD[myId] == null) { cookieDataFLD[myId] = [:];  cookieDataFLD = cookieDataFLD }
+        cookieData = state.cookie
         if (cookieData && cookieData.cookie) { cookieDataFLD[myId].cookie = cookieData;  cookieDataFLD = cookieDataFLD }
-        return cookieDataFLD[myId].cookie.cookie ?: (String)null
+        else return (String)null
+        return (String)cookieData.cookie
     }
 }
 
 String getCsrfVal() {
     String myId=parent.getId() //device.getId()
-    if(cookieDataFLD[myId] && cookieDataFLD[myId].cookie) { return cookieDataFLD[myId].cookie.csrf as String }
+    Map cookieData = cookieDataFLD[myId]
+    if(cookieData && cookieData.cookie) { return (String)cookieData.cookie.csrf }
     else {
-        Map cookieData = state.cookie ?: null
         if (cookieDataFLD[myId] == null) { cookieDataFLD[myId] = [:];  cookieDataFLD = cookieDataFLD }
+        cookieData = state.cookie
         if (cookieData && cookieData.cookie) { cookieDataFLD[myId].cookie = cookieData;  cookieDataFLD = cookieDataFLD }
-        return cookieDataFLD[myId].cookie.csrf ?: (String)null
+        else return (String)null
+        return (String)cookieData.csrf
     }
 }
 
@@ -1345,7 +1351,7 @@ def setDoNotDisturb(Boolean val) {
 
 def setFollowUpMode(Boolean val) {
     logTrace("setFollowUpMode($val) command received...")
-    if(state?.devicePreferences == null || !state?.devicePreferences?.size()) { return }
+    if(state.devicePreferences == null || !state.devicePreferences?.size()) { return }
     if(!(String)state.deviceAccountId) { logError("setFollowUpMode Failed because deviceAccountId is not found..."); return }
     if(isCommandTypeAllowed("followUpMode")) {
         String t0 = sendAmazonCommand("PUT", [
@@ -1730,14 +1736,14 @@ private void doSearchMusicCmd(searchPhrase, musicProvId, volume=null, sleepSecon
     } else { logWarn("doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${(String)state.serialNumber} | searchPhrase: ${searchPhrase} | musicProvider: ${musicProvId}", true) }
 }
 
-private Map validateMusicSearch(searchPhrase, providerId, sleepSeconds=null) {
+private Map validateMusicSearch(String searchPhrase, String providerId, sleepSeconds=null) {
     Map validObj = [
         type: "Alexa.Music.PlaySearchPhrase",
         operationPayload: [
             deviceType: (String)state.deviceType,
             deviceSerialNumber: (String)state.serialNumber,
-            customerId: state?.deviceOwnerCustomerId,
-            locale: (state.regionLocale ?: "en-US"),
+            customerId: (String)state.deviceOwnerCustomerId,
+            locale: ((String)state.regionLocale ?: "en-US"),
             musicProviderId: providerId,
             searchPhrase: searchPhrase
         ]
@@ -3111,8 +3117,8 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
             "operationPayload": [
                 "deviceType": devType ?: (String)state.deviceType,
                 "deviceSerialNumber": devSerial ?: (String)state.serialNumber,
-                "locale": (state.regionLocale ?: "en-US"),
-                "customerId": state?.deviceOwnerCustomerId
+                "locale": ((String)state.regionLocale ?: "en-US"),
+                "customerId": (String)state.deviceOwnerCustomerId
             ]
         ]
         switch (command?.toString()?.toLowerCase()) {
@@ -3218,7 +3224,7 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                 remDevSpecifics = true
                 seqNode.type = "Alexa.DeviceControls.DoNotDisturb"
                 seqNode.skillId = "amzn1.ask.1p.alexadevicecontrols"
-                seqNode.operationPayload?.customerId = state?.deviceOwnerCustomerId
+                seqNode.operationPayload?.customerId = (String)state.deviceOwnerCustomerId
                 if(command == "dnd_all_time" || command == "dnd_all_duration") {
                     seqNode.operationPayload?.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
                 }
@@ -3247,8 +3253,8 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                 // log.debug "valObj(size: ${valObj?.size()}): $valObj"
                 // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
                 // log.debug "valObj[1]: ${valObj[1]}"
-                seqNode.operationPayload?.content = [[ locale: (state.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
-                seqNode.operationPayload?.target = [ customerId : state?.deviceOwnerCustomerId ]
+                seqNode.operationPayload?.content = [[ locale: ((String)state.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
+                seqNode.operationPayload?.target = [ customerId : (String)state.deviceOwnerCustomerId ]
                 if(!(command in ["announcementall", "announcement_devices"])) {
                     seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ] ]
                 } else if(command == "announcement_devices" && valObj?.size() && valObj[2] != null) {
@@ -3311,7 +3317,7 @@ private List getMemStoreItem(String key){
     Map memStore = historyMapFLD[appId] ?: [:]
     return (List)memStore[key] ?: []
 }
-
+/*
 // Memory Barrier
 @Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
 
@@ -3384,4 +3390,4 @@ void releaseTheLock(String qname){
     lockHolderFLD[semaSNum]=(String)null
     lockHolderFLD=lockHolderFLD
     sema.release()
-}
+} */
