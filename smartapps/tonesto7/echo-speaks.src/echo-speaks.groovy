@@ -225,7 +225,7 @@ def authStatusPage() {
                 input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 if(!isStFLD) { paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, "gray") }
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh") }
-                if(settings.resetCookies) { clearCookieData("resetCookieToggle") }
+                if(settings.resetCookies) { clearCookieData("resetCookieToggle", false, false) }
                 if((Boolean)settings.refreshDevCookies) { refreshDevCookies() }
             }
         }
@@ -1340,7 +1340,7 @@ void stateMigrationChk() {
 }
 
 
-def updateZoneSubscriptions() {
+void updateZoneSubscriptions() {
     if(state.zoneEvtsActive != true) {
         subscribe(location, "es3ZoneState", zoneStateHandler)
         subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
@@ -1348,7 +1348,7 @@ def updateZoneSubscriptions() {
     }
 }
 
-def postInitialize() {
+void postInitialize() {
     logTrace("postInitialize")
     runEvery15Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
     appCleanup()
@@ -1360,11 +1360,11 @@ def uninstalled() {
     unschedule()
     if(!(Boolean)settings.optOutMetrics) { if(removeInstallData()) { state.appGuid = sNULL } }
     clearCloudConfig()
-    clearCookieData("App Uninstalled")
+    clearCookieData("App Uninstalled", false, false)
     removeDevices(true)
 }
 
-private appCleanup() {
+void appCleanup() {
     logTrace("appCleanup")
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
@@ -1417,7 +1417,7 @@ void webSocketStatus(Boolean active) {
     runIn(3, "updChildSocketStatus")
 }
 
-private updChildSocketStatus() {
+void updChildSocketStatus() {
     Boolean active = (Boolean)state.websocketActive
     logTrace "updChildSocketStatus... | Active: ${active}"
     getEsDevices()?.each { it?.updSocketStatus(active) }
@@ -1514,7 +1514,7 @@ void clearCloudConfig() {
     state.remove("herokuName")
     state.serviceConfigured = false
     state.resumeConfig = true
-    clearCookieData("clearCloudConfig")
+    clearCookieData("clearCloudConfig", false, false)
 }
 
 String getEnvParamsStr() {
@@ -1555,16 +1555,18 @@ Boolean checkIfCodeUpdated() {
             state.installData = iData
             codeUpdated = true
         }
-        List cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
-        def echoDev = cDevs?.find { !it?.isWS() }
-        if(echoDev && (String)codeVer.echoDevice != (String)echoDev?.devVersion()) {
+        List cDevs = getEsDevices()
+//        List cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
+//        if(echoDev && (String)codeVer.echoDevice != (String)echoDev?.devVersion()) {
+        if(cDevs?.size() && (String)codeVer.echoDevice != (String)cDevs[0]?.devVersion()) {
             chgs.push("echoDevice")
             state.pollBlocked = true
             updCodeVerMap("echoDevice", (String)echoDev?.devVersion())
             codeUpdated = true
         }
         if(!isStFLD) {
-            def wsDev = cDevs?.find { it?.isWS() }
+//            def wsDev = cDevs?.find { it?.isWS() }
+            def wsDev = getSocketDevice()
             if(wsDev && (String)codeVer.wsDevice != (String)wsDev?.devVersion()) {
                 chgs.push("wsDevice")
                 updCodeVerMap("wsDevice", (String)wsDev?.devVersion())
@@ -1648,7 +1650,7 @@ def getCookieData() {
     resp["refreshDt"] = aa ?: null
     def json = new groovy.json.JsonOutput().toJson(resp)
     incrementCntByKey("getCookieCnt")
-    render contentType: "application/json", data: json
+    render contentType: "application/json", data: json, status: 200
 }
 
 String getCookieVal() {
@@ -1706,9 +1708,13 @@ def storeCookieData() {
     } else {
         logWarn("Cookie data was updated but found invalid...")
     }
+
+// should be rendering a response?
+    String json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersionFLD])
+    render contentType: "application/json", data: json, status: 200
 }
 
-void clearCookieData(String src=sNULL, Boolean callSelf=false) {
+def clearCookieData(String src=sNULL, Boolean callSelf=false, Boolean render=true) {
     logTrace("clearCookieData(${src ?: sBLANK}, $callSelf)")
     settingUpdate("resetCookies", "false", "bool")
     if(!callSelf) authEvtHandler(false, "clearCookieData")
@@ -1722,6 +1728,11 @@ void clearCookieData(String src=sNULL, Boolean callSelf=false) {
     unschedule("getOtherData")
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
     updateChildAuth(false)
+// in some cases should render a response
+    if(render) {
+        String json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersionFLD])
+        render contentType: "application/json", data: json, status: 200
+    } 
 }
 
 Boolean refreshDevCookies() {
@@ -1733,7 +1744,7 @@ Boolean refreshDevCookies() {
     return isValid
 }
 
-private updateChildAuth(Boolean isValid) {
+void updateChildAuth(Boolean isValid) {
     (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { (isValid) ? it?.updateCookies([cookie: getCookieVal(), csrf: getCsrfVal()]) : it?.removeCookies(true) }
 }
 
@@ -1762,7 +1773,7 @@ void authEvtHandler(Boolean isAuth, String src=sNULL) {
     logDebug "authEvtHandler(${isAuth},$src)"
     state.authValid = isAuth
     if(!isAuth && !(Boolean)state.noAuthActive) {
-        clearCookieData('authHandler', true)
+        clearCookieData('authHandler', true, false)
         noAuthReminder()
         if((Boolean)settings.sendCookieInvalidMsg && getLastTsValSecs("lastCookieInvalidMsgDt") > 28800) {
             sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
@@ -1853,7 +1864,7 @@ def wakeupServerResp(response, data) {
     } catch(ex) { logError("wakeupServerResp Exception: ${ex}") }
 }
 
-private cookieRefresh() {
+void cookieRefresh() {
     Map cookieData = state.cookieData ?: [:]
     if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
         logError("Required Registration data is missing for Cookie Refresh")
@@ -1883,15 +1894,16 @@ def cookieRefreshResp(response, data) {
             // log.debug "refreshAlexaCookie Response: ${rData?.result}"
         }
     } catch(ex) {
+        String mth = 'cookieRefreshResp '
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("cookieRefreshResp Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Msg: ${ex?.getMessage()}")
+            logError(mth+"Response Exception | Status: (${ex?.getResponse()?.getStatus()}) | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof java.net.SocketTimeoutException) {
-            logError("cookieRefreshResp Response Socket Timeout | Msg: ${ex?.getMessage()}")
+            logError(mth+"Response Socket Timeout | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof java.net.UnknownHostException) {
-            logError("cookieRefreshResp HostName Not Found | Msg: ${ex?.getMessage()}")
+            logError(mth+"HostName Not Found | Msg: ${ex?.getMessage()}")
         } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-            logError("cookieRefreshResp Request Timeout | Msg: ${ex?.getMessage()}")
-        } else { logError("cookieRefreshResp Exception: ${ex}") }
+            logError(mth+"Request Timeout | Msg: ${ex?.getMessage()}")
+        } else { logError(mth+"Exception: ${ex}") }
     }
 }
 /*
@@ -2004,7 +2016,7 @@ def validateCookieResp(resp, data){
 private getCustomerData(Boolean frc=false) {
     try {
         if(!frc && state.amazonCustomerData && getLastTsValSecs("lastCustDataUpdDt") < 3600) { return state.amazonCustomerData }
-        if(!isAuthValid("getCustomerData")) { return }
+        if(!isAuthValid("getCustomerData")) { return null }
         Long execDt = now()
         Map params = [
             uri: getAmazonUrl(),
@@ -2025,6 +2037,7 @@ private getCustomerData(Boolean frc=false) {
                 if(pData?.marketPlaceId) { d["marketPlaceId"] = pData?.marketPlaceId }
                 state.amazonCustomerData = d
                 updTsVal("lastCustDataUpdDt")
+                return state.amazonCustomerData
             }
         }
     } catch(ex) {
@@ -2072,13 +2085,15 @@ public void childInitiatedRefresh() {
 public updChildVers() {
     List cApps = getActionApps()
     List zApps = getZoneApps()
-    List cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
-    List eDevs = cDevs?.findAll { it?.isWS() != true }
+//    List cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
+//    List eDevs = cDevs?.findAll { it?.isWS() != true }
+    List eDevs = getEsDevices()
     updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersionFLD : null)
     updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersionFLD : null)
     updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
     if(!isStFLD) {
-        def wDevs = cDevs?.findAll { it?.isWS() == true }
+//        def wDevs = cDevs?.findAll { it?.isWS() == true }
+        def wDevs = getSocketDevice()
         updCodeVerMap("wsDevice", wDevs?.size() ? wDevs[0]?.devVersion() : null)
     }
 }
@@ -2588,7 +2603,7 @@ void setGuardState(String guardState) {
 
 private getAlexaSkills() {
     Long execDt = now()
-    if(!isAuthValid("getAlexaSkills") || state.amazonCustomerData) { return }
+    if(!isAuthValid("getAlexaSkills") || !getCustomerData() /* state.amazonCustomerData */) { return }
     if(state.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
     Map params = [
         uri: "https://skills-store.${getAmazonDomain()}",
@@ -3628,7 +3643,7 @@ void processFirebaseResponse(resp, Map data) {
 def renderMetricData() {
     try {
         String json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
-        render contentType: "application/json", data: json
+        render contentType: "application/json", data: json, status: 200
     } catch (ex) { logError("renderMetricData Exception: ${ex}") }
 }
 
