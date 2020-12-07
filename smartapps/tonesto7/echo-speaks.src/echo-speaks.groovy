@@ -2094,7 +2094,7 @@ public updChildVers() {
     if(!isStFLD) {
 //        def wDevs = cDevs?.findAll { it?.isWS() == true }
         def wDevs = getSocketDevice()
-        updCodeVerMap("wsDevice", wDevs?.size() ? wDevs[0]?.devVersion() : null)
+        updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
     }
 }
 
