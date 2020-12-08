@@ -367,76 +367,68 @@ def parseIncomingMessage(String data) {
 private commandEvtHandler(msg) {
     Boolean sendEvt = false
     Map evt = [:]
-    evt?.id = msg?.payload?.dopplerId?.deviceSerialNumber ?: null
-    evt?.all = false
-    evt?.type = msg?.command
-    evt?.attributes = [:]
-    evt?.triggers = []
+    evt.id = msg?.payload?.dopplerId?.deviceSerialNumber ?: null
+    evt.all = false
+    evt.type = msg?.command
+    evt.attributes = [:]
+    evt.triggers = []
 
-    if(msg && msg?.command && msg?.payload) {
-        switch(msg?.command as String) {
+    if(msg && msg.command && msg.payload) {
+        logDebug("Command: ${msg.command} | Payload: ${msg.payload}")
+        switch((String)msg.command) {
             case "PUSH_EQUALIZER_STATE_CHANGE":
-                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 // Black hole of unwanted events.
                 break
 
             case "PUSH_VOLUME_CHANGE":
-                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
-                evt?.attributes?.volume = msg?.payload?.volumeSetting
-                evt?.attributes?.level = msg?.payload?.volumeSetting
-                evt?.attributes?.mute = (isMuted == true) ? "muted" : "unmuted"
+                evt.attributes.volume = msg.payload?.volumeSetting
+                evt.attributes.level = msg.payload?.volumeSetting
+                evt.attributes.mute = (isMuted == true) ? "muted" : "unmuted"
                 break
             case "PUSH_BLUETOOTH_STATE_CHANGE":
-                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
-                switch(msg?.payload?.bluetoothEvent) {
+                switch(msg.payload?.bluetoothEvent) {
                     case "DEVICE_DISCONNECTED":
                     case "DEVICE_CONNECTED":
-                        if(msg?.payload?.bluetoothEventSuccess == true) {
+                        if(msg.payload?.bluetoothEventSuccess == true) {
                             sendEvt = true
-                            if(msg?.payload?.bluetoothEvent == "DEVICE_DISCONNECTED") { evt?.attributes?.btDeviceConnected = null }
-                            evt?.triggers?.push("bluetooth")
+                            if(msg.payload?.bluetoothEvent == "DEVICE_DISCONNECTED") { evt.attributes?.btDeviceConnected = null }
+                            evt.triggers.push("bluetooth")
                         }
                         break
                 }
                 break
             case "PUSH_AUDIO_PLAYER_STATE":
-                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
-                evt?.attributes?.status = msg?.payload?.audioPlayerState == "PLAYING" ? "playing" : "stopped"
-                evt?.triggers?.push("media")
+                evt.attributes.status = msg.payload?.audioPlayerState == "PLAYING" ? "playing" : "stopped"
+                evt.triggers?.push("media")
                 break
             case "PUSH_MEDIA_QUEUE_CHANGE":
-                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
-                evt?.triggers?.push("queue")
+                evt.triggers.push("queue")
                 break
             case "PUSH_MEDIA_PROGRESS_CHANGE":
-                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
-                evt?.triggers?.push("media")
-                evt?.triggers?.push("queue")
+                evt.triggers.push("media")
+                evt.triggers.push("queue")
                 break
             case "PUSH_DOPPLER_CONNECTION_CHANGE":
-                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
-                evt?.attributes?.onlineStatus = (msg?.payload?.dopplerConnectionState == "ONLINE") ? "online" : "offline"
-                evt?.triggers?.push(evt?.attributes?.onlineStatus)
+                evt.attributes.onlineStatus = (msg.payload?.dopplerConnectionState == "ONLINE") ? "online" : "offline"
+                evt.triggers.push(evt.attributes?.onlineStatus)
                 break
             case "PUSH_ACTIVITY":
-                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
-                def keys = msg?.payload?.key?.entryId?.tokenize("#")
+                def keys = msg.payload?.key?.entryId?.tokenize("#")
                 if(keys?.size() && keys[2]) {
                     sendEvt = true
-                    evt?.id = keys[2]
-                    evt?.triggers?.push("activity")
-                    evt?.all = true
+                    evt.id = keys[2]
+                    evt.triggers?.push("activity")
+                    evt.all = true
                 }
                 break
             case "PUSH_NOTIFICATION_CHANGE":
-                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 sendEvt = true
-                evt?.triggers?.push("notification")
+                evt.triggers.push("notification")
                 break
             // case 'PUSH_TODO_CHANGE':
             // case 'PUSH_LIST_ITEM_CHANGE':
@@ -445,7 +437,6 @@ private commandEvtHandler(msg) {
             // case 'PUSH_MICROPHONE_STATE':
             // case 'PUSH_DELETE_DOPPLER_ACTIVITIES':
             default:
-                logDebug("Command: ${msg?.command} | Payload: ${msg?.payload}")
                 break
         }
     }
