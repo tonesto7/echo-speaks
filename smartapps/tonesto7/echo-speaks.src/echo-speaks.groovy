@@ -663,8 +663,8 @@ void executeZoneUpdate() {
 }
 
 def devicePrefsPage() {
-    Boolean newInstall = !(Boolean)state.isInstalled
-    Boolean resumeConf = (Boolean)state.resumeConfig
+//    Boolean newInstall = !(Boolean)state.isInstalled
+//    Boolean resumeConf = (Boolean)state.resumeConfig
     return dynamicPage(name: "devicePrefsPage", uninstall: false, install: false) {
         deviceDetectOpts()
         section(sTS("Detection Override:")) {
@@ -855,7 +855,7 @@ Map getDeviceList(Boolean isInputEnum=false, List filters=[]) {
 
 Map getAllDevices(Boolean isInputEnum=false) {
     Map<String, Map> devMap = [:]
-    Map<String, Map> availDevs = state.allEchoDevices ?: [:]
+    Map<String, Map> availDevs = (Map<String,Map>)state.allEchoDevices ?: [:]
     availDevs?.each { String key, Map val-> devMap[key] = val }
     return isInputEnum ? (devMap.size() ? devMap?.collectEntries { [(it?.key):it?.value?.name] } : devMap) : devMap
 }
@@ -1847,7 +1847,7 @@ void wakeupServer(Boolean c=false, Boolean g=false, String src) {
 void runCookieRefresh() {
     logTrace("runCookieRefresh")
     settingUpdate("refreshCookie", "false", "bool")
-    if(getLastTsValSecs("lastCookieRrshDt", 500000) < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return; }
+    if(getLastTsValSecs("lastCookieRrshDt", 500000) < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return }
     wakeupServer(true, false, "runCookieRefresh")
 }
 
@@ -1928,8 +1928,8 @@ Boolean apiHealthCheck(Boolean frc=false) {
         }
     } catch(ex) {
         respExceptionHandler(ex, meth)
+        return false
     }
-    return false
 }
 */
 Boolean validateCookie(Boolean frc=false) {
@@ -1986,7 +1986,6 @@ Boolean validateCookie(Boolean frc=false) {
 
 def validateCookieResp(resp, data){
     try {
-        Boolean valid = false
         String meth = 'validCookieResp'
         if(resp?.status != 200) logWarn("${resp?.status} $meth")
         if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
@@ -2001,7 +2000,7 @@ def validateCookieResp(resp, data){
 //            log.debug "aData: $aData"
             if(aData.customerId) { state.deviceOwnerCustomerId = aData.customerId }
             if(aData.customerName) { state.customerName = aData.customerName }
-            valid = (aData?.authenticated != false)
+            Boolean valid = (aData?.authenticated != false)
             authValidationEvent(valid, meth)
             updTsVal("lastCookieChkDt")
             return true
@@ -2045,7 +2044,7 @@ private getCustomerData(Boolean frc=false) {
         updTsVal("lastCustDataUpdDt")
     }
 }
-
+/*
 private userCommIds() {
     if(!isAuthValid("userCommIds")) { return }
     try {
@@ -2069,7 +2068,7 @@ private userCommIds() {
         respExceptionHandler(ex, "userCommIds")
     }
 }
-
+*/
 public void childInitiatedRefresh() {
     Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)?.abs()
     if(!(Boolean)state.deviceRefreshInProgress && lastRfsh > 120) {
@@ -2153,7 +2152,7 @@ void getBluetoothDevices(Boolean frc=false) {
         contentType: "application/json",
         timeout: 20
     ]
-    Map btResp = [:]
+//    Map btResp = [:]
     try {
         logTrace("getBluetoothDevices")
         if(!frc) execAsyncCmd("get", "getBluetoothResp", params, [:])
@@ -2260,7 +2259,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
                         it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
                     }
                     if (lastCommand) {
-                        Map lastDescription = new groovy.json.JsonSlurper().parseText(lastCommand.description)
+                        Map lastDescription = new groovy.json.JsonSlurper().parseText((String)lastCommand.description)
                         def lastDevice = lastCommand.sourceDeviceIds?.get(0)
                         lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
 
@@ -2275,7 +2274,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
             return lastActData
         }
     } catch (ex) {
-        if(!ex?.message == "Bad Request") {
+        if(ex?.message != "Bad Request") {
             respExceptionHandler(ex, "getDeviceActivity")
         }
         // log.error "getDeviceActivity error: ${ex.message}"
@@ -2379,7 +2378,7 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
                     Integer cnt = 1
                     if(rtResp.size()) {
                         rtResp.findAll { it?.status == "ENABLED" }?.each { item->
-                            String myK = item?.automationId.toString()
+                            String myK = item?.automationId?.toString()
                             if(item?.name != null) {
                                 items[myK] = item?.name
                             } else {
@@ -2637,7 +2636,7 @@ private getAlexaSkills() {
 void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean ignNullMsg=false) {
     if(ex instanceof groovyx.net.http.HttpResponseException ) {
         Integer sCode = ex?.getResponse()?.getStatus()
-        def rData = ex?.getResponse()?.getData()
+//        def rData = ex?.getResponse()?.getData()
         def errMsg = ex?.getMessage()
         if(sCode == 401) {
             if(ignOn401) authValidationEvent(false, "${mName}_${sCode}")
@@ -2721,7 +2720,7 @@ Map isFamilyAllowed(String family) {
     if((Boolean)settings.createOtherDevices) {
         return [ok: true, reason: "Other Devices Enabled"]
     } else { return [ok: false, reason: "Other Devices Not Enabled"] }
-    return [ok: false, reason: "Unknown Reason"]
+//    return [ok: false, reason: "Unknown Reason"]
 }
 
 void getEchoDevices1() {
@@ -2837,7 +2836,7 @@ void receiveEventData(Map evtData, String src) {
                 Map<String, Map> skippedDevices = [:]
                 List unknownDevices = []
                 List curDevFamily = []
-                Integer cnt = 0
+//                Integer cnt = 0
                 String devAcctId = (String)null
                 evtData?.echoDevices?.each { String echoKey, echoValue->
                     devAcctId = echoValue?.deviceAccountId
@@ -2905,8 +2904,8 @@ void receiveEventData(Map evtData, String src) {
                     permissions["siriusXm"] = (evtData?.musicProviders?.containsKey("SIRIUSXM"))
                     // permissions["tidal"] = true
                     permissions["spotify"] = true //(echoValue?.capabilities.contains("SPOTIFY")) // Temporarily removed restriction check
-                    permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false;
-                    permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false;
+                    permissions["isMultiroomDevice"] = (echoValue?.clusterMembers && echoValue?.clusterMembers?.size() > 0) ?: false
+                    permissions["isMultiroomMember"] = (echoValue?.parentClusters && echoValue?.parentClusters?.size() > 0) ?: false
                     permissions["alarms"] = (echoValue?.capabilities.contains("TIMERS_AND_ALARMS"))
                     permissions["reminders"] = (echoValue?.capabilities.contains("REMINDERS"))
                     permissions["doNotDisturb"] = (echoValue?.capabilities?.contains("SLEEP"))
@@ -3041,7 +3040,7 @@ List getDevicesFromSerialList(List serialList) {
     //logTrace("getDevicesFromSerialList called with: ${serialList}")
     if (serialList == null) {
        logDebug("SerialNumberList is null")
-       return null;
+       return null
     }
     List devs = []
     serialList.each { String ser ->
@@ -3088,7 +3087,7 @@ void removeDevices(Boolean all=false) {
 }
 
 Map sequenceBuilder(cmd, val) {
-    Map seqJson = null
+    Map seqJson
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
@@ -3099,7 +3098,7 @@ Map sequenceBuilder(cmd, val) {
 Map multiSequenceBuilder(commands, Boolean parallel=false) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
     List nodeList = []
-    commands?.each { cmdItem-> nodeList.push(createSequenceNode(cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial, deviceType:cmdItem?.type])) }
+    commands?.each { cmdItem-> nodeList.push(createSequenceNode((String)cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial, deviceType:cmdItem?.type])) }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     Map seqObj = sequenceBuilder(seqJson, null)
     return seqObj
@@ -3120,7 +3119,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
         switch (command) {
             case "volume":
                 seqNode.type = "Alexa.DeviceControls.Volume"
-                seqNode.operationPayload.value = value;
+                seqNode.operationPayload.value = value
                 break
             case "speak":
                 seqNode.type = "Alexa.Speak"
@@ -3141,7 +3140,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 List announceDevs = []
                 if(settings.test_announceDevices) {
                     Map eDevs = getEchoDeviceMap() //state.echoDeviceMap
-                    settings.test_announceDevices.each { dev->
+                    settings.test_announceDevices.each { String dev->
                         announceDevs.push([deviceTypeId: eDevs[dev]?.type, deviceSerialNumber: dev])
                     }
                 }
@@ -3159,8 +3158,8 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
         return seqNode
     } catch (ex) {
         logError("createSequenceNode Exception: ${ex}")
-        return [:]
     }
+    return [:]
 }
 
 void execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
