@@ -1776,7 +1776,9 @@ void authEvtHandler(Boolean isAuth, String src=sNULL) {
         clearCookieData('authHandler', true, false)
         noAuthReminder()
         if((Boolean)settings.sendCookieInvalidMsg && getLastTsValSecs("lastCookieInvalidMsgDt") > 28800) {
-            sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...")
+            String loc='Local Server'
+            if((Boolean)getServerItem("onHeroku")) loc='Heroku'
+            sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the ${loc} Web Config page...")
             updTsVal("lastCookieInvalidMsgDt")
         }
         runEvery1Hour("noAuthReminder")
@@ -1804,7 +1806,11 @@ Boolean isAuthValid(String methodName) {
     return true
 }
 
-void noAuthReminder() { logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the Heroku Web Config page...") }
+void noAuthReminder() {
+    String loc='Local Server'
+    if((Boolean)getServerItem("onHeroku")) loc='Heroku'
+    logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the ${loc} Web Config page...")
+}
 
 String toQueryString(Map m) {
     return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort().join("&")
@@ -3436,8 +3442,8 @@ public sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pushoverMa
         String newMsg = msgTitle+": "+msg
         String flatMsg = newMsg.replaceAll("\n", " ")
         if(!getOk2Notify()) {
-            logInfo("sendMsg: Message Skipped During Quiet Time ($flatMsg)")
-            if(showEvt) { sendNotificationEvent(newMsg) }
+            logInfo("sendMsg: Message Skipped Notification not configured or During Quiet Time ($flatMsg)")
+//            if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
 /*            if(push || (Boolean)settings.usePush) {
                 sentstr = "Push Message"
