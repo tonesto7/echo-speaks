@@ -1498,7 +1498,7 @@ mappings {
     path("/receiveData")                { action: [POST: "processData"] }
     path("/config")                     { action: [GET: "renderConfig"] }
     path("/textEditor/:cId/:inName")    { action: [GET: "renderTextEditPage", POST: "textEditProcessing"] }
-    path("/cookie")                     { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieData"] }
+    path("/cookie")                     { action: [GET: "getCookieData", POST: "storeCookieData", DELETE: "clearCookieD"] }
     path("/diagData")                   { action: [GET: "getDiagData"] }
     path("/diagCmds/:cmd")              { action: [GET: "execDiagCmds"] }
     path("/diagDataJson")               { action: [GET: "getDiagDataJson"] }
@@ -1645,6 +1645,7 @@ Boolean serverConfigured() {
 }
 
 def getCookieData() {
+    logTrace("getCookieData Request Received...")
     Map resp = state.cookieData ?: [:]
     String aa = getTsVal("lastCookieRrshDt")
     resp["refreshDt"] = aa ?: null
@@ -1714,7 +1715,11 @@ def storeCookieData() {
     render contentType: "application/json", data: json, status: 200
 }
 
-def clearCookieData(String src=sNULL, Boolean callSelf=false, Boolean render=true) {
+def clearCookieD() {
+    clearCookieData('webCall', false, true)
+}
+
+def clearCookieData(String src=sNULL, Boolean callSelf=false, Boolean render=false) {
     logTrace("clearCookieData(${src ?: sBLANK}, $callSelf)")
     settingUpdate("resetCookies", "false", "bool")
     if(!callSelf) authEvtHandler(false, "clearCookieData")
