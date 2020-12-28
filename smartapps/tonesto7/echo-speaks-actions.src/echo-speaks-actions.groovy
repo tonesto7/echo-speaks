@@ -114,7 +114,7 @@ private buildTriggerEnum() {
     List enumOpts = []
     Map buildItems = [:]
     buildItems["Date/Time"] = ["scheduled":"Scheduled Time"]?.sort{ it?.key }
-    buildItems["Location"] = ["mode":"Modes", "routineExecuted":"Routines"]?.sort{ it?.key }
+    buildItems["Location"] = ["mode":"Modes", "routineExecuted":"Routines", "pistonExecuted":"Pistons"]?.sort{ it?.key }
     if(!isStFLD) {
         buildItems.Location.remove("routineExecuted")
         //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
@@ -395,6 +395,17 @@ def triggersPage() {
                         input "trig_routineExecuted_once", "bool", title: inTS("Only alert once a day?\n(per type: routine)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_routineExecuted_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("routineExecuted", false, trigItemCnt++)
+                    }
+                }
+            }
+
+            if(valTrigEvt("pistonExecuted")) {
+                section(sTS("webCoRE Piston Events"), hideable: true) {
+                    input "trig_pistonExecuted", "enum", title: inTS("Pistons", getAppImg("routine", true)), options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
+                    if(settings.trig_pistonExecuted) {
+                        input "trig_pistonExecuted_once", "bool", title: inTS("Only alert once a day?\n(per type: piston)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                        input "trig_pistonExecuted_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                        triggerVariableDesc("pistonExecuted", false, trigItemCnt++)
                     }
                 }
             }
@@ -706,6 +717,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
 Boolean locationTriggers() {
     return (
         (valTrigEvt("mode") && settings?.trig_mode) || (valTrigEvt("alarm") && settings?.trig_alarm) ||
+        (valTrigEvt("pistonExecuted") && settings.trig_pistonExecuted) ||
 //        (valTrigEvt("routineExecuted") && settings.trig_routineExecuted) ||
 //        (valTrigEvt("scene") && settings?.trig_scene) ||
         (valTrigEvt("guard") && settings?.trig_guard)
@@ -1522,7 +1534,7 @@ def actTrigTasksPage(params) {
 
         section(sTS("Control Siren:")) {
             input "${t}sirens", "capability.alarm", title: inTS("Activate these Sirens${dMap?.def}\n(Optional)", getAppImg("siren", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("siren")
-            if(settings?."${t}sirens") {
+            if(settings."${t}sirens") {
                 input "${t}siren_cmd", "enum", title: inTS("Alarm action to take${dMap?.def}\n(Optional)", getAppImg("command", true)), options: ["both": "Siren & Stobe", "strobe":"Strobe Only", "siren":"Siren Only"], multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
                 input "${t}siren_time", "number", title: inTS("Stop after (x) seconds...", getAppImg("delay", true)), required: true, submitOnChange: true, image: getAppImg("delay")
             }
@@ -1534,14 +1546,20 @@ def actTrigTasksPage(params) {
                 input "${t}routine_run", "enum", title: inTS("Execute a routine${dMap?.def}\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
             }
         }
+
         section (sTS("Execute a webCoRE Piston:")) {
             input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
             if(settings.enableWebCoRE) {
                 //if(!atomicState?.webCoRE) { webCoRE_init() }
-                if(!webCoREFLD) { webCoRE_init() }
-                input "${t == "act_" ? sBLANK : t}webCorePistons", "enum", title: inTS("Execute Piston${dMap?.def}", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+                if(!webCoREFLD) {
+                    webCoRE_init()
+                } else {
+                    input "${t}piston_run", "enum", title: inTS("Execute a piston${dMap?.def}\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon : sBLANK)
+                }
+//                input "${t == "act_" ? sBLANK : t}webCorePistons", "enum", title: inTS("Execute a Piston${dMap?.def}", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
             }
         }
+
         if(actTasksConfiguredByType(t)) {
             section("Delay before running Tasks: ") {
                 input "${t}tasks_delay", "number", title: inTS("Delay running ${dMap?.delay} in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
@@ -1553,29 +1571,34 @@ def actTrigTasksPage(params) {
 Boolean actTasksConfiguredByType(String pType) {
     String pt = pType == "act_" ? sBLANK : pType
     return (
-        settings?."${pType}mode_run" || settings?."${pType}routine_run" || settings?."${pType}switches_off" || settings?."${pType}switches_on" || settings?."${pt}webCorePistons" ||
-        settings?."${pType}lights" || settings?."${pType}locks" || settings?."${pType}sirens" || settings?."${pType}doors")
+        settings."${pType}mode_run" || settings."${pType}routine_run" || settings."${pType}switches_off" || settings."${pType}switches_on" || settings."${pType}piston_run" ||
+        settings."${pType}lights" || settings."${pType}locks" || settings."${pType}sirens" || settings."${pType}doors")
 }
 
 private executeTaskCommands(data) {
     String p = data?.type ?: null
-    String pt = p == "act_" ? sBLANK : p
-    if(settings?."${p}switches_off") { settings?."${p}switches_off"?.off() }
-    if(settings?."${p}switches_on") { settings?."${p}switches_on"?.on() }
-    if(settings?."${p}locks_lock") { settings?."${p}locks_lock"?.lock() }
-    if(settings?."${p}locks_unlock") { settings?."${p}locks_unlock"?.unlock() }
-    if(settings?."${p}doors_close") { settings?."${p}doors_close"?.close() }
-    if(settings?."${p}doors_open") { settings?."${p}doors_open"?.open() }
-    if(settings?."${p}sirens" && settings?."${p}sirens_cmd") { settings?."${p}sirens"?."${settings?."${p}sirens_cmd"}"(); if(settings?."${p}sirens_time") { runIn(settings?."${p}sirens_time", postTaskCommands); } }
-    if(settings.enableWebCoRE && settings?."${pt}webCorePistons") { webCoRE_execute(settings?."${pt}webCorePistons") }
-    if(settings?."${p}mode_run") { setLocationMode(settings?."${p}mode_run" as String) }
-    if(isST && settings?."${p}routine_run") { execRoutineById(settings?."${p}routine_run" as String) }
-    if(settings?."${p}lights") {
-        if(settings?."${data?.type}lights_color_delay") { captureLightState(settings?."${p}lights") }
-        settings?."${p}lights"?.on()
-        if(settings?."${p}lights_level") { settings?."${p}lights"?.setLevel(getColorName(settings?."${p}lights_level")) }
-        if(settings?."${p}lights_color") { settings?."${p}lights"?.setColor(getColorName(settings?."${p}lights_color", settings?."${p}lights_level")) }
-        if(settings?."${data?.type}lights_color_delay") { runIn(settings?."${data?.type}lights_color_delay" as Integer, [data:[type: p]]) }
+
+    if(settings."${p}mode_run") { setLocationMode(settings?."${p}mode_run" as String) }
+    if(settings.enableWebCoRE && settings."${p}piston_run") { webCoRE_execute(settings."${p}piston_run") }
+    if(isStFLD && settings?."${p}routine_run") { execRoutineById(settings?."${p}routine_run" as String) }
+
+    if(settings."${p}switches_off") { settings."${p}switches_off"?.off() }
+    if(settings."${p}switches_on") { settings."${p}switches_on"?.on() }
+    if(settings."${p}locks_lock") { settings."${p}locks_lock"?.lock() }
+    if(settings."${p}locks_unlock") { settings."${p}locks_unlock"?.unlock() }
+    if(settings."${p}doors_close") { settings."${p}doors_close"?.close() }
+    if(settings."${p}doors_open") { settings."${p}doors_open"?.open() }
+    if(settings."${p}sirens" && settings."${p}siren_cmd") {
+        String cmd= settings."${p}siren_cmd"
+        settings."${p}sirens"."${cmd}"()
+        if(settings."${p}siren_time") runIn(settings."${p}siren_time", postTaskCommands)
+    }
+    if(settings."${p}lights") {
+        if(settings."${p}lights_color_delay") { captureLightState(settings?."${p}lights") }
+        settings."${p}lights"?.on()
+        if(settings."${p}lights_level") { settings."${p}lights"?.setLevel(getColorName(settings."${p}lights_level")) }
+        if(settings."${p}lights_color") { settings."${p}lights"?.setColor(getColorName(settings."${p}lights_color", settings."${p}lights_level")) }
+        if(settings."${p}lights_color_delay") { runIn(settings."${p}lights_color_delay" as Integer, restoreLights, [data:[type: p]]) }
     }
 }
 
@@ -1608,7 +1631,7 @@ String actTaskDesc(String t, Boolean isInpt=false) {
 
         str += settings?."${t}mode_run" ? "\n \u2022 Set Mode:\n \u2022 ${settings?."${t}mode_run"}" : sBLANK
         str += settings?."${t}routine_run" ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(settings?."${t}routine_run")?.label}" : sBLANK
-        str += (settings.enableWebCoRE && settings.webCorePistons) ? "\n \u2022 webCoRE Piston:\n    - ${settings?."${t == "act_" ? sBLANK : t}webCorePistons"}" : sBLANK
+        str += (settings.enableWebCoRE && settings."${t}piston_run") ? "\n \u2022 Execute webCoRE Piston:\n    - ${getPistonById(settings?."${t}piston_run")}" : sBLANK
     }
     return str != sBLANK ? (isInpt ? "${str}\n\nTap to modify" : "${str}") : (isInpt ? "On trigger control devices, set mode, execute routines or WebCore Pistons\n\nTap to configure" : null)
 }
@@ -1978,7 +2001,7 @@ private actionCleanup() {
     items.each { String si-> if(state?.containsKey(si)) { state.remove(si)} }
     //Cleans up unused action setting items
     List setItems = []
-    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_routine_run", "act_mode_run"]
+    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_routine_run", "act_piston_run", "act_mode_run"]
     if(settings.act_EchoZones) { setIgn.push("act_EchoZones") }
     else if(settings.act_EchoDevices) { setIgn.push("act_EchoDevices") }
 
@@ -2163,6 +2186,8 @@ void subscribeToEvts() {
                     if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
                     subscribe(location, "mode", modeEvtHandler)
                     break
+                case "pistonExecuted":
+                    break
                 case "routineExecuted":
                     // Routine Execution Events
                     if(isStFLD) subscribe(location, "routineExecuted", routineEvtHandler)
@@ -2309,6 +2334,21 @@ def routineEvtHandler(evt) {
         if(getConfStatusItem("tiers")) {
             processTierTrigEvt(evt, true)
         } else { executeAction(evt, false, "routineEvtHandler", false, false) }
+    }
+}
+
+def webcoreEvtHandler(evt) {
+    //logTrace( "${evt?.name?.toUpperCase()} Event | Piston: ${evt?.displayName} | with a delay of ${now() - evt?.date?.getTime()}ms")
+    String disN = evt?.jsonData?.name
+    logTrace( "${evt?.name?.toUpperCase()} Event | Piston: ${disN} | with a delay of ${now() - evt?.date?.getTime()}ms")
+    if(evt?.displayName in settings.trig_pistonExecuted) {
+        Boolean dco = (settings.trig_pistonExecuted_once == true)
+        Integer dcw = settings.trig_pistonExecuted_wait ?: null
+        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "pistonExecuted", value: evt?.displayName, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+        if(!evtWaitOk) { return }
+        if(getConfStatusItem("tiers")) {
+            processTierTrigEvt(evt, true)
+        } else { executeAction(evt, false, "webcoreEvtHandler", false, false) }
     }
 }
 
@@ -3028,7 +3068,8 @@ Map getRandomTrigEvt() {
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
-        routineExecuted: isStFLD ? getRandomItem(getLocationRoutines()) : null
+        routineExecuted: (isStFLD ? getRandomItem(getLocationRoutines()) : null),
+        pistonExecuted: getRandomItem(getLocationPistons())
     ]
     if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
     // log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
@@ -3037,6 +3078,7 @@ Map getRandomTrigEvt() {
 
 static String convEvtType(String type) {
     Map typeConv = [
+        "pistonExecuted": "Piston",
         "routineExecuted": "Routine",
         "alarmSystemStatus": "Alarm system",
         "hsmStatus": "Alarm system"
@@ -3113,6 +3155,8 @@ String getResponseItem(evt, tierMsg=null, Boolean evtAd=false, Boolean isRepeat=
                     return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evt?.name) ? " ${evt?.name}" : sBLANK} ${evt?.name} is ${evt?.value} ${postfix}"
                 case "mode":
                     return  "The location mode is now set to ${evt?.value}"
+                case "pistonExecuted":
+                    return  "The ${evt?.displayName} piston was just executed!."
                 case "routineExecuted":
                     return  "The ${evt?.displayName} routine was just executed!."
                 case "scene":
@@ -3272,11 +3316,11 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
                             //Speak Command Logic
                             if(actDevSiz) {
                                 if(changeVol || restoreVol) {
-                                    if(isST && actDelayMs) {
+                                    if(isStFLD && actDelayMs) {
                                         actDevices.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol, [delay: actDelayMs]) }
                                     } else { actDevices.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) } }
                                 } else {
-                                    if(isST && actDelayMs) {
+                                    if(isStFLD && actDelayMs) {
                                         actDevices.each { dev-> dev?.speak(txt, [delay: actDelayMs]) }
                                     } else { actDevices.each { dev-> dev?.speak(txt) } }
                                 }
@@ -3287,12 +3331,12 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
                             if(actDevSiz > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
                                 //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                                 def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
-                                if(isST && actDelayMs) {
+                                if(isStFLD && actDelayMs) {
                                     actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), actConf[actType]?.deviceObjs, changeVol, restoreVol, [delay: actDelayMs])
                                 } else { actDevices[0]?.sendAnnouncementToDevices(txt, (getActionName() ?: "Echo Speaks Action"), actConf[actType]?.deviceObjs, changeVol, restoreVol) }
                             } else {
                                 actDevices?.each { dev->
-                                    if(isST && actDelayMs) {
+                                    if(isStFLD && actDelayMs) {
                                         dev?.playAnnouncement(txt, (getActionName() ?: "Echo Speaks Action"), changeVol, restoreVol, [delay: actDelayMs])
                                     } else { dev?.playAnnouncement(txt, (getActionName() ?: "Echo Speaks Action"), changeVol, restoreVol) }
                                 }
@@ -3309,7 +3353,7 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
                         logDebug("Sending VoiceCmd Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isST && actDelayMs) {
+                            if(isStFLD && actDelayMs) {
                                 dev?.voiceCmdAsText(actConf[actType]?.text as String, [delay: actDelayMs])
                             } else { dev?.executeSequenceCommand(actConf[actType]?.text as String) }
                         }
@@ -3325,7 +3369,7 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
                         logDebug("Sending Sequence Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isST && actDelayMs) {
+                            if(isStFLD && actDelayMs) {
                                 dev?.executeSequenceCommand(actConf[actType]?.text as String, [delay: actDelayMs])
                             } else { dev?.executeSequenceCommand(actConf[actType]?.text as String) }
                         }
@@ -3342,7 +3386,7 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sbLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isST && actDelayMs) {
+                            if(isStFLD && actDelayMs) {
                                 if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
                                 else if(actConf[actType]?.cmd == "volume") { dev?.setVolume(changeVol, [delay: actDelayMs]) }
                                 if(changeVol) { dev?.volume(changeVol, [delay: actDelayMs]) }
@@ -3366,7 +3410,7 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isST && actDelayMs) {
+                            if(isStFLD && actDelayMs) {
                                 dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol, [delay: actDelayMs])
                             } else { dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol) }
                         }
@@ -3382,7 +3426,7 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isST && actDelayMs) {
+                            if(isStFLD && actDelayMs) {
                                 dev?."${actConf[actType]?.cmd}"(actConf[actType]?.name ,onchangeVol, restoreVol, [delay: actDelayMs])
                             } else { dev?."${actConf[actType]?.cmd}"(actConf[actType]?.name, changeVol, restoreVol) }
                         }
@@ -3395,12 +3439,12 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
             case "reminder":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.label && actConf[actType]?.date && actConf[actType]?.time) {
                     actDevices?.each { dev->
-                        if(isST && actDelayMs) {
+                        if(isStFLD && actDelayMs) {
                             dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, [delay: actDelayMs])
                         } else {
                             dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time)
                         }
-                        // if(isST && actDelayMs) {
+                        // if(isStFLD && actDelayMs) {
                         //     dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt, [delay: actDelayMs])
                         // } else {
                         //     dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt)
@@ -3418,7 +3462,7 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isST && actDelayMs) {
+                            if(isStFLD && actDelayMs) {
                                 dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol, [delay: actDelayMs])
                             } else { dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol) }
                         }
@@ -3439,7 +3483,7 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
                     actConf[actType]?.devices?.each { d->
                         def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
                         if(aDev) {
-                            if(isST && actDelayMs) {
+                            if(isStFLD && actDelayMs) {
                                 aDev?."${d?.cmd}"(d?.wakeword, [delay: actDelayMs])
                             } else { aDev?."${d?.cmd}"(d?.wakeword) }
                             logDebug("Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
@@ -3454,11 +3498,11 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
                         def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
                         if(aDev) {
                             if(d?.cmd == "disconnectBluetooth") {
-                                if(isST && actDelayMs) {
+                                if(isStFLD && actDelayMs) {
                                     aDev?."${d?.cmd}"([delay: actDelayMs])
                                 } else { aDev?."${d?.cmd}"() }
                             } else {
-                                if(isST && actDelayMs) {
+                                if(isStFLD && actDelayMs) {
                                     aDev?."${d?.cmd}"(d?.btDevice, [delay: actDelayMs])
                                 } else { aDev?."${d?.cmd}"(d?.btDevice) }
                             }
@@ -3499,7 +3543,7 @@ private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Bool
 
 
 private postTaskCommands() {
-    if(settings?."${pType}sirens" && settings?."${pType}sirens_cmd") { settings?."${pType}sirens"?.off() }
+    if(settings?."${pType}sirens" && settings?."${pType}siren_cmd") { settings?."${pType}sirens"?.off() }
 }
 
 Map getInputData(String inName) {
@@ -3833,8 +3877,8 @@ private String webCoRE_handle(){return'webCoRE'}
 private webCoRE_init(pistonExecutedCbk){
     //atomicState.webCoRE=(atomicState?.webCoRE instanceof Map?atomicState?.webCoRE:[:])+(pistonExecutedCbk?[cbk:pistonExecutedCbk]:[:]);
     webCoREFLD = [:] + [cbk:pistonExecutedCbk];
-    subscribe(location,"${webCoRE_handle()}.pistonList",webCoRE_handler);
-    if(pistonExecutedCbk)subscribe(location,"${webCoRE_handle()}.pistonExecuted",webCoRE_handler);
+    subscribe(location,webCoRE_handle(),webCoRE_handler);
+//    if(pistonExecutedCbk)subscribe(location,"${webCoRE_handle()}.pistonExecuted",webCoRE_handler);
     webCoRE_poll();
 }
 
@@ -3858,8 +3902,18 @@ public webCoRE_execute(pistonIdOrName,Map data=[:]) {
 
 public webCoRE_list(String mode){
     //def p=atomicState?.webCoRE?.pistons;
-    def p=webCoREFLD?.pistons
-    if(p)p.collect{ mode=='id' ? it.id : (mode=='name' ? it.name: [id:it.id, name:it.aname.replaceAll("<[^>]*>", sBLNK)]) }
+                //def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
+    def pistons = webCoREFLD?.pistons?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
+
+//    def p=webCoREFLD?.pistons
+    //if(p)p.collect{ mode=='id' ? it.id : (mode=='name' ? it.name: [id:it.id, name:it.aname.replaceAll("<[^>]*>", sBLNK)]) }
+//    if(p)p.collectEntries { [ (it.id): it.aname.replaceAll("<[^>]*>", sBLNK)] }.sort { it.value }
+                //def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
+}
+
+String getPistonById(rId) {
+    def a= webCoRE_list('name')
+    return a ? (String)a[rId] : sNULL
 }
 
 public  webCoRE_handler(evt){
@@ -3879,7 +3933,8 @@ public  webCoRE_handler(evt){
       case 'pistonExecuted':
         //def cbk=atomicState?.webCoRE?.cbk;if(cbk&&evt.jsonData)"$cbk"(evt.jsonData);
         def cbk=webCoREFLD?.cbk;
-        if(cbk&&evt.jsonData)"$cbk"(evt.jsonData);
+        //if(cbk&&evt.jsonData)"$cbk"(evt.jsonData);
+        if(cbk&&evt.jsonData) webcoreEvtHandler(evt)
         break;
     }
 }
@@ -4204,6 +4259,7 @@ String getTriggersDesc(Boolean hideDesc=false) {
                         str += " \u2022 ${evt?.capitalize()} (${getAlarmSystemName(true)})${settings?."${sPre}${evt}" ? " (${settings?."${sPre}${evt}"?.size()} Selected)" : ""}\n"
                         str += settings?."${sPre}${evt}_once" ? "    \u25E6 Once a Day: (${settings?."${sPre}${evt}_once"})\n" : sBLANK
                         break
+                    case "pistonExecuted":
                     case "routineExecuted":
                     case "mode":
                     case "scene":
@@ -4351,7 +4407,7 @@ String getActionDesc() {
         // str += settings?.act_switches_off ? "Switches Off: (${settings?.act_switches_off?.size()})\n" : sBLANK
         // str += settings?.act_mode_run ? "Set Mode:\n \u2022 ${settings?.act_mode_run})\n" : sBLANK
         // str += settings?.act_routine_run ? "Execute Routine:\n \u2022 ${settings?.act_routine_run})\n" : sBLANK
-        // str += (settings?.enableWebCoRE && settings?.webCorePistons) ? "webCoRE Piston:\n \u2022 ${settings?.webCorePistons}\n" : sBLANK
+        // str += (settings.enableWebCoRE && settings.act_piston_run) ? "webCoRE Piston:\n \u2022 ${settings.act_piston_run}\n" : sBLANK
         str += "\nTap to modify..."
         return str
     } else {
