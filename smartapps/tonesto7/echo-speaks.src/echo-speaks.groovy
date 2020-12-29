@@ -225,7 +225,7 @@ def authStatusPage() {
                 input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 if(!isStFLD) { paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, "gray") }
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh") }
-                if(settings.resetCookies) { clearCookieData("resetCookieToggle", false, false) }
+                if(settings.resetCookies) { clearCookieData("resetCookieToggle", false) }
                 if((Boolean)settings.refreshDevCookies) { refreshDevCookies() }
             }
         }
@@ -1284,6 +1284,7 @@ def updated() {
     if(!(Boolean)state.isInstalled) { state.isInstalled = true }
     if(!state.installData) { state.installData = [initVer: appVersionFLD, dt: getDtNow(), updatedDt: getDtNow(), shownDonation: false, sentMetrics: false] }
     unsubscribe()
+    state.clearCnt = 0
     state.zoneEvtsActive = false
     unschedule()
     stateMigrationChk()
@@ -1360,7 +1361,7 @@ def uninstalled() {
     unschedule()
     if(!(Boolean)settings.optOutMetrics) { if(removeInstallData()) { state.appGuid = sNULL } }
     clearCloudConfig()
-    clearCookieData("App Uninstalled", false, false)
+    clearCookieData("App Uninstalled", false)
     removeDevices(true)
 }
 
@@ -1514,7 +1515,7 @@ void clearCloudConfig() {
     state.remove("herokuName")
     state.serviceConfigured = false
     state.resumeConfig = true
-    clearCookieData("clearCloudConfig", false, false)
+    clearCookieData("clearCloudConfig", false)
 }
 
 String getEnvParamsStr() {
@@ -1689,6 +1690,7 @@ def storeCookieData() {
         String myId=app.getId()
         cookieDataFLD[myId] = cookieItems
         cookieDataFLD = cookieDataFLD
+        state.clearCnt = 0
     }
 
     if(data) {
@@ -1716,10 +1718,18 @@ def storeCookieData() {
 }
 
 def clearCookieD() {
-    clearCookieData('webCall', false, true)
+// deal with temporary problems
+    Integer a = state.clearCnt
+    a = a!= null ? a : 0
+    a = a+1
+    state.clearCnt = a
+    if(a > 5) clearCookieData('webCall', false)
+    else logTrace("skipping server call to clearCookieData()")
+    String json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersionFLD])
+    render contentType: "application/json", data: json, status: 200
 }
 
-def clearCookieData(String src=sNULL, Boolean callSelf=false, Boolean render=false) {
+def clearCookieData(String src=sNULL, Boolean callSelf=false) {
     logTrace("clearCookieData(${src ?: sBLANK}, $callSelf)")
     settingUpdate("resetCookies", "false", "bool")
     if(!callSelf) authEvtHandler(false, "clearCookieData")
@@ -1728,16 +1738,12 @@ def clearCookieData(String src=sNULL, Boolean callSelf=false, Boolean render=fal
     String myId=app.getId()
     cookieDataFLD[myId] = [:]
     cookieDataFLD = cookieDataFLD
+    state.clearCnt = 0
     remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
     unschedule("getOtherData")
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
     updateChildAuth(false)
-// in some cases should render a response
-    if(render) {
-        String json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersionFLD])
-        render contentType: "application/json", data: json, status: 200
-    } 
 }
 
 Boolean refreshDevCookies() {
@@ -1778,7 +1784,7 @@ void authEvtHandler(Boolean isAuth, String src=sNULL) {
     logDebug "authEvtHandler(${isAuth},$src)"
     state.authValid = isAuth
     if(!isAuth && !(Boolean)state.noAuthActive) {
-        clearCookieData('authHandler', true, false)
+        clearCookieData('authHandler', true)
         noAuthReminder()
         if((Boolean)settings.sendCookieInvalidMsg && getLastTsValSecs("lastCookieInvalidMsgDt") > 28800) {
             String loc='Local Server'
