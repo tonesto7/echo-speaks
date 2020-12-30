@@ -29,6 +29,7 @@ import groovy.transform.Field
 @Field static final String sNULL          = (String)null
 //@Field static final List   lNULL          = (List)null
 @Field static final String sBLANK         = ''
+@Field static final String sAPPJSON       = 'application/json'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 @Field volatile static Map<String,Map> historyMapFLD = [:]
@@ -593,8 +594,8 @@ private getPlaybackState(Boolean isGroupResponse=false) {
         uri: getAmazonUrl(),
         path: "/api/np/player",
         query: [ deviceSerialNumber: (String)state.serialNumber, deviceType: (String)state.deviceType, screenWidth: 2560, _: now() ],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal() ],
-        contentType: "application/json",
+        headers: getCookieMap(),
+        contentType: sAPPJSON,
         timeout: 20
     ]
     Map playerInfo = [:]
@@ -710,9 +711,9 @@ private getAlarmVolume() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/device-notification-state/${(String)state.deviceType}/${device.currentValue("firmwareVer") as String}/${(String)state.serialNumber}",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
+        headers: getCookieMap(true),
         query: [_: new Date().getTime()],
-        contentType: "application/json",
+        contentType: sAPPJSON,
         timeout: 20
     ]
     try {
@@ -736,8 +737,8 @@ private getWakeWord() {
         uri: getAmazonUrl(),
         path: "/api/wake-word",
         query: [cached: true, _: new Date().getTime()],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-        contentType: "application/json",
+        headers: getCookieMap(true),
+        contentType: sAPPJSON,
         timeout: 20
     ]
     try {
@@ -766,8 +767,8 @@ private getDeviceSettings() {
         uri: getAmazonUrl(),
         path: "/api/device-preferences",
         query: [cached: true, _: new Date().getTime()],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-        contentType: "application/json",
+        headers: getCookieMap(true),
+        contentType: sAPPJSON,
         timeout: 20
     ]
     try {
@@ -797,8 +798,8 @@ private getAvailableWakeWords() {
         uri: getAmazonUrl(),
         path: "/api/wake-words-locale",
         query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: (String)state.serialNumber, deviceType: (String)state.deviceType, softwareVersion: device.currentValue('firmwareVer') ],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-        contentType: "application/json",
+        headers: getCookieMap(true),
+        contentType: sAPPJSON,
         timeout: 20
     ]
     try {
@@ -871,8 +872,8 @@ private getPlaylists() {
         uri: getAmazonUrl(),
         path: "/api/cloudplayer/playlists",
         query: [ deviceSerialNumber: (String)state.serialNumber, deviceType: (String)state.deviceType, mediaOwnerCustomerId: (String)state.deviceOwnerCustomerId, screenWidth: 2560 ],
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1"],
-        contentType: "application/json",
+        headers: getCookieMap(true),
+        contentType: sAPPJSON,
         timeout: 20
     ]
     try {
@@ -897,8 +898,8 @@ private getNotifications(type="Reminder", all=false) {
         uri: getAmazonUrl(),
         path: "/api/notifications",
         query: [cached: true],
-        headers: [Cookie: getCookieVal(), csrf: getCsrfVal()],
-        contentType: "application/json",
+        headers: getCookieMap(),
+        contentType: sAPPJSON,
         timeout: 20,
     ]
     try {
@@ -953,15 +954,25 @@ private getDeviceActivity() {
     }
 }
 
+Map getCookieMap(Boolean extra=false) {
+    Map cook = [cookie: getCookieVal(), csrf: getCsrfVal()]
+    if(extra) return cook + [Connection: "keep-alive", DNT: "1"]
+    return cook
+}
+
 String getCookieVal() {
     String myId=parent.getId() //device.getId()
     Map cookieData = cookieDataFLD[myId]
     if(cookieData && cookieData.cookie) { return (String)cookieData.cookie.cookie }
     else { 
-        if (cookieDataFLD[myId] == null) { cookieDataFLD[myId] = [:];  cookieDataFLD = cookieDataFLD }
-        cookieData = state.cookie
-        if (cookieData && cookieData.cookie) { cookieDataFLD[myId].cookie = cookieData;  cookieDataFLD = cookieDataFLD }
-        else return (String)null
+        try {
+            if (cookieDataFLD[myId] == null) { cookieDataFLD[myId] = [:];  cookieDataFLD = cookieDataFLD }
+            cookieData = state.cookie
+            if (cookieData && cookieData.cookie) { cookieDataFLD[myId].cookie = cookieData;  cookieDataFLD = cookieDataFLD }
+            else return (String)null
+        } catch (ex) {
+            cookieData = state.cookie
+        }
         return (String)cookieData.cookie
     }
 }
@@ -971,10 +982,14 @@ String getCsrfVal() {
     Map cookieData = cookieDataFLD[myId]
     if(cookieData && cookieData.cookie) { return (String)cookieData.cookie.csrf }
     else {
-        if (cookieDataFLD[myId] == null) { cookieDataFLD[myId] = [:];  cookieDataFLD = cookieDataFLD }
-        cookieData = state.cookie
-        if (cookieData && cookieData.cookie) { cookieDataFLD[myId].cookie = cookieData;  cookieDataFLD = cookieDataFLD }
-        else return (String)null
+        try {
+            if (cookieDataFLD[myId] == null) { cookieDataFLD[myId] = [:];  cookieDataFLD = cookieDataFLD }
+            cookieData = state.cookie
+            if (cookieData && cookieData.cookie) { cookieDataFLD[myId].cookie = cookieData;  cookieDataFLD = cookieDataFLD }
+            else return (String)null
+        } catch (ex) {
+            cookieData = state.cookie
+        }
         return (String)cookieData.csrf
     }
 }
@@ -987,9 +1002,9 @@ private void sendAmazonBasicCommand(String cmdType) {
     String t0 = sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/np/command",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
+        headers: getCookieMap(),
         query: [ deviceSerialNumber: (String)state.serialNumber, deviceType: (String)state.deviceType ],
-        contentType: "application/json",
+        contentType: sAPPJSON,
         body: [type: cmdType],
         timeout: 20
     ], [cmdDesc: cmdType])
@@ -1053,8 +1068,8 @@ private void sendSequenceCommand(type, command, value) {
     String t0 = sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-        contentType: "application/json",
+        headers: getCookieMap(true),
+        contentType: sAPPJSON,
         body: new groovy.json.JsonOutput().toJson(seqObj),
         timeout: 20
     ], [cmdDesc: "SequenceCommand (${type})"])
@@ -1273,8 +1288,8 @@ def setAlarmVolume(vol) {
         String t0 = sendAmazonCommand("PUT", [
             uri: getAmazonUrl(),
             path: "/api/device-notification-state/${(String)state.deviceType}/${state?.softwareVersion}/${(String)state.serialNumber}",
-            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-            contentType: "application/json",
+            headers: getCookieMap(true),
+            contentType: sAPPJSON,
             body: [
                 deviceSerialNumber: (String)state.serialNumber,
                 deviceType: (String)state.deviceType,
@@ -1336,8 +1351,8 @@ def setDoNotDisturb(Boolean val) {
         String t0 = sendAmazonCommand("PUT", [
             uri: getAmazonUrl(),
             path: "/api/dnd/status",
-            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-            contentType: "application/json",
+            headers: getCookieMap(true),
+            contentType: sAPPJSON,
             body: [
                 deviceSerialNumber: (String)state.serialNumber,
                 deviceType: (String)state.deviceType,
@@ -1357,8 +1372,8 @@ def setFollowUpMode(Boolean val) {
         String t0 = sendAmazonCommand("PUT", [
             uri: getAmazonUrl(),
             path: "/api/device-preferences/${(String)state.serialNumber}",
-            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal()],
-            contentType: "application/json",
+            headers: getCookieMap(),
+            contentType: sAPPJSON,
             body: [
                 deviceSerialNumber: (String)state.serialNumber,
                 deviceType: (String)state.deviceType,
@@ -1753,8 +1768,8 @@ private Map validateMusicSearch(String searchPhrase, String providerId, sleepSec
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/operation/validate",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-        contentType: "application/json",
+        headers: getCookieMap(true),
+        contentType: sAPPJSON,
         timeout: 20,
         body: new groovy.json.JsonOutput().toJson(validObj)
     ]
@@ -1809,8 +1824,8 @@ def setWakeWord(String newWord) {
         String t1 = sendAmazonCommand("PUT", [
             uri: getAmazonUrl(),
             path: "/api/wake-word/${(String)state.serialNumber}",
-            headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-            contentType: "application/json",
+            headers: getCookieMap(true),
+            contentType: sAPPJSON,
             timeout: 20,
             body: [
                 active: true,
@@ -1881,8 +1896,8 @@ def removeNotification(String id) {
                 String t0 = sendAmazonCommand("DELETE", [
                     uri: getAmazonUrl(),
                     path: "/api/notifications/${translatedID}",
-                    headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-                    contentType: "application/json",
+                    headers: getCookieMap(true),
+                    contentType: sAPPJSON,
                     timeout: 20,
                     body: []
                 ], [cmdDesc: "RemoveNotification"])
@@ -1903,8 +1918,8 @@ def removeAllNotificationsByType(String type) {
                     String t0 = sendAmazonCommand("DELETE", [
                         uri: getAmazonUrl(),
                         path: "/api/notifications/${item?.id}",
-                        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-                        contentType: "application/json",
+                        headers: getCookieMap(true),
+                        contentType: sAPPJSON,
                         timeout: 20,
                         body: []
                     ], [cmdDesc: "RemoveNotification"])
@@ -1944,8 +1959,8 @@ private createNotification(type, opts) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications/create${type}",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-        contentType: "application/json",
+        headers: getCookieMap(true),
+        contentType: sAPPJSON,
         timeout: 20,
         body: [
             type: type,
@@ -2263,8 +2278,8 @@ def renameDevice(newName) {
     String t0 = sendAmazonCommand("PUT", [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device/${(String)state.serialNumber}",
-        headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-        contentType: "application/json",
+        headers: getCookieMap(true),
+        contentType: sAPPJSON,
         timeout: 20,
         body: [
             serialNumber: (String)state.serialNumber,
@@ -2283,8 +2298,8 @@ def connectBluetooth(String btNameOrAddr) {
             String t0 = sendAmazonCommand("POST", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/pair-sink/${(String)state.deviceType}/${(String)state.serialNumber}",
-                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-                contentType: "application/json",
+                headers: getCookieMap(true),
+                contentType: sAPPJSON,
                 timeout: 20,
                 body: [ bluetoothDeviceAddress: curBtAddr ]
             ], [cmdDesc: "connectBluetooth($btNameOrAddr)"])
@@ -2301,8 +2316,8 @@ def disconnectBluetooth() {
             String t0 = sendAmazonCommand("POST", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/disconnect-sink/${(String)state.deviceType}/${(String)state.serialNumber}",
-                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-                contentType: "application/json",
+                headers: getCookieMap(true),
+                contentType: sAPPJSON,
                 timeout: 20,
                 body: [ bluetoothDeviceAddress: curBtAddr ]
             ], [cmdDesc: "disconnectBluetooth"])
@@ -2318,8 +2333,8 @@ def removeBluetooth(String btNameOrAddr) {
             String t0 = sendAmazonCommand("POST", [
                 uri: getAmazonUrl(),
                 path: "/api/bluetooth/unpair-sink/${(String)state.deviceType}/${(String)state.serialNumber}",
-                headers: [ Cookie: getCookieVal(), csrf: getCsrfVal(), Connection: "keep-alive", DNT: "1" ],
-                contentType: "application/json",
+                headers: getCookieMap(true),
+                contentType: sAPPJSON,
                 timeout: 20,
                 body: [ bluetoothDeviceAddress: curBtAddr, bluetoothDeviceClass: "OTHER" ]
             ], [cmdDesc: "removeBluetooth(${btNameOrAddr})"])
@@ -2824,7 +2839,7 @@ private speechCmd(headers=[:], Boolean isQueueCmd=false) {
         }
     }
     try {
-        Map headerMap = [cookie: getCookieVal(), csrf: getCsrfVal()]
+        Map headerMap = getCookieMap()
         headers?.each { k,v-> headerMap[k] = v }
         Integer qSize = getQueueSize()
         logItems?.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${state?.q_cmdWorking})")
@@ -2855,7 +2870,7 @@ private speechCmd(headers=[:], Boolean isQueueCmd=false) {
                 uri: getAmazonUrl(),
                 path: "/api/behaviors/preview",
                 headers: headerMap,
-                contentType: "application/json",
+                contentType: sAPPJSON,
                 timeout: 20,
                 body: bodyObj
             ]
