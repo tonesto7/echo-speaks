@@ -67,7 +67,7 @@ def startPage() {
 
 def appInfoSect(sect=true)	{
     def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@'h:mm a", true) : null
-    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : ""}Version: ${appVersionFLD}", image: getAppImg("es_groups") }
+    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : sBLANK}Version: ${appVersionFLD}", image: getAppImg("es_groups") }
 }
 
 def codeUpdatePage () {
@@ -154,7 +154,7 @@ private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
     if(echoDevs?.size()) {
         def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == "true")]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-        input "zone_EchoDevices", "enum", title: inTS("Echo Devices in Zone", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : ""}"] }, multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
+        input "zone_EchoDevices", "enum", title: inTS("Echo Devices in Zone", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
     } else { paragraph "No devices were found with support for ($type)"}
 }
 
@@ -291,7 +291,7 @@ def condNumValSect(String inType, String capType, String sectStr, String devTitl
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
             if (settings."cond_${inType}_cmd") {
                 if (settings."cond_${inType}_cmd" in ["between", "below"]) {
-                    input "cond_${inType}_low", "number", title: inTS("a ${settings."cond_${inType}_cmd" == "between" ? "Low " : ""}${cmdTitle} of...", getAppImg("low", true)), required: true, submitOnChange: true, image: getAppImg("low")
+                    input "cond_${inType}_low", "number", title: inTS("a ${settings."cond_${inType}_cmd" == "between" ? "Low " : sBLANK}${cmdTitle} of...", getAppImg("low", true)), required: true, submitOnChange: true, image: getAppImg("low")
                 }
                 if (settings."cond_${inType}_cmd" in ["between", "above"]) {
                     input "cond_${inType}_high", "number", title: inTS("${settings."cond_${inType}_cmd" == "between" ? "and a high " : "a "}${cmdTitle} of...", getAppImg("high", true)), required: true, submitOnChange: true, image: getAppImg("high")
@@ -474,7 +474,7 @@ def uninstalled() {
 String getZoneName() { return settings.appLbl as String }
 
 private updAppLabel() {
-    String newLbl = "${settings.appLbl} (Z${isPaused() ? " \u275A\u275A" : ""})"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings.appLbl} (Z${isPaused() ? " \u275A\u275A" : sBLANK})"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
     if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -490,7 +490,8 @@ public guardEventHandler(guardState) {
 }
 
 private updConfigStatusMap() {
-    Map sMap = atomicState?.configStatusMap ?: [:]
+    Map sMap = atomicState?.configStatusMap
+    sMap = sMap ?: [:]
     sMap?.conditions = conditionsConfigured()
     sMap?.devices = devicesConfigured()
     atomicState?.configStatusMap = sMap
@@ -863,7 +864,7 @@ public getZoneHistory(asObj=false) {
     List output = []
     if(zHist?.size()) {
         zHist?.each { h->
-            String str = ""
+            String str = sBLANK
             str += "Trigger: [${h?.evtName}]"
             str += "\nDevice: [${h?.evtDevice}]"
             str += "\nZone Status: ${h?.active ? "Activate" : "Deactivate"}"
@@ -910,7 +911,7 @@ public zoneCmdHandler(evt) {
         switch(cmd) {
             case "speak":
                 if(!data?.message) { logWarning("Zone Command Message is missing", true); return; }
-                logDebug("Sending Speak Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                logDebug("Sending Speak Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 if(data?.changeVol || data?.restoreVol) {
                     zoneDevs?.devices?.each { dev->
                         if(isStFLD && delay) {
@@ -927,7 +928,7 @@ public zoneCmdHandler(evt) {
                 break
             case "announcement":
                 if(zoneDevs?.devices?.size() > 0 && zoneDevs?.devObj) {
-                    logDebug("Sending Announcement Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                    logDebug("Sending Announcement Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                     if(isStFLD && delay) {
                         zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol, [delay: delay])
@@ -936,7 +937,7 @@ public zoneCmdHandler(evt) {
                 break
 
             case "voicecmd":
-                logDebug("Sending VoiceCmd Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : ""}")
+                logDebug("Sending VoiceCmd Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.devices?.each { dev->
                     if(isStFLD && delay) {
                         dev?.voiceCmdAsText(data?.message, [delay: delay])
@@ -944,7 +945,7 @@ public zoneCmdHandler(evt) {
                 }
                 break
             case "sequence":
-                logDebug("Sending Sequence Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : ""}")
+                logDebug("Sending Sequence Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.devices?.each { dev->
                     if(isStFLD && delay) {
                         dev?.executeSequenceCommand(data?.message, [delay: delay])
@@ -955,7 +956,7 @@ public zoneCmdHandler(evt) {
             case "calendar":
             case "weather":
             case "playback":
-                log.debug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                log.debug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.devices?.each { dev->
                     if(isStFLD && delay) {
                         if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay]) }
@@ -967,7 +968,7 @@ public zoneCmdHandler(evt) {
                 }
                 break
             case "sounds":
-                log.debug("Sending ${data?.cmd?.toString()?.capitalize()} | Name: ${data?.message} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}${delay ? " | Delay: (${delay})" : ""}")
+                log.debug("Sending ${data?.cmd?.toString()?.capitalize()} | Name: ${data?.message} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.devices?.each { dev->
                     if(isStFLD && delay) {
                         dev?."${data?.cmd}"(data?.message, data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay])
@@ -977,7 +978,7 @@ public zoneCmdHandler(evt) {
                 }
                 break
             case "music":
-                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data?.provider} | Search: ${data?.search}${delay ? " | Delay: (${delay})" : ""}${data?.changeVol ? " | Volume: ${data?.changeVol}" : ""}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : ""}")
+                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data?.provider} | Search: ${data?.search}${delay ? " | Delay: (${delay})" : sBLANK}${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}")
                 if(isStFLD && delay) {
                     dev?."${data?.cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol, [delay: delay])
                 } else {
@@ -1004,7 +1005,7 @@ String attUnit(attr) {
         case "power":
             return " watts"
         default:
-            return ""
+            return sBLANK
     }
 }
 
@@ -1178,7 +1179,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=null) {
         return diff.abs()
     }
     catch (ex) {
-        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex?.message}")
+        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex?.message}")
         return 10000L
     }
 }
@@ -1317,7 +1318,7 @@ String unitStr(String type) {
 }
 
 String getAppNotifDesc(Boolean hide=false) {
-    String str = ""
+    String str = sBLANK
     if(isZoneNotifConfigured()) {
         str += hide ? sBLANK : "Send To:\n"
         if(isStFLD) {
@@ -1327,7 +1328,7 @@ String getAppNotifDesc(Boolean hide=false) {
         }
         str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
         str += settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
-        str += getNotifSchedDesc(true) ? " \u2022 Restrictions: (${getOk2Notify() ? "${okSym()}" : "${notOkSym()}"})\n" : sBLANK
+        str += getNotifSchedDesc(true) ? " \u2022 Restrictions: (${getOk2Notify() ? okSym() : notOkSym()})\n" : sBLANK
     }
     return str != sBLANK ? str : sNULL
 }
@@ -1351,8 +1352,8 @@ String getNotifSchedDesc(min=false) {
     String stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
     str += (startLbl && stopLbl) ? " \u2022 Time: ${startLbl} - ${stopLbl}" : sBLANK
     List qDays = getQuietDays()
-    str += dayInput ? "${(startLbl || stopLbl) ? "\n" : ""} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
-    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : ""
+    str += dayInput ? "${(startLbl || stopLbl) ? "\n" : sBLANK} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : sBLANK
+    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : sBLANK
     return (str != "") ? "${str}" : null
 }
 
@@ -1364,18 +1365,18 @@ String getConditionsDesc() {
         String str = "Conditions: (${(conditionStatus()?.ok == true) ? okSym() : notOkSym()})\n"
         str += (settings.cond_require_all != true) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
         if(timeCondConfigured()) {
-            str += " \u2022 Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
+            str += " \u2022 Time Between: (${timeCondOk() ? okSym() : notOkSym()})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
             str += " \u2022 Date:\n"
-            str += settings.cond_days      ? "    - Days: (${(isDayOfWeek(settings.cond_days)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-            str += settings.cond_months    ? "    - Months: (${(isMonthOfYear(settings.cond_months)) ? "${okSym()}" : "${notOkSym()}"})\n"  : ""
+            str += settings.cond_days      ? "    - Days: (${(isDayOfWeek(settings.cond_days)) ? okSym() : notOkSym()})\n" : sBLANK
+            str += settings.cond_months    ? "    - Months: (${(isMonthOfYear(settings.cond_months)) ? okSym() : notOkSym()})\n"  : sBLANK
         }
         if(settings.cond_alarm || settings.cond_mode) {
-            str += " \u2022 Location: (${locationCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
-            str += settings.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings.cond_alarm)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-            str += settings.cond_mode ? "    - Location Modes: (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+            str += " \u2022 Location: (${locationCondOk() ? okSym() : notOkSym()})\n"
+            str += settings.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings.cond_alarm)) ? okSym() : notOkSym()})\n" : sBLANK
+            str += settings.cond_mode ? "    - Location Modes: (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSym() : notOkSym()})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
             ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
@@ -1384,20 +1385,20 @@ String getConditionsDesc() {
                     if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
                     // str += settings."${}"
-                    str += settings."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+                    str += settings."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSym() : notOkSym()})\n" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in ["between", "below", "above", "equals"]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
-                        str += (cmd == "equals" && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
-                        str += (cmd == "between" && cmdLow && cmdHigh) ? "    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
-                        str += (cmd == "above" && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
-                        str += (cmd == "below" && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += (cmd == "equals" && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : sBLANK}\n" : sBLANK
+                        str += (cmd == "between" && cmdLow && cmdHigh) ? "    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : sBLANK}\n" : sBLANK
+                        str += (cmd == "above" && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : sBLANK}\n" : sBLANK
+                        str += (cmd == "below" && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : sBLANK}\n" : sBLANK
                     } else {
-                        str += cmd ? "    - Value: (${cmd})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += cmd ? "    - Value: (${cmd})${settings."cond_${inType}_avg" ? "(Avg)" : sBLANK}\n" : sBLANK
                     }
-                    str += (settings."${sPre}${evt}_all" == true) ? "    - Require All: (${settings."${sPre}${evt}_all"})\n" : ""
+                    str += (settings."${sPre}${evt}_all" == true) ? "    - Require All: (${settings."${sPre}${evt}_all"})\n" : sBLANK
                 }
             }
         }
@@ -1431,16 +1432,16 @@ String getTimeCondDesc(String addPre=true) {
     String stopTime = settings.cond_time_stop ? fmtTime(settings.cond_time_stop) : sNULL
     String startLbl = startType in ["Sunset", "Sunrise"] ?  (startType == "Sunset" ? sunsetTime : sunriseTime) : startTime
     String stopLbl = (stopType in ["Sunrise", "Sunset"]) ?  ((stopType == "Sunset") ? sunsetTime : sunriseTime) : stopTime
-    return ((startLbl && startLbl != "") && (stopLbl && stopLbl != "")) ? "${addPre ? "Time Condition:\n" : ""}(${startLbl} - ${stopLbl})" : "tap to configure..."
+    return ((startLbl && startLbl != "") && (stopLbl && stopLbl != "")) ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl} - ${stopLbl})" : "tap to configure..."
 }
 
 String getInputToStringDesc(inpt, addSpace = null) {
     Integer cnt = 0
-    String str = ""
+    String str = sBLANK
     if(inpt) {
         inpt.sort().each { item ->
             cnt = cnt+1
-            str += item ? (((cnt < 1) || (inpt.size() > 1)) ? "\n      ${item}" : "${addSpace ? "      " : ""}${item}") : ""
+            str += item ? (((cnt < 1) || (inpt.size() > 1)) ? "\n      ${item}" : "${addSpace ? "      " : sBLANK}${item}") : sBLANK
         }
     }
     //log.debug "str: $str"
@@ -1456,9 +1457,9 @@ String randomString(Integer len) {
 }
 
 def getRandomItem(items) {
-    def list = new ArrayList<String>();
+    def list = new ArrayList<String>()
     items?.each { list?.add(it) }
-    return list?.get(new Random().nextInt(list?.size()));
+    return list?.get(new Random().nextInt(list?.size()))
 }
 
 /***********************************************************************************************************
@@ -1622,30 +1623,34 @@ public pushover_msg(List devs,Map data){if(devs&&data){sendLocationEvent(name:"p
 public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.value){case"refresh":def ed = evt?.jsonData;String id = ed?.appId;Map pA = pmd?.apps?.size() ? pmd?.apps : [:];if(id){pA[id]=pA?."${id}"instanceof Map?pA[id]:[:];pA[id]?.devices=ed?.devices?:[];pA[id]?.appName=ed?.appName;pA[id]?.appId=id;pmd?.apps = pA;};pmd?.sounds=ed?.sounds;break;case "reset":pmd=[:];break;};state?.pushoverManager=pmd;}
 //Builds Map Message object to send to Pushover Manager
 private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
-Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
+
+
+Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
+
 Boolean minVersionFailed() {
     try {
-        Integer minDevVer = parent?.minVersions()["zoneApp"] ?: null
+        Integer minDevVer = parent?.minVersions()["zoneApp"]
         if(minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer) { return true }
         else { return false }
     } catch (e) { 
         return false
     }
 }
+
 Boolean isPaused() { return (settings.zonePause == true) }
 
 String okSym() { return "\u2713" }
 String notOkSym() { return "\u2715" }
-String getAppImg(String imgName, frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
 String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
-String sTS(String t, String i = null) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
-String pTS(String t, String i = null, bold=true, color=null) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
-String inTS(String t, String i = null, color=null) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : ""}""" }
+String sTS(String t, String i = sNULL) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
+String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
+String inTS(String t, String i = sNULL, String color=sNULL) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : sBLANK}""" }
 
 /* """ */ 
 
-String bulletItem(String inStr, String strVal) { return "${inStr == "" ? "" : "\n"} \u2022 ${strVal}" }
-String dashItem(String inStr, String strVal, newLine=false) { return "${(inStr == "" && !newLine) ? "" : "\n"} - ${strVal}" }
+String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"} \u2022 ${strVal}" }
+String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - ${strVal}" }
 
 Integer stateSize() {
     def j = new groovy.json.JsonOutput().toJson(state)
@@ -1653,23 +1658,32 @@ Integer stateSize() {
 }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 
-private addToLogHistory(String logKey, data, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() > 70)
-    List eData = getMemStoreItem(logKey) ?: []
-    if(eData?.find { it?.data == data }) { return; }
-    eData?.push([dt: getDtNow(), data: data])
-    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
+private addToLogHistory(String logKey, String data, Integer max=10) {
+    Boolean ssOk = true //(stateSizePerc() > 70)
+    List eData = getMemStoreItem(logKey)
+    if(eData.find { it?.data == data }) { return }
+    eData.push([dt: getDtNow(), data: data])
+    Integer lsiz = eData.size()
+    if(!ssOk || lsiz > max) { eData = eData?.drop( (lsiz-max) ) }
     updMemStoreItem(logKey, eData)
 }
-private void logDebug(String msg) { if(settings.logDebug == true) { log.debug "Zone (v${appVersionFLD}) | ${msg}" } }
-private void logInfo(String msg) { if(settings.logInfo != false) { log.info " Zone (v${appVersionFLD}) | ${msg}" } }
-private void logTrace(String msg) { if(settings.logTrace == true) { log.trace "Zone (v${appVersionFLD}) | ${msg}" } }
-private void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) { log.warn " Zone (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error " Zone (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+
+private void logDebug(String msg) { if(settings.logDebug == true) { log.debug addHead(msg) } }
+private void logInfo(String msg) { if(settings.logInfo != false) { log.info " "+addHead(msg) } }
+private void logTrace(String msg) { if(settings.logTrace == true) { log.trace addHead(msg) } }
+private void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error " "+addHead(msg) }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+
+String addHead(String msg) {
+    return "Zone (v"+appVersionFLD+") | "+msg
+}
 
 private Map getLogHistory() {
-    return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [] ]
+    List warn = getMemStoreItem("warnHistory")
+    List errs = getMemStoreItem("errorHistory")
+    return [ warnings: []+warn, errors: []+errs ]
 }
+
 private void clearHistory()  { historyMapFLD = [:]; mb(); }
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATE)
@@ -1677,7 +1691,7 @@ private void clearHistory()  { historyMapFLD = [:]; mb(); }
 @Field volatile static Map<String,Map> historyMapFLD = [:]
 
 // FIELD VARIABLE FUNCTIONS
-private void updMemStoreItem(String key, val) {
+private void updMemStoreItem(String key, List val) {
     String appId = app.getId()
     Map memStore = historyMapFLD[appId] ?: [:]
     memStore[key] = val
@@ -1689,9 +1703,8 @@ private void updMemStoreItem(String key, val) {
 private List getMemStoreItem(String key){
     String appId = app.getId()
     Map memStore = historyMapFLD[appId] ?: [:]
-    return memStore[key] ?: null
+    return (List)memStore[key] ?: []
 }
-/*
 // Memory Barrier
 @Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
 
@@ -1700,6 +1713,7 @@ static void mb(String meth=sNULL){
         theMBLockFLD.release()
     }
 }
+/*
 
 @Field static final String sHMLF = 'theHistMapLockFLD'
 @Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
@@ -1769,7 +1783,7 @@ void releaseTheLock(String qname){
 //*******************************************************************
 //    CLONE CHILD LOGIC
 //*******************************************************************
-public getDuplSettingData() {
+public Map getDuplSettingData() {
     Map typeObj = parent?.getAppDuplTypes()
     Map setObjs = [:]
     typeObj?.stat?.each { sk,sv->
@@ -1785,12 +1799,12 @@ public getDuplSettingData() {
         settings.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
     }
     Map data = [:]
-    data?.label = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", "")
-    data?.settings = setObjs
+    data.label = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", "")
+    data.settings = setObjs
     return data
 }
 
-public getDuplStateData() {
+public Map getDuplStateData() {
     List stskip = ["isInstalled", "isParent", "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory"]
     return state?.findAll { !(it?.key in stskip) }
 }
