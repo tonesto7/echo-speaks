@@ -1036,7 +1036,7 @@ void tierItemCleanup() {
         List id = k?.tokenize("_") ?: []
         if(!isTierAct || (id?.size() && id?.size() < 4) || !id[3]?.toString()?.isNumber() || !(id[3]?.toInteger() in tierIds)) { rem?.push(k as String) }
     }
-    if(rem?.size()) { log.debug "tierItemCleanup | Removing: ${rem}"; rem?.each { settingRemove(it as String) } }
+    if(rem?.size()) { logDebug("tierItemCleanup | Removing: ${rem}"); rem?.each { settingRemove(it as String) } }
 }
 
 def actTextOrTiersInput(type) {
@@ -2134,10 +2134,10 @@ String cronBuilder() {
         String hour = fmtTime(time, "HH") ?: "0"
         String minute = fmtTime(time, "mm") ?: "0"
         String second = "0" //fmtTime(time, "mm") ?: "0"
-        def daysOfWeek = settings.trig_scheduled_weekdays ? settings.trig_scheduled_weekdays?.join(",") : null
-        def daysOfMonth = dayNums?.size() ? (dayNums?.size() > 1 ? "${dayNums?.first()}-${dayNums?.last()}" : dayNums[0]) : null
-        def weeks = (weekNums && !dayNums) ? weekNums?.join(",") : null
-        def months = monthNums ? monthNums?.sort()?.join(",") : null
+        String daysOfWeek = settings.trig_scheduled_weekdays ? settings.trig_scheduled_weekdays?.join(",") : sNULL
+        String daysOfMonth = dayNums?.size() ? (dayNums?.size() > 1 ? "${dayNums?.first()}-${dayNums?.last()}" : dayNums[0]) : sNULL
+        String weeks = (weekNums && !dayNums) ? weekNums?.join(",") : sNULL
+        String months = monthNums ? monthNums?.sort()?.join(",") : sNULL
         // log.debug "hour: ${hour} | m: ${minute} | s: ${second} | daysOfWeek: ${daysOfWeek} | daysOfMonth: ${daysOfMonth} | weeks: ${weeks} | months: ${months}"
         if(hour || minute || second) {
             List cItems = []
@@ -2277,11 +2277,11 @@ def scheduleTrigEvt(evt=null) {
     // log.debug "dateMap: $dateMap"
     Map t0 = atomicState.schedTrigMap
     Map sTrigMap = t0 ?: [:]
-    String recur = settings.trig_scheduled_recurrence ?: null
-    def days = settings.trig_scheduled_weekdays ?: null
-    def daynums = settings.trig_scheduled_daynums ?: null
-    def weeks = settings.trig_scheduled_weeks ?: null
-    def months = settings.trig_scheduled_months ?: null
+    String recur = settings.trig_scheduled_recurrence ?: sNULL
+    List days = settings.trig_scheduled_weekdays ?: null
+    List daynums = settings.trig_scheduled_daynums ?: null
+    List weeks = settings.trig_scheduled_weeks ?: null
+    List months = settings.trig_scheduled_months ?: null
     Boolean wdOk = (days && recur in ["Daily", "Weekly"]) ? (dateMap.dayNameShort in days && sTrigMap?.lastRun?.dayName != dateMap.dayNameShort) : true
     Boolean mdOk = (recur && daynums) ? (dateMap.day in daynums && sTrigMap?.lastRun?.day != dateMap.day) : true
     Boolean wOk = (recur && weeks && recur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
@@ -2297,7 +2297,7 @@ def scheduleTrigEvt(evt=null) {
             executeAction([name: "Schedule", displayName: "Scheduled Trigger", value: time2Str(dt?.toString()), date: dt, deviceId: null], false, "scheduleTrigEvt", false, false)
         }
     } else {
-        log.debug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
+        logDebug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
     }
 }
 
@@ -2568,7 +2568,7 @@ private processTierTrigEvt(evt, Boolean evtOk) {
     } else if(!evtOk && settings.act_tier_stop_on_clear == true) {
         def tierConf = atomicState.actTierState?.evt
         if(tierConf?.size() && tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
-            log.debug("Tier Trigger no longer valid... Clearing TierState and Schedule...")
+            logDebug("Tier Trigger no longer valid... Clearing TierState and Schedule...")
             unschedule("tierEvtHandler")
             atomicState.actTierState = [:]
             atomicState.tierSchedActive = false
@@ -2848,16 +2848,25 @@ Boolean timeCondOk() {
     Date startTime = null
     Date stopTime = null
     Date now = new Date()
-    def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
-    if(settings.cond_time_start_type && settings.cond_time_stop_type) {
-        if(settings.cond_time_start_type == "sunset") { startTime = sun?.sunset }
-        else if(settings.cond_time_start_type == "sunrise") { startTime = sun?.sunrise }
-        else if(settings.cond_time_start_type == "time" && settings.cond_time_start) { startTime = settings.cond_time_start }
-
-        if(settings.cond_time_stop_type == "sunset") { stopTime = sun?.sunset }
-        else if(settings.cond_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
-        else if(settings.cond_time_stop_type == "time" && settings.cond_time_stop) { stopTime = settings.cond_time_stop }
+    String startType = settings.cond_time_start_type
+    String stopType = settings.cond_time_stop_type
+    if(startType && stopType) {
+        startTime = startType == 'time' ? settings.cond_time_start : null
+        stopTime = stopType == 'time' ? settings.cond_time_stop : null
     } else { return true }
+
+    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+        def sun = getSunriseAndSunset()
+        Long lsunset = sun.sunset.time
+        Long lsunrise = sun.sunrise.time
+        Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
+        Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
+        Long startl = lsunrise + startoffset
+        Long stopl = lsunset + stopoffset
+        startTime = startType in ["sunrise", "sunset"] ?  new Date(startl) : startTime 
+        stopTime = stopType in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime 
+    }
+
     if(startTime && stopTime) {
        /* Date st
         Date et
@@ -2866,13 +2875,13 @@ Boolean timeCondOk() {
             et = toDateTime(stopTime)
          }*/
         Boolean isBtwn = timeOfDayIsBetween(startTime, stopTime, now, location?.timeZone)
-        log.debug "TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}"
+        logDebug("TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
         return isBtwn
     } else { return true }
 }
 
 Boolean dateCondOk() {
-    if(settings.cond_days == null && settings.cond_months == null) return null
+    if(settings.cond_days == null && settings.cond_months == null) return true
     Boolean dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : true
     Boolean mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : true
     logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
@@ -2880,7 +2889,7 @@ Boolean dateCondOk() {
 }
 
 Boolean locationCondOk() {
-    if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return null
+    if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return true
     Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
     Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
     logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
@@ -3050,7 +3059,7 @@ Map getRandomTrigEvt() {
     List trigItems = settings."trig_${trig}" ?: null
     def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] : (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
-    // logDebug "trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}"
+    // logDebug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
     Map attVal = [
         "switch": getRandomItem(["on", "off"]),
         door: getRandomItem(["open", "closed", "opening", "closing"]),
@@ -3750,7 +3759,7 @@ Boolean getOk2Notify() {
     Boolean notifDevsOk = (settings.notif_devs?.size())
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
-    Boolean modesOk = settings.notif_mode ? (isInMode(settings.notif_mode)) : true
+    Boolean modesOk = settings.notif_modes ? (isInMode(settings.notif_modes)) : true
     logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || notifyDevs: $notifDevsOk || alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
@@ -3760,17 +3769,26 @@ Boolean getOk2Notify() {
 Boolean notifTimeOk() {
     Date startTime
     Date stopTime
-//    def now = new Date()
-    def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
-    if(settings.notif_time_start_type && settings.notif_time_stop_type) {
-        if(settings.notif_time_start_type == "sunset") { startTime = sun?.sunset }
-        else if(settings.notif_time_start_type == "sunrise") { startTime = sun?.sunrise }
-        else if(settings.notif_time_start_type == "time" && settings.notif_time_start) { startTime = settings.notif_time_start }
-
-        if(settings.notif_time_stop_type == "sunset") { stopTime = sun?.sunset }
-        else if(settings.notif_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
-        else if(settings.notif_time_stop_type == "time" && settings.notif_time_stop) { stopTime = settings.notif_time_stop }
+    String startType = settings.notif_time_start_type
+    String stopType = settings.notif_time_stop_type
+    if(startType && stopType) {
+        startTime = startType == 'time' ? settings.notif_time_start : null
+        stopTime = stopType == 'time' ? settings.notif_time_stop : null
     } else { return true }
+
+    Date now = new Date()
+    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+        def sun = getSunriseAndSunset()
+        Long lsunset = sun.sunset.time
+        Long lsunrise = sun.sunrise.time
+        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
+        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
+        Long startl = lsunrise + startoffset
+        Long stopl = lsunset + stopoffset
+        startTime = startType in ["sunrise", "sunset"] ?  new Date(startl) : startTime 
+        stopTime = stopType in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime 
+    }
+
     if(startTime && stopTime) {
 /*        Date st
         Date et
@@ -3778,7 +3796,9 @@ Boolean notifTimeOk() {
             st = toDateTime(startTime)
             et = toDateTime(stopTime)
         }*/
-        return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
+        Boolean isBtwn = timeOfDayIsBetween(startTime, stopTime, now, location?.timeZone)
+        logDebug("NotifTimeOk | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
+        return isBtwn
     } else { return true }
 }
 
@@ -4095,7 +4115,7 @@ String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
     def tf = new java.text.SimpleDateFormat(newFmt)
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return tf?.format(newDt)
+    return (String)tf?.format(newDt)
 }
 
 String getDtNow() {
@@ -4103,18 +4123,19 @@ String getDtNow() {
     return formatDt(now)
 }
 
-String epochToTime(Date tm) {
+String epochToTime(Long tm) {
+    Date ntm = new Date(tm)
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return tf.format(tm)
+    return (String)tf.format(tm)
 }
 
-String time2Str(String time, String fmt="h:mm a") {
+String time2Str(time, String fmt="h:mm a") {
     if(time) {
-        Date t = timeToday(time, location?.timeZone)
+        Date t = timeToday(time as String, location?.timeZone)
         def f = new java.text.SimpleDateFormat(fmt)
         if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-        return f?.format(t)
+        return (String)f?.format(t)
     }
 }
 
@@ -4225,16 +4246,31 @@ List getQuietDays() {
 }
 
 String getNotifSchedDesc(Boolean min=false) {
-    def sun = getSunriseAndSunset()
     String startInput = settings.notif_time_start_type
-    String startTime = settings.notif_time_start
+    Date startTime
     String stopInput = settings.notif_time_stop_type
-    String stopTime = settings.notif_time_stop
-    def dayInput = settings.notif_days
-    def modeInput = settings.notif_modes
+    Date stopTime
+    List dayInput = settings.notif_days
+    List modeInput = settings.notif_modes
     String str = sBLANK
-    String startLbl = ( (startInput == "sunrise" || startInput == "sunset") ? ( (startInput == "sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (startTime ? time2Str(startTime) : sBLANK) )
-    String stopLbl = ( (stopInput == "sunrise" || stopInput == "sunset") ? ( (stopInput == "sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
+
+    if(startInput && stopInput) {
+        startTime = startType == 'time' ? settings.notif_time_start : null
+        stopTime = stopType == 'time' ? settings.notif_time_stop : null
+    }
+    if(startInput in ["sunrise","sunset"] || stopInput in ["sunrise","sunset"]) {
+        def sun = getSunriseAndSunset()
+        Long lsunset = sun.sunset.time
+        Long lsunrise = sun.sunrise.time
+        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
+        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
+        Long startl = lsunrise + startoffset
+        Long stopl = lsunset + stopoffset
+        startTime = startInput in ["sunrise", "sunset"] ?  new Date(startl) : startTime 
+        stopTime = stopInput in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime 
+    }
+    String startLbl = startTime ? time2Str(startTime) : sBLANK
+    String stopLbl = stopTime ? time2Str(stopTime) : sBLANK
     str += (startLbl && stopLbl) ? " • Time: ${startLbl} - ${stopLbl}" : sBLANK
     List qDays = getQuietDays()
     str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : sBLANK
@@ -4422,24 +4458,30 @@ String getActionDesc() {
 }
 
 String getTimeCondDesc(Boolean addPre=true) {
-    Map sun = getSunriseAndSunset()
-    String sunsetTime = epochToTime(sun?.sunset)
-    String sunriseTime = epochToTime(sun?.sunrise)
+    Date startTime
+    Date stopTime
     String startType = settings.cond_time_start_type
-    String startTime = settings.cond_time_start ? fmtTime(settings.cond_time_start) : sNULL
     String stopType = settings.cond_time_stop_type
-    String stopTime = settings.cond_time_stop ? fmtTime(settings.cond_time_stop) : sNULL
-    String startLbl = (
-        (startType in ["sunset", "sunrise"]) ?
-        ((startType == "sunset") ? sunsetTime : sunriseTime) :
-        startTime
-    )
-    def stopLbl = (
-        (stopType in ["sunrise", "sunset"]) ?
-        ((stopType == "sunset") ? sunsetTime : sunriseTime) :
-        stopTime
-    )
-    return ((startLbl && startLbl != sBLANK) && (stopLbl && stopLbl != sBLANK)) ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl} - ${stopLbl})" : "tap to configure..."
+    if(startType && stopType) {
+        startTime = startType == 'time' ? settings.cond_time_start : null
+        stopTime = stopType == 'time' ? settings.cond_time_stop : null
+    }
+
+    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+        def sun = getSunriseAndSunset()
+        Long lsunset = sun.sunset.time
+        Long lsunrise = sun.sunrise.time
+        Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
+        Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
+        Long startl = lsunrise + startoffset
+        Long stopl = lsunset + stopoffset
+        startTime = startType in ["sunrise", "sunset"] ?  new Date(startl) : startTime 
+        stopTime = stopType in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime 
+    }
+    String startLbl = startTime ? time2Str(startTime) : sBLANK
+    String stopLbl = stopTime ? time2Str(stopTime) : sBLANK
+
+    return startLbl && stopLbl ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl} - ${stopLbl})" : "tap to configure..."
 }
 
 String getInputToStringDesc(inpt, addSpace = null) {
