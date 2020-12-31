@@ -3438,26 +3438,27 @@ Boolean getOk2Notify() {
 }
 
 Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) ? false : true }
+
 Boolean quietTimeOk() {
     Date strtTime = null
     Date stopTime = null
-    Date now = new Date()
+//    Date now = new Date()
     def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
     if(settings.qStartTime && settings.qStopTime) {
-        if(settings.qStartInput == "sunset") { strtTime = sun?.sunset }
-        else if(settings.qStartInput == "sunrise") { strtTime = sun?.sunrise }
+        if(settings.qStartInput == "Sunset") { strtTime = sun?.sunset }
+        else if(settings.qStartInput == "Sunrise") { strtTime = sun?.sunrise }
         else if(settings.qStartInput == "A specific time" && settings.qStartTime) { strtTime = settings.qStartTime }
 
-        if(settings.qStopInput == "sunset") { stopTime = sun?.sunset }
-        else if(settings.qStopInput == "sunrise") { stopTime = sun?.sunrise }
+        if(settings.qStopInput == "Sunset") { stopTime = sun?.sunset }
+        else if(settings.qStopInput == "Sunrise") { stopTime = sun?.sunrise }
         else if(settings.qStopInput == "A specific time" && settings.qStopTime) { stopTime = settings.qStopTime }
     } else { return true }
     if(strtTime && stopTime) {
         // log.debug "quietTimeOk | Start: ${strtTime} | Stop: ${stopTime}"
-        if(!isStFLD) {
+ /*       if(!isStFLD) {
             strtTime = toDateTime(strtTime.toString())
             stopTime = toDateTime(stopTime.toString())
-        }
+        }*/
         return (Boolean)timeOfDayIsBetween(strtTime, stopTime, new Date(), location?.timeZone) ? false : true
     } else { return true }
 }
@@ -4221,7 +4222,7 @@ String getDtNow() {
     return formatDt(now)
 }
 
-String epochToTime(tm) {
+String epochToTime(Date tm) {
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
     return tf.format(tm)
@@ -4532,8 +4533,8 @@ String getNotifSchedDesc(Boolean min=false) {
     List dayInput = settings.quietDays
     List modeInput = settings.quietModes
     String notifDesc = sBLANK
-    String getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : sBLANK) )
-    String getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
+    String getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (startTime ? time2Str(startTime) : sBLANK) )
+    String getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
     notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl}" : sBLANK
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
