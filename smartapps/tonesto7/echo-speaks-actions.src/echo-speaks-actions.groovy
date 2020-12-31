@@ -2126,10 +2126,13 @@ String cronBuilder() {
         At 12 am midnight on every day for five days starting on the 10th day of the month: (0 0 0 10/5 * ?)
     ****/
     String cron = sNULL
+    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
+    String schedType = (String)settings.trig_scheduled_type
+    Boolean recur = schedType = 'Recurring'
     def time = settings.trig_scheduled_time ?: null
-    List dayNums = settings.trig_scheduled_daynums ? settings.trig_scheduled_daynums?.collect { it as Integer }?.sort() : null
-    List weekNums = settings.trig_scheduled_weeks ? settings.trig_scheduled_weeks?.collect { it as Integer }?.sort() : null
-    List monthNums = settings.trig_scheduled_months ? settings.trig_scheduled_months?.collect { it as Integer }?.sort() : null
+    List dayNums = recur && settings.trig_scheduled_daynums ? settings.trig_scheduled_daynums?.collect { it as Integer }?.sort() : null
+    List weekNums = recur && settings.trig_scheduled_weeks ? settings.trig_scheduled_weeks?.collect { it as Integer }?.sort() : null
+    List monthNums = recur && settings.trig_scheduled_months ? settings.trig_scheduled_months?.collect { it as Integer }?.sort() : null
     if(time) {
         String hour = fmtTime(time, "HH") ?: "0"
         String minute = fmtTime(time, "mm") ?: "0"
@@ -2273,20 +2276,24 @@ def scheduleTest() {
 }
 
 def scheduleTrigEvt(evt=null) {
+                     //if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
+                    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
+    String schedType = (String)settings.trig_scheduled_type
+    Boolean recur = schedType = 'Recurring'
     Map dateMap = getDateMap()
     // log.debug "dateMap: $dateMap"
     Map t0 = atomicState.schedTrigMap
     Map sTrigMap = t0 ?: [:]
-    String recur = settings.trig_scheduled_recurrence ?: sNULL
-    List days = settings.trig_scheduled_weekdays ?: null
-    List daynums = settings.trig_scheduled_daynums ?: null
-    List weeks = settings.trig_scheduled_weeks ?: null
-    List months = settings.trig_scheduled_months ?: null
-    Boolean wdOk = (days && recur in ["Daily", "Weekly"]) ? (dateMap.dayNameShort in days && sTrigMap?.lastRun?.dayName != dateMap.dayNameShort) : true
-    Boolean mdOk = (recur && daynums) ? (dateMap.day in daynums && sTrigMap?.lastRun?.day != dateMap.day) : true
-    Boolean wOk = (recur && weeks && recur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
-    Boolean mOk = (recur && months && recur in ["Weekly", "Monthly"]) ? (dateMap.month in months && sTrigMap?.lastRun?.month != dateMap.month) : true
-    // Boolean yOk = (recur && recur in ["Yearly"]) ? (sTrigMap?.lastRun?.y != dateMap.y) : true
+    String srecur = schedType == 'Recurring' ? settings.trig_scheduled_recurrence : sNULL
+    List days = recur ? settings.trig_scheduled_weekdays : null
+    List daynums = recur ? settings.trig_scheduled_daynums : null
+    List weeks = recur ? settings.trig_scheduled_weeks : null
+    List months = recur ? settings.trig_scheduled_months : null
+    Boolean wdOk = (days && srecur in ["Daily", "Weekly"]) ? (dateMap.dayNameShort in days && sTrigMap?.lastRun?.dayName != dateMap.dayNameShort) : true
+    Boolean mdOk = daynums ? (dateMap.day in daynums && sTrigMap?.lastRun?.day != dateMap.day) : true
+    Boolean wOk = (weeks && srecur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
+    Boolean mOk = (months && srecur in ["Weekly", "Monthly"]) ? (dateMap.month in months && sTrigMap?.lastRun?.month != dateMap.month) : true
+    // Boolean yOk = (srecur in ["Yearly"]) ? (sTrigMap?.lastRun?.y != dateMap.y) : true
     if(wdOk && mdOk && wOk && mOk) {
         sTrigMap.lastRun = dateMap
         atomicState.schedTrigMap = sTrigMap
@@ -2299,6 +2306,7 @@ def scheduleTrigEvt(evt=null) {
     } else {
         logDebug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
     }
+//                                input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset ${schedType} this number of minutes (+/-)", getAppImg(schedType?.toLowerCase(), true)), required: true, image: getAppImg(schedType?.toLowerCase() + sBLANK)
 }
 
 def alarmEvtHandler(evt) {
@@ -4344,7 +4352,7 @@ String getTriggersDesc(Boolean hideDesc=false) {
 
 String getConditionsDesc() {
     Boolean confd = conditionsConfigured()
-    def time = null
+//    def time = null
     String sPre = "cond_"
     if(confd) {
         String str = "Conditions: (${(conditionStatus().ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
@@ -4394,7 +4402,7 @@ String getConditionsDesc() {
     }
 }
 
-String attUnit(attr) {
+String attUnit(String attr) {
     switch(attr) {
         case "humidity":
         case "level":
@@ -4423,7 +4431,7 @@ def getZoneStatus() {
 
 String getActionDesc() {
     Boolean confd = executionConfigured()
-    def time = null
+//    def time = null
     String sPre = "act_"
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
