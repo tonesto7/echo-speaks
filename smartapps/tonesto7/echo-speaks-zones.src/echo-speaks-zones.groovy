@@ -54,7 +54,7 @@ preferences {
 @Field static final String sBLANK         = ''
 @Field static final String sBULLET        = '\u2022'
 
-String appVersion()  { return appVersionFLD }
+static String appVersion()  { return appVersionFLD }
 
 def startPage() {
     if(parent != null) {
@@ -91,7 +91,7 @@ def mainPage() {
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: (newInstall == true), install: !newInstall) {
         appInfoSect()
         Boolean paused = isPaused()
-        Boolean dup = (settings?.duplicateFlag == true || state?.dupPendingSetup == true)
+        Boolean dup = (settings.duplicateFlag == true || state?.dupPendingSetup == true)
         if(dup) {
             state?.dupOpenedByUser = true
             section() { paragraph pTS("This Zone was just created from an existing zone.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange") }
@@ -101,14 +101,14 @@ def mainPage() {
                 paragraph pTS("This Zone is currently disabled...\nTo edit the please re-enable it.", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange")
             }
         } else {
-            if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
+            if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
             Boolean condConf = conditionsConfigured()
             section(sTS("Zone Configuration:")) {
                 href "conditionsPage", title: inTS("Zone Activation Conditions", getAppImg("conditions", true)), description: getConditionsDesc(), required: true, state: (condConf ? "complete": null), image: getAppImg("conditions")
                 if(condConf) { echoDevicesInputByPerm("announce") }
             }
 
-            if(settings?.zone_EchoDevices) {
+            if(settings.zone_EchoDevices) {
                 section(sTS("Condition Delays:")) {
                     input "zone_active_delay", "number", title: inTS("Delay Activation in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                     input "zone_inactive_delay", "number", title: inTS("Delay Deactivation in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
@@ -166,7 +166,7 @@ def zoneHistoryPage() {
         if(historyMapFLD["zoneHistory"]?.size()) {
             section("") {
                 input "clearZoneHistory", "bool", title: inTS("Clear Zone History?", getAppImg("reset", true)), description: "Clears Stored Zone History.", defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings?.clearZoneHistory) { settingUpdate("clearZoneHistory", "false", "bool"); historyMapFLD["zoneHistory"] = []; }
+                if(settings.clearZoneHistory) { settingUpdate("clearZoneHistory", "false", "bool"); historyMapFLD["zoneHistory"] = []; }
             }
         }
     }
@@ -222,7 +222,7 @@ def conditionsPage() {
 
         section (sTS("Mode Conditions")) {
             input "cond_mode", "mode", title: inTS("Location Modes...", getAppImg("mode", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("mode")
-            if(settings?.cond_mode) {
+            if(settings.cond_mode) {
                 input "cond_mode_cmd", "enum", title: inTS("are...", getAppImg("command", true)), options: ["not":"not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
                 if(cond_mode && cond_mode_cmd) {
                     input "cond_mode_db", "bool", title: inTS("Deactivate Zone immediately when Mode condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
@@ -232,7 +232,7 @@ def conditionsPage() {
 
         section (sTS("Alarm Conditions")) {
             input "cond_alarm", "enum", title: inTS("${getAlarmSystemName()} is...", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true, image: getAppImg("alarm_home")
-            if(settings?.cond_alarm) {
+            if(settings.cond_alarm) {
                 input "cond_alarm_db", "bool", title: inTS("Deactivate Zone immediately when Alarm condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
             }
         }
@@ -274,10 +274,10 @@ def conditionsPage() {
 def condNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, String image) {
     section (sTS(sectStr), hideWhenEmpty: true) {
         input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required:false, image: getAppImg(image), hideWhenEmpty: true
-        if (settings?."cond_${inType}") {
+        if (settings."cond_${inType}") {
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle}...", getAppImg("command", true)), options: cmdOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg("command")
-            if (settings?."cond_${inType}_cmd" && settings?."cond_${inType}"?.size() > 1) {
-                input "cond_${inType}_all", "bool", title: inTS("ALL ${devTitle} must be (${settings?."cond_${inType}_cmd"})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+            if (settings."cond_${inType}_cmd" && settings."cond_${inType}"?.size() > 1) {
+                input "cond_${inType}_all", "bool", title: inTS("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
             }
             input "cond_${inType}_db", "bool", title: inTS("Deactivate Zone immediately when ${cmdTitle} condition no longer passes?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
         }
@@ -287,21 +287,21 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
 def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, hideable= false) {
     section (sTS(sectStr), hideWhenEmpty: true) {
         input "cond_${inType}", "capability.${capType}", title: inTS(devTitle, getAppImg(image, true)), multiple: true, submitOnChange: true, required: false, image: getAppImg(image), hideWhenEmpty: true
-        if(settings?."cond_${inType}") {
+        if(settings."cond_${inType}") {
             input "cond_${inType}_cmd", "enum", title: inTS("${cmdTitle} is...", getAppImg("command", true)), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg("command")
-            if (settings?."cond_${inType}_cmd") {
-                if (settings?."cond_${inType}_cmd" in ["between", "below"]) {
-                    input "cond_${inType}_low", "number", title: inTS("a ${settings?."cond_${inType}_cmd" == "between" ? "Low " : ""}${cmdTitle} of...", getAppImg("low", true)), required: true, submitOnChange: true, image: getAppImg("low")
+            if (settings."cond_${inType}_cmd") {
+                if (settings."cond_${inType}_cmd" in ["between", "below"]) {
+                    input "cond_${inType}_low", "number", title: inTS("a ${settings."cond_${inType}_cmd" == "between" ? "Low " : ""}${cmdTitle} of...", getAppImg("low", true)), required: true, submitOnChange: true, image: getAppImg("low")
                 }
-                if (settings?."cond_${inType}_cmd" in ["between", "above"]) {
-                    input "cond_${inType}_high", "number", title: inTS("${settings?."cond_${inType}_cmd" == "between" ? "and a high " : "a "}${cmdTitle} of...", getAppImg("high", true)), required: true, submitOnChange: true, image: getAppImg("high")
+                if (settings."cond_${inType}_cmd" in ["between", "above"]) {
+                    input "cond_${inType}_high", "number", title: inTS("${settings."cond_${inType}_cmd" == "between" ? "and a high " : "a "}${cmdTitle} of...", getAppImg("high", true)), required: true, submitOnChange: true, image: getAppImg("high")
                 }
-                if (settings?."cond_${inType}_cmd" == "equals") {
+                if (settings."cond_${inType}_cmd" == "equals") {
                     input "cond_${inType}_equal", "number", title: inTS("a ${cmdTitle} of...", getAppImg("equal", true)), required: true, submitOnChange: true, image: getAppImg("equal")
                 }
-                if (settings?."cond_${inType}"?.size() > 1) {
-                    input "cond_${inType}_all", "bool", title: inTS("Require ALL devices to be (${settings?."cond_${inType}_cmd"}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
-                    if(!settings?."cond_${inType}_all") {
+                if (settings."cond_${inType}"?.size() > 1) {
+                    input "cond_${inType}_all", "bool", title: inTS("Require ALL devices to be (${settings."cond_${inType}_cmd"}) values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
+                    if(!settings."cond_${inType}_all") {
                         input "cond_${inType}_avg", "bool", title: inTS("Use the average of all selected device values?", getAppImg("checkbox", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("checkbox")
                     }
                 }
@@ -339,14 +339,16 @@ def zoneNotifPage() {
             input "notif_active_message", "text", title: inTS("Active Message?", getAppImg("text", true)), required: false, submitOnChange: true, image: getAppImg("text")
             input "notif_inactive_message", "text", title: inTS("Inactive Message?", getAppImg("text", true)), required: false, submitOnChange: true, image: getAppImg("text")
         }
-        if(settings?.notif_active_message || settings?.notif_inactive_message) {
-            section (sTS("Push Messages:")) {
-                input "notif_send_push", "bool", title: inTS("Send Push Notifications...", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-            }
-            section (sTS("Text Messages:"), hideWhenEmpty: true) {
-                paragraph pTS("To send to multiple numbers separate the number by a comma\n\nE.g. 8045551122,8046663344", getAppImg("info", true), false, "gray")
-                paragraph pTS("SMS Support will soon be removed from Hubitat and SmartThings (UK)", getAppImg("info", true), false, "gray")
-                input "notif_sms_numbers", "text", title: inTS("Send SMS Text to...", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+        if(settings.notif_active_message || settings.notif_inactive_message) {
+            if(isStFLD) {
+                section (sTS("Push Messages:")) {
+                    input "notif_send_push", "bool", title: inTS("Send Push Notifications...", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+                }
+                section (sTS("Text Messages:"), hideWhenEmpty: true) {
+                    paragraph pTS("To send to multiple numbers separate the number by a comma\n\nE.g. 8045551122,8046663344", getAppImg("info", true), false, "gray")
+                    paragraph pTS("SMS Support will soon be removed from Hubitat and SmartThings (UK)", getAppImg("info", true), false, "gray")
+                    input "notif_sms_numbers", "text", title: inTS("Send SMS Text to...", getAppImg("sms_phone", true)), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+                }
             }
             section (sTS("Notification Devices:")) {
                 input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
@@ -358,14 +360,14 @@ def zoneNotifPage() {
             if(isStFLD) {
                 section(sTS("Pushover Support:")) {
                     input "notif_pushover", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover_icon", true)), required: false, submitOnChange: true, image: getAppImg("pushover")
-                    if(settings?.notif_pushover == true) {
+                    if(settings.notif_pushover == true) {
                         def poDevices = parent?.getPushoverDevices()
                         if(!poDevices) {
                             parent?.pushover_init()
                             paragraph pTS("If this is the first time enabling Pushover than leave this page and come back if the devices list is empty", null, false, "#2784D9"), state: "complete"
                         } else {
                             input "notif_pushover_devices", "enum", title: inTS("Select Pushover Devices", getAppImg("select_icon", true)), description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
-                            if(settings?.notif_pushover_devices) {
+                            if(settings.notif_pushover_devices) {
                                 def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
                                 input "notif_pushover_priority", "enum", title: inTS("Notification Priority (Optional)", getAppImg("priority", true)), description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority")
                                 input "notif_pushover_sound", "enum", title: inTS("Notification Sound (Optional)", getAppImg("sound", true)), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound")
@@ -380,8 +382,8 @@ def zoneNotifPage() {
                     href "zoneNotifTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
                 }
                 if(!state?.notif_message_tested) {
-                    def actDevices = settings?.notif_alexa_mobile ? parent?.getDevicesFromList(settings?.zone_EchoDevices) : []
-                    def aMsgDev = actDevices?.size() && settings?.notif_alexa_mobile ? actDevices[0] : null
+                    def actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDevices) : []
+                    def aMsgDev = actDevices?.size() && settings.notif_alexa_mobile ? actDevices[0] : null
                     if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state?.notif_message_tested = true }
                 }
             } else { state?.notif_message_tested = false }
@@ -397,17 +399,17 @@ def zoneNotifTimePage() {
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
         section(sTS("Start Time:")) {
             input "${pre}_time_start_type", "enum", title: inTS("Starting at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
-            if(settings?."${pre}_time_start_type" == "time") {
+            if(settings."${pre}_time_start_type" == "time") {
                 input "${pre}_time_start", "time", title: inTS("Start time", getAppImg("start_time", true)), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
-            } else if(settings?."${pre}_time_start_type" in ["sunrise", "sunrise"]) {
+            } else if(settings."${pre}_time_start_type" in ["sunrise", "sunrise"]) {
                 input "${pre}_time_start_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
         section(sTS("Stop Time:")) {
             input "${pre}_time_stop_type", "enum", title: inTS("Stopping at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
-            if(settings?."${pre}_time_stop_type" == "time") {
+            if(settings."${pre}_time_stop_type" == "time") {
                 input "${pre}_time_stop", "time", title: inTS("Stop time", getAppImg("start_time", true)), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
-            } else if(settings?."${pre}_time_stop_type" in ["sunrise", "sunrise"]) {
+            } else if(settings."${pre}_time_stop_type" in ["sunrise", "sunrise"]) {
                 input "${pre}_time_stop_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -441,10 +443,10 @@ def initialize() {
     // logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
-    if(settings?.duplicateFlag == true && state?.dupPendingSetup == false) {
+    if(settings.duplicateFlag == true && state?.dupPendingSetup == false) {
         settingUpdate("duplicateFlag", "false", "bool")
         state?.remove("dupOpenedByUser")
-    } else if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
+    } else if(settings.duplicateFlag == true && state?.dupPendingSetup != false) {
         String newLbl = app?.getLabel() + app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"
         app?.updateLabel(newLbl)
         state?.dupPendingSetup = true
@@ -469,11 +471,11 @@ def uninstalled() {
     sendZoneRemoved()
 }
 
-String getZoneName() { return settings?.appLbl as String }
+String getZoneName() { return settings.appLbl as String }
 
 private updAppLabel() {
-    String newLbl = "${settings?.appLbl} (Z${isPaused() ? " \u275A\u275A" : ""})"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
-    if(settings?.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
+    String newLbl = "${settings.appLbl} (Z${isPaused() ? " \u275A\u275A" : ""})"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
+    if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
 public guardEventHandler(guardState) {
@@ -494,7 +496,7 @@ private updConfigStatusMap() {
     atomicState?.configStatusMap = sMap
 }
 
-Boolean devicesConfigured() { return (settings?.zone_EchoDevices) }
+Boolean devicesConfigured() { return (settings.zone_EchoDevices) }
 private getConfStatusItem(item) { return (atomicState?.configStatusMap?.containsKey(item) && atomicState?.configStatusMap[item] == true) }
 
 private zoneCleanup() {
@@ -504,13 +506,13 @@ private zoneCleanup() {
     //Cleans up unused Zone setting items
     List setItems = ["zone_delay"]
     List setIgn = ["zone_EchoDevices"]
-    setItems?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
+    setItems?.each { sI-> if(settings.containsKey(sI as String)) { settingRemove(sI as String) } }
 }
 
 public triggerInitialize() { runIn(3, "initialize") }
 
 public updatePauseState(Boolean pause) {
-    if(settings?.zonePause != pause) {
+    if(settings.zonePause != pause) {
         logDebug("Received Request to Update Pause State to (${pause})")
         settingUpdate("zonePause", "${pause}", "bool")
         runIn(4, "updated")
@@ -523,7 +525,7 @@ private healthCheck() {
     if(advLogsActive()) { logsDisable() }
 }
 
-private condItemSet(String key) { return (settings?.containsKey("cond_${key}") && settings["cond_${key}"]) }
+private condItemSet(String key) { return (settings.containsKey("cond_${key}") && settings["cond_${key}"]) }
 
 private subscribeToEvts() {
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
@@ -532,29 +534,29 @@ private subscribeToEvts() {
     List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "shade", "valve", "door", "contact", "acceleration", "switch", "battery", "level"]
 
     //SCHEDULING
-    if (settings?.cond_time_start_type) {
-        if(settings?.cond_time_start_type in ["sunrise", "sunset"]) {
-            if (settings?.cond_time_start_type == "sunset") { subscribe(location, "sunsetTime", zoneEvtHandler) }
-            if (settings?.cond_time_start_type == "sunrise") { subscribe(location, "sunriseTime", zoneEvtHandler) }
+    if (settings.cond_time_start_type) {
+        if(settings.cond_time_start_type in ["sunrise", "sunset"]) {
+            if (settings.cond_time_start_type == "sunset") { subscribe(location, "sunsetTime", zoneEvtHandler) }
+            if (settings.cond_time_start_type == "sunrise") { subscribe(location, "sunriseTime", zoneEvtHandler) }
         }
-        if(settings?.cond_time_start_type == "time") {
-            if(settings?.cond_time_start) { schedule(settings?.cond_time_start, zoneTimeStartCondHandler) }
-            if(settings?.cond_time_stop) { schedule(settings?.cond_time_stop, zoneTimeStopCondHandler) }
+        if(settings.cond_time_start_type == "time") {
+            if(settings.cond_time_start) { schedule(settings.cond_time_start, zoneTimeStartCondHandler) }
+            if(settings.cond_time_stop) { schedule(settings.cond_time_stop, zoneTimeStopCondHandler) }
         }
     }
 
     subItems?.each { si->
-        if(settings?."cond_${si}") {
+        if(settings."cond_${si}") {
             switch(si as String) {
                 case "alarm":
                     subscribe(location, (!isStFLD ? "hsmStatus" : "alarmSystemStatus"), zoneEvtHandler)
                     break
                 case "mode":
-                    if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
+                    if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
                     subscribe(location, si as String, zoneEvtHandler)
                     break
                 default:
-                    subscribe(settings?."cond_${si}", attributeConvert(si as String), zoneEvtHandler)
+                    subscribe(settings."cond_${si}", attributeConvert(si as String), zoneEvtHandler)
                     break
             }
         }
@@ -572,21 +574,21 @@ String attributeConvert(String attr) {
 /***********************************************************************************************************
    CONDITIONS HANDLER
 ************************************************************************************************************/
-Boolean reqAllCond() { return (!multipleConditions() || (multipleConditions() && settings?.cond_require_all == true) ) }
+Boolean reqAllCond() { return (!multipleConditions() || (multipleConditions() && settings.cond_require_all == true) ) }
 
 Boolean timeCondOk() {
     def startTime = null
     def stopTime = null
     def now = new Date()
     def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
-    if(settings?.cond_time_start_type && settings?.cond_time_stop_type) {
-        if(settings?.cond_time_start_type == "sunset") { startTime = sun?.sunset }
-        else if(settings?.cond_time_start_type == "sunrise") { startTime = sun?.sunrise }
-        else if(settings?.cond_time_start_type == "time" && settings?.cond_time_start) { startTime = settings?.cond_time_start }
+    if(settings.cond_time_start_type && settings.cond_time_stop_type) {
+        if(settings.cond_time_start_type == "sunset") { startTime = sun?.sunset }
+        else if(settings.cond_time_start_type == "sunrise") { startTime = sun?.sunrise }
+        else if(settings.cond_time_start_type == "time" && settings.cond_time_start) { startTime = settings.cond_time_start }
 
-        if(settings?.cond_time_stop_type == "sunset") { stopTime = sun?.sunset }
-        else if(settings?.cond_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
-        else if(settings?.cond_time_stop_type == "time" && settings?.cond_time_stop) { stopTime = settings?.cond_time_stop }
+        if(settings.cond_time_stop_type == "sunset") { stopTime = sun?.sunset }
+        else if(settings.cond_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
+        else if(settings.cond_time_stop_type == "time" && settings.cond_time_stop) { stopTime = settings.cond_time_stop }
     } else { return null }
     if(startTime && stopTime) {
         if(!isStFLD) {
@@ -598,36 +600,36 @@ Boolean timeCondOk() {
 }
 
 Boolean dateCondOk() {
-    if(settings?.cond_days == null && settings?.cond_months == null) return null
-    Boolean dOk = settings?.cond_days ? (isDayOfWeek(settings?.cond_days)) : true
-    Boolean mOk = settings?.cond_months ? (isMonthOfYear(settings?.cond_months)) : true
+    if(settings.cond_days == null && settings.cond_months == null) return null
+    Boolean dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : true
+    Boolean mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : true
     logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
     return reqAllCond() ? (mOk && dOk) : (mOk || dOk)
 }
 
 Boolean locationCondOk() {
-    if(settings?.cond_mode == null && settings?.cond_mode_cmd == null && settings?.cond_alarm == null) return null
-    Boolean mOk = (settings?.cond_mode && settings?.cond_mode_cmd) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
-    Boolean aOk = settings?.cond_alarm ? isInAlarmMode(settings?.cond_alarm) : true
+    if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return null
+    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
+    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
     logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
     return reqAllCond() ? (mOk && aOk) : (mOk || aOk)
 }
 
 Boolean checkDeviceCondOk(type) {
-    List devs = settings?."cond_${type}" ?: null
-    String cmdVal = settings?."cond_${type}_cmd" ?: null
-    Boolean all = (settings?."cond_${type}_all" == true)
+    List devs = settings."cond_${type}" ?: null
+    String cmdVal = settings."cond_${type}_cmd" ?: null
+    Boolean all = (settings."cond_${type}_all" == true)
     if( !(type && devs && cmdVal) ) { return true }
     return all ? allDevCapValsEqual(devs, type, cmdVal) : anyDevCapValsEqual(devs, type, cmdVal)
 }
 
 Boolean checkDeviceNumCondOk(type) {
-    List devs = settings?."cond_${type}" ?: null
-    String cmd = settings?."cond_${type}_cmd" ?: null
-    Double dcl = settings?."cond_${type}_low" ?: null
-    Double dch = settings?."cond_${type}_high" ?: null
-    Double dce = settings?."cond_${type}_equal" ?: null
-    Boolean dca = (settings?."cond_${type}_all" == true) ?: false
+    List devs = settings."cond_${type}" ?: null
+    String cmd = settings."cond_${type}_cmd" ?: null
+    Double dcl = settings."cond_${type}_low" ?: null
+    Double dch = settings."cond_${type}_high" ?: null
+    Double dce = settings."cond_${type}_equal" ?: null
+    Boolean dca = (settings."cond_${type}_all" == true) ?: false
     if( !(type && devs && cmd) ) { return true }
 
     switch(cmd) {
@@ -664,15 +666,15 @@ Boolean checkDeviceNumCondOk(type) {
 
 private isConditionOk(evt) {
     if(["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.contains(evt)) {
-        if(!settings?."cond_${evt}") { true }
+        if(!settings."cond_${evt}") { true }
         return checkDeviceCondOk(evt)
     } else if(["temperature", "humidity", "illuminance", "level", "power", "battery"]?.contains(evt)) {
-        if(!settings?."cond_${evt}") { true }
+        if(!settings."cond_${evt}") { true }
         return checkDeviceNumCondOk(evt)
     } else if (evt == "mode") {
-        return (settings?.cond_mode && settings?.cond_mode_cmd) ? (isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) : true
+        return (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
     } else if (["hsmStatus", "alarmSystemStatus"]?.contains(evt)) {
-        return settings?.cond_alarm ? isInAlarmMode(settings?.cond_alarm) : true
+        return settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
     } else {
         return true
     }
@@ -683,11 +685,11 @@ Boolean deviceCondOk() {
     List passed = []
     List failed = []
     ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.each { i->
-        if(!settings?."cond_${i}") { skipped?.push(i); return; }
+        if(!settings."cond_${i}") { skipped?.push(i); return; }
         checkDeviceCondOk(i) ? passed?.push(i) : failed?.push(i);
     }
     ["temperature", "humidity", "illuminance", "level", "power", "battery"]?.each { i->
-        if(!settings?."cond_${i}") { skipped?.push(i); return; }
+        if(!settings."cond_${i}") { skipped?.push(i); return; }
         checkDeviceNumCondOk(i) ? passed?.push(i) : failed?.push(i);
     }
     logDebug("DeviceCondOk | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
@@ -714,29 +716,29 @@ def conditionStatus() {
 }
 
 Boolean devCondConfigured(type) {
-    return (settings?."cond_${type}" && settings?."cond_${type}_cmd")
+    return (settings."cond_${type}" && settings."cond_${type}_cmd")
 }
 
 Boolean devNumCondConfigured(type) {
-    return (settings?."cond_${type}_cmd" && (settings?."cond_${type}_low" || settings?."cond_${type}_low" || settings?."trig_${type}_equal"))
+    return (settings."cond_${type}_cmd" && (settings."cond_${type}_low" || settings."cond_${type}_low" || settings."trig_${type}_equal"))
 }
 
 Boolean timeCondConfigured() {
-    Boolean startTime = (settings?.cond_time_start_type in ["sunrise", "sunset"] || (settings?.cond_time_start_type == "time" && settings?.cond_time_start))
-    Boolean stopTime = (settings?.cond_time_stop_type in ["sunrise", "sunset"] || (settings?.cond_time_stop_type == "time" && settings?.cond_time_stop))
+    Boolean startTime = (settings.cond_time_start_type in ["sunrise", "sunset"] || (settings.cond_time_start_type == "time" && settings.cond_time_start))
+    Boolean stopTime = (settings.cond_time_stop_type in ["sunrise", "sunset"] || (settings.cond_time_stop_type == "time" && settings.cond_time_stop))
     return (startTime && stopTime)
 }
 
 Boolean dateCondConfigured() {
-    Boolean days = (settings?.cond_days)
-    Boolean months = (settings?.cond_months)
+    Boolean days = (settings.cond_days)
+    Boolean months = (settings.cond_months)
     return (days || months)
 }
 
 Boolean locationCondConfigured() {
-    if(settings?.cond_mode && !settings?.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
-    Boolean mode = (settings?.cond_mode && settings?.cond_mode_cmd)
-    Boolean alarm = (settings?.cond_alarm)
+    if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
+    Boolean mode = (settings.cond_mode && settings.cond_mode_cmd)
+    Boolean alarm = (settings.cond_alarm)
     return (mode || alarm)
 }
 
@@ -798,8 +800,8 @@ def checkZoneStatus(evt) {
     Boolean bypassDelay = false
     String delayType = active ? "active" : "inactive"
     Map data = [active: active, recheck: false, evtData: [name: evt?.name, displayName: evt?.displayName], condStatus: condStatus]
-    Integer delay = settings?."zone_${delayType}_delay" ?: null
-    if(!active && settings?."cond_${evt?.name}_db" == true) { bypassDelay = isConditionOk(evt?.name) != true }
+    Integer delay = settings."zone_${delayType}_delay" ?: null
+    if(!active && settings."cond_${evt?.name}_db" == true) { bypassDelay = isConditionOk(evt?.name) != true }
     if(!bypassDelay && delay) {
         log.debug "updateZoneStatus to [${delayType}] in (${delay} sec)"
         runIn(delay, "updateZoneStatus", [data: data])
@@ -838,20 +840,20 @@ def updateZoneStatus(data) {
             Boolean ok2Send = true
             String msgTxt = null
             if(active) {
-                msgTxt = settings?.notif_active_message ?: null
-            } else { msgTxt = settings?.notif_inactive_message ?: null }
+                msgTxt = settings.notif_active_message ?: null
+            } else { msgTxt = settings.notif_inactive_message ?: null }
             if(ok2Send && msgTxt) {
                 def zoneDevices = getZoneDevices()
-                def alexaMsgDev = zoneDevices?.size() && settings?.notif_alexa_mobile ? zoneDevices[0] : null
+                def alexaMsgDev = zoneDevices?.size() && settings.notif_alexa_mobile ? zoneDevices[0] : null
                 if(sendNotifMsg(getZoneName() as String, msgTxt as String, alexaMsgDev, false)) { logDebug("Sent Zone Notification...") }
             }
         }
         if(active) {
-            if(settings?.zone_active_switches_off) settings?.zone_active_switches_off?.off()
-            if(settings?.zone_active_switches_on) settings?.zone_active_switches_on?.on()
+            if(settings.zone_active_switches_off) settings.zone_active_switches_off?.off()
+            if(settings.zone_active_switches_on) settings.zone_active_switches_on?.on()
         } else {
-            if(settings?.zone_inactive_switches_off) settings?.zone_inactive_switches_off?.off()
-            if(settings?.zone_inactive_switches_on) settings?.zone_inactive_switches_on?.on()
+            if(settings.zone_inactive_switches_off) settings.zone_inactive_switches_off?.off()
+            if(settings.zone_inactive_switches_on) settings.zone_inactive_switches_on?.on()
         }
     }
 }
@@ -878,7 +880,7 @@ public getZoneHistory(asObj=false) {
 
 Map getZoneDevices() {
     List devObj = []
-    List devices = parent?.getDevicesFromList(settings?.zone_EchoDevices)
+    List devices = parent?.getDevicesFromList(settings.zone_EchoDevices)
     devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
     return [devices: devices, devObj: devObj]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
@@ -1085,139 +1087,136 @@ String getAlarmSystemName(abbr=false) {
 public Map getZoneMetrics() {
     Map out = [:]
     out?.version = appVersionFLD
-    out?.activeDelay = settings?.zone_active_delay ?: 0
-    out?.inactiveDelay = settings?.zone_inactive_delay ?: 0
-    out?.zoneDevices = settings?.zone_EchoDevices ?: []
-    out?.activeSwitchesOnCnt = settings?.zone_active_switches_on ?: []
-    out?.activeSwitchesOffCnt = settings?.zone_active_switches_off ?: []
-    out?.inactiveSwitchesOnCnt = settings?.zone_inactive_switches_on ?: []
-    out?.inactiveSwitchesOffCnt = settings?.zone_inactive_switches_off ?: []
+    out?.activeDelay = settings.zone_active_delay ?: 0
+    out?.inactiveDelay = settings.zone_inactive_delay ?: 0
+    out?.zoneDevices = settings.zone_EchoDevices ?: []
+    out?.activeSwitchesOnCnt = settings.zone_active_switches_on ?: []
+    out?.activeSwitchesOffCnt = settings.zone_active_switches_off ?: []
+    out?.inactiveSwitchesOnCnt = settings.zone_inactive_switches_on ?: []
+    out?.inactiveSwitchesOffCnt = settings.zone_inactive_switches_off ?: []
     return out
 }
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
-def formatDt(dt, tzChg=true) {
+String formatDt(Date dt, Boolean tzChg=true) {
     def tf = new java.text.SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
-    return tf?.format(dt)
+    return (String)tf.format(dt)
 }
 
-def dateTimeFmt(dt, fmt) {
+String dateTimeFmt(dt, String fmt) {
     if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new java.text.SimpleDateFormat(fmt)
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return tf?.format(dt)
+    return (String)tf?.format(dt)
 }
 
-def convToTime(dt) {
-    def newDt = dateTimeFmt(dt, "h:mm a")
-    if(newDt?.toString()?.contains(":00 ")) { newDt?.toString()?.replaceAll(":00 ", " ") }
+String convToTime(dt) {
+    String newDt = dateTimeFmt(dt, "h:mm a")
+    if(newDt?.contains(":00 ")) { newDt?.toString()?.replaceAll(":00 ", " ") }
     return newDt
 }
 
-def convToDate(dt) {
-    def newDt = dateTimeFmt(dt, "EEE, MMM d")
+String convToDate(dt) {
+    String newDt = dateTimeFmt(dt, "EEE, MMM d")
     return newDt
 }
 
-def convToDateTime(dt) {
-    def t = dateTimeFmt(dt, "h:mm a")
-    def d = dateTimeFmt(dt, "EEE, MMM d")
+String convToDateTime(dt) {
+    String t = dateTimeFmt(dt, "h:mm a")
+    String d = dateTimeFmt(dt, "EEE, MMM d")
     return "$d, $t"
 }
 
 Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
-String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
-String pluralizeStr(obj, para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : "" }
+String strCapitalize(String str) { return str ? str?.toString().capitalize() : null }
+String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
 
-def parseDt(pFormat, dt, tzFmt=true) {
-    def result
-    def newDt = Date.parse("$pFormat", dt)
-    result = formatDt(newDt, tzFmt)
-    //log.debug "parseDt Result: $result"
-    return result
+String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
+    Date newDt = Date.parse(pFormat, dt)
+    return formatDt(newDt, tzFmt)
 }
 
-def getDtNow() {
-    def now = new Date()
+String getDtNow() {
+    Date now = new Date()
     return formatDt(now)
 }
 
-def epochToTime(tm) {
+String epochToTime(tm) {
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return tf.format(tm)
+    return (String)tf.format(tm)
 }
 
-def time2Str(time) {
+String time2Str(time) {
     if(time) {
-        def t = timeToday(time as String, location?.timeZone)
+        Date t = timeToday(time as String, location?.timeZone)
         def f = new java.text.SimpleDateFormat("h:mm a")
         if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-        return f?.format(t)
+        return (String)f?.format(t)
     }
+    return sNULL
 }
 
-def fmtTime(t, fmt="h:mm a", altFmt=false) {
-    if(!t) return null
-    def dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t?.toString())
+String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
+    if(!t) return sNULL
+    Date dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t?.toString())
     def tf = new java.text.SimpleDateFormat(fmt as String)
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return tf?.format(dt)
+    return (String)tf?.format(dt)
 }
 
-def GetTimeDiffSeconds(lastDate, sender=null) {
+Long GetTimeDiffSeconds(String lastDate, String sender=null) {
     try {
         if(lastDate?.contains("dtNow")) { return 10000 }
-        def now = new Date()
-        def lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
-        def start = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt)).getTime()
-        def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(now)).getTime()
-        def diff = (int) (long) (stop - start) / 1000
-        return diff
+        Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
+        Long start = lastDt.getTime()
+        Long stop = now()
+        Long diff = (stop - start) / 1000L
+        return diff.abs()
     }
     catch (ex) {
         logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex?.message}")
-        return 10000
+        return 10000L
     }
 }
 
-def getWeekDay() {
+String getWeekDay() {
     def df = new java.text.SimpleDateFormat("EEEE")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
-def getWeekMonth() {
+String getWeekMonth() {
     def df = new java.text.SimpleDateFormat("W")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
-def getDay() {
+String getDay() {
     def df = new java.text.SimpleDateFormat("D")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
-def getYear() {
+String getYear() {
     def df = new java.text.SimpleDateFormat("yyyy")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
-def getMonth() {
+String getMonth() {
     def df = new java.text.SimpleDateFormat("MMMMM")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
-def getWeekYear() {
+String getWeekYear() {
     def df = new java.text.SimpleDateFormat("w")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
 Map getDateMap() {
@@ -1225,63 +1224,63 @@ Map getDateMap() {
 }
 
 Boolean isDayOfWeek(opts) {
-    def df = new java.text.SimpleDateFormat("EEEE")
-    df.setTimeZone(location?.timeZone)
-    def day = df.format(new Date())
+    String day = getWeekDay()
     return ( opts?.contains(day) )
 }
 
 Boolean isTimeOfDay(startTime, stopTime) {
     if(!startTime && !stopTime) { return true }
-    if(!isStFLD) { startTime = toDateTime(startTime); stopTime = toDateTime(stopTime); }
-    return timeOfDayIsBetween(startTime, stopTime, new Date(), location.timeZone)
+    Date st
+    Date et
+    if(!isStFLD) { st = toDateTime(startTime); et = toDateTime(stopTime); }
+    return timeOfDayIsBetween(st, et, new Date(), location.timeZone)
 }
 
-Boolean advLogsActive() { return (settings?.logDebug || settings?.logTrace) }
-public logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
-public logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
+Boolean advLogsActive() { return (settings.logDebug || settings.logTrace) }
+public void logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
+public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
 
-private updTsVal(key, dt=null) {
-	def data = atomicState?.tsDtMap ?: [:]
+private void updTsVal(String key, String dt=sNULL) {
+	Map data = atomicState?.tsDtMap ?: [:]
 	if(key) { data[key] = dt ?: getDtNow() }
-	atomicState?.tsDtMap = data
+	atomicState.tsDtMap = data
 }
 
-private remTsVal(key) {
-	def data = atomicState?.tsDtMap ?: [:]
+private void remTsVal(key) {
+    Map data = atomicState?.tsDtMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
-        } else { if(data?.containsKey(key)) { data?.remove(key) } }
-        atomicState?.tsDtMap = data
+            key?.each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey((String)key)) { data?.remove((String)key) } }
+        atomicState.tsDtMap = data
     }
 }
 
-def getTsVal(val) {
-	def tsMap = atomicState?.tsDtMap
-	if(val && tsMap && tsMap[val]) { return tsMap[val] }
-	return null
+String getTsVal(String val) {
+	Map tsMap = atomicState.tsDtMap
+	if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
+	return sNULL
 }
 
-private updAppFlag(key, val) {
+private void updAppFlag(String key, Boolean val) {
 	def data = atomicState?.appFlagsMap ?: [:]
 	if(key) { data[key] = val }
 	atomicState?.appFlagsMap = data
 }
 
-private remAppFlag(key) {
-	def data = atomicState?.appFlagsMap ?: [:]
+private void remAppFlag(key) {
+    Map data = atomicState?.appFlagsMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+            key?.each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
         } else { if(data?.containsKey(key)) { data?.remove(key) } }
-        atomicState?.appFlagsMap = data
+        atomicState.appFlagsMap = data
     }
 }
 
-Boolean getAppFlag(val) {
-    def aMap = atomicState?.appFlagsMap
-    if(val && aMap && aMap[val]) { return aMap[val] }
+Boolean getAppFlag(String val) {
+    Map aMap = atomicState?.appFlagsMap
+    if(val && aMap && aMap[val]) { return (Boolean)aMap[val] }
     return false
 }
 
@@ -1296,16 +1295,16 @@ private stateMapMigration() {
     updAppFlag("stateMapConverted", true)
 }
 
-Integer getLastTsValSecs(val, nullVal=1000000) {
-	def tsMap = atomicState?.tsDtMap
-	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : nullVal
+Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
+	Map tsMap = atomicState?.tsDtMap
+	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
 }
 
 /******************************************
 |   App Input Description Functions
 *******************************************/
 
-String unitStr(type) {
+String unitStr(String type) {
     switch(type) {
         case "temp":
             return "\u00b0${getTemperatureScale() ?: "F"}"
@@ -1313,67 +1312,70 @@ String unitStr(type) {
         case "battery":
             return "%"
         default:
-            return ""
+            return sBLANK
     }
 }
 
-String getAppNotifDesc(hide=false) {
+String getAppNotifDesc(Boolean hide=false) {
     String str = ""
     if(isZoneNotifConfigured()) {
-        str += hide ? "" : "Send To:\n"
-        str += settings?.notif_sms_numbers ? " \u2022 (${settings?.notif_sms_numbers?.tokenize(",")?.size()} SMS Numbers)\n" : ""
-        str += settings?.notif_send_push ? " \u2022 (Push Message)\n" : ""
-        str += (settings?.notif_pushover && settings?.notif_pushover_devices?.size()) ? " \u2022 Pushover Device${pluralizeStr(settings?.notif_pushover_devices)} (${settings?.notif_pushover_devices?.size()})\n" : ""
-        str += settings?.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : ""
-        str += getNotifSchedDesc(true) ? " \u2022 Restrictions: (${getOk2Notify() ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+        str += hide ? sBLANK : "Send To:\n"
+        if(isStFLD) {
+            str += settings.notif_sms_numbers ? " \u2022 (${settings.notif_sms_numbers?.tokenize(",")?.size()} SMS Numbers)\n" : sBLANK
+            str += settings.notif_send_push ? " \u2022 (Push Message)\n" : sBLANK
+            str += (settings.notif_pushover && settings.notif_pushover_devices?.size()) ? " \u2022 Pushover Device${pluralizeStr(settings.notif_pushover_devices)} (${settings.notif_pushover_devices?.size()})\n" : sBLANK
+        }
+        str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
+        str += settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
+        str += getNotifSchedDesc(true) ? " \u2022 Restrictions: (${getOk2Notify() ? "${okSym()}" : "${notOkSym()}"})\n" : sBLANK
     }
-    return str != "" ? str : null
+    return str != sBLANK ? str : sNULL
 }
 
 List getQuietDays() {
 	List allDays = weekDaysEnum()
-	List curDays = settings?.notif_days ?: []
+	List curDays = settings.notif_days ?: []
 	return allDays?.findAll { (!curDays?.contains(it as String)) }
 }
 
 String getNotifSchedDesc(min=false) {
     def sun = getSunriseAndSunset()
-    def startInput = settings?.notif_time_start_type
-    def startTime = settings?.notif_time_start
-    def stopInput = settings?.notif_time_stop_type
-    def stopTime = settings?.notif_time_stop
-    def dayInput = settings?.notif_days
-    def modeInput = settings?.notif_modes
-    def str = ""
-    def startLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : "") )
-    def stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : "") )
-    str += (startLbl && stopLbl) ? " \u2022 Time: ${startLbl} - ${stopLbl}" : ""
-    def qDays = getQuietDays()
+    String startInput = settings.notif_time_start_type
+    def startTime = settings.notif_time_start
+    String stopInput = settings.notif_time_stop_type
+    def stopTime = settings.notif_time_stop
+    List dayInput = settings.notif_days
+    List modeInput = settings.notif_modes
+    String str = sBLANK
+    String startLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : sBLANK) )
+    String stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
+    str += (startLbl && stopLbl) ? " \u2022 Time: ${startLbl} - ${stopLbl}" : sBLANK
+    List qDays = getQuietDays()
     str += dayInput ? "${(startLbl || stopLbl) ? "\n" : ""} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
-    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : ""} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : ""
+    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : ""
     return (str != "") ? "${str}" : null
 }
 
 String getConditionsDesc() {
     Boolean confd = conditionsConfigured()
-    def time = null
+//    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${(conditionStatus()?.ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
-        str += (settings?.cond_require_all != true) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
+        String str = "Conditions: (${(conditionStatus()?.ok == true) ? okSym() : notOkSym()})\n"
+        str += (settings.cond_require_all != true) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
         if(timeCondConfigured()) {
             str += " \u2022 Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
             str += " \u2022 Date:\n"
-            str += settings?.cond_days      ? "    - Days: (${(isDayOfWeek(settings?.cond_days)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-            str += settings?.cond_months    ? "    - Months: (${(isMonthOfYear(settings?.cond_months)) ? "${okSym()}" : "${notOkSym()}"})\n"  : ""
+            str += settings.cond_days      ? "    - Days: (${(isDayOfWeek(settings.cond_days)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+            str += settings.cond_months    ? "    - Months: (${(isMonthOfYear(settings.cond_months)) ? "${okSym()}" : "${notOkSym()}"})\n"  : ""
         }
-        if(settings?.cond_alarm || settings?.cond_mode) {
+        if(settings.cond_alarm || settings.cond_mode) {
             str += " \u2022 Location: (${locationCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
-            str += settings?.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings?.cond_alarm)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-            str += settings?.cond_mode ? "    - Location Modes: (${(isInMode(settings?.cond_mode, (settings?.cond_mode_cmd == "not"))) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+            str += settings.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings.cond_alarm)) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+            str += settings.cond_mode ? "    - Location Modes: (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? "${okSym()}" : "${notOkSym()}"})\n" : ""
         }
         if(deviceCondConfigured()) {
             ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
@@ -1381,21 +1383,21 @@ String getConditionsDesc() {
                     def condOk = false
                     if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
-                    // str += settings?."${}"
-                    str += settings?."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings?."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : ""
-                    def cmd = settings?."${sPre}${evt}_cmd" ?: null
+                    // str += settings."${}"
+                    str += settings."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : ""
+                    def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in ["between", "below", "above", "equals"]) {
-                        def cmdLow = settings?."${sPre}${evt}_low" ?: null
-                        def cmdHigh = settings?."${sPre}${evt}_high" ?: null
-                        def cmdEq = settings?."${sPre}${evt}_equal" ?: null
-                        str += (cmd == "equals" && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
-                        str += (cmd == "between" && cmdLow && cmdHigh) ? "    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
-                        str += (cmd == "above" && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
-                        str += (cmd == "below" && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        def cmdLow = settings."${sPre}${evt}_low" ?: null
+                        def cmdHigh = settings."${sPre}${evt}_high" ?: null
+                        def cmdEq = settings."${sPre}${evt}_equal" ?: null
+                        str += (cmd == "equals" && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += (cmd == "between" && cmdLow && cmdHigh) ? "    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += (cmd == "above" && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += (cmd == "below" && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
                     } else {
-                        str += cmd ? "    - Value: (${cmd})${settings?."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
+                        str += cmd ? "    - Value: (${cmd})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : ""
                     }
-                    str += (settings?."${sPre}${evt}_all" == true) ? "    - Require All: (${settings?."${sPre}${evt}_all"})\n" : ""
+                    str += (settings."${sPre}${evt}_all" == true) ? "    - Require All: (${settings."${sPre}${evt}_all"})\n" : ""
                 }
             }
         }
@@ -1408,10 +1410,10 @@ String getConditionsDesc() {
 
 String getZoneDesc() {
     if(devicesConfigured() && conditionsConfigured()) {
-        List eDevs = parent?.getDevicesFromList(settings?.zone_EchoDevices)?.collect { it?.displayName as String }
-        String str = eDevs?.size() ? "Echo Devices in Zone:\n${eDevs?.join("\n")}\n" : ""
-        str += settings?.zone_active_delay ? " \u2022 Activate Delay: (${settings?.zone_active_delay})\n" : ""
-        str += settings?.zone_inactive_delay ? " \u2022 Deactivate Delay: (${settings?.zone_inactive_delay})\n" : ""
+        List eDevs = parent?.getDevicesFromList(settings.zone_EchoDevices)?.collect { it?.displayName as String }
+        String str = eDevs?.size() ? "Echo Devices in Zone:\n${eDevs?.join("\n")}\n" : sBLANK
+        str += settings.zone_active_delay ? " \u2022 Activate Delay: (${settings.zone_active_delay})\n" : sBLANK
+        str += settings.zone_inactive_delay ? " \u2022 Deactivate Delay: (${settings.zone_inactive_delay})\n" : sBLANK
         str += "\nTap to modify..."
         return str
     } else {
@@ -1419,24 +1421,16 @@ String getZoneDesc() {
     }
 }
 
-String getTimeCondDesc(addPre=true) {
-    def sun = getSunriseAndSunset()
-    def sunsetTime = epochToTime(sun?.sunset?.time)
-    def sunriseTime = epochToTime(sun?.sunrise?.time)
-    def startType = settings?.cond_time_start_type
-    def startTime = settings?.cond_time_start ? fmtTime(settings?.cond_time_start) : null
-    def stopType = settings?.cond_time_stop_type
-    def stopTime = settings?.cond_time_stop ? fmtTime(settings?.cond_time_stop) : null
-    String startLbl = (
-        (startType in ["Sunset", "Sunrise"]) ?
-        ((startType == "Sunset") ? sunsetTime : sunriseTime) :
-        startTime
-    )
-    def stopLbl = (
-        (stopType in ["Sunrise", "Sunset"]) ?
-        ((stopType == "Sunset") ? sunsetTime : sunriseTime) :
-        stopTime
-    )
+String getTimeCondDesc(String addPre=true) {
+    Map sun = getSunriseAndSunset()
+    String sunsetTime = epochToTime(sun?.sunset?.time)
+    String sunriseTime = epochToTime(sun?.sunrise?.time)
+    String startType = settings.cond_time_start_type
+    String startTime = settings.cond_time_start ? fmtTime(settings.cond_time_start) : sNULL
+    String stopType = settings.cond_time_stop_type
+    String stopTime = settings.cond_time_stop ? fmtTime(settings.cond_time_stop) : sNULL
+    String startLbl = startType in ["Sunset", "Sunrise"] ?  (startType == "Sunset" ? sunsetTime : sunriseTime) : startTime
+    String stopLbl = (stopType in ["Sunrise", "Sunset"]) ?  ((stopType == "Sunset") ? sunsetTime : sunriseTime) : stopTime
     return ((startLbl && startLbl != "") && (stopLbl && stopLbl != "")) ? "${addPre ? "Time Condition:\n" : ""}(${startLbl} - ${stopLbl})" : "tap to configure..."
 }
 
@@ -1446,11 +1440,11 @@ String getInputToStringDesc(inpt, addSpace = null) {
     if(inpt) {
         inpt.sort().each { item ->
             cnt = cnt+1
-            str += item ? (((cnt < 1) || (inpt?.size() > 1)) ? "\n      ${item}" : "${addSpace ? "      " : ""}${item}") : ""
+            str += item ? (((cnt < 1) || (inpt.size() > 1)) ? "\n      ${item}" : "${addSpace ? "      " : ""}${item}") : ""
         }
     }
     //log.debug "str: $str"
-    return (str != "") ? "${str}" : null
+    return str != sBLANK ? str : sNULL
 }
 
 String randomString(Integer len) {
@@ -1470,14 +1464,14 @@ def getRandomItem(items) {
 /***********************************************************************************************************
     HELPER FUNCTIONS
 ************************************************************************************************************/
-void settingUpdate(name, value, type=null) {
-    if(name && type) { app?.updateSetting("$name", [type: "$type", value: value]) }
-    else if (name && type == null) { app?.updateSetting(name.toString(), value) }
+void settingUpdate(String name, value, String type=sNULL) {
+    if(name && type) { app?.updateSetting(name, [type: type, value: value]) }
+    else if (name) { app?.updateSetting(name, value) }
 }
 
 void settingRemove(String name) {
     logTrace("settingRemove($name)...")
-    if(name && settings?.containsKey(name as String)) { isStFLD ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
+    if(name && settings.containsKey(name)) { isStFLD ? app?.deleteSetting(name) : app?.removeSetting(name) }
 }
 
 List weekDaysEnum() {
@@ -1491,24 +1485,27 @@ List monthEnum() {
 Map getAlarmTrigOpts() {
     return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
 }
-
+/*
 def getShmIncidents() {
     def incidentThreshold = now() - 604800000
     return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
 }
 
-Boolean pushStatus() { return (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_pushover) ? ((settings?.notif_send_push || (settings?.notif_pushover && settings?.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : null }
+Boolean pushStatus() { return (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : null }
+*/
+
 Integer getLastNotifMsgSec() { return !state?.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastNotifMsgDt, "getLastMsgSec").toInteger() }
 Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state?.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
+
 Boolean getOk2Notify() {
-    Boolean smsOk = (settings?.notif_sms_numbers?.toString()?.length()>=10)
-    Boolean pushOk = settings?.notif_send_push
-    Boolean alexaMsg = (settings?.notif_alexa_mobile)
-    Boolean pushOver = (settings?.notif_pushover && settings?.notif_pushover_devices)
-    Boolean notifDevsOk = (settings?.notif_devs?.size())
-    Boolean daysOk = settings?.notif_days ? (isDayOfWeek(settings?.notif_days)) : true
+    Boolean smsOk = (isStFLD && settings.notif_sms_numbers?.toString()?.length()>=10)
+    Boolean pushOk = isStFLD && settings.notif_send_push
+    Boolean pushOver = (isStFLD && settings.notif_pushover && settings.notif_pushover_devices)
+    Boolean alexaMsg = (settings.notif_alexa_mobile)
+    Boolean notifDevsOk = (settings.notif_devs?.size())
+    Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
-    Boolean modesOk = settings?.notif_mode ? (isInMode(settings?.notif_mode)) : true
+    Boolean modesOk = settings.notif_mode ? (isInMode(settings.notif_mode)) : true
     logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
@@ -1516,79 +1513,83 @@ Boolean getOk2Notify() {
 }
 
 Boolean notifTimeOk() {
-    def startTime = null
-    def stopTime = null
-    def now = new Date()
-    def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
-    if(settings?.notif_time_start_type && settings?.notif_time_stop_type) {
-        if(settings?.notif_time_start_type == "sunset") { startTime = sun?.sunset }
-        else if(settings?.notif_time_start_type == "sunrise") { startTime = sun?.sunrise }
-        else if(settings?.notif_time_start_type == "time" && settings?.notif_time_start) { startTime = settings?.notif_time_start }
+    String startTime = sNULL
+    String stopTime = sNULL
+//    def now = new Date()
+    Map sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
+    if(settings.notif_time_start_type && settings.notif_time_stop_type) {
+        if(settings.notif_time_start_type == "sunset") { startTime = sun?.sunset }
+        else if(settings.notif_time_start_type == "sunrise") { startTime = sun?.sunrise }
+        else if(settings.notif_time_start_type == "time" && settings.notif_time_start) { startTime = settings.notif_time_start }
 
-        if(settings?.notif_time_stop_type == "sunset") { stopTime = sun?.sunset }
-        else if(settings?.notif_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
-        else if(settings?.notif_time_stop_type == "time" && settings?.notif_time_stop) { stopTime = settings?.notif_time_stop }
+        if(settings.notif_time_stop_type == "sunset") { stopTime = sun?.sunset }
+        else if(settings.notif_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
+        else if(settings.notif_time_stop_type == "time" && settings.notif_time_stop) { stopTime = settings.notif_time_stop }
     } else { return true }
     if(startTime && stopTime) {
+        Date st
+        Date et
         if(!isStFLD) {
-            startTime = toDateTime(startTime)
-            stopTime = toDateTime(stopTime)
+            st = toDateTime(startTime)
+            et = toDateTime(stopTime)
         }
-        return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
+        return timeOfDayIsBetween(st, et, new Date(), location?.timeZone)
     } else { return true }
 }
 
 // Sends the notifications based on app settings
-public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=true) {
+public Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=true) {
     logTrace("sendNotifMsg() | msgTitle: ${msgTitle}, msg: ${msg}, $alexaDev, showEvt: ${showEvt}")
-    List sentSrc = ["Push"]
+    List sentSrc = [] // ["Push"]
     Boolean sent = false
     try {
         String newMsg = "${msgTitle}: ${msg}"
         String flatMsg = newMsg.toString().replaceAll("\n", " ")
         if(!getOk2Notify()) {
-            logInfo( "sendNotifMsg: Message Skipped During Quiet Time ($flatMsg)")
-            if(showEvt) { sendNotificationEvent(newMsg) }
+            logInfo( "sendNotifMsg: Notification not configured or Message Skipped During Quiet Time ($flatMsg)")
+            //if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
-            if(settings?.notif_send_push) {
-                sendSrc?.push("Push Message")
-                if(showEvt) {
-                    sendPush(newMsg)	// sends push and notification feed
-                } else { sendPushMessage(newMsg) } // sends push
-                sent = true
-            }
-            if(settings?.notif_pushover && settings?.notif_pushover_devices) {
-                sentSrc?.push("Pushover Message")
-                Map msgObj = [title: msgTitle, message: msg, priority: (settings?.notif_pushover_priority?:0)]
-                if(settings?.notif_pushover_sound) { msgObj?.sound = settings?.notif_pushover_sound }
-                buildPushMessage(settings?.notif_pushover_devices, msgObj, true)
-                sent = true
-            }
-            String smsPhones = settings?.notif_sms_numbers?.toString() ?: null
-            if(smsPhones) {
-                List phones = smsPhones?.toString()?.tokenize(",")
-                for (phone in phones) {
-                    String t0 = newMsg.take(140)
+            if(isStFLD) {
+                if(isStFLD && settings.notif_send_push) {
+                    sendSrc?.push("Push Message")
                     if(showEvt) {
-                        sendSms(phone?.trim(), t0)	// send SMS and notification feed
-                    } else { sendSmsMessage(phone?.trim(), t0) } // send SMS
+                        sendPush(newMsg)	// sends push and notification feed
+                    } else { sendPushMessage(newMsg) } // sends push
+                    sent = true
                 }
-                sentSrc?.push("SMS Message to [${phones}]")
+                if(settings.notif_pushover && settings.notif_pushover_devices) {
+                    sentSrc.push("Pushover Message")
+                    Map msgObj = [title: msgTitle, message: msg, priority: (settings.notif_pushover_priority?:0)]
+                    if(settings.notif_pushover_sound) { msgObj?.sound = settings.notif_pushover_sound }
+                    buildPushMessage(settings.notif_pushover_devices, msgObj, true)
+                    sent = true
+                }
+                String smsPhones = settings.notif_sms_numbers?.toString() ?: null
+                if(smsPhones) {
+                    List phones = smsPhones?.toString()?.tokenize(",")
+                    for (phone in phones) {
+                        String t0 = newMsg.take(140)
+                        if(showEvt) {
+                            sendSms(phone?.trim(), t0)	// send SMS and notification feed
+                        } else { sendSmsMessage(phone?.trim(), t0) } // send SMS
+                    }
+                    sentSrc.push("SMS Message to [${phones}]")
+                    sent = true
+                }
+            }
+            if(settings.notif_devs) {
+                sentSrc.push("Notification Devices")
+                settings.notif_devs?.each { it?.deviceNotification(msg as String) }
                 sent = true
             }
-            if(settings?.notif_devs) {
-                sentSrc?.push("Notification Devices")
-                settings?.notif_devs?.each { it?.deviceNotification(msg as String) }
-                sent = true
-            }
-            if(settings?.notif_alexa_mobile && alexaDev) {
+            if(settings.notif_alexa_mobile && alexaDev) {
                 alexaDev?.sendAlexaAppNotification(msg)
-                sentSrc?.push("Alexa Mobile App")
+                sentSrc.push("Alexa Mobile App")
                 sent = true
             }
             if(sent) {
                 state?.lastNotificationMsg = flatMsg
-                state?.lastNotifMsgDt = getDtNow()
+                updTsVal("lastNotifMsgDt") //state?.lastNotifMsgDt = getDtNow()
                 logDebug("sendNotifMsg: Sent ${sendSrc} (${flatMsg})")
             }
         }
@@ -1600,8 +1601,8 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
 
 Boolean isZoneNotifConfigured() {
     return (
-        (settings?.notif_active_message || settings?.notif_inactive_message) &&
-        (settings?.notif_sms_numbers?.toString()?.length()>=10 || settings?.notif_send_push || settings?.notif_devs || settings?.notif_alexa_mobile || (isStFLD && settings?.notif_pushover && settings?.notif_pushover_devices))
+        (settings.notif_active_message || settings.notif_inactive_message) &&
+        (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_devs || settings.notif_alexa_mobile || (isStFLD && settings.notif_pushover && settings.notif_pushover_devices))
     )
 }
 
@@ -1631,7 +1632,7 @@ Boolean minVersionFailed() {
         return false
     }
 }
-Boolean isPaused() { return (settings?.zonePause == true) }
+Boolean isPaused() { return (settings.zonePause == true) }
 
 String okSym() { return "\u2713" }
 String notOkSym() { return "\u2715" }
@@ -1640,6 +1641,8 @@ String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubuserco
 String sTS(String t, String i = null) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : ""} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
 String pTS(String t, String i = null, bold=true, color=null) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 String inTS(String t, String i = null, color=null) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : ""}""" }
+
+/* """ */ 
 
 String bulletItem(String inStr, String strVal) { return "${inStr == "" ? "" : "\n"} \u2022 ${strVal}" }
 String dashItem(String inStr, String strVal, newLine=false) { return "${(inStr == "" && !newLine) ? "" : "\n"} - ${strVal}" }
@@ -1658,11 +1661,11 @@ private addToLogHistory(String logKey, data, Integer max=10) {
     if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max) ) }
     updMemStoreItem(logKey, eData)
 }
-private logDebug(msg) { if(settings?.logDebug == true) { log.debug "Zone (v${appVersionFLD}) | ${msg}" } }
-private logInfo(msg) { if(settings?.logInfo != false) { log.info " Zone (v${appVersionFLD}) | ${msg}" } }
-private logTrace(msg) { if(settings?.logTrace == true) { log.trace "Zone (v${appVersionFLD}) | ${msg}" } }
-private logWarn(msg, noHist=false) { if(settings?.logWarn != false) { log.warn " Zone (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private logError(msg, noHist=false) { if(settings?.logError != false) { log.error " Zone (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private void logDebug(String msg) { if(settings.logDebug == true) { log.debug "Zone (v${appVersionFLD}) | ${msg}" } }
+private void logInfo(String msg) { if(settings.logInfo != false) { log.info " Zone (v${appVersionFLD}) | ${msg}" } }
+private void logTrace(String msg) { if(settings.logTrace == true) { log.trace "Zone (v${appVersionFLD}) | ${msg}" } }
+private void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) { log.warn " Zone (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error " Zone (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 private Map getLogHistory() {
     return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [] ]
@@ -1688,7 +1691,7 @@ private List getMemStoreItem(String key){
     Map memStore = historyMapFLD[appId] ?: [:]
     return memStore[key] ?: null
 }
-
+/*
 // Memory Barrier
 @Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
 
@@ -1761,7 +1764,7 @@ void releaseTheLock(String qname){
     lockHolderFLD[semaSNum]=(String)null
     lockHolderFLD=lockHolderFLD
     sema.release()
-}
+} */
 
 //*******************************************************************
 //    CLONE CHILD LOGIC
@@ -1770,16 +1773,16 @@ public getDuplSettingData() {
     Map typeObj = parent?.getAppDuplTypes()
     Map setObjs = [:]
     typeObj?.stat?.each { sk,sv->
-        sv?.each { svi-> if(settings?.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi] ] } }
+        sv?.each { svi-> if(settings.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi] ] } }
     }
     typeObj?.ends?.each { ek,ev->
-        ev?.each { evi-> settings?.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }
+        ev?.each { evi-> settings.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }
     }
     typeObj?.caps?.each { ck,cv->
-        settings?.findAll { it?.key?.endsWith(ck) }?.each { fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id as String }] }
+        settings.findAll { it?.key?.endsWith(ck) }?.each { fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id as String }] }
     }
     typeObj?.dev?.each { dk,dv->
-        settings?.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
+        settings.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
     }
     Map data = [:]
     data?.label = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", "")
