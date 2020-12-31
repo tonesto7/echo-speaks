@@ -395,7 +395,7 @@ def zoneNotifPage() {
 
 def zoneNotifTimePage() {
     return dynamicPage(name:"zoneNotifTimePage", title: "", install: false, uninstall: false) {
-        def pre = "notif"
+        String pre = "notif"
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
         section(sTS("Start Time:")) {
             input "${pre}_time_start_type", "enum", title: inTS("Starting at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
