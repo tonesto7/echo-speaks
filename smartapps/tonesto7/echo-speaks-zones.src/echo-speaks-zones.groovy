@@ -215,7 +215,7 @@ def conditionsPage() {
         }
 
         section(sTS("Time/Date")) {
-            href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: (timeCondConfigured() ? "complete" : null), image: getAppImg("clock")
+            href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: timeCondConfigured() ? "complete" : sNULL, image: getAppImg("clock")
             input "cond_days", "enum", title: inTS("Days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
             input "cond_months", "enum", title: inTS("Months of the year", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: monthEnum(), image: getAppImg("day_calendar")
         }
@@ -318,7 +318,7 @@ def condTimePage() {
             input "cond_time_start_type", "enum", title: inTS("Starting at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
             if(cond_time_start_type  == "time") {
                 input "cond_time_start", "time", title: inTS("Start time", getAppImg("start_time", true)), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
-            } else if(cond_time_start_type in ["sunrise", "sunrise"]) {
+            } else if(cond_time_start_type in ["sunrise", "sunset"]) {
                 input "cond_time_start_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -326,7 +326,7 @@ def condTimePage() {
             input "cond_time_stop_type", "enum", title: inTS("Stopping at...", getAppImg("start_time", true)), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
             if(cond_time_stop_type == "time") {
                 input "cond_time_stop", "time", title: inTS("Stop time", getAppImg("start_time", true)), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
-            } else if(cond_time_stop_type in ["sunrise", "sunrise"]) {
+            } else if(cond_time_stop_type in ["sunrise", "sunset"]) {
                 input "cond_time_stop_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -471,7 +471,7 @@ def uninstalled() {
     sendZoneRemoved()
 }
 
-String getZoneName() { return settings.appLbl as String }
+String getZoneName() { return (String)settings.appLbl }
 
 private updAppLabel() {
     String newLbl = "${settings.appLbl} (Z${isPaused() ? " \u275A\u275A" : sBLANK})"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
@@ -578,9 +578,9 @@ String attributeConvert(String attr) {
 Boolean reqAllCond() { return (!multipleConditions() || (multipleConditions() && settings.cond_require_all == true) ) }
 
 Boolean timeCondOk() {
-    def startTime = null
-    def stopTime = null
-    def now = new Date()
+    Date startTime
+    Date stopTime
+//    def now = new Date()
     def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
     if(settings.cond_time_start_type && settings.cond_time_stop_type) {
         if(settings.cond_time_start_type == "sunset") { startTime = sun?.sunset }
@@ -590,14 +590,14 @@ Boolean timeCondOk() {
         if(settings.cond_time_stop_type == "sunset") { stopTime = sun?.sunset }
         else if(settings.cond_time_stop_type == "sunrise") { stopTime = sun?.sunrise }
         else if(settings.cond_time_stop_type == "time" && settings.cond_time_stop) { stopTime = settings.cond_time_stop }
-    } else { return null }
+    } else { return true }
     if(startTime && stopTime) {
-        if(!isStFLD) {
+/*        if(!isStFLD) {
             startTime = toDateTime(startTime)
             stopTime = toDateTime(stopTime)
-        }
+        }*/
         return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
-    } else { return null }
+    } else { return true }
 }
 
 Boolean dateCondOk() {
@@ -839,14 +839,14 @@ def updateZoneStatus(data) {
         sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: [ name: getZoneName(), active: active ], isStateChange: true, display: false, displayed: false)
         if(isZoneNotifConfigured()) {
             Boolean ok2Send = true
-            String msgTxt = null
+            String msgTxt = sNULL
             if(active) {
-                msgTxt = settings.notif_active_message ?: null
-            } else { msgTxt = settings.notif_inactive_message ?: null }
+                msgTxt = settings.notif_active_message ?: sNULL
+            } else { msgTxt = settings.notif_inactive_message ?: sNULL }
             if(ok2Send && msgTxt) {
                 def zoneDevices = getZoneDevices()
                 def alexaMsgDev = zoneDevices?.size() && settings.notif_alexa_mobile ? zoneDevices[0] : null
-                if(sendNotifMsg(getZoneName() as String, msgTxt as String, alexaMsgDev, false)) { logDebug("Sent Zone Notification...") }
+                if(sendNotifMsg(getZoneName() as String, msgTxt, alexaMsgDev, false)) { logDebug("Sent Zone Notification...") }
             }
         }
         if(active) {
@@ -1145,7 +1145,7 @@ String getDtNow() {
     return formatDt(now)
 }
 
-String epochToTime(tm) {
+String epochToTime(Date tm) {
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
     return (String)tf.format(tm)
@@ -1229,7 +1229,7 @@ Boolean isDayOfWeek(opts) {
     return ( opts?.contains(day) )
 }
 
-Boolean isTimeOfDay(startTime, stopTime) {
+Boolean isTimeOfDay(String startTime, String stopTime) {
     if(!startTime && !stopTime) { return true }
     Date st
     Date et
@@ -1348,13 +1348,13 @@ String getNotifSchedDesc(min=false) {
     List dayInput = settings.notif_days
     List modeInput = settings.notif_modes
     String str = sBLANK
-    String startLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : sBLANK) )
-    String stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
+    String startLbl = ( (startInput == "sunrise" || startInput == "sunset") ? ( (startInput == "sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (startTime ? time2Str(startTime) : sBLANK) )
+    String stopLbl = ( (stopInput == "sunrise" || stopInput == "sunset") ? ( (stopInput == "sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
     str += (startLbl && stopLbl) ? " \u2022 Time: ${startLbl} - ${stopLbl}" : sBLANK
     List qDays = getQuietDays()
     str += dayInput ? "${(startLbl || stopLbl) ? "\n" : sBLANK} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : sBLANK
     str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : sBLANK
-    return (str != "") ? "${str}" : null
+    return (str != sBLANK) ? str : sNULL
 }
 
 String getConditionsDesc() {
@@ -1422,17 +1422,17 @@ String getZoneDesc() {
     }
 }
 
-String getTimeCondDesc(String addPre=true) {
+String getTimeCondDesc(Boolean addPre=true) {
     Map sun = getSunriseAndSunset()
-    String sunsetTime = epochToTime(sun?.sunset?.time)
-    String sunriseTime = epochToTime(sun?.sunrise?.time)
+    String sunsetTime = epochToTime(sun?.sunset)
+    String sunriseTime = epochToTime(sun?.sunrise)
     String startType = settings.cond_time_start_type
     String startTime = settings.cond_time_start ? fmtTime(settings.cond_time_start) : sNULL
     String stopType = settings.cond_time_stop_type
     String stopTime = settings.cond_time_stop ? fmtTime(settings.cond_time_stop) : sNULL
-    String startLbl = startType in ["Sunset", "Sunrise"] ?  (startType == "Sunset" ? sunsetTime : sunriseTime) : startTime
-    String stopLbl = (stopType in ["Sunrise", "Sunset"]) ?  ((stopType == "Sunset") ? sunsetTime : sunriseTime) : stopTime
-    return ((startLbl && startLbl != "") && (stopLbl && stopLbl != "")) ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl} - ${stopLbl})" : "tap to configure..."
+    String startLbl = startType in ["sunset", "sunrise"] ?  (startType == "sunset" ? sunsetTime : sunriseTime) : startTime
+    String stopLbl = (stopType in ["sunrise", "sunset"]) ?  ((stopType == "sunset") ? sunsetTime : sunriseTime) : stopTime
+    return (startLbl && stopLbl) ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl} - ${stopLbl})" : "tap to configure..."
 }
 
 String getInputToStringDesc(inpt, addSpace = null) {
@@ -1514,8 +1514,8 @@ Boolean getOk2Notify() {
 }
 
 Boolean notifTimeOk() {
-    String startTime = sNULL
-    String stopTime = sNULL
+    Date startTime
+    Date stopTime
 //    def now = new Date()
     Map sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
     if(settings.notif_time_start_type && settings.notif_time_stop_type) {
@@ -1528,13 +1528,13 @@ Boolean notifTimeOk() {
         else if(settings.notif_time_stop_type == "time" && settings.notif_time_stop) { stopTime = settings.notif_time_stop }
     } else { return true }
     if(startTime && stopTime) {
-        Date st
+/*        Date st
         Date et
         if(!isStFLD) {
             st = toDateTime(startTime)
             et = toDateTime(stopTime)
-        }
-        return timeOfDayIsBetween(st, et, new Date(), location?.timeZone)
+        } */
+        return timeOfDayIsBetween(startTime, stopTime, new Date(), location?.timeZone)
     } else { return true }
 }
 
@@ -1641,7 +1641,7 @@ Boolean isPaused() { return (settings.zonePause == true) }
 
 String okSym() { return "\u2713" }
 String notOkSym() { return "\u2715" }
-String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${isBeta() ? "beta" : "master"}/resources/icons/${imgName}.png" : "" }
+String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK }
 String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
 String sTS(String t, String i = sNULL) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
 String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
