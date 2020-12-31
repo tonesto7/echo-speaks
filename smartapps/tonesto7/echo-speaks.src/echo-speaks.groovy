@@ -4202,7 +4202,7 @@ String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "$
 String pluralize(Integer itemVal, String str) { return (itemVal > 1) ? str+"s" : str }
 
 String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
-    Date newDt = Date.parse("$pFormat", dt)
+    Date newDt = Date.parse(pFormat, dt)
     return formatDt(newDt, tzFmt)
 }
 
@@ -4224,9 +4224,9 @@ String epochToTime(tm) {
     return tf.format(tm)
 }
 
-String time2Str(String time) {
+String time2Str(time) {
     if(time) {
-        Date t = timeToday(time, location?.timeZone)
+        Date t = timeToday(time as String, location?.timeZone)
         def f = new java.text.SimpleDateFormat("h:mm a")
         f.setTimeZone(location?.timeZone ?: timeZone(time))
         return f.format(t)
