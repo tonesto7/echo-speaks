@@ -561,13 +561,15 @@ public clearDuplicationItems() {
     settingRemove("zoneDuplicateSelect")
 }
 
-public getDupActionStateData() {
-    def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
-    return act?.getDuplStateData() ?: null
+public Map getDupActionStateData() {
+    def act = getActionApps()?.find { it?.id == settings.actionDuplicateSelect }
+    Map a = act?.getDuplStateData()
+    return a ?: null
 }
-public getDupZoneStateData() {
-    def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
-    return act?.getDuplStateData() ?: null
+public Map getDupZoneStateData() {
+    def act = getActionApps()?.find { it?.id == settings.actionDuplicateSelect }
+    Map a =  act?.getDuplStateData()
+    return a ?: null
 }
 
 def zonesPage() {
@@ -3778,7 +3780,8 @@ Boolean zoneUpdAvail() { return (state.appData?.versions && state.codeVersions?.
 Boolean echoDevUpdAvail() { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
 Boolean socketUpdAvail() { return (!isStFLD && state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
 Boolean serverUpdAvail() { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
-Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", sBLANK)?.toInteger() : null }
+
+Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
 void checkVersionData(Boolean now = false) { //This reads a JSON file from GitHub with version numbers
     Integer lastUpd = getLastTsValSecs("lastAppDataUpdDt")
@@ -4686,9 +4689,9 @@ String UrlParamBuilder(items) {
 }
 
 def getRandomItem(items) {
-    def list = new ArrayList<String>();
+    def list = new ArrayList<String>()
     items?.each { list?.add(it) }
-    return list?.get(new Random().nextInt(list?.size()));
+    return list?.get(new Random().nextInt(list?.size()))
 }
 
 String randomString(Integer len) {
@@ -4712,8 +4715,9 @@ Boolean getAccessToken() {
 private getTextEditChild(id) {
     if(!isStFLD) {
         Long longId = id as Long
-        return getChildAppById(longId) ?: null
-    } else { return getActionApps()?.find { it?.id == id } ?: null }
+        def a = getChildAppById(longId)
+        return a ?: null
+    } else { def a = getActionApps()?.find { it?.id == id }; return a ?: null }
 }
 
 def renderConfig() {
