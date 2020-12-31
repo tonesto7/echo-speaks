@@ -1099,127 +1099,124 @@ public Map getZoneMetrics() {
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
-def formatDt(dt, tzChg=true) {
+String formatDt(Date dt, Boolean tzChg=true) {
     def tf = new java.text.SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
-    return tf?.format(dt)
+    return (String)tf.format(dt)
 }
 
-def dateTimeFmt(dt, fmt) {
+String dateTimeFmt(dt, String fmt) {
     if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new java.text.SimpleDateFormat(fmt)
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return tf?.format(dt)
+    return (String)tf?.format(dt)
 }
 
-def convToTime(dt) {
-    def newDt = dateTimeFmt(dt, "h:mm a")
-    if(newDt?.toString()?.contains(":00 ")) { newDt?.toString()?.replaceAll(":00 ", " ") }
+String convToTime(dt) {
+    String newDt = dateTimeFmt(dt, "h:mm a")
+    if(newDt?.contains(":00 ")) { newDt?.toString()?.replaceAll(":00 ", " ") }
     return newDt
 }
 
-def convToDate(dt) {
-    def newDt = dateTimeFmt(dt, "EEE, MMM d")
+String convToDate(dt) {
+    String newDt = dateTimeFmt(dt, "EEE, MMM d")
     return newDt
 }
 
-def convToDateTime(dt) {
-    def t = dateTimeFmt(dt, "h:mm a")
-    def d = dateTimeFmt(dt, "EEE, MMM d")
+String convToDateTime(dt) {
+    String t = dateTimeFmt(dt, "h:mm a")
+    String d = dateTimeFmt(dt, "EEE, MMM d")
     return "$d, $t"
 }
 
 Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
-String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
-String pluralizeStr(obj, para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
+String strCapitalize(String str) { return str ? str?.toString().capitalize() : null }
+String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
 
-def parseDt(pFormat, dt, tzFmt=true) {
-    def result
-    def newDt = Date.parse("$pFormat", dt)
-    result = formatDt(newDt, tzFmt)
-    //log.debug "parseDt Result: $result"
-    return result
+String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
+    Date newDt = Date.parse(pFormat, dt)
+    return formatDt(newDt, tzFmt)
 }
 
-def getDtNow() {
-    def now = new Date()
+String getDtNow() {
+    Date now = new Date()
     return formatDt(now)
 }
 
-def epochToTime(tm) {
+String epochToTime(tm) {
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return tf.format(tm)
+    return (String)tf.format(tm)
 }
 
-def time2Str(time) {
+String time2Str(time) {
     if(time) {
-        def t = timeToday(time as String, location?.timeZone)
+        Date t = timeToday(time as String, location?.timeZone)
         def f = new java.text.SimpleDateFormat("h:mm a")
         if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-        return f?.format(t)
+        return (String)f?.format(t)
     }
+    return sNULL
 }
 
-def fmtTime(t, fmt="h:mm a", altFmt=false) {
-    if(!t) return null
-    def dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t?.toString())
+String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
+    if(!t) return sNULL
+    Date dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t?.toString())
     def tf = new java.text.SimpleDateFormat(fmt as String)
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return tf?.format(dt)
+    return (String)tf?.format(dt)
 }
 
-def GetTimeDiffSeconds(lastDate, sender=null) {
+Long GetTimeDiffSeconds(String lastDate, String sender=null) {
     try {
         if(lastDate?.contains("dtNow")) { return 10000 }
-        def now = new Date()
-        def lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
-        def start = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt)).getTime()
-        def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(now)).getTime()
-        def diff = (int) (long) (stop - start) / 1000
-        return diff
+        Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
+        Long start = lastDt.getTime()
+        Long stop = now()
+        Long diff = (stop - start) / 1000L
+        return diff.abs()
     }
     catch (ex) {
         logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : ""}lastDate: $lastDate): ${ex?.message}")
-        return 10000
+        return 10000L
     }
 }
 
-def getWeekDay() {
+String getWeekDay() {
     def df = new java.text.SimpleDateFormat("EEEE")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
-def getWeekMonth() {
+String getWeekMonth() {
     def df = new java.text.SimpleDateFormat("W")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
-def getDay() {
+String getDay() {
     def df = new java.text.SimpleDateFormat("D")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
-def getYear() {
+String getYear() {
     def df = new java.text.SimpleDateFormat("yyyy")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
-def getMonth() {
+String getMonth() {
     def df = new java.text.SimpleDateFormat("MMMMM")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
-def getWeekYear() {
+String getWeekYear() {
     def df = new java.text.SimpleDateFormat("w")
     df.setTimeZone(location?.timeZone)
-    return df.format(new Date())
+    return (String)df.format(new Date())
 }
 
 Map getDateMap() {
@@ -1227,63 +1224,63 @@ Map getDateMap() {
 }
 
 Boolean isDayOfWeek(opts) {
-    def df = new java.text.SimpleDateFormat("EEEE")
-    df.setTimeZone(location?.timeZone)
-    def day = df.format(new Date())
+    String day = getWeekDay()
     return ( opts?.contains(day) )
 }
 
 Boolean isTimeOfDay(startTime, stopTime) {
     if(!startTime && !stopTime) { return true }
-    if(!isStFLD) { startTime = toDateTime(startTime); stopTime = toDateTime(stopTime); }
-    return timeOfDayIsBetween(startTime, stopTime, new Date(), location.timeZone)
+    Date st
+    Date et
+    if(!isStFLD) { st = toDateTime(startTime); et = toDateTime(stopTime); }
+    return timeOfDayIsBetween(st, et, new Date(), location.timeZone)
 }
 
 Boolean advLogsActive() { return (settings.logDebug || settings.logTrace) }
-public logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
-public logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
+public void logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
+public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
 
-private updTsVal(key, dt=null) {
-	def data = atomicState?.tsDtMap ?: [:]
+private void updTsVal(String key, String dt=sNULL) {
+	Map data = atomicState?.tsDtMap ?: [:]
 	if(key) { data[key] = dt ?: getDtNow() }
-	atomicState?.tsDtMap = data
+	atomicState.tsDtMap = data
 }
 
-private remTsVal(key) {
-	def data = atomicState?.tsDtMap ?: [:]
+private void remTsVal(key) {
+    Map data = atomicState?.tsDtMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
-        } else { if(data?.containsKey(key)) { data?.remove(key) } }
-        atomicState?.tsDtMap = data
+            key?.each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
+        } else { if(data?.containsKey((String)key)) { data?.remove((String)key) } }
+        atomicState.tsDtMap = data
     }
 }
 
-def getTsVal(val) {
-	def tsMap = atomicState?.tsDtMap
-	if(val && tsMap && tsMap[val]) { return tsMap[val] }
-	return null
+String getTsVal(String val) {
+	Map tsMap = atomicState.tsDtMap
+	if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
+	return sNULL
 }
 
-private updAppFlag(key, val) {
+private void updAppFlag(String key, Boolean val) {
 	def data = atomicState?.appFlagsMap ?: [:]
 	if(key) { data[key] = val }
 	atomicState?.appFlagsMap = data
 }
 
-private remAppFlag(key) {
-	def data = atomicState?.appFlagsMap ?: [:]
+private void remAppFlag(key) {
+    Map data = atomicState?.appFlagsMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { k-> if(data?.containsKey(k)) { data?.remove(k) } }
+            key?.each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
         } else { if(data?.containsKey(key)) { data?.remove(key) } }
-        atomicState?.appFlagsMap = data
+        atomicState.appFlagsMap = data
     }
 }
 
-Boolean getAppFlag(val) {
-    def aMap = atomicState?.appFlagsMap
-    if(val && aMap && aMap[val]) { return aMap[val] }
+Boolean getAppFlag(String val) {
+    Map aMap = atomicState?.appFlagsMap
+    if(val && aMap && aMap[val]) { return (Boolean)aMap[val] }
     return false
 }
 
@@ -1298,16 +1295,16 @@ private stateMapMigration() {
     updAppFlag("stateMapConverted", true)
 }
 
-Integer getLastTsValSecs(val, nullVal=1000000) {
-	def tsMap = atomicState?.tsDtMap
-	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds(tsMap[val]).toInteger() : nullVal
+Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
+	Map tsMap = atomicState?.tsDtMap
+	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
 }
 
 /******************************************
 |   App Input Description Functions
 *******************************************/
 
-String unitStr(type) {
+String unitStr(String type) {
     switch(type) {
         case "temp":
             return "\u00b0${getTemperatureScale() ?: "F"}"
@@ -1315,11 +1312,11 @@ String unitStr(type) {
         case "battery":
             return "%"
         default:
-            return ""
+            return sBLANK
     }
 }
 
-String getAppNotifDesc(hide=false) {
+String getAppNotifDesc(Boolean hide=false) {
     String str = ""
     if(isZoneNotifConfigured()) {
         str += hide ? sBLANK : "Send To:\n"
@@ -1349,11 +1346,11 @@ String getNotifSchedDesc(min=false) {
     def stopTime = settings.notif_time_stop
     List dayInput = settings.notif_days
     List modeInput = settings.notif_modes
-    def str = sBLANK
+    String str = sBLANK
     String startLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : sBLANK) )
     String stopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
     str += (startLbl && stopLbl) ? " \u2022 Time: ${startLbl} - ${stopLbl}" : sBLANK
-    def qDays = getQuietDays()
+    List qDays = getQuietDays()
     str += dayInput ? "${(startLbl || stopLbl) ? "\n" : ""} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : ""
     str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : ""
     return (str != "") ? "${str}" : null
@@ -1361,10 +1358,10 @@ String getNotifSchedDesc(min=false) {
 
 String getConditionsDesc() {
     Boolean confd = conditionsConfigured()
-    def time = null
+//    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${(conditionStatus()?.ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
+        String str = "Conditions: (${(conditionStatus()?.ok == true) ? okSym() : notOkSym()})\n"
         str += (settings.cond_require_all != true) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
         if(timeCondConfigured()) {
             str += " \u2022 Time Between: (${timeCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
@@ -1414,9 +1411,9 @@ String getConditionsDesc() {
 String getZoneDesc() {
     if(devicesConfigured() && conditionsConfigured()) {
         List eDevs = parent?.getDevicesFromList(settings.zone_EchoDevices)?.collect { it?.displayName as String }
-        String str = eDevs?.size() ? "Echo Devices in Zone:\n${eDevs?.join("\n")}\n" : ""
-        str += settings.zone_active_delay ? " \u2022 Activate Delay: (${settings.zone_active_delay})\n" : ""
-        str += settings.zone_inactive_delay ? " \u2022 Deactivate Delay: (${settings.zone_inactive_delay})\n" : ""
+        String str = eDevs?.size() ? "Echo Devices in Zone:\n${eDevs?.join("\n")}\n" : sBLANK
+        str += settings.zone_active_delay ? " \u2022 Activate Delay: (${settings.zone_active_delay})\n" : sBLANK
+        str += settings.zone_inactive_delay ? " \u2022 Deactivate Delay: (${settings.zone_inactive_delay})\n" : sBLANK
         str += "\nTap to modify..."
         return str
     } else {
@@ -1424,24 +1421,16 @@ String getZoneDesc() {
     }
 }
 
-String getTimeCondDesc(addPre=true) {
-    def sun = getSunriseAndSunset()
-    def sunsetTime = epochToTime(sun?.sunset?.time)
-    def sunriseTime = epochToTime(sun?.sunrise?.time)
-    def startType = settings.cond_time_start_type
-    def startTime = settings.cond_time_start ? fmtTime(settings.cond_time_start) : null
-    def stopType = settings.cond_time_stop_type
-    def stopTime = settings.cond_time_stop ? fmtTime(settings.cond_time_stop) : null
-    String startLbl = (
-        (startType in ["Sunset", "Sunrise"]) ?
-        ((startType == "Sunset") ? sunsetTime : sunriseTime) :
-        startTime
-    )
-    def stopLbl = (
-        (stopType in ["Sunrise", "Sunset"]) ?
-        ((stopType == "Sunset") ? sunsetTime : sunriseTime) :
-        stopTime
-    )
+String getTimeCondDesc(String addPre=true) {
+    Map sun = getSunriseAndSunset()
+    String sunsetTime = epochToTime(sun?.sunset?.time)
+    String sunriseTime = epochToTime(sun?.sunrise?.time)
+    String startType = settings.cond_time_start_type
+    String startTime = settings.cond_time_start ? fmtTime(settings.cond_time_start) : sNULL
+    String stopType = settings.cond_time_stop_type
+    String stopTime = settings.cond_time_stop ? fmtTime(settings.cond_time_stop) : sNULL
+    String startLbl = startType in ["Sunset", "Sunrise"] ?  (startType == "Sunset" ? sunsetTime : sunriseTime) : startTime
+    String stopLbl = (stopType in ["Sunrise", "Sunset"]) ?  ((stopType == "Sunset") ? sunsetTime : sunriseTime) : stopTime
     return ((startLbl && startLbl != "") && (stopLbl && stopLbl != "")) ? "${addPre ? "Time Condition:\n" : ""}(${startLbl} - ${stopLbl})" : "tap to configure..."
 }
 
@@ -1451,11 +1440,11 @@ String getInputToStringDesc(inpt, addSpace = null) {
     if(inpt) {
         inpt.sort().each { item ->
             cnt = cnt+1
-            str += item ? (((cnt < 1) || (inpt?.size() > 1)) ? "\n      ${item}" : "${addSpace ? "      " : ""}${item}") : ""
+            str += item ? (((cnt < 1) || (inpt.size() > 1)) ? "\n      ${item}" : "${addSpace ? "      " : ""}${item}") : ""
         }
     }
     //log.debug "str: $str"
-    return (str != "") ? "${str}" : null
+    return str != sBLANK ? str : sNULL
 }
 
 String randomString(Integer len) {
@@ -1475,14 +1464,14 @@ def getRandomItem(items) {
 /***********************************************************************************************************
     HELPER FUNCTIONS
 ************************************************************************************************************/
-void settingUpdate(name, value, type=null) {
-    if(name && type) { app?.updateSetting("$name", [type: "$type", value: value]) }
-    else if (name && type == null) { app?.updateSetting(name.toString(), value) }
+void settingUpdate(String name, value, String type=sNULL) {
+    if(name && type) { app?.updateSetting(name, [type: type, value: value]) }
+    else if (name) { app?.updateSetting(name, value) }
 }
 
 void settingRemove(String name) {
     logTrace("settingRemove($name)...")
-    if(name && settings.containsKey(name as String)) { isStFLD ? app?.deleteSetting(name as String) : app?.removeSetting(name as String) }
+    if(name && settings.containsKey(name)) { isStFLD ? app?.deleteSetting(name) : app?.removeSetting(name) }
 }
 
 List weekDaysEnum() {
@@ -1496,13 +1485,15 @@ List monthEnum() {
 Map getAlarmTrigOpts() {
     return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
 }
-
+/*
 def getShmIncidents() {
     def incidentThreshold = now() - 604800000
     return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
 }
 
 Boolean pushStatus() { return (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : null }
+*/
+
 Integer getLastNotifMsgSec() { return !state?.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastNotifMsgDt, "getLastMsgSec").toInteger() }
 Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state?.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 
@@ -1525,7 +1516,7 @@ Boolean notifTimeOk() {
     String startTime = sNULL
     String stopTime = sNULL
 //    def now = new Date()
-    def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
+    Map sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
     if(settings.notif_time_start_type && settings.notif_time_stop_type) {
         if(settings.notif_time_start_type == "sunset") { startTime = sun?.sunset }
         else if(settings.notif_time_start_type == "sunrise") { startTime = sun?.sunrise }
