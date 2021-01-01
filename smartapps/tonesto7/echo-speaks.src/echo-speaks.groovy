@@ -3420,7 +3420,7 @@ private List codeUpdateItems(Boolean shrt=false) {
 }
 
 //Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
-Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? true : true ) : false }
+//Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? true : true ) : false }
 
 Boolean getOk2Notify() {
     Boolean smsOk = (settings.smsNumbers?.toString()?.length()>=10)
@@ -3430,10 +3430,9 @@ Boolean getOk2Notify() {
     Boolean daysOk = quietDaysOk(settings.quietDays)
     Boolean timeOk = quietTimeOk()
     Boolean modesOk = quietModesOk(settings.quietModes)
-    Boolean result = null
+    Boolean result = true
     if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
     if(!(daysOk && modesOk && timeOk)) { result= false }
-    if(result==null) result=true
     logDebug("getOk2Notify() RESULT: $result | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
 }
 
@@ -3447,11 +3446,11 @@ Boolean quietTimeOk() {
     if(settings.qStartTime && settings.qStopTime) {
         if(settings.qStartInput == "Sunset") { strtTime = sun?.sunset }
         else if(settings.qStartInput == "Sunrise") { strtTime = sun?.sunrise }
-        else if(settings.qStartInput == "A specific time" && settings.qStartTime) { strtTime = settings.qStartTime }
+        else if(settings.qStartInput == "A specific time" && settings.qStartTime) { strtTime = toDateTime(settings.qStartTime) }
 
         if(settings.qStopInput == "Sunset") { stopTime = sun?.sunset }
         else if(settings.qStopInput == "Sunrise") { stopTime = sun?.sunrise }
-        else if(settings.qStopInput == "A specific time" && settings.qStopTime) { stopTime = settings.qStopTime }
+        else if(settings.qStopInput == "A specific time" && settings.qStopTime) { stopTime = toDateTime(settings.qStopTime) }
     } else { return true }
     if(strtTime && stopTime) {
         // log.debug "quietTimeOk | Start: ${strtTime} | Stop: ${stopTime}"
@@ -3459,7 +3458,8 @@ Boolean quietTimeOk() {
             strtTime = toDateTime(strtTime.toString())
             stopTime = toDateTime(stopTime.toString())
         }*/
-        return (Boolean)timeOfDayIsBetween(strtTime, stopTime, new Date(), location?.timeZone) ? false : true
+        Boolean isBtwn = (Boolean)timeOfDayIsBetween(strtTime, stopTime, new Date(), location?.timeZone) ? false : true
+        return strtTime.getTime() > stopTime.getTime() ? !isBtwn : isBtwn
     } else { return true }
 }
 
@@ -4214,7 +4214,7 @@ String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
     def tf = new java.text.SimpleDateFormat(newFmt)
     if(location.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return tf.format(newDt)
+    return (String)tf.format(newDt)
 }
 
 String getDtNow() {
@@ -4225,7 +4225,7 @@ String getDtNow() {
 String epochToTime(Date tm) {
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return tf.format(tm)
+    return (String)tf.format(tm)
 }
 
 String time2Str(time) {
@@ -4233,7 +4233,7 @@ String time2Str(time) {
         Date t = timeToday(time as String, location?.timeZone)
         def f = new java.text.SimpleDateFormat("h:mm a")
         f.setTimeZone(location?.timeZone ?: timeZone(time))
-        return f.format(t)
+        return (String)f.format(t)
     }
 }
 
@@ -4502,10 +4502,10 @@ String getRandAppName() {
 *******************************************/
 String getAppNotifConfDesc() {
     String str = sBLANK
-    if(pushStatus()) {
+    Boolean notifDevs = (settings.notif_devs?.size())
+    if(notifDevs) { //pushStatus()) {
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
-        Boolean notifDevs = (settings.notif_devs?.size())
         str += notifDevs ? bulletItem(str, "Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})") : sBLANK
 //        str += (Boolean)settings.usePush ? bulletItem(str, "Sending via: (Push)") : sBLANK
 //        str += (Boolean)settings.pushoverEnabled ? bulletItem(str, "Pushover: (Enabled)") : sBLANK
@@ -4513,9 +4513,9 @@ String getAppNotifConfDesc() {
         // str += ((Boolean)settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : sBLANK
 //        str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : sBLANK
         str += (ap) ? "${str != sBLANK ? "\n\n" : sBLANK}Enabled Alerts:\n${ap}" : sBLANK
-        str += (ap && nd) ? "${str != sBLANK ? "\n" : sBLANK}\nQuiet Restrictions:\n${nd}" : sBLANK
+        str += (ap && nd) ? "${str != sBLANK ? "\n" : sBLANK}\nQuiet Restrictions: (${quietTimeOk() ? okSymFLD : notOkSymFLD}) OK to Notify: (${getOk2Notify() ? okSymFLD : notOkSymFLD})\n${nd}" : sBLANK
     }
-    return str != sBLANK ? str : (String)null
+    return str != sBLANK ? str : sNULL
 }
 
 List getQuietDays() {
@@ -4563,6 +4563,7 @@ String getAppNotifDesc() {
     str += (Boolean)settings.sendMissedPollMsg != false ? bulletItem(str, "Missed Polls") : sBLANK
     str += (Boolean)settings.sendAppUpdateMsg != false ? bulletItem(str, "Code Updates") : sBLANK
     str += (Boolean)settings.sendCookieRefreshMsg == true ? bulletItem(str, "Cookie Refresh") : sBLANK
+    str += (Boolean)settings.sendCookieInvalidMsg == true ? bulletItem(str, "Cookie Invalid") : sBLANK
     return str != sBLANK ? str : sNULL
 }
 
