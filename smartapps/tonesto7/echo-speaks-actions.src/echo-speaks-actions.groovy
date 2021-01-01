@@ -2793,7 +2793,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             Long dur = (evtDt.getTime() - prevDt.getTime())/1000L
             Boolean waitOk = ( (wait && dur) && (wait < dur))
             Boolean dayOk = !once || (once && !isDateToday(prevDt))
-            // log.debug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? "${okSym()}" : "${notOkSym()}"}) | OnceDaily: (${once}) - Status: (${dayOk ? "${okSym()}" : "${notOkSym()}"})")
+            // log.debug("Last ${evt?.name?.toString()?.capitalize()} Event for Device Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - Status: (${waitOk ? okSym() : notOkSym()}) | OnceDaily: (${once}) - Status: (${dayOk ? okSym() : notOkSym()})")
             ok = (waitOk && dayOk)
         }
     }
@@ -4011,11 +4011,11 @@ def getModeById(mId) {
     return location?.getModes()?.find{it?.id == mId}
 }
 
-Boolean isInMode(modes, not=false) {
+Boolean isInMode(List modes, Boolean not=false) {
     return (modes) ? (not ? (!(getCurrentMode() in modes)) : (getCurrentMode() in modes)) : false
 }
 
-Boolean isInAlarmMode(modes) {
+Boolean isInAlarmMode(List modes) {
     return (modes) ? (parent?.getAlarmSystemStatus() in modes) : false
 }
 
@@ -4242,7 +4242,7 @@ String getAppNotifDesc(Boolean hide=false) {
         }
         str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
         str += settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
-        str += getNotifSchedDesc(true) ? " \u2022 Restrictions: (${getOk2Notify() ? "${okSym()}" : "${notOkSym()}"})\n" : sBLANK
+        str += getNotifSchedDesc(true) ? " \u2022 Restrictions: (${getOk2Notify() ? okSym() : notOkSym()})\n" : sBLANK
     }
     return str != sBLANK ? str : sNULL
 }
@@ -4355,21 +4355,21 @@ String getConditionsDesc() {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${(conditionStatus().ok == true) ? "${okSym()}" : "${notOkSym()}"})\n"
+        String str = "Conditions: (${(conditionStatus().ok == true) ? okSym() : notOkSym()})\n"
         str += reqAllCond() ?  " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
-            str += " • Time Between: (${(timeCondOk()) ? "${okSym()}" : "${notOkSym()}"})\n"
+            str += " • Time Between: (${timeCondOk() ? okSym() : notOkSym()})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
             str += " • Date:\n"
-            str += settings.cond_days      ? "    - Days: (${(isDayOfWeek(settings.cond_days)) ? "${okSym()}" : "${notOkSym()}"})\n" : sBLANK
-            str += settings.cond_months    ? "    - Months: (${(isMonthOfYear(settings.cond_months)) ? "${okSym()}" : "${notOkSym()}"})\n"  : sBLANK
+            str += settings.cond_days      ? "    - Days: (${isDayOfWeek(settings.cond_days) ? okSym() : notOkSym()})\n" : sBLANK
+            str += settings.cond_months    ? "    - Months: (${isMonthOfYear(settings.cond_months) ? okSym() : notOkSym()})\n"  : sBLANK
         }
         if(settings.cond_alarm || (settings.cond_mode && settings.cond_mode_cmd)) {
-            str += " • Location: (${locationCondOk() ? "${okSym()}" : "${notOkSym()}"})\n"
-            str += settings.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings.cond_alarm)) ? "${okSym()}" : "${notOkSym()}"})\n" : sBLANK
-            str += settings.cond_mode ? "    - Modes(${settings.cond_mode_cmd == "not" ? "not in" : "in"}): (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? "${okSym()}" : "${notOkSym()}"})\n" : sBLANK
+            str += " • Location: (${locationCondOk() ? okSym() : notOkSym()})\n"
+            str += settings.cond_alarm ? "    - Alarm Modes: (${isInAlarmMode(settings.cond_alarm) ? okSym() : notOkSym()})\n" : sBLANK
+            str += settings.cond_mode ? "    - Modes(${settings.cond_mode_cmd == "not" ? "not in" : "in"}): (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSym() : notOkSym()})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
             ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
@@ -4378,7 +4378,7 @@ String getConditionsDesc() {
                     if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
 
-                    str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? "${okSym()}" : "${notOkSym()}"})\n" : sBLANK
+                    str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSym() : notOkSym()})\n" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in ["between", "below", "above", "equals"]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
