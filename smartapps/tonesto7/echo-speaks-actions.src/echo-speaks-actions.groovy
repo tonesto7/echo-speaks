@@ -2990,7 +2990,7 @@ Boolean devCondConfigured(String type) {
 }
 
 Boolean devNumCondConfigured(String type) {
-    return (settings."cond_${type}_cmd" && (settings."cond_${type}_low" || settings."cond_${type}_low" || settings."trig_${type}_equal"))
+    return (settings."cond_${type}_cmd" && (settings."cond_${type}_low" || settings."cond_${type}_high" || settings."trig_${type}_equal"))
 }
 
 Boolean timeCondConfigured() {
@@ -4135,7 +4135,7 @@ String epochToTime(Long tm) {
     Date ntm = new Date(tm)
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return (String)tf.format(tm)
+    return (String)tf.format(ntm)
 }
 
 String time2Str(time, String fmt="h:mm a") {
@@ -4145,6 +4145,7 @@ String time2Str(time, String fmt="h:mm a") {
         if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
         return (String)f?.format(t)
     }
+    return sNULL
 }
 
 String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
@@ -4174,7 +4175,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
 String getDateByFmt(String fmt, Date dt=null) {
     def df = new java.text.SimpleDateFormat(fmt)
     df?.setTimeZone(location?.timeZone)
-    return df?.format(dt ?: new Date())
+    return (String)df?.format(dt ?: new Date())
 }
 
 Map getDateMap() {
@@ -4194,14 +4195,14 @@ Map getDateMap() {
     return m
 }
 
-Boolean isDayOfWeek(opts) {
+Boolean isDayOfWeek(List opts) {
     def df = new java.text.SimpleDateFormat("EEEE")
     df?.setTimeZone(location?.timeZone)
     String day = df?.format(new Date())
     return opts?.contains(day)
 }
 
-Boolean isMonthOfYear(opts) {
+Boolean isMonthOfYear(List opts) {
     Map dtMap = getDateMap()
     return ( opts?.contains((String)dtMap.monthName) )
 }
