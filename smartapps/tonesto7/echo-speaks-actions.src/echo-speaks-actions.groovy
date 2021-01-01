@@ -2863,7 +2863,7 @@ Boolean timeCondOk() {
     if(startType && stopType) {
         startTime = startType == 'time' ? toDateTime(settings.cond_time_start) : null
         stopTime = stopType == 'time' ? toDateTime(settings.cond_time_stop) : null
-    } else { return true }
+    } else { return null }
 
     if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
         def sun = getSunriseAndSunset()
@@ -2878,14 +2878,16 @@ Boolean timeCondOk() {
     }
 
     if(startTime && stopTime) {
-        Boolean isBtwn = timeOfDayIsBetween(startTime, stopTime, now, location?.timeZone)
+        Boolean not = startTime.getTime() > stopTime.getTime() 
+        Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone)
+        isBtwn = not ? !isBtwn : isBtwn
         logDebug("TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
         return isBtwn
-    } else { return true }
+    } else { return null }
 }
 
 Boolean dateCondOk() {
-    if(settings.cond_days == null && settings.cond_months == null) return true
+    if(settings.cond_days == null && settings.cond_months == null) return null
     Boolean dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : true
     Boolean mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : true
     logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
@@ -2893,7 +2895,7 @@ Boolean dateCondOk() {
 }
 
 Boolean locationCondOk() {
-    if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return true
+    if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return null
     Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
     Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
     logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
@@ -3764,7 +3766,7 @@ Boolean getOk2Notify() {
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = settings.notif_modes ? (isInMode(settings.notif_modes)) : true
-    logDebug("getOk2Notify() | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || notifyDevs: $notifDevsOk || alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    logDebug("getOk2Notify() | notifDevs: $notifDevs |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
     return true
@@ -3794,8 +3796,9 @@ Boolean notifTimeOk() {
     }
 
     if(startTime && stopTime) {
-        Boolean isBtwn = timeOfDayIsBetween(startTime, stopTime, now, location?.timeZone) ? false : true
-        isBtwn = startTime.getTime() > stopTime.getTime() ? !isBtwn : isBtwn
+        Boolean not = startTime.getTime() > stopTime.getTime() 
+        Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
+        isBtwn = not ? !isBtwn : isBtwn
         logDebug("NotifTimeOk | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
         return isBtwn
     } else { return true }
