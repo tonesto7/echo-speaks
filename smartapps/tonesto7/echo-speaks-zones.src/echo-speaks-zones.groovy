@@ -698,18 +698,18 @@ Boolean deviceCondOk() {
     List skipped = []
     List passed = []
     List failed = []
-    ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.each { i->
-        if(!settings."cond_${i}") { skipped?.push(i); return; }
-        checkDeviceCondOk(i) ? passed?.push(i) : failed?.push(i);
+    ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.each { String i->
+        if(!settings."cond_${i}") { skipped.push(i); return; }
+        checkDeviceCondOk(i) ? passed.push(i) : failed.push(i);
     }
-    ["temperature", "humidity", "illuminance", "level", "power", "battery"]?.each { i->
-        if(!settings."cond_${i}") { skipped?.push(i); return; }
-        checkDeviceNumCondOk(i) ? passed?.push(i) : failed?.push(i);
+    ["temperature", "humidity", "illuminance", "level", "power", "battery"]?.each { String i->
+        if(!settings."cond_${i}") { skipped.push(i); return; }
+        checkDeviceNumCondOk(i) ? passed.push(i) : failed.push(i);
     }
     logDebug("DeviceCondOk | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
-    Integer cndSize = (passed?.size() + failed?.size())
+    Integer cndSize = (passed.size() + failed.size())
     if(cndSize == 0) return null
-    return reqAllCond() ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
+    return reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
 }
 
 Map conditionStatus() {
@@ -734,7 +734,7 @@ Boolean devCondConfigured(type) {
 }
 
 Boolean devNumCondConfigured(type) {
-    return (settings."cond_${type}_cmd" && (settings."cond_${type}_low" || settings."cond_${type}_low" || settings."trig_${type}_equal"))
+    return (settings."cond_${type}_cmd" && (settings."cond_${type}_low" || settings."cond_${type}_high" || settings."trig_${type}_equal"))
 }
 
 Boolean timeCondConfigured() {
@@ -1160,10 +1160,11 @@ String getDtNow() {
     return formatDt(now)
 }
 
-String epochToTime(Date tm) {
+String epochToTime(Long tm) {
+    Date ntm = new Date(tm)
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return (String)tf.format(tm)
+    return (String)tf.format(ntm)
 }
 
 String time2Str(time) {
@@ -1239,9 +1240,14 @@ Map getDateMap() {
     return [d: getWeekDay(), dm: getDay(), wm: getWeekMonth(), wy: getWeekYear(), m: getMonth(), y: getYear() ]
 }
 
-Boolean isDayOfWeek(opts) {
+Boolean isDayOfWeek(List opts) {
     String day = getWeekDay()
     return ( opts?.contains(day) )
+}
+
+Boolean isMonthOfYear(List opts) {
+    Map dtMap = getDateMap()
+    return ( opts?.contains((String)dtMap.monthName) )
 }
 
 Boolean isTimeOfDay(String startTime, String stopTime) {
@@ -1409,7 +1415,7 @@ String getConditionsDesc() {
             str += settings.cond_mode ? "    - Location Modes: (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSym() : notOkSym()})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
-            ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { evt->
+            ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
                 if(devCondConfigured(evt)) {
                     def condOk = false
                     if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
