@@ -53,6 +53,9 @@ preferences {
 @Field static final List   lNULL          = (List) null
 @Field static final String sBLANK         = ''
 @Field static final String sBULLET        = '\u2022'
+@Field static final String okSymFLD       = "\u2713"
+@Field static final String notOkSymFLD    = "\u2715"
+
 
 static String appVersion()  { return appVersionFLD }
 
@@ -378,7 +381,7 @@ def zoneNotifPage() {
             }
             if(isZoneNotifConfigured()) {
                 section(sTS("Notification Restrictions:")) {
-                    def nsd = getNotifSchedDesc()
+                    String nsd = getNotifSchedDesc()
                     href "zoneNotifTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
                 }
                 if(!state?.notif_message_tested) {
@@ -540,7 +543,7 @@ void subscribeToEvts() {
             if (settings.cond_time_start_type == "sunset") { subscribe(location, "sunsetTime", zoneEvtHandler) }
             if (settings.cond_time_start_type == "sunrise") { subscribe(location, "sunriseTime", zoneEvtHandler) }
         }
-        if(settings.cond_time_start_type == "time") {
+        if(settings.cond_time_start_type == "time") { //ERS
             if(settings.cond_time_start) { schedule(settings.cond_time_start, zoneTimeStartCondHandler) }
             if(settings.cond_time_stop) { schedule(settings.cond_time_stop, zoneTimeStopCondHandler) }
         }
@@ -584,8 +587,8 @@ Boolean timeCondOk() {
     String startType = settings.cond_time_start_type
     String stopType = settings.cond_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' ? settings.cond_time_start : null
-        stopTime = stopType == 'time' ? settings.cond_time_stop : null
+        startTime = startType == 'time' ? toDateTime(settings.cond_time_start) : null
+        stopTime = stopType == 'time' ? toDateTime(settings.cond_time_stop) : null
     } else { return true }
 
     if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
@@ -1160,16 +1163,15 @@ String getDtNow() {
     return formatDt(now)
 }
 
-String epochToTime(Long tm) {
-    Date ntm = new Date(tm)
+String epochToTime(Date tm) {
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return (String)tf.format(ntm)
+    return (String)tf.format(tm)
 }
 
-String time2Str(time) {
+String time2Str(String time) {
     if(time) {
-        Date t = timeToday(time as String, location?.timeZone)
+        Date t = timeToday(time, location?.timeZone)
         def f = new java.text.SimpleDateFormat("h:mm a")
         if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
         return (String)f?.format(t)
@@ -1341,7 +1343,8 @@ String unitStr(String type) {
 String getAppNotifDesc(Boolean hide=false) {
     String str = sBLANK
     if(isZoneNotifConfigured()) {
-        str += hide ? sBLANK : "Send To:\n"
+        Boolean ok = getOk2Notify()
+        str += hide ? sBLANK : "Send: (${ok ? okSymFLD : notOkSymFLD})\n"
         if(isStFLD) {
             str += settings.notif_sms_numbers ? " \u2022 (${settings.notif_sms_numbers?.tokenize(",")?.size()} SMS Numbers)\n" : sBLANK
             str += settings.notif_send_push ? " \u2022 (Push Message)\n" : sBLANK
@@ -1349,7 +1352,8 @@ String getAppNotifDesc(Boolean hide=false) {
         }
         str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
         str += settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
-        str += getNotifSchedDesc(true) ? " \u2022 Restrictions: (${getOk2Notify() ? okSym() : notOkSym()})\n" : sBLANK
+        String res = getNotifSchedDesc(true)
+        str += res ? " \u2022 Restrictions: (${!ok ? okSymFLD : notOkSymFLD})\n${res}" : sBLANK
     }
     return str != sBLANK ? str : sNULL
 }
@@ -1370,8 +1374,8 @@ String getNotifSchedDesc(Boolean min=false) {
     String str = sBLANK
 
     if(startInput && stopInput) {
-        startTime = startType == 'time' ? settings.notif_time_start : null
-        stopTime = stopType == 'time' ? settings.notif_time_stop : null
+        startTime = startInput == 'time' ? toDateTime(settings.notif_time_start) : null
+        stopTime = stopInput == 'time' ? toDateTime(settings.notif_time_stop) : null
     }
     if(startInput in ["sunrise","sunset"] || stopInput in ["sunrise","sunset"]) {
         def sun = getSunriseAndSunset()
@@ -1384,12 +1388,12 @@ String getNotifSchedDesc(Boolean min=false) {
         startTime = startInput in ["sunrise", "sunset"] ?  new Date(startl) : startTime
         stopTime = stopInput in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime
     }
-    String startLbl = startTime ? time2Str(startTime) : sBLANK
-    String stopLbl = stopTime ? time2Str(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? " • Time: ${startLbl} - ${stopLbl}" : sBLANK
+    String startLbl = startTime ? epochToTime(startTime) : sBLANK
+    String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
+    str += (startLbl && stopLbl) ? "   \u2022 Time: ${startLbl} - ${stopLbl} (${!notifTimeOk() ? okSymFLD : notOkSymFLD})" : sBLANK
     List qDays = getQuietDays()
-    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK} \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : sBLANK
-    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK} \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : sBLANK
+    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : sBLANK
+    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : sBLANK
     return (str != sBLANK) ? str : sNULL
 }
 
@@ -1398,21 +1402,21 @@ String getConditionsDesc() {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${(conditionStatus()?.ok == true) ? okSym() : notOkSym()})\n"
+        String str = "Conditions: (${(conditionStatus()?.ok == true) ? okSymFLD : notOkSymFLD})\n"
         str += (settings.cond_require_all != true) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
         if(timeCondConfigured()) {
-            str += " \u2022 Time Between: (${timeCondOk() ? okSym() : notOkSym()})\n"
+            str += " \u2022 Time Between: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
             str += " \u2022 Date:\n"
-            str += settings.cond_days      ? "    - Days: (${(isDayOfWeek(settings.cond_days)) ? okSym() : notOkSym()})\n" : sBLANK
-            str += settings.cond_months    ? "    - Months: (${(isMonthOfYear(settings.cond_months)) ? okSym() : notOkSym()})\n"  : sBLANK
+            str += settings.cond_days      ? "    - Days: (${(isDayOfWeek(settings.cond_days)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += settings.cond_months    ? "    - Months: (${(isMonthOfYear(settings.cond_months)) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
         }
         if(settings.cond_alarm || settings.cond_mode) {
-            str += " \u2022 Location: (${locationCondOk() ? okSym() : notOkSym()})\n"
-            str += settings.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings.cond_alarm)) ? okSym() : notOkSym()})\n" : sBLANK
-            str += settings.cond_mode ? "    - Location Modes: (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSym() : notOkSym()})\n" : sBLANK
+            str += " \u2022 Location: (${locationCondOk() ? okSymFLD : notOkSymFLD})\n"
+            str += settings.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings.cond_alarm)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += settings.cond_mode ? "    - Location Modes: (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
             ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
@@ -1421,7 +1425,7 @@ String getConditionsDesc() {
                     if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
                     // str += settings."${}"
-                    str += settings."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSym() : notOkSym()})\n" : sBLANK
+                    str += settings."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in ["between", "below", "above", "equals"]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
@@ -1464,8 +1468,8 @@ String getTimeCondDesc(Boolean addPre=true) {
     String startType = settings.cond_time_start_type
     String stopType = settings.cond_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' ? settings.cond_time_start : null
-        stopTime = stopType == 'time' ? settings.cond_time_stop : null
+        startTime = startType == 'time' ? toDateTime(settings.cond_time_start) : null
+        stopTime = stopType == 'time' ? toDateTime(settings.cond_time_stop) : null
     }
 
     if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
@@ -1479,8 +1483,8 @@ String getTimeCondDesc(Boolean addPre=true) {
         startTime = startType in ["sunrise", "sunset"] ?  new Date(startl) : startTime
         stopTime = stopType in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime
     }
-    String startLbl = startTime ? time2Str(startTime) : sBLANK
-    String stopLbl = stopTime ? time2Str(stopTime) : sBLANK
+    String startLbl = startTime ? epochToTime(startTime) : sBLANK
+    String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
 
     return startLbl && stopLbl ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl} - ${stopLbl})" : "tap to configure..."
 }
@@ -1569,8 +1573,8 @@ Boolean notifTimeOk() {
     String startType = settings.notif_time_start_type
     String stopType = settings.notif_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' ? settings.notif_time_start : null
-        stopTime = stopType == 'time' ? settings.notif_time_stop : null
+        startTime = startType == 'time' ? toDateTime(settings.notif_time_start) : null
+        stopTime = stopType == 'time' ? toDateTime(settings.notif_time_stop) : null
     } else { return true }
 
     Date now = new Date()
@@ -1587,13 +1591,8 @@ Boolean notifTimeOk() {
     }
 
     if(startTime && stopTime) {
-/*        Date st
-        Date et
-        if(!isStFLD) {
-            st = toDateTime(startTime)
-            et = toDateTime(stopTime)
-        }*/
-        Boolean isBtwn = timeOfDayIsBetween(startTime, stopTime, now, location?.timeZone)
+        Boolean isBtwn = timeOfDayIsBetween(startTime, stopTime, now, location?.timeZone) ? false : true
+        isBtwn = startTime.getTime() > stopTime.getTime() ? !isBtwn : isBtwn
         logDebug("NotifTimeOk | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
         return isBtwn
     } else { return true }
@@ -1700,8 +1699,6 @@ Boolean minVersionFailed() {
 
 Boolean isPaused() { return (settings.zonePause == true) }
 
-String okSym() { return "\u2713" }
-String notOkSym() { return "\u2715" }
 String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK }
 String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
 String sTS(String t, String i = sNULL) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
