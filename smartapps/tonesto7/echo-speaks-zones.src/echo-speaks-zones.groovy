@@ -712,19 +712,19 @@ Boolean deviceCondOk() {
     return reqAllCond() ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
 }
 
-def conditionStatus() {
+Map conditionStatus() {
     Boolean reqAll = reqAllCond()
     List failed = []
     List passed = []
     List skipped = []
     ["time", "date", "location", "device"]?.each { i->
         def s = "${i}CondOk"()
-        if(s == null) { skipped?.push(i); return; }
-        s ? passed?.push(i) : failed?.push(i);
+        if(s == null) { skipped.push(i); return; }
+        s ? passed.push(i) : failed.push(i);
     }
-    Integer cndSize = (passed?.size() + failed?.size())
+    Integer cndSize = (passed.size() + failed.size())
     logDebug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
-    Boolean ok = reqAll ? (cndSize == passed?.size()) : (cndSize > 0 && passed?.size() >= 1)
+    Boolean ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
     if(cndSize == 0) ok = true;
     return [ok: ok, passed: passed, blocks: failed]
 }
@@ -788,6 +788,8 @@ Boolean multipleConditions() {
 ************************************************************************************************************/
 
 def zoneEvtHandler(evt) {
+                //input "cond_time_start_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
+                //input "cond_time_stop_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     checkZoneStatus(evt)
 }
@@ -838,7 +840,7 @@ def sendZoneRemoved() {
     sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: getZoneName()], isStateChange: true, display: false, displayed: false)
 }
 
-def updateZoneStatus(data) {
+void updateZoneStatus(data) {
     Boolean active = (data?.active == true)
     Map condStatus = data?.condStatus ?: null
     if(data?.recheck == true) {
@@ -1005,7 +1007,7 @@ public zoneCmdHandler(evt) {
 |   Restriction validators
 *******************************************/
 
-String attUnit(attr) {
+String attUnit(String attr) {
     switch(attr) {
         case "humidity":
         case "level":
@@ -1041,11 +1043,11 @@ List getLocationRoutines() {
     return (isStFLD) ? location.helloHome?.getPhrases()*.label?.sort() : []
 }
 
-Boolean isInMode(modes, not=false) {
+Boolean isInMode(List modes, Boolean not=false) {
     return (modes) ? (not ? (!(getCurrentMode() in modes)) : (getCurrentMode() in modes)) : false
 }
 
-Boolean isInAlarmMode(modes) {
+Boolean isInAlarmMode(List modes) {
     return (modes) ? (parent?.getAlarmSystemStatus() in modes) : false
 }
 
