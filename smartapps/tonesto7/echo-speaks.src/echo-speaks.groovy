@@ -561,13 +561,15 @@ public clearDuplicationItems() {
     settingRemove("zoneDuplicateSelect")
 }
 
-public getDupActionStateData() {
-    def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
-    return act?.getDuplStateData() ?: null
+public Map getDupActionStateData() {
+    def act = getActionApps()?.find { it?.id == settings.actionDuplicateSelect }
+    Map a = act?.getDuplStateData()
+    return a ?: null
 }
-public getDupZoneStateData() {
-    def act = getActionApps()?.find { it?.id == settings?.actionDuplicateSelect }
-    return act?.getDuplStateData() ?: null
+public Map getDupZoneStateData() {
+    def act = getActionApps()?.find { it?.id == settings.actionDuplicateSelect }
+    Map a =  act?.getDuplStateData()
+    return a ?: null
 }
 
 def zonesPage() {
@@ -3418,7 +3420,7 @@ private List codeUpdateItems(Boolean shrt=false) {
 }
 
 //Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
-Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? true : true ) : false }
+//Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? true : true ) : false }
 
 Boolean getOk2Notify() {
     Boolean smsOk = (settings.smsNumbers?.toString()?.length()>=10)
@@ -3428,35 +3430,35 @@ Boolean getOk2Notify() {
     Boolean daysOk = quietDaysOk(settings.quietDays)
     Boolean timeOk = quietTimeOk()
     Boolean modesOk = quietModesOk(settings.quietModes)
-    Boolean result = null
+    Boolean result = true
     if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
     if(!(daysOk && modesOk && timeOk)) { result= false }
-    if(result==null) result=true
-    logDebug("getOk2Notify() RESULT: $result | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
 }
 
 Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) ? false : true }
+
 Boolean quietTimeOk() {
     Date strtTime = null
     Date stopTime = null
-    Date now = new Date()
+//    Date now = new Date()
     def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
     if(settings.qStartTime && settings.qStopTime) {
-        if(settings.qStartInput == "sunset") { strtTime = sun?.sunset }
-        else if(settings.qStartInput == "sunrise") { strtTime = sun?.sunrise }
-        else if(settings.qStartInput == "A specific time" && settings.qStartTime) { strtTime = settings.qStartTime }
+        if(settings.qStartInput == "Sunset") { strtTime = sun?.sunset }
+        else if(settings.qStartInput == "Sunrise") { strtTime = sun?.sunrise }
+        else if(settings.qStartInput == "A specific time" && settings.qStartTime) { strtTime = toDateTime(settings.qStartTime) }
 
-        if(settings.qStopInput == "sunset") { stopTime = sun?.sunset }
-        else if(settings.qStopInput == "sunrise") { stopTime = sun?.sunrise }
-        else if(settings.qStopInput == "A specific time" && settings.qStopTime) { stopTime = settings.qStopTime }
+        if(settings.qStopInput == "Sunset") { stopTime = sun?.sunset }
+        else if(settings.qStopInput == "Sunrise") { stopTime = sun?.sunrise }
+        else if(settings.qStopInput == "A specific time" && settings.qStopTime) { stopTime = toDateTime(settings.qStopTime) }
     } else { return true }
     if(strtTime && stopTime) {
         // log.debug "quietTimeOk | Start: ${strtTime} | Stop: ${stopTime}"
-        if(!isStFLD) {
-            strtTime = toDateTime(strtTime.toString())
-            stopTime = toDateTime(stopTime.toString())
-        }
-        return (Boolean)timeOfDayIsBetween(strtTime, stopTime, new Date(), location?.timeZone) ? false : true
+        Boolean not = startTime.getTime() > stopTime.getTime() 
+        Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
+        isBtwn = not ? !isBtwn : isBtwn
+        logDebug("QuietTimeOk | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
+        return isBtwn
     } else { return true }
 }
 
@@ -3778,7 +3780,8 @@ Boolean zoneUpdAvail() { return (state.appData?.versions && state.codeVersions?.
 Boolean echoDevUpdAvail() { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
 Boolean socketUpdAvail() { return (!isStFLD && state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
 Boolean serverUpdAvail() { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
-Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", sBLANK)?.toInteger() : null }
+
+Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
 void checkVersionData(Boolean now = false) { //This reads a JSON file from GitHub with version numbers
     Integer lastUpd = getLastTsValSecs("lastAppDataUpdDt")
@@ -4210,7 +4213,7 @@ String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
     def tf = new java.text.SimpleDateFormat(newFmt)
     if(location.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return tf.format(newDt)
+    return (String)tf.format(newDt)
 }
 
 String getDtNow() {
@@ -4218,10 +4221,10 @@ String getDtNow() {
     return formatDt(now)
 }
 
-String epochToTime(tm) {
+String epochToTime(Date tm) {
     def tf = new java.text.SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return tf.format(tm)
+    return (String)tf.format(tm)
 }
 
 String time2Str(time) {
@@ -4229,7 +4232,7 @@ String time2Str(time) {
         Date t = timeToday(time as String, location?.timeZone)
         def f = new java.text.SimpleDateFormat("h:mm a")
         f.setTimeZone(location?.timeZone ?: timeZone(time))
-        return f.format(t)
+        return (String)f.format(t)
     }
 }
 
@@ -4498,10 +4501,10 @@ String getRandAppName() {
 *******************************************/
 String getAppNotifConfDesc() {
     String str = sBLANK
-    if(pushStatus()) {
+    Boolean notifDevs = (settings.notif_devs?.size())
+    if(notifDevs) { //pushStatus()) {
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
-        Boolean notifDevs = (settings.notif_devs?.size())
         str += notifDevs ? bulletItem(str, "Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})") : sBLANK
 //        str += (Boolean)settings.usePush ? bulletItem(str, "Sending via: (Push)") : sBLANK
 //        str += (Boolean)settings.pushoverEnabled ? bulletItem(str, "Pushover: (Enabled)") : sBLANK
@@ -4509,9 +4512,9 @@ String getAppNotifConfDesc() {
         // str += ((Boolean)settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : sBLANK
 //        str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : sBLANK
         str += (ap) ? "${str != sBLANK ? "\n\n" : sBLANK}Enabled Alerts:\n${ap}" : sBLANK
-        str += (ap && nd) ? "${str != sBLANK ? "\n" : sBLANK}\nQuiet Restrictions:\n${nd}" : sBLANK
+        str += (ap && nd) ? "${str != sBLANK ? "\n" : sBLANK}\nQuiet Restrictions: (${quietTimeOk() ? okSymFLD : notOkSymFLD}) OK to Notify: (${getOk2Notify() ? okSymFLD : notOkSymFLD})\n${nd}" : sBLANK
     }
-    return str != sBLANK ? str : (String)null
+    return str != sBLANK ? str : sNULL
 }
 
 List getQuietDays() {
@@ -4529,8 +4532,8 @@ String getNotifSchedDesc(Boolean min=false) {
     List dayInput = settings.quietDays
     List modeInput = settings.quietModes
     String notifDesc = sBLANK
-    String getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (startTime ? time2Str(startTime) : sBLANK) )
-    String getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset?.time) : epochToTime(sun?.sunrise?.time) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
+    String getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (startTime ? time2Str(startTime) : sBLANK) )
+    String getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
     notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl}" : sBLANK
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
@@ -4559,6 +4562,7 @@ String getAppNotifDesc() {
     str += (Boolean)settings.sendMissedPollMsg != false ? bulletItem(str, "Missed Polls") : sBLANK
     str += (Boolean)settings.sendAppUpdateMsg != false ? bulletItem(str, "Code Updates") : sBLANK
     str += (Boolean)settings.sendCookieRefreshMsg == true ? bulletItem(str, "Cookie Refresh") : sBLANK
+    str += (Boolean)settings.sendCookieInvalidMsg == true ? bulletItem(str, "Cookie Invalid") : sBLANK
     return str != sBLANK ? str : sNULL
 }
 
@@ -4686,9 +4690,9 @@ String UrlParamBuilder(items) {
 }
 
 def getRandomItem(items) {
-    def list = new ArrayList<String>();
+    def list = new ArrayList<String>()
     items?.each { list?.add(it) }
-    return list?.get(new Random().nextInt(list?.size()));
+    return list?.get(new Random().nextInt(list?.size()))
 }
 
 String randomString(Integer len) {
@@ -4712,8 +4716,9 @@ Boolean getAccessToken() {
 private getTextEditChild(id) {
     if(!isStFLD) {
         Long longId = id as Long
-        return getChildAppById(longId) ?: null
-    } else { return getActionApps()?.find { it?.id == id } ?: null }
+        def a = getChildAppById(longId)
+        return a ?: null
+    } else { def a = getActionApps()?.find { it?.id == id }; return a ?: null }
 }
 
 def renderConfig() {
