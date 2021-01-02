@@ -594,7 +594,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt("shade")) {
-                trigNonNumSect("shade", "windowShades", "Window Shades", "Window Shades", ["open", "closed", "opening", "closing", "any"], "changes to", ["open", "closed"], "shade", trigItemCnt++)
+                trigNonNumSect("shade", "windowShade", "Window Shades", "Window Shades", ["open", "closed", "opening", "closing", "any"], "changes to", ["open", "closed"], "shade", trigItemCnt++)
             }
 
             if (valTrigEvt("valve")) {
@@ -831,7 +831,7 @@ def conditionsPage() {
 
         condNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power")
 
-        condNonNumSect("shade", "windowShades", "Window Shades", "Window Shades", ["open", "closed"], "are", "shade")
+        condNonNumSect("shade", "windowShade", "Window Shades", "Window Shades", ["open", "closed"], "are", "shade")
 
         condNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed"], "are", "valve")
 
@@ -2178,7 +2178,7 @@ void subscribeToEvts() {
         if(te == "scheduled" || settings."trig_${te}") {
             switch (te) {
                 case "scheduled":
-                    // Scheduled Trigger Events
+                    // Scheduled Trigger Events  ERS
                     if (schedulesConfigured()) {
                         if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
                         else if(settings.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
@@ -2888,18 +2888,20 @@ Boolean timeCondOk() {
 
 Boolean dateCondOk() {
     if(settings.cond_days == null && settings.cond_months == null) return null
-    Boolean dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : true
-    Boolean mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : true
+    Boolean reqAll = reqAllCond()
+    Boolean dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : reqAll // true
+    Boolean mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
     logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
-    return reqAllCond() ? (mOk && dOk) : (mOk || dOk)
+    return reqAll ? (mOk && dOk) : (mOk || dOk)
 }
 
 Boolean locationCondOk() {
     if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return null
-    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
-    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
+    Boolean reqAll = reqAllCond()
+    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
+    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
     logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
-    return reqAllCond() ? (mOk && aOk) : (mOk || aOk)
+    return reqAll ? (mOk && aOk) : (mOk || aOk)
 }
 
 Boolean checkDeviceCondOk(String type) {
@@ -2952,7 +2954,7 @@ Boolean deviceCondOk() {
     List skipped = []
     List passed = []
     List failed = []
-    ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.each { String i->
+    ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "water" ]?.each { String i->
         if(!settings."cond_${i}") { skipped.push(i); return }
         checkDeviceCondOk(i) ? passed.push(i) : failed.push(i)
     }
@@ -3013,10 +3015,11 @@ Boolean locationAlarmConfigured() {
 }
 
 Boolean deviceCondConfigured() {
-    List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
-    List items = []
-    devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
-    return (items.size() > 0)
+//    List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+//    List items = []
+//    devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
+//    return (items.size() > 0)
+    return (deviceCondCount() > 0)
 }
 
 Integer deviceCondCount() {
@@ -4362,11 +4365,11 @@ String getConditionsDesc() {
             str += settings.cond_mode ? "    - Modes(${settings.cond_mode_cmd == "not" ? "not in" : "in"}): (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSym() : notOkSym()})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
-            ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
+            ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
                 if(devCondConfigured(evt)) {
                     Boolean condOk = false
                     if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
-                    else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
+                    else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity"]) { condOk = checkDeviceNumCondOk(evt) }
 
                     str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSym() : notOkSym()})\n" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
