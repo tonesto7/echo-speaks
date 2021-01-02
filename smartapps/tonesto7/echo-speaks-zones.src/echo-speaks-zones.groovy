@@ -217,7 +217,7 @@ def conditionsPage() {
             }
         }
 
-        section(sTS("Time/Date")) {
+        section(sTS("Time/Date Restrictions")) {
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: timeCondConfigured() ? "complete" : sNULL, image: getAppImg("clock")
             input "cond_days", "enum", title: inTS("Days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
             input "cond_months", "enum", title: inTS("Months of the year", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: monthEnum(), image: getAppImg("day_calendar")
@@ -266,7 +266,7 @@ def conditionsPage() {
 
         condNumValSect("power", "powerMeter", "Power Events", "Power Meters", "Power Level (W)", "power")
 
-        condNonNumSect("shade", "windowShades", "Window Shades", "Window Shades", ["open", "closed"], "are", "shade")
+        condNonNumSect("shade", "windowShade", "Window Shades", "Window Shades", ["open", "closed"], "are", "shade")
 
         condNonNumSect("valve", "valve", "Valves", "Valves", ["open", "closed"], "are", "valve")
 
@@ -531,6 +531,76 @@ private healthCheck() {
 
 private condItemSet(String key) { return (settings.containsKey("cond_${key}") && settings["cond_${key}"]) }
 
+String cronBuilder() {
+    /****
+        Cron Expression Format: (<second> <minute> <hour> <day-of-month> <month> <day-of-week> <?year>)
+
+        * (all) – it is used to specify that event should happen for every time unit. For example, “*” in the <minute> field – means “for every minute”
+        ? (any) – it is utilized in the <day-of-month> and <day-of -week> fields to denote the arbitrary value – neglect the field value. For example, if we want to fire a script at “5th of every month” irrespective of what the day of the week falls on that date, then we specify a “?” in the <day-of-week> field
+        – (range) – it is used to determine the value range. For example, “10-11” in <hour> field means “10th and 11th hours”
+        , (values) – it is used to specify multiple values. For example, “MON, WED, FRI” in <day-of-week> field means on the days “Monday, Wednesday, and Friday”
+        / (increments) – it is used to specify the incremental values. For example, a “5/15” in the <minute> field, means at “5, 20, 35 and 50 minutes of an hour”
+        L (last) – it has different meanings when used in various fields. For example, if it's applied in the <day-of-month> field, then it means last day of the month, i.e. “31st for January” and so on as per the calendar month. It can be used with an offset value, like “L-3“, which denotes the “third to last day of the calendar month”. In the <day-of-week>, it specifies the “last day of a week”. It can also be used with another value in <day-of-week>, like “6L“, which denotes the “last Friday”
+        W (weekday) – it is used to specify the weekday (Monday to Friday) nearest to a given day of the month. For example, if we specify “10W” in the <day-of-month> field, then it means the “weekday near to 10th of that month”. So if “10th” is a Saturday, then the job will be triggered on “9th”, and if “10th” is a Sunday, then it will trigger on “11th”. If you specify “1W” in the <day-of-month> and if “1st” is Saturday, then the job will be triggered on “3rd” which is Monday, and it will not jump back to the previous month
+        # – it is used to specify the “N-th” occurrence of a weekday of the month, for example, “3rd Friday of the month” can be indicated as “6#3“
+
+        At 12:00 pm (noon) every day during the year 2017:  (0 0 12 * * ? 2017)
+
+        Every 5 minutes starting at 1 pm and ending on 1:55 pm and then starting at 6 pm and ending at 6:55 pm, every day: (0 0/5 13,18 * * ?)
+
+        Every minute starting at 1 pm and ending on 1:05 pm, every day: (0 0-5 13 * * ?)
+
+        At 1:15 pm and 1:45 pm every Tuesday in the month of June: (0 15,45 13 ? 6 Tue)
+
+        At 9:30 am every Monday, Tuesday, Wednesday, Thursday, and Friday: (0 30 9 ? * MON-FRI)
+
+        At 9:30 am on 15th day of every month: (0 30 9 15 * ?)
+
+        At 6 pm on the last day of every month: (0 0 18 L * ?)
+
+        At 6 pm on the 3rd to last day of every month: (0 0 18 L-3 * ?)
+
+        At 10:30 am on the last Thursday of every month: (0 30 10 ? * 5L)
+
+        At 6 pm on the last Friday of every month during the years 2015, 2016 and 2017: (0 0 18 ? * 6L 2015-2017)
+
+        At 10 am on the third Monday of every month: (0 0 10 ? * 2#3)
+
+        At 12 am midnight on every day for five days starting on the 10th day of the month: (0 0 0 10/5 * ?)
+    ****/
+    String cron = sNULL
+    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
+    String schedType = (String)settings.trig_scheduled_type
+    Boolean recur = schedType = 'Recurring'
+    def time = settings.trig_scheduled_time ?: null
+    List dayNums = recur && settings.trig_scheduled_daynums ? settings.trig_scheduled_daynums?.collect { it as Integer }?.sort() : null
+    List weekNums = recur && settings.trig_scheduled_weeks ? settings.trig_scheduled_weeks?.collect { it as Integer }?.sort() : null
+    List monthNums = recur && settings.trig_scheduled_months ? settings.trig_scheduled_months?.collect { it as Integer }?.sort() : null
+    if(time) {
+        String hour = fmtTime(time, "HH") ?: "0"
+        String minute = fmtTime(time, "mm") ?: "0"
+        String second = "0" //fmtTime(time, "mm") ?: "0"
+        String daysOfWeek = settings.trig_scheduled_weekdays ? settings.trig_scheduled_weekdays?.join(",") : sNULL
+        String daysOfMonth = dayNums?.size() ? (dayNums?.size() > 1 ? "${dayNums?.first()}-${dayNums?.last()}" : dayNums[0]) : sNULL
+        String weeks = (weekNums && !dayNums) ? weekNums?.join(",") : sNULL
+        String months = monthNums ? monthNums?.sort()?.join(",") : sNULL
+        // log.debug "hour: ${hour} | m: ${minute} | s: ${second} | daysOfWeek: ${daysOfWeek} | daysOfMonth: ${daysOfMonth} | weeks: ${weeks} | months: ${months}"
+        if(hour || minute || second) {
+            List cItems = []
+            cItems.push(second ?: "*")
+            cItems.push(minute ?: "0")
+            cItems.push(hour ?: "0")
+            cItems.push(daysOfMonth ?: (!daysOfWeek ? "*" : "?"))
+            cItems.push(months ?: "*")
+            cItems.push(daysOfWeek ? daysOfWeek?.toString()?.replaceAll("\"", sBLANK) : "?")
+            if(year) { cItems.push(" ${year}") }
+            cron = cItems.join(" ")
+        }
+    }
+    logInfo("cronBuilder | Cron: ${cron}")
+    return cron
+}
+
 void subscribeToEvts() {
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
@@ -538,6 +608,10 @@ void subscribeToEvts() {
     List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "shade", "valve", "door", "contact", "acceleration", "switch", "battery", "level"]
 
     //SCHEDULING
+    //return (timeCondConfigured() )
+    //Boolean startTime = (settings.cond_time_start_type in ["sunrise", "sunset"] || (settings.cond_time_start_type == "time" && settings.cond_time_start))
+    //Boolean stopTime = (settings.cond_time_stop_type in ["sunrise", "sunset"] || (settings.cond_time_stop_type == "time" && settings.cond_time_stop))
+    //return (startTime && stopTime)
     if (settings.cond_time_start_type) {
         if(settings.cond_time_start_type in ["sunrise", "sunset"]) {
             if (settings.cond_time_start_type == "sunset") { subscribe(location, "sunsetTime", zoneEvtHandler) }
@@ -548,19 +622,26 @@ void subscribeToEvts() {
             if(settings.cond_time_stop) { schedule(settings.cond_time_stop, zoneTimeStopCondHandler) }
         }
     }
+    //return ( dateCondConfigured() )
+    //Boolean days = (settings.cond_days)
+    //Boolean months = (settings.cond_months)
+    //return (days || months)
 
-    subItems?.each { si->
+    subItems?.each { String si->
         if(settings."cond_${si}") {
-            switch(si as String) {
+    //return (locationCondConfigured() || deviceCondConfigured())
+    //Boolean mode = (settings.cond_mode && settings.cond_mode_cmd)
+    //Boolean alarm = (settings.cond_alarm)
+            switch(si) {
                 case "alarm":
                     subscribe(location, (!isStFLD ? "hsmStatus" : "alarmSystemStatus"), zoneEvtHandler)
                     break
                 case "mode":
                     if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", "enum") }
-                    subscribe(location, si as String, zoneEvtHandler)
+                    subscribe(location, si, zoneEvtHandler)
                     break
                 default:
-                    subscribe(settings."cond_${si}", attributeConvert(si as String), zoneEvtHandler)
+                    subscribe(settings."cond_${si}", attributeConvert(si), zoneEvtHandler)
                     break
             }
         }
@@ -572,7 +653,7 @@ void subscribeToEvts() {
 
 String attributeConvert(String attr) {
     Map atts = ["door":"garageDoorControl", "shade":"windowShade"]
-    return (atts?.containsKey(attr as String)) ? atts[attr as String] : attr as String
+    return (atts?.containsKey(attr)) ? atts[attr] : attr
 }
 
 /***********************************************************************************************************
@@ -614,21 +695,23 @@ Boolean timeCondOk() {
 
 Boolean dateCondOk() {
     if(settings.cond_days == null && settings.cond_months == null) return null
-    Boolean dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : true
-    Boolean mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : true
+    Boolean reqAll = reqAllCond()
+    Boolean dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : reqAll // true
+    Boolean mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
     logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
-    return reqAllCond() ? (mOk && dOk) : (mOk || dOk)
+    return reqAll ? (mOk && dOk) : (mOk || dOk)
 }
 
 Boolean locationCondOk() {
     if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return null
-    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
-    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
+    Boolean reqAll = reqAllCond()
+    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
+    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
     logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
-    return reqAllCond() ? (mOk && aOk) : (mOk || aOk)
+    return reqAll ? (mOk && aOk) : (mOk || aOk)
 }
 
-Boolean checkDeviceCondOk(type) {
+Boolean checkDeviceCondOk(String type) {
     List devs = settings."cond_${type}" ?: null
     String cmdVal = settings."cond_${type}_cmd" ?: null
     Boolean all = (settings."cond_${type}_all" == true)
@@ -636,7 +719,7 @@ Boolean checkDeviceCondOk(type) {
     return all ? allDevCapValsEqual(devs, type, cmdVal) : anyDevCapValsEqual(devs, type, cmdVal)
 }
 
-Boolean checkDeviceNumCondOk(type) {
+Boolean checkDeviceNumCondOk(String type) {
     List devs = settings."cond_${type}" ?: null
     String cmd = settings."cond_${type}_cmd" ?: null
     Double dcl = settings."cond_${type}_low" ?: null
@@ -677,8 +760,8 @@ Boolean checkDeviceNumCondOk(type) {
     }
 }
 
-private isConditionOk(evt) {
-    if(["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.contains(evt)) {
+private Boolean isConditionOk(String evt) {
+    if(["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "water"]?.contains(evt)) {
         if(!settings."cond_${evt}") { true }
         return checkDeviceCondOk(evt)
     } else if(["temperature", "humidity", "illuminance", "level", "power", "battery"]?.contains(evt)) {
@@ -721,18 +804,18 @@ Map conditionStatus() {
         if(s == null) { skipped.push(i); return; }
         s ? passed.push(i) : failed.push(i);
     }
-    Integer cndSize = (passed.size() + failed.size())
+    Integer cndSize = passed.size() + failed.size()
     logDebug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Boolean ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
     if(cndSize == 0) ok = true;
     return [ok: ok, passed: passed, blocks: failed]
 }
 
-Boolean devCondConfigured(type) {
+Boolean devCondConfigured(String type) {
     return (settings."cond_${type}" && settings."cond_${type}_cmd")
 }
 
-Boolean devNumCondConfigured(type) {
+Boolean devNumCondConfigured(String type) {
     return (settings."cond_${type}_cmd" && (settings."cond_${type}_low" || settings."cond_${type}_high" || settings."trig_${type}_equal"))
 }
 
@@ -756,17 +839,17 @@ Boolean locationCondConfigured() {
 }
 
 Boolean deviceCondConfigured() {
-    List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
-    List items = []
-    devConds?.each { dc-> if(devCondConfigured(dc)) { items?.push(dc) } }
-    return (items?.size() > 0)
+//    List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+//    List items = []
+//    devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
+    return (deviceCondCount() > 0)
 }
 
 Integer deviceCondCount() {
     List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
     List items = []
-    devConds?.each { dc-> if(devCondConfigured(dc)) { items?.push(dc) } }
-    return items?.size() ?: 0
+    devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
+    return items.size()
 }
 
 Boolean conditionsConfigured() {
@@ -811,7 +894,7 @@ private addToZoneHistory(evt, condStatus, Integer max=10) {
 
 def checkZoneStatus(evt) {
     Map condStatus = conditionStatus()
-    Boolean active = (condStatus?.ok == true)
+    Boolean active = ((Boolean)condStatus.ok == true)
     Boolean bypassDelay = false
     String delayType = active ? "active" : "inactive"
     Map data = [active: active, recheck: false, evtData: [name: evt?.name, displayName: evt?.displayName], condStatus: condStatus]
@@ -830,7 +913,7 @@ def checkZoneStatus(evt) {
 }
 
 def sendZoneStatus() {
-    Boolean active = (conditionStatus()?.ok == true)
+    Boolean active = ((Boolean)conditionStatus().ok == true)
     // state?.zoneConditionsOk = active
     sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true, display: false, displayed: false)
 }
@@ -844,7 +927,7 @@ void updateZoneStatus(data) {
     Map condStatus = data?.condStatus ?: null
     if(data?.recheck == true) {
         condStatus = conditionStatus()
-        active = (condStatus?.ok == true)
+        active = ((Boolean)condStatus.ok == true)
     }
     if(state?.zoneConditionsOk != active) {
         log.debug("Setting Zone (${getZoneName()}) Status to (${active ? "Active" : "Inactive"})")
@@ -1398,7 +1481,7 @@ String getConditionsDesc() {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${(conditionStatus()?.ok == true) ? okSymFLD : notOkSymFLD})\n"
+        String str = "Conditions Active: (${((Boolean)conditionStatus().ok == true) ? okSymFLD : notOkSymFLD})\n"
         str += (settings.cond_require_all != true) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
         if(timeCondConfigured()) {
             str += " \u2022 Time Between: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
@@ -1412,17 +1495,17 @@ String getConditionsDesc() {
         if(settings.cond_alarm || settings.cond_mode) {
             str += " \u2022 Location: (${locationCondOk() ? okSymFLD : notOkSymFLD})\n"
             str += settings.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings.cond_alarm)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            str += settings.cond_mode ? "    - Location Modes: (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += settings.cond_mode  ? "    - Location Modes: (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
-            ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
+            ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
                 if(devCondConfigured(evt)) {
-                    def condOk = false
+                    Boolean condOk = false
                     if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
-                    else if(evt in ["battery", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
+                    else if(evt in ["battery", "humidity", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
                     // str += settings."${}"
                     str += settings."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
-                    def cmd = settings."${sPre}${evt}_cmd" ?: null
+                    String cmd = settings."${sPre}${evt}_cmd" ?: sNULL
                     if(cmd in ["between", "below", "above", "equals"]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
