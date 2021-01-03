@@ -52,24 +52,26 @@ preferences {
 @Field static final String sNULL          = (String) null
 @Field static final List   lNULL          = (List) null
 @Field static final String sBLANK         = ''
+@Field static final String sSPACE         = ' '
 @Field static final String sBULLET        = '\u2022'
 @Field static final String okSymFLD       = "\u2713"
 @Field static final String notOkSymFLD    = "\u2715"
+@Field static final String zoneHisFLD    = 'zoneHistory'
 
 
 static String appVersion()  { return appVersionFLD }
 
 def startPage() {
     if(parent != null) {
-        if(!state?.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
+        if(!state.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
         else {
-            state?.isParent = false; return (minVersionFailed()) ? codeUpdatePage() : mainPage();
+            state.isParent = false; return (minVersionFailed()) ? codeUpdatePage() : mainPage()
         }
     } else { return uhOhPage() }
 }
 
 def appInfoSect(sect=true)	{
-    def instDt = state?.dateInstalled ? fmtTime(state?.dateInstalled, "MMM dd '@'h:mm a", true) : null
+    def instDt = state?.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@'h:mm a", true) : null
     section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : sBLANK}Version: ${appVersionFLD}", image: getAppImg("es_groups") }
 }
 
@@ -91,12 +93,12 @@ def uhOhPage () {
 
 def mainPage() {
     Boolean newInstall = (state?.isInstalled != true)
-    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: (newInstall == true), install: !newInstall) {
+    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
         appInfoSect()
         Boolean paused = isPaused()
-        Boolean dup = (settings.duplicateFlag == true || state?.dupPendingSetup == true)
+        Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
         if(dup) {
-            state?.dupOpenedByUser = true
+            state.dupOpenedByUser = true
             section() { paragraph pTS("This Zone was just created from an existing zone.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, "red"), required: true, state: null, image: getAppImg("pause_orange") }
         }
         if(paused) {
@@ -142,7 +144,7 @@ def mainPage() {
                 if(zonePause) { unsubscribe() }
             }
         }
-        if(state?.isInstalled) {
+        if(state.isInstalled) {
             section(sTS("Name this Zone:")) {
                 input "appLbl", "text", title: inTS("Zone Name", getAppImg("name_tag", true)), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
             }
@@ -166,10 +168,11 @@ def zoneHistoryPage() {
         section() {
             getZoneHistory()
         }
-        if(historyMapFLD["zoneHistory"]?.size()) {
+        List eData = getMemStoreItem(zoneHisFLD) ?: []
+        if(eData.size()) {
             section("") {
                 input "clearZoneHistory", "bool", title: inTS("Clear Zone History?", getAppImg("reset", true)), description: "Clears Stored Zone History.", defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings.clearZoneHistory) { settingUpdate("clearZoneHistory", "false", "bool"); historyMapFLD["zoneHistory"] = []; }
+                if(settings.clearZoneHistory) { settingUpdate("clearZoneHistory", "false", "bool"); updMemStoreItem(zoneHisFLD, []) }
             }
         }
     }
@@ -384,12 +387,12 @@ def zoneNotifPage() {
                     String nsd = getNotifSchedDesc()
                     href "zoneNotifTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
                 }
-                if(!state?.notif_message_tested) {
+                if(!state.notif_message_tested) {
                     def actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDevices) : []
                     def aMsgDev = actDevices?.size() && settings.notif_alexa_mobile ? actDevices[0] : null
                     if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state?.notif_message_tested = true }
                 }
-            } else { state?.notif_message_tested = false }
+            } else { state.notif_message_tested = false }
         } else {
             section() { paragraph pTS("Configure either an Active or Inactive message to configure remaining notification options.", null, false, "#2784D9"), state: "complete" }
         }
@@ -432,13 +435,13 @@ def zoneNotifTimePage() {
 
 def installed() {
     logInfo("Installed Event Received...")
-    state?.dateInstalled = getDtNow()
+    state.dateInstalled = getDtNow()
     initialize()
 }
 
 def updated() {
     logInfo("Updated Event Received...")
-    if(state?.dupOpenedByUser == true) { state?.dupPendingSetup = false }
+    if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
     initialize()
 }
 
@@ -446,13 +449,13 @@ def initialize() {
     // logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
-    if(settings.duplicateFlag == true && state?.dupPendingSetup == false) {
+    if(settings.duplicateFlag == true && state.dupPendingSetup == false) {
         settingUpdate("duplicateFlag", "false", "bool")
-        state?.remove("dupOpenedByUser")
-    } else if(settings.duplicateFlag == true && state?.dupPendingSetup != false) {
+        state.remove("dupOpenedByUser")
+    } else if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
         String newLbl = app?.getLabel() + app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"
         app?.updateLabel(newLbl)
-        state?.dupPendingSetup = true
+        state.dupPendingSetup = true
         def dupState = parent?.getDupZoneStateData()
         if(dupState?.size()) {
             dupState?.each {k,v-> state[k] = v }
@@ -461,7 +464,7 @@ def initialize() {
         logInfo("Duplicated Zone has been created... Please open Zone and configure to complete setup...")
         return
     }
-    state?.isInstalled = true
+    state.isInstalled = true
     updAppLabel()
     runIn(3, "zoneCleanup")
     runIn(7, "subscribeToEvts")
@@ -476,46 +479,46 @@ def uninstalled() {
 
 String getZoneName() { return (String)settings.appLbl }
 
-private updAppLabel() {
+private void updAppLabel() {
     String newLbl = "${settings.appLbl} (Z${isPaused() ? " \u275A\u275A" : sBLANK})"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
-    if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
+    if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) } //ERS send event for add/rename a zone
 }
 
 public guardEventHandler(guardState) {
-    if(!state?.alexaGuardState || state?.alexaGuardState != guardState) {
-        state?.alexaGuardState = guardState
-        def evt = [name: "guard", displayName: "Alexa Guard", value: state?.alexaGuardState, date: new Date(), deviceId: null]
+    if(!state.alexaGuardState || state.alexaGuardState != guardState) {
+        state.alexaGuardState = guardState
+        def evt = [name: "guard", displayName: "Alexa Guard", value: state.alexaGuardState, date: new Date(), deviceId: null]
         logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
-        if(state?.handleGuardEvents) {
+        if(state.handleGuardEvents) {
             executeAction(evt, false, "guardEventHandler", false, false)
         }
     }
 }
 
-private updConfigStatusMap() {
+private void updConfigStatusMap() {
     Map sMap = atomicState?.configStatusMap
     sMap = sMap ?: [:]
     sMap?.conditions = conditionsConfigured()
     sMap?.devices = devicesConfigured()
-    atomicState?.configStatusMap = sMap
+    atomicState.configStatusMap = sMap
 }
 
 Boolean devicesConfigured() { return (settings.zone_EchoDevices) }
-private getConfStatusItem(item) { return (atomicState?.configStatusMap?.containsKey(item) && atomicState?.configStatusMap[item] == true) }
+private Boolean getConfStatusItem(String item) { Map sMap = atomicState?.configStatusMap; return (sMap?.containsKey(item) && sMap[item] == true) }
 
-private zoneCleanup() {
+private void zoneCleanup() {
     // State Cleanup
     List items = []
-    items?.each { si-> if(state?.containsKey(si as String)) { state?.remove(si)} }
+    items?.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     //Cleans up unused Zone setting items
     List setItems = ["zone_delay"]
     List setIgn = ["zone_EchoDevices"]
-    setItems?.each { sI-> if(settings.containsKey(sI as String)) { settingRemove(sI as String) } }
+    setItems.each { String sI-> if(settings.containsKey(sI)) { settingRemove(sI) } }
 }
 
-public triggerInitialize() { runIn(3, "initialize") }
+public void triggerInitialize() { runIn(3, "initialize") }
 
-public updatePauseState(Boolean pause) {
+public void updatePauseState(Boolean pause) {
     if(settings.zonePause != pause) {
         logDebug("Received Request to Update Pause State to (${pause})")
         settingUpdate("zonePause", "${pause}", "bool")
@@ -531,107 +534,76 @@ private healthCheck() {
 
 private condItemSet(String key) { return (settings.containsKey("cond_${key}") && settings["cond_${key}"]) }
 
-String cronBuilder() {
-    /****
-        Cron Expression Format: (<second> <minute> <hour> <day-of-month> <month> <day-of-week> <?year>)
-
-        * (all) – it is used to specify that event should happen for every time unit. For example, “*” in the <minute> field – means “for every minute”
-        ? (any) – it is utilized in the <day-of-month> and <day-of -week> fields to denote the arbitrary value – neglect the field value. For example, if we want to fire a script at “5th of every month” irrespective of what the day of the week falls on that date, then we specify a “?” in the <day-of-week> field
-        – (range) – it is used to determine the value range. For example, “10-11” in <hour> field means “10th and 11th hours”
-        , (values) – it is used to specify multiple values. For example, “MON, WED, FRI” in <day-of-week> field means on the days “Monday, Wednesday, and Friday”
-        / (increments) – it is used to specify the incremental values. For example, a “5/15” in the <minute> field, means at “5, 20, 35 and 50 minutes of an hour”
-        L (last) – it has different meanings when used in various fields. For example, if it's applied in the <day-of-month> field, then it means last day of the month, i.e. “31st for January” and so on as per the calendar month. It can be used with an offset value, like “L-3“, which denotes the “third to last day of the calendar month”. In the <day-of-week>, it specifies the “last day of a week”. It can also be used with another value in <day-of-week>, like “6L“, which denotes the “last Friday”
-        W (weekday) – it is used to specify the weekday (Monday to Friday) nearest to a given day of the month. For example, if we specify “10W” in the <day-of-month> field, then it means the “weekday near to 10th of that month”. So if “10th” is a Saturday, then the job will be triggered on “9th”, and if “10th” is a Sunday, then it will trigger on “11th”. If you specify “1W” in the <day-of-month> and if “1st” is Saturday, then the job will be triggered on “3rd” which is Monday, and it will not jump back to the previous month
-        # – it is used to specify the “N-th” occurrence of a weekday of the month, for example, “3rd Friday of the month” can be indicated as “6#3“
-
-        At 12:00 pm (noon) every day during the year 2017:  (0 0 12 * * ? 2017)
-
-        Every 5 minutes starting at 1 pm and ending on 1:55 pm and then starting at 6 pm and ending at 6:55 pm, every day: (0 0/5 13,18 * * ?)
-
-        Every minute starting at 1 pm and ending on 1:05 pm, every day: (0 0-5 13 * * ?)
-
-        At 1:15 pm and 1:45 pm every Tuesday in the month of June: (0 15,45 13 ? 6 Tue)
-
-        At 9:30 am every Monday, Tuesday, Wednesday, Thursday, and Friday: (0 30 9 ? * MON-FRI)
-
-        At 9:30 am on 15th day of every month: (0 30 9 15 * ?)
-
-        At 6 pm on the last day of every month: (0 0 18 L * ?)
-
-        At 6 pm on the 3rd to last day of every month: (0 0 18 L-3 * ?)
-
-        At 10:30 am on the last Thursday of every month: (0 30 10 ? * 5L)
-
-        At 6 pm on the last Friday of every month during the years 2015, 2016 and 2017: (0 0 18 ? * 6L 2015-2017)
-
-        At 10 am on the third Monday of every month: (0 0 10 ? * 2#3)
-
-        At 12 am midnight on every day for five days starting on the 10th day of the month: (0 0 0 10/5 * ?)
-    ****/
-    String cron = sNULL
-    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
-    String schedType = (String)settings.trig_scheduled_type
-    Boolean recur = schedType = 'Recurring'
-    def time = settings.trig_scheduled_time ?: null
-    List dayNums = recur && settings.trig_scheduled_daynums ? settings.trig_scheduled_daynums?.collect { it as Integer }?.sort() : null
-    List weekNums = recur && settings.trig_scheduled_weeks ? settings.trig_scheduled_weeks?.collect { it as Integer }?.sort() : null
-    List monthNums = recur && settings.trig_scheduled_months ? settings.trig_scheduled_months?.collect { it as Integer }?.sort() : null
-    if(time) {
-        String hour = fmtTime(time, "HH") ?: "0"
-        String minute = fmtTime(time, "mm") ?: "0"
-        String second = "0" //fmtTime(time, "mm") ?: "0"
-        String daysOfWeek = settings.trig_scheduled_weekdays ? settings.trig_scheduled_weekdays?.join(",") : sNULL
-        String daysOfMonth = dayNums?.size() ? (dayNums?.size() > 1 ? "${dayNums?.first()}-${dayNums?.last()}" : dayNums[0]) : sNULL
-        String weeks = (weekNums && !dayNums) ? weekNums?.join(",") : sNULL
-        String months = monthNums ? monthNums?.sort()?.join(",") : sNULL
-        // log.debug "hour: ${hour} | m: ${minute} | s: ${second} | daysOfWeek: ${daysOfWeek} | daysOfMonth: ${daysOfMonth} | weeks: ${weeks} | months: ${months}"
-        if(hour || minute || second) {
-            List cItems = []
-            cItems.push(second ?: "*")
-            cItems.push(minute ?: "0")
-            cItems.push(hour ?: "0")
-            cItems.push(daysOfMonth ?: (!daysOfWeek ? "*" : "?"))
-            cItems.push(months ?: "*")
-            cItems.push(daysOfWeek ? daysOfWeek?.toString()?.replaceAll("\"", sBLANK) : "?")
-            if(year) { cItems.push(" ${year}") }
-            cron = cItems.join(" ")
+void scheduleCondition() {
+    if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
+    if (timeCondConfigured() || dateCondConfigured()) {
+        String msg = 'scheduleCondition: '
+        Date startTime
+        Date stopTime
+        if (timeCondConfigured()) {
+                Boolean timeOk = timeCondOk() // this updates state variables, and let's us know if we are active now
+                startTime = (String)state.startTime ? parseDate((String)state.startTime) : null
+                stopTime = (String)state.stopTime ? parseDate((String)state.stopTime) : null
+        } else {
+                startTime = timeToday('00:01', location.timeZone)
+                stopTime = timeTodayAfter('23:59', '00:01', location.timeZone)
         }
+        if(startTime && stopTime){
+            Long t = now()
+            Long lstart = startTime.getTime()
+            Long lstop = stopTime.getTime()
+
+            Boolean not = lstart > lstop
+            Boolean isStart = true
+            Long nextEvtT = 0L
+            if(!not) {
+                if(t<lstart) {
+			nextEvtT= lstart - t 
+                } else if(t<lstop){
+                        nextEvtT = lstop - t 
+                        isStart = false
+                }
+            } else {
+                if(t<lstop){
+                    nextEvtT = lstop - t 
+                    isStart = false
+                } else if(t<lstart) {
+			nextEvtT= lstart - t 
+                }
+            }
+
+            if(nextEvtT > 0L) {
+                Long tt = Math.round((nextEvtT)/1000.0D) + 1L
+                tt=(tt<1L ? 1L:tt)
+                if(isStart) runIn(tt, zoneTimeStartCondHandler)
+                else  runIn(tt, zoneTimeStopCondHandler)
+                Date ttt = isStart ? startTime: stopTime
+                msg += "Setting Schedule for ${isStart ? "Start Condition" : "Stop Condition"} in $tt's at ${epochToTime(ttt)}"
+                msg += " schedule Start: $lstart Stop: $lstop now: $t  not: $not  isStart: $isStart nextEvtT: $nextEvtT"
+            } else msg += "nothing to schedule Start: $lstart Stop: $lstop now: $t  not: $not  isStart: $isStart nextEvtT: $nextEvtT"
+        } else log.warn "strange - no start ($startTime) or stop ($stopTime) time"
+        logDebug(msg)
     }
-    logInfo("cronBuilder | Cron: ${cron}")
-    return cron
 }
 
 void subscribeToEvts() {
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
-    state?.handleGuardEvents = false
+    state.handleGuardEvents = false
     List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "shade", "valve", "door", "contact", "acceleration", "switch", "battery", "level"]
 
     //SCHEDULING
-    //return (timeCondConfigured() )
-    //Boolean startTime = (settings.cond_time_start_type in ["sunrise", "sunset"] || (settings.cond_time_start_type == "time" && settings.cond_time_start))
-    //Boolean stopTime = (settings.cond_time_stop_type in ["sunrise", "sunset"] || (settings.cond_time_stop_type == "time" && settings.cond_time_stop))
-    //return (startTime && stopTime)
-    if (settings.cond_time_start_type) {
-        if(settings.cond_time_start_type in ["sunrise", "sunset"]) {
-            if (settings.cond_time_start_type == "sunset") { subscribe(location, "sunsetTime", zoneEvtHandler) }
-            if (settings.cond_time_start_type == "sunrise") { subscribe(location, "sunriseTime", zoneEvtHandler) }
-        }
-        if(settings.cond_time_start_type == "time") { //ERS
-            if(settings.cond_time_start) { schedule(settings.cond_time_start, zoneTimeStartCondHandler) }
-            if(settings.cond_time_stop) { schedule(settings.cond_time_stop, zoneTimeStopCondHandler) }
-        }
+    if(timeCondConfigured() || dateCondConfigured()) {
+        scheduleCondition()
+        schedule('33 0 0 1/1 * ? * ', scheduleCondition)  // run at 00:00:33 every day
+// in case we have been stopped a while...
+        Map condStat = conditionStatus()
+        if((Boolean)condStat.ok) zoneTimeStartCondHandler()
+        else zoneTimeStopCondHandler()
     }
-    //return ( dateCondConfigured() )
-    //Boolean days = (settings.cond_days)
-    //Boolean months = (settings.cond_months)
-    //return (days || months)
 
     subItems?.each { String si->
         if(settings."cond_${si}") {
-    //return (locationCondConfigured() || deviceCondConfigured())
-    //Boolean mode = (settings.cond_mode && settings.cond_mode_cmd)
-    //Boolean alarm = (settings.cond_alarm)
             switch(si) {
                 case "alarm":
                     subscribe(location, (!isStFLD ? "hsmStatus" : "alarmSystemStatus"), zoneEvtHandler)
@@ -670,27 +642,36 @@ Boolean timeCondOk() {
     if(startType && stopType) {
         startTime = startType == 'time' ? toDateTime(settings.cond_time_start) : null
         stopTime = stopType == 'time' ? toDateTime(settings.cond_time_stop) : null
-    } else { return null }
 
-    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
-        def sun = getSunriseAndSunset()
-        Long lsunset = sun.sunset.time
-        Long lsunrise = sun.sunrise.time
-        Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
-        Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
-        Long startl = lsunrise + startoffset
-        Long stopl = lsunset + stopoffset
-        startTime = startType in ["sunrise", "sunset"] ?  new Date(startl) : startTime
-        stopTime = stopType in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime
+        if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+            def sun = getSunriseAndSunset()
+            Long lsunset = sun.sunset.time
+            Long lsunrise = sun.sunrise.time
+            Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
+            Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
+            if(startType in ["sunrise","sunset"]) {
+                Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
+                startTime = new Date(startl)
+            }
+            if(stopType in ["sunrise","sunset"]) {
+                Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
+                stopTime = new Date(stopl)
+            }
+        }
+
+        if(startTime && stopTime) {
+            Boolean not = startTime.getTime() > stopTime.getTime() 
+            Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone)
+            isBtwn = not ? !isBtwn : isBtwn
+            state.startTime =  formatDt(startTime) //ERS
+            state.stopTime =  formatDt(stopTime)
+            logDebug("TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
+            return isBtwn
+        }
     }
-
-    if(startTime && stopTime) {
-        Boolean not = startTime.getTime() > stopTime.getTime() 
-        Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone)
-        isBtwn = not ? !isBtwn : isBtwn
-        logDebug("TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
-        return isBtwn
-    } else { return null }
+    state.startTime = sNULL
+    state.stopTime = sNULL
+    return null
 }
 
 Boolean dateCondOk() {
@@ -805,9 +786,9 @@ Map conditionStatus() {
         s ? passed.push(i) : failed.push(i);
     }
     Integer cndSize = passed.size() + failed.size()
-    logDebug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Boolean ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
     if(cndSize == 0) ok = true;
+    logDebug("ConditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return [ok: ok, passed: passed, blocks: failed]
 }
 
@@ -878,21 +859,24 @@ def zoneEvtHandler(evt) {
 
 def zoneTimeStartCondHandler() {
     checkZoneStatus([name: "Time", displayName: "Condition Start Time"])
+    scheduleCondition()
 }
 
 def zoneTimeStopCondHandler() {
     checkZoneStatus([name: "Time", displayName: "Condition Stop Time"])
+    scheduleCondition()
 }
 
-private addToZoneHistory(evt, condStatus, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = getMemStoreItem("zoneHistory") ?: []
-    eData?.push([dt: getDtNow(), active: (condStatus?.ok == true), evtName: evt?.name, evtDevice: evt?.displayName, blocks: condStatus?.blocks, passed: condStatus?.passed])
-    if(!ssOk || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
-    updMemStoreItem("zoneHistory", eData)
+private void addToZoneHistory(Map evt, Map condStatus, Integer max=10) {
+    Boolean ssOk = true //(stateSizePerc() <= 70)
+    List eData = getMemStoreItem(zoneHisFLD) ?: []
+    eData.push([dt: getDtNow(), active: (condStatus.ok == true), evtName: evt.name, evtDevice: evt.displayName, blocks: condStatus.blocks, passed: condStatus.passed])
+    Integer lsiz = eData.size()
+    if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max)+1 ) }
+    updMemStoreItem(zoneHisFLD, eData)
 }
 
-def checkZoneStatus(evt) {
+void checkZoneStatus(evt) {
     Map condStatus = conditionStatus()
     Boolean active = ((Boolean)condStatus.ok == true)
     Boolean bypassDelay = false
@@ -900,50 +884,44 @@ def checkZoneStatus(evt) {
     Map data = [active: active, recheck: false, evtData: [name: evt?.name, displayName: evt?.displayName], condStatus: condStatus]
     Integer delay = settings."zone_${delayType}_delay" ?: null
     if(!active && settings."cond_${evt?.name}_db" == true) { bypassDelay = isConditionOk(evt?.name) != true }
+    String msg = !bypassDelay && delay ? "in (${delay} sec)" : (bypassDelay ? "Bypassing Inactive Delay for (${evt?.name}) Event..." : sBLANK)
+    logDebug("updateZoneStatus to [${delayType}] ${msg} Call from ${evt?.name} / ${evt?.displayName}")
     if(!bypassDelay && delay) {
-        log.debug "updateZoneStatus to [${delayType}] in (${delay} sec)"
         runIn(delay, "updateZoneStatus", [data: data])
     } else {
-        // log.debug "updateZoneStatus to [${delayType}]"
-        if(bypassDelay) {
-            log.debug "Bypassing Inactive Delay for (${evt?.name}) Event..."
-        }
         updateZoneStatus(data)
     }
 }
 
-def sendZoneStatus() {
+void sendZoneStatus() {
     Boolean active = ((Boolean)conditionStatus().ok == true)
-    // state?.zoneConditionsOk = active
+    // state.zoneConditionsOk = active
     sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true, display: false, displayed: false)
 }
 
-def sendZoneRemoved() {
+void sendZoneRemoved() {
     sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: getZoneName()], isStateChange: true, display: false, displayed: false)
 }
 
-void updateZoneStatus(data) {
-    Boolean active = (data?.active == true)
-    Map condStatus = data?.condStatus ?: null
-    if(data?.recheck == true) {
+void updateZoneStatus(Map data) {
+    Boolean active = (data.active == true)
+    Map condStatus = data.condStatus
+    if(data.recheck == true) {
         condStatus = conditionStatus()
         active = ((Boolean)condStatus.ok == true)
     }
-    if(state?.zoneConditionsOk != active) {
+    if(state.zoneConditionsOk != active) {
         log.debug("Setting Zone (${getZoneName()}) Status to (${active ? "Active" : "Inactive"})")
-        state?.zoneConditionsOk = active
-        addToZoneHistory(data?.evtData, condStatus)
+        state.zoneConditionsOk = active
+        addToZoneHistory(data.evtData, condStatus)
         sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: [ name: getZoneName(), active: active ], isStateChange: true, display: false, displayed: false)
         if(isZoneNotifConfigured()) {
             Boolean ok2Send = true
-            String msgTxt = sNULL
-            if(active) {
-                msgTxt = settings.notif_active_message ?: sNULL
-            } else { msgTxt = settings.notif_inactive_message ?: sNULL }
+            String msgTxt = active ? (settings.notif_active_message ?: sNULL) : (settings.notif_inactive_message ?: sNULL)
             if(ok2Send && msgTxt) {
                 def zoneDevices = getZoneDevices()
                 def alexaMsgDev = zoneDevices?.size() && settings.notif_alexa_mobile ? zoneDevices[0] : null
-                if(sendNotifMsg(getZoneName() as String, msgTxt, alexaMsgDev, false)) { logDebug("Sent Zone Notification...") }
+                if(sendNotifMsg(getZoneName(), msgTxt, alexaMsgDev, false)) { logDebug("Sent Zone Notification...") }
             }
         }
         if(active) {
@@ -953,11 +931,11 @@ void updateZoneStatus(data) {
             if(settings.zone_inactive_switches_off) settings.zone_inactive_switches_off?.off()
             if(settings.zone_inactive_switches_on) settings.zone_inactive_switches_on?.on()
         }
-    }
+    } else log.debug("no change to Zone (${getZoneName()}) Status (${active ? "Active" : "Inactive"})")
 }
 
-public getZoneHistory(asObj=false) {
-    List zHist = getMemStoreItem("zoneHistory") ?: []
+public getZoneHistory(Boolean asObj=false) {
+    List zHist = getMemStoreItem(zoneHisFLD) ?: []
     List output = []
     if(zHist?.size()) {
         zHist?.each { h->
@@ -989,6 +967,7 @@ public zoneRefreshHandler(evt) {
     switch(cmd) {
         case "checkStatus":
             checkZoneStatus()
+            scheduleCondition()
             break
         case "sendStatus":
             sendZoneStatus()
@@ -1178,7 +1157,7 @@ Boolean devCapValEqual(List devs, String devId, String cap, val) {
     return false
 }
 
-String getAlarmSystemName(abbr=false) {
+String getAlarmSystemName(Boolean abbr=false) {
     return isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 
@@ -1227,7 +1206,7 @@ String convToDateTime(dt) {
     return "$d, $t"
 }
 
-Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
+Date parseDate(String dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
 String strCapitalize(String str) { return str ? str?.toString().capitalize() : null }
 String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
@@ -1390,11 +1369,11 @@ Boolean getAppFlag(String val) {
 private stateMapMigration() {
     //Timestamp State Migrations
     Map tsItems = [:]
-    tsItems?.each { k, v-> if(state?.containsKey(k)) { updTsVal(v as String, state[k as String]); state?.remove(k as String); } }
+    tsItems?.each { k, v-> if(state.containsKey(k)) { updTsVal(v as String, state[k as String]); state.remove(k as String); } }
 
     //App Flag Migrations
     Map flagItems = [:]
-    flagItems?.each { k, v-> if(state?.containsKey(k)) { updAppFlag(v as String, state[k as String]); state?.remove(k as String); } }
+    flagItems?.each { k, v-> if(state.containsKey(k)) { updAppFlag(v as String, state[k as String]); state.remove(k as String); } }
     updAppFlag("stateMapConverted", true)
 }
 
@@ -1462,10 +1441,14 @@ String getNotifSchedDesc(Boolean min=false) {
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        Long startl = lsunrise + startoffset
-        Long stopl = lsunset + stopoffset
-        startTime = startInput in ["sunrise", "sunset"] ?  new Date(startl) : startTime
-        stopTime = stopInput in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime
+        if(startType in ["sunrise","sunset"]) {
+            Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
+            startTime = new Date(startl)
+        }
+        if(stopType in ["sunrise","sunset"]) {
+            Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
+            stopTime = new Date(stopl)
+        }
     }
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
@@ -1532,8 +1515,8 @@ String getZoneDesc() {
     if(devicesConfigured() && conditionsConfigured()) {
         List eDevs = parent?.getDevicesFromList(settings.zone_EchoDevices)?.collect { it?.displayName as String }
         String str = eDevs?.size() ? "Echo Devices in Zone:\n${eDevs?.join("\n")}\n" : sBLANK
-        str += settings.zone_active_delay ? " \u2022 Activate Delay: (${settings.zone_active_delay})\n" : sBLANK
-        str += settings.zone_inactive_delay ? " \u2022 Deactivate Delay: (${settings.zone_inactive_delay})\n" : sBLANK
+        str += settings.zone_active_delay ? bulletItem(sBLANK, "Activate Delay: (${settings.zone_active_delay})\n)") : sBLANK
+        str += settings.zone_inactive_delay ? bulletItem(sBLANK, "Deactivate Delay: (${settings.zone_inactive_delay})\n") : sBLANK
         str += "\nTap to modify..."
         return str
     } else {
@@ -1557,10 +1540,14 @@ String getTimeCondDesc(Boolean addPre=true) {
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
         Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
-        Long startl = lsunrise + startoffset
-        Long stopl = lsunset + stopoffset
-        startTime = startType in ["sunrise", "sunset"] ?  new Date(startl) : startTime
-        stopTime = stopType in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime
+        if(startType in ["sunrise","sunset"]) {
+            Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
+            startTime = new Date(startl)
+        }
+        if(stopType in ["sunrise","sunset"]) {
+            Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
+            stopTime = new Date(stopl)
+        }
     }
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
@@ -1608,13 +1595,13 @@ void settingRemove(String name) {
     if(name && settings.containsKey(name)) { isStFLD ? app?.deleteSetting(name) : app?.removeSetting(name) }
 }
 
-List weekDaysEnum() {
-    return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-}
+static List weekDaysEnum() { return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] }
 
-List monthEnum() {
-    return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-}
+static Map daysOfWeekMap() { return ["MON":"Monday", "TUE":"Tuesday", "WED":"Wednesday", "THU":"Thursday", "FRI":"Friday", "SAT":"Saturday", "SUN":"Sunday"] }
+
+static List monthEnum() { return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] }
+
+static Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 Map getAlarmTrigOpts() {
     return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
@@ -1628,8 +1615,9 @@ def getShmIncidents() {
 Boolean pushStatus() { return (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : null }
 */
 
-Integer getLastNotifMsgSec() { return !state?.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state?.lastNotifMsgDt, "getLastMsgSec").toInteger() }
-Integer getLastChildInitRefreshSec() { return !state?.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state?.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
+//public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled"); } }
+Integer getLastNotifMsgSec() { return !state.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state.lastNotifMsgDt, "getLastMsgSec").toInteger() }
+Integer getLastChildInitRefreshSec() { return !state.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 
 Boolean getOk2Notify() {
     Boolean smsOk = (isStFLD && settings.notif_sms_numbers?.toString()?.length()>=10)
@@ -1640,7 +1628,7 @@ Boolean getOk2Notify() {
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = settings.notif_mode ? (isInMode(settings.notif_mode)) : true
-    logDebug("getOk2Notify() | notifDevs: $notifDevs |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    logDebug("getOk2Notify() | notifDevs: $notifDevsOk | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
     return true
@@ -1663,10 +1651,14 @@ Boolean notifTimeOk() {
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        Long startl = lsunrise + startoffset
-        Long stopl = lsunset + stopoffset
-        startTime = startType in ["sunrise", "sunset"] ?  new Date(startl) : startTime
-        stopTime = stopType in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime
+        if(startType in ["sunrise","sunset"]) {
+            Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
+            startTime = new Date(startl)
+        }
+        if(stopType in ["sunrise","sunset"]) {
+            Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
+            stopTime = new Date(stopl)
+        }
     }
 
     if(startTime && stopTime) {
@@ -1746,7 +1738,7 @@ Boolean isZoneNotifConfigured() {
         (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_devs || settings.notif_alexa_mobile || (isStFLD && settings.notif_pushover && settings.notif_pushover_devices))
     )
 }
-
+/*
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
 private getPushoverDevices(){List opts=[];Map pmd=state?.pushoverManager?:[:];pmd?.apps?.each{k,v->if(v&&v?.devices&&v?.appId){Map dm=[:];v?.devices?.sort{}?.each{i->dm["${i}_${v?.appId}"]=i};addInputGrp(opts,v?.appName,dm);}};return opts;}
@@ -1763,7 +1755,7 @@ public pushover_msg(List devs,Map data){if(devs&&data){sendLocationEvent(name:"p
 public pushover_handler(evt){Map pmd=state?.pushoverManager?:[:];switch(evt?.value){case"refresh":def ed = evt?.jsonData;String id = ed?.appId;Map pA = pmd?.apps?.size() ? pmd?.apps : [:];if(id){pA[id]=pA?."${id}"instanceof Map?pA[id]:[:];pA[id]?.devices=ed?.devices?:[];pA[id]?.appName=ed?.appName;pA[id]?.appId=id;pmd?.apps = pA;};pmd?.sounds=ed?.sounds;break;case "reset":pmd=[:];break;};state?.pushoverManager=pmd;}
 //Builds Map Message object to send to Pushover Manager
 private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
-
+*/
 
 Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
@@ -1779,22 +1771,22 @@ Boolean minVersionFailed() {
 
 Boolean isPaused() { return (settings.zonePause == true) }
 
-String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK }
-String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
-String sTS(String t, String i = sNULL) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
-String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
-String inTS(String t, String i = sNULL, String color=sNULL) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : sBLANK}""" }
+static String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK }
+static String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
+static String sTS(String t, String i = sNULL) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
+static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
+static String inTS(String t, String i = sNULL, String color=sNULL) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : sBLANK}""" }
 
 /* """ */ 
 
-String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"} \u2022 ${strVal}" }
-String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - ${strVal}" }
+static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"}"+sSPACE+sBULLET+sSPACE+strVal }
+static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - "+strVal }
 
 Integer stateSize() {
-    def j = new groovy.json.JsonOutput().toJson(state)
-    return j?.toString().length()
+    String j = new groovy.json.JsonOutput().toJson(state)
+    return j.length()
 }
-Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
+Integer stateSizePerc() { return (Integer)(((stateSize() / 100000)*100).toDouble().round(0)) }
 
 private addToLogHistory(String logKey, String data, Integer max=10) {
     Boolean ssOk = true //(stateSizePerc() > 70)
