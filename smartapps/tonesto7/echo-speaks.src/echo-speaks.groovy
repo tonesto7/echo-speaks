@@ -1889,7 +1889,7 @@ def wakeupServerResp(response, data) {
             logWarn("wakeupServerResp: noData ${rData} ${data}")
         }
     } catch(ex) {
-        //logError("wakeupServerResp Exception: ${ex}")
+        logError("wakeupServerResp Server may be down / unreachable")
         respExceptionHandler(ex, "wakeupServerResp", false, false)
     }
 }
@@ -3439,21 +3439,22 @@ Boolean getOk2Notify() {
 Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) ? false : true }
 
 Boolean quietTimeOk() {
-    Date strtTime = null
+    Date startTime = null
     Date stopTime = null
 //    Date now = new Date()
     def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
     if(settings.qStartTime && settings.qStopTime) {
-        if(settings.qStartInput == "Sunset") { strtTime = sun?.sunset }
-        else if(settings.qStartInput == "Sunrise") { strtTime = sun?.sunrise }
-        else if(settings.qStartInput == "A specific time" && settings.qStartTime) { strtTime = toDateTime(settings.qStartTime) }
+        if(settings.qStartInput == "Sunset") { startTime = sun?.sunset }
+        else if(settings.qStartInput == "Sunrise") { startTime = sun?.sunrise }
+        else if(settings.qStartInput == "A specific time" && settings.qStartTime) { startTime = toDateTime(settings.qStartTime) }
 
         if(settings.qStopInput == "Sunset") { stopTime = sun?.sunset }
         else if(settings.qStopInput == "Sunrise") { stopTime = sun?.sunrise }
         else if(settings.qStopInput == "A specific time" && settings.qStopTime) { stopTime = toDateTime(settings.qStopTime) }
     } else { return true }
-    if(strtTime && stopTime) {
-        // log.debug "quietTimeOk | Start: ${strtTime} | Stop: ${stopTime}"
+    if(startTime && stopTime) {
+        // log.debug "quietTimeOk | Start: ${startTime} | Stop: ${stopTime}"
+        Date now = new Date()
         Boolean not = startTime.getTime() > stopTime.getTime() 
         Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
         isBtwn = not ? !isBtwn : isBtwn
