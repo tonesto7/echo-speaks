@@ -573,8 +573,8 @@ void scheduleCondition() {
             }
 
             if(nextEvtT > 0L) {
-                Long tt = Math.round((nextEvtT-t)/1000.0D) + 1L
-                t=(tt<1L ? 1L:tt)
+                Long tt = Math.round((nextEvtT)/1000.0D) + 1L
+                tt=(tt<1L ? 1L:tt)
                 if(isStart) runIn(tt, zoneTimeStartCondHandler)
                 else  runIn(tt, zoneTimeStopCondHandler)
                 Date ttt = isStart ? startTime: stopTime
