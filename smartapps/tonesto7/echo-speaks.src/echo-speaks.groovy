@@ -1894,7 +1894,6 @@ def wakeupServerResp(response, data) {
     }
 }
 
-//void execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
 void cookieRefresh() {
     Map cookieData = state.cookieData ?: [:]
     if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
