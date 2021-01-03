@@ -1889,11 +1889,12 @@ def wakeupServerResp(response, data) {
             logWarn("wakeupServerResp: noData ${rData} ${data}")
         }
     } catch(ex) {
-        //logError("wakeupServerResp Exception: ${ex}")
+        logError("wakeupServerResp Server may be down / unreachable")
         respExceptionHandler(ex, "wakeupServerResp", false, false)
     }
 }
 
+//void execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
 void cookieRefresh() {
     Map cookieData = state.cookieData ?: [:]
     if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
