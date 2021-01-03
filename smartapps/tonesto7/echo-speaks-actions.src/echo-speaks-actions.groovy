@@ -2171,6 +2171,21 @@ Boolean schedulesConfigured() {
     return false
 }
 
+//                                input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset ${schedType} this number of minutes (+/-)", getAppImg(schedType?.toLowerCase(), true)), required: true, image: getAppImg(schedType?.toLowerCase() + sBLANK)
+void scheduleSunriseSet() {
+    if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
+    def sun = getSunriseAndSunset()
+    Long ltim = settings.trig_scheduled_type in ["Sunrise"] ? sun.sunrise.time : sun.sunset.time
+    Long offset = (settings.trig_scheduled_sunState_offset ?: 0L) * 60000L // minutes
+    Long t = now()
+    Long n = ltim+offset
+    if(t > n) { logDebug("Not scheduling sunrise, sunset - already past today"); return }
+    Long secs = Math.round((n - t)/1000.0D) + 1L
+    runIn(secs, scheduleTrigEvt)
+    Date tt = new Date(n)
+    logDebug("Setting Schedule for ${epochToTime(tt)} in $secs's")
+}
+
 void subscribeToEvts() {
     if(minVersionFailed ()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return }
     if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
@@ -2180,8 +2195,13 @@ void subscribeToEvts() {
                 case "scheduled":
                     // Scheduled Trigger Events  ERS
                     if (schedulesConfigured()) {
-                        if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
-                        else if(settings.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
+                        if(settings.trig_scheduled_type in ["Sunrise", "Sunset"]) {
+                            scheduleSunriseSet()
+                            schedule('29 0 0 1/1 * ? * ', scheduleSunriseSet)  // run at 00:00:24 every day
+                        }
+
+                        //if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
+                        //else if(settings.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
                         else if(settings.trig_scheduled_type in ["One-Time", "Recurring"] && settings.trig_scheduled_time) { schedule(cronBuilder(), "scheduleTrigEvt") }
                     }
                     break
@@ -2308,6 +2328,11 @@ def scheduleTrigEvt(evt=null) {
     } else {
         logDebug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
     }
+                        //if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
+                        //else if(settings.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
+                    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
+//Boolean schedulesConfigured() {
+                                //if(settings.trig_scheduled_time && schedType == "Recurring") {
 //                                input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset ${schedType} this number of minutes (+/-)", getAppImg(schedType?.toLowerCase(), true)), required: true, image: getAppImg(schedType?.toLowerCase() + sBLANK)
 }
 
@@ -2396,9 +2421,10 @@ def modeEvtHandler(evt) {
     }
 }
 
+//public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled") } }
 Integer getLastAfterEvtCheck() { return !state.lastAfterEvtCheck ? 10000000 : GetTimeDiffSeconds((String)state.lastAfterEvtCheck, "getLastAfterEvtCheck").toInteger() }
 
-def afterEvtCheckWatcher() {
+void afterEvtCheckWatcher() {
     Map t0 = atomicState.afterEvtMap
     Map aEvtMap = t0 ?: [:]
     t0 = atomicState.afterEvtChkSchedMap
@@ -2408,7 +2434,7 @@ def afterEvtCheckWatcher() {
     }
 }
 
-def devAfterEvtHandler(evt) {
+void devAfterEvtHandler(evt) {
     Long evtDelay = now() - evt?.date?.getTime()
     Map t0 = atomicState.afterEvtMap
     Map aEvtMap = t0 ?: [:]
@@ -2441,7 +2467,7 @@ def devAfterEvtHandler(evt) {
     }
 }
 
-def afterEvtCheckHandler() {
+void afterEvtCheckHandler() {
     Map t0 = atomicState.afterEvtMap
     Map aEvtMap = t0 ?: [:]
     if(aEvtMap?.size()) {
@@ -2450,22 +2476,22 @@ def afterEvtCheckHandler() {
         Integer lowWait = aEvtMap?.findAll { it?.value?.wait != null }?.collect { it?.value?.wait }?.min()
         Integer lowLeft = aEvtMap?.findAll { it?.value?.wait == lowWait }?.collect { it?.value?.timeLeft} ?.min()
         def nextItem = aEvtMap?.find { it?.value?.wait == lowWait && it?.value?.timeLeft == lowLeft }
-        def nextVal = nextItem?.value ?: null
-        def nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal?.deviceId}_${nextVal?.name}" : null
+        Map nextVal = nextItem?.value ?: null
+        String nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal?.deviceId}_${nextVal?.name}" : sNULL
         if(nextVal) {
-            Date prevDt = nextVal.isRepeat && nextVal.repeatDt ? parseDate(nextVal.repeatDt?.toString()) : parseDate(nextVal.dt?.toString())
+            Date prevDt = (Boolean)nextVal.isRepeat && (String)nextVal.repeatDt ? parseDate((String)nextVal.repeatDt) : parseDate((String)nextVal.dt)
             Date fullDt = parseDate(nextVal.dt?.toString())
             def devs = settings."trig_${nextVal.name}" ?: null
             // log.debug "nextVal: $nextVal"
             Integer repeatCnt = (nextVal.repeatCnt >= 0) ? nextVal.repeatCnt + 1 : 1
             Integer repeatCntMax = nextVal.repeatCntMax ?: null
-            Boolean isRepeat = nextVal.isRepeat ?: false
+            Boolean isRepeat = (Boolean)nextVal.isRepeat ?: false
             Boolean hasRepeat = (settings."trig_${nextVal.name}_after_repeat" != null)
             if(prevDt) {
                 Long timeNow = new Date().getTime()
                 Integer evtElap = Math.round((timeNow - prevDt.getTime())/1000L).toInteger()
                 Integer fullElap = Math.round((timeNow - fullDt.getTime())/1000L).toInteger()
-                Integer reqDur = (nextVal.isRepeat && nextVal.repeatWait) ? nextVal.repeatWait : nextVal.wait ?: null
+                Integer reqDur = ((Boolean)nextVal.isRepeat && nextVal.repeatWait) ? nextVal.repeatWait : nextVal.wait ?: null
                 timeLeft = (reqDur - evtElap)
                 aEvtMap[nextItem?.key]?.timeLeft = timeLeft
                 aEvtMap[nextItem?.key]?.repeatCnt = repeatCnt
@@ -2863,27 +2889,36 @@ Boolean timeCondOk() {
     if(startType && stopType) {
         startTime = startType == 'time' ? toDateTime(settings.cond_time_start) : null
         stopTime = stopType == 'time' ? toDateTime(settings.cond_time_stop) : null
-    } else { return null }
 
-    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
-        def sun = getSunriseAndSunset()
-        Long lsunset = sun.sunset.time
-        Long lsunrise = sun.sunrise.time
-        Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
-        Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
-        Long startl = lsunrise + startoffset
-        Long stopl = lsunset + stopoffset
-        startTime = startType in ["sunrise", "sunset"] ?  new Date(startl) : startTime 
-        stopTime = stopType in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime 
+        if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+            def sun = getSunriseAndSunset()
+            Long lsunset = sun.sunset.time
+            Long lsunrise = sun.sunrise.time
+            Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
+            Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
+            if(startType in ["sunrise","sunset"]) {
+                Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
+                startTime = new Date(startl)
+            }
+            if(stopType in ["sunrise","sunset"]) {
+                Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
+                stopTime = new Date(stopl)
+            }
+        }
+
+        if(startTime && stopTime) {
+            Boolean not = startTime.getTime() > stopTime.getTime() 
+            Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone)
+            isBtwn = not ? !isBtwn : isBtwn
+            state.startTime =  formatDt(startTime) //ERS
+            state.stopTime =  formatDt(stopTime)
+            logDebug("TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
+            return isBtwn
+        }
     }
-
-    if(startTime && stopTime) {
-        Boolean not = startTime.getTime() > stopTime.getTime() 
-        Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone)
-        isBtwn = not ? !isBtwn : isBtwn
-        logDebug("TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
-        return isBtwn
-    } else { return null }
+    state.startTime = sNULL
+    state.stopTime = sNULL
+    return null
 }
 
 Boolean dateCondOk() {
@@ -2979,9 +3014,9 @@ Map conditionStatus() {
     }
     Integer cndSize = (passed.size() + failed.size())
     Boolean reqAll = reqAllCond()
-    logDebug("ConditionsStatus | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Boolean ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
     if(cndSize == 0) ok = true
+    logDebug("ConditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return [ok: ok, passed: passed, blocks: failed]
 }
 
@@ -3026,7 +3061,7 @@ Integer deviceCondCount() {
     List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
     List items = []
     devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
-    return items.size() ?: 0
+    return items.size()
 }
 
 Boolean conditionsConfigured() {
@@ -3757,6 +3792,7 @@ public Map getActionMetrics() {
 
 String pushStatus() { return (isStFLD && (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover)) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : sNULL }
 
+//public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled") } }
 Integer getLastNotifMsgSec() { return !state.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state.lastNotifMsgDt, "getLastMsgSec").toInteger() }
 Integer getLastChildInitRefreshSec() { return !state.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 
@@ -3792,10 +3828,14 @@ Boolean notifTimeOk() {
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        Long startl = lsunrise + startoffset
-        Long stopl = lsunset + stopoffset
-        startTime = startType in ["sunrise", "sunset"] ?  new Date(startl) : startTime 
-        stopTime = stopType in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime 
+        if(startType in ["sunrise","sunset"]) {
+            Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
+            startTime = new Date(startl)
+        }
+        if(stopType in ["sunrise","sunset"]) {
+            Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
+            stopTime = new Date(stopl)
+        }
     }
 
     if(startTime && stopTime) {
@@ -4265,10 +4305,14 @@ String getNotifSchedDesc(Boolean min=false) {
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        Long startl = lsunrise + startoffset
-        Long stopl = lsunset + stopoffset
-        startTime = startInput in ["sunrise", "sunset"] ?  new Date(startl) : startTime 
-        stopTime = stopInput in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime 
+        if(startType in ["sunrise","sunset"]) {
+            Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
+            startTime = new Date(startl)
+        }
+        if(stopType in ["sunrise","sunset"]) {
+            Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
+            stopTime = new Date(stopl)
+        }
     }
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
@@ -4289,13 +4333,24 @@ String getTriggersDesc(Boolean hideDesc=false) {
             setItem?.each { String evt->
                 switch(evt) {
                     case "scheduled":
+                        String schedTyp = settings."${sPre}${evt}_type" ? settings."${sPre}${evt}_type" : sNULL
                         str += " \u2022 ${evt?.capitalize()}${settings."${sPre}${evt}_type" ? " (${settings."${sPre}${evt}_type"})" : ""}\n"
-                        str += settings."${sPre}${evt}_recurrence"     ? "    \u25E6 Recurrence: (${settings."${sPre}${evt}_recurrence"})\n"      : sBLANK
-                        str += settings."${sPre}${evt}_time"     ? "    \u25E6 Time: (${fmtTime(settings."${sPre}${evt}_time")})\n"      : sBLANK
-                        str += settings."${sPre}${evt}_weekdays"     ? "    \u25E6 Week Days: (${settings."${sPre}${evt}_weekdays"?.join(",")})\n"      : sBLANK
-                        str += settings."${sPre}${evt}_daynums"     ? "    \u25E6 Days of Month: (${settings."${sPre}${evt}_daynums"?.size()})\n"      : sBLANK
-                        str += settings."${sPre}${evt}_weeks"    ? "    \u25E6 Weeks of Month: (${settings."${sPre}${evt}_weeks"?.join(",")})\n" : sBLANK
-                        str += settings."${sPre}${evt}_months"   ? "    \u25E6 Months: (${settings."${sPre}${evt}_months"?.join(",")})\n"  : sBLANK
+                        if(schedTyp == "Recurring") {
+                            str += settings."${sPre}${evt}_recurrence"     ? "    \u25E6 Recurrence: (${settings."${sPre}${evt}_recurrence"})\n"      : sBLANK
+                            str += settings."${sPre}${evt}_time"     ? "    \u25E6 Time: (${fmtTime(settings."${sPre}${evt}_time")})\n"      : sBLANK
+                            str += settings."${sPre}${evt}_weekdays"     ? "    \u25E6 Week Days: (${settings."${sPre}${evt}_weekdays"?.join(",")})\n"      : sBLANK
+                            str += settings."${sPre}${evt}_daynums"     ? "    \u25E6 Days of Month: (${settings."${sPre}${evt}_daynums"?.size()})\n"      : sBLANK
+                            str += settings."${sPre}${evt}_weeks"    ? "    \u25E6 Weeks of Month: (${settings."${sPre}${evt}_weeks"?.join(",")})\n" : sBLANK
+                            str += settings."${sPre}${evt}_months"   ? "    \u25E6 Months: (${settings."${sPre}${evt}_months"?.join(",")})\n"  : sBLANK
+                        }
+                        if(schedTyp == "One-Time") {
+                            str += settings."${sPre}${evt}_time"     ? "    \u25E6 Time: (${fmtTime(settings."${sPre}${evt}_time")})\n"      : sBLANK
+                        }
+                        if(schedTyp in ["Sunrise", "Sunset"]) {
+                            str += settings."${sPre}${evt}_sunState_offset"     ? "    \u25E6 Offset: (${settings."${sPre}${evt}_sunState_offset"})\n"      : sBLANK
+                        }
+                    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
+                                //input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset ${schedType} this number of minutes (+/-)", getAppImg(schedType?.toLowerCase(), true)), required: true, image: getAppImg(schedType?.toLowerCase() + sBLANK)
                         break
                     case "alarm":
                         str += " \u2022 ${evt?.capitalize()} (${getAlarmSystemName(true)})${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
@@ -4348,7 +4403,7 @@ String getConditionsDesc() {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${(conditionStatus().ok == true) ? okSym() : notOkSym()})\n"
+        String str = "Conditions: (${((Boolean)conditionStatus().ok == true) ? okSym() : notOkSym()})\n"
         str += reqAllCond() ?  " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
             str += " • Time Between: (${timeCondOk() ? okSym() : notOkSym()})\n"
@@ -4474,10 +4529,14 @@ String getTimeCondDesc(Boolean addPre=true) {
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
         Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
-        Long startl = lsunrise + startoffset
-        Long stopl = lsunset + stopoffset
-        startTime = startType in ["sunrise", "sunset"] ?  new Date(startl) : startTime 
-        stopTime = stopType in ["sunrise", "sunset"] ?  new Date(stopl) : stopTime 
+        if(startType in ["sunrise","sunset"]) {
+            Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
+            startTime = new Date(startl)
+        }
+        if(stopType in ["sunrise","sunset"]) {
+            Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
+            stopTime = new Date(stopl)
+        }
     }
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
