@@ -120,6 +120,9 @@ private buildTriggerEnum() {
         //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
         // buildItems?.Location?.scene = "Scenes"
     }
+    if(!settings.enableWebCoRE) {
+        buildItems.Location.remove("pistonExecuted")
+    }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power", "acceleration":"Accelorometers"]?.sort{ it?.value }
     buildItems["Actionable Devices"] = ["lock":"Locks", "button":"Buttons", "switch":"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
     if(!isStFLD) {
@@ -288,6 +291,12 @@ private scheduleConvert() {
 def triggersPage() {
     return dynamicPage(name: "triggersPage", nextPage: "mainPage", uninstall: false, install: false) {
 //        Boolean isTierAct = isTierAction()
+        section (sTS("Enable webCoRE Integration:")) {
+            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+        }
+        if(settings.enableWebCoRE) {
+            if(!webCoREFLD) webCoRE_init()
+        }
         Boolean showSpeakEvtVars = false
         section (sTS("Select Capabilities")) {
             if(isStFLD) {
@@ -401,9 +410,8 @@ def triggersPage() {
             }
 
             if(valTrigEvt("pistonExecuted")) {
-                if(!webCoREFLD) webCoRE_init()
                 section(sTS("webCoRE Piston Executed Events"), hideable: true) {
-                    input "trig_pistonExecuted", "enum", title: inTS("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
+                    input "trig_pistonExecuted", "enum", title: inTS("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true, image: webCore_icon()
                     if(settings.trig_pistonExecuted) {
                         input "trig_pistonExecuted_once", "bool", title: inTS("Only alert once a day?\n(per type: piston)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_pistonExecuted_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
@@ -1504,6 +1512,12 @@ def actTrigTasksPage(params) {
                     break
             }
         }
+        section (sTS("Enable webCoRE Integration:")) {
+            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+        }
+        if(settings.enableWebCoRE) {
+            if(!webCoREFLD) webCoRE_init()
+        }
         section(sTS("Control Devices:")) {
             input "${t}switches_on", "capability.switch", title: inTS("Turn ON these Switches${dMap?.def}\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
             input "${t}switches_off", "capability.switch", title: inTS("Turn OFF these Switches${dMap?.def}\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
@@ -1552,16 +1566,15 @@ def actTrigTasksPage(params) {
             }
         }
 
-        section (sTS("Execute a webCoRE Piston:")) {
-            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+        if(settings.enableWebCoRE) {
+            section (sTS("Execute a webCoRE Piston:")) {
+/*            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
             if(settings.enableWebCoRE) {
-                //if(!atomicState?.webCoRE) { webCoRE_init() }
                 if(!webCoREFLD) {
                     webCoRE_init()
-                } else {
+                } else { */
                     input "${t}piston_run", "enum", title: inTS("Execute a piston${dMap?.def}\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon : sBLANK)
-                }
-//                input "${t == "act_" ? sBLANK : t}webCorePistons", "enum", title: inTS("Execute a Piston${dMap?.def}", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+//                }
             }
         }
 
@@ -1575,7 +1588,8 @@ def actTrigTasksPage(params) {
 
 Boolean actTasksConfiguredByType(String pType) {
     return (
-        settings."${pType}mode_run" || settings."${pType}routine_run" || settings."${pType}switches_off" || settings."${pType}switches_on" || settings."${pType}piston_run" ||
+        settings."${pType}mode_run" || settings."${pType}routine_run" || settings."${pType}switches_off" || settings."${pType}switches_on" ||
+        (settings.enableWebCoRE && settings."${pType}piston_run") ||
         settings."${pType}lights" || settings."${pType}locks" || settings."${pType}sirens" || settings."${pType}doors")
 }
 
@@ -2063,7 +2077,8 @@ private void actionCleanup() {
     }
 
     settings.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems.push(si?.key as String) } }
-    if(state.webCoRE && !settings.enableWebCoRE) { setItems.push("webCorePistons"); state.remove("webCoRE") }
+    if(state.webCoRE) { state.remove("webCoRE") }
+    if(!settings.enableWebCoRE) { setItems.push("webCorePistons"); setItems.push("act_piston_run") }
     // Performs the Setting Removal
     setItems = setItems + ["tuneinSearchQuery", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
     // log.debug "setItems: $setItems"
@@ -3950,16 +3965,23 @@ Boolean minVersionFailed() {
 private static String webCoRE_handle(){return'webCoRE'}
 
 private webCoRE_init(pistonExecutedCbk){
-    webCoREFLD = [:] + [cbk:pistonExecutedCbk];
     subscribe(location,webCoRE_handle(),webCoRE_handler);
 //    if(pistonExecutedCbk)subscribe(location,"${webCoRE_handle()}.pistonExecuted",webCoRE_handler);
-    webCoRE_poll();
+    if(!webCoREFLD) {
+        webCoREFLD = [:] + [cbk:true] // pistonExecutedCbk]
+        webCoRE_poll(true)
+    }
 }
 
 @Field static final String sLASTWU = 'lastwebCoREUpdDt'
 @Field volatile static Map<String,Map> webCoREFLD = [:]
 
 private webCoRE_poll(Boolean now=false){
+    Long rUpd = webCoREFLD?.updated
+    if(rUpd && (now() > (rUpd+300000L))) {
+        Date aa = new Date(rUpd)
+        updTsVal(sLASTWU, formatDt(aa))
+    }
     Integer lastUpd = getLastTsValSecs(sLASTWU)
     if (!webCoREFLD || (lastUpd > (3600*24)) || (now && lastUpd > 300)) {
         sendLocationEvent([name: "${webCoRE_handle()}.poll",value:'poll',isStateChange:true,displayed:false])
@@ -3985,22 +4007,24 @@ String getPistonById(String rId) {
 public  webCoRE_handler(evt){
     switch(evt.value){
       case 'pistonList':
-        //List p=atomicState?.webCoRE?.pistons?:[];
         List p=webCoREFLD?.pistons ?: [];
         Map d=evt.jsonData?:[:];
         if(d.id && d.pistons && (d.pistons instanceof List)){
-          p.removeAll{it.iid==d.id};
-          p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name};
-          //atomicState?.webCoRE = [updated:now(),pistons:p];};
-          webCoREFLD = [updated:now(),pistons:p];
-          updTsVal(sLASTWU)
-        };
+            p.removeAll{it.iid==d.id};
+            p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name};
+            def a = webCoREFLD?.cbk
+
+            Boolean aa = getTheLock(sHMLF, "webCoRE_Handler")
+            webCoREFLD = [cbk: a, updated: now(), pistons: p]
+            releaseTheLock(sHMLF)
+
+            updTsVal(sLASTWU)
+        }
         break;
       case 'pistonExecuted':
-        //def cbk=atomicState?.webCoRE?.cbk;if(cbk&&evt.jsonData)"$cbk"(evt.jsonData);
-        def cbk=webCoREFLD?.cbk
-        //if(cbk&&evt.jsonData)"$cbk"(evt.jsonData);
-        if(cbk&&evt.jsonData) webcoreEvtHandler(evt)
+        if(valTrigEvt("pistonExecuted") && settings.trig_pistonExecuted) {
+            webcoreEvtHandler(evt)
+        }
         break
     }
 }
