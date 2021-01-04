@@ -120,6 +120,9 @@ private buildTriggerEnum() {
         //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
         // buildItems?.Location?.scene = "Scenes"
     }
+    if(!settings.enableWebCoRE) {
+        buildItems.Location.remove("pistonExecuted")
+    }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power", "acceleration":"Accelorometers"]?.sort{ it?.value }
     buildItems["Actionable Devices"] = ["lock":"Locks", "button":"Buttons", "switch":"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
     if(!isStFLD) {
@@ -154,6 +157,9 @@ private buildActTypeEnum() {
 def mainPage() {
     Boolean newInstall = (state.isInstalled != true)
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? sBLANK : "namePage"), uninstall: newInstall, install: !newInstall) {
+        if(settings.enableWebCoRE) {
+            if(!webCoREFLD) webCoRE_init()
+        }
         appInfoSect()
         Boolean paused = isPaused()
         Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
@@ -288,6 +294,12 @@ private scheduleConvert() {
 def triggersPage() {
     return dynamicPage(name: "triggersPage", nextPage: "mainPage", uninstall: false, install: false) {
 //        Boolean isTierAct = isTierAction()
+        section (sTS("Enable webCoRE Integration:")) {
+            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+        }
+        if(settings.enableWebCoRE) {
+            if(!webCoREFLD) webCoRE_init()
+        }
         Boolean showSpeakEvtVars = false
         section (sTS("Select Capabilities")) {
             if(isStFLD) {
@@ -401,9 +413,8 @@ def triggersPage() {
             }
 
             if(valTrigEvt("pistonExecuted")) {
-                if(!webCoREFLD) webCoRE_init()
                 section(sTS("webCoRE Piston Executed Events"), hideable: true) {
-                    input "trig_pistonExecuted", "enum", title: inTS("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
+                    input "trig_pistonExecuted", "enum", title: inTS("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true, image: webCore_icon()
                     if(settings.trig_pistonExecuted) {
                         input "trig_pistonExecuted_once", "bool", title: inTS("Only alert once a day?\n(per type: piston)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_pistonExecuted_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
@@ -1504,6 +1515,12 @@ def actTrigTasksPage(params) {
                     break
             }
         }
+        section (sTS("Enable webCoRE Integration:")) {
+            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+        }
+        if(settings.enableWebCoRE) {
+            if(!webCoREFLD) webCoRE_init()
+        }
         section(sTS("Control Devices:")) {
             input "${t}switches_on", "capability.switch", title: inTS("Turn ON these Switches${dMap?.def}\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
             input "${t}switches_off", "capability.switch", title: inTS("Turn OFF these Switches${dMap?.def}\n(Optional)", getAppImg("switch", true)), multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
@@ -1552,16 +1569,15 @@ def actTrigTasksPage(params) {
             }
         }
 
-        section (sTS("Execute a webCoRE Piston:")) {
-            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+        if(settings.enableWebCoRE) {
+            section (sTS("Execute a webCoRE Piston:")) {
+/*            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
             if(settings.enableWebCoRE) {
-                //if(!atomicState?.webCoRE) { webCoRE_init() }
                 if(!webCoREFLD) {
                     webCoRE_init()
-                } else {
+                } else { */
                     input "${t}piston_run", "enum", title: inTS("Execute a piston${dMap?.def}\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon : sBLANK)
-                }
-//                input "${t == "act_" ? sBLANK : t}webCorePistons", "enum", title: inTS("Execute a Piston${dMap?.def}", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+//                }
             }
         }
 
@@ -1575,7 +1591,8 @@ def actTrigTasksPage(params) {
 
 Boolean actTasksConfiguredByType(String pType) {
     return (
-        settings."${pType}mode_run" || settings."${pType}routine_run" || settings."${pType}switches_off" || settings."${pType}switches_on" || settings."${pType}piston_run" ||
+        settings."${pType}mode_run" || settings."${pType}routine_run" || settings."${pType}switches_off" || settings."${pType}switches_on" ||
+        (settings.enableWebCoRE && settings."${pType}piston_run") ||
         settings."${pType}lights" || settings."${pType}locks" || settings."${pType}sirens" || settings."${pType}doors")
 }
 
@@ -2034,6 +2051,7 @@ Boolean getConfStatusItem(String item) {
 }
 
 private void actionCleanup() {
+    stateMapMigration()
     // State Cleanup
     List items = ["afterEvtMap", "afterEvtChkSchedMap", "actTierState", "tierSchedActive"]
     items.each { String si-> if(state?.containsKey(si)) { state.remove(si)} }
@@ -2064,7 +2082,7 @@ private void actionCleanup() {
     }
 
     // Cleanup Unused Schedule Trigger Items
-    setItems = setItems + ["trig_scheduled_sunState", "trig_scheduled_sunState_offset",]
+    setItems = setItems + ["trig_scheduled_sunState"]
     if(!settings.trig_scheduled_type) {
         setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_type", "trig_scheduled_recurrence", "trig_scheduled_time", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
     } else {
@@ -2074,6 +2092,7 @@ private void actionCleanup() {
             case "Sunset":
                 setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_recurrence", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
                 if(settings.trig_scheduled_type in ["Sunset", "Sunrise"]) { setItems.push("trig_scheduled_time") }
+                else setItems = setItems + ["trig_scheduled_sunState_offset"]
                 break
             case "Recurring":
                 switch(settings.trig_scheduled_recurrence) {
@@ -2093,7 +2112,8 @@ private void actionCleanup() {
     }
 
     settings.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems.push(si?.key as String) } }
-    if(state.webCoRE && !settings.enableWebCoRE) { setItems.push("webCorePistons"); state.remove("webCoRE") }
+    if(state.webCoRE) { state.remove("webCoRE") }
+    if(!settings.enableWebCoRE) { setItems.push("webCorePistons"); setItems.push("act_piston_run") }
     // Performs the Setting Removal
     setItems = setItems + ["tuneinSearchQuery", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
     // log.debug "setItems: $setItems"
@@ -2199,7 +2219,6 @@ Boolean schedulesConfigured() {
     return false
 }
 
-//                                input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset ${schedType} this number of minutes (+/-)", getAppImg(schedType?.toLowerCase(), true)), required: true, image: getAppImg(schedType?.toLowerCase() + sBLANK)
 void scheduleSunriseSet() {
     if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     def sun = getSunriseAndSunset()
@@ -2227,9 +2246,6 @@ void subscribeToEvts() {
                             scheduleSunriseSet()
                             schedule('29 0 0 1/1 * ? * ', scheduleSunriseSet)  // run at 00:00:24 every day
                         }
-
-                        //if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
-                        //else if(settings.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
                         else if(settings.trig_scheduled_type in ["One-Time", "Recurring"] && settings.trig_scheduled_time) { schedule(cronBuilder(), "scheduleTrigEvt") }
                     }
                     break
@@ -2240,7 +2256,8 @@ void subscribeToEvts() {
                 case "alarm":
                     // Location Alarm Events
                     subscribe(location, (!isStFLD ? "hsmStatus" : "alarmSystemStatus"), alarmEvtHandler)
-                    if(!isStFLD && settings.trig_alarm == "Alerts") { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
+    //return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
+                    if(!isStFLD && ("alerts" in settings.trig_alarm)) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
                     break
                 case "mode":
                     // Location Mode Events
@@ -2322,12 +2339,14 @@ public List getActiveZoneNames() {
 ************************************************************************************************************/
 
 def scheduleTest() {
-    scheduleTrigEvt(null)
+    scheduleTrigEvt([date: new Date(), name: "test", value: "Stest", displayName: "Schedule Test"])
 }
 
 def scheduleTrigEvt(evt=null) {
-                     //if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
+    Long evtDelay = now() - evt?.date?.getTime()
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
                     //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
+    if (!schedulesConfigured()) { return }
     String schedType = (String)settings.trig_scheduled_type
     Boolean recur = schedType = 'Recurring'
     Map dateMap = getDateMap()
@@ -2356,25 +2375,22 @@ def scheduleTrigEvt(evt=null) {
     } else {
         logDebug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
     }
-                        //if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
-                        //else if(settings.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
-                    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
-//Boolean schedulesConfigured() {
-                                //if(settings.trig_scheduled_time && schedType == "Recurring") {
-//                                input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset ${schedType} this number of minutes (+/-)", getAppImg(schedType?.toLowerCase(), true)), required: true, image: getAppImg(schedType?.toLowerCase() + sBLANK)
 }
 
 def alarmEvtHandler(evt) {
     Long evtDelay = now() - evt?.date?.getTime()
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    if(!settings.trig_alarm) return
     // Boolean dco = (settings.trig_alarm_once == true)
     // Integer dcw = settings.trig_alarm_wait ?: null
     // Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "alarm", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
     // if(!evtWaitOk) { return }
     switch(evt?.name) {
         case "hsmStatus":
+            if(!(evt?.value in settings.trig_alarm)) return
         case "alarmSystemStatus":
         case "hsmAlert":
+            if(!isStFLD && !("alerts" in settings.trig_alarm)) return
             if(getConfStatusItem("tiers")) {
                 processTierTrigEvt(evt, true)
             } else { executeAction(evt, false, "alarmEvtHandler(${evt?.name})", false, false) }
@@ -2397,31 +2413,41 @@ public guardEventHandler(guardState) {
     }
 }
 
+def eventCompletion(evt, String dId, Boolean dco, Integer dcw, String meth, evtVal, String evtDis) {
+    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: dId, value: evtVal, name: evt?.name, displayName: evtDis], dco, dcw) : true)
+    if(!evtWaitOk) { return }
+    if(getConfStatusItem("tiers")) {
+        processTierTrigEvt(evt, true)
+    } else { executeAction(evt, false, meth, false, false) }
+}
+
 def routineEvtHandler(evt) {
     logTrace( "${evt?.name?.toUpperCase()} Event | Routine: ${evt?.displayName} | with a delay of ${now() - evt?.date?.getTime()}ms")
     if(evt?.displayName in settings.trig_routineExecuted) {
         Boolean dco = (settings.trig_routineExecuted_once == true)
         Integer dcw = settings.trig_routineExecuted_wait ?: null
-        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "routineExecuted", value: evt?.displayName, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+        eventCompletion(evt, "routineExecuted", dco, dcw, "routineEvtHandler", evt?.displayName, evt?.displayName)
+/*        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "routineExecuted", value: evt?.displayName, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
         if(!evtWaitOk) { return }
         if(getConfStatusItem("tiers")) {
             processTierTrigEvt(evt, true)
-        } else { executeAction(evt, false, "routineEvtHandler", false, false) }
+        } else { executeAction(evt, false, "routineEvtHandler", false, false) }*/
     }
 }
 
 def webcoreEvtHandler(evt) {
-    //logTrace( "${evt?.name?.toUpperCase()} Event | Piston: ${evt?.displayName} | with a delay of ${now() - evt?.date?.getTime()}ms")
     String disN = evt?.jsonData?.name
-    logTrace( "${evt?.name?.toUpperCase()} Event | Piston: ${disN} | with a delay of ${now() - evt?.date?.getTime()}ms")
-    if(disN in settings.trig_pistonExecuted) {
+    String pId = evt?.jsonData?.id
+    logTrace( "${evt?.name?.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - evt?.date?.getTime()}ms")
+    if(pId in settings.trig_pistonExecuted) {
         Boolean dco = (settings.trig_pistonExecuted_once == true)
         Integer dcw = settings.trig_pistonExecuted_wait ?: null
-        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "pistonExecuted", value: disN, name: evt?.name, displayName: disN], dco, dcw) : true)
+        eventCompletion(evt, "pistonExecuted", dco, dcw, "webcoreEvtHandler", disN, disN)
+/*        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "pistonExecuted", value: disN, name: evt?.name, displayName: disN], dco, dcw) : true)
         if(!evtWaitOk) { return }
         if(getConfStatusItem("tiers")) {
             processTierTrigEvt(evt, true)
-        } else { executeAction(evt, false, "webcoreEvtHandler", false, false) }
+        } else { executeAction(evt, false, "webcoreEvtHandler", false, false) } */
     }
 }
 
@@ -2429,11 +2455,12 @@ def sceneEvtHandler(evt) {
     logTrace( "${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     Boolean dco = (settings.trig_scene_once == true)
     Integer dcw = settings.trig_scene_wait ?: null
-    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "scene", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+    eventCompletion(evt, "scene", dco, dcw, "sceneEvtHandler", evt?.value, evt?.displayName)
+/*    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "scene", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
     if(!evtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, true)
-    } else { executeAction(evt, false, "sceneEvtHandler", false, false) }
+    } else { executeAction(evt, false, "sceneEvtHandler", false, false) } */
 }
 
 def modeEvtHandler(evt) {
@@ -2441,16 +2468,16 @@ def modeEvtHandler(evt) {
     if(evt?.value in settings.trig_mode) {
         Boolean dco = (settings.trig_mode_once == true)
         Integer dcw = settings.trig_mode_wait ?: null
-        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "mode", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+        eventCompletion(evt, "mode", dco, dcw, "modeEvtHandler", evt?.value, evt?.displayName)
+/*        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "mode", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
         if(!evtWaitOk) { return }
         if(getConfStatusItem("tiers")) {
             processTierTrigEvt(evt, true)
-        } else { executeAction(evt, false, "modeEvtHandler", false, false) }
+        } else { executeAction(evt, false, "modeEvtHandler", false, false) } */
     }
 }
 
-//public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled") } }
-Integer getLastAfterEvtCheck() { return !state.lastAfterEvtCheck ? 10000000 : GetTimeDiffSeconds((String)state.lastAfterEvtCheck, "getLastAfterEvtCheck").toInteger() }
+Integer getLastAfterEvtCheck() { return getLastTsValSecs("lastAfterEvtCheck") }
 
 void afterEvtCheckWatcher() {
     Map t0 = atomicState.afterEvtMap
@@ -2557,7 +2584,8 @@ void afterEvtCheckHandler() {
         atomicState.afterEvtMap = aEvtMap
         // logTrace( "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})")
     } else { clearAfterCheckSchedule() }
-    state.lastAfterEvtCheck = getDtNow()
+    updTsVal("lastAfterEvtCheck")
+//    state.lastAfterEvtCheck = getDtNow()
 }
 
 def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
@@ -3355,7 +3383,7 @@ void clearActHistory(){
 
 }
 
-private executeAction(evt = null, Boolean testMode=false, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
+private void executeAction(evt = null, Boolean testMode=false, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
     Long startTime = now()
     logTrace( "executeAction${src ? "($src)" : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
     if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
@@ -3763,9 +3791,9 @@ Boolean getAppFlag(val) {
     return false
 }
 
-private stateMapMigration() {
+private void stateMapMigration() {
     //Timestamp State Migrations
-    Map tsItems = [:]
+    Map tsItems = ["lastAfterEvtCheck":"lastAfterEvtCheck", "lastNotifMsgDt":"lastNotifMsgDt"]
     tsItems?.each { k, v-> if(state?.containsKey(k)) { updTsVal(v as String, state[k as String]); state?.remove(k as String) } }
 
     //App Flag Migrations
@@ -3818,9 +3846,9 @@ public Map getActionMetrics() {
 
 String pushStatus() { return (isStFLD && (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover)) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : sNULL }
 
-//public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled") } }
-Integer getLastNotifMsgSec() { return !state.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state.lastNotifMsgDt, "getLastMsgSec").toInteger() }
-Integer getLastChildInitRefreshSec() { return !state.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
+Integer getLastNotifMsgSec() { return getLastTsValSec("lastNotifMsgDt") }
+//Integer getLastChildInitRefreshSec() { return getLastTsValSec("lastChildInitRefreshDt", 3600) }
+//Integer getLastNotifMsgSec() { return !state.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state.lastNotifMsgDt, "getLastMsgSec").toInteger() }
 
 Boolean getOk2Notify() {
     Boolean smsOk = (isStFLD && settings.notif_sms_numbers?.toString()?.length()>=10)
@@ -3925,7 +3953,8 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
             }
             if(sent) {
                 state.lastNotificationMsg = flatMsg
-                state.lastNotifMsgDt = getDtNow()
+                 updTsVal("lastNotifMsgDt")
+//                state.lastNotifMsgDt = getDtNow()
                 logDebug("sendNotifMsg: Sent ${sentSrc} (${flatMsg})")
             }
         }
@@ -3980,25 +4009,32 @@ Boolean minVersionFailed() {
 private static String webCoRE_handle(){return'webCoRE'}
 
 private webCoRE_init(pistonExecutedCbk){
-    webCoREFLD = [:] + [cbk:pistonExecutedCbk];
     subscribe(location,webCoRE_handle(),webCoRE_handler);
 //    if(pistonExecutedCbk)subscribe(location,"${webCoRE_handle()}.pistonExecuted",webCoRE_handler);
-    webCoRE_poll();
+    if(!webCoREFLD) {
+        webCoREFLD = [:] + [cbk:true] // pistonExecutedCbk]
+        webCoRE_poll(true)
+    }
 }
 
 @Field static final String sLASTWU = 'lastwebCoREUpdDt'
 @Field volatile static Map<String,Map> webCoREFLD = [:]
 
-private webCoRE_poll(Boolean now=false){
+private webCoRE_poll(Boolean anow=false){
+    Long rUpd = webCoREFLD?.updated
+    if(rUpd && (now() > (rUpd+300000L))) {
+        Date aa = new Date(rUpd)
+        updTsVal(sLASTWU, formatDt(aa))
+    }
     Integer lastUpd = getLastTsValSecs(sLASTWU)
-    if (!webCoREFLD || (lastUpd > (3600*24)) || (now && lastUpd > 300)) {
+    if (!webCoREFLD || (lastUpd > (3600*24)) || (anow && lastUpd > 300)) {
         sendLocationEvent([name: "${webCoRE_handle()}.poll",value:'poll',isStateChange:true,displayed:false])
         updTsVal(sLASTWU)
     }
 }
 
-public webCoRE_execute(pistonIdOrName,Map data=[:]) {
-    def i=(webCoREFLD?.pistons ?: []).find{(it.name==pistonIdOrName)||(it.id==pistonIdOrName)}?.id;
+public webCoRE_execute(String pistonIdOrName,Map data=[:]) {
+    String i = pistonIdOrName
     if(i){sendLocationEvent([name:i,value:app.label,isStateChange:true,displayed:false,data:data])}
 }
 
@@ -4006,31 +4042,37 @@ public webCoRE_list(String mode){
     return (List) webCoREFLD?.pistons?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
 }
 
+public getPistonByName(String pistonIdOrName) {
+    String i=(webCoREFLD?.pistons ?: []).find{(it.name==pistonIdOrName)||(it.id==pistonIdOrName)}?.id;
+}
+
 String getPistonById(String rId) {
     Map a = webCoRE_list('name')?.find { it.containsKey(rId) }
     String aaa = (String)a?."${rId}"
-    return aaa
+    return aaa ?: "Refresh to display piston name..."
 }
 
 public  webCoRE_handler(evt){
     switch(evt.value){
       case 'pistonList':
-        //List p=atomicState?.webCoRE?.pistons?:[];
         List p=webCoREFLD?.pistons ?: [];
         Map d=evt.jsonData?:[:];
         if(d.id && d.pistons && (d.pistons instanceof List)){
-          p.removeAll{it.iid==d.id};
-          p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name};
-          //atomicState?.webCoRE = [updated:now(),pistons:p];};
-          webCoREFLD = [updated:now(),pistons:p];
-          updTsVal(sLASTWU)
-        };
+            p.removeAll{it.iid==d.id};
+            p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name};
+            def a = webCoREFLD?.cbk
+
+            Boolean aa = getTheLock(sHMLF, "webCoRE_Handler")
+            webCoREFLD = [cbk: a, updated: now(), pistons: p]
+            releaseTheLock(sHMLF)
+
+            updTsVal(sLASTWU)
+        }
         break;
       case 'pistonExecuted':
-        //def cbk=atomicState?.webCoRE?.cbk;if(cbk&&evt.jsonData)"$cbk"(evt.jsonData);
-        def cbk=webCoREFLD?.cbk
-        //if(cbk&&evt.jsonData)"$cbk"(evt.jsonData);
-        if(cbk&&evt.jsonData) webcoreEvtHandler(evt)
+        if(valTrigEvt("pistonExecuted") && settings.trig_pistonExecuted) {
+            webcoreEvtHandler(evt)
+        }
         break
     }
 }
@@ -4362,6 +4404,7 @@ String getTriggersDesc(Boolean hideDesc=false) {
         if(!hideDesc) {
             String str = "Triggers:\n"
             setItem?.each { String evt->
+                String adder = sBLANK
                 switch(evt) {
                     case "scheduled":
                         String schedTyp = settings."${sPre}${evt}_type" ? settings."${sPre}${evt}_type" : sNULL
@@ -4380,8 +4423,6 @@ String getTriggersDesc(Boolean hideDesc=false) {
                         if(schedTyp in ["Sunrise", "Sunset"]) {
                             str += settings."${sPre}${evt}_sunState_offset"     ? "    \u25E6 Offset: (${settings."${sPre}${evt}_sunState_offset"})\n"      : sBLANK
                         }
-                    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
-                                //input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset ${schedType} this number of minutes (+/-)", getAppImg(schedType?.toLowerCase(), true)), required: true, image: getAppImg(schedType?.toLowerCase() + sBLANK)
                         break
                     case "alarm":
                         str += " \u2022 ${evt?.capitalize()} (${getAlarmSystemName(true)})${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
@@ -4394,8 +4435,13 @@ String getTriggersDesc(Boolean hideDesc=false) {
                         str += " \u2022 ${evt == "routineExecuted" ? "Routines" : evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
                         str += settings."${sPre}${evt}_once" ? "    \u25E6 Once a Day: (${settings."${sPre}${evt}_once"})\n" : sBLANK
                         break
+                    case "pushed":
+                    case "released":
+                    case "held":
+                    case "doubleTapped":
+                        adder = "Button "
                     default:
-                        str += " \u2022 ${evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
+                        str += " \u2022 ${adder}${evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
                         def subStr = sBLANK
                         if(settings."${sPre}${evt}_cmd" in ["above", "below", "equal", "between"]) {
                             if (settings."${sPre}${evt}_cmd" == "between") {
@@ -4725,6 +4771,7 @@ static void mb(String meth=sNULL){
 
 @Field static final String sHMLF = 'theHistMapLockFLD'
 @Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
+
 private Integer getSemaNum(String name) {
 	if(name==sHMLF) return 0
     log.warn "unrecognized lock name..."
@@ -4781,8 +4828,8 @@ void releaseTheLock(String qname){
     def sema=getSema(semaNum)
     lockTimesFLD[semaSNum]=null
     lockTimesFLD=lockTimesFLD
-    // lockHolderFLD[semaSNum]=sNULL
-    // lockHolderFLD=lockHolderFLD
+    lockHolderFLD[semaSNum]=sNULL
+    lockHolderFLD=lockHolderFLD
     sema.release()
 }
 
@@ -4968,4 +5015,6 @@ public getDuplSettingData() {
 public getDuplStateData() {
     List stskip = ["isInstalled", "isParent", "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory"]
     return state?.findAll { !(it?.key in stskip) }
+    //def tsMap = atomicState.tsDtMap
+    //def t0 = atomicState.appFlagsMap
 }
