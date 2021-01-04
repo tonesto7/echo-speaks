@@ -31,13 +31,14 @@ import groovy.transform.Field
 @Field static final String sAPPJSON       = 'application/json'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
-@Field volatile static Map<String,Map> historyMapFLD = [:]
-@Field volatile static Map<String,Map> cookieDataFLD          = [:]
-@Field volatile static Map<String,Map> echoDeviceMapFLD       = [:]
-@Field static Map<String,Map> guardDataFLD           = [:]
-@Field static Map<String,Map> zoneStatusMapFLD       = [:]
-@Field volatile static Map<String,Map> bluetoothDataFLD       = [:]
-@Field volatile static Map<String,Map> dndDataFLD             = [:]
+@Field volatile static Map<String, Map> historyMapFLD    = [:]
+@Field volatile static Map<String, Map> cookieDataFLD    = [:]
+@Field volatile static Map<String, Map> echoDeviceMapFLD = [:]
+@Field volatile static Map<String, Map> childDupMapFLD   = [:]
+@Field static Map<String,          Map> guardDataFLD     = [:]
+@Field static Map<String,          Map> zoneStatusMapFLD = [:]
+@Field volatile static Map<String, Map> bluetoothDataFLD = [:]
+@Field volatile static Map<String, Map> dndDataFLD       = [:]
 
 definition(
     name        : "Echo Speaks",
@@ -118,7 +119,7 @@ def mainPage() {
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
                     href "alexaGuardPage", title: inTS("Alexa Guard Control", getAppImg(gStateIcon, true)), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? "complete" : sNULL,
                             description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : sBLANK}\n\nTap to proceed..."
-                } else if ((Boolean)state.guardDataOverMaxSize) {
+                } else if ((Boolean) isStFLD && (Boolean)state.guardDataOverMaxSize) {
                     paragraph pTS("Because you have a lot of devices attached to your Alexa account the response size is larger than ST allows.  The request is being made using your server... On next page load you should see the status.\n\nPlease make sure you are running server version 2.3 or higher.", sNULL, false, "gray")
                 } else { paragraph pTS("Alexa Guard is not enabled or supported by any of your Echo Devices", sNULL, false, "gray") }
             }
@@ -485,7 +486,7 @@ def actionsPage() {
         else { section(sBLANK) { paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started") } }
         section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
-            if(actApps?.size() && isStFLD) {
+            if(actApps?.size()) {
                 input "actionDuplicateSelect", "enum", title: inTS("Duplicate Existing Action", getAppImg("es_actions", true)), description: "Tap to select...", options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
                 if(settings?.actionDuplicateSelect) {
                     href "actionDuplicationPage", title: inTS("Create Duplicate Action?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
@@ -525,9 +526,18 @@ def actionDuplicationPage() {
             } else {
                 def act = getActionApps()?.find { it?.id?.toString() == settings?.actionDuplicateSelect?.toString() }
                 if(act) {
-                    Map actData = act?.getDuplSettingData()
+                    Map actData = getChildSettingAndStateData("action", (String) act.id)
+                    if(actData.settings && actData.state) {
+                        String myId=app.getId()
+                        childDupMapFLD[myId] = [:]
+                        childDupMapFLD[myId].actions = [:]
+                        childDupMapFLD[myId].actions[act.id] = actData
+                        log.debug "Dup Data: ${childDupMapFLD[myId].actions[act.id]}"
+                    }
                     actData?.settings["duplicateFlag"] = [type: "bool", value: true]
-                    addChildApp("tonesto7", actChildName(), "${actData?.label} (Dup)", [settings: actData?.settings])
+                    // actData?.settings["actionPause"] = [type: "bool", value: true]
+                    actData?.settings["duplicateSrcId"] = [type: "text", value: (String) act?.getId()]
+                    // addChildApp("tonesto7", actChildName(), "${actData?.label} (Dup)", [settings: actData?.settings])
                     paragraph pTS("Action Duplicated...\n\nReturn to Action Page and look for the App with '(Dup)' in the name...", sNULL, true, "#2784D9"), state: "complete"
                 } else { paragraph pTS("Action not Found", sNULL, true, "red"), required: true, state: sNULL }
                 state.actionDuplicated = true
@@ -542,11 +552,20 @@ def zoneDuplicationPage() {
             if((Boolean)state.zoneDuplicated) {
                 paragraph pTS("Zone already duplicated...\n\nReturn to zone page and select it", sNULL, true, "red"), required: true, state: sNULL
             } else {
-                def zn = getZoneApps()?.find { it?.id?.toString() == settings?.zoneDuplicateSelect?.toString() }
+                def zn = getZoneApps()?.find { it.id.toString() == settings.zoneDuplicateSelect?.toString() }
                 if(zn) {
-                    Map znData = zn.getDuplSettingData()
+                    Map znData = getChildSettingAndStateData("zone", (String) zn.id)
+                    if(actData.keySet().size()) {
+                        String myId=app.getId()
+                        childDupMapFLD[myId] = [:]
+                        childDupMapFLD[myId].actions = [:]
+                        childDupMapFLD[myId].actions[zn.id] = znData
+                    }
+                    log.debug "Dup Data: ${actData}"
                     znData.settings["duplicateFlag"] = [type: "bool", value: true]
-                    addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData.settings])
+                    // znData?.settings["zonePause"] = [type: "bool", value: true]
+                    znData?.settings["duplicateSrcId"] = [type: "text", value: (String) zn.getId()]
+                    // addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData.settings])
                     paragraph pTS("Zone Duplicated...\n\nReturn to Zone Page and look for the App with '(Dup)' in the name...", sNULL, true, "#2784D9"), state: "complete"
                 } else { paragraph pTS("Zone not Found", sNULL, true, "red"), required: true, state: sNULL }
                 state.zoneDuplicated = true
@@ -562,15 +581,37 @@ public clearDuplicationItems() {
     settingRemove("zoneDuplicateSelect")
 }
 
-public Map getDupActionStateData() {
-    def act = getActionApps()?.find { it?.id == settings.actionDuplicateSelect }
-    Map a = act?.getDuplStateData()
-    return a ?: null
+public Map getChildSettingAndStateData(String type, String childId) {
+    log.trace "getDupChildData($type, $childId)"
+    Map data = [:]
+    switch(type) {
+        case "action":
+            def act = getActionApps()?.find { it?.id.toString() == childId }
+            log.debug "act: $act"
+            if(act) {
+                def sd = act?.getDuplSettingData() ?: null
+                log.debug "sd: $sd"
+                data.settings = sd.settings ?: null
+                data.state = sd.state ?: null
+            }
+            break
+        case "zone":
+            def zone = getZoneApps()?.find { it?.id?.toString() == childId }
+            if(zone) {
+                data.settings = zone?.getDuplSettingData() ?: null
+                data.state = zone?.getDuplStateData() ?: null
+            }
+            break
+    }
+    return (Map)data
 }
-public Map getDupZoneStateData() {
-    def act = getActionApps()?.find { it?.id == settings.actionDuplicateSelect }
-    Map a =  act?.getDuplStateData()
-    return a ?: null
+
+public void childAppDuplicationFinished(String type, String childId) {
+    log.trace "childAppDuplicationFinished($type, $childId)"
+    Map data = [:]
+    if(childDupMapFLD[type] && childDupMapFLD[type][childId]) {
+        childDupMapFLD[type].remove(childId)
+    }
 }
 
 def zonesPage() {
@@ -584,7 +625,7 @@ def zonesPage() {
         }
         section() {
             app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
-            if(zApps?.size() && isStFLD) {
+            if(zApps?.size()) {
                 input "zoneDuplicateSelect", "enum", title: inTS("Duplicate Existing Zone", getAppImg("es_groups", true)), description: "Tap to select...", options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
                 if(settings?.zoneDuplicateSelect) {
                     href "zoneDuplicationPage", title: inTS("Create Duplicate Zone?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
@@ -3782,7 +3823,6 @@ Boolean zoneUpdAvail() { return (state.appData?.versions && state.codeVersions?.
 Boolean echoDevUpdAvail() { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
 Boolean socketUpdAvail() { return (!isStFLD && state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
 Boolean serverUpdAvail() { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
-
 Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
 void checkVersionData(Boolean now = false) { //This reads a JSON file from GitHub with version numbers

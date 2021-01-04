@@ -1933,7 +1933,11 @@ static Boolean wordInString(String findStr, String fullStr) {
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
-    initialize()
+    if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
+        runIn(3, "processDuplication")
+    } else {
+        initialize()
+    }
 }
 
 def updated() {
@@ -1946,36 +1950,62 @@ def initialize() {
     // logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
-    if(settings.duplicateFlag == true && state.dupPendingSetup == false) {
-        settingUpdate("duplicateFlag", "false", "bool")
-        state.remove("dupOpenedByUser")
-    } else if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
-        String newLbl = app?.getLabel() + app?.getLabel()?.toString()?.contains("(Dup)") ? sBLANK : " (Dup)"
-        app?.updateLabel(newLbl)
-        state.dupPendingSetup = true
-        def dupState = parent?.getDupActionStateData()
-        if(dupState?.size()) {
-            dupState.each {String k,v-> state[k] = v }
-            parent?.clearDuplicationItems()
-        }
-        logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
-        return
-    }
+    // if(settings.duplicateFlag == true && state.dupPendingSetup == false) {
+    //     settingUpdate("duplicateFlag", "false", "bool")
+    //     state.remove("dupOpenedByUser")
+    // } else if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
+    //     String newLbl = app?.getLabel() + app?.getLabel()?.toString()?.contains("(Dup)") ? sBLANK : " (Dup)"
+    //     app?.updateLabel(newLbl)
+    //     state.dupPendingSetup = true
+    //     def dupState = parent?.getDupActionStateData()
+    //     if(dupState?.size()) {
+    //         dupState.each {String k,v-> state[k] = v }
+    //         parent?.clearDuplicationItems()
+    //     }
+    //     logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
+    //     return
+    // }
+
+    // if(settings?.duplicateFlag == true && state?.dupPendingSetup == false) {
+    //     // settingUpdate("duplicateFlag", "false", "bool")
+    //     // state?.remove("dupOpenedByUser")
+    // } else if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
+    //     processDuplication()
+    // }
     state.isInstalled = true
     updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
     runEvery1Hour("healthCheck")
-   if(settings.enableWebCoRE){
+    if(settings.enableWebCoRE){
         remTsVal(sLASTWU)
         webCoRE_init()
-   }
+    }
     updateZoneSubscriptions() // Subscribes to Echo Speaks Zone Activation Events...
     updConfigStatusMap()
     resumeTierJobs()
 }
 
-void updateZoneSubscriptions() {
+private void processDuplication() {
+    String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"}"
+    String dupSrcId = settings?.duplicateSrcId ? (String)settings?.duplicateSrcId : (String)null
+    app?.updateLabel(newLbl)
+    state?.dupPendingSetup = true
+    Map dupData = parent?.getDupChildData("action", dupSrcId)
+    log.debug "dupData: ${dupData}"
+    if(dupData && dupData?.state?.size()) {
+        dupData?.state?.each {k,v-> state[k] = v }
+    }
+    if(dupData && dupData?.settings?.size()) {
+        dupData?.settings?.each {k,v-> settingUpdate(k, (v.value != null ? v.value : null), v.type) }
+    }
+    parent?.clearDuplicationItems()
+    parent.childAppDuplicationFinished("action", dupSrcId)
+    logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
+    return
+}
+
+private void updateZoneSubscriptions() {
     if(settings.act_EchoZones) {
         subscribe(location, "es3ZoneState", zoneStateHandler); subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
         sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true)
