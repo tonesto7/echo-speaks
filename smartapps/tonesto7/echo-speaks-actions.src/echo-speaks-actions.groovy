@@ -3975,14 +3975,14 @@ private webCoRE_init(pistonExecutedCbk){
 @Field static final String sLASTWU = 'lastwebCoREUpdDt'
 @Field volatile static Map<String,Map> webCoREFLD = [:]
 
-private webCoRE_poll(Boolean now=false){
+private webCoRE_poll(Boolean anow=false){
     Long rUpd = webCoREFLD?.updated
     if(rUpd && (now() > (rUpd+300000L))) {
         Date aa = new Date(rUpd)
         updTsVal(sLASTWU, formatDt(aa))
     }
     Integer lastUpd = getLastTsValSecs(sLASTWU)
-    if (!webCoREFLD || (lastUpd > (3600*24)) || (now && lastUpd > 300)) {
+    if (!webCoREFLD || (lastUpd > (3600*24)) || (anow && lastUpd > 300)) {
         sendLocationEvent([name: "${webCoRE_handle()}.poll",value:'poll',isStateChange:true,displayed:false])
         updTsVal(sLASTWU)
     }
