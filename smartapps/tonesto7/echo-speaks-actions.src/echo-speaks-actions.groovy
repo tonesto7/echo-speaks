@@ -2931,8 +2931,8 @@ Boolean dateCondOk() {
 Boolean locationCondOk() {
     if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return null
     Boolean reqAll = reqAllCond()
-    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
-    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
+    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
+    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
     logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
     return reqAll ? (mOk && aOk) : (mOk || aOk)
 }
