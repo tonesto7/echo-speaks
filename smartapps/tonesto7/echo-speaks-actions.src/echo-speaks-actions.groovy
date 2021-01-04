@@ -2049,7 +2049,7 @@ private void actionCleanup() {
     }
 
     // Cleanup Unused Schedule Trigger Items
-    setItems = setItems + ["trig_scheduled_sunState"] //, "trig_scheduled_sunState_offset",]
+    setItems = setItems + ["trig_scheduled_sunState"]
     if(!settings.trig_scheduled_type) {
         setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_type", "trig_scheduled_recurrence", "trig_scheduled_time", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
     } else {
@@ -2059,6 +2059,7 @@ private void actionCleanup() {
             case "Sunset":
                 setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_recurrence", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
                 if(settings.trig_scheduled_type in ["Sunset", "Sunrise"]) { setItems.push("trig_scheduled_time") }
+                else setItems = setItems + ["trig_scheduled_sunState_offset"]
                 break
             case "Recurring":
                 switch(settings.trig_scheduled_recurrence) {
@@ -2212,9 +2213,6 @@ void subscribeToEvts() {
                             scheduleSunriseSet()
                             schedule('29 0 0 1/1 * ? * ', scheduleSunriseSet)  // run at 00:00:24 every day
                         }
-
-                        //if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
-                        //else if(settings.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
                         else if(settings.trig_scheduled_type in ["One-Time", "Recurring"] && settings.trig_scheduled_time) { schedule(cronBuilder(), "scheduleTrigEvt") }
                     }
                     break
@@ -2308,12 +2306,14 @@ public List getActiveZoneNames() {
 ************************************************************************************************************/
 
 def scheduleTest() {
-    scheduleTrigEvt(null)
+    scheduleTrigEvt([date: new Date(), name: "test", value: "Stest", displayName: "Schedule Test"])
 }
 
 def scheduleTrigEvt(evt=null) {
-                     //if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
+    Long evtDelay = now() - evt?.date?.getTime()
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
                     //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
+    if (!schedulesConfigured()) { return }
     String schedType = (String)settings.trig_scheduled_type
     Boolean recur = schedType = 'Recurring'
     Map dateMap = getDateMap()
@@ -2342,12 +2342,6 @@ def scheduleTrigEvt(evt=null) {
     } else {
         logDebug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
     }
-                        //if(settings.trig_scheduled_type == "Sunset") { subscribe(location, "sunsetTime", scheduleTrigEvt) }
-                        //else if(settings.trig_scheduled_type == "Sunrise") { subscribe(location, "sunriseTime", scheduleTrigEvt) }
-                    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
-//Boolean schedulesConfigured() {
-                                //if(settings.trig_scheduled_time && schedType == "Recurring") {
-//                                input "trig_scheduled_sunState_offset", "number", range: "*..*", title: inTS("Offset ${schedType} this number of minutes (+/-)", getAppImg(schedType?.toLowerCase(), true)), required: true, image: getAppImg(schedType?.toLowerCase() + sBLANK)
 }
 
 def alarmEvtHandler(evt) {
@@ -2451,7 +2445,6 @@ def modeEvtHandler(evt) {
 }
 
 Integer getLastAfterEvtCheck() { return getLastTsValSecs("lastAfterEvtCheck") }
-//!state.lastAfterEvtCheck ? 10000000 : GetTimeDiffSeconds((String)state.lastAfterEvtCheck, "getLastAfterEvtCheck").toInteger() }
 
 void afterEvtCheckWatcher() {
     Map t0 = atomicState.afterEvtMap
