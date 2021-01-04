@@ -2396,7 +2396,6 @@ def routineEvtHandler(evt) {
 }
 
 def webcoreEvtHandler(evt) {
-    //logTrace( "${evt?.name?.toUpperCase()} Event | Piston: ${evt?.displayName} | with a delay of ${now() - evt?.date?.getTime()}ms")
     String disN = evt?.jsonData?.name
     logTrace( "${evt?.name?.toUpperCase()} Event | Piston: ${disN} | with a delay of ${now() - evt?.date?.getTime()}ms")
     if(disN in settings.trig_pistonExecuted) {
@@ -4719,6 +4718,7 @@ static void mb(String meth=sNULL){
 
 @Field static final String sHMLF = 'theHistMapLockFLD'
 @Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
+
 private Integer getSemaNum(String name) {
 	if(name==sHMLF) return 0
     log.warn "unrecognized lock name..."
@@ -4775,8 +4775,8 @@ void releaseTheLock(String qname){
     def sema=getSema(semaNum)
     lockTimesFLD[semaSNum]=null
     lockTimesFLD=lockTimesFLD
-    // lockHolderFLD[semaSNum]=sNULL
-    // lockHolderFLD=lockHolderFLD
+    lockHolderFLD[semaSNum]=sNULL
+    lockHolderFLD=lockHolderFLD
     sema.release()
 }
 
