@@ -1,7 +1,8 @@
 /**
  *  Echo Speaks Actions (Hubitat)
  *
- *  Copyright 2018, 2019, 2020 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
+ *  Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -58,8 +59,8 @@ preferences {
     page(name: "namePage")
 }
 
-@Field static final String appVersionFLD  = "3.6.5.0"
-@Field static final String appModifiedFLD = "11-18-2020"
+@Field static final String appVersionFLD  = "3.7.0.0"
+@Field static final String appModifiedFLD = "2021-01-03"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
@@ -1518,7 +1519,7 @@ def actTrigTasksPage(params) {
                 if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
                     paragraph pTS("Not all selected devices support color. So color options are hidden.", null, true, "red"), state: null, required: true
                 } else {
-                    input "${t}lights_color", "enum", title: inTS("To this color?\n(Optional)", getAppImg("command", true)), multiple: false, options: fillColorSettingsFLD?.name, required: false, submitOnChange: true, image: getAppImg("color")
+                    input "${t}lights_color", "enum", title: inTS("To this color?\n(Optional)", getAppImg("command", true)), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true, image: getAppImg("color")
                     if(settings."${t}lights_color") {
                         input "${t}lights_color_delay", "number", title: inTS("Restore original light state after (x) seconds?\n(Optional)", getAppImg("delay", true)), required: true, submitOnChange: true, image: getAppImg("delay")
                     }
@@ -2910,8 +2911,8 @@ Boolean timeCondOk() {
             Boolean not = startTime.getTime() > stopTime.getTime() 
             Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone)
             isBtwn = not ? !isBtwn : isBtwn
-            state.startTime =  formatDt(startTime) //ERS
-            state.stopTime =  formatDt(stopTime)
+            state.startTime = formatDt(startTime) //ERS
+            state.stopTime = formatDt(stopTime)
             logDebug("TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
             return isBtwn
         }
@@ -2933,8 +2934,8 @@ Boolean dateCondOk() {
 Boolean locationCondOk() {
     if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return null
     Boolean reqAll = reqAllCond()
-    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
-    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
+    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
+    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
     logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
     return reqAll ? (mOk && aOk) : (mOk || aOk)
 }
@@ -3096,14 +3097,11 @@ private executeActTest() {
 }
 
 Map getRandomTrigEvt() {
-    String trig = getRandomItem(settings.triggerEvents?.collect { it as String })
-//    List noDevTrigs = ["mode", "routine", "schedule", "scene", "hsmStatus", "alarmSystemStatus", "alarm"]
-//    Boolean useDev = (!(trig in noDevTrigs))
-    Map evt = [:]
+    String trig = getRandomItem(settings?.triggerEvents?.collect { it as String })
     List trigItems = settings."trig_${trig}" ?: null
     def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] : (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
-    // logDebug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
+    // log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
     Map attVal = [
         "switch": getRandomItem(["on", "off"]),
         door: getRandomItem(["open", "closed", "opening", "closing"]),
@@ -3133,8 +3131,9 @@ Map getRandomTrigEvt() {
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
         routineExecuted: (isStFLD ? getRandomItem(getLocationRoutines()) : null),
             //ERS
-        pistonExecuted: getRandomItem(getLocationPistons())
+        // pistonExecuted: getRandomItem(getLocationPistons())
     ]
+    Map evt = [:]
     if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
     // log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
@@ -3977,7 +3976,7 @@ public webCoRE_execute(pistonIdOrName,Map data=[:]) {
 }
 
 public webCoRE_list(String mode){
-    List pistons = webCoREFLD?.pistons?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
+    return (List) webCoREFLD?.pistons?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
 }
 
 String getPistonById(String rId) {
@@ -4031,6 +4030,11 @@ List getLocationModes(Boolean sorted=false) {
 
 List getLocationRoutines() {
    return (isStFLD) ? location.helloHome?.getPhrases()*.label?.sort() : []
+}
+
+List getLocationPistons() {
+    List aa = (List) webCoRE_list()
+    return aa ?: []
 }
 
 def getRoutineById(rId) {
@@ -4403,21 +4407,21 @@ String getConditionsDesc() {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${((Boolean)conditionStatus().ok == true) ? okSym() : notOkSym()})\n"
+        String str = "Conditions: (${((Boolean)conditionStatus().ok == true) ? okSym() : notOkSymFLD})\n"
         str += reqAllCond() ?  " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
-            str += " • Time Between: (${timeCondOk() ? okSym() : notOkSym()})\n"
+            str += " • Time Between: (${timeCondOk() ? okSym() : notOkSymFLD})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
             str += " • Date:\n"
-            str += settings.cond_days      ? "    - Days: (${isDayOfWeek(settings.cond_days) ? okSym() : notOkSym()})\n" : sBLANK
-            str += settings.cond_months    ? "    - Months: (${isMonthOfYear(settings.cond_months) ? okSym() : notOkSym()})\n"  : sBLANK
+            str += settings.cond_days      ? "    - Days: (${isDayOfWeek(settings.cond_days) ? okSym() : notOkSymFLD})\n" : sBLANK
+            str += settings.cond_months    ? "    - Months: (${isMonthOfYear(settings.cond_months) ? okSym() : notOkSymFLD})\n"  : sBLANK
         }
         if(settings.cond_alarm || (settings.cond_mode && settings.cond_mode_cmd)) {
-            str += " • Location: (${locationCondOk() ? okSym() : notOkSym()})\n"
-            str += settings.cond_alarm ? "    - Alarm Modes: (${isInAlarmMode(settings.cond_alarm) ? okSym() : notOkSym()})\n" : sBLANK
-            str += settings.cond_mode ? "    - Modes(${settings.cond_mode_cmd == "not" ? "not in" : "in"}): (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSym() : notOkSym()})\n" : sBLANK
+            str += " • Location: (${locationCondOk() ? okSym() : notOkSymFLD})\n"
+            str += settings.cond_alarm ? "    - Alarm Modes: (${isInAlarmMode(settings.cond_alarm) ? okSym() : notOkSymFLD})\n" : sBLANK
+            str += settings.cond_mode ? "    - Modes(${settings.cond_mode_cmd == "not" ? "not in" : "in"}): (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSym() : notOkSymFLD})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
             ["switch", "motion", "presence", "contact", "acceleration", "lock", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
@@ -4426,7 +4430,7 @@ String getConditionsDesc() {
                     if(evt in ["switch", "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity"]) { condOk = checkDeviceNumCondOk(evt) }
 
-                    str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSym() : notOkSym()})\n" : sBLANK
+                    str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSym() : notOkSymFLD})\n" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in ["between", "below", "above", "equals"]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
@@ -4567,7 +4571,7 @@ String randomString(Integer len) {
 
 def getRandomItem(items) {
     def list = new ArrayList<String>()
-    items?.each { list?.add(it.toString()) }
+    items?.each { list?.add(it) }
     return list?.get(new Random().nextInt(list?.size()));
 }
 
@@ -4815,7 +4819,7 @@ def searchTuneInResultsPage() {
 
 private static getColorName(desiredColor, level=null) {
     String desC = desiredColor?.toLowerCase()
-    for (color in fillColorSettingsFLD) {
+    for (color in colorSettingsListFLD) {
         if (color.name?.toLowerCase() == desC) {
             Integer hue = Math.round((Integer)color.h / 3.6)
             level = level ?: color.l
@@ -4859,7 +4863,7 @@ private restoreLightState(devs) {
     state.remove("light_restore_map")
 }
 
-@Field static final List fillColorSettingsFLD = [
+@Field static final List colorSettingsListFLD = [
     [name: "Soft White", rgb: "#B6DA7C", h: 83, s: 44, l: 67],              [name: "Warm White", rgb: "#DAF17E",	h: 51, s: 20, l: 100],      [name: "Very Warm White", rgb: "#DAF17E", h: 51, s: 60, l: 51],
     [name: "Daylight White", rgb: "#CEF4FD", h: 191, s: 9, l: 90],          [name: "Daylight", rgb: "#CEF4FD", h: 191, s: 9, l: 90],            [name: "Cool White", rgb: "#F3F6F7", h: 187, s: 19, l: 96],
     [name: "White", rgb: "#FFFFFF", h: 0, s: 0, l: 100],                    [name: "Alice Blue", rgb: "#F0F8FF", h: 208, s: 100, l: 97],        [name: "Antique White", rgb: "#FAEBD7", h: 34, s: 78, l: 91],

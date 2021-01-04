@@ -1,7 +1,8 @@
 /**
  *  Echo Speaks - Zones (Hubitat)
  *
- *  Copyright 2018, 2019, 2020 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
+ *  Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -43,8 +44,8 @@ preferences {
     page(name: "namePage")
 }
 
-@Field static final String appVersionFLD  = "3.6.5.0"
-@Field static final String appModifiedFLD = "11-18-2020"
+@Field static final String appVersionFLD  = "3.7.0.0"
+@Field static final String appModifiedFLD = "2021-01-03"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
