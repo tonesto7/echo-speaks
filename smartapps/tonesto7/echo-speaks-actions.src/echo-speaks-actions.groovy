@@ -157,6 +157,9 @@ private buildActTypeEnum() {
 def mainPage() {
     Boolean newInstall = (state.isInstalled != true)
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? sBLANK : "namePage"), uninstall: newInstall, install: !newInstall) {
+        if(settings.enableWebCoRE) {
+            if(!webCoREFLD) webCoRE_init()
+        }
         appInfoSect()
         Boolean paused = isPaused()
         Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
@@ -4367,6 +4370,7 @@ String getTriggersDesc(Boolean hideDesc=false) {
         if(!hideDesc) {
             String str = "Triggers:\n"
             setItem?.each { String evt->
+                String adder = sBLANK
                 switch(evt) {
                     case "scheduled":
                         String schedTyp = settings."${sPre}${evt}_type" ? settings."${sPre}${evt}_type" : sNULL
@@ -4397,8 +4401,13 @@ String getTriggersDesc(Boolean hideDesc=false) {
                         str += " \u2022 ${evt == "routineExecuted" ? "Routines" : evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
                         str += settings."${sPre}${evt}_once" ? "    \u25E6 Once a Day: (${settings."${sPre}${evt}_once"})\n" : sBLANK
                         break
+                    case "pushed":
+                    case "released":
+                    case "held":
+                    case "doubleTapped":
+                        adder = "Button "
                     default:
-                        str += " \u2022 ${evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
+                        str += " \u2022 ${adder}${evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
                         def subStr = sBLANK
                         if(settings."${sPre}${evt}_cmd" in ["above", "below", "equal", "between"]) {
                             if (settings."${sPre}${evt}_cmd" == "between") {
