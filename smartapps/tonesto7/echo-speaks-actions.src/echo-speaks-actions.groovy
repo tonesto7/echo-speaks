@@ -4003,8 +4003,8 @@ private webCoRE_poll(Boolean anow=false){
     }
 }
 
-public webCoRE_execute(pistonIdOrName,Map data=[:]) {
-    def i=(webCoREFLD?.pistons ?: []).find{(it.name==pistonIdOrName)||(it.id==pistonIdOrName)}?.id;
+public webCoRE_execute(String pistonIdOrName,Map data=[:]) {
+    String i = pistonIdOrName
     if(i){sendLocationEvent([name:i,value:app.label,isStateChange:true,displayed:false,data:data])}
 }
 
@@ -4012,10 +4012,14 @@ public webCoRE_list(String mode){
     return (List) webCoREFLD?.pistons?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
 }
 
+public getPistonByName(String pistonIdOrName) {
+    String i=(webCoREFLD?.pistons ?: []).find{(it.name==pistonIdOrName)||(it.id==pistonIdOrName)}?.id;
+}
+
 String getPistonById(String rId) {
     Map a = webCoRE_list('name')?.find { it.containsKey(rId) }
     String aaa = (String)a?."${rId}"
-    return aaa
+    return aaa ?: "Refresh to display piston name..."
 }
 
 public  webCoRE_handler(evt){
