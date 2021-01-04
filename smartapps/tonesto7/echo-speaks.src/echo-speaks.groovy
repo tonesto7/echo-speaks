@@ -1695,7 +1695,7 @@ def getCookieData() {
     Map resp = state.cookieData ?: [:]
     String aa = getTsVal("lastCookieRrshDt")
     resp["refreshDt"] = aa ?: null
-    def json = new groovy.json.JsonOutput().toJson(resp)
+    String json = new groovy.json.JsonOutput().toJson(resp)
     incrementCntByKey("getCookieCnt")
     render contentType: sAPPJSON, data: json, status: 200
 }
@@ -1873,7 +1873,7 @@ void noAuthReminder() {
     logWarn("Amazon Cookie Has Expired or is Missing!!! Please login again using the ${loc} Web Config page...")
 }
 
-String toQueryString(Map m) {
+static String toQueryString(Map m) {
     return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort().join("&")
 }
 
@@ -2043,7 +2043,7 @@ Boolean validateCookie(Boolean frc=false) {
         if(!frc) execAsyncCmd("get", "validateCookieResp", params, [:])
         else {
             httpGet(params) { resp->
-                valid = validateCookieResp(resp, [:])
+                valid = validateCookieResp(resp, [dt:execDt])
 /*            if(resp?.status != 200) logWarn("${resp?.status} $params")
             if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
             Map aData = resp?.data?.authentication ?: null
@@ -2075,15 +2075,16 @@ def validateCookieResp(resp, data){
         if( t0 instanceof String)  aData = parseJson(resp?.data)
         else aData =  resp?.data
         aData = aData ?: null
-        aData = aData?.authentication ?: null
+        aData = (Map)aData?.authentication ?: null
 //        Map aData = resp?.data?.authentication ?: null
         if (aData) {
 //            log.debug "aData: $aData"
             if(aData.customerId) { state.deviceOwnerCustomerId = aData.customerId }
             if(aData.customerName) { state.customerName = aData.customerName }
-            Boolean valid = (aData?.authenticated != false)
+            Boolean valid = (aData.authenticated != false)
             authValidationEvent(valid, meth)
             updTsVal("lastCookieChkDt")
+            logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-(Long)data.dt)}ms)")
             return true
        }
     } catch(ex) { 
@@ -2196,13 +2197,13 @@ Map getMusicProviders(Boolean frc=false) {
             if(response?.status != 200) logWarn("${response?.status} $params")
             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             List rData = response?.data ?: []
-            if(rData?.size()) {
-                rData?.findAll { it?.availability == "AVAILABLE" }?.each { item->
-                    items[item?.id] = item?.displayName
+            if(rData.size()) {
+                rData.findAll { it?.availability == "AVAILABLE" }?.each { item->
+                    items[item.id] = item.displayName
                 }
             }
             // log.debug "Music Providers: ${items}"
-            if(!state.musicProviders || items != state.musicProviders) { state.musicProviders = items }
+            state.musicProviders = items
             updTsVal("musicProviderUpdDt")
         }
     } catch (ex) {
@@ -3807,8 +3808,8 @@ Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
         List versions = [newVer, curVer]
         if(newVer != curVer) {
             latestVer = versions?.max { a, b ->
-                List verA = a?.tokenize('.'); List verB = b?.tokenize('.'); Integer commonIndices = Math.min(verA?.size(), verB?.size());
-                for (int i = 0; i < commonIndices; ++i) { if(verA[i]?.toInteger() != verB[i]?.toInteger()) { return verA[i]?.toInteger() <=> verB[i]?.toInteger() }; }
+                List verA = a?.tokenize('.'); List verB = b?.tokenize('.'); Integer commonIndices = Math.min(verA?.size(), verB?.size())
+                for (int i = 0; i < commonIndices; ++i) { if(verA[i]?.toInteger() != verB[i]?.toInteger()) { return verA[i]?.toInteger() <=> verB[i]?.toInteger() } }
                 verA?.size() <=> verB?.size()
             }
             result = (latestVer == newVer)
@@ -4209,7 +4210,7 @@ def execDiagCmds() {
                 status = true
                 break
             case "validateAuth":
-                status = validateCookie(true);
+                status = validateCookie(true)
                 break
             case "wakeupServer":
                 wakeupServer(false, false, "Diagnostic Command")
@@ -4228,7 +4229,7 @@ def execDiagCmds() {
                 break
         }
     }
-    def json = new groovy.json.JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersionFLD])
+    String json = new groovy.json.JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersionFLD])
     render contentType: sAPPJSON, data: json, status: 200
 }
 
@@ -4656,7 +4657,7 @@ def appInfoSect2() {
         if(minUpdMap?.updRequired && minUpdMap?.updItems?.size()) {
             isNote=true
             String str3 = """<small style="color: red;"><b>Updates Required:</b></small>"""
-            minUpdMap?.updItems?.each { item-> str3 += """<br><small style="color: red;">  \u2022 ${item}</small>""" }
+            minUpdMap?.updItems?.each { String item-> str3 += """<br><small style="color: red;">  \u2022 ${item}</small>""" }
             str3 += """<br><br><small style="color: red; font-weight: bold;">If you just updated the code please press Done/Next to let the app process the changes.</small>"""
             paragraph str3
         } else if(codeUpdItems?.size()) {
@@ -4694,7 +4695,7 @@ def appInfoSect()	{
             if((Boolean)minUpdMap.updRequired && ((List)minUpdMap.updItems).size()) {
                 isNote=true
                 String str3 = "Updates Required for:"
-                minUpdMap?.updItems?.each { item-> str3 += bulletItem(str3, item)  }
+                minUpdMap?.updItems?.each { String item-> str3 += bulletItem(str3, item)  }
                 paragraph pTS(str3, null, true, "red"), required: true, state: null
                 paragraph pTS("If you just updated the code please press Done/Save to let the app process the changes.", null, true, "red"), required: true, state: null
                 showDocs = true
@@ -5533,7 +5534,7 @@ public setAlarmSystemMode(mode) {
     sendLocationEvent(name: (isStFLD ? 'alarmSystemStatus' : 'hsmSetArm'), value: mode.toString())
 }
 
-Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j.length(); }
+Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j.length() }
 Integer stateSizePerc() { return (Integer) ((stateSize() / 100000)*100).toDouble().round(0) }
 
 List logLevels() {
@@ -5572,8 +5573,8 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
 void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug "EchoApp (v${appVersionFLD}) | ${msg}" } }
 void logInfo(String msg) { if((Boolean)settings.logInfo) { log.info " EchoApp (v${appVersionFLD}) | ${msg}" } }
 void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace "EchoApp (v${appVersionFLD}) | ${msg}" } }
-void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn " EchoApp (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-void logError(String msg, Boolean noHist=false) { if((Boolean)settings.logError) { log.error "EchoApp (v${appVersionFLD}) | ${msg}"; }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn " EchoApp (v${appVersionFLD}) | ${msg}" }; if(!noHist) { addToLogHistory("warnHistory", msg, 15) } }
+void logError(String msg, Boolean noHist=false) { if((Boolean)settings.logError) { log.error "EchoApp (v${appVersionFLD}) | ${msg}" }; if(!noHist) { addToLogHistory("errorHistory", msg, 15) } }
 
 // public hasLogDevice() { return (settings?.logDevice != null) }
 // public sendLog(msg, lvl) {
@@ -5817,7 +5818,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A27VEYGQBW3YR5": [ caps: [ "a", "t" ], image: "echo_link", name: "Echo Link" ],
         "A2825NDLA7WDZV": [ ignore: true ],
         "A29L394LN0I8HN": [ ignore: true ],
-        "A2C8J6UHV0KFCV": [ ignore: true ],
+//        "A2C8J6UHV0KFCV": [ ignore: true ],
         "A2E0SNTXJVT7WK": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen2)" ],
         "A2GFL5ZMWNE0PX": [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen3)" ],
         "A2HZENIFNYTXZD": [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
@@ -5831,13 +5832,13 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A2M4YX06LWP8WI": [ caps: [ "a", "t" ], image: "amazon_tablet", name: "Fire Tablet" ],
         "A2OSP3UA4VC85F": [ image: "sonos_generic", name: "Sonos" ],
         "A2R2GLZH1DFYQO": [ caps: [ "t", "a" ], image: "halo_speaker", name: "Zolo Halo Speaker" ],
-        "A2RJLFEH0UEKI9": [ ignore: true ],
+//        "A2RJLFEH0UEKI9": [ ignore: true ],
         "A2T0P32DY3F7VB": [ ignore: true ],
         "A2TF17PFR55MTB": [ ignore: true ],
         "A2TOXM6L8SFS8A": [ ignore: true ],
         "A2V3E2XUH5Z7M8": [ ignore: true ],
-        "A2WN1FJ2HG09UN": [ ignore: true ],
-        "A18TCD9FP10WJ9": [ ignore: true ],
+//        "A2WN1FJ2HG09UN": [ ignore: true ],
+//        "A18TCD9FP10WJ9": [ ignore: true ],
         "A1FWRGKHME4LXH": [ ignore: true ],
         "A26TRKU1GG059T": [ ignore: true ],
         "A2S24G29BFP88":  [ ignore: true, image: "unknown", name: "Ford/Lincoln Alexa App" ],
@@ -5859,7 +5860,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A2U21SRK4QGSE1": [ caps: [ "a", "t" ], image: "echo_dot_gen4",  name : "Echo Dot (Gen4)" ],
         "A347G2JC8I4HC7": [ caps: [ "a", "t" ], image: "unknown", name: "Roav Car Charger Pro" ],
         "A37CFAHI1O0CXT": [ image: "logitech_blast", name: "Logitech Blast" ],
-        "A37M7RU8Z6ZFB": [ ignore: true ],
+//        "A37M7RU8Z6ZFB": [ ignore: true ],
         "A37SHHQ3NUL7B5": [ blocked: true, name: "Bose Home Speaker 500" ],
         "A38949IHXHRQ5P": [ caps: [ "a", "t" ], image: "echo_tap", name: "Echo Tap" ],
         "A38BPK7OW001EX": [ blocked: true, name: "Raspberry Alexa" ],
@@ -5896,7 +5897,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A3SSG6GR8UU7SN": [ caps: [ "a", "t" ], image: "echo_sub_gen1", name: "Echo Sub" ],
         "A3BW5ZVFHRCQPO": [ caps: [ "a", "t" ], image: "unknown", name: "BMW Alexa Integration" ],
         "A3SSWQ04XYPXBH": [ blocked: true, image: "amazon_tablet", name: "Generic Tablet" ],
-        "A3TCJ8RTT3NVI7": [ ignore: true ],
+//        "A3TCJ8RTT3NVI7": [ ignore: true ],
         "A3VRME03NAXFUB": [ caps: [ "a", "t" ], image: "echo_flex", name: "Echo Flex" ],
         "A4ZP7ZC4PI6TO": [ caps: [ "a", "t" ], image: "echo_show_5", name: "Echo Show 5 (Gen1)" ],
         "A3RMGO6LYLH7YN": [ caps: [ "a", "t" ], image: "echo_gen4", name: "Echo (Gen4)" ],
@@ -5911,7 +5912,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A1GPVMRI4IOS0M": [ ignore: true ],
         "A2Z8O30CD35N8F": [ ignore: true ],
         "A1XN1MKELB7WUF": [ ignore: true ],
-        "A112LJ20W14H95": [ ignore: true ],
+//        "A112LJ20W14H95": [ ignore: true ],
         "ADVBD696BHNV5": [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick (Gen1)" ],
         "AE7X7Z227NFNS": [ caps: [ "a", "t" ], image: "unknown", name: "HiMirror Mini" ],
         "AF473ZSOIRKFJ": [ caps: [ "a", "t" ], image: "unknown", name: "Onkyo VC-PX30" ],
@@ -5927,7 +5928,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AP4RS91ZQ0OOI": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV (Toshiba)" ],
         "AFF5OAL5E3DIU": [ caps: [ "a", "t" ], image: "toshiba_firetv", name: "Fire TV" ],
         "ATH4K2BAIXVHQ": [ ignore: true ],
-        "AUPUQSVCVHXP0": [ ignore: true ],
+//        "AUPUQSVCVHXP0": [ ignore: true ],
         "AVD3HM0HOJAAL": [ image: "sonos_generic", name: "Sonos" ],
         "AVE5HX13UR5NO": [ caps: [ "a", "t" ], image: "logitech_zero_touch", name: "Logitech Zero Touch" ],
         "AVN2TMX8MU2YM": [ blocked: true, name: "Bose Home Speaker 500" ],
@@ -5940,7 +5941,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A2WN1FJ2HG09UN": [ caps: [ "a", "t" ], image: "unknown", name: "Ultimate Alexa App" ],
         "A2BRQDVMSZD13S": [ caps: [ "a", "t" ], image: "unknown", name: "SURE Universal Remote" ],
         "A3TCJ8RTT3NVI7": [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Listens" ],
-        "A3RMGO6LYLH7YN":  [ caps: [ "a", "t" ], image: "unknown", name: "Echo (Gen4)" ]
+//        "A3RMGO6LYLH7YN":  [ caps: [ "a", "t" ], image: "unknown", name: "Echo (Gen4)" ]
     ],
     families: [
         block: [ "AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP" ],
