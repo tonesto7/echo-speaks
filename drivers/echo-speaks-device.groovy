@@ -2,7 +2,7 @@
  *	Echo Speaks Device (Hubitat ONLY)
  *
  *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
- *  Contributions by @nh.schottfam
+ *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -34,11 +34,6 @@ import groovy.transform.Field
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 @Field volatile static Map<String,Map> historyMapFLD = [:]
 @Field volatile static Map<String,Map> cookieDataFLD = [:]
-//@Field static Map<String,Map> echoDeviceMapFLD       = [:]
-//@Field static Map<String,Map> guardDataFLD           = [:]
-//@Field static Map<String,Map> tsDtMapFLD             = [:]
-//@Field static Map<String,Map> zoneStatusMapFLD       = [:]
-@Field static Map<String,Map> dndDataFLD             = [:]
 
 static String devVersion()  { return devVersionFLD }
 static Boolean isWS()       { return false }

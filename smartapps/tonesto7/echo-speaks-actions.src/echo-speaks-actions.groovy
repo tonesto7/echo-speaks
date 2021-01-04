@@ -2,7 +2,7 @@
  *  Echo Speaks Actions (Hubitat)
  *
  *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
- *  Contributions by @nh.schottfam
+ *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -13,16 +13,27 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ * ---------------------------------------------
+    TODO: Add Lock Code triggers
+    TODO: Custom Reports for multiple builtin in routine items. Reports for home status like temp, contact, alarm status.
  */
+
 import groovy.transform.Field
 
-// TODO: Fix act_delay to use a runIn timer on hubitat
-// TODO: Add Lock Code triggers
-// TODO: Create reports options
- /*
-    Custom Reports for multiple builtin in routine items.
-    Reports for home status like temp, contact, alarm status
-*/
+@Field static final String appVersionFLD  = "3.7.0.0"
+@Field static final String appModifiedFLD = "2021-01-03"
+@Field static final String branchFLD      = "master"
+@Field static final String platformFLD    = "Hubitat"
+@Field static final Boolean isStFLD       = false
+@Field static final Boolean betaFLD       = false
+@Field static final String sNULL          = (String)null
+@Field static final String sBLANK         = ''
+@Field static final String sBULLET        = '\u2022'
+@Field static final String okSymFLD       = "\u2713"
+@Field static final String notOkSymFLD    = "\u2715"
+
+static String appVersion()  { return appVersionFLD }
+
 definition(
     name: "Echo Speaks - Actions",
     namespace: "tonesto7",
@@ -58,20 +69,6 @@ preferences {
     page(name: "uninstallPage")
     page(name: "namePage")
 }
-
-@Field static final String appVersionFLD  = "3.7.0.0"
-@Field static final String appModifiedFLD = "2021-01-03"
-@Field static final String branchFLD      = "master"
-@Field static final String platformFLD    = "Hubitat"
-@Field static final Boolean isStFLD       = false
-@Field static final Boolean betaFLD       = false
-@Field static final String sNULL          = (String)null
-@Field static final String sBLANK         = ''
-@Field static final String sBULLET        = '\u2022'
-@Field static final String okSymFLD       = "\u2713"
-@Field static final String notOkSymFLD    = "\u2715"
-
-static String appVersion()  { return appVersionFLD }
 
 def startPage() {
     if(parent != null) {

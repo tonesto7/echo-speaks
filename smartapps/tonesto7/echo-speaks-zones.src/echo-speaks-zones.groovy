@@ -2,7 +2,7 @@
  *  Echo Speaks - Zones (Hubitat)
  *
  *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
- *  Contributions by @nh.schottfam
+ *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -14,7 +14,25 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+
 import groovy.transform.Field
+
+@Field static final String appVersionFLD  = "3.7.0.0"
+@Field static final String appModifiedFLD = "2021-01-03"
+@Field static final String branchFLD      = "master"
+@Field static final String platformFLD    = "Hubitat"
+@Field static final Boolean isStFLD       = false
+@Field static final Boolean betaFLD       = false
+@Field static final String sNULL          = (String) null
+@Field static final List   lNULL          = (List) null
+@Field static final String sBLANK         = ''
+@Field static final String sSPACE         = ' '
+@Field static final String sBULLET        = '\u2022'
+@Field static final String okSymFLD       = "\u2713"
+@Field static final String notOkSymFLD    = "\u2715"
+@Field static final String zoneHisFLD    = 'zoneHistory'
+
+static String appVersion()  { return appVersionFLD }
 
 definition(
     name: "Echo Speaks - Zones",
@@ -43,24 +61,6 @@ preferences {
     page(name: "uninstallPage")
     page(name: "namePage")
 }
-
-@Field static final String appVersionFLD  = "3.7.0.0"
-@Field static final String appModifiedFLD = "2021-01-03"
-@Field static final String branchFLD      = "master"
-@Field static final String platformFLD    = "Hubitat"
-@Field static final Boolean isStFLD       = false
-@Field static final Boolean betaFLD       = false
-@Field static final String sNULL          = (String) null
-@Field static final List   lNULL          = (List) null
-@Field static final String sBLANK         = ''
-@Field static final String sSPACE         = ' '
-@Field static final String sBULLET        = '\u2022'
-@Field static final String okSymFLD       = "\u2713"
-@Field static final String notOkSymFLD    = "\u2715"
-@Field static final String zoneHisFLD    = 'zoneHistory'
-
-
-static String appVersion()  { return appVersionFLD }
 
 def startPage() {
     if(parent != null) {
