@@ -1,7 +1,8 @@
 /**
  *	Echo Speaks WebSocket  (Hubitat)
  *
- *  Copyright 2019, 2020 Anthony Santilli
+ *  Copyright 2019, 2020, 2021 Anthony Santilli
+ *  Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -16,10 +17,23 @@
 
 // NOTICE: This device will not work on SmartThings
 
-static String devVersion()  { return "3.4.0.0"}
-static String devModified() { return "2020-12-04" }
-static Boolean isBeta()     { return false }
-static Boolean isST()       { return false }
+import groovy.transform.Field
+
+// STATICALLY DEFINED VARIABLES
+@Field static final String devVersionFLD  = "3.4.0.0"
+@Field static final String appModifiedFLD = "2021-01-03"
+@Field static final String branchFLD      = "master"
+@Field static final String platformFLD    = "Hubitat"
+@Field static final Boolean betaFLD       = false
+@Field static final String sNULL          = (String)null
+//@Field static final List   lNULL          = (List)null
+@Field static final String sBLANK         = ''
+@Field static final String sAPPJSON       = 'application/json'
+
+// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
+// @Field volatile static Map<String,Map> cookieDataFLD = [:]
+
+static String devVersion()  { return devVersionFLD }
 static Boolean isWS()       { return true }
 
 metadata {

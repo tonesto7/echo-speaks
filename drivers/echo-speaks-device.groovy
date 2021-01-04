@@ -1,7 +1,8 @@
 /**
  *	Echo Speaks Device (Hubitat ONLY)
  *
- *  Copyright 2018, 2019, 2020 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
+ *  Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -20,12 +21,11 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "3.6.5.0"
-@Field static final String appModifiedFLD = "11-19-2020"
+@Field static final String devVersionFLD  = "3.7.0.0"
+@Field static final String appModifiedFLD = "2021-01-03"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
-@Field static final Boolean isWsFLD       = false
 @Field static final String sNULL          = (String)null
 //@Field static final List   lNULL          = (List)null
 @Field static final String sBLANK         = ''
@@ -39,6 +39,9 @@ import groovy.transform.Field
 //@Field static Map<String,Map> tsDtMapFLD             = [:]
 //@Field static Map<String,Map> zoneStatusMapFLD       = [:]
 @Field static Map<String,Map> dndDataFLD             = [:]
+
+static String devVersion()  { return devVersionFLD }
+static Boolean isWS()       { return false }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
@@ -182,9 +185,6 @@ metadata {
         }
     }
 }
-
-static String devVersion()  { return devVersionFLD }
-static Boolean isWS()       { return false }
 
 def installed() {
     logInfo("${device?.displayName} Executing Installed...")
