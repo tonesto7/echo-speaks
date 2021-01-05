@@ -370,6 +370,9 @@ def triggersPage() {
             if (valTrigEvt("alarm")) {
                 section (sTS("${getAlarmSystemName()} (${getAlarmSystemName(true)}) Events"), hideable: true) {
                     input "trig_alarm", "enum", title: inTS("${getAlarmSystemName()} Modes", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
+                    if(!isStFLD && !("alerts" in settings.trig_alarm)) { 
+                        input "trig_alarm_events", "enum", title: inTS("${getAlarmSystemName()} Alert Events", getAppImg("alarm_home", true)), options: getAlarmSystemAlertOptions(), multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
+                    }
                     if(settings.trig_alarm) {
                         // input "trig_alarm_once", "bool", title: inTS("Only alert once a day?\n(per mode)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         // input "trig_alarm_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
@@ -416,6 +419,7 @@ def triggersPage() {
                 section(sTS("webCoRE Piston Executed Events"), hideable: true) {
                     input "trig_pistonExecuted", "enum", title: inTS("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true, image: webCore_icon()
                     if(settings.trig_pistonExecuted) {
+                        paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", null, false, "gray")
                         input "trig_pistonExecuted_once", "bool", title: inTS("Only alert once a day?\n(per type: piston)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_pistonExecuted_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("pistonExecuted", false, trigItemCnt++)
@@ -1515,8 +1519,10 @@ def actTrigTasksPage(params) {
                     break
             }
         }
-        section (sTS("Enable webCoRE Integration:")) {
-            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+        if(!settings.enableWebCoRE) {
+            section (sTS("Enable webCoRE Integration:")) {
+                input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+            }
         }
         if(settings.enableWebCoRE) {
             if(!webCoREFLD) webCoRE_init()
@@ -1563,20 +1569,24 @@ def actTrigTasksPage(params) {
         }
         section(sTS("Location Actions:")) {
             input "${t}mode_run", "enum", title: inTS("Set Location Mode${dMap?.def}\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
+                    //input "trig_alarm", "enum", title: inTS("${getAlarmSystemName()} Modes", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
+            if(!isStFLD) {
+                input "${t}alarm_run", "enum", title: inTS("Set ${getAlarmSystemName()} mode${dMap?.def}\n(Optional)", getAppImg("alarm_home", true)), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
+            }
             if(isStFLD) {
                 def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
                 input "${t}routine_run", "enum", title: inTS("Execute a routine${dMap?.def}\n(Optional)", getAppImg("routine", true)), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
             }
-        }
 
-        if(settings.enableWebCoRE) {
-            section (sTS("Execute a webCoRE Piston:")) {
-/*            input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
             if(settings.enableWebCoRE) {
-                if(!webCoREFLD) {
-                    webCoRE_init()
-                } else { */
-                    input "${t}piston_run", "enum", title: inTS("Execute a piston${dMap?.def}\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon : sBLANK)
+//                section (sTS("Execute a webCoRE Piston:")) {
+/*                input "enableWebCoRE", "bool", title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+                if(settings.enableWebCoRE) {
+                    if(!webCoREFLD) {
+                        webCoRE_init()
+                    } else { */
+                        input "${t}piston_run", "enum", title: inTS("Execute a piston${dMap?.def}\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon : sBLANK)
+//                    }
 //                }
             }
         }
@@ -1590,16 +1600,18 @@ def actTrigTasksPage(params) {
 }
 
 Boolean actTasksConfiguredByType(String pType) {
+    String p = data?.type ?: sNULL
     return (
-        settings."${pType}mode_run" || settings."${pType}routine_run" || settings."${pType}switches_off" || settings."${pType}switches_on" ||
-        (settings.enableWebCoRE && settings."${pType}piston_run") ||
-        settings."${pType}lights" || settings."${pType}locks" || settings."${pType}sirens" || settings."${pType}doors")
+        settings."${p}mode_run" || settings."${p}alarm_run" || settings."${p}routine_run" || settings."${p}switches_off" || settings."${p}switches_on" ||
+        (settings.enableWebCoRE && settings."${p}piston_run") ||
+        settings."${p}lights" || settings."${p}locks_lock" || settings."${p}locks_unlock" || settings."${p}sirens" || settings."${p}doors_close" || settings."${p}doors_open")
 }
 
 private executeTaskCommands(data) {
     String p = data?.type ?: sNULL
 
     if(settings."${p}mode_run") { setLocationMode(settings."${p}mode_run" as String) }
+    if(settings."${p}alarm_run") { sendLocationEvent(name: "hsmSetArm", value: settings."${p}alarm_run" as String) }
     if(settings.enableWebCoRE && settings."${p}piston_run") { webCoRE_execute(settings."${p}piston_run") }
     if(isStFLD && settings."${p}routine_run") { execRoutineById(settings."${p}routine_run" as String) }
 
@@ -1650,10 +1662,11 @@ String actTaskDesc(String t, Boolean isInpt=false) {
         str += settings."${t}sirens" ? "\n \u2022 Sirens On: (${settings."${t}sirens"?.size()})${settings."${t}sirens_delay" ? "(${settings."${t}sirens_delay"} sec)" : sBLANK}" : sBLANK
 
         str += settings."${t}mode_run" ? "\n \u2022 Set Mode:\n \u2022 ${settings."${t}mode_run"}" : sBLANK
+        str += settings."${t}alarm_run" ? "\n \u2022 Set Alarm:\n \u2022 ${settings."${t}alarm_run"}" : sBLANK
         str += settings."${t}routine_run" ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(settings."${t}routine_run")?.label}" : sBLANK
         str += (settings.enableWebCoRE && settings."${t}piston_run") ? "\n \u2022 Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
     }
-    return str != sBLANK ? (isInpt ? "${str}\n\nTap to modify" : "${str}") : (isInpt ? "On trigger control devices, set mode, execute routines or WebCore Pistons\n\nTap to configure" : null)
+    return str != sBLANK ? (isInpt ? "${str}\n\nTap to modify" : str) : (isInpt ? "On trigger control devices, set mode, set alarm state, execute WebCore Pistons\n\nTap to configure" : sNULL)
 }
 
 private flashLights(data) {
@@ -2034,7 +2047,7 @@ private void actionCleanup() {
     items.each { String si-> if(state?.containsKey(si)) { state.remove(si)} }
     //Cleans up unused action setting items
     List setItems = []
-    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_routine_run", "act_piston_run", "act_mode_run"]
+    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_routine_run", "act_piston_run", "act_mode_run", "act_alarm_run"]
     if(settings.act_EchoZones) { setIgn.push("act_EchoZones") }
     else if(settings.act_EchoDevices) { setIgn.push("act_EchoDevices") }
 
@@ -2233,7 +2246,7 @@ void subscribeToEvts() {
                 case "alarm":
                     // Location Alarm Events
                     subscribe(location, (!isStFLD ? "hsmStatus" : "alarmSystemStatus"), alarmEvtHandler)
-    //return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
+    // ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarm":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
                     if(!isStFLD && ("alerts" in settings.trig_alarm)) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
                     break
                 case "mode":
@@ -2368,6 +2381,7 @@ def alarmEvtHandler(evt) {
         case "alarmSystemStatus":
         case "hsmAlert":
             if(!isStFLD && !("alerts" in settings.trig_alarm)) return
+            if(!isStFLD && !(evt?.value in settings.trig_alarm_events)) return
             if(getConfStatusItem("tiers")) {
                 processTierTrigEvt(evt, true)
             } else { executeAction(evt, false, "alarmEvtHandler(${evt?.name})", false, false) }
@@ -3798,7 +3812,34 @@ static Map weeksOfMonthMap() { return ["1":"1st Week", "2":"2nd Week", "3":"3rd 
 static Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 static Map getAlarmTrigOpts() {
-    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
+    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarm":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
+}
+
+private static Map getAlarmSystemAlertOptions(){
+    return [
+        intrusion:              "Intrusion Away",
+        "intrusion-home":       "Intrusion Home",
+        "intrusion-night":      "Intrusion Night",
+        smoke:                  "Smoke",
+        water:                  "Water",
+        rule:                   "Rule",
+        cancel:                 "Alerts cancelled",
+        arming:                 "Arming failure"
+    ]
+}
+
+private static Map getAlarmSystemStatusActions(){
+    return [
+        armAway:                "Arm Away",
+        armHome:                "Arm Home",
+        armNight:               "Arm Night",
+        disarm:                 "Disarm",
+        armRules:               "Arm Monitor Rules",
+        disarmRules:            "Disarm Monitor Rules",
+        disarmAll:              "Disarm All",
+        armAll:                 "Arm All",
+        cancelAlerts:           "Cancel Alerts"
+    ]
 }
 
 /*
