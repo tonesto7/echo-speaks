@@ -1675,7 +1675,7 @@ Boolean notifTimeOk() {
         Boolean not = startTime.getTime() > stopTime.getTime()
         Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
         isBtwn = not ? !isBtwn : isBtwn
-        logDebug("NotifTimeOk | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
+        logDebug("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${not ? " NOT":sBLANK} between ($startTime and $stopTime)")
         return isBtwn
     } else { return true }
 }
