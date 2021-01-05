@@ -1569,7 +1569,6 @@ def actTrigTasksPage(params) {
         }
         section(sTS("Location Actions:")) {
             input "${t}mode_run", "enum", title: inTS("Set Location Mode${dMap?.def}\n(Optional)", getAppImg("mode", true)), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
-                    //input "trig_alarm", "enum", title: inTS("${getAlarmSystemName()} Modes", getAppImg("alarm_home", true)), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
             if(!isStFLD) {
                 input "${t}alarm_run", "enum", title: inTS("Set ${getAlarmSystemName()} mode${dMap?.def}\n(Optional)", getAppImg("alarm_home", true)), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
             }
