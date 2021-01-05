@@ -437,7 +437,11 @@ def zoneNotifTimePage() {
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
-    initialize()
+    if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
+        runIn(3, "processDuplication")
+    } else {
+        initialize()
+    }
 }
 
 def updated() {
@@ -450,21 +454,6 @@ def initialize() {
     // logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
-    if(settings.duplicateFlag == true && state.dupPendingSetup == false) {
-        settingUpdate("duplicateFlag", "false", "bool")
-        state.remove("dupOpenedByUser")
-    } else if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
-        String newLbl = app?.getLabel() + app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"
-        app?.updateLabel(newLbl)
-        state.dupPendingSetup = true
-        def dupState = parent?.getDupZoneStateData()
-        if(dupState?.size()) {
-            dupState?.each {k,v-> state[k] = v }
-            parent?.clearDuplicationItems()
-        }
-        logInfo("Duplicated Zone has been created... Please open Zone and configure to complete setup...")
-        return
-    }
     state.isInstalled = true
     updAppLabel()
     runIn(3, "zoneCleanup")
@@ -472,6 +461,24 @@ def initialize() {
     runEvery1Hour("healthCheck")
     updConfigStatusMap()
     sendZoneStatus()
+}
+
+private void processDuplication() {
+    String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"}"
+    String dupSrcId = settings?.duplicateSrcId ? (String)settings?.duplicateSrcId : (String)null
+    app?.updateLabel(newLbl)
+    state?.dupPendingSetup = true
+    Map dupData = parent?.getChildDupeData("zones", dupSrcId)
+    // log.debug "dupData: ${dupData}"
+    if(dupData && dupData?.state?.size()) {
+        dupData?.state?.each {k,v-> state[k] = v }
+    }
+    if(dupData && dupData?.settings?.size()) {
+        dupData?.settings?.each {k,v-> settingUpdate(k, (v.value != null ? v.value : null), v.type) }
+    }
+    parent.childAppDuplicationFinished("zones", dupSrcId as String)
+    logInfo("Duplicated Zone has been created... Please open zone and configure to complete setup...")
+    return
 }
 
 def uninstalled() {
@@ -1914,7 +1921,7 @@ void releaseTheLock(String qname){
 //*******************************************************************
 //    CLONE CHILD LOGIC
 //*******************************************************************
-public Map getDuplSettingData() {
+public Map getSettingsAndStateMap() {
     Map typeObj = parent?.getAppDuplTypes()
     Map setObjs = [:]
     typeObj?.stat?.each { sk,sv->
@@ -1924,18 +1931,19 @@ public Map getDuplSettingData() {
         ev?.each { evi-> settings.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }
     }
     typeObj?.caps?.each { ck,cv->
-        settings.findAll { it?.key?.endsWith(ck) }?.each { fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id as String }] }
+        settings.findAll { it?.key?.endsWith(ck) }?.each { fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id as String }] }.toString().toList()
     }
     typeObj?.dev?.each { dk,dv->
         settings.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
     }
     Map data = [:]
-    data.label = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", "")
+    data.label = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", sBLANK)
     data.settings = setObjs
-    return data
-}
 
-public Map getDuplStateData() {
-    List stskip = ["isInstalled", "isParent", "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory"]
-    return state?.findAll { !(it?.key in stskip) }
+    List stskip = [
+        "isInstalled", "isParent", "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
+        "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory"
+    ]
+    data.state = state?.findAll { !(it?.key in stskip) }
+    return data
 }
