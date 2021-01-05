@@ -3465,6 +3465,7 @@ Boolean getOk2Notify() {
     if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
     if(!(daysOk && modesOk && timeOk)) { result= false }
     logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    return result
 }
 
 Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) ? false : true }
@@ -3489,7 +3490,7 @@ Boolean quietTimeOk() {
         Boolean not = startTime.getTime() > stopTime.getTime() 
         Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
         isBtwn = not ? !isBtwn : isBtwn
-        logDebug("QuietTimeOk | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
+        logDebug("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${not ? " NOT" : sBLANK} between ($startTime and $stopTime)")
         return isBtwn
     } else { return true }
 }
