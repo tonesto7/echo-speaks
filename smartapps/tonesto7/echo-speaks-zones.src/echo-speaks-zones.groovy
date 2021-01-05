@@ -1117,7 +1117,9 @@ Boolean isInMode(List modes, Boolean not=false) {
 }
 
 Boolean isInAlarmMode(List modes) {
-    return (modes) ? (parent?.getAlarmSystemStatus() in modes) : false
+    String a = location?.hsmStatus ?: "disarmed"
+    //return (modes) ? (parent?.getAlarmSystemStatus() in modes) : false
+    return (modes) ? (a in modes) : false
 }
 
 Boolean areAllDevsSame(List devs, String attr, val) {
@@ -1611,8 +1613,8 @@ static List monthEnum() { return ["January", "February", "March", "April", "May"
 
 static Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
-Map getAlarmTrigOpts() {
-    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away","armedHome":"Armed Home","disarm":"Disarmed", "alerts":"Alerts"]
+static Map getAlarmTrigOpts() {
+    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarm":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
 }
 /*
 def getShmIncidents() {
