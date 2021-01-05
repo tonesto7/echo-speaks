@@ -662,7 +662,7 @@ def triggersPage() {
             }
             if(triggersConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS("You are all done with this step.\nPress Done/Save to go back", getAppImg("done", true)), state: "complete", image: getAppImg("done")
+                    paragraph pTS("You are all done with this step.\nPress Next/Done/Save to go back", getAppImg("done", true)), state: "complete", image: getAppImg("done")
                 }
             }
         }
@@ -989,7 +989,7 @@ def actionTiersPage() {
             }
             if(isTierActConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS("You are all done configuring tier responses.\nPress Done/Save to go back", getAppImg("done", true)), state: "complete", image: getAppImg("done")
+                    paragraph pTS("You are all done configuring tier responses.\nPress Next/Done/Save to go back", getAppImg("done", true)), state: "complete", image: getAppImg("done")
                 }
             }
         }
@@ -1475,7 +1475,7 @@ def actionsPage() {
                 }
                 actionSimulationSect()
                 section(sBLANK) {
-                    paragraph pTS("You are all done with this step.\nPress Done/Save to go back", getAppImg("done", true)), state: "complete", image: getAppImg("done")
+                    paragraph pTS("You are all done with this step.\nPress Next/Done/Save to go back", getAppImg("done", true)), state: "complete", image: getAppImg("done")
                 }
                 actionExecMap.config.volume = [change: settings.act_volume_change, restore: settings.act_volume_restore, alarm: settings.act_alarm_volume]
 
@@ -3169,7 +3169,8 @@ static String convEvtType(String type) {
         "pistonExecuted": "Piston",
         "routineExecuted": "Routine",
         "alarmSystemStatus": "Alarm system",
-        "hsmStatus": "Alarm system"
+        "hsmStatus": "Alarm system",
+        "hsmAlert": "Alarm system"
     ]
     return (type && typeConv.containsKey(type)) ? typeConv[type] : type
 }
@@ -4096,7 +4097,9 @@ Boolean isInMode(List modes, Boolean not=false) {
 }
 
 Boolean isInAlarmMode(List modes) {
-    return (modes) ? (parent?.getAlarmSystemStatus() in modes) : false
+    String a = location?.hsmStatus ?: "disarmed"
+    //return (modes) ? (parent?.getAlarmSystemStatus() in modes) : false
+    return (modes) ? (a in modes) : false
 }
 
 Boolean areAllDevsSame(List devs, String attr, val) {
