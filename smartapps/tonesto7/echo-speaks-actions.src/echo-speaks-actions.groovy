@@ -21,7 +21,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "3.7.0.0"
-@Field static final String appModifiedFLD = "2021-01-03"
+@Field static final String appModifiedFLD = "2021-01-04"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
@@ -1950,7 +1950,11 @@ static Boolean wordInString(String findStr, String fullStr) {
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
-    initialize()
+    if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
+        runIn(3, "processDuplication")
+    } else {
+        initialize()
+    }
 }
 
 def updated() {
@@ -1963,36 +1967,39 @@ def initialize() {
     // logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
-    if(settings.duplicateFlag == true && state.dupPendingSetup == false) {
-        settingUpdate("duplicateFlag", "false", "bool")
-        state.remove("dupOpenedByUser")
-    } else if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
-        String newLbl = app?.getLabel() + app?.getLabel()?.toString()?.contains("(Dup)") ? sBLANK : " (Dup)"
-        app?.updateLabel(newLbl)
-        state.dupPendingSetup = true
-        def dupState = parent?.getDupActionStateData()
-        if(dupState?.size()) {
-            dupState.each {String k,v-> state[k] = v }
-            parent?.clearDuplicationItems()
-        }
-        logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
-        return
-    }
     state.isInstalled = true
     updAppLabel()
     runIn(3, "actionCleanup")
     runIn(7, "subscribeToEvts")
     runEvery1Hour("healthCheck")
-   if(settings.enableWebCoRE){
+    if(settings.enableWebCoRE){
         remTsVal(sLASTWU)
         webCoRE_init()
-   }
+    }
     updateZoneSubscriptions() // Subscribes to Echo Speaks Zone Activation Events...
     updConfigStatusMap()
     resumeTierJobs()
 }
 
-void updateZoneSubscriptions() {
+private void processDuplication() {
+    String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"}"
+    String dupSrcId = settings?.duplicateSrcId ? (String)settings?.duplicateSrcId : (String)null
+    app?.updateLabel(newLbl)
+    state?.dupPendingSetup = true
+    Map dupData = parent?.getChildDupeData("actions", dupSrcId)
+    // log.debug "dupData: ${dupData}"
+    if(dupData && dupData?.state?.size()) {
+        dupData?.state?.each {k,v-> state[k] = v }
+    }
+    if(dupData && dupData?.settings?.size()) {
+        dupData?.settings?.each {k,v-> settingUpdate(k, (v.value != null ? v.value : null), v.type) }
+    }
+    parent.childAppDuplicationFinished("action", dupSrcId as String)
+    logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
+    return
+}
+
+private void updateZoneSubscriptions() {
     if(settings.act_EchoZones) {
         subscribe(location, "es3ZoneState", zoneStateHandler); subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
         sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true)
@@ -4961,7 +4968,7 @@ private restoreLightState(devs) {
 //*******************************************************************
 //    CLONE CHILD LOGIC
 //*******************************************************************
-public getDuplSettingData() {
+public Map getSettingsAndStateMap() {
     Map typeObj = parent?.getAppDuplTypes()
     Map setObjs = [:]
     typeObj?.stat?.each { sk,sv->
@@ -4971,7 +4978,7 @@ public getDuplSettingData() {
         ev?.each { evi-> settings.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }
     }
     typeObj?.caps?.each { ck,cv->
-        settings.findAll { it?.key?.endsWith(ck) }?.each { fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id as String }] }
+        settings.findAll { it?.key?.endsWith(ck) }?.each { fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id as String }] }.toString().toList()
     }
     typeObj?.dev?.each { dk,dv->
         settings.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
@@ -4979,12 +4986,11 @@ public getDuplSettingData() {
     Map data = [:]
     data.label = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", sBLANK)
     data.settings = setObjs
-    return data
-}
 
-public getDuplStateData() {
-    List stskip = ["isInstalled", "isParent", "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory"]
-    return state?.findAll { !(it?.key in stskip) }
-    //def tsMap = atomicState.tsDtMap
-    //def t0 = atomicState.appFlagsMap
+    List stskip = [
+        "isInstalled", "isParent", "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
+        "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory"
+    ]
+    data.state = state?.findAll { !(it?.key in stskip) }
+    return data
 }
