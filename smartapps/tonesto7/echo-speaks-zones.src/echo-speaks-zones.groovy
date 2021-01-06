@@ -673,7 +673,7 @@ Boolean timeCondOk() {
             isBtwn = not ? !isBtwn : isBtwn
             state.startTime =  formatDt(startTime) //ERS
             state.stopTime =  formatDt(stopTime)
-            logDebug("TimeCheck | CurTime: (${now}) is between ($startTime and $stopTime) | ${isBtwn}")
+            logDebug("TimeCheck | CurTime: (${now}) is${not? " NOT": sBLANK} between ($startTime and $stopTime) | ${isBtwn}")
             return isBtwn
         }
     }
