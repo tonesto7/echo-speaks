@@ -1417,8 +1417,8 @@ void appCleanup() {
 void wsEvtHandler(evt) {
     logTrace("wsEvtHandler  evt: ${evt}")
     if(evt && evt.id && (evt.attributes?.size() || evt.triggers?.size())) {
-        if("bluetooth" in evt.triggers) { getBluetoothDevices(true) }
-        if("activity" in evt.triggers) { Map a=getDeviceActivity(sNULL, true) }
+        if("bluetooth" in evt.triggers) { runIn(2, "getBluetoothRunIn") } // getBluetoothDevices(true)
+        if("activity" in evt.triggers) { runIn(1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
         if(evt.all == true) {
             getEsDevices()?.each { eDev->
                 if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) } }
@@ -2209,10 +2209,15 @@ private getOtherData() {
     // getAlexaSkills()
 }
 
+void getBluetoothRunIn(){
+    getBluetoothDevices(true)
+}
+
 void getBluetoothDevices(Boolean frc=false) {
     String myId=app.getId()
     Integer lastU = getLastTsValSecs("bluetoothUpdDt")
-    if( (frc && lastU < 60) || ((Boolean)state.websocketActive && bluetoothDataFLD[myId] && lastU < 10800) ) { return }
+    if( (frc && lastU < 30)) { return }
+    if( (!frc && (Boolean)state.websocketActive && bluetoothDataFLD[myId] && lastU < 10800) ) { return }
     if(!isAuthValid("getBluetoothDevices")) { return }
     Map params = [
         uri: getAmazonUrl(),
@@ -2273,15 +2278,12 @@ Map getBluetoothData(String serialNumber) {
     // logTrace("getBluetoothData: ${serialNumber}")
     String curConnName = sNULL
     Map btObjs = [:]
-    Map btData = bluetoothDataFLD[myId]
+    getBluetoothDevices(true)
+    btData = bluetoothDataFLD[myId]
     if(btData == null) {
-        getBluetoothDevices(true)
-        btData = bluetoothDataFLD[myId]
-        if(btData == null) {
-            bluetoothDataFLD[myId] = [:]
-            bluetoothDataFLD=bluetoothDataFLD
-            btData = [:]
-        }
+        bluetoothDataFLD[myId] = [:]
+        bluetoothDataFLD=bluetoothDataFLD
+        btData = [:]
     }
     Map bluData = btData && btData.bluetoothStates?.size() ? btData.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
     if(bluData && bluData.size() && bluData.pairedDeviceList && bluData.pairedDeviceList?.size()) {
@@ -2296,6 +2298,10 @@ Map getBluetoothData(String serialNumber) {
 }
 
 @Field volatile static Map<String,Map> devActivityMapFLD = [:]
+
+void getDeviceActivityRunIn() {
+     Map a=getDeviceActivity(sNULL, true)
+}
 
 Map getDeviceActivity(String serialNum, Boolean frc=false) {
     if(!isAuthValid("getDeviceActivity")) { return null }
@@ -2315,7 +2321,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
 
-        if((frc && lastUpdSec > 5) || lastUpdSec >= 360) {
+        if((frc && lastUpdSec > 3) || lastUpdSec >= 360) {
             logTrace("getDeviceActivity($serialNum,$frc)")
             updTsVal("lastDevActChk")
             httpGet(params) { response->
@@ -5721,7 +5727,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 @Field static final Map appDuplicationTypesMapFLD = [
     stat: [
         bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
-        enum: ["triggerEvents", "act_EchoZones",, "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard", "webCorePistons"],
+        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard", "webCorePistons"],
         mode: ["cond_mode", "trig_mode"],
         number: [],
         text: ["appLbl"]
