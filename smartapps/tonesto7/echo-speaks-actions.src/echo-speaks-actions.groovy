@@ -2970,27 +2970,38 @@ Boolean timeCondOk() {
             return isBtwn
         }
     }
+    logDebug("TimeCheck | (null)")
     state.startTime = sNULL
     state.stopTime = sNULL
     return null
 }
 
 Boolean dateCondOk() {
-    if(settings.cond_days == null && settings.cond_months == null) return null
-    Boolean reqAll = reqAllCond()
-    Boolean dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : reqAll // true
-    Boolean mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
-    logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
-    return reqAll ? (mOk && dOk) : (mOk || dOk)
+    Boolean result = null
+    Boolean dOk
+    Boolean mOk
+    if(!(settings.cond_days == null && settings.cond_months == null)) {
+        Boolean reqAll = reqAllCond()
+        dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : reqAll // true
+        mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
+        result = reqAll ? (mOk && dOk) : (mOk || dOk)
+    }
+    logDebug("dateConditions | $result | monthOk: $mOk | daysOk: $dOk")
+    return result
 }
 
 Boolean locationCondOk() {
-    if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return null
-    Boolean reqAll = reqAllCond()
-    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
-    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
-    logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
-    return reqAll ? (mOk && aOk) : (mOk || aOk)
+    Boolean result = null
+    Boolean mOk
+    Boolean aOk
+    if(!(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null)) {
+        Boolean reqAll = reqAllCond()
+        mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
+        aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
+        result = reqAll ? (mOk && aOk) : (mOk || aOk)
+    }
+    logDebug("locationConditions | $result | modeOk: $mOk | alarmOk: $aOk")
+    return result
 }
 
 Boolean checkDeviceCondOk(String type) {
@@ -3051,10 +3062,11 @@ Boolean deviceCondOk() {
         if(!settings."cond_${i}") { skipped.push(i); return }
         checkDeviceNumCondOk(i) ? passed.push(i) : failed.push(i)
     }
-    logDebug("DeviceCondOk | Found: (${(passed.size() + failed.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Integer cndSize = (passed.size() + failed.size())
-    if(cndSize == 0) return null
-    return reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
+    Boolean result = null
+    if(cndSize != 0) result = reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
+    logDebug("DeviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    return result
 }
 
 Map conditionStatus() {
@@ -3112,7 +3124,7 @@ Boolean deviceCondConfigured() {
 }
 
 Integer deviceCondCount() {
-    List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+    List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water"]
     List items = []
     devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
     return items.size()
