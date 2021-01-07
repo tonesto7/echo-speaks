@@ -2219,6 +2219,7 @@ void getBluetoothDevices(Boolean frc=false) {
     if( (frc && lastU < 30)) { return }
     if( (!frc && (Boolean)state.websocketActive && bluetoothDataFLD[myId] && lastU < 10800) ) { return }
     if(!isAuthValid("getBluetoothDevices")) { return }
+    updTsVal("bluetoothUpdDt")
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
