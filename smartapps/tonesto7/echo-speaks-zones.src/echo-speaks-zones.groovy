@@ -67,11 +67,9 @@ def startPage() {
         if(!state.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
         else {
             state.isParent = false;
-            settingRemove("zone_EchoDeviceList")
-            // log.debug "aa: $aa | ${aa[0]} | out: ${aa.collect { it.toInteger() }} | int?: ${aa[0] instanceof Integer}"
-            if(settings.zone_EchoDevices.size() && settings?.zone_EchoDeviceList == null) { 
-                settingUpdate("zone_EchoDeviceList", settings.zone_EchoDevices.collect { it as Integer }, "device.EchoSpeaksDevice")
-            } 
+            List aa = settings.zone_EchoDevices
+            List devIt = aa.collect { it ? it.toInteger():null }
+            app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
             return (minVersionFailed()) ? codeUpdatePage() : mainPage()
         }
     } else { return uhOhPage() }
@@ -166,9 +164,10 @@ private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
     if(echoDevs?.size()) {
         def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == "true")]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-        // input "zone_EchoDevices", "enum", title: inTS("Echo Devices in Zone", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
-        input "zone_EchoDevices", "device.EchoSpeaksDevice", title: inTS("Echo Devices in Zone", getAppImg("echo_gen1", true)), description: "Select the devices", multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
-        input "zone_EchoDeviceList", "device.EchoSpeaksDevice", title: inTS("Echo Devices in Zone", getAppImg("echo_gen1", true)), description: "Select the devices", multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
+        input "zone_EchoDevices", "enum", title: inTS("Echo Devices in Zone", getAppImg("echo_gen1", true)), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
+        List aa = settings.zone_EchoDevices
+        List devIt = aa.collect { it ? it.toInteger():null }
+        app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt.unique()]) // this won't take effect until next execution
     } else { paragraph "No devices were found with support for ($type)"}
 }
 
@@ -397,7 +396,8 @@ def zoneNotifPage() {
                     href "zoneNotifTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
                 }
                 if(!state.notif_message_tested) {
-                    def actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDeviceList) : []
+                    //def actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDeviceList) : []
+                    List actDevices = settings.notif_alexa_mobile ? settings.zone_EchoDeviceList : []
                     def aMsgDev = actDevices?.size() && settings.notif_alexa_mobile ? actDevices[0] : null
                     if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state?.notif_message_tested = true }
                 }
@@ -519,7 +519,7 @@ private void updConfigStatusMap() {
     atomicState.configStatusMap = sMap
 }
 
-Boolean devicesConfigured() { return (settings.zone_EchoDeviceList) }
+Boolean devicesConfigured() { return (settings.zone_EchoDeviceList?.size() > 0) }
 private Boolean getConfStatusItem(String item) { Map sMap = atomicState?.configStatusMap; return (sMap?.containsKey(item) && sMap[item] == true) }
 
 private void zoneCleanup() {
@@ -528,7 +528,7 @@ private void zoneCleanup() {
     items?.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     //Cleans up unused Zone setting items
     List setItems = ["zone_delay"]
-    List setIgn = ["zone_EchoDeviceList"]
+    List setIgn = ["zone_EchoDeviceList", "zone_EchoDevices"]
     setItems.each { String sI-> if(settings.containsKey(sI)) { settingRemove(sI) } }
 }
 
@@ -972,7 +972,8 @@ public getZoneHistory(Boolean asObj=false) {
 
 Map getZoneDevices() {
     List devObj = []
-    List devices = parent?.getDevicesFromList(settings.zone_EchoDeviceList)
+    //List devices = parent?.getDevicesFromList(settings.zone_EchoDeviceList)
+    List devices = settings.zone_EchoDeviceList
     devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
     return [devices: devices, devObj: devObj]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
@@ -1531,7 +1532,8 @@ String getConditionsDesc() {
 
 String getZoneDesc() {
     if(devicesConfigured() && conditionsConfigured()) {
-        List eDevs = parent?.getDevicesFromList(settings.zone_EchoDeviceList)?.collect { it?.displayName as String }
+        //List eDevs = parent?.getDevicesFromList(settings.zone_EchoDeviceList)?.collect { it?.displayName as String }
+        List eDevs = settings.zone_EchoDeviceList?.collect { it?.displayName as String }
         String str = eDevs?.size() ? "Echo Devices in Zone:\n${eDevs?.join("\n")}\n" : sBLANK
         str += settings.zone_active_delay ? bulletItem(sBLANK, "Activate Delay: (${settings.zone_active_delay})\n)") : sBLANK
         str += settings.zone_inactive_delay ? bulletItem(sBLANK, "Deactivate Delay: (${settings.zone_inactive_delay})\n") : sBLANK
