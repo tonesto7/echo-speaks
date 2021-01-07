@@ -396,7 +396,7 @@ def zoneNotifPage() {
                     href "zoneNotifTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
                 }
                 if(!state.notif_message_tested) {
-                    List actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDeviceList) : []
+                    List actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDevices) : []
                     def aMsgDev = actDevices?.size() && settings.notif_alexa_mobile ? actDevices[0] : null
                     if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state?.notif_message_tested = true }
                 }
@@ -971,7 +971,7 @@ public getZoneHistory(Boolean asObj=false) {
 
 Map getZoneDevices() {
     List devObj = []
-    List devices = parent?.getDevicesFromList(settings.zone_EchoDeviceList)
+    List devices = parent?.getDevicesFromList(settings.zone_EchoDevices)
     devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
     return [devices: devices, devObj: devObj]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
@@ -1530,7 +1530,7 @@ String getConditionsDesc() {
 
 String getZoneDesc() {
     if(devicesConfigured() && conditionsConfigured()) {
-        List eDevs = parent?.getDevicesFromList(settings.zone_EchoDeviceList)?.collect { it?.displayName as String }
+        List eDevs = parent?.getDevicesFromList(settings.zone_EchoDevices)?.collect { it?.displayName as String }
         String str = eDevs?.size() ? "Echo Devices in Zone:\n${eDevs?.join("\n")}\n" : sBLANK
         str += settings.zone_active_delay ? bulletItem(sBLANK, "Activate Delay: (${settings.zone_active_delay})\n)") : sBLANK
         str += settings.zone_inactive_delay ? bulletItem(sBLANK, "Deactivate Delay: (${settings.zone_inactive_delay})\n") : sBLANK
