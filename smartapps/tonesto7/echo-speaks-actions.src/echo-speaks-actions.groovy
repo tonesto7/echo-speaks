@@ -73,7 +73,12 @@ preferences {
 def startPage() {
     if(parent != null) {
         if(!state.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
-        else { state.isParent = false; return (minVersionFailed()) ? codeUpdatePage() : mainPage() }
+        else {
+            state.isParent = false
+            List aa = settings.act_EchoDevices
+            List devIt = aa.collect { it ? it.toInteger():null }
+            app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
+            return (minVersionFailed()) ? codeUpdatePage() : mainPage() }
     } else { return uhOhPage() }
 }
 
@@ -1901,6 +1906,9 @@ private echoDevicesInputByPerm(String type) {
             Boolean devsOpt = (settings.act_EchoZones?.size())
             def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == "true")]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
             input "act_EchoDevices", "enum", title: inTS("Echo Speaks Devices${devsOpt ? "\n(Optional)" : sBLANK}", getAppImg("echo_gen1", true)), description: (devsOpt ? "These devices are used when all zones are inactive." : "Select your devices"), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
+            List aa = settings.act_EchoDevices
+            List devIt = aa.collect { it ? it.toInteger():null }
+            app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
         } else { paragraph pTS("No devices were found with support for ($type)", null, true, "red") }
     }
 }
@@ -2048,7 +2056,7 @@ private void actionCleanup() {
     List setItems = []
     List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_routine_run", "act_piston_run", "act_mode_run", "act_alarm_run"]
     if(settings.act_EchoZones) { setIgn.push("act_EchoZones") }
-    else if(settings.act_EchoDevices) { setIgn.push("act_EchoDevices") }
+    else if(settings.act_EchoDevices) { setIgn.push("act_EchoDevices"); setIgn.push("act_EchoDeviceList") }
 
     if((String)settings.actionType) {
         def isTierAct = isTierAction()
