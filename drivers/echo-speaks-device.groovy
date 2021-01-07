@@ -2685,11 +2685,11 @@ public void queueEchoCmd(String type, Integer msgLen, Map headers, body=null, Bo
     Integer qSize = getQueueSize()
     if((Boolean)state.q_blocked == true) { log.warn "│ Queue Temporarily Blocked (${qSize} Items): | Working: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled})"; return }
     List logItems = []
-    Map dupItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers?.message }
+    Map dupItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers.message }
     logItems.push("│ Queue Active: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled}) ")
     if(dupItems?.size()) {
-        if(headers?.message) { logItems.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : sBLANK}") }
-        logItems.push("│ Ignoring (${headers?.cmdType}) Command... It Already Exists in QUEUE!!!")
+        if(headers.message) { logItems.push("│ Message(${msgLen} char): ${headers.message?.take(190)?.trim()}${msgLen > 190 ? "..." : sBLANK}") }
+        logItems.push("│ Ignoring (${headers.cmdType}) Command... It Already Exists in QUEUE!!!")
         logItems.push("┌────────── Echo Queue Warning ──────────")
         processLogItems("warn", logItems, true, true)
         return
@@ -2697,14 +2697,14 @@ public void queueEchoCmd(String type, Integer msgLen, Map headers, body=null, Bo
     Integer qIndNum = getNextQueueIndex()
     // log.debug "qIndexNum: $qIndNum"
     state.q_cmdIndexNum = qIndNum
-    headers?.qId = qIndNum
-    state."qItem_${qIndNum}" = [type: type, headers: headers, body: body, newVolume: (headers?.newVolume ?: null), oldVolume: (headers?.oldVolume ?: null)]
+    headers.qId = qIndNum
+    state."qItem_${qIndNum}" = [type: type, headers: headers, body: body, newVolume: (headers.newVolume ?: null), oldVolume: (headers.oldVolume ?: null)]
     state.newVolume = null
     state.oldVolume = null
-    if(headers?.volume)  {  logItems?.push("│ Volume (${headers?.volume})") }
-    if(headers?.message) {  logItems?.push("│ Message(Len: ${headers?.message?.toString()?.length()}): ${headers?.message?.take(200)?.trim()}${headers?.message?.toString()?.length() > 200 ? "..." : sBLANK}") }
-    if(headers?.cmdType) {  logItems?.push("│ CmdType: (${headers?.cmdType})") }
-                            logItems?.push("┌───── Added Echo Queue Item (${state?.q_cmdIndexNum}) ─────")
+    if(headers.volume)  {  logItems.push("│ Volume (${headers.volume})") }
+    if(headers.message) {  logItems.push("│ Message(Len: ${headers.message?.toString()?.length()}): ${headers.message?.take(200)?.trim()}${headers.message?.toString()?.length() > 200 ? "..." : sBLANK}") }
+    if(headers.cmdType) {  logItems.push("│ CmdType: (${headers.cmdType})") }
+                            logItems.push("┌───── Added Echo Queue Item (${state.q_cmdIndexNum}) ─────")
     // queueCheckSchedHealth()
     if(!firstRun) {
         processLogItems("trace", logItems, false, true)
@@ -2729,7 +2729,7 @@ private void queueCheck(data) {
             }
         } else { state.q_blocked = false }
         if(data && data?.rateLimited == true) {
-            Integer delay = data?.delay as Integer ?: getRecheckDelay(state?.q_curMsgLen)
+            Integer delay = data?.delay as Integer ?: getRecheckDelay(state.q_curMsgLen)
             schedQueueCheck(delay, true, null, "queueCheck(rate-limit)")
             logDebug("queueCheck | Scheduling Queue Check for (${delay} sec) | Recheck for RateLimiting")
         }
@@ -2744,7 +2744,7 @@ private void queueCheck(data) {
 
 void processCmdQueue() {
     state.q_cmdWorking = true
-    Integer q_cmdCycleCnt = state?.q_cmdCycleCnt
+    Integer q_cmdCycleCnt = state.q_cmdCycleCnt
     state.q_cmdCycleCnt = q_cmdCycleCnt ? q_cmdCycleCnt+1 : 1
     Map cmdQueue = getQueueItems()
     if(cmdQueue?.size()) {
@@ -2754,8 +2754,8 @@ void processCmdQueue() {
         // logDebug("processCmdQueue | Key: ${cmdKey} | Queue Items: (${getQueueItems()})")
         cmdData.headers["queueKey"] = cmdKey
         Integer q_loopChkCnt = state.q_loopChkCnt ?: 0
-        if(state?.q_lastTtsMsg == cmdData.headers?.message && (getLastTtsCmdSec() <= 10)) { state.q_loopChkCnt = (q_loopChkCnt >= 1) ? q_loopChkCnt+1 : 1 }
-        // log.debug "q_loopChkCnt: ${state?.q_loopChkCnt}"
+        if(state.q_lastTtsMsg == cmdData.headers?.message && (getLastTtsCmdSec() <= 10)) { state.q_loopChkCnt = (q_loopChkCnt >= 1) ? q_loopChkCnt+1 : 1 }
+        // log.debug "q_loopChkCnt: ${state.q_loopChkCnt}"
         if(state.q_loopChkCnt && (state.q_loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
             state.remove(cmdKey as String)
             logWarn("processCmdQueue | Possible loop detected... Last message was the same as message sent <10 seconds ago. This message will be removed from the queue")
@@ -2782,14 +2782,14 @@ def testMultiCmd() {
 }
 
 private void speechCmd(headers=[:], Boolean isQueueCmd=false) {
-    // if(isQueueCmd) log.warn "QueueBlocked: ${state?.q_blocked} | cycleCnt: ${state?.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
+    // if(isQueueCmd) log.warn "QueueBlocked: ${state.q_blocked} | cycleCnt: ${state.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
     state.q_speakingNow = true
-    String tr = "speechCmd (${headers?.cmdDesc}) | Msg: ${headers?.message}"
-    tr += headers?.newVolume ? " | SetVolume: (${headers?.newVolume})" :sBLANK
-    tr += headers?.oldVolume ? " | Restore Volume: (${headers?.oldVolume})" :sBLANK
-    tr += headers?.msgDelay  ? " | RecheckSeconds: (${headers?.msgDelay})" :sBLANK
-    tr += headers?.queueKey  ? " | QueueItem: [${headers?.queueKey}]" :sBLANK
-    tr += headers?.cmdDt     ? " | CmdDt: (${headers?.cmdDt})" :sBLANK
+    String tr = "speechCmd (${headers.cmdDesc}) | Msg: ${headers.message}"
+    tr += headers.newVolume ? " | SetVolume: (${headers.newVolume})" :sBLANK
+    tr += headers.oldVolume ? " | Restore Volume: (${headers.oldVolume})" :sBLANK
+    tr += headers.msgDelay  ? " | RecheckSeconds: (${headers.msgDelay})" :sBLANK
+    tr += headers.queueKey  ? " | QueueItem: [${headers.queueKey}]" :sBLANK
+    tr += headers.cmdDt     ? " | CmdDt: (${headers.cmdDt})" :sBLANK
     logTrace("${tr}")
 
     def random = new Random()
@@ -2810,54 +2810,54 @@ private void speechCmd(headers=[:], Boolean isQueueCmd=false) {
     Integer recheckDelay = getRecheckDelay(msgLen)
     headers["msgDelay"] = recheckDelay
     headers["cmdId"] = randCmdId
-    if(!settings?.disableQueue) {
-        logItems?.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
+    if(!settings.disableQueue) {
+        logItems.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
 
-        Boolean isFirstCmd = (state?.q_firstCmdFlag != true)
+        Boolean isFirstCmd = (state.q_firstCmdFlag != true)
         if(isFirstCmd) {
             logItems?.push("│ First Command: (${isFirstCmd})")
             headers["queueKey"] = "qItem_1"
-            state?.q_firstCmdFlag = true
+            state.q_firstCmdFlag = true
         }
-        Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state?.q_speakingNow == true))
+        Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state.q_speakingNow == true))
         if(!isQueueCmd) { logItems?.push("│ SentToQueue: (${sendToQueue})") }
-        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | QueueSize: (${getQueueSize()}) | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state?.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
+        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | QueueSize: (${getQueueSize()}) | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
             queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
             runIn((settings?.autoResetQueue ?: 180), "resetQueue")
             if(!isFirstCmd) {
-                // log.debug "lastTtsCmdSec: ${getLastTtsCmdSec()} | Last Delay: ${state?.q_lastTtsCmdDelay}"
-                if(state?.q_lastTtsCmdDelay && getLastTtsCmdSec() > state?.q_lastTtsCmdDelay + 15) schedQueueCheck(3, true, null, "speechCmd(QueueStuck)")
+                // log.debug "lastTtsCmdSec: ${getLastTtsCmdSec()} | Last Delay: ${state.q_lastTtsCmdDelay}"
+                if(state.q_lastTtsCmdDelay && getLastTtsCmdSec() > state.q_lastTtsCmdDelay + 15) schedQueueCheck(3, true, null, "speechCmd(QueueStuck)")
                 return
             }
         }
     }
     try {
         Map headerMap = getCookieMap()
-        headers?.each { k,v-> headerMap[k] = v }
+        headers.each { k,v-> headerMap[k] = v }
         Integer qSize = getQueueSize()
-        logItems?.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${state?.q_cmdWorking})")
+        logItems.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${state?.q_cmdWorking})")
 
-        if(headers?.message) {
-            state?.q_curMsgLen = msgLen
-            state?.q_lastTtsCmdDelay = recheckDelay
+        if(headers.message) {
+            state.q_curMsgLen = msgLen
+            state.q_lastTtsCmdDelay = recheckDelay
             schedQueueCheck(recheckDelay, true, null, "speechCmd(sendCloudCommand)")
-            logItems?.push("│ Rechecking: (${recheckDelay} seconds)")
-            logItems?.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : sBLANK}")
-            state?.q_lastTtsMsg = headers?.message
+            logItems.push("│ Rechecking: (${recheckDelay} seconds)")
+            logItems.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : sBLANK}")
+            state.q_lastTtsMsg = headers.message
             // state?.lastTtsCmdDt = getDtNow()
         }
-        if(headerMap?.oldVolume) {logItems?.push("│ Restore Volume: (${headerMap?.oldVolume}%)") }
-        if(headerMap?.newVolume) {logItems?.push("│ New Volume: (${headerMap?.newVolume}%)") }
-        logItems?.push("│ Current Volume: (${device?.currentValue("volume")}%)")
+        if(headerMap.oldVolume) {logItems.push("│ Restore Volume: (${headerMap.oldVolume}%)") }
+        if(headerMap.newVolume) {logItems.push("│ New Volume: (${headerMap.newVolume}%)") }
+        logItems.push("│ Current Volume: (${device?.currentValue("volume")}%)")
         Boolean isSSML = (headers?.message?.toString()?.startsWith("<speak>") && headers?.message?.toString()?.endsWith("</speak>"))
-        logItems?.push("│ Command: (SpeakCommand)${isSSML ? " | (SSML)" : sBLANK}")
+        logItems.push("│ Command: (SpeakCommand)${isSSML ? " | (SSML)" : sBLANK}")
         try {
-            def bodyObj = null
+            String bodyObj = sNULL
             List seqCmds = []
-            if(headerMap?.newVolume) { seqCmds?.push([command: "volume", value: headerMap?.newVolume]) }
+            if(headerMap.newVolume) { seqCmds.push([command: "volume", value: headerMap.newVolume]) }
             seqCmds = seqCmds + msgSeqBuilder(headerMap?.message)
-            if(headerMap?.oldVolume) { seqCmds?.push([command: "volume", value: headerMap?.oldVolume]) }
+            if(headerMap.oldVolume) { seqCmds.push([command: "volume", value: headerMap.oldVolume]) }
             bodyObj = new groovy.json.JsonOutput().toJson(multiSequenceBuilder(seqCmds))
 
             Map params = [
@@ -2869,9 +2869,9 @@ private void speechCmd(headers=[:], Boolean isQueueCmd=false) {
                 body: bodyObj
             ]
             Map extData = [
-                cmdDt:(headerMap?.cmdDt ?: null), queueKey: (headerMap?.queueKey ?: null), cmdDesc: (headerMap?.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap?.msgDelay ?: null),
-                message: (headerMap?.message ? headerMap?.message : null), newVolume: (headerMap?.newVolume ?: null), oldVolume: (headerMap?.oldVolume ?: null), cmdId: (headerMap?.cmdId ?: null),
-                qId: (headerMap?.qId ?: null)
+                cmdDt:(headerMap.cmdDt ?: null), queueKey: (headerMap.queueKey ?: null), cmdDesc: (headerMap.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap.msgDelay ?: null),
+                message: (headerMap.message ? headerMap.message : null), newVolume: (headerMap.newVolume ?: null), oldVolume: (headerMap.oldVolume ?: null), cmdId: (headerMap.cmdId ?: null),
+                qId: (headerMap.qId ?: null)
             ]
             httpPost(params) { response->
                 def sData = response?.data ?: null
@@ -2888,7 +2888,7 @@ private void speechCmd(headers=[:], Boolean isQueueCmd=false) {
     }
 }
 
-private postCmdProcess(resp, statusCode, data) {
+private postCmdProcess(resp, statusCode, Map data) {
     if(data && data?.deviceId && (data?.deviceId == device?.getDeviceNetworkId())) {
         String respMsg = resp?.message ?: null
         String respMsgLow = resp?.message ? resp?.message?.toString()?.toLowerCase() : null
