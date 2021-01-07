@@ -227,7 +227,7 @@ def conditionsPage() {
                 paragraph pTS("Notice:\n${cond_require_all == true ? "All selected conditions required to make zone active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
             }
         }
-
+        if(!multiConds && (Boolean)settings.cond_require_all) { settingUpdate("cond_require_all", "false", "bool") }
         section(sTS("Time/Date Restrictions")) {
             href "condTimePage", title: inTS("Time Schedule", getAppImg("clock", true)), description: getTimeCondDesc(false), state: timeCondConfigured() ? "complete" : sNULL, image: getAppImg("clock")
             input "cond_days", "enum", title: inTS("Days of the week", getAppImg("day_calendar", true)), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
@@ -646,7 +646,7 @@ String attributeConvert(String attr) {
 /***********************************************************************************************************
    CONDITIONS HANDLER
 ************************************************************************************************************/
-Boolean reqAllCond() { Boolean a = multipleConditions(); return (!a || (a && settings.cond_require_all == true) ) }
+Boolean reqAllCond() { Boolean a = multipleConditions(); return (!a || (a && (Boolean)settings.cond_require_all) ) }
 
 Boolean timeCondOk() {
     Date startTime = null
@@ -684,27 +684,38 @@ Boolean timeCondOk() {
             return isBtwn
         }
     }
+    logDebug("TimeCheck | (null)")
     state.startTime = sNULL
     state.stopTime = sNULL
     return null
 }
 
 Boolean dateCondOk() {
-    if(settings.cond_days == null && settings.cond_months == null) return null
-    Boolean reqAll = reqAllCond()
-    Boolean dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : reqAll // true
-    Boolean mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
-    logDebug("dateConditions | monthOk: $mOk | daysOk: $dOk")
-    return reqAll ? (mOk && dOk) : (mOk || dOk)
+    Boolean result = null
+    Boolean dOk
+    Boolean mOk
+    if(!(settings.cond_days == null && settings.cond_months == null)) {
+        Boolean reqAll = reqAllCond()
+        dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : reqAll // true
+        mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
+        result = reqAll ? (mOk && dOk) : (mOk || dOk)
+    }
+    logDebug("dateConditions | $result | monthOk: $mOk | daysOk: $dOk")
+    return result
 }
 
 Boolean locationCondOk() {
-    if(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null) return null
-    Boolean reqAll = reqAllCond()
-    Boolean mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
-    Boolean aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
-    logDebug("locationConditions | modeOk: $mOk | alarmOk: $aOk")
-    return reqAll ? (mOk && aOk) : (mOk || aOk)
+    Boolean result = null
+    Boolean mOk
+    Boolean aOk
+    if(!(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null)) {
+        Boolean reqAll = reqAllCond()
+        mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
+        aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
+        result = reqAll ? (mOk && aOk) : (mOk || aOk)
+    }
+    logDebug("locationConditions | $result | modeOk: $mOk | alarmOk: $aOk")
+    return result
 }
 
 Boolean checkDeviceCondOk(String type) {
@@ -776,7 +787,7 @@ Boolean deviceCondOk() {
     List skipped = []
     List passed = []
     List failed = []
-    ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve"]?.each { String i->
+    ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "water"]?.each { String i->
         if(!settings."cond_${i}") { skipped.push(i); return; }
         checkDeviceCondOk(i) ? passed.push(i) : failed.push(i);
     }
@@ -784,10 +795,11 @@ Boolean deviceCondOk() {
         if(!settings."cond_${i}") { skipped.push(i); return; }
         checkDeviceNumCondOk(i) ? passed.push(i) : failed.push(i);
     }
-    logDebug("DeviceCondOk | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     Integer cndSize = (passed.size() + failed.size())
-    if(cndSize == 0) return null
-    return reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
+    Boolean result = null
+    if(cndSize != 0) result = reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
+    logDebug("DeviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    return result
 }
 
 Map conditionStatus() {
@@ -802,7 +814,7 @@ Map conditionStatus() {
     }
     Integer cndSize = passed.size() + failed.size()
     Boolean ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
-    if(cndSize == 0) ok = true;
+    if(cndSize == 0) ok = true
     logDebug("ConditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return [ok: ok, passed: passed, blocks: failed]
 }
@@ -842,7 +854,7 @@ Boolean deviceCondConfigured() {
 }
 
 Integer deviceCondCount() {
-    List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+    List devConds = ["switch", "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water"]
     List items = []
     devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
     return items.size()
@@ -1482,7 +1494,7 @@ String getConditionsDesc() {
     String sPre = "cond_"
     if(confd) {
         String str = "Conditions Active: (${((Boolean)conditionStatus().ok == true) ? okSymFLD : notOkSymFLD})\n"
-        str += (settings.cond_require_all != true) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
+        str += (!(Boolean)settings.cond_require_all) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
         if(timeCondConfigured()) {
             str += " \u2022 Time Between: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
