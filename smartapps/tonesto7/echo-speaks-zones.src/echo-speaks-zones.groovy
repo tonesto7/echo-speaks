@@ -118,7 +118,7 @@ def mainPage() {
                 if(condConf) { echoDevicesInputByPerm("announce") }
             }
 
-            if(settings.zone_EchoDeviceList) {
+            if(settings.zone_EchoDevices) {
                 section(sTS("Condition Delays:")) {
                     input "zone_active_delay", "number", title: inTS("Delay Activation in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
                     input "zone_inactive_delay", "number", title: inTS("Delay Deactivation in Seconds\n(Optional)", getAppImg("delay_time", true)), required: false, submitOnChange: true, image: getAppImg("delay_time")
@@ -396,8 +396,7 @@ def zoneNotifPage() {
                     href "zoneNotifTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (nsd ? "${nsd}\nTap to modify..." : "Tap to configure"), state: (nsd ? "complete" : null), image: getAppImg("restriction")
                 }
                 if(!state.notif_message_tested) {
-                    //def actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDeviceList) : []
-                    List actDevices = settings.notif_alexa_mobile ? settings.zone_EchoDeviceList : []
+                    List actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDeviceList) : []
                     def aMsgDev = actDevices?.size() && settings.notif_alexa_mobile ? actDevices[0] : null
                     if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state?.notif_message_tested = true }
                 }
@@ -519,7 +518,7 @@ private void updConfigStatusMap() {
     atomicState.configStatusMap = sMap
 }
 
-Boolean devicesConfigured() { return (settings.zone_EchoDeviceList?.size() > 0) }
+Boolean devicesConfigured() { return (settings.zone_EchoDevices?.size() > 0) }
 private Boolean getConfStatusItem(String item) { Map sMap = atomicState?.configStatusMap; return (sMap?.containsKey(item) && sMap[item] == true) }
 
 private void zoneCleanup() {
@@ -972,8 +971,7 @@ public getZoneHistory(Boolean asObj=false) {
 
 Map getZoneDevices() {
     List devObj = []
-    //List devices = parent?.getDevicesFromList(settings.zone_EchoDeviceList)
-    List devices = settings.zone_EchoDeviceList
+    List devices = parent?.getDevicesFromList(settings.zone_EchoDeviceList)
     devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
     return [devices: devices, devObj: devObj]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
@@ -1185,7 +1183,7 @@ public Map getZoneMetrics() {
     out?.version = appVersionFLD
     out?.activeDelay = settings.zone_active_delay ?: 0
     out?.inactiveDelay = settings.zone_inactive_delay ?: 0
-    out?.zoneDevices = settings.zone_EchoDeviceList ?: []
+    out?.zoneDevices = settings.zone_EchoDevices ?: []
     out?.activeSwitchesOnCnt = settings.zone_active_switches_on ?: []
     out?.activeSwitchesOffCnt = settings.zone_active_switches_off ?: []
     out?.inactiveSwitchesOnCnt = settings.zone_inactive_switches_on ?: []
@@ -1532,8 +1530,7 @@ String getConditionsDesc() {
 
 String getZoneDesc() {
     if(devicesConfigured() && conditionsConfigured()) {
-        //List eDevs = parent?.getDevicesFromList(settings.zone_EchoDeviceList)?.collect { it?.displayName as String }
-        List eDevs = settings.zone_EchoDeviceList?.collect { it?.displayName as String }
+        List eDevs = parent?.getDevicesFromList(settings.zone_EchoDeviceList)?.collect { it?.displayName as String }
         String str = eDevs?.size() ? "Echo Devices in Zone:\n${eDevs?.join("\n")}\n" : sBLANK
         str += settings.zone_active_delay ? bulletItem(sBLANK, "Activate Delay: (${settings.zone_active_delay})\n)") : sBLANK
         str += settings.zone_inactive_delay ? bulletItem(sBLANK, "Deactivate Delay: (${settings.zone_inactive_delay})\n") : sBLANK
