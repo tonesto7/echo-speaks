@@ -533,7 +533,7 @@ def actionDuplicationPage() {
                         if(!childDupMapFLD[myId]) childDupMapFLD[myId] = [:]
                         if(!childDupMapFLD[myId].actions) childDupMapFLD[myId].actions = [:]
                         childDupMapFLD[myId].actions[act.id.toString()] = actData
-                        // log.debug "Dup Data: ${childDupMapFLD[myId].actions[act.id]}"
+                        log.debug "Dup Data: ${childDupMapFLD[myId].actions[act.id]}"
                     }
                     actData?.settings["duplicateFlag"] = [type: "bool", value: true]
                     // actData?.settings["actionPause"] = [type: "bool", value: true]
@@ -5721,7 +5721,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 @Field static final Map appDuplicationTypesMapFLD = [
     stat: [
         bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
-        enum: ["triggerEvents", "act_EchoDevices", "act_EchoZones", "zone_EchoDevices", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard", "webCorePistons"],
+        enum: ["triggerEvents", "act_EchoZones",, "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard", "webCorePistons"],
         mode: ["cond_mode", "trig_mode"],
         number: [],
         text: ["appLbl"]
@@ -5765,7 +5765,9 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         _color: "colorControl"
     ],
     dev: [
-        _scene: "sceneActivator"
+        _scene: "sceneActivator",
+        _EchoDevices: "EchoSpeaksDevice",
+        _EchoDeviceList: "EchoSpeaksDevice"
     ]
 ]
 
