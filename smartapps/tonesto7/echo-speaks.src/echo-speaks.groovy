@@ -3187,7 +3187,7 @@ Map sequenceBuilder(cmd, val) {
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new groovy.json.JsonOutput().toJson(seqJson) as String, status: "ENABLED"]
+    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new groovy.json.JsonOutput().toJson(seqJson), status: "ENABLED"]
     return seqObj
 }
 
@@ -3305,7 +3305,7 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
     }
 }
 
-void sendSequenceCommand(type, command, value) {
+void sendSequenceCommand(String type, Map command, value) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value", true)
     Map seqObj = sequenceBuilder(command, value)
     sendAmazonCommand("POST", [
