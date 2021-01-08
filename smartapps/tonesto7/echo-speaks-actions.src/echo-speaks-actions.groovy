@@ -3831,7 +3831,7 @@ static Map weeksOfMonthMap() { return ["1":"1st Week", "2":"2nd Week", "3":"3rd 
 static Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 static Map getAlarmTrigOpts() {
-    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarm":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
+    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarmed":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
 }
 
 private static Map getAlarmSystemAlertOptions(){
