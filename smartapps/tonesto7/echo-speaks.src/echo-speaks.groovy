@@ -38,6 +38,10 @@ import groovy.transform.Field
 @Field static final String sARM_STAY      = 'ARMED_STAY'
 @Field static final String sCOMPLT        = 'complete'
 @Field static final String sCLR4D9        = '#2784D9'
+@Field static final String sTTM           = 'Tap to modify...'
+@Field static final String sTTC           = 'Tap to configure...'
+@Field static final String sTTP           = 'Tap to proceed...'
+@Field static final String sTTS           = 'Tap to select...'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 @Field volatile static Map<String, Map> historyMapFLD    = [:]
@@ -127,7 +131,7 @@ def mainPage() {
                     String gState = state.alexaGuardState ? ((String)state.alexaGuardState ==sARM_AWAY ? "Away" : "Home") : "Unknown"
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
                     href "alexaGuardPage", title: inTS("Alexa Guard Control", getAppImg(gStateIcon, true)), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? sCOMPLT : sNULL,
-                            description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : sBLANK}\n\nTap to proceed..."
+                            description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : sBLANK}\n\n${sTTM}"
                 } else if ((Boolean) isStFLD && (Boolean)state.guardDataOverMaxSize) {
                     paragraph pTS("Because you have a lot of devices attached to your Alexa account the response size is larger than ST allows.  The request is being made using your server... On next page load you should see the status.\n\nPlease make sure you are running server version 2.3 or higher.", sNULL, false, "gray")
                 } else { paragraph pTS("Alexa Guard is not enabled or supported by any of your Echo Devices", sNULL, false, "gray") }
@@ -142,7 +146,7 @@ def mainPage() {
                     if(remDevs?.size()) {
                         href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: sNULL
                     }
-                    href "deviceManagePage", title: inTS("Manage Devices:", getAppImg("devices", true)), description: "(${devs?.size()}) Installed\n\nTap to manage...", state: sCOMPLT, image: getAppImg("devices")
+                    href "deviceManagePage", title: inTS("Manage Devices:", getAppImg("devices", true)), description: "(${devs?.size()}) Installed\n\n${sTTM}", state: sCOMPLT, image: getAppImg("devices")
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
@@ -155,17 +159,17 @@ def mainPage() {
 
             section(sTS("Alexa Login Service:")) {
                 String ls = getLoginStatusDesc()
-                href "authStatusPage", title: inTS("Login Status | Service Management", getAppImg("settings", true)), description: (ls ? "${ls}\n\nTap to modify" : "Tap to configure"), state: (ls ? sCOMPLT : sNULL), image: getAppImg("settings")
+                href "authStatusPage", title: inTS("Login Status | Service Management", getAppImg("settings", true)), description: (ls ? "${ls}\n\n${sTTM}" : sTTC), state: (ls ? sCOMPLT : sNULL), image: getAppImg("settings")
             }
             if(!(Boolean)state.shownDevSharePage) { showDevSharePrefs() }
         }
         section(sTS("Notifications:")) {
             String t0 = getAppNotifConfDesc()
-            href "notifPrefPage", title: inTS("Manage Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? sCOMPLT : sNULL), image: getAppImg("notification2")
+            href "notifPrefPage", title: inTS("Manage Notifications", getAppImg("notification2", true)), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL), image: getAppImg("notification2")
         }
         section(sTS("Documentation & Settings:")) {
-            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", image: getAppImg("documentation")
-            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify", image: getAppImg("settings")
+            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: sTTP, image: getAppImg("documentation")
+            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "${sTTM}", image: getAppImg("settings")
         }
 
 //        if((Boolean)state.isInstalled) {
@@ -175,8 +179,8 @@ def mainPage() {
 
         if(!newInstall) {
             section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS("Device Testing", getAppImg("testing", true)), description: "Test Speech, Announcements, and Sequences Builder\n\nTap to proceed...", image: getAppImg("testing")
-                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\nTap to proceed...", image: getAppImg("music")
+                href "deviceTestPage", title: inTS("Device Testing", getAppImg("testing", true)), description: "Test Speech, Announcements, and Sequences Builder\n\n${sTTP}", image: getAppImg("testing")
+                href "musicSearchTestPage", title: inTS("Music Search Tests", getAppImg("music", true)), description: "Test music queries\n\n${sTTP}", image: getAppImg("music")
             }
             section(sTS("Donations:")) {
                 href url: textDonateLink(), style: "external", required: false, title: inTS("Donations", getAppImg("donate", true)), description: "Tap to open browser", image: getAppImg("donate")
@@ -245,7 +249,7 @@ def authStatusPage() {
 
         section(sTS("Service Management")) {
             def t0 = getServiceConfDesc()
-            href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\nTap to modify" : "Tap to configure"), state: (t0 ? sCOMPLT : sNULL), image: getAppImg("settings")
+            href "servPrefPage", title: inTS("Manage Login Service", getAppImg("settings", true)), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL), image: getAppImg("settings")
         }
     }
 }
@@ -272,7 +276,7 @@ def servPrefPage() {
             section() { paragraph pTS("To proceed with the server setup.\nTap on 'Begin Server Setup' below", sNULL, true, sCLR4D9), state: sCOMPLT }
             srvcPrefOpts(true)
             section(sTS("Deploy the Server:")) {
-                href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: "Tap to proceed", required: false, state: sCOMPLT, image: getAppImg("upload"))
+                href (url: getAppEndpointUrl("config"), style: "external", title: inTS("Begin Server Setup", getAppImg("upload", true)), description: sTTP, required: false, state: sCOMPLT, image: getAppImg("upload"))
             }
         } else {
             if(!authValid) {
@@ -284,20 +288,20 @@ def servPrefPage() {
                     } else if ((Boolean)getServerItem("isLocal")) {
                         myUrl = "${getServerHostURL()}/config"
                     }
-                    href url: myUrl, style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                    href url: myUrl, style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: sTTP, image: getAppImg("amazon_orange")
                 }
             } else {
                 if((Boolean)getServerItem("onHeroku")) {
                     section(sTS("Server Management:")) {
                         if((String)state.herokuName) { paragraph pTS("Heroku Name:\n \u2022 ${(String)state.herokuName}", sNULL, true, sCLR4D9), state: sCOMPLT }
-                        href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
-                        href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
-                        href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: "Tap to proceed", image: getAppImg("heroku")
+                        href url: "https://${getRandAppName()}.herokuapp.com/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: sTTP, image: getAppImg("amazon_orange")
+                        href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: "external", required: false, title: inTS("Heroku App Settings", getAppImg("heroku", true)), description: sTTP, image: getAppImg("heroku")
+                        href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: "external", required: false, title: inTS("Heroku App Logs", getAppImg("heroku", true)), description: sTTP, image: getAppImg("heroku")
                     }
                 }
                 if((Boolean)getServerItem("isLocal")) {
                     section(sTS("Local Server Management:")) {
-                        href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: "Tap to proceed", image: getAppImg("amazon_orange")
+                        href url: "${getServerHostURL()}/config", style: "external", required: false, title: inTS("Amazon Login Page", getAppImg("amazon_orange", true)), description: sTTP, image: getAppImg("amazon_orange")
                     }
                 }
             }
@@ -310,8 +314,8 @@ def servPrefPage() {
             if(settings?.resetService) { clearCloudConfig() }
         }
         section(sTS("Documentation & Settings:")) {
-            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", image: getAppImg("documentation")
-            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify", image: getAppImg("settings")
+            href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: sTTP, image: getAppImg("documentation")
+            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "${sTTM}", image: getAppImg("settings")
         }
         state.resumeConfig = false
     }
@@ -323,7 +327,7 @@ def srvcPrefOpts(Boolean req=false) {
             input "amazonDomain", sENUM, title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: sBLANK, required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
             input "regionLocale", sENUM, title: inTS("Select your Locale?", getAppImg("www", true)), description: sBLANK, required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
         } else {
-            def s = sBLANK
+            String s = sBLANK
             s += settings?.amazonDomain ? "Amazon Domain: (${settings?.amazonDomain})" : sBLANK
             s += settings?.regionLocale ? "\nLocale Region: (${settings?.regionLocale})" : sBLANK
             paragraph pTS(s, sNULL, false, sCLR4D9), state: sCOMPLT, image: getAppImg("amazon_orange")
@@ -354,7 +358,7 @@ def deviceManagePage() {
                 }
             }
             String devPrefDesc = devicePrefsDesc()
-            href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n" : sBLANK}Tap to configure...", state: sCOMPLT, image: getAppImg("devices")
+            href "devicePrefsPage", title: inTS("Device Detection\nPreferences", getAppImg("devices", true)), description: "${devPrefDesc ? "${devPrefDesc}\n\n${sTTM}" : sTTC}", state: sCOMPLT, image: getAppImg("devices")
         }
     }
 }
@@ -372,7 +376,7 @@ def alexaGuardPage() {
         }
         state.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
         section(sTS("Automate Guard Control")) {
-            href "alexaGuardAutoPage", title: inTS("Automate Guard Changes", getAppImg("alarm_disarm", true)), description: guardAutoDesc(), image: getAppImg("alarm_disarm"), state: (guardAutoDesc() =="Tap to configure..." ? sNULL : sCOMPLT)
+            href "alexaGuardAutoPage", title: inTS("Automate Guard Changes", getAppImg("alarm_disarm", true)), description: guardAutoDesc(), image: getAppImg("alarm_disarm"), state: (guardAutoDesc() ==sTTC ? sNULL : sCOMPLT)
         }
     }
 }
@@ -385,22 +389,22 @@ def alexaGuardAutoPage() {
         Boolean modeReq = (settings.guardAwayModes || settings.guardHomeModes)
         // Boolean swReq = (settings?.guardAwaySw || settings?.guardHomeSw)
         section(sTS("Set Guard Using ${asn}")) {
-            input "guardHomeAlarm", sENUM, title: inTS("Home in ${asn} modes.", getAppImg("alarm_home", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
-            input "guardAwayAlarm", sENUM, title: inTS("Away in ${asn} modes.", getAppImg("alarm_away", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
+            input "guardHomeAlarm", sENUM, title: inTS("Home in ${asn} modes.", getAppImg("alarm_home", true)), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
+            input "guardAwayAlarm", sENUM, title: inTS("Away in ${asn} modes.", getAppImg("alarm_away", true)), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
         }
 
         section(sTS("Set Guard Using Modes")) {
-            input "guardHomeModes", "mode", title: inTS("Home in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
-            input "guardAwayModes", "mode", title: inTS("Away in these Modes?", getPublicImg("mode", true)), description: "Tap to select...", required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
+            input "guardHomeModes", "mode", title: inTS("Home in these Modes?", getPublicImg("mode", true)), description: sTTS, required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
+            input "guardAwayModes", "mode", title: inTS("Away in these Modes?", getPublicImg("mode", true)), description: sTTS, required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
         }
 
         section(sTS("Set Guard Using Switches:")) {
-            input "guardHomeSwitch", "capability.switch", title: inTS("Home when any of these are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-            input "guardAwaySwitch", "capability.switch", title: inTS("Away when any of these are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardHomeSwitch", "capability.switch", title: inTS("Home when any of these are On?", getAppImg("switch", true)), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardAwaySwitch", "capability.switch", title: inTS("Away when any of these are On?", getAppImg("switch", true)), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
         }
 
         section(sTS("Set Guard using Presence")) {
-            input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when these devices are All away?", getAppImg("presence", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
+            input "guardAwayPresence", "capability.presenceSensor", title: inTS("Away when these devices are All away?", getAppImg("presence", true)), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
         }
         if(guardAutoConfigured()) {
             section(sTS("Delay:")) {
@@ -408,8 +412,8 @@ def alexaGuardAutoPage() {
             }
         }
         section(sTS("Restrict Guard Changes (Optional):")) {
-            input "guardRestrictOnSwitch", "capability.switch", title: inTS("Only when these are On?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
-            input "guardRestrictOffSwitch", "capability.switch", title: inTS("Only when these are Off?", getAppImg("switch", true)), description: "Tap to select...", multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardRestrictOnSwitch", "capability.switch", title: inTS("Only when these are On?", getAppImg("switch", true)), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
+            input "guardRestrictOffSwitch", "capability.switch", title: inTS("Only when these are Off?", getAppImg("switch", true)), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg("switch")
         }
     }
 }
@@ -429,7 +433,7 @@ String guardAutoDesc() {
         str += settings.guardAwaySwitch ? "\n \u2022 Away Switches: (${settings.guardAwaySwitch?.size()})" : sBLANK
         str += settings.guardAwayPresence ? "\n \u2022 Presence Home: (${settings.guardAwayPresence?.size()})" : sBLANK
     }
-    return str == sBLANK ? "Tap to configure..." : "${str}\n\nTap to configure..."
+    return str == sBLANK ? sTTC : "${str}\n\n${sTTM}"
 }
 
 def guardTriggerEvtHandler(evt) {
@@ -497,9 +501,9 @@ def actionsPage() {
         section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
             if(actApps?.size()) {
-                input "actionDuplicateSelect", sENUM, title: inTS("Duplicate Existing Action", getAppImg("es_actions", true)), description: "Tap to select...", options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
+                input "actionDuplicateSelect", sENUM, title: inTS("Duplicate Existing Action", getAppImg("es_actions", true)), description: sTTS, options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
                 if(settings?.actionDuplicateSelect) {
-                    href "actionDuplicationPage", title: inTS("Create Duplicate Action?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
+                    href "actionDuplicationPage", title: inTS("Create Duplicate Action?", getAppImg("question", true)), description: sTTP, image: getAppImg("question")
                 }
             }
         }
@@ -618,9 +622,9 @@ def zonesPage() {
         section() {
             app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
             if(zApps?.size()) {
-                input "zoneDuplicateSelect", sENUM, title: inTS("Duplicate Existing Zone", getAppImg("es_groups", true)), description: "Tap to select...", options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
+                input "zoneDuplicateSelect", sENUM, title: inTS("Duplicate Existing Zone", getAppImg("es_groups", true)), description: sTTS, options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
                 if(settings?.zoneDuplicateSelect) {
-                    href "zoneDuplicationPage", title: inTS("Create Duplicate Zone?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
+                    href "zoneDuplicationPage", title: inTS("Create Duplicate Zone?", getAppImg("question", true)), description: sTTP, image: getAppImg("question")
                 }
             }
         }
@@ -725,7 +729,7 @@ private deviceDetectOpts() {
         input "addEchoNamePrefix", sBOOL, title: inTS("Add 'Echo - ' Prefix to label?", getAppImg("name_tag")), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
         Map devs = getAllDevices(true)
         if(devs?.size()) {
-            input "echoDeviceFilter", sENUM, title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
+            input "echoDeviceFilter", sENUM, title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
             paragraph title:"Notice:", pTS("To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use these devices input above before removing.", getAppImg("info", true), false)
         }
     }
@@ -922,11 +926,11 @@ def notifPrefPage() {
                         paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
                         pushover_init()
                     } else {
-                        input "pushoverDevices", sENUM, title: inTS("Select Pushover Devices"), description: "Tap to select", groupedOptions: getPushoverDevices(), multiple: true, required: false, submitOnChange: true
+                        input "pushoverDevices", sENUM, title: inTS("Select Pushover Devices"), description: sTTS, groupedOptions: getPushoverDevices(), multiple: true, required: false, submitOnChange: true
                         if(settings.pushoverDevices) {
                             Map t0 = ["-2":"Lowest", "-1":"Low", "0":"Normal", "1":"High", "2":"Emergency"]
-                            input "pushoverPriority", sENUM, title: inTS("Notification Priority (Optional)"), description: "Tap to select", defaultValue: "0", required: false, multiple: false, submitOnChange: true, options: t0
-                            input "pushoverSound", sENUM, title: inTS("Notification Sound (Optional)"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
+                            input "pushoverPriority", sENUM, title: inTS("Notification Priority (Optional)"), description: sTTS, defaultValue: "0", required: false, multiple: false, submitOnChange: true, options: t0
+                            input "pushoverSound", sENUM, title: inTS("Notification Sound (Optional)"), description: sTTS, defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
                         }
                     }
 //                    if((Boolean)state.isInstalled) {
@@ -948,7 +952,7 @@ def notifPrefPage() {
             }
             section(sTS("Notification Restrictions:")) {
                 String t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (t1 ? "${t1}\n\nTap to modify" : "Tap to configure"), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("restriction")
+                href "setNotificationTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (t1 ? "${t1}\n\n${sTTM}" : sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("restriction")
             }
             section(sTS("Missed Poll Alerts:")) {
                 input (name: "sendMissedPollMsg", type: sBOOL, title: inTS("Send Missed Checkin Alerts?", getAppImg("late", true)), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
@@ -1001,10 +1005,11 @@ static String dashItem(String inStr, String strVal, Boolean newLine=false) { ret
 
 def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
+        String t1 = sNULL
         section(sBLANK) {
-            href "speechPage", title: inTS("Speech Test", getAppImg("broadcast", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("broadcast")
-            href "announcePage", title: inTS("Announcement Test", getAppImg("announcement", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("announcement")
-            href "sequencePage", title: inTS("Sequence Creator Test", getAppImg("sequence", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("sequence")
+            href "speechPage", title: inTS("Speech Test", getAppImg("broadcast", true)), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("broadcast")
+            href "announcePage", title: inTS("Announcement Test", getAppImg("announcement", true)), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("announcement")
+            href "sequencePage", title: inTS("Sequence Creator Test", getAppImg("sequence", true)), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("sequence")
         }
     }
 }
@@ -1014,7 +1019,7 @@ def speechPage() {
         section(sBLANK) {
             paragraph pTS("This feature has been known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
             Map devs = getDeviceList(true, [tts])
-            input "test_speechDevices", sENUM, title: inTS("Select Devices to Test the Speech"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            input "test_speechDevices", sENUM, title: inTS("Select Devices to Test the Speech"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             if(test_speechDevices?.size() >= 3) { paragraph "Amazon will Rate Limit more than 3 device commands at a time.  There will be a delay in the other devices but they should play the test after a few seconds", state: sNULL}
             input "test_speechVolume", "number", title: inTS("Speak at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
             input "test_speechRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
@@ -1038,7 +1043,7 @@ def announcePage() {
             }
             if(!(Boolean)settings.test_announceAllDevices) {
                 def devs = getChildDevicesByCap("announce") ?: []
-                input "test_announceDevices", sENUM, title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs?.collectEntries { [(it?.getId()): it?.getLabel() as String] }), multiple: true, required: false, submitOnChange: true
+                input "test_announceDevices", sENUM, title: inTS("Select Devices to Test the Announcement"), description: sTTS, options: (devs?.collectEntries { [(it?.getId()): it?.getLabel() as String] }), multiple: true, required: false, submitOnChange: true
             }
             if((Boolean)settings.test_announceAllDevices || settings.test_announceDevices) {
                 input "test_announceVolume", "number", title: inTS("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
@@ -1105,7 +1110,7 @@ def sequencePage() {
             paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: sCOMPLT
         }
         section(sTS("Sequence Test Config:")) {
-            input "test_sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: "Tap to select", multiple: false, required: ((String)settings.test_sequenceString != sNULL), submitOnChange: true
+            input "test_sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: sTTS, multiple: false, required: ((String)settings.test_sequenceString != sNULL), submitOnChange: true
             input "test_sequenceString", "text", title: inTS("Sequence String to Use"), required: ((String)settings?.test_sequenceDevice != sNULL), submitOnChange: true
         }
         if(settings?.test_sequenceDevice && settings?.test_sequenceString) {
@@ -1209,7 +1214,7 @@ def musicSearchTestPage() {
             if((String)settings.test_musicProvider) {
                 input "test_musicQuery", "text", title: inTS("Music Search term to test on Device", getAppImg("search2", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("search2")
                 if((String)settings.test_musicQuery) {
-                    input "test_musicDevice", "device.EchoSpeaksDevice", title: inTS("Select a Device to Test Music Search", getAppImg("echo_speaks_3.1x", true)), description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks_3.1x")
+                    input "test_musicDevice", "device.EchoSpeaksDevice", title: inTS("Select a Device to Test Music Search", getAppImg("echo_speaks_3.1x", true)), description: sTTS, multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks_3.1x")
                     if(settings.test_musicDevice) {
                         input "test_musicSearchRun", sBOOL, title: inTS("Perform the Music Search Test?", getAppImg("music", true)), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music")
                         if((Boolean)settings.test_musicSearchRun) { executeMusicSearchTest() }
@@ -1221,7 +1226,7 @@ def musicSearchTestPage() {
             paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: sCOMPLT
             input "test_tuneinSearchQuery", "text", title: inTS("Enter search phrase for TuneIn", getAppImg("tunein", true)), defaultValue: sNULL, required: false, submitOnChange: true, image: getAppImg("tunein")
             if((String)settings.test_tuneinSearchQuery) {
-                href "searchTuneInResultsPage", title: inTS("View search results!", getAppImg("search2", true)), description: "Tap to proceed...", image: getAppImg("search2")
+                href "searchTuneInResultsPage", title: inTS("View search results!", getAppImg("search2", true)), description: sTTP, image: getAppImg("search2")
             }
         }
     }
@@ -3608,7 +3613,7 @@ static String actChildName(){ return "Echo Speaks - Actions" }
 static String zoneChildName(){ return "Echo Speaks - Zones" }
 static String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
-def updateDocsInput() { href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", state: sCOMPLT, image: getAppImg("documentation")}
+def updateDocsInput() { href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: sTTP, state: sCOMPLT, image: getAppImg("documentation")}
 
 String getAppEndpointUrl(subPath)   { return isStFLD ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}" }
 
@@ -4628,7 +4633,7 @@ String getActionsDesc() {
     String str = sBLANK
     str += active?.size() ? "${actActs?.join("\n")}\n" : sBLANK
     str += paused?.size() ? "(${paused?.size()}) Paused\n" : sBLANK
-    str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to create actions using device/location events to perform advanced actions using your Alexa devices."
+    str += active?.size() || paused?.size() ? "\n${sTTM}" : "Tap to create actions using device/location events to perform advanced actions using your Alexa devices."
     return str
 }
 
@@ -4641,7 +4646,7 @@ String getZoneDesc() {
     String str = sBLANK
     str += actZones?.size() ? "Active Zones:\n${actZones?.join("\n")}\n" : "No Active Zones...\n"
     str += paused?.size() ? "(${paused?.size()}) Paused\n" : sBLANK
-    str += active?.size() || paused?.size() ? "\nTap to modify" : "Tap to create alexa device zones based on motion, presence, and other criteria."
+    str += active?.size() || paused?.size() ? "\n${sTTM}" : "Tap to create alexa device zones based on motion, presence, and other criteria."
     return str
 }
 
@@ -4695,7 +4700,7 @@ def appInfoSect()	{
         str += (codeVer.server) ? bulletItem(str, "Server: (v${codeVer.server})") : sBLANK
     }
     section() {
-        href "changeLogPage", title: inTS("${app?.name} (v${appVersionFLD})", getAppImg("echo_speaks_3.2x", true), null, false), description: str, image: getAppImg("echo_speaks_3.2x")
+        href "changeLogPage", title: inTS("${app?.name} (v${appVersionFLD})", getAppImg("echo_speaks_3.2x", true), null, false), description: str+"\n\nTap to view...", image: getAppImg("echo_speaks_3.2x")
         if(!(Boolean)state.isInstalled) {
             paragraph pTS("--NEW Install--", null, true, sCLR4D9), state: sCOMPLT
         } else {
