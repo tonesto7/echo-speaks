@@ -31,6 +31,7 @@ import groovy.transform.Field
 @Field static final String sFALSE         = 'false'
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
+@Field static final String sENUM          = 'enum'
 @Field static final String sAPPJSON       = 'application/json'
 @Field static final String sIN_IGNORE     = 'In Ignore Device Input'
 @Field static final String sARM_AWAY      = 'ARMED_AWAY'
@@ -164,7 +165,7 @@ def mainPage() {
         }
         section(sTS("Documentation & Settings:")) {
             href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", image: getAppImg("documentation")
-            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
+            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify", image: getAppImg("settings")
         }
 
 //        if((Boolean)state.isInstalled) {
@@ -258,8 +259,8 @@ def servPrefPage() {
         Boolean authValid = (Boolean)state.authValid
 
         if(!isStFLD && settings.useHeroku == null) settingUpdate("useHeroku", sTRUE, sBOOL)
-        if(settings.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
-        if(settings.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
+        if(settings.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", sENUM)
+        if(settings.regionLocale == null) settingUpdate("regionLocale", "en-US", sENUM)
 
         if(!(Boolean)state.serviceConfigured) {
             if(!isStFLD) {
@@ -310,7 +311,7 @@ def servPrefPage() {
         }
         section(sTS("Documentation & Settings:")) {
             href url: documentationLink(), style: "external", required: false, title: inTS("View Documentation", getAppImg("documentation", true)), description: "Tap to proceed", image: getAppImg("documentation")
-            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify...", image: getAppImg("settings")
+            href "settingsPage", title: inTS("Manage Logging, and Metrics", getAppImg("settings", true)), description: "Tap to modify", image: getAppImg("settings")
         }
         state.resumeConfig = false
     }
@@ -319,8 +320,8 @@ def servPrefPage() {
 def srvcPrefOpts(Boolean req=false) {
     section(sTS("${req ? "Required " : sBLANK}Amazon Locale Settings"), hideable: false, hidden: false) {
         if(req) {
-            input "amazonDomain", "enum", title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: sBLANK, required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
-            input "regionLocale", "enum", title: inTS("Select your Locale?", getAppImg("www", true)), description: sBLANK, required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
+            input "amazonDomain", sENUM, title: inTS("Select your Amazon Domain?", getAppImg("amazon_orange", true)), description: sBLANK, required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg("amazon_orange")
+            input "regionLocale", sENUM, title: inTS("Select your Locale?", getAppImg("www", true)), description: sBLANK, required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
         } else {
             def s = sBLANK
             s += settings?.amazonDomain ? "Amazon Domain: (${settings?.amazonDomain})" : sBLANK
@@ -384,8 +385,8 @@ def alexaGuardAutoPage() {
         Boolean modeReq = (settings.guardAwayModes || settings.guardHomeModes)
         // Boolean swReq = (settings?.guardAwaySw || settings?.guardHomeSw)
         section(sTS("Set Guard Using ${asn}")) {
-            input "guardHomeAlarm", "enum", title: inTS("Home in ${asn} modes.", getAppImg("alarm_home", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
-            input "guardAwayAlarm", "enum", title: inTS("Away in ${asn} modes.", getAppImg("alarm_away", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
+            input "guardHomeAlarm", sENUM, title: inTS("Home in ${asn} modes.", getAppImg("alarm_home", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
+            input "guardAwayAlarm", sENUM, title: inTS("Away in ${asn} modes.", getAppImg("alarm_away", true)), description: "Tap to select...", options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
         }
 
         section(sTS("Set Guard Using Modes")) {
@@ -496,7 +497,7 @@ def actionsPage() {
         section() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Action", getAppImg("es_actions", true)), image: getAppImg("es_actions"))
             if(actApps?.size()) {
-                input "actionDuplicateSelect", "enum", title: inTS("Duplicate Existing Action", getAppImg("es_actions", true)), description: "Tap to select...", options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
+                input "actionDuplicateSelect", sENUM, title: inTS("Duplicate Existing Action", getAppImg("es_actions", true)), description: "Tap to select...", options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
                 if(settings?.actionDuplicateSelect) {
                     href "actionDuplicationPage", title: inTS("Create Duplicate Action?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
                 }
@@ -617,7 +618,7 @@ def zonesPage() {
         section() {
             app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS("Create New Zone", getAppImg("es_groups", true)), image: getAppImg("es_groups"))
             if(zApps?.size()) {
-                input "zoneDuplicateSelect", "enum", title: inTS("Duplicate Existing Zone", getAppImg("es_groups", true)), description: "Tap to select...", options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
+                input "zoneDuplicateSelect", sENUM, title: inTS("Duplicate Existing Zone", getAppImg("es_groups", true)), description: "Tap to select...", options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
                 if(settings?.zoneDuplicateSelect) {
                     href "zoneDuplicationPage", title: inTS("Create Duplicate Zone?", getAppImg("question", true)), description: "Tap to proceed...", image: getAppImg("question")
                 }
@@ -724,7 +725,7 @@ private deviceDetectOpts() {
         input "addEchoNamePrefix", sBOOL, title: inTS("Add 'Echo - ' Prefix to label?", getAppImg("name_tag")), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
         Map devs = getAllDevices(true)
         if(devs?.size()) {
-            input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
+            input "echoDeviceFilter", sENUM, title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
             paragraph title:"Notice:", pTS("To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use these devices input above before removing.", getAppImg("info", true), false)
         }
     }
@@ -921,11 +922,11 @@ def notifPrefPage() {
                         paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
                         pushover_init()
                     } else {
-                        input "pushoverDevices", "enum", title: inTS("Select Pushover Devices"), description: "Tap to select", groupedOptions: getPushoverDevices(), multiple: true, required: false, submitOnChange: true
+                        input "pushoverDevices", sENUM, title: inTS("Select Pushover Devices"), description: "Tap to select", groupedOptions: getPushoverDevices(), multiple: true, required: false, submitOnChange: true
                         if(settings.pushoverDevices) {
                             Map t0 = ["-2":"Lowest", "-1":"Low", "0":"Normal", "1":"High", "2":"Emergency"]
-                            input "pushoverPriority", "enum", title: inTS("Notification Priority (Optional)"), description: "Tap to select", defaultValue: "0", required: false, multiple: false, submitOnChange: true, options: t0
-                            input "pushoverSound", "enum", title: inTS("Notification Sound (Optional)"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
+                            input "pushoverPriority", sENUM, title: inTS("Notification Priority (Optional)"), description: "Tap to select", defaultValue: "0", required: false, multiple: false, submitOnChange: true, options: t0
+                            input "pushoverSound", sENUM, title: inTS("Notification Sound (Optional)"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
                         }
                     }
 //                    if((Boolean)state.isInstalled) {
@@ -947,13 +948,13 @@ def notifPrefPage() {
             }
             section(sTS("Notification Restrictions:")) {
                 String t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("restriction")
+                href "setNotificationTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (t1 ? "${t1}\n\nTap to modify" : "Tap to configure"), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("restriction")
             }
             section(sTS("Missed Poll Alerts:")) {
                 input (name: "sendMissedPollMsg", type: sBOOL, title: inTS("Send Missed Checkin Alerts?", getAppImg("late", true)), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
                 if((Boolean)settings.sendMissedPollMsg) {
-                    input (name: "misPollNotifyWaitVal", type: "enum", title: inTS("Time Past the Missed Checkin?", getAppImg("delay_time", true)), description: "Default: 45 Minutes", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time"))
-                    input (name: "misPollNotifyMsgWaitVal", type: "enum", title: inTS("Send Reminder After?", getAppImg("reminder", true)), description: "Default: 1 Hour", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
+                    input (name: "misPollNotifyWaitVal", type: sENUM, title: inTS("Time Past the Missed Checkin?", getAppImg("delay_time", true)), description: "Default: 45 Minutes", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time"))
+                    input (name: "misPollNotifyMsgWaitVal", type: sENUM, title: inTS("Send Reminder After?", getAppImg("reminder", true)), description: "Default: 1 Hour", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
                 }
             }
             section(sTS("Cookie Alerts:")) {
@@ -963,7 +964,7 @@ def notifPrefPage() {
             section(sTS("Code Update Alerts:")) {
                 input "sendAppUpdateMsg", sBOOL, title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update")
                 if((Boolean)settings.sendAppUpdateMsg) {
-                    input (name: "updNotifyWaitVal", type: "enum", title: inTS("Send Reminders After?", getAppImg("reminder", true)), description: "Default: 12 Hours", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
+                    input (name: "updNotifyWaitVal", type: sENUM, title: inTS("Send Reminders After?", getAppImg("reminder", true)), description: "Default: 12 Hours", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
                 }
             }
         } else { state.pushTested = false }
@@ -974,15 +975,15 @@ def setNotificationTimePage() {
     dynamicPage(name: "setNotificationTimePage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
         Boolean timeReq = settings["qStartTime"] || settings["qStopTime"]
         section() {
-            input "qStartInput", "enum", title: inTS("Starting at", getAppImg("start_time", true)), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
+            input "qStartInput", sENUM, title: inTS("Starting at", getAppImg("start_time", true)), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
             if(settings["qStartInput"] == "A specific time") {
                 input "qStartTime", "time", title: inTS("Start time", getAppImg("start_time", true)), required: timeReq, image: getAppImg("start_time")
             }
-            input "qStopInput", "enum", title: inTS("Stopping at", getAppImg("stop_time", true)), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
+            input "qStopInput", sENUM, title: inTS("Stopping at", getAppImg("stop_time", true)), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
             if(settings?."qStopInput" == "A specific time") {
                 input "qStopTime", "time", title: inTS("Stop time", getAppImg("stop_time", true)), required: timeReq, image: getAppImg("stop_time")
             }
-            input "quietDays", "enum", title: inTS("Only on these week days", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
+            input "quietDays", sENUM, title: inTS("Only on these week days", getAppImg("day_calendar", true)), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
             input "quietModes", "mode", title: inTS("When these modes are Active", getAppImg("mode", true)), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
         }
     }
@@ -1013,7 +1014,7 @@ def speechPage() {
         section(sBLANK) {
             paragraph pTS("This feature has been known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
             Map devs = getDeviceList(true, [tts])
-            input "test_speechDevices", "enum", title: inTS("Select Devices to Test the Speech"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            input "test_speechDevices", sENUM, title: inTS("Select Devices to Test the Speech"), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             if(test_speechDevices?.size() >= 3) { paragraph "Amazon will Rate Limit more than 3 device commands at a time.  There will be a delay in the other devices but they should play the test after a few seconds", state: sNULL}
             input "test_speechVolume", "number", title: inTS("Speak at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
             input "test_speechRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
@@ -1037,7 +1038,7 @@ def announcePage() {
             }
             if(!(Boolean)settings.test_announceAllDevices) {
                 def devs = getChildDevicesByCap("announce") ?: []
-                input "test_announceDevices", "enum", title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs?.collectEntries { [(it?.getId()): it?.getLabel() as String] }), multiple: true, required: false, submitOnChange: true
+                input "test_announceDevices", sENUM, title: inTS("Select Devices to Test the Announcement"), description: "Tap to select", options: (devs?.collectEntries { [(it?.getId()): it?.getLabel() as String] }), multiple: true, required: false, submitOnChange: true
             }
             if((Boolean)settings.test_announceAllDevices || settings.test_announceDevices) {
                 input "test_announceVolume", "number", title: inTS("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
@@ -1204,7 +1205,7 @@ def musicSearchTestPage() {
         section("Test a Music Search on Device:") {
             paragraph "Use this to test the search you discovered above directly on a device.", state: sCOMPLT
             Map testEnum = ["CLOUDPLAYER": "My Library", "AMAZON_MUSIC": "Amazon Music", "I_HEART_RADIO": "iHeartRadio", "PANDORA": "Pandora", "APPLE_MUSIC": "Apple Music", "TUNEIN": "TuneIn", "SIRIUSXM": "siriusXm", "SPOTIFY": "Spotify"]
-            input "test_musicProvider", "enum", title: inTS("Select Music Provider to perform test", getAppImg("music", true)), defaultValue: null, required: false, options: testEnum, multiple: false, submitOnChange: true, image: getAppImg("music")
+            input "test_musicProvider", sENUM, title: inTS("Select Music Provider to perform test", getAppImg("music", true)), defaultValue: null, required: false, options: testEnum, multiple: false, submitOnChange: true, image: getAppImg("music")
             if((String)settings.test_musicProvider) {
                 input "test_musicQuery", "text", title: inTS("Music Search term to test on Device", getAppImg("search2", true)), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("search2")
                 if((String)settings.test_musicQuery) {
@@ -4548,8 +4549,10 @@ String getRandAppName() {
 *******************************************/
 String getAppNotifConfDesc() {
     String str = sBLANK
-    Boolean notifDevs = (settings.notif_devs?.size())
+    Integer notifDevs = settings.notif_devs?.size()
     if(notifDevs) { //pushStatus()) {
+        Boolean ok = getOk2Notify()
+        str += "Send Notifications Allowed: (${ok ? okSymFLD : notOkSymFLD})"
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
         str += notifDevs ? bulletItem(str, "Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})") : sBLANK
@@ -4559,7 +4562,7 @@ String getAppNotifConfDesc() {
         // str += ((Boolean)settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : sBLANK
 //        str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : sBLANK
         str += (ap) ? "${str != sBLANK ? "\n\n" : sBLANK}Enabled Alerts:\n${ap}" : sBLANK
-        str += (ap && nd) ? "${str != sBLANK ? "\n" : sBLANK}\nQuiet Restrictions: (${quietTimeOk() ? okSymFLD : notOkSymFLD}) OK to Notify: (${getOk2Notify() ? okSymFLD : notOkSymFLD})\n${nd}" : sBLANK
+        str += (ap && nd) ? "${str != sBLANK ? "\n" : sBLANK}\nRestrictions:\n${nd}" : sBLANK
     }
     return str != sBLANK ? str : sNULL
 }
@@ -4581,12 +4584,16 @@ String getNotifSchedDesc(Boolean min=false) {
     String notifDesc = sBLANK
     String getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (startTime ? time2Str(startTime) : sBLANK) )
     String getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
-    notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl}" : sBLANK
+    notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl} (${!quietTimeOk() ? okSymFLD : notOkSymFLD})" : sBLANK
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
     def qDays = getQuietDays()
+    String a = dayInput && qDays ? " (${quietDaysOk(dayInput) ? okSymFLD : notOkSymFLD})" : sBLANK
     notifDesc += dayInput && qDays ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl) ? "\n" : sBLANK} • Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : sBLANK
+    notifDesc += a
+    a = modes ? " (${quietModesOk(modeInput) ? okSymFLD : notOkSymFLD})" : sBLANK
     notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || (dayInput && qDays)) ? "\n" : sBLANK} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : sBLANK
+    notifDesc += a
     return notifDesc != sBLANK ? notifDesc : sNULL
 }
 
