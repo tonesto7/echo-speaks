@@ -965,7 +965,7 @@ public getZoneHistory(Boolean asObj=false) {
     List zHist = getMemStoreItem(zoneHisFLD) ?: []
     List output = []
     if(zHist?.size()) {
-        zHist?.each { h->
+        zHist.each { h->
             String str = sBLANK
             str += "Trigger: [${h?.evtName}]"
             str += "\nDevice: [${h?.evtDevice}]"
@@ -973,11 +973,11 @@ public getZoneHistory(Boolean asObj=false) {
             str += "\nConditions Passed: ${h?.passed}"
             str += "\nConditions Blocks: ${h?.blocks}"
             str += "\nDateTime: ${h?.dt}"
-            output?.push(str)
+            output.push(str)
         }
-    } else { output?.push("No History Items Found...") }
+    } else { output.push("No History Items Found...") }
     if(!asObj) {
-        output?.each { i-> paragraph pTS(i) }
+        output.each { i-> paragraph pTS(i) }
     } else { return output }
 }
 
@@ -1633,7 +1633,7 @@ static List monthEnum() { return ["January", "February", "March", "April", "May"
 static Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 static Map getAlarmTrigOpts() {
-    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarm":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
+    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarmed":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
 }
 /*
 def getShmIncidents() {
