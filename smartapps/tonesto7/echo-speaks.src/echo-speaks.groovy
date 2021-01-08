@@ -28,7 +28,13 @@ import groovy.transform.Field
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sBULLET        = '\u2022'
+@Field static final String sFALSE         = 'false'
+@Field static final String sTRUE          = 'true'
+@Field static final String sBOOL          = 'bool'
 @Field static final String sAPPJSON       = 'application/json'
+@Field static final String sIN_IGNORE     = 'In Ignore Device Input'
+@Field static final String sARM_AWAY      = 'ARMED_AWAY'
+@Field static final String sARM_STAY      = 'ARMED_STAY'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 @Field volatile static Map<String, Map> historyMapFLD    = [:]
@@ -115,7 +121,7 @@ def mainPage() {
         } else {
             section(sTS("Alexa Guard:")) {
                 if((Boolean)state.alexaGuardSupported) {
-                    String gState = state.alexaGuardState ? ((String)state.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
+                    String gState = state.alexaGuardState ? ((String)state.alexaGuardState ==sARM_AWAY ? "Away" : "Home") : "Unknown"
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
                     href "alexaGuardPage", title: inTS("Alexa Guard Control", getAppImg(gStateIcon, true)), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? "complete" : sNULL,
                             description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : sBLANK}\n\nTap to proceed..."
@@ -127,8 +133,8 @@ def mainPage() {
             section(sTS("Alexa Devices:")) {
                 if(!newInstall) {
                     List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : sBLANK}${it?.value?.supported == false ? " \u2639" : sBLANK}" }
-                    //Map skDevs = state.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
-                    //Map ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+                    //Map skDevs = state.skippedDevices?.findAll { (it?.value?.reason != sIN_IGNORE) }
+                    //Map ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == sIN_IGNORE) }
                     List remDevs = getRemovableDevs()
                     if(remDevs?.size()) {
                         href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: sNULL
@@ -141,7 +147,7 @@ def mainPage() {
                 List zones = getZoneApps()
                 List acts = getActionApps()
                 href "zonesPage", title: inTS("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > 1 ? "Zones" : "Zone"})" : sBLANK}", getAppImg("es_groups", true)), description: getZoneDesc(), state: (zones?.size() ? "complete" : sNULL), image: getAppImg("es_groups")
-                href "actionsPage", title: inTS("Manage Actions${acts?.size() ? " (${acts?.size()} ${acts?.size() > 1 ? "Actions" : "Actions"})" : sBLANK}", getAppImg("es_actions", true)), description: getActionsDesc(), state: (acts?.size() ? "complete" : sNULL), image: getAppImg("es_actions")
+                href "actionsPage", title: inTS("Manage Actions${acts?.size() ? " (${acts?.size()} ${acts?.size() > 1 ? "Actions" : "Action"})" : sBLANK}", getAppImg("es_actions", true)), description: getActionsDesc(), state: (acts?.size() ? "complete" : sNULL), image: getAppImg("es_actions")
             }
 
             section(sTS("Alexa Login Service:")) {
@@ -205,7 +211,7 @@ def authStatusPage() {
                 Boolean chk3 = (lastChkSec < 432000)
                 // Boolean chk4 = (cookieValid == true)
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
-                String stat = "Auth Status: (${(chk1 && chk2) ? "OK": "Invalid"})"
+                String stat = "Auth Status: (${(chk1 && chk2 && cookieValid) ? "OK": "Invalid"})"
                 stat += "\n ${sBULLET} Cookie: (${chk1 ? okSymFLD : notOkSymFLD})"
                 stat += "\n \u2022 CSRF Value: (${chk2 ? okSymFLD : notOkSymFLD})"
                 paragraph pTS(stat, sNULL, false, (chk1 && chk2) ? "#2784D9" : "red"), state: ((chk1 && chk2) ? "complete" : sNULL), required: true
@@ -220,15 +226,15 @@ def authStatusPage() {
 //                if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
 //                if(!isStFLD) { paragraph pTS("in Days (1-5 max)", sNULL, false, "gray") }
                 // Refreshes the cookie
-                input "refreshCookie", "bool", title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? sBLANK : sNULL)
+                input "refreshCookie", sBOOL, title: inTS("Manually refresh cookie?", getAppImg("reset", true)), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, image: getAppImg("reset"), state: (pastDayChkOk ? sBLANK : sNULL)
                 if(!isStFLD) { paragraph pTS(ckDesc, sNULL, false, pastDayChkOk ? sNULL : "red") }
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", sNULL, false, "#2784D9"), state: "complete"
                 // Clears cookies for app and devices
-                input "resetCookies", "bool", title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "Clear all stored cookie data from the app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                input "resetCookies", sBOOL, title: inTS("Remove All Cookie Data?", getAppImg("reset", true)), description: "Clear all stored cookie data from the app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 if(!isStFLD) { paragraph pTS("Clear all stored cookie data from the app and devices.", sNULL, false, "gray") }
-                input "refreshDevCookies", "bool", title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                input "refreshDevCookies", sBOOL, title: inTS("Resend Cookies to Devices?", getAppImg("reset", true)), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
                 if(!isStFLD) { paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, "gray") }
-                if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", "false", "bool"); runIn(2, "runCookieRefresh") }
+                if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", sFALSE, sBOOL); runIn(2, "runCookieRefresh") }
                 if(settings.resetCookies) { clearCookieData("resetCookieToggle", false) }
                 if((Boolean)settings.refreshDevCookies) { refreshDevCookies() }
             }
@@ -249,14 +255,14 @@ def servPrefPage() {
 //        Boolean onHeroku = (isStFLD || (Boolean)settings.useHeroku != false)
         Boolean authValid = (Boolean)state.authValid
 
-        if(!isStFLD && settings.useHeroku == null) settingUpdate("useHeroku", "true", "bool")
+        if(!isStFLD && settings.useHeroku == null) settingUpdate("useHeroku", sTRUE, sBOOL)
         if(settings.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", "enum")
         if(settings.regionLocale == null) settingUpdate("regionLocale", "en-US", "enum")
 
         if(!(Boolean)state.serviceConfigured) {
             if(!isStFLD) {
                 section(sTS("Server Deployment Option:")) {
-                    input "useHeroku", "bool", title: inTS("Deploy server to Heroku?", getAppImg("heroku", true)), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("heroku")
+                    input "useHeroku", sBOOL, title: inTS("Deploy server to Heroku?", getAppImg("heroku", true)), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg("heroku")
                     if(!(Boolean)settings.useHeroku) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
                 }
             }
@@ -295,7 +301,7 @@ def servPrefPage() {
             srvcPrefOpts()
         }
         section(sTS("Reset Options (Tap to show):"), hideable: true, hidden: true) {
-            input "resetService", "bool", title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
+            input "resetService", sBOOL, title: inTS("Reset Service Data?", getAppImg("reset", true)), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
                 required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
             if(!isStFLD) { paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, "gray") }
             if(settings?.resetService) { clearCloudConfig() }
@@ -328,8 +334,8 @@ def deviceManagePage() {
         section(sTS("Alexa Devices:")) {
             if(!newInstall) {
                 List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : sBLANK}${it?.value?.supported == false ? " \u2639" : sBLANK}" }?.sort()
-                Map skDevs = state.skippedDevices?.findAll { (it?.value?.reason != "In Ignore Device Input") }
-                Map ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == "In Ignore Device Input") }
+                Map skDevs = state.skippedDevices?.findAll { (it?.value?.reason != sIN_IGNORE) }
+                Map ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == sIN_IGNORE) }
                 if(devs?.size()) {
                     href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: "complete"
                 } else { paragraph title: "Discovered Devices:", "No Devices Available", state: "complete" }
@@ -352,14 +358,14 @@ def deviceManagePage() {
 
 def alexaGuardPage() {
     return dynamicPage(name: "alexaGuardPage", uninstall: false, install: false) {
-        String gState = state.alexaGuardState ? ((String)state.alexaGuardState =="ARMED_AWAY" ? "Away" : "Home") : "Unknown"
+        String gState = state.alexaGuardState ? ((String)state.alexaGuardState ==sARM_AWAY ? "Away" : "Home") : "Unknown"
         String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
         String gStateTitle = (gState == "Unknown" || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
         section(sTS("Alexa Guard Control")) {
-            input "alexaGuardAwayToggle", "bool", title: inTS(gStateTitle, getAppImg(gStateIcon, true)), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getAppImg(gStateIcon)
+            input "alexaGuardAwayToggle", sBOOL, title: inTS(gStateTitle, getAppImg(gStateIcon, true)), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getAppImg(gStateIcon)
         }
         if(settings?.alexaGuardAwayToggle != state.alexaGuardAwayToggle) {
-            setGuardState(settings?.alexaGuardAwayToggle == true ? "ARMED_AWAY" : "ARMED_STAY")
+            setGuardState(settings?.alexaGuardAwayToggle == true ? sARM_AWAY : sARM_STAY)
         }
         state.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
         section(sTS("Automate Guard Control")) {
@@ -425,47 +431,47 @@ String guardAutoDesc() {
 
 def guardTriggerEvtHandler(evt) {
     Long evtDelay = now() - (Long)evt.date.getTime()
-    logDebug("${evt.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
+    logDebug("${evt.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize((String)evt?.value)}) with a delay of ${evtDelay}ms")
     if(!guardRestrictOk()) {
         logDebug("guardTriggerEvtHandler | Skipping Guard Changes because Restriction are Active.")
         return
     }
     String newState = sNULL
     String curState = (String)state.alexaGuardState ?: sNULL
-    switch(evt?.name as String) {
+    switch((String)evt?.name) {
         case "mode":
             Boolean inAwayMode = isInMode(settings.guardAwayModes)
             Boolean inHomeMode = isInMode(settings.guardHomeModes)
             if(inAwayMode && inHomeMode) { logError("Guard Control Trigger can't act because same mode is in both Home and Away input"); return }
-            if(inAwayMode && !inHomeMode) { newState = "ARMED_AWAY" }
-            if(!inAwayMode && inHomeMode) { newState = "ARMED_STAY" }
+            if(inAwayMode && !inHomeMode) { newState = sARM_AWAY }
+            if(!inAwayMode && inHomeMode) { newState = sARM_STAY }
             break
         case "switch":
             Boolean inAwaySw = isSwitchOn(settings.guardAwaySwitch)
             Boolean inHomeSw = isSwitchOn(settings.guardHomeSwitch)
             if(inAwaySw && inHomeSw) { logError("Guard Control Trigger can't act because both switch groups are in both Home and Away input"); return }
-            if(inAwaySw && !inHomeSw) { newState = "ARMED_AWAY" }
-            if(!inAwaySw && inHomeSw) { newState = "ARMED_STAY" }
+            if(inAwaySw && !inHomeSw) { newState = sARM_AWAY }
+            if(!inAwaySw && inHomeSw) { newState = sARM_STAY }
             break
         case "presence":
-            newState = isSomebodyHome(settings.guardAwayPresence) ? "ARMED_STAY" : "ARMED_AWAY"
+            newState = isSomebodyHome(settings.guardAwayPresence) ? sARM_STAY : sARM_AWAY
             break
         case "alarmSystemStatus":
         case "hsmStatus":
             Boolean inAlarmHome = isInAlarmMode(settings.guardHomeAlarm)
             Boolean inAlarmAway = isInAlarmMode(settings.guardAwayAlarm)
-            if(inAlarmAway && !inAlarmHome) { newState = "ARMED_AWAY" }
-            if(!inAlarmAway && inAlarmHome) { newState = "ARMED_STAY" }
+            if(inAlarmAway && !inAlarmHome) { newState = sARM_AWAY }
+            if(!inAlarmAway && inAlarmHome) { newState = sARM_STAY }
             break
     }
     if(curState == newState) { logDebug("Skipping Guard Change... New Guard State is the same as current state: ($curState)") }
     if(newState && curState != newState) {
-        if (newState == "ARMED_STAY") {
+        if (newState == sARM_STAY) {
             unschedule("setGuardAway")
             logInfo("Setting Alexa Guard Mode to Home...")
             setGuardHome()
         }
-        if(newState == "ARMED_AWAY") {
+        if(newState == sARM_AWAY) {
             if(settings?.guardAwayDelay) { logWarn("Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)", true); runIn(settings?.guardAwayDelay, "setGuardAway") }
             else { setGuardAway(); logWarn("Setting Alexa Guard Mode to Away...", true) }
         }
@@ -501,17 +507,17 @@ def actionsPage() {
 
             section (sTS("Global Actions Management:"), hideable: true, hidden: true) {
                 if(activeActions?.size()) {
-                    input "pauseChildActions", "bool", title: inTS("Pause all actions?", getAppImg("pause_orange", true)), description: "When pausing all Actions you can either restore all or open each action and manually unpause it.",
+                    input "pauseChildActions", sBOOL, title: inTS("Pause all actions?", getAppImg("pause_orange", true)), description: "When pausing all Actions you can either restore all or open each action and manually unpause it.",
                             defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
-                    if((Boolean)settings.pauseChildActions) { settingUpdate("pauseChildActions", "false", "bool"); runIn(3, "executeActionPause") }
+                    if((Boolean)settings.pauseChildActions) { settingUpdate("pauseChildActions", sFALSE, sBOOL); runIn(3, "executeActionPause") }
                     if(!isStFLD) { paragraph pTS("When pausing all Actions you can either restore all or open each action and manually unpause it.", sNULL, false, "gray") }
                 }
                 if(pausedActions?.size()) {
-                    input "unpauseChildActions", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
-                    if(settings.unpauseChildActions) { settingUpdate("unpauseChildActions", "false", "bool"); runIn(3, "executeActionUnpause") }
+                    input "unpauseChildActions", sBOOL, title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                    if(settings.unpauseChildActions) { settingUpdate("unpauseChildActions", sFALSE, sBOOL); runIn(3, "executeActionUnpause") }
                 }
-                input "reinitChildActions", "bool", title: inTS("Force Refresh all actions?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-                if(settings.reinitChildActions) { settingUpdate("reinitChildActions", "false", "bool"); runIn(3, "executeActionUpdate") }
+                input "reinitChildActions", sBOOL, title: inTS("Force Refresh all actions?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                if(settings.reinitChildActions) { settingUpdate("reinitChildActions", sFALSE, sBOOL); runIn(3, "executeActionUpdate") }
             }
         }
         state.childInstallOkFlag = true
@@ -527,7 +533,7 @@ def actionDuplicationPage() {
             } else {
                 def act = getActionApps()?.find { it?.id?.toString() == settings?.actionDuplicateSelect?.toString() }
                 if(act) {
-                    Map actData = act?.getSettingsAndStateMap() ?: null
+                    Map actData = act.getSettingsAndStateMap() ?: [:]
                     if(actData.settings && actData.state) {
                         String myId=app.getId()
                         if(!childDupMapFLD[myId]) childDupMapFLD[myId] = [:]
@@ -535,10 +541,10 @@ def actionDuplicationPage() {
                         childDupMapFLD[myId].actions[act.id.toString()] = actData
                         log.debug "Dup Data: ${childDupMapFLD[myId].actions[act.id]}"
                     }
-                    actData?.settings["duplicateFlag"] = [type: "bool", value: true]
-                    // actData?.settings["actionPause"] = [type: "bool", value: true]
-                    actData?.settings["duplicateSrcId"] = [type: "text", value: (String) act?.getId()]
-                    addChildApp("tonesto7", actChildName(), "${actData?.label} (Dup)", [settings: actData?.settings])
+                    actData.settings["duplicateFlag"] = [type: sBOOL, value: true]
+                    // actData?.settings["actionPause"] = [type: sBOOL, value: true]
+                    actData.settings["duplicateSrcId"] = [type: "text", value: (String) act.getId()]
+                    addChildApp("tonesto7", actChildName(), "${actData.label} (Dup)", [settings: actData.settings])
                     paragraph pTS("Action Duplicated...\n\nReturn to Action Page and look for the App with '(Dup)' in the name...", sNULL, true, "#2784D9"), state: "complete"
                 } else { paragraph pTS("Action not Found", sNULL, true, "red"), required: true, state: sNULL }
                 state.actionDuplicated = true
@@ -563,8 +569,8 @@ def zoneDuplicationPage() {
                         childDupMapFLD[myId].zones[zn.id.toString()] = znData
                     }
                     // log.debug "Dup Data: ${actData}"
-                    znData.settings["duplicateFlag"] = [type: "bool", value: true]
-                    // znData?.settings["zonePause"] = [type: "bool", value: true]
+                    znData.settings["duplicateFlag"] = [type: sBOOL, value: true]
+                    // znData?.settings["zonePause"] = [type: sBOOL, value: true]
                     znData?.settings["duplicateSrcId"] = [type: "text", value: (String) zn.getId()]
                     addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData.settings])
                     paragraph pTS("Zone Duplicated...\n\nReturn to Zone Page and look for the App with '(Dup)' in the name...", sNULL, true, "#2784D9"), state: "complete"
@@ -577,7 +583,7 @@ def zoneDuplicationPage() {
 
 public Map getChildDupeData(String type, String childId) {
     String myId=app.getId()
-    return (childDupMapFLD[myId] && childDupMapFLD[myId][type] && childDupMapFLD[myId][type][childId]) ? childDupMapFLD[myId][type][childId] : [:]
+    return (childDupMapFLD[myId] && childDupMapFLD[myId][type] && childDupMapFLD[myId][type][childId]) ? (Map)childDupMapFLD[myId][type][childId] : [:]
 }
 
 public void clearDuplicationItems() {
@@ -589,9 +595,9 @@ public void clearDuplicationItems() {
 
 public void childAppDuplicationFinished(String type, String childId) {
     log.trace "childAppDuplicationFinished($type, $childId)"
-    Map data = [:]
+//    Map data = [:]
      String myId=app.getId()
-    if(childDupMapFLD[myId] && childDupMapFLD[myId][type] && childDupMapFLD[type][childId.toString()]) {
+    if(childDupMapFLD[myId] && childDupMapFLD[myId][type] && childDupMapFLD[type][childId]) {
         childDupMapFLD[myId][type].remove(childId)
     }
     clearDuplicationItems()
@@ -622,17 +628,17 @@ def zonesPage() {
         }
         section (sTS("Zone Management:"), hideable: true, hidden: true) {
             if(activeZones?.size()) {
-                input "pauseChildZones", "bool", title: inTS("Pause all Zones?", getAppImg("pause_orange", true)), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
+                input "pauseChildZones", sBOOL, title: inTS("Pause all Zones?", getAppImg("pause_orange", true)), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
                         defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
-                if(settings.pauseChildZones) { settingUpdate("pauseChildZones", "false", "bool"); runIn(3, "executeZonePause") }
+                if(settings.pauseChildZones) { settingUpdate("pauseChildZones", sFALSE, sBOOL); runIn(3, "executeZonePause") }
                 if(!isStFLD) { paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", sNULL, false, "gray") }
             }
             if(pausedZones?.size()) {
-                input "unpauseChildZone", "bool", title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
-                if(settings?.unpauseChildZones) { settingUpdate("unpauseChildZones", "false", "bool"); runIn(3, "executeZoneUnpause") }
+                input "unpauseChildZone", sBOOL, title: inTS("Restore all actions?", getAppImg("pause_orange", true)), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                if(settings?.unpauseChildZones) { settingUpdate("unpauseChildZones", sFALSE, sBOOL); runIn(3, "executeZoneUnpause") }
             }
-            input "reinitChildZones", "bool", title: inTS("Clear Zones Status and force a full status refresh for all zones?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
-            if(settings?.reinitChildZones) { settingUpdate("reinitChildZones", "false", "bool"); runIn(3, "executeZoneUpdate") }
+            input "reinitChildZones", sBOOL, title: inTS("Clear Zones Status and force a full status refresh for all zones?", getAppImg("reset", true)), defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+            if(settings?.reinitChildZones) { settingUpdate("reinitChildZones", sFALSE, sBOOL); runIn(3, "executeZoneUpdate") }
         }
         state.childInstallOkFlag = true
         state.zoneDuplicated = false
@@ -647,8 +653,8 @@ def viewZoneHistory() {
             section((String)z.getLabel()) {
                 List<String> items = z.getZoneHistory(true)
                 items = items ?: []
-                items.each { String k, v->
-                    paragraph title: k, pTS(v)
+                items.each { String v->
+                    paragraph pTS(v)
                 }
             }
         }
@@ -662,8 +668,8 @@ def viewActionHistory() {
             section(a.getLabel()) {
                 List items = a.getActionHistory(true)
                 items = items ?: []
-                items?.each { String k, v->
-                    paragraph title: k, pTS(v)
+                items?.each { String v->
+                    paragraph pTS(v)
                 }
             }
         }
@@ -697,7 +703,7 @@ def devicePrefsPage() {
         deviceDetectOpts()
         section(sTS("Detection Override:")) {
             paragraph pTS("Device not detected?  Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.  This is useful for testing the device.", getAppImg("info", true), false)
-            input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
+            input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
         }
         devCleanupSect()
 //        if(!newInstall && !resumeConf) { state.refreshDeviceData = true }
@@ -708,12 +714,12 @@ private deviceDetectOpts() {
 //    Boolean newInstall = !(Boolean) state.isInstalled
 //    Boolean resumeConf = (Boolean) state.resumeConfig
     section(sTS("Device Detection Preferences")) {
-        input "autoCreateDevices", "bool", title: inTS("Auto Create New Devices?", getAppImg("devices", true)), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices")
-        input "createTablets", "bool", title: inTS("Create Devices for Tablets?", getAppImg("amazon_tablet", true)), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet")
-        input "createWHA", "bool", title: inTS("Create Multiroom Devices?", getAppImg("echo_wha", true)), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
-        input "createOtherDevices", "bool", title: inTS("Create Other Alexa Enabled Devices?", getAppImg("devices", true)), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices")
-        input "autoRenameDevices", "bool", title: inTS("Rename Devices to Match Amazon Echo Name?", getAppImg("name_tag", true)), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
-        input "addEchoNamePrefix", "bool", title: inTS("Add 'Echo - ' Prefix to label?", getAppImg("name_tag")), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
+        input "autoCreateDevices", sBOOL, title: inTS("Auto Create New Devices?", getAppImg("devices", true)), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("devices")
+        input "createTablets", sBOOL, title: inTS("Create Devices for Tablets?", getAppImg("amazon_tablet", true)), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet")
+        input "createWHA", sBOOL, title: inTS("Create Multiroom Devices?", getAppImg("echo_wha", true)), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
+        input "createOtherDevices", sBOOL, title: inTS("Create Other Alexa Enabled Devices?", getAppImg("devices", true)), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("devices")
+        input "autoRenameDevices", sBOOL, title: inTS("Rename Devices to Match Amazon Echo Name?", getAppImg("name_tag", true)), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
+        input "addEchoNamePrefix", sBOOL, title: inTS("Add 'Echo - ' Prefix to label?", getAppImg("name_tag")), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
         Map devs = getAllDevices(true)
         if(devs?.size()) {
             input "echoDeviceFilter", "enum", title: inTS("Don't Use these Devices", getAppImg("exclude", true)), description: "Tap to select", options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
@@ -734,7 +740,7 @@ private devCleanupSect() {
             List remDevs = getRemovableDevs()
             if(remDevs.size()) { paragraph "Removable Devices:\n${remDevs.sort()?.join("\n")}", required: true, state: sNULL }
             paragraph title:"Notice:", pTS("Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations", getAppImg("info", true), true, "#2784D9")
-            input "cleanUpDevices", "bool", title: inTS("Cleanup Unused Devices?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+            input "cleanUpDevices", sBOOL, title: inTS("Cleanup Unused Devices?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
             if((Boolean)settings.cleanUpDevices) { removeDevices() }
         }
     }
@@ -776,11 +782,11 @@ def settingsPage() {
             href "changeLogPage", title: inTS("View App Revision History", getAppImg("change_log", true)), description: "Tap to view", image: getAppImg("change_log")
         }
         section(sTS("Logging:")) {
-            input "logInfo", "bool", title: inTS("Show Info Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logWarn", "bool", title: inTS("Show Warning Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logError", "bool", title: inTS("Show Error Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logDebug", "bool", title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
-            input "logTrace", "bool", title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logInfo", sBOOL, title: inTS("Show Info Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logWarn", sBOOL, title: inTS("Show Warning Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logError", sBOOL, title: inTS("Show Error Logs?", getAppImg("debug", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
+            input "logDebug", sBOOL, title: inTS("Show Debug Logs?", getAppImg("debug", true)), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logTrace", sBOOL, title: inTS("Show Detailed Logs?", getAppImg("debug", true)), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
         }
         // section(sTS("GrayLog Device"), hideWhenEmpty: true) {
         //     input "logDevice", "device.GrayLogDevice", title: inTS("Gray Log Devices?", getAppImg("debug", true)), required: false, submitOnChange: true, image: getAppImg("debug")
@@ -789,7 +795,7 @@ def settingsPage() {
         showDevSharePrefs()
         section(sTS("Diagnostic Data:")) {
             paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", sNULL, false, "gray")
-            input "diagShareSensitveData", "bool", title: inTS("Share Cookie Data?", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+            input "diagShareSensitveData", sBOOL, title: inTS("Share Cookie Data?", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
             href url: getAppEndpointUrl("diagData"), style: "external", title: inTS("Diagnostic Data"), description: "Tap to view"
         }
     }
@@ -822,8 +828,8 @@ def unrecogDevicesPage() {
     return dynamicPage(name: "unrecogDevicesPage", install: false) {
         Boolean onST = isStFLD
         Map skDevMap = state.skippedDevices ?: [:]
-        Map ignDevs = skDevMap?.findAll { (it?.value?.reason == "In Ignore Device Input") }
-        Map unDevs = skDevMap?.findAll { (it?.value?.reason != "In Ignore Device Input") }
+        Map ignDevs = skDevMap?.findAll { (it?.value?.reason == sIN_IGNORE) }
+        Map unDevs = skDevMap?.findAll { (it?.value?.reason != sIN_IGNORE) }
         section(sTS("Unrecognized/Unsupported Devices:")) {
             if(unDevs?.size()) {
                 unDevs?.sort { it?.value?.name }?.each { k,v->
@@ -833,7 +839,7 @@ def unrecogDevicesPage() {
                         paragraph title: pTS(v?.name, getAppImg(v?.image, true), false), str, required: true, state: (v?.online ? "complete" : sNULL), image: getAppImg(v?.image)
                     } else { href "unrecogDevicesPage", title: inTS(v?.name, getAppImg(v?.image, true)), description: str, required: true, state: (v?.online ? "complete" : sNULL), image: getAppImg(v?.image) }
                 }
-                input "bypassDeviceBlocks", "bool", title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
+                input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
                 paragraph pTS("No Uncognized Devices", sNULL, true)
             }
@@ -855,13 +861,13 @@ def unrecogDevicesPage() {
 def showDevSharePrefs() {
     section(sTS("Share Data with Developer:")) {
         paragraph title: "What is this used for?", pTS("These options send non-user identifiable information and error data to diagnose catch trending issues.", sNULL, false)
-        input ("optOutMetrics", "bool", title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
+        input ("optOutMetrics", sBOOL, title: inTS("Do Not Share Data?", getAppImg("analytics", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
 //        if(!(Boolean)settings.optOutMetrics) {
             href url: getAppEndpointUrl("renderMetricData"), style: (isStFLD ? "embedded" : "external"), title: inTS("View the Data shared with Developer", getAppImg("view", true)), description: "Tap to view Data", required: false, image: getAppImg("view")
  //       }
     }
     if(!(Boolean)settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
-        section() { input "sendMetricsNow", "bool", title: inTS("Send Metrics Now?", getAppImg("reset", true)), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
+        section() { input "sendMetricsNow", sBOOL, title: inTS("Send Metrics Now?", getAppImg("reset", true)), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset") }
         if(sendMetricsNow) { sendInstallData() }
     }
     state.shownDevSharePage = true
@@ -895,7 +901,7 @@ def notifPrefPage() {
         }
         if(isStFLD) {
             section(sTS("Push Messages:")) {
-                input "usePush", "bool", title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
+                input "usePush", sBOOL, title: inTS("Send Push Notitifications\n(Optional)", getAppImg("notification", true)), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
             }
             section(sTS("SMS Text Messaging:")) {
                 paragraph pTS("To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344", sNULL, false)
@@ -907,7 +913,7 @@ def notifPrefPage() {
         }
         if(isStFLD) {
             section(sTS("Pushover Support:")) {
-                input ("pushoverEnabled", "bool", title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
+                input ("pushoverEnabled", sBOOL, title: inTS("Use Pushover Integration", getAppImg("pushover", true)), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
                 if((Boolean) settings.pushoverEnabled) {
                     if(!state.pushoverManager) {
                         paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
@@ -942,18 +948,18 @@ def notifPrefPage() {
                 href "setNotificationTimePage", title: inTS("Quiet Restrictions", getAppImg("restriction", true)), description: (t1 ?: "Tap to configure"), state: (t1 ? "complete" : sNULL), image: getAppImg("restriction")
             }
             section(sTS("Missed Poll Alerts:")) {
-                input (name: "sendMissedPollMsg", type: "bool", title: inTS("Send Missed Checkin Alerts?", getAppImg("late", true)), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
+                input (name: "sendMissedPollMsg", type: sBOOL, title: inTS("Send Missed Checkin Alerts?", getAppImg("late", true)), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
                 if((Boolean)settings.sendMissedPollMsg) {
                     input (name: "misPollNotifyWaitVal", type: "enum", title: inTS("Time Past the Missed Checkin?", getAppImg("delay_time", true)), description: "Default: 45 Minutes", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time"))
                     input (name: "misPollNotifyMsgWaitVal", type: "enum", title: inTS("Send Reminder After?", getAppImg("reminder", true)), description: "Default: 1 Hour", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
                 }
             }
             section(sTS("Cookie Alerts:")) {
-                input (name: "sendCookieRefreshMsg", type: "bool", title: inTS("Send on Refreshed Cookie?", getAppImg("cookie", true)), defaultValue: false, submitOnChange: true, image: getAppImg("cookie"))
-                input (name: "sendCookieInvalidMsg", type: "bool", title: inTS("Send on Invalid Cookie?", getAppImg("cookie", true)), defaultValue: true, submitOnChange: true, image: getAppImg("cookie"))
+                input (name: "sendCookieRefreshMsg", type: sBOOL, title: inTS("Send on Refreshed Cookie?", getAppImg("cookie", true)), defaultValue: false, submitOnChange: true, image: getAppImg("cookie"))
+                input (name: "sendCookieInvalidMsg", type: sBOOL, title: inTS("Send on Invalid Cookie?", getAppImg("cookie", true)), defaultValue: true, submitOnChange: true, image: getAppImg("cookie"))
             }
             section(sTS("Code Update Alerts:")) {
-                input "sendAppUpdateMsg", "bool", title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update")
+                input "sendAppUpdateMsg", sBOOL, title: inTS("Send for Updates...", getAppImg("update", true)), defaultValue: true, submitOnChange: true, image: getAppImg("update")
                 if((Boolean)settings.sendAppUpdateMsg) {
                     input (name: "updNotifyWaitVal", type: "enum", title: inTS("Send Reminders After?", getAppImg("reminder", true)), description: "Default: 12 Hours", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
                 }
@@ -1013,7 +1019,7 @@ def speechPage() {
         }
         if((List)settings.test_speechDevices) {
             section() {
-                input "test_speechRun", "bool", title: inTS("Perform the Speech Test?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+                input "test_speechRun", sBOOL, title: inTS("Perform the Speech Test?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                 if((Boolean)settings.test_speechRun) { executeSpeechTest() }
             }
         }
@@ -1025,7 +1031,7 @@ def announcePage() {
         section(sBLANK) {
             paragraph pTS("This feature has known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
             if(!settings?.test_announceDevices) {
-                input "test_announceAllDevices", "bool", title: inTS("Test Announcement using All Supported Devices"), defaultValue: false, required: false, submitOnChange: true
+                input "test_announceAllDevices", sBOOL, title: inTS("Test Announcement using All Supported Devices"), defaultValue: false, required: false, submitOnChange: true
             }
             if(!(Boolean)settings.test_announceAllDevices) {
                 def devs = getChildDevicesByCap("announce") ?: []
@@ -1039,7 +1045,7 @@ def announcePage() {
         }
         if(settings.test_announceDevices || (Boolean)settings.test_announceAllDevices) {
             section() {
-                input "test_announceRun", "bool", title: inTS("Perform the Announcement?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+                input "test_announceRun", sBOOL, title: inTS("Perform the Announcement?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                 if((Boolean)settings.test_announceRun) { executeAnnouncement() }
             }
         }
@@ -1101,7 +1107,7 @@ def sequencePage() {
         }
         if(settings?.test_sequenceDevice && settings?.test_sequenceString) {
             section() {
-                input "test_sequenceRun", "bool", title: inTS("Perform the Sequence?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+                input "test_sequenceRun", sBOOL, title: inTS("Perform the Sequence?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                 if((Boolean)settings.test_sequenceRun) { executeSequence() }
             }
         }
@@ -1118,7 +1124,7 @@ Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
 }
 
 void executeSpeechTest() {
-    settingUpdate("test_speechRun", "false", "bool")
+    settingUpdate("test_speechRun", sFALSE, sBOOL)
     String testMsg = settings.test_speechMessage
     List selectedDevs = (List)settings.test_speechDevices
     selectedDevs?.each { String devSerial->
@@ -1132,7 +1138,7 @@ void executeSpeechTest() {
 }
 
 void executeAnnouncement() {
-    settingUpdate("test_announceRun", "false", "bool")
+    settingUpdate("test_announceRun", sFALSE, sBOOL)
     String testMsg = (String)settings.test_announceMessage
     List sDevs = (Boolean)settings.test_announceAllDevices ? getChildDevicesByCap("announce") : getDevicesFromList(settings.test_announceDevices)
     if(sDevs?.size()) {
@@ -1148,7 +1154,7 @@ void executeAnnouncement() {
 }
 
 void executeSequence() {
-    settingUpdate("test_sequenceRun", "false", "bool")
+    settingUpdate("test_sequenceRun", sFALSE, sBOOL)
     String seqStr = settings.test_sequenceString
     if(settings.test_sequenceDevice?.hasCommand("executeSequenceCommand")) {
         settings.test_sequenceDevice?.executeSequenceCommand(seqStr)
@@ -1182,7 +1188,7 @@ Map executeTuneInSearch() {
 }
 
 void executeMusicSearchTest() {
-    settingUpdate("test_musicSearchRun", "false", "bool")
+    settingUpdate("test_musicSearchRun", sFALSE, sBOOL)
     if(settings.test_musicDevice && (String)settings.test_musicProvider && (String)settings.test_musicQuery) {
         if(settings.test_musicDevice?.hasCommand("searchMusic")) {
             logDebug("Performing ${(String)settings.test_musicProvider} Search Test with Query: (${(String)settings.test_musicQuery}) on Device: (${settings.test_musicDevice})")
@@ -1202,7 +1208,7 @@ def musicSearchTestPage() {
                 if((String)settings.test_musicQuery) {
                     input "test_musicDevice", "device.EchoSpeaksDevice", title: inTS("Select a Device to Test Music Search", getAppImg("echo_speaks_3.1x", true)), description: "Tap to select", multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks_3.1x")
                     if(settings.test_musicDevice) {
-                        input "test_musicSearchRun", "bool", title: inTS("Perform the Music Search Test?", getAppImg("music", true)), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music")
+                        input "test_musicSearchRun", sBOOL, title: inTS("Perform the Music Search Test?", getAppImg("music", true)), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music")
                         if((Boolean)settings.test_musicSearchRun) { executeMusicSearchTest() }
                     }
                 }
@@ -1541,7 +1547,7 @@ mappings {
 
 void clearCloudConfig() {
     logTrace("clearCloudConfig called...")
-    settingUpdate("resetService", "false", "bool")
+    settingUpdate("resetService", sFALSE, sBOOL)
     unschedule("cloudServiceHeartbeat")
     remServerItem(["onHeroku", "serverHost", "isLocal"])
     settingRemove("useHeroku")
@@ -1557,8 +1563,8 @@ String getEnvParamsStr() {
     envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}".toString()
     envParams["hubPlatform"] = platformFLD
     envParams["useHeroku"] = (isStFLD || (Boolean)settings.useHeroku).toString()
-    envParams["serviceDebug"] = "false"
-    envParams["serviceTrace"] = "false"
+    envParams["serviceDebug"] = sFALSE
+    envParams["serviceTrace"] = sFALSE
     envParams["amazonDomain"] = (String)settings.amazonDomain ?: "amazon.com"
     envParams["regionLocale"] = (String)settings.regionLocale ?: "en-US"
     envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com".toString()
@@ -1768,7 +1774,7 @@ def clearCookieD() {
 
 def clearCookieData(String src=sNULL, Boolean callSelf=false) {
     logTrace("clearCookieData(${src ?: sBLANK}, $callSelf)")
-    settingUpdate("resetCookies", "false", "bool")
+    settingUpdate("resetCookies", sFALSE, sBOOL)
     if(!callSelf) authEvtHandler(false, "clearCookieData")
     state.remove("cookie")
     state.remove("cookieData")
@@ -1785,7 +1791,7 @@ def clearCookieData(String src=sNULL, Boolean callSelf=false) {
 
 Boolean refreshDevCookies() {
     logTrace("refreshDevCookies()")
-    settingUpdate("refreshDevCookies", "false", "bool")
+    settingUpdate("refreshDevCookies", sFALSE, sBOOL)
     logDebug("Re-Syncing Cookie Data with Devices")
     Boolean isValid = ((Boolean)state.authValid && getCookieVal() && getCsrfVal())
     updateChildAuth(isValid)
@@ -1901,7 +1907,7 @@ void wakeupServer(Boolean c=false, Boolean g=false, String src) {
 
 void runCookieRefresh() {
     logTrace("runCookieRefresh")
-    settingUpdate("refreshCookie", "false", "bool")
+    settingUpdate("refreshCookie", sFALSE, sBOOL)
     if(getLastTsValSecs("lastCookieRrshDt", 500000) < 86400) { logError("Cookie Refresh is blocked... | Last refresh was less than 24 hours ago.", true); return }
     wakeupServer(true, false, "runCookieRefresh")
 }
@@ -2130,7 +2136,7 @@ private userCommIds() {
             if(response?.status != 200) logWarn("${response?.status} $params")
             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             List resp = response?.data ?: []
-            Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == "true" }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
+            Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == sTRUE }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
             state.accountCommIds = accItems
             logDebug("Amazon User CommId's: (${accItems})")
         }
@@ -2639,7 +2645,7 @@ void getGuardState() {
             if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
                 def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
                 state.alexaGuardState = guardStateData?.value[0] ? guardStateData?.value[0] : guardStateData?.value
-                settingUpdate("alexaGuardAwayToggle", (((String)state.alexaGuardState == "ARMED_AWAY") ? "true" : "false"), "bool")
+                settingUpdate("alexaGuardAwayToggle", (((String)state.alexaGuardState == sARM_AWAY) ? sTRUE : sFALSE), sBOOL)
                 logDebug("Alexa Guard State: (${(String)state.alexaGuardState})")
                 updTsVal("lastGuardStateChkDt")
             }
@@ -2756,13 +2762,13 @@ static String guardStateConv(String gState) {
         case "off":
         case "stay":
         case "home":
-        case "ARMED_STAY":
-            return "ARMED_STAY"
+        case sARM_STAY:
+            return sARM_STAY
         case "away":
-        case "ARMED_AWAY":
-            return "ARMED_AWAY"
+        case sARM_AWAY:
+            return sARM_AWAY
         default:
-            return "ARMED_STAY"
+            return sARM_STAY
     }
 }
 
@@ -2780,11 +2786,11 @@ public void updGuardActionTrig() {
 }
 
 public setGuardHome() {
-    setGuardState("ARMED_STAY")
+    setGuardState(sARM_STAY)
 }
 
 public setGuardAway() {
-    setGuardState("ARMED_AWAY")
+    setGuardState(sARM_AWAY)
 }
 
 Map isFamilyAllowed(String family) {
@@ -2948,7 +2954,7 @@ void receiveEventData(Map evtData, String src) {
                             } else if (!familyAllowed?.ok) {
                                 reasons.push(familyAllowed?.reason)
                             } else if(isInIgnoreInput) {
-                                reasons.push("In Ignore Device Input")
+                                reasons.push(sIN_IGNORE)
                                 logDebug("skipping ${echoValue?.accountName} because it is in the do not use list...")
                             } else {
                                 if(!allowTTS) { reasons.push("No TTS") }
@@ -3157,7 +3163,7 @@ public void sendPlaybackStateToClusterMembers(String whaKey, data) {
 
 void removeDevices(Boolean all=false) {
     try {
-        settingUpdate("cleanUpDevices", "false", "bool")
+        settingUpdate("cleanUpDevices", sFALSE, sBOOL)
         List<String> devList = getDeviceList(true)?.collect { String dni = [app?.id, "echoSpeaks", it?.key].join("|") }
         List<String> items = app.getChildDevices()?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : sNULL }
         logWarn("removeDevices(${all ? "all" : sBLANK}) | In Use: (${all ? 0 : devList.size()}) | Removing: (${items.size()})", true)
@@ -3372,7 +3378,7 @@ void healthCheck() {
 
 Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
 public void logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
-public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled") } }
+public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", sFALSE, sBOOL); settingUpdate("logTrace", sFALSE, sBOOL); remTsVal("logsEnabled") } }
 
 void missPollNotify(Boolean on, Integer wait) {
     Integer lastDataUpd = getLastTsValSecs("lastDevDataUpdDt")
@@ -3664,7 +3670,7 @@ String getFbMetricsUrl() { return state.appData?.settings?.database?.metricsUrl 
 String getFbConfigUrl() { return state.appData?.settings?.database?.configUrl ?: "https://echospeaks-config.firebaseio.com/" }
 Boolean metricsOk() { (!(Boolean)settings.optOutMetrics && state.appData?.settings?.sendMetrics) }
 private generateGuid() { if(!(String)state.appGuid) { state.appGuid = UUID?.randomUUID().toString() } }
-void sendInstallData() { settingUpdate("sendMetricsNow", "false", "bool"); if(metricsOk()) { Boolean aa=sendFirebaseData(getFbMetricsUrl(), "/clients/${(String)state.appGuid}.json", createMetricsDataJson(), "put", "heartbeat") } }
+void sendInstallData() { settingUpdate("sendMetricsNow", sFALSE, sBOOL); if(metricsOk()) { Boolean aa=sendFirebaseData(getFbMetricsUrl(), "/clients/${(String)state.appGuid}.json", createMetricsDataJson(), "put", "heartbeat") } }
 Boolean removeInstallData() { return removeFirebaseData("/clients/${(String)state.appGuid}.json") }
 Boolean sendFirebaseData(String url, String path, String data, String cmdType=null, String type=null) { logTrace("sendFirebaseData(${path}, ${data}, $cmdType, $type"); return queueFirebaseData(url, path, data, cmdType, type) }
 
@@ -5492,7 +5498,7 @@ String getAlarmSystemName(Boolean abbr=false) {
 }
 
 List getAlarmModes() {
-    return isStFLD ? ["off", "stay", "away"] : ["disarm", "armNight", "armHome", "armAway"]
+    return isStFLD ? ["off", "stay", "away"] : ["armedAway", "armingAway", "armedHome", "armingHome", "armedNight", "armingNight", "disarmed", "allDisarmed"]
 }
 
 String getAlarmSystemStatus() {
@@ -5509,6 +5515,7 @@ def getShmIncidents() {
     return location?.activeIncidents?.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
 }
 
+// This is incomplete (and currently unused)
 public setAlarmSystemMode(mode) {
     if(!isStFLD) {
         switch(mode) {
@@ -5517,9 +5524,12 @@ public setAlarmSystemMode(mode) {
                 mode = "armAway"
                 break
             case "armHome":
-            case "night":
             case "stay":
                 mode = "armHome"
+                break
+            case "armNight":
+            case "night":
+                mode = "armNight"
                 break
             case "disarm":
             case "off":
