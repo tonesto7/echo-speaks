@@ -2597,9 +2597,8 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     Boolean dcavg = (!dca && settings."trig_${evntNam}_avg" == true)
     Boolean dco = (!settings."trig_${evntNam}_after" && settings."trig_${evntNam}_once" == true)
     Integer dcw = (!settings."trig_${evntNam}_after" && settings."trig_${evntNam}_wait") ? settings."trig_${evntNam}_wait" : null
-    logTrace("Device Event | ${evntNam.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (AfterEvt)" : sBLANK}")
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
-    switch(envtNam) {
+    switch(evntNam) {
         case "switch":
         case "lock":
         case "door":
@@ -2629,6 +2628,7 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
             if(d?.size() && dc && dcn && dcn?.size() > 0) {
                 if(dcn?.contains(evt?.value)) { evtOk = true }
             }
+//log.debug "deviceEvtHandler: dcn: $dcn | d: $d | dc: $dc | dco: $dco | dcw: $dcw | evt.value: ${evt?.value}"
             break
         case "humidity":
         case "temperature":
@@ -2645,6 +2645,8 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
             break
     }
     Boolean execOk = (evtOk && devEvtWaitOk)
+    logTrace("Device Event | ${evntNam.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (aftEvt)" : sBLANK}")
+//    logTrace("deviceEvtHandler | execOk: ${execOk} | evtOk :${evtOk} | devEvtWaitOk: ${devEvtWaitOk} | evtAd: $evtAd | aftRepEvt: ${aftRepEvt}")
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, execOk)
     } else if (execOk) { executeAction(evt, false, "deviceEvtHandler(${evntNam})", evtAd, aftRepEvt) }
