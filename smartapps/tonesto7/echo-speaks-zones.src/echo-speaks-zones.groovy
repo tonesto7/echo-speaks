@@ -467,7 +467,7 @@ def initialize() {
     runIn(7, "subscribeToEvts")
     runEvery1Hour("healthCheck")
     updConfigStatusMap()
-    sendZoneStatus()
+    checkZoneStatus([name: "initialize", displayName: "initialize"])
 }
 
 private void processDuplication() {
@@ -543,7 +543,7 @@ public void updatePauseState(Boolean pause) {
 
 private healthCheck() {
     // logTrace("healthCheck", true)
-    sendZoneStatus()
+    checkZoneStatus([name: "healthCheck", displayName: "healthCheck"])
     if(advLogsActive()) { logsDisable() }
 }
 
@@ -636,6 +636,7 @@ void subscribeToEvts() {
     // Subscribes to Zone Location Command from Other Echo Speaks apps.
     subscribe(location, "es3ZoneCmd", zoneCmdHandler)
     subscribe(location, "es3ZoneRefresh", zoneRefreshHandler)
+    subscribe(location, "systemStart", zoneStartHandler)
 }
 
 String attributeConvert(String attr) {
@@ -878,19 +879,24 @@ Boolean multipleConditions() {
 ************************************************************************************************************/
 
 def zoneEvtHandler(evt) {
-                //input "cond_time_start_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
-                //input "cond_time_stop_offset", "number", range: "*..*", title: inTS("Offset in minutes (+/-)", getAppImg("start_time", true)), required: false, submitOnChange: true, image: getAppImg("threshold")
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     checkZoneStatus(evt)
+    scheduleCondition()
 }
 
-def zoneTimeStartCondHandler() {
+void zoneTimeStartCondHandler() {
     checkZoneStatus([name: "Time", displayName: "Condition Start Time"])
     scheduleCondition()
 }
 
-def zoneTimeStopCondHandler() {
+void zoneTimeStopCondHandler() {
     checkZoneStatus([name: "Time", displayName: "Condition Stop Time"])
+    scheduleCondition()
+}
+
+def zoneStartHandler(evt) {
+    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    checkZoneStatus(evt)
     scheduleCondition()
 }
 
@@ -906,13 +912,15 @@ private void addToZoneHistory(Map evt, Map condStatus, Integer max=10) {
 void checkZoneStatus(evt) {
     Map condStatus = conditionStatus()
     Boolean active = ((Boolean)condStatus.ok == true)
-    Boolean bypassDelay = false
     String delayType = active ? "active" : "inactive"
+    String msg1 = " | Call from ${evt?.name} / ${evt?.displayName}"
+    if((Boolean)state.zoneConditionsOk == active) { logDebug("checkZoneStatus: Zone: ${delayType} | No changes${msg1}"); return }
+    Boolean bypassDelay = false
     Map data = [active: active, recheck: false, evtData: [name: evt?.name, displayName: evt?.displayName], condStatus: condStatus]
     Integer delay = settings."zone_${delayType}_delay" ?: null
     if(!active && settings."cond_${evt?.name}_db" == true) { bypassDelay = isConditionOk(evt?.name) != true }
     String msg = !bypassDelay && delay ? "in (${delay} sec)" : (bypassDelay ? "Bypassing Inactive Delay for (${evt?.name}) Event..." : sBLANK)
-    logDebug("updateZoneStatus to [${delayType}] ${msg} Call from ${evt?.name} / ${evt?.displayName}")
+    logDebug("updateZoneStatus to [${delayType}] ${msg}${msg1}")
     if(!bypassDelay && delay) {
         runIn(delay, "updateZoneStatus", [data: data])
     } else {
@@ -920,10 +928,12 @@ void checkZoneStatus(evt) {
     }
 }
 
-void sendZoneStatus() {
-    Boolean active = ((Boolean)conditionStatus().ok == true)
-    // state.zoneConditionsOk = active
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true, display: false, displayed: false)
+void sendZoneStatus(Boolean st=null, Boolean frc=false) {
+    Boolean active = st!=null && !frc ? st : ((Boolean)conditionStatus().ok == true)
+    if((Boolean)state.zoneConditionsOk != active || frc) {
+        state.zoneConditionsOk = active
+        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true, display: false, displayed: false)
+    }
 }
 
 void sendZoneRemoved() {
@@ -938,10 +948,9 @@ void updateZoneStatus(Map data) {
         active = ((Boolean)condStatus.ok == true)
     }
     if(state.zoneConditionsOk != active) {
-        log.debug("Setting Zone (${getZoneName()}) Status to (${active ? "Active" : "Inactive"})")
-        state.zoneConditionsOk = active
+        logInfo("Setting Zone (${getZoneName()}) Status to (${active ? "Active" : "Inactive"})")
         addToZoneHistory(data.evtData, condStatus)
-        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: [ name: getZoneName(), active: active ], isStateChange: true, display: false, displayed: false)
+        sendZoneStatus(active)
         if(isZoneNotifConfigured()) {
             Boolean ok2Send = true
             String msgTxt = active ? (settings.notif_active_message ?: sNULL) : (settings.notif_inactive_message ?: sNULL)
@@ -952,13 +961,13 @@ void updateZoneStatus(Map data) {
             }
         }
         if(active) {
-            if(settings.zone_active_switches_off) settings.zone_active_switches_off?.off()
-            if(settings.zone_active_switches_on) settings.zone_active_switches_on?.on()
+            if(settings.zone_active_switches_off) settings.zone_active_switches_off*.off()
+            if(settings.zone_active_switches_on) settings.zone_active_switches_on*.on()
         } else {
-            if(settings.zone_inactive_switches_off) settings.zone_inactive_switches_off?.off()
-            if(settings.zone_inactive_switches_on) settings.zone_inactive_switches_on?.on()
+            if(settings.zone_inactive_switches_off) settings.zone_inactive_switches_off*.off()
+            if(settings.zone_inactive_switches_on) settings.zone_inactive_switches_on*.on()
         }
-    } else log.debug("no change to Zone (${getZoneName()}) Status (${active ? "Active" : "Inactive"})")
+    } else logDebug("no change to Zone (${getZoneName()}) Status (${active ? "Active" : "Inactive"})")
 }
 
 public getZoneHistory(Boolean asObj=false) {
@@ -993,7 +1002,7 @@ public zoneRefreshHandler(evt) {
     Map data = evt?.jsonData;
     switch(cmd) {
         case "checkStatus":
-            checkZoneStatus()
+            checkZoneStatus([name: "zoneRefresh", displayName: "zoneRefresh"])
             scheduleCondition()
             break
         case "sendStatus":
