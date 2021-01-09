@@ -1619,22 +1619,22 @@ private executeTaskCommands(data) {
     if(settings.enableWebCoRE && settings."${p}piston_run") { webCoRE_execute(settings."${p}piston_run") }
     if(isStFLD && settings."${p}routine_run") { execRoutineById(settings."${p}routine_run" as String) }
 
-    if(settings."${p}switches_off") { settings."${p}switches_off"?.off() }
-    if(settings."${p}switches_on") { settings."${p}switches_on"?.on() }
-    if(settings."${p}locks_lock") { settings."${p}locks_lock"?.lock() }
-    if(settings."${p}locks_unlock") { settings."${p}locks_unlock"?.unlock() }
-    if(settings."${p}doors_close") { settings."${p}doors_close"?.close() }
-    if(settings."${p}doors_open") { settings."${p}doors_open"?.open() }
+    if(settings."${p}switches_off") { settings."${p}switches_off"*.off() }
+    if(settings."${p}switches_on") { settings."${p}switches_on"*.on() }
+    if(settings."${p}locks_lock") { settings."${p}locks_lock"*.lock() }
+    if(settings."${p}locks_unlock") { settings."${p}locks_unlock"*.unlock() }
+    if(settings."${p}doors_close") { settings."${p}doors_close"*.close() }
+    if(settings."${p}doors_open") { settings."${p}doors_open"*.open() }
     if(settings."${p}sirens" && settings."${p}siren_cmd") {
         String cmd= settings."${p}siren_cmd"
-        settings."${p}sirens"."${cmd}"()
+        settings."${p}sirens"*."${cmd}"()
         if(settings."${p}siren_time") runIn(settings."${p}siren_time", postTaskCommands, [data:[type: p]])
     }
     if(settings."${p}lights") {
         if(settings."${p}lights_color_delay") { captureLightState(settings."${p}lights") }
-        settings."${p}lights"?.on()
-        if(settings."${p}lights_level") { settings."${p}lights"?.setLevel(getColorName(settings."${p}lights_level")) }
-        if(settings."${p}lights_color") { settings."${p}lights"?.setColor(getColorName(settings."${p}lights_color", settings."${p}lights_level")) }
+        settings."${p}lights"*.on()
+        if(settings."${p}lights_level") { settings."${p}lights"*.setLevel(getColorName(settings."${p}lights_level")) }
+        if(settings."${p}lights_color") { settings."${p}lights"*.setColor(getColorName(settings."${p}lights_color", settings."${p}lights_level")) }
         if(settings."${p}lights_color_delay") runIn(settings."${p}lights_color_delay", restoreLights, [data:[type: p]])
     }
 }
@@ -1685,18 +1685,18 @@ private flashLights(data) {
             if(data.state == "off" || (data.color1Map && data.color2Map && data.state == data.color2Map)) {
                 if(data.color1Map) {
                     data.state = data.color1Map
-                    devs?.setColor(data.color1Map)
+                    devs*.setColor(data.color1Map)
                 } else {
                     data.state = "on"
                 }
-                devs?.on()
+                devs*.on()
                 runIn(1, "flashLights", [data: data])
             } else {
                 if(data.color2Map) {
                     data.state = data.color2Map
-                    devs.setColor(data.color2Map)
+                    devs*.setColor(data.color2Map)
                 } else {
-                    data.state = "off"; devs?.off()
+                    data.state = "off"; devs*.off()
                 }
                 data.cycle = data.cycle + 1
                 runIn(1, "flashLights", [data: data])
@@ -3675,7 +3675,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
 }
 
 private postTaskCommands(data) {
-    if(data?.type && settings."${data.type}sirens" && settings."${data.type}siren_cmd") { settings."${data.type}sirens"?.off() }
+    if(data?.type && settings."${data.type}sirens" && settings."${data.type}siren_cmd") { settings."${data.type}sirens"*.off() }
 }
 
 Map getInputData(String inName) {
