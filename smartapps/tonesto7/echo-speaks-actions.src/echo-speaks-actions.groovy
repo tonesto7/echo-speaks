@@ -2586,7 +2586,7 @@ void afterEvtCheckHandler() {
 //    state.lastAfterEvtCheck = getDtNow()
 }
 
-def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
+def deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     Long evtDelay = now() - evt?.date?.getTime()
     Boolean evtOk = false
     Boolean evtAd = false
@@ -2646,7 +2646,7 @@ def deviceEvtHandler(evt, aftEvt=false, aftRepEvt=false) {
     }
     Boolean execOk = (evtOk && devEvtWaitOk)
     logTrace("Device Event | ${evntNam.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (aftEvt)" : sBLANK}")
-//    logTrace("deviceEvtHandler | execOk: ${execOk} | evtOk :${evtOk} | devEvtWaitOk: ${devEvtWaitOk} | evtAd: $evtAd | aftRepEvt: ${aftRepEvt}")
+    logDebug("deviceEvtHandler | execOk: ${execOk} | evtOk :${evtOk} | devEvtWaitOk: ${devEvtWaitOk} | evtAd: $evtAd | aftRepEvt: ${aftRepEvt}")
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, execOk)
     } else if (execOk) { executeAction(evt, false, "deviceEvtHandler(${evntNam})", evtAd, aftRepEvt) }
@@ -3371,16 +3371,11 @@ private addToActHistory(evt, data, Integer max=10) {
         passed: data?.status?.passed,
         test: data?.test,
         isTierCmd: data?.isTier,
-        isRepeat: data?.isRepeat
+        isRepeat: data?.isRepeat,
+        src: data?.src
     ])
     Integer lsiz=eData.size()
     if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
-
-//    if(!ssOk || eData?.size() > max) {
-        // if(!ssOk) log.warn "stateOk: ${ssOk}"
-        // if(eData?.size() > max) log.warn "Action History (${eData?.size()}) has more than ${max} items... | Need to drop: (${(eData?.size()-max)})"
-//        eData = eData?.drop( (eData?.size()-max)+1 )
-//    }
     // log.debug "actionHistory Size: ${eData?.size()}"
     updMemStoreItem("actionHistory", eData)
 
