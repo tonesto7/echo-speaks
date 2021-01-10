@@ -2290,15 +2290,20 @@ private getDevEvtHandlerName(String type) {
     return (type && settings."trig_${type}_after") ? "devAfterEvtHandler" : "deviceEvtHandler"
 }
 
+@Field volatile static Map<String,Map> zoneStatusMapFLD = [:]
+
 def zoneStateHandler(evt) {
     String id = evt?.value?.toString()
     Map data = evt?.jsonData
     // log.debug "zoneStateHandler: ${id} | data: ${data}"
     if(settings.act_EchoZones && id && data && (id in settings.act_EchoZones)) {
-        Map t0 = atomicState.zoneStatusMap
+        Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
+        Map t0 = zoneStatusMapFLD
         Map zoneMap = t0 ?: [:]
         zoneMap[id] = [name: data?.name, active: data?.active]
-        atomicState.zoneStatusMap = zoneMap
+        zoneStatusMapFLD = zoneMap
+        zoneStatusMapFLD = zoneStatusMapFLD
+        releaseTheLock(sHMLF)
     }
 }
 
@@ -2307,26 +2312,28 @@ def zoneRemovedHandler(evt) {
     Map data = evt?.jsonData
     log.trace "zone removed: ${id} | Data: $data"
     if(data && id) {
-        Map t0 = atomicState.zoneStatusMap
+        Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
+        Map t0 = zoneStatusMapFLD
         Map zoneMap = t0 ?: [:]
         if(zoneMap.containsKey(id)) { zoneMap.remove(id) }
-        atomicState.zoneStatusMap = zoneMap
+        zoneStatusMapFLD = zoneMap
+        releaseTheLock(sHMLF)
     }
 }
 
 public Map getZones() {
-    Map t0 = atomicState.zoneStatusMap
+    Map t0 = zoneStatusMapFLD
     return t0 ?: [:]
 }
 
 public Map getActiveZones() {
-    Map t0 = atomicState.zoneStatusMap
+    Map t0 = zoneStatusMapFLD
     Map zones = t0 ?: [:]
     return zones.size() ? zones.findAll { it?.value?.active == true } : [:]
 }
 
 public List getActiveZoneNames() {
-    Map t0 = atomicState.zoneStatusMap
+    Map t0 = zoneStatusMapFLD
     Map zones = t0 ?: [:]
     return zones.size() ? zones.findAll { it?.value?.active == true }?.collect { it?.value?.name as String } : []
 }
@@ -3746,14 +3753,14 @@ Boolean advLogsActive() { return (settings.logDebug || settings.logTrace) }
 public void logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
 public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", "false", "bool"); settingUpdate("logTrace", "false", "bool"); remTsVal("logsEnabled") } }
 
-private updTsVal(key, dt=null) {
+private void updTsVal(key, dt=null) {
     def t0 = atomicState.tsDtMap
     def data = t0 ?: [:]
     if(key) { data[key] = dt ?: getDtNow() }
     atomicState.tsDtMap = data
 }
 
-private remTsVal(key) {
+private void remTsVal(key) {
     def t0 = atomicState.tsDtMap
     def data = t0 ?: [:]
     if(key) {
@@ -3775,7 +3782,7 @@ Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
     return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
 }
 
-private updAppFlag(String key, val) {
+private void updAppFlag(String key, val) {
     def t0 = atomicState.appFlagsMap
     def data = t0 ?: [:]
     if(key) { data[key] = val }
@@ -3988,7 +3995,7 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
             }
             if(sent) {
                 state.lastNotificationMsg = flatMsg
-                 updTsVal("lastNotifMsgDt")
+                updTsVal("lastNotifMsgDt")
 //                state.lastNotifMsgDt = getDtNow()
                 logDebug("sendNotifMsg: Sent ${sentSrc} (${flatMsg})")
             }
