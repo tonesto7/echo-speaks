@@ -424,7 +424,7 @@ def triggersPage() {
                 section(sTS("webCoRE Piston Executed Events"), hideable: true) {
                     input "trig_pistonExecuted", "enum", title: inTS("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true, image: webCore_icon()
                     if(settings.trig_pistonExecuted) {
-                        paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", null, false, "gray")
+                        paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, "gray")
                         input "trig_pistonExecuted_once", "bool", title: inTS("Only alert once a day?\n(per type: piston)", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
                         input "trig_pistonExecuted_wait", "number", title: inTS("Wait between each report (in seconds)\n(Optional)", getAppImg("delay_time", true)), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                         triggerVariableDesc("pistonExecuted", false, trigItemCnt++)
@@ -803,7 +803,7 @@ def conditionsPage() {
         if(multiConds) {
             section() {
                 input "cond_require_all", "bool", title: inTS("Require All Selected Conditions to Pass Before Activating Zone?", getAppImg("checkbox", true)), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("checkbox")
-                paragraph pTS("Notice:\n${(Boolean)settings.cond_require_all ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", null, false, "#2784D9"), state: "complete"
+                paragraph pTS("Notice:\n${(Boolean)settings.cond_require_all ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", sNULL, false, "#2784D9"), state: "complete"
             }
         }
         if(!multiConds && (Boolean)settings.cond_require_all) { settingUpdate("cond_require_all", "false", "bool") }
@@ -921,8 +921,8 @@ def actVariableDesc(String actType, Boolean hideUserTxt=false) {
                 txtItems?.each { i->
                     i?.value?.each { i2-> str += "\n${sBULLET} ${i?.key?.toString()?.capitalize()} ${i2?.key?.toString()?.capitalize()}: (${i2?.value?.size()} Responses)" }
                 }
-                paragraph pTS(str, null, true, "#2784D9"), state: "complete"
-                paragraph pTS("WARNING:\nEntering text below will override the text you defined for the trigger types under Step 2.", null, true, "red"), required: true, state: null
+                paragraph pTS(str, sNULL, true, "#2784D9"), state: "complete"
+                paragraph pTS("WARNING:\nEntering text below will override the text you defined for the trigger types under Step 2.", sNULL, true, "red"), required: true, state: null
             }
         }
     }
@@ -1200,7 +1200,7 @@ def actionsPage() {
                             // paragraph str4, state: "complete"
                             paragraph str2, state: "complete"
                             paragraph str3, state: "complete"
-                            paragraph pTS("Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", null, false, "violet"), state: "complete"
+                            paragraph pTS("Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", sNULL, false, "violet"), state: "complete"
                         }
                         section(sTS("Action Type Config:")) {
                             input "act_sequence_txt", "text", title: inTS("Enter sequence text", getAppImg("text", true)), submitOnChange: true, required: false, image: getAppImg("text")
@@ -1512,15 +1512,15 @@ def actTrigTasksPage(params) {
             switch(t) {
                 case "act_":
                     dMap = [def: sBLANK, delay: "tasks"]
-                    paragraph pTS("These tasks will be performed when the action is triggered.\n(Delay is optional)", null, false, "#2678D9"), state: "complete"
+                    paragraph pTS("These tasks will be performed when the action is triggered.\n(Delay is optional)", sNULL, false, "#2678D9"), state: "complete"
                     break
                 case "act_tier_start_":
                     dMap = [def: " with Tier start", delay: "Tier Start tasks"]
-                    paragraph pTS("These tasks will be performed with when the first tier of action is triggered.\n(Delay is optional)", null, false, "#2678D9"), state: "complete"
+                    paragraph pTS("These tasks will be performed with when the first tier of action is triggered.\n(Delay is optional)", sNULL, false, "#2678D9"), state: "complete"
                     break
                 case "act_tier_stop_":
                     dMap = [def: " with Tier stop", delay: "Tier Stop tasks"]
-                    paragraph pTS("These tasks will be performed with when the last tier of action is triggered.\n(Delay is optional)", null, false, "#2678D9"), state: "complete"
+                    paragraph pTS("These tasks will be performed with when the last tier of action is triggered.\n(Delay is optional)", sNULL, false, "#2678D9"), state: "complete"
                     break
             }
         }
@@ -1542,7 +1542,7 @@ def actTrigTasksPage(params) {
             if(settings."${t}lights") {
                 List lights = settings."${t}lights"
                 if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
-                    paragraph pTS("Not all selected devices support color. So color options are hidden.", null, true, "red"), state: null, required: true
+                    paragraph pTS("Not all selected devices support color. So color options are hidden.", sNULL, true, "red"), state: null, required: true
                 } else {
                     input "${t}lights_color", "enum", title: inTS("To this color?\n(Optional)", getAppImg("command", true)), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true, image: getAppImg("color")
                     if(settings."${t}lights_color") {
@@ -1550,7 +1550,7 @@ def actTrigTasksPage(params) {
                     }
                 }
                 if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
-                    paragraph pTS("Not all selected devices support level. So level option is hidden.", null, true, "red"), state: null, required: true
+                    paragraph pTS("Not all selected devices support level. So level option is hidden.", sNULL, true, "red"), state: null, required: true
                 } else { input "${t}lights_level", "enum", title: inTS("At this level?\n(Optional)", getAppImg("speed_knob", true)), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("speed_knob")}
             }
         }
@@ -1732,7 +1732,7 @@ def actNotifPage() {
         section (sTS("Message Customization:")) {
             Boolean custMsgReq = customMsgRequired()
             // if(custMsgReq && !settings.notif_use_custom) { settingUpdate("notif_use_custom", "true", "bool") }
-            paragraph pTS("When using speak and announcements you can leave this off and a notification will be sent with speech text.  For other action types a custom message is required", null, false, "gray")
+            paragraph pTS("When using speak and announcements you can leave this off and a notification will be sent with speech text.  For other action types a custom message is required", sNULL, false, "gray")
             input "notif_use_custom", "bool", title: inTS("Send a custom notification...", getAppImg("question", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
             if(settings.notif_use_custom || custMsgReq) {
                 input "notif_custom_message", "text", title: inTS("Enter custom message...", getAppImg("text", true)), required: custMsgReq, submitOnChange: true, image: getAppImg("text")
@@ -1754,7 +1754,7 @@ def actNotifPage() {
             input "notif_devs", "capability.notification", title: inTS("Send to Notification devices?", getAppImg("notification", true)), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
         }
         section (sTS("Alexa Mobile Notification:")) {
-            paragraph pTS("This will send a push notification the Alexa Mobile app.", null, false, "gray")
+            paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, "gray")
             input "notif_alexa_mobile", "bool", title: inTS("Send message to Alexa App?", getAppImg("notification", true)), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
         }
         if(isStFLD) {
@@ -1764,7 +1764,7 @@ def actNotifPage() {
                     def poDevices = parent?.getPushoverDevices()
                     if(!poDevices) {
                         parent?.pushover_init()
-                        paragraph pTS("If this is the first time enabling Pushover than leave this page and come back if the devices list is empty", null, false, "#2784D9"), state: "complete"
+                        paragraph pTS("If this is the first time enabling Pushover than leave this page and come back if the devices list is empty", sNULL, false, "#2784D9"), state: "complete"
                     } else {
                         input "notif_pushover_devices", "enum", title: inTS("Select Pushover Devices", getAppImg("select_icon", true)), description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
                         if(settings.notif_pushover_devices) {
@@ -1825,7 +1825,7 @@ def ssmlInfoSection() {
     String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
     String ssmlSpeechConsUrl = "https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-english-us.html"
     section(sTS("SSML Documentation:"), hideable: true, hidden: true) {
-        paragraph title: "What is SSML?", pTS("SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", null, false, "#2784D9"), state: "complete", image: getAppImg("info")
+        paragraph title: "What is SSML?", pTS("SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", sNULL, false, "#2784D9"), state: "complete", image: getAppImg("info")
         href url: ssmlDocsUrl, style: "external", required: false, title: inTS("Amazon SSML Docs", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
         href url: ssmlSoundsUrl, style: "external", required: false, title: inTS("Amazon Sound Library", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
         href url: ssmlSpeechConsUrl, style: "external", required: false, title: inTS("Amazon SpeechCons", getAppImg("www", true)), description: "Tap to open browser", image: getAppImg("www")
@@ -1896,11 +1896,11 @@ private echoDevicesInputByPerm(String type) {
     Map echoZones = (capOk && zonesOk) ? parent?.getZones() : [:]
     section(sTS("Alexa Devices${echoZones?.size() ? " & Zones" : sBLANK}:")) {
         if(echoZones?.size()) {
-            if(!settings.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves (Motion, presence, etc).\nWhen both Zones and Echo devices are selected zone will take priority over the echo devices.", null, false) }
+            if(!settings.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves (Motion, presence, etc).\nWhen both Zones and Echo devices are selected zone will take priority over the echo devices.", sNULL, false) }
             input "act_EchoZones", "enum", title: inTS("Zone(s) to Use", getAppImg("es_groups", true)), description: "Select the Zones", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
         }
         if(settings.act_EchoZones?.size() && echoDevs?.size() && !settings.act_EchoDevices?.size()) {
-            paragraph pTS("There may be times when none of your zones are active at the time of action execution.\nYou have the option to select devices to use when no zones are available.", null, false, "#2678D9")
+            paragraph pTS("There may be times when none of your zones are active at the time of action execution.\nYou have the option to select devices to use when no zones are available.", sNULL, false, "#2678D9")
         }
         if(echoDevs?.size()) {
             Boolean devsOpt = (settings.act_EchoZones?.size())
@@ -1909,7 +1909,7 @@ private echoDevicesInputByPerm(String type) {
             List aa = settings.act_EchoDevices
             List devIt = aa.collect { it ? it.toInteger():null }
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
-        } else { paragraph pTS("No devices were found with support for ($type)", null, true, "red") }
+        } else { paragraph pTS("No devices were found with support for ($type)", sNULL, true, "red") }
     }
 }
 
@@ -2686,7 +2686,7 @@ def getTierStatusSection() {
         str += getTsVal("lastTierRespStartDt") ? "Last Tier Start: ${getTsVal("lastTierRespStartDt")}\n" : sBLANK
         str += getTsVal("lastTierRespStopDt") ? "Last Tier Stop: ${getTsVal("lastTierRespStopDt")}\n" : sBLANK
         section("Tier Response Status: ") {
-            paragraph pTS(str, null, false, "#2678D9"), state: "complete"
+            paragraph pTS(str, sNULL, false, "#2678D9"), state: "complete"
         }
     }
 }
@@ -4708,9 +4708,10 @@ static String bulletItem(String inStr, String strVal) { return "${inStr == sBLAN
 static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - ${strVal}" }
 
 Integer stateSize() {
-    def j = new groovy.json.JsonOutput().toJson(state)
-    return j.toString().length()
+    String j = new groovy.json.JsonOutput().toJson(state)
+    return j.length()
 }
+
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 String debugStatus() { return !settings.appDebug ? "Off" : "On" }
 String deviceDebugStatus() { return !settings.childDebug ? "Off" : "On" }
@@ -4909,8 +4910,8 @@ def searchTuneInResultsPage() {
                                 str += "\nId: (${item2?.id})"
                                 str += "\nDescription: ${item2?.description}"
                                 if(isStFLD) {
-                                    paragraph title: pTS(item2?.name?.take(75), (isStFLD ? null : item2?.image)), str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : sNULL), image: item2?.image ?: sBLANK
-                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (isStFLD ? null : item2?.image)), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : sNULL), image: isStFLD && item2?.image ? item2?.image : null }
+                                    paragraph title: pTS(item2?.name?.take(75), (isStFLD ? sNULL : item2?.image)), str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : sNULL), image: item2?.image ?: sBLANK
+                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (isStFLD ? sNULL : item2?.image)), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? "complete" : sNULL), image: isStFLD && item2?.image ? item2?.image : null }
                             }
                         } else {
                             String str = sBLANK
@@ -4918,8 +4919,8 @@ def searchTuneInResultsPage() {
                             str += "\nId: (${item?.id})"
                             str += "\nDescription: ${item?.description}"
                             if(isStFLD) {
-                                paragraph title: pTS(item?.name?.take(75), (isStFLD ? null : item?.image)), str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : sNULL), image: item?.image ?: sBLANK
-                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (isStFLD ? null : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: isStFLD && item?.image ? item?.image : null }
+                                paragraph title: pTS(item?.name?.take(75), (isStFLD ? sNULL : item?.image)), str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : sNULL), image: item?.image ?: sBLANK
+                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (isStFLD ? sNULL : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? "complete" : null), image: isStFLD && item?.image ? item?.image : null }
                         }
                     }
                 }
