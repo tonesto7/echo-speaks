@@ -928,12 +928,10 @@ void checkZoneStatus(evt) {
     }
 }
 
-void sendZoneStatus(Boolean st=null, Boolean frc=false) {
-    Boolean active = st!=null && !frc ? st : ((Boolean)conditionStatus().ok == true)
-    if((Boolean)state.zoneConditionsOk != active || frc) {
-        state.zoneConditionsOk = active
-        sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: active], isStateChange: true, display: false, displayed: false)
-    }
+void sendZoneStatus() {
+    Boolean st = (Boolean)state.zoneConditionsOk
+    st = st != null ? st : ((Boolean)conditionStatus().ok == true)
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: st], isStateChange: true, display: false, displayed: false)
 }
 
 void sendZoneRemoved() {
@@ -949,8 +947,9 @@ void updateZoneStatus(Map data) {
     }
     if(state.zoneConditionsOk != active) {
         logInfo("Setting Zone (${getZoneName()}) Status to (${active ? "Active" : "Inactive"})")
+        state.zoneConditionsOk = active
         addToZoneHistory(data.evtData, condStatus)
-        sendZoneStatus(active)
+        sendZoneStatus()
         if(isZoneNotifConfigured()) {
             Boolean ok2Send = true
             String msgTxt = active ? (settings.notif_active_message ?: sNULL) : (settings.notif_inactive_message ?: sNULL)
