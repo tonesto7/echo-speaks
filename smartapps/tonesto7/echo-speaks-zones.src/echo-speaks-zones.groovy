@@ -896,8 +896,10 @@ void zoneTimeStopCondHandler() {
 
 def zoneStartHandler(evt) {
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+// match states incase we were down
     checkZoneStatus(evt)
     scheduleCondition()
+    sendZoneStatus()
 }
 
 private void addToZoneHistory(Map evt, Map condStatus, Integer max=10) {
