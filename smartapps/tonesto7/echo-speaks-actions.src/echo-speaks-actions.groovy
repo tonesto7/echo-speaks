@@ -1915,7 +1915,7 @@ private echoDevicesInputByPerm(String type) {
     List echoDevs = parent?.getChildDevicesByCap(type)
     Boolean capOk = (type in ["TTS", "announce"])
     Boolean zonesOk = ((String)settings.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "voicecmd", "sequence", "weather", "calendar", "music", "sounds", "builtin"])
-    Map echoZones = (capOk && zonesOk) ? parent?.getZones() : [:]
+    Map echoZones = (capOk && zonesOk) ? getZones() : [:]
     section(sTS("Alexa Devices${echoZones?.size() ? " & Zones" : sBLANK}:")) {
         if(echoZones?.size()) {
             if(!settings.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves (Motion, presence, etc).\nWhen both Zones and Echo devices are selected zone will take priority over the echo devices.", sNULL, false) }
@@ -1933,6 +1933,7 @@ private echoDevicesInputByPerm(String type) {
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
         } else { paragraph pTS("No devices were found with support for ($type)", sNULL, true, sCLRRED) }
     }
+    //updateZoneSubscriptions()
 }
 
 private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmVol=false) {
@@ -2018,7 +2019,6 @@ def initialize() {
         remTsVal(sLASTWU)
         webCoRE_init()
     }
-    updateZoneSubscriptions() // Subscribes to Echo Speaks Zone Activation Events...
     updConfigStatusMap()
     resumeTierJobs()
 }
@@ -2039,14 +2039,18 @@ private void processDuplication() {
     parent.childAppDuplicationFinished("action", dupSrcId as String)
     logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
 }
-
+/*
 private void updateZoneSubscriptions() {
     if(settings.act_EchoZones) {
-        subscribe(location, "es3ZoneState", zoneStateHandler); subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
-        sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true)
+        if(state.zoneEvtsActive != true) {
+            subscribe(location, "es3ZoneState", zoneStateHandler)
+            subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
+            state.zoneEvtsActive = true
+            runIn(6, requestZoneRefresh)
+        }
     }
 }
-
+*/
 String getActionName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
@@ -2313,7 +2317,7 @@ private getDevEvtHandlerName(String type) {
 }
 
 @Field volatile static Map<String,Map> zoneStatusMapFLD = [:]
-
+/*
 def zoneStateHandler(evt) {
     String id = evt?.value?.toString()
     Map data = evt?.jsonData
@@ -2343,19 +2347,35 @@ def zoneRemovedHandler(evt) {
     }
 }
 
+private requestZoneRefresh() {
+//    zoneStatusMapFLD =  [:]
+    sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true, display: false, displayed: false)
+}
+*/
+    //updateZoneSubscriptions()
+public updZones(Map zoneMap) {
+    zoneStatusMapFLD = zoneMap
+    zoneStatusMapFLD = zoneStatusMapFLD
+}
+
 public Map getZones() {
-    Map t0 = zoneStatusMapFLD
-    return t0 ?: [:]
+    Map a = zoneStatusMapFLD
+    if(!a) {
+        a = parent.getZones()
+    }
+    String i = 'initialized'
+    if(a.containsKey(i))a.remove(i)
+    return a
 }
 
 public Map getActiveZones() {
-    Map t0 = zoneStatusMapFLD
+    Map t0 = getZones()
     Map zones = t0 ?: [:]
     return zones.size() ? zones.findAll { it?.value?.active == true } : [:]
 }
 
 public List getActiveZoneNames() {
-    Map t0 = zoneStatusMapFLD
+    Map t0 = getZones()
     Map zones = t0 ?: [:]
     return zones.size() ? zones.findAll { it?.value?.active == true }?.collect { it?.value?.name as String } : []
 }
@@ -4620,14 +4640,14 @@ String attUnit(String attr) {
     }
 }
 
-def getZoneStatus() {
+Map getZoneStatus() {
     def echoZones = settings.act_EchoZones ?: []
     def res = [:]
     if(echoZones.size()) {
-        def allZones = parent?.getZones()
+        def allZones = getZones()
         echoZones.each { k -> if(allZones?.containsKey(k)) { res[k] = allZones[k] } }
-        return res
     }
+    return res
 }
 
 String getActionDesc() {
@@ -4638,27 +4658,22 @@ String getActionDesc() {
         Boolean isTierAct = isTierAction()
         String str = sBLANK
         def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
-        def zones = getZoneStatus()
+        Map zones = getZoneStatus()
         String tierDesc = isTierAct ? getTierRespDesc() : sNULL
-        def tierStart = isTierAct ? actTaskDesc("act_tier_start_") : null
-        def tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : null
+        String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
+        String tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : sNULL
         str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n${eDevs?.size() ? "\n": ""}" : sBLANK
         str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Zone Backups)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join("\n")}\n" : sBLANK
         str += tierDesc ? "\n${tierDesc}${tierStart || tierStop ? sBLANK : "\n"}" : sBLANK
-        str += tierStart ? "${tierStart}\n" : sBLANK
-        str += tierStop ? "${tierStop}\n" : sBLANK
+        str += tierStart ? tierStart+"\n" : sBLANK
+        str += tierStop ? tierStop+"\n" : sBLANK
         str += settings.act_volume_change ? "New Volume: (${settings.act_volume_change})\n" : sBLANK
         str += settings.act_volume_restore ? "Restore Volume: (${settings.act_volume_restore})\n" : sBLANK
         str += settings.act_delay ? "Delay: (${settings.act_delay})\n" : sBLANK
         str += (String)settings.actionType in ["speak", "announcement", "speak_tiered", "announcement_tiered"] && settings."act_${(String)settings.actionType}_txt" ? "Using Default Response: (True)\n" : sBLANK
-        def trigTasks = !isTierAct ? actTaskDesc("act_") : null
-        str += trigTasks ? "${trigTasks}" : sBLANK
-        // str += settings.act_switches_on ? "Switches On: (${settings.act_switches_on?.size()})\n" : sBLANK
-        // str += settings.act_switches_off ? "Switches Off: (${settings.act_switches_off?.size()})\n" : sBLANK
-        // str += settings.act_mode_run ? "Set Mode:\n \u2022 ${settings.act_mode_run})\n" : sBLANK
-        // str += settings.act_routine_run ? "Execute Routine:\n \u2022 ${settings.act_routine_run})\n" : sBLANK
-        // str += (settings.enableWebCoRE && settings.act_piston_run) ? "webCoRE Piston:\n \u2022 ${settings.act_piston_run}\n" : sBLANK
-        str += "\n"+sTTM
+        String trigTasks = !isTierAct ? actTaskDesc("act_") : sNULL
+        str += trigTasks ? trigTasks : sBLANK
+        str += "\n\n"+sTTM
         return str
     } else {
         return sTTC
@@ -4947,8 +4962,8 @@ static String convMusicProvider(String prov) {
 
 def searchTuneInResultsPage() {
     return dynamicPage(name: "searchTuneInResultsPage", uninstall: false, install: false) {
-        def results = executeTuneInSearch()
-        section(sTS("Search Results: (Query: ${settings.tuneinSearchQuery})")) {
+        Map results = parent.executeTuneInSearch((String)settings.tuneinSearchQuery)
+        section(sTS("Search Results: (Query: ${(String)settings.tuneinSearchQuery})")) {
             if(results?.browseList && results?.browseList?.size()) {
                 results?.browseList?.eachWithIndex { item, i->
                     if(i < 25) {
