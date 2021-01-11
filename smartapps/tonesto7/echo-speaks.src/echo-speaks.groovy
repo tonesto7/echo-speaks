@@ -28,6 +28,8 @@ import groovy.transform.Field
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sBULLET        = '\u2022'
+@Field static final String okSymFLD       = "\u2713"
+@Field static final String notOkSymFLD    = "\u2715"
 @Field static final String sFALSE         = 'false'
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
@@ -59,7 +61,7 @@ import groovy.transform.Field
 @Field volatile static Map<String, Map> echoDeviceMapFLD = [:]
 @Field volatile static Map<String, Map> childDupMapFLD   = [:]
 @Field static Map<String,          Map> guardDataFLD     = [:]
-@Field static Map<String,          Map> zoneStatusMapFLD = [:]
+@Field volatile static Map<String, Map> zoneStatusMapFLD = [:]
 @Field volatile static Map<String, Map> bluetoothDataFLD = [:]
 @Field volatile static Map<String, Map> dndDataFLD       = [:]
 
@@ -138,7 +140,7 @@ def mainPage() {
         } else {
             section(sTS("Alexa Guard:")) {
                 if((Boolean)state.alexaGuardSupported) {
-                    String gState = state.alexaGuardState ? ((String)state.alexaGuardState ==sARM_AWAY ? "Away" : "Home") : "Unknown"
+                    String gState = state.alexaGuardState ? ((String)state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : "Unknown"
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
                     href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? sCOMPLT : sNULL,
                             description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : sBLANK}\n\n${sTTM}"
@@ -365,14 +367,14 @@ def deviceManagePage() {
 
 def alexaGuardPage() {
     return dynamicPage(name: "alexaGuardPage", uninstall: false, install: false) {
-        String gState = state.alexaGuardState ? ((String)state.alexaGuardState ==sARM_AWAY ? "Away" : "Home") : "Unknown"
+        String gState = state.alexaGuardState ? ((String)state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : "Unknown"
         String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
         String gStateTitle = (gState == "Unknown" || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
         section(sTS("Alexa Guard Control")) {
             input "alexaGuardAwayToggle", sBOOL, title: inTS1(gStateTitle, gStateIcon), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getAppImg(gStateIcon)
         }
         if(settings?.alexaGuardAwayToggle != state.alexaGuardAwayToggle) {
-            setGuardState(settings?.alexaGuardAwayToggle == true ? sARM_AWAY : sARM_STAY)
+            setGuardState(settings.alexaGuardAwayToggle == true ? sARM_AWAY : sARM_STAY)
         }
         state.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
         section(sTS("Automate Guard Control")) {
@@ -700,7 +702,7 @@ void executeZoneUnpause() {
     getZoneApps()?.findAll { it?.isPaused() == true }?.each { it?.updatePauseState(false) }
 }
 void executeZoneUpdate() {
-    atomicState.zoneStatusMap = [:]
+    zoneStatusMapFLD = [:]
     getZoneApps()?.each { it?.updated() }
 }
 
@@ -844,8 +846,8 @@ def unrecogDevicesPage() {
                     String str = "Status: (${v?.online ? "Online" : "Offline"})\nStyle: ${(String)v?.desc}\nFamily: ${(String)v?.family}\nType: ${(String)v?.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
                     str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
                     if(onST) {
-                        paragraph title: pTS((String)v?.name, getAppImg((String)v?.image, true), false), str, required: true, state: (v?.online ? sCOMPLT : sNULL), image: getAppImg(v?.image)
-                    } else { href "unrecogDevicesPage", title: inTS1((String)v?.name, (String)v?.image), description: str, required: true, state: (v?.online ? sCOMPLT : sNULL), image: getAppImg(v?.image) }
+                        paragraph title: pTS((String)v?.name, getAppImg((String)v?.image, true), false), str, required: true, state: (v?.online ? sCOMPLT : sNULL), image: getAppImg((String)v?.image)
+                    } else { href "unrecogDevicesPage", title: inTS1((String)v?.name, (String)v?.image), description: str, required: true, state: (v?.online ? sCOMPLT : sNULL), image: getAppImg((String)v?.image) }
                 }
                 input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
@@ -1172,12 +1174,12 @@ void executeSequence() {
     }
 }
 
-Map executeTuneInSearch() {
-    if(!isAuthValid("executeTuneInSearch")) { return }
+Map executeTuneInSearch(String query) {
+    if(!isAuthValid("executeTuneInSearch")) { return null }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/tunein/search",
-        query: [ query: settings.test_tuneinSearchQuery, mediaOwnerCustomerId: state.deviceOwnerCustomerId ],
+        query: [ query: query, mediaOwnerCustomerId: state.deviceOwnerCustomerId ],
         headers: getCookieMap(),
         requestContentType: sAPPJSON,
         contentType: sAPPJSON,
@@ -1235,7 +1237,7 @@ def musicSearchTestPage() {
 
 def searchTuneInResultsPage() {
     return dynamicPage(name: "searchTuneInResultsPage", uninstall: false, install: false) {
-        Map results = executeTuneInSearch()
+        Map results = executeTuneInSearch((String)settings.test_tuneinSearchQuery)
         Boolean onST = isStFLD
         section(sTS("Search Results: (Query: ${(String)settings.test_tuneinSearchQuery})")) {
             if(results?.browseList && results?.browseList?.size()) {
@@ -1369,7 +1371,7 @@ def initialize() {
 
 void startHandler(evt){
     logDebug('startHandler called')
-    runIn(6, restartSocket)
+    runIn(6, "restartSocket")
 }
 
 void restartSocket(){
@@ -1389,6 +1391,7 @@ void updateZoneSubscriptions() {
         subscribe(location, "es3ZoneState", zoneStateHandler)
         subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
         state.zoneEvtsActive = true
+        runIn(6, "requestZoneRefresh")
     }
 }
 
@@ -1413,14 +1416,13 @@ void appCleanup() {
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
-        "warnHistory", "errorHistory", "bluetoothData", "dndData"
+        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap"
     ]
     items?.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     state.pollBlocked = false
     state.resumeConfig = false
     state.missPollRepair = false
     state.deviceRefreshInProgress = false
-    // state.zoneStatusMap = [:]
 
     // Settings Cleanup
     List setItems = ["performBroadcast", "stHub", "cookieRefreshDays"]
@@ -1473,10 +1475,15 @@ def zoneStateHandler(evt) {
     Map data = evt?.jsonData
     // log.trace "zone: ${id} | Data: $data"
     if(data && id) {
-        Map zoneMap = atomicState?.zoneStatusMap
-        zoneMap = zoneMap ?: [:]
+        Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
+        Map t0 = zoneStatusMapFLD
+        Map zoneMap = t0 ?: [:]
         zoneMap[id] = [name: data?.name, active: data?.active]
-        atomicState.zoneStatusMap = zoneMap
+        zoneStatusMapFLD = zoneMap
+        zoneStatusMapFLD = zoneStatusMapFLD
+        releaseTheLock(sHMLF)
+        List cApps = getActionApps()
+        if(cApps?.size()) cApps[0].updZones(zoneMap)
     }
 }
 
@@ -1485,32 +1492,57 @@ def zoneRemovedHandler(evt) {
     Map data = evt?.jsonData
     log.trace "zone removed: ${id} | Data: $data"
     if(data && id) {
-        Map zoneMap = atomicState?.zoneStatusMap
+        Boolean aa = getTheLock(sHMLF, "zoneRemoveHandler")
+        Map t0 = zoneStatusMapFLD
+        Map zoneMap = t0 ?: [:]
         zoneMap = zoneMap ?: [:]
         if(zoneMap.containsKey(id)) { zoneMap.remove(id) }
-        atomicState.zoneStatusMap = zoneMap
+        zoneStatusMapFLD = zoneMap
+        zoneStatusMapFLD = zoneStatusMapFLD
+        releaseTheLock(sHMLF)
+        List cApps = getActionApps()
+        if(cApps?.size()) cApps[0].updZones(zoneMap)
     }
 }
 
 private requestZoneRefresh() {
-    atomicState?.zoneStatusMap = [:]
+    zoneStatusMapFLD =  [:]
     sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true, display: false, displayed: false)
 }
 
-public Map getZones() {
-    Map a= atomicState?.zoneStatusMap
-    return a ?: [:]
+void checkZoneData() {
+    if(!zoneStatusMapFLD) {
+        Boolean aa = getTheLock(sHMLF, "getZones")
+        zoneStatusMapFLD.initialized = [a:true]
+        zoneStatusMapFLD = zoneStatusMapFLD
+        releaseTheLock(sHMLF)
+        requestZoneRefresh()
+    }
 }
 
-public Map getActiveZones() {
-    Map zones = atomicState?.zoneStatusMap
+public Map getZones() {
+    checkZoneData()
+    Map a = zoneStatusMapFLD
+    return a
+}
+
+Map getActiveZones() {
+    Map zones = getZones()
     return zones.size() ? zones.findAll { it?.value?.active == true } : [:]
 }
 
-public List getActiveZoneNames() {
-    Map zones = atomicState?.zoneStatusMap
+List getActiveZoneNames() {
+    Map zones = getZones()
     zones = zones ?: [:]
     return zones.size() ? zones.findAll { it?.value?.active == true }?.collect { (String)it?.value?.name } : []
+}
+
+List getZoneApps() {
+    return getAllChildApps()?.findAll { (String)it?.name == zoneChildName() }
+}
+
+def getZoneById(String id) {
+    return getZoneApps()?.find { it?.id?.toString() == id }
 }
 
 public List getActiveActionNames() {
@@ -1532,14 +1564,6 @@ def getSocketDevice() {
     nmS = myId+'|'+nmS
     return getChildDevice(nmS)
 //    return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
-}
-
-List getZoneApps() {
-    return getAllChildApps()?.findAll { (String)it?.name == zoneChildName() }
-}
-
-def getZoneById(String id) {
-    return getZoneApps()?.find { it?.id?.toString() == id }
 }
 
 mappings {
@@ -2653,9 +2677,11 @@ void getGuardState() {
             Map respData = resp?.data ?: null
             if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
                 def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
+                String curState = (String)state.alexaGuardState ?: sNULL
                 state.alexaGuardState = guardStateData?.value[0] ? guardStateData?.value[0] : guardStateData?.value
                 settingUpdate("alexaGuardAwayToggle", (((String)state.alexaGuardState == sARM_AWAY) ? sTRUE : sFALSE), sBOOL)
                 logDebug("Alexa Guard State: (${(String)state.alexaGuardState})")
+                if(curState != (String)state.alexaGuardState) updGuardActionTrig()
                 updTsVal("lastGuardStateChkDt")
             }
             // log.debug "GuardState resp: ${respData}"
@@ -3490,7 +3516,7 @@ Boolean getOk2Notify() {
     return result
 }
 
-Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) ? false : true }
+Boolean quietModesOk(List modes) { return !(modes && location?.mode?.toString() in modes) }
 
 Boolean quietTimeOk() {
     Date startTime = null
@@ -3590,11 +3616,11 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
 
 Boolean childInstallOk() { return (Boolean)state.childInstallOkFlag }
 
-String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
-String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK}
+static String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
+static String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK}
 
-String getHEPublicImg(String imgName) { return getPublicImg(imgName, true) }
-String getPublicImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : sBLANK}
+static String getHEPublicImg(String imgName) { return getPublicImg(imgName, true) }
+static String getPublicImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : sBLANK}
 
 String sTS(String t, String i = sNULL, Boolean bold=false) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 /* """ */
@@ -3602,14 +3628,15 @@ String sTS(String t, String i = sNULL, Boolean bold=false) { return isStFLD ? t 
 String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return isStFLD ? t : """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
 /* """ */
 
-String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
+static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
 /* """ */
 
-String inTS1(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return inTS(t, getHEAppImg(i), color, under) }
-String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} ${under ? "<u>" : sBLANK}${t?.replaceAll("\\n", " ")}${under ? "</u>" : sBLANK}${color ? "</div>" : sBLANK}""" }
+static String inTS1(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return inTS(t, getHEAppImg(i), color, under) }
+static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} ${under ? "<u>" : sBLANK}${t?.replaceAll("\\n", " ")}${under ? "</u>" : sBLANK}${color ? "</div>" : sBLANK}""" }
 /* """ */
 
-String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
+static String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
+
 def appFooter() {
 	section() {
 		paragraph htmlLine("orange")
@@ -4709,7 +4736,7 @@ def appInfoSect()	{
         str += (codeVer.server) ? bulletItem(str, "Server: (v${codeVer.server})") : sBLANK
     }
     section() {
-        href "changeLogPage", title: inTS1("${app?.name} (v${appVersionFLD})", "echo_speaks_3.2x", null, false), description: str+"\n\nTap to view...", image: getAppImg("echo_speaks_3.2x")
+        href "changeLogPage", title: pTS("${app?.name} (v${appVersionFLD})", getAppImg("echo_speaks_3.2x", true)), description: str+"\n\nTap to view...", image: getAppImg("echo_speaks_3.2x")
         if(!(Boolean)state.isInstalled) {
             paragraph pTS("--NEW Install--", sNULL, true, sCLR4D9), state: sCOMPLT
         } else {
@@ -4728,14 +4755,14 @@ def appInfoSect()	{
             } else if(codeUpdItems?.size()) {
                 isNote=true
                 String str2 = "Code Updates Available for:"
-                codeUpdItems?.each { item-> str2 += bulletItem(str2, item) }
+                codeUpdItems.each { String item-> str2 += bulletItem(str2, item) }
                 paragraph pTS(str2, sNULL, false, sCLR4D9), required: true, state: sNULL
                 showDocs = true
             }
             if(showDocs) { updateDocsInput() }
             if(!(Boolean)state.authValid && !(Boolean)state.resumeConfig) { isNote = true; paragraph pTS("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", sNULL, false, sCLRRED), required: true, state: sNULL }
             if(state.noticeData && state.noticeData.notices && state.noticeData.notices?.size()) {
-                isNote = true; state.noticeData.notices.each { item-> paragraph pTS(bulletItem(str, item), sNULL, false, sCLRRED), required: true, state: sNULL; };
+                isNote = true; state.noticeData.notices.each { String item-> paragraph pTS(bulletItem(str, item), sNULL, false, sCLRRED), required: true, state: sNULL }
             }
             if(remDevs?.size()) {
                 isNote = true
@@ -4754,7 +4781,7 @@ def appInfoSect()	{
     }
 }
 
-String UrlParamBuilder(items) {
+String UrlParamBuilder(Map items) {
     return items?.collect { k,v -> "${k}=${URLEncoder.encode(v?.toString())}" }?.join("&") as String
 }
 
@@ -4810,7 +4837,7 @@ def renderConfig() {
             <div class="my-2 text-center">
                 <h5>1. Copy the following Name and use it when asked by Heroku</h5>
                 <div class="all-copy nameContainer mx-5 mb-2 p-1">
-                    <p id="copyHeroku" class="m-0 p-0">${getRandAppName()?.toString().trim()}</p>
+                    <p id="copyHeroku" class="m-0 p-0">${getRandAppName()?.trim()}</p>
                 </div>
             </div>
             <div class="my-2 text-center">
@@ -5462,8 +5489,6 @@ String getTextEditorPath(cId, inName) {
     return getAppEndpointUrl("textEditor/${cId}/${inName}") as String
 }
 
-@Field static final String okSymFLD       = "\u2713"
-@Field static final String notOkSymFLD    = "\u2715"
 @Field static final List amazonDomainsFLD = ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx"]
 @Field static final List localesFLD       = ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY"]
 
