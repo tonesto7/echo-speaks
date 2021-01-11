@@ -1174,12 +1174,12 @@ void executeSequence() {
     }
 }
 
-Map executeTuneInSearch() {
-    if(!isAuthValid("executeTuneInSearch")) { return }
+Map executeTuneInSearch(String query) {
+    if(!isAuthValid("executeTuneInSearch")) { return null }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/tunein/search",
-        query: [ query: settings.test_tuneinSearchQuery, mediaOwnerCustomerId: state.deviceOwnerCustomerId ],
+        query: [ query: query, mediaOwnerCustomerId: state.deviceOwnerCustomerId ],
         headers: getCookieMap(),
         requestContentType: sAPPJSON,
         contentType: sAPPJSON,
@@ -1237,7 +1237,7 @@ def musicSearchTestPage() {
 
 def searchTuneInResultsPage() {
     return dynamicPage(name: "searchTuneInResultsPage", uninstall: false, install: false) {
-        Map results = executeTuneInSearch()
+        Map results = executeTuneInSearch((String)settings.test_tuneinSearchQuery)
         Boolean onST = isStFLD
         section(sTS("Search Results: (Query: ${(String)settings.test_tuneinSearchQuery})")) {
             if(results?.browseList && results?.browseList?.size()) {
@@ -1371,7 +1371,7 @@ def initialize() {
 
 void startHandler(evt){
     logDebug('startHandler called')
-    runIn(6, restartSocket)
+    runIn(6, "restartSocket")
 }
 
 void restartSocket(){
@@ -1391,6 +1391,7 @@ void updateZoneSubscriptions() {
         subscribe(location, "es3ZoneState", zoneStateHandler)
         subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
         state.zoneEvtsActive = true
+        runIn(6, "requestZoneRefresh")
     }
 }
 
@@ -1415,14 +1416,13 @@ void appCleanup() {
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
-        "warnHistory", "errorHistory", "bluetoothData", "dndData"
+        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap"
     ]
     items?.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     state.pollBlocked = false
     state.resumeConfig = false
     state.missPollRepair = false
     state.deviceRefreshInProgress = false
-    state.remove("zoneStatusMap")// state.zoneStatusMap = [:]
 
     // Settings Cleanup
     List setItems = ["performBroadcast", "stHub", "cookieRefreshDays"]
@@ -1482,6 +1482,8 @@ def zoneStateHandler(evt) {
         zoneStatusMapFLD = zoneMap
         zoneStatusMapFLD = zoneStatusMapFLD
         releaseTheLock(sHMLF)
+        List cApps = getActionApps()
+        if(cApps?.size()) cApps[0].updZones(zoneMap)
     }
 }
 
@@ -1490,7 +1492,7 @@ def zoneRemovedHandler(evt) {
     Map data = evt?.jsonData
     log.trace "zone removed: ${id} | Data: $data"
     if(data && id) {
-        Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
+        Boolean aa = getTheLock(sHMLF, "zoneRemoveHandler")
         Map t0 = zoneStatusMapFLD
         Map zoneMap = t0 ?: [:]
         zoneMap = zoneMap ?: [:]
@@ -1498,6 +1500,8 @@ def zoneRemovedHandler(evt) {
         zoneStatusMapFLD = zoneMap
         zoneStatusMapFLD = zoneStatusMapFLD
         releaseTheLock(sHMLF)
+        List cApps = getActionApps()
+        if(cApps?.size()) cApps[0].updZones(zoneMap)
     }
 }
 
@@ -1506,20 +1510,39 @@ private requestZoneRefresh() {
     sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true, display: false, displayed: false)
 }
 
-public Map getZones() {
-    Map a = zoneStatusMapFLD
-    return a ?: [:]
+void checkZoneData() {
+    if(!zoneStatusMapFLD) {
+        Boolean aa = getTheLock(sHMLF, "getZones")
+        zoneStatusMapFLD.initialized = [a:true]
+        zoneStatusMapFLD = zoneStatusMapFLD
+        releaseTheLock(sHMLF)
+        requestZoneRefresh()
+    }
 }
 
-public Map getActiveZones() {
-    Map zones = zoneStatusMapFLD
+public Map getZones() {
+    checkZoneData()
+    Map a = zoneStatusMapFLD
+    return a
+}
+
+Map getActiveZones() {
+    Map zones = getZones()
     return zones.size() ? zones.findAll { it?.value?.active == true } : [:]
 }
 
-public List getActiveZoneNames() {
-    Map zones = zoneStatusMapFLD
+List getActiveZoneNames() {
+    Map zones = getZones()
     zones = zones ?: [:]
     return zones.size() ? zones.findAll { it?.value?.active == true }?.collect { (String)it?.value?.name } : []
+}
+
+List getZoneApps() {
+    return getAllChildApps()?.findAll { (String)it?.name == zoneChildName() }
+}
+
+def getZoneById(String id) {
+    return getZoneApps()?.find { it?.id?.toString() == id }
 }
 
 public List getActiveActionNames() {
@@ -1541,14 +1564,6 @@ def getSocketDevice() {
     nmS = myId+'|'+nmS
     return getChildDevice(nmS)
 //    return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
-}
-
-List getZoneApps() {
-    return getAllChildApps()?.findAll { (String)it?.name == zoneChildName() }
-}
-
-def getZoneById(String id) {
-    return getZoneApps()?.find { it?.id?.toString() == id }
 }
 
 mappings {
