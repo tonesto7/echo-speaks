@@ -3549,7 +3549,7 @@ Boolean quietTimeOk() {
         Boolean not = startTime.getTime() > stopTime.getTime() 
         Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
         isBtwn = not ? !isBtwn : isBtwn
-        logDebug("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${not ? " NOT" : sBLANK} between ($startTime and $stopTime)")
+        logTrace("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT" : sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
     } else { return true }
 }
