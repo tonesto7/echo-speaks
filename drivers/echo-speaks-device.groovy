@@ -27,7 +27,6 @@ import groovy.transform.Field
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
 @Field static final String sNULL          = (String)null
-//@Field static final List   lNULL          = (List)null
 @Field static final String sBLANK         = ''
 @Field static final String sAPPJSON       = 'application/json'
 
@@ -209,13 +208,23 @@ def initialize() {
     logInfo("${device?.displayName} Executing initialize()")
 //    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online", display: false, displayed: false)
 //    sendEvent(name: "DeviceWatch-Enroll", value: new groovy.json.JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), display: false, displayed: false)
+    unschedule()
+    state.refreshScheduled = false
     resetQueue()
     stateCleanup()
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return }
     schedDataRefresh(true)
     parent?.updChildSocketStatus()
+    if(advLogsActive()) { runIn(1800, "logsOff") }
     refreshData(true)
     //TODO: Have the queue validated based on the last time it was processed and have it cleanup if it's been too long
+}
+
+Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
+public void logsOff() {
+    device.updateSetting("logDebug",[value:"false",type:"bool"])
+    device.updateSetting("logTrace",[value:"false",type:"bool"])
+    log.debug "Disabling debug logs"
 }
 
 def postInstall() {
@@ -224,8 +233,8 @@ def postInstall() {
 }
 
 public triggerInitialize() { runIn(3, "initialize") }
-String getEchoDeviceType() { return (String)state.deviceType ?: (String)null }
-String getEchoSerial() { return (String)state.serialNumber ?: (String)null }
+String getEchoDeviceType() { return (String)state.deviceType ?: sNULL }
+String getEchoSerial() { return (String)state.serialNumber ?: sNULL }
 
 String getHealthStatus(Boolean lower=false) {
     String res = device?.getStatus()
@@ -289,7 +298,7 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
     if(device?.currentValue("doNotDisturb") == "true" && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
     if(state.permissions.containsKey(type) && state.permissions[type] == true) { return true }
     else {
-        String warnMsg = (String)null
+        String warnMsg = sNULL
         switch(type) {
             case "TTS":
                 warnMsg = "OOPS... Text to Speech is NOT Supported by this Device!!!"
@@ -372,17 +381,19 @@ void updateDeviceStatus(Map devData) {
         //         log.debug("$k: $v")
         //     }
         // }
-        state.isSupportedDevice = (devData?.unsupported != true)
-        state.isEchoDevice = (devData?.isEchoDevice == true)
-        state.serialNumber = (String)devData?.serialNumber
-        state.deviceType = (String)devData?.deviceType
-        state.deviceOwnerCustomerId = (String)devData?.deviceOwnerCustomerId
+        state.isSupportedDevice = (devData.unsupported != true)
+        state.remove('isEchoDevice') //        state.isEchoDevice = (devData?.permissionMap?.isEchoDevice == true)
+        state.serialNumber = (String)devData.serialNumber
+        state.deviceType = (String)devData.deviceType
+        state.deviceOwnerCustomerId = (String)devData.deviceOwnerCustomerId
         state.deviceAccountId = (String)devData?.deviceAccountId
         state.softwareVersion = devData?.softwareVersion
         // state?.mainAccountCommsId = devData?.mainAccountCommsId ?: null
         // log.debug "mainAccountCommsId: ${state?.mainAccountCommsId}"
-        state.cookie = devData?.cookie
-        cookieDataFLD = [:]
+        if(!state.cookie) {
+            state.cookie = devData?.cookie
+            cookieDataFLD = [:]
+        }
         state.authValid = (devData?.authValid == true)
         state.amazonDomain = (String)devData?.amazonDomain
         state.regionLocale = (String)devData?.regionLocale
@@ -418,8 +429,8 @@ void updateDeviceStatus(Map devData) {
         }
 
         String devFamily = devData?.deviceFamily ?: sBLANK
-        if(isStateChange(device, "deviceFamily", devFamily?.toString())) {
-            sendEvent(name: "deviceFamily", value: devFamily?.toString(), descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
+        if(isStateChange(device, "deviceFamily", devFamily)) {
+            sendEvent(name: "deviceFamily", value: devFamily, descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
             chg=true
         }
 
@@ -459,7 +470,7 @@ public void updSocketStatus(Boolean active) {
 }
 
 void websocketUpdEvt(List triggers) {
-    logDebug("websocketEvt: $triggers")
+    logTrace("websocketEvt: $triggers")
     if((Boolean)state.isWhaDevice) { return }
     if(triggers?.size()) {
         triggers?.each { k->
@@ -508,15 +519,15 @@ private void triggerDataRrsh(String src, Boolean parentRefresh=false) {
     runIn(6, parentRefresh ? "refresh" : "refreshData1")
 }
 
+void refreshData1() {
+    refreshData()
+}
+
 public schedDataRefresh(Boolean frc=false) {
     if(frc || !(Boolean)state.refreshScheduled) {
         runEvery30Minutes("refreshData")
         state.refreshScheduled = true
     }
-}
-
-void refreshData1() {
-    refreshData()
 }
 
 void refreshData(Boolean full=false) {
@@ -834,11 +845,11 @@ void getBluetoothDevices() {
     }
 }
 
-def updGuardStatus(String val=(String)null) {
+void updGuardStatus(String val=sNULL) {
     //TODO: Update this because it's not working
-    String t0 = val ?: (state?.permissions?.guardSupported ? parent?.getAlexaGuardStatus() : (String)null)
+    String t0 = val ?: (state?.permissions?.guardSupported ? parent?.getAlexaGuardStatus() : sNULL)
     String gState = val ?: (state?.permissions?.guardSupported ? (t0 ?: "Unknown") : "Not Supported")
-    if(isStateChange(device, "alexaGuardStatus", gState?.toString())) {
+    if(isStateChange(device, "alexaGuardStatus", gState)) {
         sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)
         logDebug("Alexa Guard Status: (${gState})")
     }
@@ -846,7 +857,7 @@ def updGuardStatus(String val=(String)null) {
 
 private String getBtAddrByAddrOrName(String btNameOrAddr) {
     Map btObj = state?.bluetoothObjs
-    String curBtAddr = btObj?.find { it?.value?.friendlyName == btNameOrAddr || it?.value?.address == btNameOrAddr }?.key ?: (String)null
+    String curBtAddr = btObj?.find { it?.value?.friendlyName == btNameOrAddr || it?.value?.address == btNameOrAddr }?.key ?: sNULL
     // logDebug("curBtAddr: ${curBtAddr}")
     return curBtAddr
 }
@@ -963,7 +974,7 @@ String getCookieVal() {
             if (cookieDataFLD[myId] == null) { cookieDataFLD[myId] = [:];  cookieDataFLD = cookieDataFLD }
             cookieData = state.cookie
             if (cookieData && cookieData.cookie) { cookieDataFLD[myId].cookie = cookieData;  cookieDataFLD = cookieDataFLD }
-            else return (String)null
+            else return sNULL
         } catch (ex) {
             cookieData = state.cookie
         }
@@ -980,7 +991,7 @@ String getCsrfVal() {
             if (cookieDataFLD[myId] == null) { cookieDataFLD[myId] = [:];  cookieDataFLD = cookieDataFLD }
             cookieData = state.cookie
             if (cookieData && cookieData.cookie) { cookieDataFLD[myId].cookie = cookieData;  cookieDataFLD = cookieDataFLD }
-            else return (String)null
+            else return sNULL
         } catch (ex) {
             cookieData = state.cookie
         }
@@ -1049,11 +1060,11 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
             } else if(cmdD.startsWith("renameDevice")) { triggerDataRrsh("sendAmazonCommand $method rename", true) }
         }
         logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : sBLANK} | ${cmdD} was Successfully Sent!!!")
-        return rData?.id ?: (String)null
+        return rData?.id ?: sNULL
     } catch (ex) {
         respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
     }
-    return (String)null
+    return sNULL
 }
 
 private void sendSequenceCommand(type, command, value) {
@@ -1639,7 +1650,7 @@ def voiceCmdAsText(String cmd) {
     }
 }
 
-public playAnnouncementAll(String msg, String title=(String)null) {
+public playAnnouncementAll(String msg, String title=sNULL) {
     // if(isCommandTypeAllowed("announce")) {bvxdsa
         doSequenceCmd("AnnouncementAll", "announcementall", msg)
     // }
@@ -1980,10 +1991,10 @@ private createNotification(type, opts) {
         ]
     ]
     Map rule = transormRecurString(opts?.recur_type, opts?.recur_opt, opts?.time, opts?.date)
-    log.debug "rule: $rule"
+    logDebug("rule: $rule")
     params?.body?.rRuleData = rule?.data ?: null
     params?.body?.recurringPattern = rule?.pattern ?: null
-    log.debug "params: ${params?.body}"
+    logDebug("params: ${params?.body}")
     String id = sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
     if (notifKey) {
         if (state?.containsKey("createdNotifications")) {
@@ -1998,7 +2009,7 @@ private createNotification(type, opts) {
 // weekdays: "XXXX-WD"
 // weekends: "XXXX-WE"
 private transormRecurString(type, opt, tm, dt) {
-    log.debug "transormRecurString(type: ${type}, opt: ${opt}, time: ${tm},date: ${dt})"
+    logTrace("transormRecurString(type: ${type}, opt: ${opt}, time: ${tm},date: ${dt})")
     Map rd = null
     String rp = null
     if(!type) return [data: rd, pattern: rp]
@@ -2429,7 +2440,7 @@ String uriSpeechParser(uri) {
         logDebug("uriSpeechParser | tts: $uri")
         return uri
     }
-    return (String)null
+    return sNULL
 }
 
 void speechTest(String ttsMsg=sNULL) {
@@ -2463,7 +2474,7 @@ void speak(String msg) {
 }
 
 String cleanString(String str, Boolean frcTrans=false) {
-    if(!str) { return (String)null }
+    if(!str) { return sNULL }
     //Cleans up characters from message
     str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sBLANK)?.replaceAll(/\s\s+/, " ")
     str = textTransform(str, frcTrans)
@@ -2641,7 +2652,7 @@ void resetQueue(String src=sBLANK) {
     state.q_blocked = false
     state.q_cmdCycleCnt = null
     state.newVolume = null
-    state.q_lastCheckDt = (String)null
+    state.q_lastCheckDt = sNULL
     state.q_loopChkCnt = null
     state.q_speakingNow = false
     state.q_cmdWorking = false
@@ -2982,7 +2993,7 @@ String  formatDt(Date dt, Boolean mdy = true) {
 }
 
 //Integer getCmdExecutionSec(String timeVal) { return !timeVal ? null : GetTimeDiffSeconds(timeVal).toInteger() }
-Long GetTimeDiffSeconds(String strtDate, String stpDate=(String)null) {
+Long GetTimeDiffSeconds(String strtDate, String stpDate=sNULL) {
     if((strtDate && !stpDate) || (strtDate && stpDate)) {
         Date now = new Date()
         String stopVal = stpDate ? stpDate : formatDt(now, false)
@@ -3008,7 +3019,7 @@ Boolean ok2Notify() {
     return (Boolean)parent?.getOk2Notify()
 }
 
-private void logSpeech(String msg, status, String error=(String)null) {
+private void logSpeech(String msg, status, String error=sNULL) {
     Map o = [:]
     if(status) o.code = status
     if(error) o.error = error
@@ -3031,11 +3042,15 @@ private void addToLogHistory(String logKey, String msg, statusData, Integer max=
     updMemStoreItem(logKey, eData)
 }
 
-private void logDebug(String msg) { if(settings.logDebug == true) { log.debug "Echo (v${devVersionFLD}) | ${msg}" } }
-private void logInfo(String msg) { if(settings.logInfo != false) { log.info " Echo (v${devVersionFLD}) | ${msg}" } }
-private void logTrace(String msg) { if(settings.logTrace == true) { log.trace "Echo (v${devVersionFLD}) | ${msg}" } }
-private void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) { log.warn " Echo (v${devVersionFLD}) | ${msg}" }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
-private void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error "Echo (v${devVersionFLD}) | ${msg}" }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15) } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
+private void logError(String msg, Boolean noHist=false) { if((Boolean)settings.logError != false) { log.error addHead(msg) }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15) } }
+
+String addHead(String msg) {
+    return "Echo ("+devVersionFLD+") | "+msg
+}
 /*
 private addToHistory(String logKey, data, Integer max=10) {
     Boolean ssOk = true // (stateSizePerc() > 70)
@@ -3326,7 +3341,7 @@ private List getMemStoreItem(String key){
     Map memStore = historyMapFLD[appId] ?: [:]
     return (List)memStore[key] ?: []
 }
-/*
+
 // Memory Barrier
 @Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
 
@@ -3335,7 +3350,7 @@ static void mb(String meth=sNULL){
         theMBLockFLD.release()
     }
 }
-
+/*
 @Field static final String sHMLF = 'theHistMapLockFLD'
 @Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
 
