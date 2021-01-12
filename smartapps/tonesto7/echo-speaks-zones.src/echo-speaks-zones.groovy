@@ -465,17 +465,23 @@ def zoneNotifTimePage() {
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
-    if(settings?.duplicateFlag == true && state?.dupPendingSetup != false) {
+    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)") 
+    if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
+    if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
         runIn(3, "processDuplication")
     } else {
-        initialize()
+        if(!maybeDup && !state.dupPendingSetup) initialize()
+       // initialize()
     }
 }
 
 def updated() {
     logInfo("Updated Event Received...")
+    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)") 
+    if(maybeDup) logInfo("updated found maybe a dup... ${settings.duplicateFlag}")
     if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
-    initialize()
+    if(!state.dupPendingSetup) initialize()
+    else logInfo("This zone is duplicated and has not had configuration completed... Please open zone and configure to complete setup...")
 }
 
 def initialize() {
@@ -484,6 +490,7 @@ def initialize() {
     unschedule()
     state.isInstalled = true
     updAppLabel()
+    if(advLogsActive()) { logsEnabled() }
     runIn(3, "zoneCleanup")
     runIn(7, "subscribeToEvts")
     runEvery1Hour("healthCheck")
@@ -492,21 +499,23 @@ def initialize() {
 }
 
 private void processDuplication() {
-    String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains("(Dup)") ? "" : " (Dup)"}"
-    String dupSrcId = settings?.duplicateSrcId ? (String)settings?.duplicateSrcId : sNULL
+    String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains(" (Dup)") ? "" : " (Dup)"}"
+    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
     app?.updateLabel(newLbl)
-    state?.dupPendingSetup = true
+    state.dupPendingSetup = true
     Map dupData = parent?.getChildDupeData("zones", dupSrcId)
     // log.debug "dupData: ${dupData}"
     if(dupData && dupData?.state?.size()) {
-        dupData?.state?.each {k,v-> state[k] = v }
+        dupData.state?.each {k,v-> state[k] = v }
     }
     if(dupData && dupData?.settings?.size()) {
-        dupData?.settings?.each {k,v-> settingUpdate(k, (v.value != null ? v.value : null), v.type) }
+        dupData.settings?.each {k,v-> settingUpdate(k, (v.value != null ? v.value : null), v.type) }
     }
-    parent.childAppDuplicationFinished("zones", dupSrcId as String)
+    parent.childAppDuplicationFinished("zones", dupSrcId)
     logInfo("Duplicated Zone has been created... Please open zone and configure to complete setup...")
-    return
+        //Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
+            //state.dupOpenedByUser = true
+    //if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
 }
 
 def uninstalled() {
@@ -534,8 +543,8 @@ public guardEventHandler(guardState) {
 private void updConfigStatusMap() {
     Map sMap = atomicState?.configStatusMap
     sMap = sMap ?: [:]
-    sMap?.conditions = conditionsConfigured()
-    sMap?.devices = devicesConfigured()
+    sMap.conditions = conditionsConfigured()
+    sMap.devices = devicesConfigured()
     atomicState.configStatusMap = sMap
 }
 
@@ -572,17 +581,20 @@ private condItemSet(String key) { return (settings.containsKey("cond_${key}") &&
 
 void scheduleCondition() {
     if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
-    if (timeCondConfigured() || dateCondConfigured()) {
+    Boolean tC = timeCondConfigured()
+    Boolean dC = dateCondConfigured()
+    if (tC || dC) {
         String msg = 'scheduleCondition: '
         Date startTime
         Date stopTime
-        if (timeCondConfigured()) {
-                Boolean timeOk = timeCondOk() // this updates state variables, and let's us know if we are active now
+        if (tC) {
+                Boolean timeOk = timeCondOk() // this updates state variables
                 startTime = (String)state.startTime ? parseDate((String)state.startTime) : null
                 stopTime = (String)state.stopTime ? parseDate((String)state.stopTime) : null
-        } else {
-                startTime = timeToday('00:01', location.timeZone)
-                stopTime = timeTodayAfter('23:59', '00:01', location.timeZone)
+        }
+        if(!startTime && !stopTime && dC){
+                startTime = timeToday('00:00', location.timeZone)
+                stopTime = timeTodayAfter('23:59', '00:00', location.timeZone)
         }
         if(startTime && stopTime){
             Long t = now()
@@ -608,17 +620,18 @@ void scheduleCondition() {
                 }
             }
 
+            String msg1 = " schedule Start: $lstart Stop: $lstop now: $t  not: $not  isStart: $isStart nextEvtT: $nextEvtT"
             if(nextEvtT > 0L) {
                 Long tt = Math.round((nextEvtT)/1000.0D) + 1L
                 tt=(tt<1L ? 1L:tt)
-                if(isStart) runIn(tt, zoneTimeStartCondHandler)
-                else  runIn(tt, zoneTimeStopCondHandler)
+                if(isStart) runIn(tt, "zoneTimeStartCondHandler")
+                else  runIn(tt, "zoneTimeStopCondHandler")
                 Date ttt = isStart ? startTime: stopTime
                 msg += "Setting Schedule for ${isStart ? "Start Condition" : "Stop Condition"} in $tt's at ${epochToTime(ttt)}"
-                msg += " schedule Start: $lstart Stop: $lstop now: $t  not: $not  isStart: $isStart nextEvtT: $nextEvtT"
-            } else msg += "nothing to schedule Start: $lstart Stop: $lstop now: $t  not: $not  isStart: $isStart nextEvtT: $nextEvtT"
-        } else log.warn "strange - no start ($startTime) or stop ($stopTime) time"
-        logDebug(msg)
+                msg += msg1
+            } else msg += "Nothing to"+msg1
+        } else log.warn "Strange - no start ($startTime) or stop ($stopTime) time: $tC  date: $dC"
+        logTrace(msg)
     }
 }
 
@@ -702,11 +715,11 @@ Boolean timeCondOk() {
             isBtwn = not ? !isBtwn : isBtwn
             state.startTime =  formatDt(startTime) //ERS
             state.stopTime =  formatDt(stopTime)
-            logDebug("TimeCheck | CurTime: (${now}) is${not? " NOT": sBLANK} between ($startTime and $stopTime) | ${isBtwn}")
+            logTrace("TimeCheck ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not? startTime:stopTime})")
             return isBtwn
         }
     }
-    logDebug("TimeCheck | (null)")
+    logTrace("TimeCheck | (null)")
     state.startTime = sNULL
     state.stopTime = sNULL
     return null
@@ -722,7 +735,7 @@ Boolean dateCondOk() {
         mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
         result = reqAll ? (mOk && dOk) : (mOk || dOk)
     }
-    logDebug("dateConditions | $result | monthOk: $mOk | daysOk: $dOk")
+    logTrace("dateConditions | $result | monthOk: $mOk | daysOk: $dOk")
     return result
 }
 
@@ -736,7 +749,7 @@ Boolean locationCondOk() {
         aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
-    logDebug("locationConditions | $result | modeOk: $mOk | alarmOk: $aOk")
+    logTrace("locationConditions | $result | modeOk: $mOk | alarmOk: $aOk")
     return result
 }
 
@@ -820,7 +833,7 @@ Boolean deviceCondOk() {
     Integer cndSize = (passed.size() + failed.size())
     Boolean result = null
     if(cndSize != 0) result = reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
-    logDebug("DeviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    logTrace("DeviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return result
 }
 
@@ -837,7 +850,7 @@ Map conditionStatus() {
     Integer cndSize = passed.size() + failed.size()
     Boolean ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
     if(cndSize == 0) ok = true
-    logDebug("ConditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    logTrace("ConditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return [ok: ok, passed: passed, blocks: failed]
 }
 
@@ -937,13 +950,13 @@ void checkZoneStatus(evt) {
     Boolean active = ((Boolean)condStatus.ok == true)
     String delayType = active ? "active" : "inactive"
     String msg1 = " | Call from ${evt?.name} / ${evt?.displayName}"
-    if((Boolean)state.zoneConditionsOk == active) { logDebug("checkZoneStatus: Zone: ${delayType} | No changes${msg1}"); return }
+    if((Boolean)state.zoneConditionsOk == active) { logTrace("checkZoneStatus: Zone: ${delayType} | No changes${msg1}"); return }
     Boolean bypassDelay = false
     Map data = [active: active, recheck: false, evtData: [name: evt?.name, displayName: evt?.displayName], condStatus: condStatus]
     Integer delay = settings."zone_${delayType}_delay" ?: null
     if(!active && settings."cond_${evt?.name}_db" == true) { bypassDelay = isConditionOk(evt?.name) != true }
     String msg = !bypassDelay && delay ? "in (${delay} sec)" : (bypassDelay ? "Bypassing Inactive Delay for (${evt?.name}) Event..." : sBLANK)
-    logDebug("updateZoneStatus to [${delayType}] ${msg}${msg1}")
+    logTrace("calling updateZoneStatus [${delayType}] "+msg+msg1)
     if(!bypassDelay && delay) {
         runIn(delay, "updateZoneStatus", [data: data])
     } else {
@@ -979,7 +992,7 @@ void updateZoneStatus(Map data) {
             if(ok2Send && msgTxt) {
                 def zoneDevices = getZoneDevices()
                 def alexaMsgDev = zoneDevices?.size() && settings.notif_alexa_mobile ? zoneDevices[0] : null
-                if(sendNotifMsg(getZoneName(), msgTxt, alexaMsgDev, false)) { logDebug("Sent Zone Notification...") }
+                if(sendNotifMsg(getZoneName(), msgTxt, alexaMsgDev, false)) { logTrace("Sent Zone Notification...") }
             }
         }
         if(active) {
@@ -1090,7 +1103,7 @@ public zoneCmdHandler(evt) {
             case "calendar":
             case "weather":
             case "playback":
-                log.debug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
+                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.devices?.each { dev->
                     if(isStFLD && delay) {
                         if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay]) }
@@ -1102,7 +1115,7 @@ public zoneCmdHandler(evt) {
                 }
                 break
             case "sounds":
-                log.debug("Sending ${data?.cmd?.toString()?.capitalize()} | Name: ${data?.message} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
+                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} | Name: ${data?.message} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.devices?.each { dev->
                     if(isStFLD && delay) {
                         dev?."${data?.cmd}"(data?.message, data?.changeVol ?: null, data?.restoreVol ?: null, [delay: delay])
@@ -1378,9 +1391,19 @@ Boolean isTimeOfDay(String startTime, String stopTime) {
     return timeOfDayIsBetween(st, et, new Date(), location.timeZone)
 }
 
-Boolean advLogsActive() { return (settings.logDebug || settings.logTrace) }
-public void logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
-public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", sFALSE, sBOOL); settingUpdate("logTrace", sFALSE, sBOOL); remTsVal("logsEnabled"); } }
+Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
+public void logsEnabled() { if(advLogsActive() && !getTsVal("logsEnabled")) { logTrace("enabling logging timer"); updTsVal("logsEnabled") } }
+public void logsDisable() {
+    if(advLogsActive()) {
+        Integer dtSec = getLastTsValSecs("logsEnabled", null)
+        if(dtSec && (dtSec > 3600*6)) {
+            settingUpdate("logDebug", sFALSE, sBOOL)
+            settingUpdate("logTrace", sFALSE, sBOOL)
+            remTsVal("logsEnabled")
+            log.debug "Disabling debug logs"
+        }
+    }
+}
 
 private void updTsVal(String key, String dt=sNULL) {
 	Map data = atomicState?.tsDtMap ?: [:]
@@ -1675,7 +1698,6 @@ def getShmIncidents() {
 Boolean pushStatus() { return (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : null }
 */
 
-//public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", sFALSE, sBOOL); settingUpdate("logTrace", sFALSE, sBOOL); remTsVal("logsEnabled"); } }
 Integer getLastNotifMsgSec() { return !state.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state.lastNotifMsgDt, "getLastMsgSec").toInteger() }
 Integer getLastChildInitRefreshSec() { return !state.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 
@@ -1688,7 +1710,7 @@ Boolean getOk2Notify() {
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = settings.notif_mode ? (isInMode(settings.notif_mode)) : true
-    logDebug("getOk2Notify() | notifDevs: $notifDevsOk | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    logTrace("getOk2Notify() | notifDevs: $notifDevsOk | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
     return true
@@ -1725,7 +1747,7 @@ Boolean notifTimeOk() {
         Boolean not = startTime.getTime() > stopTime.getTime()
         Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
         isBtwn = not ? !isBtwn : isBtwn
-        logDebug("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${not ? " NOT":sBLANK} between ($startTime and $stopTime)")
+        logTrace("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
     } else { return true }
 }
@@ -1744,7 +1766,7 @@ public Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean 
         } else {
             if(isStFLD) {
                 if(isStFLD && settings.notif_send_push) {
-                    sendSrc?.push("Push Message")
+                    sentSrc.push("Push Message")
                     if(showEvt) {
                         sendPush(newMsg)	// sends push and notification feed
                     } else { sendPushMessage(newMsg) } // sends push
@@ -1772,18 +1794,18 @@ public Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean 
             }
             if(settings.notif_devs) {
                 sentSrc.push("Notification Devices")
-                settings.notif_devs?.each { it?.deviceNotification(msg as String) }
+                settings.notif_devs?.each { it?.deviceNotification(newMsg) }
                 sent = true
             }
             if(settings.notif_alexa_mobile && alexaDev) {
-                alexaDev?.sendAlexaAppNotification(msg)
+                alexaDev?.sendAlexaAppNotification(newMsg)
                 sentSrc.push("Alexa Mobile App")
                 sent = true
             }
             if(sent) {
                 state?.lastNotificationMsg = flatMsg
                 updTsVal("lastNotifMsgDt") //state?.lastNotifMsgDt = getDtNow()
-                logDebug("sendNotifMsg: Sent ${sendSrc} (${flatMsg})")
+                logDebug("sendNotifMsg: Sent ${sentSrc} (${flatMsg})")
             }
         }
     } catch (ex) {
@@ -1865,11 +1887,11 @@ private addToLogHistory(String logKey, String data, Integer max=10) {
     updMemStoreItem(logKey, eData)
 }
 
-private void logDebug(String msg) { if(settings.logDebug == true) { log.debug addHead(msg) } }
-private void logInfo(String msg) { if(settings.logInfo != false) { log.info " "+addHead(msg) } }
-private void logTrace(String msg) { if(settings.logTrace == true) { log.trace addHead(msg) } }
-private void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error " "+addHead(msg) }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug == true) { log.debug addHead(msg) } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace == true) { log.trace addHead(msg) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private void logError(String msg, Boolean noHist=false) { if((Boolean)settings.logError != false) { log.error " "+addHead(msg) }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
 
 String addHead(String msg) {
     return "Zone (v"+appVersionFLD+") | "+msg
