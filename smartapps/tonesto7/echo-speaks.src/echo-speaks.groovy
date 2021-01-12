@@ -505,7 +505,7 @@ def actionsPage() {
             app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Action", "es_actions"), image: getAppImg("es_actions"))
             if(actApps?.size()) {
                 input "actionDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Action", "es_actions"), description: sTTS, options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
-                if(settings?.actionDuplicateSelect) {
+                if(settings.actionDuplicateSelect) {
                     href "actionDuplicationPage", title: inTS1("Create Duplicate Action?", "question"), description: sTTP, image: getAppImg("question")
                 }
             }
@@ -541,7 +541,7 @@ def actionDuplicationPage() {
             if((Boolean)state.actionDuplicated) {
                 paragraph pTS("Action already duplicated...\n\nReturn to action page and select it", sNULL, true, sCLRRED), required: true, state: sNULL
             } else {
-                def act = getActionApps()?.find { it?.id?.toString() == settings?.actionDuplicateSelect?.toString() }
+                def act = getActionApps()?.find { it?.id?.toString() == settings.actionDuplicateSelect?.toString() }
                 if(act) {
                     Map actData = act.getSettingsAndStateMap() ?: [:]
                     if(actData.settings && actData.state) {
@@ -556,8 +556,8 @@ def actionDuplicationPage() {
                     actData.settings["duplicateSrcId"] = [type: "text", value: (String) act.getId()]
                     addChildApp("tonesto7", actChildName(), "${actData.label} (Dup)", [settings: actData.settings])
                     paragraph pTS("Action Duplicated...\n\nReturn to Action Page and look for the App with '(Dup)' in the name...", sNULL, true, sCLR4D9), state: sCOMPLT
+                    state.actionDuplicated = true
                 } else { paragraph pTS("Action not Found", sNULL, true, sCLRRED), required: true, state: sNULL }
-                state.actionDuplicated = true
             }
         }
     }
@@ -584,8 +584,8 @@ def zoneDuplicationPage() {
                     znData?.settings["duplicateSrcId"] = [type: "text", value: (String) zn.getId()]
                     addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData.settings])
                     paragraph pTS("Zone Duplicated...\n\nReturn to Zone Page and look for the App with '(Dup)' in the name...", sNULL, true, sCLR4D9), state: sCOMPLT
+                    state.zoneDuplicated = true
                 } else { paragraph pTS("Zone not Found", sNULL, true, sCLRRED), required: true, state: sNULL }
-                state.zoneDuplicated = true
             }
         }
     }
@@ -626,7 +626,7 @@ def zonesPage() {
             app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Zone", "es_groups"), image: getAppImg("es_groups"))
             if(zApps?.size()) {
                 input "zoneDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Zone", "es_groups"), description: sTTS, options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
-                if(settings?.zoneDuplicateSelect) {
+                if(settings.zoneDuplicateSelect) {
                     href "zoneDuplicationPage", title: inTS1("Create Duplicate Zone?", "question"), description: sTTP, image: getAppImg("question")
                 }
             }
@@ -1365,6 +1365,7 @@ def initialize() {
             runIn(11, "postInitialize")
             getOtherData()
             getEchoDevices()
+            if(advLogsActive()) { logsEnabled() }
         } else { unschedule("getEchoDevices"); unschedule("getOtherData") }
     }
 }
@@ -3412,8 +3413,18 @@ void healthCheck() {
 }
 
 Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
-public void logsEnabled() { if(advLogsActive() && getTsVal("logsEnabled")) { updTsVal("logsEnabled") } }
-public void logsDisable() { Integer dtSec = getLastTsValSecs("logsEnabled", null); if(dtSec && (dtSec > 3600*6) && advLogsActive()) { settingUpdate("logDebug", sFALSE, sBOOL); settingUpdate("logTrace", sFALSE, sBOOL); remTsVal("logsEnabled") } }
+public void logsEnabled() { if(advLogsActive() && !getTsVal("logsEnabled")) { logTrace("enabling logging timer"); updTsVal("logsEnabled") } }
+public void logsDisable() {
+    if(advLogsActive()) {
+        Integer dtSec = getLastTsValSecs("logsEnabled", null)
+        if(dtSec && (dtSec > 3600*6)) {
+            settingUpdate("logDebug", sFALSE, sBOOL)
+            settingUpdate("logTrace", sFALSE, sBOOL)
+            remTsVal("logsEnabled")
+            log.debug "Disabling debug logs"
+        }
+    }
+}
 
 void missPollNotify(Boolean on, Integer wait) {
     Integer lastDataUpd = getLastTsValSecs("lastDevDataUpdDt")
@@ -3538,7 +3549,7 @@ Boolean quietTimeOk() {
         Boolean not = startTime.getTime() > stopTime.getTime() 
         Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
         isBtwn = not ? !isBtwn : isBtwn
-        logDebug("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${not ? " NOT" : sBLANK} between ($startTime and $stopTime)")
+        logTrace("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT" : sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
     } else { return true }
 }
@@ -3583,7 +3594,7 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
             }*/
             if(settings.notif_devs) {
                 sentstr = "Notification Devices"
-                settings.notif_devs?.each { it?.deviceNotification(msg) }
+                settings.notif_devs?.each { it?.deviceNotification(newMsg) }
                 sent = true
             }
 /*
