@@ -599,8 +599,8 @@ public Map getChildDupeData(String type, String childId) {
 public void clearDuplicationItems() {
     state.actionDuplicated = false
     state.zoneDuplicated = false
-    settingRemove("actionDuplicateSelect")
-    settingRemove("zoneDuplicateSelect")
+    if(settings.actionDuplicateSelect) settingRemove("actionDuplicateSelect")
+    if(settings.zoneDuplicateSelect) settingRemove("zoneDuplicateSelect")
 }
 
 public void childAppDuplicationFinished(String type, String childId) {
@@ -3058,10 +3058,19 @@ void receiveEventData(Map evtData, String src) {
                     // logWarn("Device Permisions | Name: ${echoValue?.accountName} | $permissions")
 
                     echoDeviceMap[echoKey] = [
-                        name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey,
-                        style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: isMediaPlayer, announceSupport: permissions?.announce,
-                        ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers,
-                        musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", "), supported: (!unsupportedDevice)
+                        name: echoValue?.accountName,
+                        online: echoValue?.online,
+                        family: echoValue?.deviceFamily,
+                        serialNumber: echoKey,
+                        style: echoValue?.deviceStyle,
+                        type: echoValue?.deviceType,
+                        mediaPlayer: isMediaPlayer,
+                        announceSupport: permissions?.announce,
+                        ttsSupport: allowTTS,
+                        volumeSupport: volumeSupport,
+                        clusterMembers: echoValue?.clusterMembers,
+                        musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", "),
+                        supported: (!unsupportedDevice)
                     ]
 
                     String dni = [app?.id, "echoSpeaks", echoKey].join("|")
