@@ -1769,6 +1769,12 @@ Boolean customMsgConfigured() { return (settings.notif_use_custom && settings.no
 
 def actNotifPage() {
     return dynamicPage(name: "actNotifPage", title: "Action Notifications", install: false, uninstall: false) {
+        String a = getAppNotifDesc()
+         if(a) {
+             section() {
+                 paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
+             }
+         }
         section (sTS("Message Customization:")) {
             Boolean custMsgReq = customMsgRequired()
             // if(custMsgReq && !settings.notif_use_custom) { settingUpdate("notif_use_custom", sTRUE, sBOOL) }
@@ -1819,7 +1825,7 @@ def actNotifPage() {
         if(isActNotifConfigured()) {
             section(sTS("Notification Restrictions:")) {
                 String nsd = getNotifSchedDesc()
-                href "actNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : null), image: getAppImg("restriction")
+                href "actNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : null), image: getAppImg("restriction")
             }
             if(!state.notif_message_tested) {
                 def actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
@@ -1832,9 +1838,15 @@ def actNotifPage() {
 
 def actNotifTimePage() {
     return dynamicPage(name:"actNotifTimePage", title: sBLANK, install: false, uninstall: false) {
+        String a = getNotifSchedDesc()
+         if(a) {
+             section() {
+                 paragraph pTS("Restrictions Status:\n"+a, sNULL, false, sCLR4D9), state: sCOMPLT
+             }
+         }
         String pre = "notif"
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
-        section(sTS("Start Time:")) {
+        section(sTS("Quiet Start Time:")) {
             input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
             if(settings."${pre}_time_start_type" == "time") {
                 input "${pre}_time_start", "time", title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
@@ -1842,7 +1854,7 @@ def actNotifTimePage() {
                 input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
-        section(sTS("Stop Time:")) {
+        section(sTS("Quiet Stop Time:")) {
             input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
             if(settings."${pre}_time_stop_type" == "time") {
                 input "${pre}_time_stop", "time", title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
@@ -1850,11 +1862,11 @@ def actNotifTimePage() {
                 input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
-        section(sTS("Quiet Days:")) {
+        section(sTS("Allowed Days:")) {
             input "${pre}_days", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
         }
-        section(sTS("Quiet Modes:")) {
-            input "${pre}_modes", "mode", title: inTS1("When these Modes are Active", "mode"), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
+        section(sTS("Allowed Modes:")) {
+            input "${pre}_modes", "mode", title: inTS1("Only in these Modes", "mode"), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
         }
     }
 }
@@ -3028,8 +3040,8 @@ Boolean timeCondOk() {
     String startType = settings.cond_time_start_type
     String stopType = settings.cond_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' ? toDateTime(settings.cond_time_start) : null
-        stopTime = stopType == 'time' ? toDateTime(settings.cond_time_stop) : null
+        startTime = startType == 'time' && settings.cond_time_start ? toDateTime(settings.cond_time_start) : null
+        stopTime = stopType == 'time' && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
 
         if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
             def sun = getSunriseAndSunset()
@@ -4006,8 +4018,8 @@ Boolean notifTimeOk() {
     String startType = settings.notif_time_start_type
     String stopType = settings.notif_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' ? toDateTime(settings.notif_time_start) : null
-        stopTime = stopType == 'time' ? toDateTime(settings.notif_time_stop) : null
+        startTime = startType == 'time' && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
+        stopTime = stopType == 'time' && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
     } else { return true }
 
     Date now = new Date()
@@ -4100,7 +4112,7 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
 }
 
 Boolean isActNotifConfigured() {
-    if(customMsgRequired() && (!settings.notif_use_custom || settings.notif_custom_message)) { return false }
+    if(customMsgRequired() && !(settings.notif_use_custom && settings.notif_custom_message)) { return false }
     if(isStFLD) {
         return (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_devs || settings.notif_alexa_mobile || (settings.notif_pushover && settings.notif_pushover_devices))
     } else {
@@ -4497,19 +4509,19 @@ List getQuietDays() {
 }
 
 String getNotifSchedDesc(Boolean min=false) {
-    String startInput = settings.notif_time_start_type
+    String startType = settings.cond_time_start_type
     Date startTime
-    String stopInput = settings.notif_time_stop_type
+    String stopType = settings.cond_time_stop_type
     Date stopTime
     List dayInput = settings.notif_days
     List modeInput = settings.notif_modes
     String str = sBLANK
 
-    if(startInput && stopInput) {
-        startTime = startInput == 'time' ? toDateTime(settings.notif_time_start) : null
-        stopTime = stopInput == 'time' ? toDateTime(settings.notif_time_stop) : null
+    if(startType && stopType) {
+        startTime = startType == 'time' && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
+        stopTime = stopType == 'time' && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
     }
-    if(startInput in ["sunrise","sunset"] || stopInput in ["sunrise","sunset"]) {
+    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
@@ -4526,10 +4538,14 @@ String getNotifSchedDesc(Boolean min=false) {
     }
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? "   \u2022 Time: ${startLbl} - ${stopLbl} (${!notifTimeOk() ? okSymFLD : notOkSymFLD})" : sBLANK
+    str += (startLbl && stopLbl) ? "   \u2022 Restricted Times: ${startLbl} - ${stopLbl} (${!notifTimeOk() ? okSymFLD : notOkSymFLD})" : sBLANK
     List qDays = getQuietDays()
-    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : sBLANK
-    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : sBLANK
+    Boolean daysOk = dayInput ? (isDayOfWeek(dayInput)) : true
+    String a = " (${!daysOk ? okSymFLD : notOkSymFLD})"
+    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
+    Boolean modesOk = modeInput ? (isInMode(modeInput)) : true
+    a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
+    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
     return (str != sBLANK) ? str : sNULL
 }
 
@@ -4728,8 +4744,8 @@ String getTimeCondDesc(Boolean addPre=true) {
     String startType = settings.cond_time_start_type
     String stopType = settings.cond_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' ? toDateTime(settings.cond_time_start) : null
-        stopTime = stopType == 'time' ? toDateTime(settings.cond_time_stop) : null
+        startTime = startType == 'time' && settings.cond_time_start ? toDateTime(settings.cond_time_start) : null
+        stopTime = stopType == 'time'  && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
     }
 
     if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
