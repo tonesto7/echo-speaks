@@ -154,7 +154,7 @@ def mainPage() {
                 }
                 section(sTS("Notifications:")) {
                     def t0 = getAppNotifDesc()
-                    href "zoneNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n"+sTTM : sTTC), state: (t0 ? sCOMPLT : null), image: getAppImg("notification2")
+                    href "zoneNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC), state: (t0 ? sCOMPLT : null), image: getAppImg("notification2")
                 }
             }
         }
@@ -241,14 +241,20 @@ def uninstallPage() {
 
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
-        Boolean multiConds = multipleConditions()
-        if(multiConds) {
+        String a = getConditionsDesc(false)
+        if(a) {
             section() {
-                input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
-                paragraph pTS("Notice:\n${cond_require_all == true ? "All selected conditions required to make zone active." : "Any condition will make this zone active."}", sNULL, false, sCLR4D9), state: sCOMPLT
+                paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
             }
         }
+        Boolean multiConds = multipleConditions()
         if(!multiConds && (Boolean)settings.cond_require_all) { settingUpdate("cond_require_all", sFALSE, sBOOL) }
+        section() {
+            if(multiConds) {
+                input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
+            }
+            paragraph pTS("Notice:\n${!multiConds || (Boolean)settings.cond_require_all ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", sNULL, false, sCLR4D9), state: sCOMPLT
+        }
         section(sTS("Time/Date Restrictions")) {
             href "condTimePage", title: inTS1("Time Schedule", "clock"), description: getTimeCondDesc(false), state: timeCondConfigured() ? sCOMPLT : sNULL, image: getAppImg("clock")
             input "cond_days", sENUM, title: inTS1("Days of the week", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
@@ -370,6 +376,12 @@ def condTimePage() {
 
 def zoneNotifPage() {
     return dynamicPage(name: "zoneNotifPage", title: "Zone Notifications", install: false, uninstall: false) {
+        String a = getAppNotifDesc()
+        if(a) {
+            section() {
+                paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
+            }
+        }
         section (sTS("Message Customization:")) {
             input "notif_active_message", "text", title: inTS1("Active Message?", "text"), required: false, submitOnChange: true, image: getAppImg("text")
             input "notif_inactive_message", "text", title: inTS1("Inactive Message?", "text"), required: false, submitOnChange: true, image: getAppImg("text")
@@ -414,7 +426,7 @@ def zoneNotifPage() {
             if(isZoneNotifConfigured()) {
                 section(sTS("Notification Restrictions:")) {
                     String nsd = getNotifSchedDesc()
-                    href "zoneNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : sNULL), image: getAppImg("restriction")
+                    href "zoneNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : sNULL), image: getAppImg("restriction")
                 }
                 if(!state.notif_message_tested) {
                     List actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDevices) : []
@@ -430,9 +442,15 @@ def zoneNotifPage() {
 
 def zoneNotifTimePage() {
     return dynamicPage(name:"zoneNotifTimePage", title: "", install: false, uninstall: false) {
+        String a = getNotifSchedDesc()
+        if(a) {
+            section() {
+                paragraph pTS("Restrictions Status:\n"+a, sNULL, false, sCLR4D9), state: sCOMPLT
+            }
+        }
         String pre = "notif"
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
-        section(sTS("Start Time:")) {
+        section(sTS("Quiet Start Time:")) {
             input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
             if(settings."${pre}_time_start_type" == "time") {
                 input "${pre}_time_start", "time", title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
@@ -440,7 +458,7 @@ def zoneNotifTimePage() {
                 input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
-        section(sTS("Stop Time:")) {
+        section(sTS("Quiet Stop Time:")) {
             input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
             if(settings."${pre}_time_stop_type" == "time") {
                 input "${pre}_time_stop", "time", title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
@@ -448,11 +466,11 @@ def zoneNotifTimePage() {
                 input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
-        section(sTS("Quiet Days:")) {
+        section(sTS("Allowed Days:")) {
             input "${pre}_days", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
         }
-        section(sTS("Quiet Modes:")) {
-            input "${pre}_modes", "mode", title: inTS1("When these Modes are Active", "mode"), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
+        section(sTS("Allowed Modes:")) {
+            input "${pre}_modes", "mode", title: inTS1("Only in these Modes", "mode"), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
         }
     }
 }
@@ -1535,14 +1553,18 @@ String getNotifSchedDesc(Boolean min=false) {
     }
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? "   \u2022 Time: ${startLbl} - ${stopLbl} (${!notifTimeOk() ? okSymFLD : notOkSymFLD})" : sBLANK
+    str += (startLbl && stopLbl) ? "   \u2022 Restricted Times: ${startLbl} - ${stopLbl} (${!notifTimeOk() ? okSymFLD : notOkSymFLD})" : sBLANK
     List qDays = getQuietDays()
-    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Day${pluralizeStr(dayInput, false)}:${min ? " (${qDays?.size()} selected)" : "\n    - ${qDays?.join("\n    - ")}"}" : sBLANK
-    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : "\n    - ${modeInput?.join("\n    - ")}"}" : sBLANK
+    Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
+    String a = " (${!daysOk ? okSymFLD : notOkSymFLD})"
+    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
+    Boolean modesOk = settings.notif_mode ? (isInMode(settings.notif_mode)) : true
+    a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
+    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
     return (str != sBLANK) ? str : sNULL
 }
 
-String getConditionsDesc() {
+String getConditionsDesc(Boolean addE=true) {
     Boolean confd = conditionsConfigured()
 //    def time = null
     String sPre = "cond_"
@@ -1587,10 +1609,10 @@ String getConditionsDesc() {
                 }
             }
         }
-        str += "\n"+sTTM
+        str += addE ? "\n"+sTTM : sBLANK
         return str
     } else {
-        return sTTC
+        return addE ? sTTC : sBLANK
     }
 }
 
