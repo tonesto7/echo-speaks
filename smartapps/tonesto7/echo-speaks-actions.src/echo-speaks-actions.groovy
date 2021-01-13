@@ -2315,42 +2315,43 @@ private getDevEvtHandlerName(String type) {
 }
 
 @Field volatile static Map<String,Map> zoneStatusMapFLD = [:]
-/*
+
 def zoneStateHandler(evt) {
-    String id = evt?.value?.toString()
-    Map data = evt?.jsonData
-    // log.debug "zoneStateHandler: ${id} | data: ${data}"
-    if(settings.act_EchoZones && id && data && (id in settings.act_EchoZones)) {
-        Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
-        Map t0 = zoneStatusMapFLD
-        Map zoneMap = t0 ?: [:]
-        zoneMap[id] = [name: data?.name, active: data?.active]
-        zoneStatusMapFLD = zoneMap
-        zoneStatusMapFLD = zoneStatusMapFLD
-        releaseTheLock(sHMLF)
-    }
+    // String id = evt?.value?.toString()
+    // Map data = evt?.jsonData
+    // // log.debug "zoneStateHandler: ${id} | data: ${data}"
+    // if(settings.act_EchoZones && id && data && (id in settings.act_EchoZones)) {
+    //     Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
+    //     Map t0 = zoneStatusMapFLD
+    //     Map zoneMap = t0 ?: [:]
+    //     zoneMap[id] = [name: data?.name, active: data?.active]
+    //     zoneStatusMapFLD = zoneMap
+    //     zoneStatusMapFLD = zoneStatusMapFLD
+    //     releaseTheLock(sHMLF)
+    // }
 }
 
 def zoneRemovedHandler(evt) {
-    String id = evt?.value?.toString()
-    Map data = evt?.jsonData
-    log.trace "zone removed: ${id} | Data: $data"
-    if(data && id) {
-        Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
-        Map t0 = zoneStatusMapFLD
-        Map zoneMap = t0 ?: [:]
-        if(zoneMap.containsKey(id)) { zoneMap.remove(id) }
-        zoneStatusMapFLD = zoneMap
-        releaseTheLock(sHMLF)
-    }
+    // String id = evt?.value?.toString()
+    // Map data = evt?.jsonData
+    // log.trace "zone removed: ${id} | Data: $data"
+    // if(data && id) {
+    //     Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
+    //     Map t0 = zoneStatusMapFLD
+    //     Map zoneMap = t0 ?: [:]
+    //     if(zoneMap.containsKey(id)) { zoneMap.remove(id) }
+    //     zoneStatusMapFLD = zoneMap
+    //     releaseTheLock(sHMLF)
+    // }
 }
 
-private requestZoneRefresh() {
+// private requestZoneRefresh() {
 //    zoneStatusMapFLD =  [:]
-    sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true, display: false, displayed: false)
-}
-*/
-    //updateZoneSubscriptions()
+//    sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true, display: false, displayed: false)
+// }
+
+//updateZoneSubscriptions()
+
 public updZones(Map zoneMap) {
     zoneStatusMapFLD = zoneMap
     zoneStatusMapFLD = zoneStatusMapFLD
