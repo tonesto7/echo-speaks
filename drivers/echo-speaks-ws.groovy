@@ -26,12 +26,12 @@ import groovy.transform.Field
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
 @Field static final String sNULL          = (String)null
-//@Field static final List   lNULL          = (List)null
 @Field static final String sBLANK         = ''
 @Field static final String sAPPJSON       = 'application/json'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 // @Field volatile static Map<String,Map> cookieDataFLD = [:]
+@Field volatile static Map<String,Map> historyMapFLD = [:]
 
 static String devVersion()  { return devVersionFLD }
 static Boolean isWS()       { return true }
@@ -55,100 +55,121 @@ preferences {
 
 def isSocketActive() { return (state.connectionActive == true) }
 
-public updateCookies(cookies) {
-    logWarn("Cookies Update by Parent.  Re-Initializing Device in 5 Seconds...")
+public updateCookies(Map cookies) {
+    logInfo("Cookies Update by Parent.  Re-Initializing Device in 10 Seconds...")
     state.cookie = cookies
+    state.amazonDomain = sNULL
     runIn(10, "initialize")
 }
 
 public removeCookies(isParent=false) {
-    logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
+    logInfo("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
     close()
+    state.amazonDomain = sNULL
     state.cookie = null
 }
 
 def refresh() {
-    log.info "refresh() called"
+    logInfo("refresh() called")
 }
 
 def triggerInitialize() { runIn(3, "updated") }
 def resetQueue() {}
 
 def installed() {
-    log.info "installed() called"
+    logInfo("installed() called")
     updated()
 }
 
 def updated() {
-    log.info "updated() called"
+    logInfo("updated() called")
     unschedule()
+    if(advLogsActive()) { runIn(1800, "logsOff") }
     initialize()
 }
 
 def initialize() {
-    log.info "initialize() called"
+    logInfo("initialize() called")
     close()
     if(minVersionFailed()) { logError("CODE UPDATE REQUIRED to RESUME operation. No WebSocket Connections will be made."); return }
-    state.amazonDomain = parent?.getAmazonDomain()
-    state.cookie = parent?.getCookieVal()
-    if(state.cookie && settings?.autoConnectWs != false) {
-        def serArr = state.cookie =~ /ubid-[a-z]+=([^;]+);/
-        state.wsSerial = serArr?.find() ? serArr[0..-1][0][1] : null
-        state.wsDomain = (state.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state.amazonDomain}"
-        def msgId = Math.floor(1E9 * Math.random()) as BigInteger
-        state.messageId = state.messageId ?: msgId
-        state.messageInitCnt = 0
-        runIn(2,"connect")
+    state.remove('warnHistory'); state.remove('errorHistory')
+
+    if(settings.autoConnectWs != false) {
+        if(!state.cookie || state.cookie instanceof String) state.cookie = parent?.getCookieMap()
+        String cookS = getCookieVal() //state.cookie = parent?.getCookieVal()
+        if(cookS) {
+            if(!state.amazonDomain) {
+                state.amazonDomain = parent?.getAmazonDomain()
+                state.wsDomain = (state.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state.amazonDomain}"
+                def serArr = cookS =~ /ubid-[a-z]+=([^;]+);/
+                state.wsSerial = serArr?.find() ? serArr[0..-1][0][1] : null
+            }
+            state.messageId = state.messageId ?: Math.floor(1E9 * Math.random()) as BigInteger
+            state.remove('messageInitCnt') // state.messageInitCnt = 0
+            runIn(2,"connect")
+        } else {
+            logInfo("Skipping Socket Open... Cookie Data is Missing")
+        }
     } else {
-        logDebug("Skipping Socket Open... Cookie Data is Missing")
+        logInfo("Skipping Socket Open... autoconnect disabled")
     }
 }
 
+Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
+public void logsOff() {
+    device.updateSetting("logDebug",[value:"false",type:"bool"])
+    device.updateSetting("logTrace",[value:"false",type:"bool"])
+    log.debug "Disabling debug logs"
+}
+
+
 def connect() {
+    if(!state.cookie || !state.amazonDomain || !state.wsDomain || !state.wsSerial) { logError("connect: no cookie or domain"); return }
     try {
         Map headers = [
             "Connection": "keep-alive, Upgrade",
             "Upgrade": "websocket",
             "Host": "dp-gw-na.${state.amazonDomain}",
-            "Origin": "https://alexa.${state?.amazonDomain}",
+            "Origin": "https://alexa.${state.amazonDomain}",
             "Pragma": "no-cache",
             "Cache-Control": "no-cache",
-            "Cookie": state?.cookie
+            "Cookie": getCookieVal()
         ]
         logTrace("connect called")
-        interfaces.webSocket.connect("https://dp-gw-na${state?.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state?.wsSerial}-${now()}", byteInterface: "true", pingInterval: 45, headers: headers)
+        interfaces.webSocket.connect("https://dp-gw-na${state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}", byteInterface: "true", pingInterval: 45, headers: headers)
     } catch(ex) {
         logError("WebSocket connect failed | ${ex}")
     }
 }
 
 def close() {
-    log.info "close() called"
+    logInfo("close() called")
     interfaces.webSocket.close()
     updSocketStatus(false)
 }
 
 def reconnectWebSocket() {
-    log.info "reconnectWebSocket() called"
     // first delay is 2 seconds, doubles every time
-    state.reconnectDelay = (state.reconnectDelay ?: 1) * 2
+    Long d = state.reconnectDelay ?: 1 * 2
     // don't def the delay get too crazy, max it out at 10 minutes
-    if(state.reconnectDelay > 600) state.reconnectDelay = 600
+    if(d > 600) d = 600
+    state.reconnectDelay = d
     updSocketStatus(false)
-    runIn(state.reconnectDelay, initialize)
+    logInfo("reconnectWebSocket() called delay: $d")
+    runIn(d, initialize)
 }
 
 def sendWsMsg(String s) {
     interfaces?.webSocket?.sendMessage(s as String)
 }
 
-def updSocketStatus(Boolean active) {
+void updSocketStatus(Boolean active) {
     parent?.webSocketStatus(active)
     state.connectionActive = active
 }
 
 def webSocketStatus(String status) {
-    logDebug("Websocket Status Event | ${status}")
+    logTrace("Websocket Status Event | ${status}")
     if(status.startsWith('failure: ')) {
         logWarn("Websocket Failure Message: ${status}")
 
@@ -157,11 +178,11 @@ def webSocketStatus(String status) {
         logInfo("Alexa WS Connection is Open")
         // success! reset reconnect delay
 //        pauseExecution(1000)
-        state.reconnectDelay = 1
+        state.remove('reconnectDelay') // state.reconnectDelay = 1
         state.connectionActive = true
         // log.trace("Connection Initiation (Step 1)")
         runIn(1, "nextMsgSend")
-//        sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE")?.toString())
+//        sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE"))
     } else if (status == "status: closing") {
         logWarn("WebSocket connection closing.")
         updSocketStatus(false)
@@ -173,27 +194,27 @@ def webSocketStatus(String status) {
     }
 }
 
-def nextMsgSend() {
-    sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE")?.toString())
+void nextMsgSend() {
+    sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE"))
     logTrace("Gateway Handshake Message Sent (Step 1)")
 }
 
-def nextMsgSend1() {
-    sendWsMsg( strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString() )
+void nextMsgSend1() {
+    sendWsMsg( strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""") )
     logTrace("Gateway Handshake Message Sent (Step 2A)")
 }
 
-def nextMsgSend2() {
+void nextMsgSend2() {
     sendWsMsg( strToHex(encodeGWHandshake()) )
     logTrace("Gateway Handshake Message Sent (Step 2B)")
 }
 
-def nextMsgSend3() {
+void nextMsgSend3() {
     sendWsMsg( strToHex(encodeGWRegister()) )
     logTrace("Gateway Registration Message Sent (Step 3)")
 }
 
-def nextMsgSend4() {
+void nextMsgSend4() {
     sendWsMsg( strToHex(encodePing()) )
     logTrace("Encoded Ping Message Sent (Step 4)")
 }
@@ -201,12 +222,12 @@ def nextMsgSend4() {
 def parse(message) {
     // log.debug "parsed ${message}"
     String newMsg = strFromHex(message)
-    logDebug("decodedMsg: ${newMsg}")
+//    logTrace("decodedMsg: ${newMsg}")
     if(newMsg) {
         if(newMsg == """0x37a3b607 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
         // if(newMsg == """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
             runIn(4, "nextMsgSend1")
-//            sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""")?.toString())
+//            sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE"""))
 //            pauseExecution(1000)
             runIn(6, "nextMsgSend2")
 //            sendWsMsg(strToHex(encodeGWHandshake()))
@@ -226,9 +247,9 @@ def parse(message) {
     }
 }
 
-def readHex(str, ind, len, logs=false) {
+def readHex(String str, Integer ind, Integer len, Boolean logs=false) {
     str = str[ind..ind+len-1]
-    if (str?.startsWith('0x')) str = str?.substring(2)
+    if (str?.startsWith('0x')) str = str.substring(2)
     def res
     try {
         res = Integer.parseInt(str as String, 16)
@@ -251,7 +272,7 @@ def parseString(String str, Integer ind, Integer len, Boolean logs=false) {
     return s
 }
 
-def parseIncomingMessage(String data) {
+void parseIncomingMessage(String data) {
     // try {
         Integer idx = 0
         Map message = [:]
@@ -388,7 +409,7 @@ private commandEvtHandler(msg) {
     evt.triggers = []
 
     if(msg && msg.command && msg.payload) {
-        logDebug("Command: ${msg.command} | Payload: ${msg.payload}")
+        logTrace("Command: ${msg.command} | Payload: ${msg.payload}")
         switch((String)msg.command) {
             case "PUSH_EQUALIZER_STATE_CHANGE":
                 // Black hole of unwanted events.
@@ -459,17 +480,16 @@ private commandEvtHandler(msg) {
     }
 }
 
-
 String encodeGWHandshake() {
     //pubrelBuf = new Buffer('MSG 0x00000361 0x0e414e45 f 0x00000001 0xd7c62f29 0x0000009b INI 0x00000003 1.0 0x00000024 ff1c4525-c036-4942-bf6c-a098755ac82f 0x00000164d106ce6b END FABE');
     try {
         state.messageId++
-        def now = now()
-        def msg = 'MSG 0x00000361 ' // Message-type and Channel = GW_HANDSHAKE_CHANNEL;
+        Long now = now()
+        String msg = 'MSG 0x00000361 ' // Message-type and Channel = GW_HANDSHAKE_CHANNEL;
         msg += encodeNumber(state.messageId) + ' f 0x00000001 '
-        def idx1 = msg?.length()
+        Integer idx1 = msg?.length()
         msg += '0x00000000 ' // Checksum!
-        def idx2 = msg?.length()
+        Integer idx2 = msg?.length()
         msg += '0x0000009b ' // length content
         msg += 'INI 0x00000003 1.0 0x00000024 ' // content part 1
         msg += generateUUID()
@@ -485,29 +505,29 @@ String encodeGWHandshake() {
     } catch (ex) { log.error "encodeGWHandshake Exception: ${ex}" }
 }
 
-def encodeGWRegister() {
+String encodeGWRegister() {
     //pubrelBuf = new Buffer('MSG 0x00000362 0x0e414e46 f 0x00000001 0xf904b9f5 0x00000109 GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE');
     try {
         state.messageId++
-        def msg = 'MSG 0x00000362 ' // Message-type and Channel = GW_CHANNEL;
+        String msg = 'MSG 0x00000362 ' // Message-type and Channel = GW_CHANNEL;
         msg += encodeNumber(state.messageId) + ' f 0x00000001 '
-        def idx1 = msg?.length()
+        Integer idx1 = msg?.length()
         msg += '0x00000000 ' // Checksum!
-        def idx2 = msg?.length()
+        Integer idx2 = msg?.length()
         msg += '0x00000109 ' // length content
         msg += 'GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE'
         byte[] buffer = msg?.getBytes("ASCII")
         def checksum = rfc1071Checksum(msg, idx1, idx2)
         def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
         buffer = copyArrRange(buffer, 39, checksumBuf)
-        def out = new String(buffer)
+        String out = new String(buffer)
         return out
     } catch (ex) { log.error "encodeGWRegister Exception: ${ex}" }
 }
 
-def encodePing() {
+String encodePing() {
     state.messageId++
-    def now = now()
+    Long now = now()
     String msg = 'MSG 0x00000065 ' // Message-type and Channel = CHANNEL_FOR_HEARTBEAT;
     msg += encodeNumber(state.messageId) + ' f 0x00000001 '
     Integer idx1 = msg.length()
@@ -533,12 +553,12 @@ def encodePing() {
     n = encodePayload(n, payload, idx, payload?.length())
     buffer = copyArrRange(buffer, msg?.length(), n)
     def buf2End = "FABE"?.getBytes("ASCII")
-    def buf2EndPos = msg?.length() + n?.size()
+    Integer buf2EndPos = msg?.length() + n?.size()
     buffer = copyArrRange(buffer, buf2EndPos, buf2End)
     def checksum = rfc1071Checksum(buffer, idx1, idx2)
     def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
     buffer = copyArrRange(buffer, 39, checksumBuf)
-    def out = new String(buffer)
+    String out = new String(buffer)
     return out
     // "MSG 0x00000065 0x0e414e47 f 0x00000001 0xbc2fbb5f 0x00000062 PIN" + 30 + "FABE"
 }
@@ -555,26 +575,29 @@ def encode(arr, b, Integer pos, Integer len) {
     }
 }
 
-def encodePayload(arr, pay, pos, len) {
+def encodePayload(arr, String pay, Integer pos, Integer len) {
     byte[] u = new byte[len*2]
-    for (def q = 0; q < pay?.length(); q++) { u[q * 2] = 0; u[(q * 2) + 1] = pay?.charAt(q) }
+    for (Integer q = 0; q < pay?.length(); q++) { u[q * 2] = 0; u[(q * 2) + 1] = pay?.charAt(q) }
     // log.debug "u: $u"
     return copyArrRange(arr, pos, u)
 }
 
-def rfc1071Checksum(a, f, k) {
+def rfc1071Checksum(a, Integer f, Integer k) {
     if (k < f) logError("Invalid checksum exclusion window!")
     if(a instanceof String) { a = a?.getBytes("UTF-8") }
     def h = 0
     def l = 0
     def t = 0
-    for (def e = 0; e < a?.size(); e++) {
+    for (Integer e = 0; e < a?.size(); e++) {
         if(e != f) { t = a[e] << ((e & 3 ^ 3) << 3); l += c(t); h += b(l, 32); l = c(l & 4294967295) }
         else { e = k - 1 }
     }
     for (; h>0;) { l += h; h = b(l, 32); l &= 4294967295 }
     return c(l)
 }
+
+def b(a, b) { for (a = c(a); 0 != b && 0 != a;) { a = Math.floor(a / 2); b--; }; return (a instanceof Double) ? a?.toInteger() : a }
+def c(a) { return (0 > a) ? (4294967295 + a + 1) : a }
 
 def copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
     if(arrSrc?.size() < arrSrcStrt) { log.error "Array Start Index is larger than Array Size..."; return arrSrc }
@@ -603,18 +626,20 @@ String generateUUID() {
     state.lastUsedGuid = a?.join("")
     return a?.join("")
 }
-def b(a, b) { for (a = c(a); 0 != b && 0 != a;) { a = Math.floor(a / 2); b--; }; return (a instanceof Double) ? a?.toInteger() : a }
-def c(a) { return (0 > a) ? (4294967295 + a + 1) : a }
+
 Integer toUInt(byte x) { return ((int) x) & 0xff; }
+
 String strToHex(String arg, charset="UTF-8") { return String.format("%x", new BigInteger(1, arg.getBytes(charset))) }
 String strFromHex(str, charset="UTF-8") { return new String(str?.decodeHex()) }
-String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.cookie?.cookie as String : null }
-String getCsrfVal() { return (state.cookie && state.cookie?.csrf) ? state.cookie?.csrf as String : null }
 
-Integer stateSize() { def j = new groovy.json.JsonOutput().toJson(state); return j?.toString().length() }
+String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.cookie?.cookie as String : sNULL }
+//String getCsrfVal() { return (state.cookie && state.cookie?.csrf) ? state.cookie?.csrf as String : null }
+
+Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j?.length() }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 
-Integer versionStr2Int(str) { return str ? str.toString()?.replaceAll("\\.", "")?.toInteger() : null }
+Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", "")?.toInteger() : null }
+
 Boolean minVersionFailed() {
     try {
         Integer minDevVer = parent?.minVersions()["wsDevice"] ?: null
@@ -624,39 +649,58 @@ Boolean minVersionFailed() {
         return false
     }
 }
-def getDtNow() {
-	def now = new Date()
+
+String getDtNow() {
+	Date now = new Date()
 	return formatDt(now, false)
 }
-
-def getIsoDtNow() {
+/*
+String getIsoDtNow() {
     def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf.format(new Date());
-}
+}*/
 
-def formatDt(dt, mdy = true) {
-	def formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
+String formatDt(Date dt, Boolean mdy = true) {
+	String formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
 	def tf = new java.text.SimpleDateFormat(formatVal)
 	if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-	return tf.format(dt)
+	return (String)tf.format(dt)
 }
-
-def GetTimeDiffSeconds(strtDate, stpDate=null) {
-	if((strtDate && !stpDate) || (strtDate && stpDate)) {
-		def now = new Date()
-		def stopVal = stpDate ? stpDate.toString() : formatDt(now, false)
-		def start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate)?.getTime()
-		def stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal)?.getTime()
-		def diff = (int) (long) (stop - start) / 1000
-		return diff
-	} else { return null }
-}
-
-def parseDt(dt, dtFmt) {
+/*
+Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
+    try {
+        if(lastDate?.contains("dtNow")) { return 10000 }
+        Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
+        Long start = lastDt.getTime()
+        Long stop = now()
+        Long diff = (stop - start) / 1000L
+        return diff.abs()
+    } catch (ex) {
+        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex}")
+        return 10000L
+    }
+} */
+/*
+Date parseDt(dt, String dtFmt) {
     return Date.parse(dtFmt, dt)
+} */
+
+private void addToLogHistory(String logKey, String msg, statusData, Integer max=10) {
+    Boolean ssOk = true //(stateSizePerc() <= 70)
+    String appId = device.getId()
+
+    Map memStore = historyMapFLD[appId] ?: [:]
+    List eData = (List)memStore[logKey] ?: []
+    if(eData?.find { it?.message == msg }) { return }
+    if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
+    else { eData.push([dt: getDtNow(), message: msg]) }
+    Integer lsiz=eData.size()
+    if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
+    updMemStoreItem(logKey, eData)
 }
-private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
+/*
+private addToLogHistory(String logKey, String msg, statusData, Integer max=10) {
     Boolean ssOk = (stateSizePerc() <= 70)
     List eData = state.containsKey(logKey as String) ? state[logKey as String] : []
     if(eData?.find { it?.message == msg }) { return; }
@@ -664,20 +708,35 @@ private addToLogHistory(String logKey, msg, statusData, Integer max=10) {
     else { eData.push([dt: getDtNow(), message: msg]) }
 	if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
 	state[logKey as String] = eData
-}
-void logDebug(String msg) { if(settings.logDebug == true) { log.debug "Socket (v${devVersion()}) | ${msg}" } }
-void logInfo(String msg) { if(settings.logInfo != false) { log.info " Socket (v${devVersion()}) | ${msg}" } }
-void logTrace(String msg) { if(settings.logTrace == true) { log.trace "Socket (v${devVersion()}) | ${msg}" } }
-void logWarn(String msg, Boolean noHist=false) { if(settings.logWarn != false) { log.warn " Socket (v${devVersion()}) | ${msg}"; }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
-void logError(String msg, Boolean noHist=false) { if(settings.logError != false) { log.error "Socket (v${devVersion()}) | ${msg}"; }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15); } }
+}*/
 
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
+private void logError(String msg, Boolean noHist=false) { if((Boolean)settings.logError != false) { log.error addHead(msg) }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15) } }
+
+String addHead(String msg) {
+    return "Socket ("+devVersionFLD+") | "+msg
+}
+
+Map getLogHistory() {
+    return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [], speech: getMemStoreItem("speechHistory") ?: [] ]
+}
+
+public clearLogHistory() {
+    updMemStoreItem("warnHistory", [])
+    updMemStoreItem("errorHistory",[])
+    mb()
+}
+/*
 Map getLogHistory() {
     return [ warnings: state.warnHistory ?: [], errors: state.errorHistory ?: [], speech: state.speechHistory ?: [] ]
 }
 public clearLogHistory() {
     state.warnHistory = []
     state.errorHistory = []
-}
+}*/
 
 private incrementCntByKey(String key) {
 	Long evtCnt = state?."${key}" ?: 0L
@@ -709,11 +768,11 @@ public Map getDeviceMetrics() {
     def errItems = state?.findAll { it?.key?.startsWith("err_") }
     if(cntItems?.size()) {
         out["usage"] = [:]
-        cntItems?.each { k,v -> out?.usage[k?.toString()?.replace("use_", "") as String] = v as Integer ?: 0 }
+        cntItems?.each { k,v -> out.usage[k?.toString()?.replace("use_", "") as String] = v as Integer ?: 0 }
     }
     if(errItems?.size()) {
         out["errors"] = [:]
-        errItems?.each { k,v -> out?.errors[k?.toString()?.replace("err_", "") as String] = v as Integer ?: 0 }
+        errItems?.each { k,v -> out.errors[k?.toString()?.replace("err_", "") as String] = v as Integer ?: 0 }
     }
     return out
 }
@@ -728,3 +787,29 @@ public Map getDeviceMetrics() {
     }
     return state.hubPlatform
 }*/
+
+// FIELD VARIABLE FUNCTIONS
+private void updMemStoreItem(String key, val) {
+    String appId = device.getId()
+    Map memStore = historyMapFLD[appId] ?: [:]
+    memStore[key] = val
+    historyMapFLD[appId] = memStore
+    historyMapFLD = historyMapFLD
+    // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
+}
+
+private List getMemStoreItem(String key){
+    String appId = device.getId()
+    Map memStore = historyMapFLD[appId] ?: [:]
+    return (List)memStore[key] ?: []
+}
+
+// Memory Barrier
+@Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+
+static void mb(String meth=sNULL){
+    if((Boolean)theMBLockFLD.tryAcquire()){
+        theMBLockFLD.release()
+    }
+}
+
