@@ -599,8 +599,8 @@ public Map getChildDupeData(String type, String childId) {
 public void clearDuplicationItems() {
     state.actionDuplicated = false
     state.zoneDuplicated = false
-    settingRemove("actionDuplicateSelect")
-    settingRemove("zoneDuplicateSelect")
+    if(settings.actionDuplicateSelect) settingRemove("actionDuplicateSelect")
+    if(settings.zoneDuplicateSelect) settingRemove("zoneDuplicateSelect")
 }
 
 public void childAppDuplicationFinished(String type, String childId) {
@@ -1003,8 +1003,8 @@ def uninstallPage() {
     }
 }
 
-static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"} \u2022 ${strVal}" }
-static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - ${strVal}" }
+static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"} "+ sBULLET + " " + strVal }
+static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - " + strVal }
 
 def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
@@ -1479,7 +1479,7 @@ def zoneStateHandler(evt) {
         Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
         Map t0 = zoneStatusMapFLD
         Map zoneMap = t0 ?: [:]
-        zoneMap[id] = [name: data?.name, active: data?.active]
+        zoneMap[id] = [name: data?.name, active: data?.active, paused: data?.paused]
         zoneStatusMapFLD = zoneMap
         zoneStatusMapFLD = zoneStatusMapFLD
         releaseTheLock(sHMLF)
@@ -1529,13 +1529,25 @@ public Map getZones() {
 
 Map getActiveZones() {
     Map zones = getZones()
-    return zones.size() ? zones.findAll { it?.value?.active == true } : [:]
+    return zones.size() ? zones.findAll { it?.value?.active == true && !it?.value?.paused } : [:]
+}
+
+Map getInActiveZones() {
+    Map zones = getZones()
+    return zones.size() ? zones.findAll { it?.value?.active != true  || it?.value?.paused } : [:]
+}
+
+List getMyZNames(Map zones) {
+    zones = zones ?: [:]
+    return zones.size() ? zones?.collect { (String)it?.value?.name } : []
 }
 
 List getActiveZoneNames() {
-    Map zones = getZones()
-    zones = zones ?: [:]
-    return zones.size() ? zones.findAll { it?.value?.active == true }?.collect { (String)it?.value?.name } : []
+    return getMyZNames(getActiveZones())
+}
+
+List getInActiveZoneNames() {
+    return getMyZNames(getInActiveZones())
 }
 
 List getZoneApps() {
@@ -1546,9 +1558,27 @@ def getZoneById(String id) {
     return getZoneApps()?.find { it?.id?.toString() == id }
 }
 
-public List getActiveActionNames() {
+List getActiveApps() {
     List acts = getActionApps()
-    return acts.size() ? acts.findAll { it?.isPaused() != true }?.collect { (String)it?.getLabel() } : []
+    return acts.size() ? acts.findAll { it?.isPaused() != true } : []
+}
+
+List getInActiveApps() {
+    List acts = getActionApps()
+    return acts.size() ? acts.findAll { it?.isPaused() == true } : []
+}
+
+List getMyANames(List acts) {
+    acts = acts ?: []
+    return acts.size() ? acts?.findAll { it }.collect { (String)it?.getLabel() } : []
+}
+
+public List getActiveActionNames() {
+    return getMyANames(getActiveApps())
+}
+
+public List getInActiveActionNames() {
+    return getMyANames(getInActiveApps())
 }
 
 List getActionApps() {
@@ -3040,7 +3070,7 @@ void receiveEventData(Map evtData, String src) {
                     permissions["connectedHome"] = (echoValue?.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     permissions["bluetoothControl"] = (echoValue?.capabilities.contains("PAIR_BT_SOURCE") || echoValue?.capabilities.contains("PAIR_BT_SINK"))
                     permissions["guardSupported"] = (echoValue?.capabilities?.contains("TUPLE"))
-                    permissions["isEchoDevice"] = (echoValue?.deviceFamily in ["KNIGHT", "ROOK", "ECHO"])
+                    permissions["isEchoDevice"] = (echoValue?.deviceFamily in (List)deviceSupportMapFLD.families.echo)
                     echoValue["guardStatus"] = ((Boolean)state.alexaGuardSupported && (String)state.alexaGuardState) ? (String)state.alexaGuardState : (permissions?.guardSupported ? "Unknown" : "Not Supported")
                     echoValue["musicProviders"] = evtData?.musicProviders
                     echoValue["permissionMap"] = permissions
@@ -3058,10 +3088,19 @@ void receiveEventData(Map evtData, String src) {
                     // logWarn("Device Permisions | Name: ${echoValue?.accountName} | $permissions")
 
                     echoDeviceMap[echoKey] = [
-                        name: echoValue?.accountName, online: echoValue?.online, family: echoValue?.deviceFamily, serialNumber: echoKey,
-                        style: echoValue?.deviceStyle, type: echoValue?.deviceType, mediaPlayer: isMediaPlayer, announceSupport: permissions?.announce,
-                        ttsSupport: allowTTS, volumeSupport: volumeSupport, clusterMembers: echoValue?.clusterMembers,
-                        musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", "), supported: (!unsupportedDevice)
+                        name: echoValue?.accountName,
+                        online: echoValue?.online,
+                        family: echoValue?.deviceFamily,
+                        serialNumber: echoKey,
+                        style: echoValue?.deviceStyle,
+                        type: echoValue?.deviceType,
+                        mediaPlayer: isMediaPlayer,
+                        announceSupport: permissions?.announce,
+                        ttsSupport: allowTTS,
+                        volumeSupport: volumeSupport,
+                        clusterMembers: echoValue?.clusterMembers,
+                        musicProviders: evtData?.musicProviders?.collect{ it?.value }?.sort()?.join(", "),
+                        supported: (!unsupportedDevice)
                     ]
 
                     String dni = [app?.id, "echoSpeaks", echoKey].join("|")
@@ -3157,7 +3196,7 @@ static Map getDeviceStyle(String family, String type) {
 
 public Map getDeviceFamilyMap() {
     if(!state.appData || !state.appData.deviceFamilies) { checkVersionData(true) }
-    return state.appData?.deviceFamilies ?: [:]
+    return state.appData?.deviceFamilies ?: deviceSupportMapFLD.families
 }
 
 List getDevicesFromSerialList(List serialList) {
@@ -4673,27 +4712,28 @@ String getAppNotifDesc() {
 }
 
 String getActionsDesc() {
-    def acts = getActionApps()
-    List actActs = getActiveActionNames()?.sort()?.collect { "\u2022 ${it}" }
-    def paused = acts?.findAll { it?.isPaused() == true }
-    def active = acts?.findAll { it?.isPaused() != true }
+    List<String> actActs = getActiveActionNames()?.sort()?.collect { bulletItem(sBLANK, it) }
+    List<String> inactActs = getInActiveActionNames()?.sort()?.collect { bulletItem(sBLANK, it) }
+    Integer a = actActs?.size()
+    Integer b = inactActs?.size()
     String str = sBLANK
-    str += active?.size() ? "${actActs?.join("\n")}\n" : sBLANK
-    str += paused?.size() ? "(${paused?.size()}) Paused\n" : sBLANK
-    str += active?.size() || paused?.size() ? "\n${sTTM}" : "Tap to create actions using device/location events to perform advanced actions using your Alexa devices."
+    str += a ? "Active Actions:\n${actActs?.join("\n")}\n" : sBLANK
+    str += a && b ? "\n" : sBLANK
+    str += b ? "Paused Actions:\n${inactActs?.join("\n")}\n" : sBLANK
+    str += a || b ? "\n${sTTM}" : "Tap to create actions using device/location events to perform advanced actions using your Alexa devices."
     return str
 }
 
 String getZoneDesc() {
-    List zones = getZoneApps()
-    List actZones = getActiveZoneNames()?.sort()?.collect { "\u2022 ${it}" }
-    // log.debug "actZones: $actZones"
-    List paused = zones?.findAll { it?.isPaused() == true }
-    List active = zones?.findAll { it?.isPaused() != true }
+    List<String> actZones = getActiveZoneNames()?.sort()?.collect { bulletItem(sBLANK, it) }
+    List<String> inactZones = getInActiveZoneNames()?.sort()?.collect { bulletItem(sBLANK, it) }
     String str = sBLANK
-    str += actZones?.size() ? "Active Zones:\n${actZones?.join("\n")}\n" : "No Active Zones...\n"
-    str += paused?.size() ? "(${paused?.size()}) Paused\n" : sBLANK
-    str += active?.size() || paused?.size() ? "\n${sTTM}" : "Tap to create alexa device zones based on motion, presence, and other criteria."
+    Integer a = actZones?.size()
+    Integer b = inactZones?.size()
+    str += a ? "Active Zones:\n${actZones?.join("\n")}\n" : sBLANK
+    str += a && b ? "\n" : sBLANK
+    str += b ? "\nInActive or Paused Zones:\n${inactZones?.join("\n")}\n" : sBLANK
+    str += a || b ? "\n${sTTM}" : "Tap to create alexa device zones based on motion, presence, and other criteria."
     return str
 }
 
@@ -4707,7 +4747,7 @@ String getInputToStringDesc(List inpt, Boolean addSpace=false) {
         }
     }
     //log.debug "str: $str"
-    return (str != sBLANK) ? str.toString() : sNULL
+    return (str != sBLANK) ? str : sNULL
 }
 
 def appInfoSect2() {
