@@ -165,7 +165,7 @@ def mainPage() {
 
         section(sTS("Preferences")) {
             href "prefsPage", title: inTS1("Logging Preferences", "settings"), description: "", image: getAppImg("settings")
-            if(state?.isInstalled) {
+            if(state.isInstalled) {
                 input "zonePause", sBOOL, title: inTS1("Disable Zone?", "pause_orange"), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
@@ -967,7 +967,7 @@ void checkZoneStatus(evt) {
 void sendZoneStatus() {
     Boolean st = (Boolean)state.zoneConditionsOk
     st = st != null ? st : ((Boolean)conditionStatus().ok == true)
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: st], isStateChange: true, display: false, displayed: false)
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: st, paused: isPaused()], isStateChange: true, display: false, displayed: false)
 }
 
 void sendZoneRemoved() {
