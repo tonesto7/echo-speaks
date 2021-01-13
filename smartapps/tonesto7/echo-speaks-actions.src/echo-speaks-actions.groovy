@@ -321,6 +321,12 @@ private scheduleConvert() {
 def triggersPage() {
     return dynamicPage(name: "triggersPage", nextPage: "mainPage", uninstall: false, install: false) {
 //        Boolean isTierAct = isTierAction()
+        String a = getTriggersDesc(false, false)
+        if(a) {
+            section() {
+                paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
+            }
+        }
         section (sTS("Enable webCoRE Integration:")) {
             input "enableWebCoRE", sBOOL, title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
         }
@@ -821,14 +827,20 @@ Boolean triggersConfigured() {
 
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
-        Boolean multiConds = multipleConditions()
-        if(multiConds) {
+        String a = getConditionsDesc(false)
+        if(a) {
             section() {
-                input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sCHKBOX)
-                paragraph pTS("Notice:\n${(Boolean)settings.cond_require_all ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", sNULL, false, sCLR4D9), state: sCOMPLT
+                paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
             }
         }
+        Boolean multiConds = multipleConditions()
         if(!multiConds && (Boolean)settings.cond_require_all) { settingUpdate("cond_require_all", sFALSE, sBOOL) }
+        section() {
+            if(multiConds) {
+                input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sCHKBOX)
+            }
+            paragraph pTS("Notice:\n${!multiConds || (Boolean)settings.cond_require_all ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", sNULL, false, sCLR4D9), state: sCOMPLT
+        }
         section(sTS("Time/Date")) {
             // input "test_time", "time", title: "Trigger Time?", required: false, submitOnChange: true, image: getAppImg("clock")
             href "condTimePage", title: inTS1("Time Schedule", "clock"), description: getTimeCondDesc(false), state: (timeCondConfigured() ? sCOMPLT : null), image: getAppImg("clock")
@@ -1136,6 +1148,12 @@ def actTextOrTiersInput(type) {
 
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
+        String a = getActionDesc(false)
+        if(a) {
+            section() {
+                paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
+            }
+        }
         Boolean done = false
         Map actionExecMap = [configured: false]
         String myactionType = (String)settings.actionType
@@ -1494,14 +1512,14 @@ def actionsPage() {
                 }
                 if(isTierAct && (Integer)settings.act_tier_cnt > 1) {
                     section(sTS("Tier Action Start Tasks:")) {
-                        href "actTrigTasksPage", title: inTS1("Perform Tasks on Tier Start?", "tasks"), description: actTaskDesc("act_tier_start_", true), params:[type: "act_tier_start_"], state: (actTaskDesc("act_tier_start_") ? sCOMPLT : null), image: getAppImg("tasks")
+                        href "actTrigTasksPage", title: inTS1("Tiered Tasks to Perform on Tier Start?", "tasks"), description: actTaskDesc("act_tier_start_", true), params:[type: "act_tier_start_"], state: (actTaskDesc("act_tier_start_") ? sCOMPLT : null), image: getAppImg("tasks")
                     }
                     section(sTS("Tier Action Stop Tasks:")) {
-                        href "actTrigTasksPage", title: inTS1("Perform Tasks on Tier Stop?", "tasks"), description: actTaskDesc("act_tier_stop_", true), params:[type: "act_tier_stop_"], state: (actTaskDesc("act_tier_stop_") ? sCOMPLT : null), image: getAppImg("tasks")
+                        href "actTrigTasksPage", title: inTS1("Tiered Tasks to Perform on Tier Stop?", "tasks"), description: actTaskDesc("act_tier_stop_", true), params:[type: "act_tier_stop_"], state: (actTaskDesc("act_tier_stop_") ? sCOMPLT : null), image: getAppImg("tasks")
                     }
                 } else {
                     section(sTS("Action Triggered Tasks:")) {
-                        href "actTrigTasksPage", title: inTS1("Perform tasks on Trigger?", "tasks"), description: actTaskDesc("act_", true), params:[type: "act_"], state: (actTaskDesc("act_") ? sCOMPLT : null), image: getAppImg("tasks")
+                        href "actTrigTasksPage", title: inTS1("Tasks to Perform when Triggered?", "tasks"), description: actTaskDesc("act_", true), params:[type: "act_"], state: (actTaskDesc("act_") ? sCOMPLT : null), image: getAppImg("tasks")
                     }
                 }
                 actionSimulationSect()
@@ -1666,13 +1684,13 @@ String actTaskDesc(String t, Boolean isInpt=false) {
     if(actTasksConfiguredByType(t)) {
         switch(t) {
             case "act_":
-                str += "${isInpt ? sBLANK : "\n\n"}Trigger Tasks:"
+                str += "${isInpt ? sBLANK : "\n\n"}Triggered Tasks:"
                 break
             case "act_tier_start_":
-                str += "${isInpt ? sBLANK : "\n\n"}Tier Start Tasks:"
+                str += "${isInpt ? sBLANK : "\n\n"}Tiered Start Tasks:"
                 break
             case "act_tier_stop_":
-                str += "${isInpt ? sBLANK : "\n\n"}Tier Stop Tasks:"
+                str += "${isInpt ? sBLANK : "\n\n"}Tiered Stop Tasks:"
                 break
         }
         str += settings."${t}switches_on" ? "\n \u2022 Switches On: (${settings."${t}switches_on"?.size()})" : sBLANK
@@ -1916,18 +1934,19 @@ private echoDevicesInputByPerm(String type) {
     Boolean capOk = (type in ["TTS", "announce"])
     Boolean zonesOk = ((String)settings.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "voicecmd", "sequence", "weather", "calendar", "music", "sounds", "builtin"])
     Map echoZones = (capOk && zonesOk) ? getZones() : [:]
-    section(sTS("Alexa Devices${echoZones?.size() ? " & Zones" : sBLANK}:")) {
+    section(sTS("${echoZones?.size() ? "Zones & " : sBLANK}Alexa Devices:")) {
+//    section(sTS("Alexa Devices${echoZones?.size() ? " & Zones" : sBLANK}:")) {
         if(echoZones?.size()) {
-            if(!settings.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions set in the zones themselves (Motion, presence, etc).\nWhen both Zones and Echo devices are selected zone will take priority over the echo devices.", sNULL, false) }
-            input "act_EchoZones", sENUM, title: inTS1("Zone(s) to Use", "es_groups"), description: "Select the Zones", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
+            if(!settings.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions in the zone (Motion, presence, etc).\nWhen both Zones and Echo devices are selected, the zone will take priority over the echo device setting.", sNULL, false) }
+            input "act_EchoZones", sENUM, title: inTS1("Zone(s) to Use", "es_groups"), description: "Select the Zone(s)", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
         }
         if(settings.act_EchoZones?.size() && echoDevs?.size() && !settings.act_EchoDevices?.size()) {
-            paragraph pTS("There may be times when none of your zones are active at the time of action execution.\nYou have the option to select devices to use when no zones are available.", sNULL, false, "#2678D9")
+            paragraph pTS("There may be scenarios when none of your zones are active at the triggered action execution.\nYou have the option to select echo devices to use when no zones are available.", sNULL, false, "#2678D9")
         }
         if(echoDevs?.size()) {
             Boolean devsOpt = (settings.act_EchoZones?.size())
             def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-            input "act_EchoDevices", sENUM, title: inTS1("Echo Speaks Devices${devsOpt ? "\n(Optional)" : sBLANK}", "echo_gen1"), description: (devsOpt ? "These devices are used when all zones are inactive." : "Select your devices"), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
+            input "act_EchoDevices", sENUM, title: inTS1("Echo Speaks Devices${devsOpt ? "\n(Optional backup)" : sBLANK}", "echo_gen1"), description: (devsOpt ? "These devices are used when all zones are inactive." : "Select your devices"), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
             List aa = settings.act_EchoDevices
             List devIt = aa.collect { it ? it.toInteger():null }
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
@@ -2378,13 +2397,13 @@ public Map getZones() {
 public Map getActiveZones() {
     Map t0 = getZones()
     Map zones = t0 ?: [:]
-    return zones.size() ? zones.findAll { it?.value?.active == true } : [:]
+    return zones.size() ? zones.findAll { it?.value?.active == true  && !it?.value?.paused } : [:]
 }
 
 public List getActiveZoneNames() {
-    Map t0 = getZones()
+    Map t0 = getActiveZones()
     Map zones = t0 ?: [:]
-    return zones.size() ? zones.findAll { it?.value?.active == true }?.collect { it?.value?.name as String } : []
+    return zones.size() ? zones.collect { (String)it?.value?.name } : []
 }
 
 /***********************************************************************************************************
@@ -3463,18 +3482,23 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
     if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
     Map condStatus = conditionStatus()
     // log.debug "condStatus: ${condStatus}"
-    Boolean actOk = getConfStatusItem("actions")
     addToActHistory(evt, [status: condStatus, test: testMode, src: src, isRepeat: isRptAct, isTier: (tierData != null)] )
     Map actMap = state.actionExecMap
+
     List actDevices = settings.act_EchoDevices ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
     Integer actDevSiz = actDevices.size()
+
     Map activeZones = settings.act_EchoZones ? getActiveZones() : [:]
+    activeZones = activeZones.size() ? activeZones.findAll { it?.key in settings.act_EchoZones } : [:]
     Integer actZonesSiz = activeZones.size()
-    // log.debug "activeZones: $activeZones"
+
+  log.debug "activeZones: $activeZones"
+
     String actMsgTxt = sNULL
     String actType = (String)settings.actionType
     Boolean firstTierMsg = (tierData && tierData.isFirst == true)
     Boolean lastTierMsg = (tierData && tierData.isLast == true)
+    Boolean actOk = getConfStatusItem("actions")
     if(actOk && actType) {
         def alexaMsgDev = actDevSiz && settings.notif_alexa_mobile ? actDevices[0] : null
         if(!(Boolean)condStatus.ok) { logWarn("executeAction | Skipping execution because ${condStatus.blocks} conditions have not been met", true); return }
@@ -4509,7 +4533,7 @@ String getNotifSchedDesc(Boolean min=false) {
     return (str != sBLANK) ? str : sNULL
 }
 
-String getTriggersDesc(Boolean hideDesc=false) {
+String getTriggersDesc(Boolean hideDesc=false, Boolean addE=true) {
     Boolean confd = triggersConfigured()
     List setItem = settings.triggerEvents
     String sPre = "trig_"
@@ -4580,15 +4604,15 @@ String getTriggersDesc(Boolean hideDesc=false) {
                         break
                 }
             }
-            str += "\n"+sTTM
+            str += addE ? "\n"+sTTM : sBLANK
             return str
-        } else { return sTTM }
+        } else { return addE ? sTTM : sBLANK }
     } else {
-        return sTTC
+        return addE ? sTTC : sBLANK
     }
 }
 
-String getConditionsDesc() {
+String getConditionsDesc(Boolean addE=true) {
     Boolean confd = conditionsConfigured()
 //    def time = null
     String sPre = "cond_"
@@ -4633,10 +4657,10 @@ String getConditionsDesc() {
                 }
             }
         }
-        str += "\n"+sTTM
+        str += addE ? "\n"+sTTM : sBLANK
         return str
     } else {
-        return sTTC
+        return addE ? sTTC : sBLANK
     }
 }
 
@@ -4667,20 +4691,21 @@ Map getZoneStatus() {
     return res
 }
 
-String getActionDesc() {
+String getActionDesc(Boolean addE=true) {
     Boolean confd = executionConfigured()
 //    def time = null
-    String sPre = "act_"
+//    String sPre = "act_"
+    String str = sBLANK
+    str += addE && (String)settings.actionType ? "Action:\n • ${(String)settings.actionType}\n\n" : sBLANK
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
-        String str = sBLANK
         def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
         Map zones = getZoneStatus()
         String tierDesc = isTierAct ? getTierRespDesc() : sNULL
         String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
         String tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : sNULL
         str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n${eDevs?.size() ? "\n": ""}" : sBLANK
-        str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Zone Backups)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join("\n")}\n" : sBLANK
+        str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Zone backups)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join("\n")}\n" : sBLANK
         str += tierDesc ? "\n${tierDesc}${tierStart || tierStop ? sBLANK : "\n"}" : sBLANK
         str += tierStart ? tierStart+"\n" : sBLANK
         str += tierStop ? tierStop+"\n" : sBLANK
@@ -4690,12 +4715,11 @@ String getActionDesc() {
         str += (String)settings.actionType in ["speak", "announcement", "speak_tiered", "announcement_tiered"] && settings."act_${(String)settings.actionType}_txt" ? "Using Default Response: (True)\n" : sBLANK
         String trigTasks = !isTierAct ? actTaskDesc("act_") : sNULL
         str += trigTasks ? trigTasks : sBLANK
-        str += "\n\n"+sTTM
-        return str
-    } else {
-        return sTTC
+        str += addE ? "\n\n"+sTTM : sBLANK
+        return str.replaceAll("\n\n\n", "\n\n")
     }
-    return confd ? "Actions:\n • ${(String)settings.actionType}\n\n"+sTTM : sTTC
+    str += addE ? "\n\n"+sTTC : sBLANK
+    return str
 }
 
 String getTimeCondDesc(Boolean addPre=true) {
@@ -4763,17 +4787,17 @@ static String getAppImg(String imgName, Boolean frc=false) { return (frc || isSt
 
 static String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : sBLANK }
 
-static String sTS(String t, String i = sNULL, Boolean bold=false) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
+static String sTS(String t, String i = sNULL, Boolean bold=false) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 /* """ */
 
-static String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return isStFLD ? t : """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
+static String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return isStFLD ? t : """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
 /* """ */
 
-static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 /* """ */
 
 static String inTS1(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return inTS(t, getHEAppImg(i), color, under) }
-static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
+static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
 /* """ */
 
 static String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
