@@ -708,8 +708,8 @@ Boolean timeCondOk() {
     String startType = settings.cond_time_start_type
     String stopType = settings.cond_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' ? toDateTime(settings.cond_time_start) : null
-        stopTime = stopType == 'time' ? toDateTime(settings.cond_time_stop) : null
+        startTime = startType == 'time' && settings.cond_time_start ? toDateTime(settings.cond_time_start) : null
+        stopTime = stopType == 'time' && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
 
         if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
             def sun = getSunriseAndSunset()
@@ -1524,19 +1524,19 @@ List getQuietDays() {
 }
 
 String getNotifSchedDesc(Boolean min=false) {
-    String startInput = settings.notif_time_start_type
+    String startType = settings.notif_time_start_type
     Date startTime
-    String stopInput = settings.notif_time_stop_type
+    String stopType = settings.notif_time_stop_type
     Date stopTime
     List dayInput = settings.notif_days
     List modeInput = settings.notif_modes
     String str = sBLANK
 
-    if(startInput && stopInput) {
-        startTime = startInput == 'time' ? toDateTime(settings.notif_time_start) : null
-        stopTime = stopInput == 'time' ? toDateTime(settings.notif_time_stop) : null
+    if(startType && stopType) {
+        startTime = startType == 'time' && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
+        stopTime = stopType == 'time' && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
     }
-    if(startInput in ["sunrise","sunset"] || stopInput in ["sunrise","sunset"]) {
+    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
@@ -1555,10 +1555,10 @@ String getNotifSchedDesc(Boolean min=false) {
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
     str += (startLbl && stopLbl) ? "   \u2022 Restricted Times: ${startLbl} - ${stopLbl} (${!notifTimeOk() ? okSymFLD : notOkSymFLD})" : sBLANK
     List qDays = getQuietDays()
-    Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
+    Boolean daysOk = dayInput ? (isDayOfWeek(dayInput)) : true
     String a = " (${!daysOk ? okSymFLD : notOkSymFLD})"
     str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
-    Boolean modesOk = settings.notif_mode ? (isInMode(settings.notif_mode)) : true
+    Boolean modesOk = modeInput ? (isInMode(modeInput)) : true
     a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
     str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
     return (str != sBLANK) ? str : sNULL
@@ -1635,8 +1635,8 @@ String getTimeCondDesc(Boolean addPre=true) {
     String startType = settings.cond_time_start_type
     String stopType = settings.cond_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' ? toDateTime(settings.cond_time_start) : null
-        stopTime = stopType == 'time' ? toDateTime(settings.cond_time_stop) : null
+        startTime = startType == 'time' && settings.cond_time_start ? toDateTime(settings.cond_time_start) : null
+        stopTime = stopType == 'time' && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
     }
 
     if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
@@ -1731,7 +1731,7 @@ Boolean getOk2Notify() {
     Boolean notifDevsOk = (settings.notif_devs?.size())
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
-    Boolean modesOk = settings.notif_mode ? (isInMode(settings.notif_mode)) : true
+    Boolean modesOk = settings.notif_modes ? (isInMode(settings.notif_modes)) : true
     logTrace("getOk2Notify() | notifDevs: $notifDevsOk | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
     if(!(daysOk && modesOk && timeOk)) { return false }
@@ -1744,8 +1744,8 @@ Boolean notifTimeOk() {
     String startType = settings.notif_time_start_type
     String stopType = settings.notif_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' ? toDateTime(settings.notif_time_start) : null
-        stopTime = stopType == 'time' ? toDateTime(settings.notif_time_stop) : null
+        startTime = startType == 'time' && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
+        stopTime = stopType == 'time' && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
     } else { return true }
 
     Date now = new Date()
