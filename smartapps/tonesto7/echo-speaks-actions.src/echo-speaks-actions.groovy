@@ -21,7 +21,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "3.7.0.0"
-@Field static final String appModifiedFLD = "2021-01-09"
+@Field static final String appModifiedFLD = "2021-01-13"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
@@ -1104,47 +1104,6 @@ def actTextOrTiersInput(type) {
                 description: settings."${type}" ?: "Open Response Designer...", image: getAppImg("text")
     }
 }
-
-// private updActExecMap() {
-//     String actionType = (String)settings.actionType
-//     Map actionExecMap = [configured: false]
-
-//     if(settings.act_EchoDevices || settings.act_EchoZones) {
-//         actionExecMap.actionType = settings.actionType
-//         actionExecMap.config = [:]
-//         switch(actionType) {
-//             case "speak":
-//             case "speak_tiered":
-//                 actionExecMap.config[actionType] = [text: settings.act_speak_txt, evtText: ((state.showSpeakEvtVars && !settings.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
-//                 break
-//             case "announcement":
-//             case "announcement_tiered":
-//                 actionExecMap.config[actionType] = [text: settings.act_speak_txt, evtText: ((state.showSpeakEvtVars && !settings.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
-//                 if(settings.act_EchoDevices?.size() > 1) {
-//                     List devObj = []
-//                     devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
-//                     // log.debug "devObj: $devObj"
-//                     actionExecMap.config[actionType]?.deviceObjs = devObj
-//                 }
-//                 break
-//             case "sequence":
-//                 actionExecMap.config[actionType] = [text: settings."act_${actionType}_txt"]
-//                 break
-//             case "weather":
-//                 actionExecMap?.config?.weather = [cmd: "playWeather"]
-//                 break
-//             case "playback":
-//             case "builtin":
-//             case "calendar":
-//                 actionExecMap.config[actionType] = [cmd: settings."act_${actionType}_cmd"]
-//                 break
-//             case "music":
-
-//                 break
-//         }
-//     }
-// }
-
 
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
