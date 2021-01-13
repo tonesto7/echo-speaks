@@ -1842,6 +1842,7 @@ def actNotifTimePage() {
          if(a) {
              section() {
                  paragraph pTS("Restrictions Status:\n"+a, sNULL, false, sCLR4D9), state: sCOMPLT
+                 paragraph pTS("Notice:\nAll selected restrictions  must be inactive for notifications to be sent.", sNULL, false, sCLR4D9), state: sCOMPLT
              }
          }
         String pre = "notif"
@@ -4497,7 +4498,7 @@ String getAppNotifDesc(Boolean hide=false) {
         str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
         str += settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
         String res = getNotifSchedDesc(true)
-        str += res ? " \u2022 Restrictions: (${!ok ? okSymFLD : notOkSymFLD})\n${res}" : sBLANK
+        str += res ?: sBLANK
     }
     return str != sBLANK ? str : sNULL
 }
@@ -4536,16 +4537,19 @@ String getNotifSchedDesc(Boolean min=false) {
             stopTime = new Date(stopl)
         }
     }
+    Boolean timeOk = notifTimeOk()
+    Boolean daysOk = dayInput ? (isDayOfWeek(dayInput)) : true
+    Boolean modesOk = modeInput ? (isInMode(modeInput)) : true
+    Boolean rest = !(daysOk && modesOk && timeOk)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? "   \u2022 Restricted Times: ${startLbl} - ${stopLbl} (${!notifTimeOk() ? okSymFLD : notOkSymFLD})" : sBLANK
+    str += (startLbl && stopLbl) ? "   \u2022 Restricted Times: ${startLbl} - ${stopLbl} (${!timeOk ? okSymFLD : notOkSymFLD})" : sBLANK
     List qDays = getQuietDays()
-    Boolean daysOk = dayInput ? (isDayOfWeek(dayInput)) : true
     String a = " (${!daysOk ? okSymFLD : notOkSymFLD})"
     str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
-    Boolean modesOk = modeInput ? (isInMode(modeInput)) : true
     a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
     str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
+    str = str ? " \u2022 Restrictions: (${!rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
     return (str != sBLANK) ? str : sNULL
 }
 
