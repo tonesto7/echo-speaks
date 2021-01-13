@@ -4504,7 +4504,7 @@ String getAppNotifDesc(Boolean hide=false) {
 
 List getQuietDays() {
     List<String> allDays = weekDaysEnum()
-    List curDays = settings.quietDays ?: []
+    List curDays = settings.notif_days ?: []
     return allDays.findAll { (!curDays?.contains(it as String)) }
 }
 
