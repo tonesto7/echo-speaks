@@ -1850,7 +1850,7 @@ def actNotifTimePage() {
             input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
             if(settings."${pre}_time_start_type" == "time") {
                 input "${pre}_time_start", "time", title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
-            } else if(settings."${pre}_time_start_type" in ["sunrise", "sunrise"]) {
+            } else if(settings."${pre}_time_start_type" in ["sunrise", "sunset"]) {
                 input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -1858,7 +1858,7 @@ def actNotifTimePage() {
             input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
             if(settings."${pre}_time_stop_type" == "time") {
                 input "${pre}_time_stop", "time", title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
-            } else if(settings."${pre}_time_stop_type" in ["sunrise", "sunrise"]) {
+            } else if(settings."${pre}_time_stop_type" in ["sunrise", "sunset"]) {
                 input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -1990,19 +1990,19 @@ private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmV
 def condTimePage() {
     return dynamicPage(name:"condTimePage", title: sBLANK, install: false, uninstall: false) {
         Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
-        section(sTS("Start Time:")) {
+        section(sTS("Condition Start Time:")) {
             input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
-            if(cond_time_start_type  == "time") {
+            if(settings.cond_time_start_type  == "time") {
                 input "cond_time_start", "time", title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
-            } else if(cond_time_start_type in ["sunrise", "sunrise"]) {
+            } else if(settings.cond_time_start_type in ["sunrise", "sunset"]) {
                 input "cond_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
-        section(sTS("Stop Time:")) {
+        section(sTS("Condition Stop Time:")) {
             input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
-            if(cond_time_stop_type == "time") {
+            if(settings.cond_time_stop_type == "time") {
                 input "cond_time_stop", "time", title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
-            } else if(cond_time_stop_type in ["sunrise", "sunrise"]) {
+            } else if(settings.cond_time_stop_type in ["sunrise", "sunset"]) {
                 input "cond_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
