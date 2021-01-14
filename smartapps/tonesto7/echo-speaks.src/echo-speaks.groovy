@@ -980,6 +980,13 @@ def notifPrefPage() {
 
 def setNotificationTimePage() {
     dynamicPage(name: "setNotificationTimePage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
+        String a = getNotifSchedDesc()
+         if(a) {
+             section() {
+                 paragraph pTS("Restrictions Status:\n"+a, sNULL, false, sCLR4D9), state: sCOMPLT
+                 paragraph pTS("Notice:\nAll selected restrictions  must be inactive for notifications to be sent.", sNULL, false, sCLR4D9), state: sCOMPLT
+             }
+         }
         Boolean timeReq = settings["qStartTime"] || settings["qStopTime"]
         section() {
             input "qStartInput", sENUM, title: inTS1("Starting at", "start_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
@@ -4652,7 +4659,7 @@ String getAppNotifConfDesc() {
         // str += ((Boolean)settings?.pushoverEnabled && settings?.pushoverSound) ? bulletItem(str, "Sound: (${settings?.pushoverSound})") : sBLANK
 //        str += (settings?.phone) ? bulletItem(str, "Sending via: (SMS)") : sBLANK
         str += (ap) ? "${str != sBLANK ? "\n\n" : sBLANK}Enabled Alerts:\n${ap}" : sBLANK
-        str += (ap && nd) ? "${str != sBLANK ? "\n" : sBLANK}\nRestrictions:\n${nd}" : sBLANK
+        str += (ap && nd) ? "${str != sBLANK ? "\n" : sBLANK}\n${nd}" : sBLANK
     }
     return str != sBLANK ? str : sNULL
 }
@@ -4664,17 +4671,61 @@ List getQuietDays() {
 }
 
 String getNotifSchedDesc(Boolean min=false) {
-    def sun = getSunriseAndSunset()
-    String startInput = settings?.qStartInput
-    def startTime = settings?.qStartTime
-    String stopInput = settings?.qStopInput
-    def stopTime = settings?.qStopTime
+    String startType = settings.qStartInput
+    Date startTime
+    String stopType = settings.qStopInput
+    Date stopTime
+    List dayInput = settings.quietDays
+    List modeInput = settings.quietModes
+    String str = sBLANK
+
+    if(startType && stopType) {
+        startTime = startType == 'A specific time' && settings.qStartTime ? toDateTime(settings.qStartTime) : null
+        stopTime = stopType == 'A specific time' && settings.qStopTime ? toDateTime(settings.qStopTime) : null
+    }
+    if(startType in ["Sunrise","Sunset"] || stopType in ["Sunrise","Sunset"]) {
+        def sun = getSunriseAndSunset()
+        Long lsunset = sun.sunset.time
+        Long lsunrise = sun.sunrise.time
+        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
+        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
+        if(startType in ["Sunrise","Sunset"]) {
+            Long startl = (startType == 'Sunrise' ? lsunrise : lsunset) + startoffset
+            startTime = new Date(startl)
+        }
+        if(stopType in ["Sunrise","Sunset"]) {
+            Long stopl = (stopType == 'Sunrise' ? lsunrise : lsunset) + stopoffset
+            stopTime = new Date(stopl)
+        }
+    }
+    Boolean timeOk = quietTimeOk()
+    Boolean daysOk = quietDaysOk(dayInput)
+    Boolean modesOk = quietModesOk(modeInput)
+    Boolean rest = !(daysOk && modesOk && timeOk)
+    String startLbl = startTime ? epochToTime(startTime) : sBLANK
+    String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
+    str += (startLbl && stopLbl) ? "   \u2022 Restricted Times: ${startLbl} - ${stopLbl} (${!timeOk ? okSymFLD : notOkSymFLD})" : sBLANK
+    List qDays = getQuietDays()
+    String a = " (${!daysOk ? okSymFLD : notOkSymFLD})"
+    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
+    a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
+    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
+    str = str ? " \u2022 Restrictions: (${rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
+    return (str != sBLANK) ? str : sNULL
+
+
+
+/*    def sun = getSunriseAndSunset()
+    String startInput = settings.qStartInput
+    def startTime = settings.qStartTime
+    String stopInput = settings.qStopInput
+    def stopTime = settings.qStopTime
     List dayInput = settings.quietDays
     List modeInput = settings.quietModes
     String notifDesc = sBLANK
     String getNotifTimeStartLbl = ( (startInput == "Sunrise" || startInput == "Sunset") ? ( (startInput == "Sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (startTime ? time2Str(startTime) : sBLANK) )
     String getNotifTimeStopLbl = ( (stopInput == "Sunrise" || stopInput == "Sunset") ? ( (stopInput == "Sunset") ? epochToTime(sun?.sunset) : epochToTime(sun?.sunrise) ) : (stopTime ? time2Str(stopTime) : sBLANK) )
-    notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl} (${!quietTimeOk() ? okSymFLD : notOkSymFLD})" : sBLANK
+    notifDesc += (getNotifTimeStartLbl && getNotifTimeStopLbl) ? " • Time: ${getNotifTimeStartLbl} - ${getNotifTimeStopLbl} (${!quietTimeOk() ? okSymFLD : notOkSymFLD})" : sBLANK 
     def days = getInputToStringDesc(dayInput)
     def modes = getInputToStringDesc(modeInput)
     def qDays = getQuietDays()
@@ -4684,7 +4735,7 @@ String getNotifSchedDesc(Boolean min=false) {
     a = modes ? " (${quietModesOk(modeInput) ? okSymFLD : notOkSymFLD})" : sBLANK
     notifDesc += modes ? "${(getNotifTimeStartLbl || getNotifTimeStopLbl || (dayInput && qDays)) ? "\n" : sBLANK} • Mode${pluralizeStr(modeInput, false)}:${min ? " (${modes?.size()} selected)" : "\n    - ${modes?.join("\n    - ")}"}" : sBLANK
     notifDesc += a
-    return notifDesc != sBLANK ? notifDesc : sNULL
+    return notifDesc != sBLANK ? notifDesc : sNULL */
 }
 
 String getServiceConfDesc() {
