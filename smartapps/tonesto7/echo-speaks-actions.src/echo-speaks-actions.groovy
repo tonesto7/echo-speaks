@@ -4509,7 +4509,7 @@ String getNotifSchedDesc(Boolean min=false) {
     str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
     a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
     str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
-    str = str ? " \u2022 Restrictions: (${!rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
+    str = str ? " \u2022 Restrictions: (${rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
     return (str != sBLANK) ? str : sNULL
 }
 
