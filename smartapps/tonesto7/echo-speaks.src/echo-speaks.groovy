@@ -171,7 +171,7 @@ def mainPage() {
 
             section(sTS("Alexa Login Service:")) {
                 String ls = getLoginStatusDesc()
-                href "authStatusPage", title: inTS1("Login Status | Service Management", sSETTINGS), description: (ls ? "${ls}\n\n${sTTM}" : sTTC), state: (ls ? sCOMPLT : sNULL), image: getAppImg(sSETTINGS)
+                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}\n\n${sTTM}" : sTTC), state: (ls ? sCOMPLT : sNULL), image: getAppImg(sSETTINGS)
             }
             if(!(Boolean)state.shownDevSharePage) { showDevSharePrefs() }
         }
@@ -259,9 +259,9 @@ def authStatusPage() {
             }
         }
 
-        section(sTS("Service Management")) {
+        section(sTS("Cookie Service Management")) {
             String t0 = getServiceConfDesc()
-            href "servPrefPage", title: inTS1("Manage Login Service", sSETTINGS), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL), image: getAppImg(sSETTINGS)
+            href "servPrefPage", title: inTS1("Manage Cookie Login Service", sSETTINGS), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL), image: getAppImg(sSETTINGS)
         }
     }
 }
@@ -280,7 +280,7 @@ def servPrefPage() {
 
         if(!(Boolean)state.serviceConfigured) {
             if(!isStFLD) {
-                section(sTS("Server Deployment Option:")) {
+                section(sTS("Cookie Server Deployment Option:")) {
                     input "useHeroku", sBOOL, title: inTS1("Deploy server to Heroku?", sHEROKU), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sHEROKU)
                     if(!(Boolean)settings.useHeroku) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
                 }
@@ -315,10 +315,10 @@ def servPrefPage() {
             if(!isStFLD) { paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, sCLRGRY) }
             if(settings?.resetService) { clearCloudConfig() }
         }
-        section(sTS("Documentation & Settings:")) {
+/*        section(sTS("Documentation & Settings:")) {
             href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, image: getAppImg("documentation")
             href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: sTTM, image: getAppImg(sSETTINGS)
-        }
+        } */
         state.resumeConfig = false
     }
 }
@@ -356,7 +356,7 @@ def deviceManagePage() {
                     String uDesc = "Unsupported: (${skDevs?.size()})"
                     uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : sBLANK
                     uDesc += (Boolean)settings.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : sBLANK
-                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details..."
+                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details...", state: sCOMPLT
                 }
             }
             String devPrefDesc = devicePrefsDesc()
@@ -787,9 +787,9 @@ private String devicePrefsDesc() {
 
 def settingsPage() {
     return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
-        section(sTS("App Change Details:")) {
+/*        section(sTS("App Change Details:")) {
             href "changeLogPage", title: inTS1("View App Revision History", "change_log"), description: "Tap to view", image: getAppImg("change_log")
-        }
+        }*/
         section(sTS("Logging:")) {
             input "logInfo", sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
             input "logWarn", sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
