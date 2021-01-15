@@ -138,7 +138,7 @@ def connect() {
         logTrace("connect called")
         interfaces.webSocket.connect("https://dp-gw-na${state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}", byteInterface: "true", pingInterval: 45, headers: headers)
     } catch(ex) {
-        logError("WebSocket connect failed | ${ex}")
+        logError("WebSocket connect failed | ${ex}", false, ex)
     }
 }
 
@@ -266,8 +266,8 @@ String readString(String str, Integer ind, Integer len, Boolean logs=false) {
     return s
 }
 
-def parseString(String str, Integer ind, Integer len, Boolean logs=false) {
-    def s = str?.substring(ind, ind+len)
+String parseString(String str, Integer ind, Integer len, Boolean logs=false) {
+    String s = str?.substring(ind, ind+len)
     if(logs) log.debug "parseString(ind: $ind, len: $len): ${s}"
     return s
 }
@@ -282,114 +282,114 @@ void parseIncomingMessage(String data) {
         // log.debug "Message Service: ${message?.service}"
 
         if ((String)message.service == "TUNE") {
-            message?.checksum = readHex(dStr, idx, 10)
+            message.checksum = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
-            def contentLength = readHex(dStr, idx, 10)
+            Integer contentLength = (Integer)readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
-            message?.content = parseString(dStr, idx, contentLength - 4 - idx)
-            if (message?.content?.startsWith('{') && message?.content?.endsWith('}')) {
+            message.content = parseString(dStr, idx, contentLength - 4 - idx)
+            if (message.content?.startsWith('{') && message.content?.endsWith('}')) {
                 try {
-                    message?.content = parseJson(message?.content?.toString())
+                    message.content = parseJson(message.content?.toString())
                     // log.debug "TUNE: ${message?.content}"
                 } catch (e) {}
             }
         } else if ((String)message.service == 'FABE') {
-            message?.messageType = readString(dStr, idx, 3)
+            message.messageType = readString(dStr, idx, 3)
             idx += 4
-            message?.channel = readHex(dStr, idx, 10)
+            message.channel = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
-            message?.messageId = readHex(dStr, idx, 10)
+            message.messageId = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
-            message?.moreFlag = readString(dStr, idx, 1)
+            message.moreFlag = readString(dStr, idx, 1)
             idx += 2 // 1 + delimiter;
-            message?.seq = readHex(dStr, idx, 10)
+            message.seq = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
-            message?.checksum = readHex(dStr, idx, 10)
+            message.checksum = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
 
-            def contentLength = readHex(dStr, idx, 10)
+            Integer contentLength = (Integer)readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
-            message?.content = [:]
-            message?.content?.messageType = parseString(dStr, idx, 3)
-            // log.debug "Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})"
+            message.content = [:]
+            message.content.messageType = parseString(dStr, idx, 3)
+            // dumpMsg(message)
             idx += 4
 
-            if (message?.channel == 865) { //0x361 GW_HANDSHAKE_CHANNEL
-                if (message?.content?.messageType == "ACK") {
-                    def length = readHex(dStr, idx, 10)
+            if (message.channel == 865) { //0x361 GW_HANDSHAKE_CHANNEL
+                if (message.content?.messageType == "ACK") {
+                    Integer length = (Integer)readHex(dStr, idx, 10)
                     idx += 11 // 10 + delimiter;
-                    message?.content?.protocolVersion = parseString(dStr, idx, length)
+                    message.content.protocolVersion = parseString(dStr, idx, length)
                     idx += length + 1
-                    length = readHex(dStr, idx, 10)
+                    length = (Integer)readHex(dStr, idx, 10)
                     idx += 11 // 10 + delimiter;
-                    message?.content?.connectionUUID = parseString(dStr, idx, length)
+                    message.content.connectionUUID = parseString(dStr, idx, length)
                     idx += length + 1
-                    message?.content?.established = readHex(dStr, idx, 10)
+                    message.content.established = readHex(dStr, idx, 10)
                     idx += 11 // 10 + delimiter;
-                    message?.content?.timestampINI = readHex(dStr, idx, 18)
+                    message.content.timestampINI = readHex(dStr, idx, 18)
                     idx += 19 // 18 + delimiter;
-                    message?.content?.timestampACK = readHex(dStr, idx, 18)
+                    message.content.timestampACK = readHex(dStr, idx, 18)
                     idx += 19 // 18 + delimiter;
                     // log.debug "message.content: ${message?.content}"
-                    state.wsAckData = message?.content
+                    state.wsAckData = message.content
                     logInfo("WebSocket Connection Established...")
                     updSocketStatus(true)
                 }
             } else if (message?.channel == 866) { // 0x362 GW_CHANNEL
-                if (message?.content?.messageType == 'GWM') {
-                    message?.content?.subMessageType = readString(dStr, idx, 3)
+                if (message.content?.messageType == 'GWM') {
+                    message.content.subMessageType = readString(dStr, idx, 3)
                     idx += 4
-                    message?.content?.channelStr = parseString(dStr, idx, 10)
-                    message?.content?.channel = readHex(dStr, idx, 10)
+                    message.content.channelStr = parseString(dStr, idx, 10)
+                    message.content.channel = readHex(dStr, idx, 10)
                     // log.debug "Content Channel: ${message?.content?.channel} | (${message?.content?.channelStr})"
                     idx += 11 // 10 + delimiter;
 
                     if (message?.content?.channel == 46201) { // 0xb479 DEE_WEBSITE_MESSAGING
-                        def length = readHex(dStr, idx, 10)
+                        Integer length = (Integer)readHex(dStr, idx, 10)
                         idx += 11
-                        message?.content?.destinationIdentityUrn = parseString(dStr, idx, length)
+                        message.content.destinationIdentityUrn = parseString(dStr, idx, length)
                         idx += length + 1
-                        length = readHex(dStr, idx, 10)
+                        length = (Integer)readHex(dStr, idx, 10)
                         idx += 11
-                        def idData = parseString(dStr, idx, length)
+                        String idData = parseString(dStr, idx, length)
                         idx += length + 1
                         idData = idData?.tokenize(' ')
                         // log.debug "idData: $idData"
-                        message?.content?.deviceIdentityUrn = idData[0]
-                        message?.content?.payload = idData[1] ?: null
+                        message.content.deviceIdentityUrn = idData[0]
+                        message.content.payload = idData[1] ?: null
                         // log.debug "deviceUrn: ${message?.content?.deviceIdentityUrn}"
-                        if (!message?.content?.payload) {
-                            message?.content?.payload = parseString(dStr, idx, dStr?.length() - 4 - idx)
+                        if (!message.content.payload) {
+                            message.content.payload = parseString(dStr, idx, dStr?.length() - 4 - idx)
                         }
                         // log.debug "payload: ${message?.content?.payload}"
-                        if (message?.content?.payload?.startsWith('{') && message?.content?.payload?.endsWith('}')) {
+                        if (message.content.payload.startsWith('{') && message.content.payload.endsWith('}')) {
                             try {
-                                message?.content?.payload = parseJson(message?.content?.payload?.toString())
-                                if (message?.content?.payload && message?.content?.payload?.payload && message?.content?.payload?.payload instanceof String) {
-                                    message?.content?.payload?.payload = parseJson(message?.content?.payload?.payload?.toString())
-                                    commandEvtHandler(message?.content?.payload)
+                                message.content.payload = parseJson(message.content.payload.toString())
+                                if (message.content.payload && message.content.payload.payload && message.content.payload.payload instanceof String) {
+                                    message.content.payload.payload = parseJson(message.content.payload.payload?.toString())
+                                    commandEvtHandler(message.content.payload)
                                 }
                             } catch (e) {
-                                logError("payload parse error: $ex")
+                                logError("payload parse error: $ex", false, e)
                             }
                         } else {
-                            logDebug("Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})")
+                            dumpMsg(message)
                             // logWarn("UNKNOWN PAYLOAD FORMAT: ${message?.content?.payload}")
                         }
                     } else {
-                        logDebug("Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})")
+                        dumpMsg(message)
                         // logWarn("UNKNOWN CONTENT CHANNEL: ${message?.content?.channel}")
                     }
                 } else {
-                    logDebug("Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})")
+                    dumpMsg(message)
                     // logWarn("UNKNOWN MESSAGETYPE: ${message?.content?.messageType}")
                 }
             } else if (message?.channel == 101) { // 0x65 CHANNEL_FOR_HEARTBEAT
                 idx -= 1 // no delimiter!
-                logDebug("Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})")
-                message?.content?.payloadData = dStr.slice(idx, dLen - 4)
+                dumpMsg(message)
+                message.content.payloadData = dStr.slice(idx, dLen - 4)
             } else {
-                logDebug("Service: (${message?.service}) | Type: (${message?.messageType}) | Channel: (${message?.channel}) | contentMsgType: (${message?.content?.messageType})")
+                dumpMsg(message)
                 // logWarn("UNKNOWN CHANNEL: ${message?.channel}")
             }
         }
@@ -397,6 +397,10 @@ void parseIncomingMessage(String data) {
     //     log.error "parseIncomingMessage Exception: ${ex.message}"
     // }
     // return message;
+}
+
+void dumpMsg(Map message) {
+    logDebug("Service: (${message.service}) | Type: (${message.messageType}) | Channel: (${message.channel}) | contentMsgType: (${message.content?.messageType})")
 }
 
 private commandEvtHandler(msg) {
@@ -417,17 +421,17 @@ private commandEvtHandler(msg) {
 
             case "PUSH_VOLUME_CHANGE":
                 sendEvt = true
-                evt.attributes.volume = msg.payload?.volumeSetting
-                evt.attributes.level = msg.payload?.volumeSetting
+                evt.attributes.volume = msg.payload.volumeSetting
+                evt.attributes.level = msg.payload.volumeSetting
                 evt.attributes.mute = (isMuted == true) ? "muted" : "unmuted"
                 break
             case "PUSH_BLUETOOTH_STATE_CHANGE":
-                switch(msg.payload?.bluetoothEvent) {
+                switch(msg.payload.bluetoothEvent) {
                     case "DEVICE_DISCONNECTED":
                     case "DEVICE_CONNECTED":
-                        if(msg.payload?.bluetoothEventSuccess == true) {
+                        if(msg.payload.bluetoothEventSuccess == true) {
                             sendEvt = true
-                            if(msg.payload?.bluetoothEvent == "DEVICE_DISCONNECTED") { evt.attributes?.btDeviceConnected = null }
+                            if(msg.payload.bluetoothEvent == "DEVICE_DISCONNECTED") { evt.attributes?.btDeviceConnected = null }
                             evt.triggers.push("bluetooth")
                         }
                         break
@@ -435,8 +439,8 @@ private commandEvtHandler(msg) {
                 break
             case "PUSH_AUDIO_PLAYER_STATE":
                 sendEvt = true
-                evt.attributes.status = msg.payload?.audioPlayerState == "PLAYING" ? "playing" : "stopped"
-                evt.triggers?.push("media")
+                evt.attributes.status = msg.payload.audioPlayerState == "PLAYING" ? "playing" : "stopped"
+                evt.triggers.push("media")
                 break
             case "PUSH_MEDIA_QUEUE_CHANGE":
                 sendEvt = true
@@ -449,11 +453,11 @@ private commandEvtHandler(msg) {
                 break
             case "PUSH_DOPPLER_CONNECTION_CHANGE":
                 sendEvt = true
-                evt.attributes.onlineStatus = (msg.payload?.dopplerConnectionState == "ONLINE") ? "online" : "offline"
+                evt.attributes.onlineStatus = (msg.payload.dopplerConnectionState == "ONLINE") ? "online" : "offline"
                 evt.triggers.push(evt.attributes?.onlineStatus)
                 break
             case "PUSH_ACTIVITY":
-                def keys = msg.payload?.key?.entryId?.tokenize("#")
+                List keys = msg.payload?.key?.entryId?.tokenize("#")
                 if(keys?.size() && keys[2]) {
                     sendEvt = true
                     evt.id = keys[2]
@@ -499,7 +503,7 @@ String encodeGWHandshake() {
         // log.debug "msg: ${msg}"
         byte[] buffer = msg?.getBytes("ASCII")
         def checksum = rfc1071Checksum(msg, idx1, idx2)
-        def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
+        byte [] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
         buffer = copyArrRange(buffer, 39, checksumBuf)
         return new String(buffer)
     } catch (ex) { log.error "encodeGWHandshake Exception: ${ex}" }
@@ -518,7 +522,7 @@ String encodeGWRegister() {
         msg += 'GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE'
         byte[] buffer = msg?.getBytes("ASCII")
         def checksum = rfc1071Checksum(msg, idx1, idx2)
-        def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
+        byte[] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
         buffer = copyArrRange(buffer, 39, checksumBuf)
         String out = new String(buffer)
         return out
@@ -556,7 +560,7 @@ String encodePing() {
     Integer buf2EndPos = msg?.length() + n?.size()
     buffer = copyArrRange(buffer, buf2EndPos, buf2End)
     def checksum = rfc1071Checksum(buffer, idx1, idx2)
-    def checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
+    byte[] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
     buffer = copyArrRange(buffer, 39, checksumBuf)
     String out = new String(buffer)
     return out
@@ -599,7 +603,7 @@ def rfc1071Checksum(a, Integer f, Integer k) {
 def b(a, b) { for (a = c(a); 0 != b && 0 != a;) { a = Math.floor(a / 2); b--; }; return (a instanceof Double) ? a?.toInteger() : a }
 def c(a) { return (0 > a) ? (4294967295 + a + 1) : a }
 
-def copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
+byte[] copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
     if(arrSrc?.size() < arrSrcStrt) { log.error "Array Start Index is larger than Array Size..."; return arrSrc }
     Integer s = 0
     (arrSrcStrt..(arrSrcStrt+arrIn?.size()-1))?.each { arrSrc[it] = arrIn[s]; s++ }
@@ -608,29 +612,30 @@ def copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
 
 String encodeNumber(val, len=null) {
     if (!len) len = 8
-    def str = new BigInteger(val?.toString())?.toString(16)
-    while (str?.length() < len) { str = "0${str}" }
+    String str = new BigInteger(val?.toString())?.toString(16)
+    while (str.length() < len) { str = "0"+str }
     return '0x' +str
 }
 
 String generateUUID() {
-    def a = []
-    for (def b = 0; 36 > b; b++) {
-        def c = "rrrrrrrr-rrrr-4rrr-srrr-rrrrrrrrrrrr"?.charAt(b)
+    List a = []
+    for (Integer b = 0; 36 > b; b++) {
+        String c = "rrrrrrrr-rrrr-4rrr-srrr-rrrrrrrrrrrr".charAt(b).toString()
         if ("r" == c || "s" == c) {
             def d = Math.floor(16 * Math.random())
             if("s" == c) d = d ? 3 : 8
             a.push(Integer.toString(d as Integer, 16))
         } else a.push(c)
     }
-    state.lastUsedGuid = a?.join("")
-    return a?.join("")
+    String res = a.join(sBLANK)
+    state.lastUsedGuid = res
+    return res
 }
 
-Integer toUInt(byte x) { return ((int) x) & 0xff; }
+Integer toUInt(byte x) { return ((int) x) & 0xff }
 
 String strToHex(String arg, charset="UTF-8") { return String.format("%x", new BigInteger(1, arg.getBytes(charset))) }
-String strFromHex(str, charset="UTF-8") { return new String(str?.decodeHex()) }
+String strFromHex(String str, charset="UTF-8") { return new String(str?.decodeHex()) }
 
 String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.cookie?.cookie as String : sNULL }
 //String getCsrfVal() { return (state.cookie && state.cookie?.csrf) ? state.cookie?.csrf as String : null }
@@ -638,13 +643,12 @@ String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.co
 Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j?.length() }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 
-Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", "")?.toInteger() : null }
+Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
 Boolean minVersionFailed() {
     try {
         Integer minDevVer = parent?.minVersions()["wsDevice"] ?: null
-        if(minDevVer != null && versionStr2Int(devVersion()) < minDevVer) { return true }
-        else { return false }
+        return minDevVer != null && versionStr2Int(devVersion()) < minDevVer
     } catch (e) { 
         return false
     }
@@ -703,7 +707,7 @@ private void addToLogHistory(String logKey, String msg, statusData, Integer max=
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
 private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
     if((Boolean)settings.logError != false) {
@@ -718,7 +722,7 @@ void logError(String msg, Boolean noHist=false, ex=null) {
     if(!noHist) { addToLogHistory("errorHistory", msg, null, 15) }
 }
 
-String addHead(String msg) {
+static String addHead(String msg) {
     return "Socket ("+devVersionFLD+") | "+msg
 }
 
@@ -739,12 +743,12 @@ public clearLogHistory() {
     state.warnHistory = []
     state.errorHistory = []
 }*/
-
+/*
 private incrementCntByKey(String key) {
 	Long evtCnt = state?."${key}" ?: 0L
 	evtCnt++
 	state."${key}" = evtCnt?.toLong()
-}
+} */
 
 String getObjType(obj) {
     if(obj instanceof String) {return "String"}
@@ -770,11 +774,11 @@ public Map getDeviceMetrics() {
     def errItems = state?.findAll { it?.key?.startsWith("err_") }
     if(cntItems?.size()) {
         out["usage"] = [:]
-        cntItems?.each { k,v -> out.usage[k?.toString()?.replace("use_", "") as String] = v as Integer ?: 0 }
+        cntItems?.each { k,v -> out.usage[k?.toString()?.replace("use_", sBLANK) as String] = v as Integer ?: 0 }
     }
     if(errItems?.size()) {
         out["errors"] = [:]
-        errItems?.each { k,v -> out.errors[k?.toString()?.replace("err_", "") as String] = v as Integer ?: 0 }
+        errItems?.each { k,v -> out.errors[k?.toString()?.replace("err_", sBLANK) as String] = v as Integer ?: 0 }
     }
     return out
 }
