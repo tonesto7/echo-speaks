@@ -3045,25 +3045,24 @@ private void addToLogHistory(String logKey, String msg, statusData, Integer max=
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
 private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
-private void logError(String msg, Boolean noHist=false) { if((Boolean)settings.logError != false) { log.error addHead(msg) }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
+
+void logError(String msg, Boolean noHist=false, ex=null) {
+    if((Boolean)settings.logError != false) {
+        log.error addHead(msg)
+        String a
+        try {
+            if (ex) a = getExceptionMessageWithLine(ex)
+        } catch (e) {
+        }
+        if(a) log.error addHead(a)
+    }
+    if(!noHist) { addToLogHistory("errorHistory", msg, null, 15) }
+}
 
 String addHead(String msg) {
     return "Echo ("+devVersionFLD+") | "+msg
 }
-/*
-private addToHistory(String logKey, data, Integer max=10) {
-    Boolean ssOk = true // (stateSizePerc() > 70)
-    String appId = device.getId()
-
-    Map memStore = historyMapFLD[appId] ?: [:]
-    List eData = (List)memStore[logKey] ?: []
-    if(eData.find { it?.data == data }) { return }
-    eData.push([dt: getDtNow(), data: data])
-    Integer lsiz=eData.size()
-    if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
-    updMemStoreItem(logKey, eData)
-}*/
 
 Map getLogHistory() {
     return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [], speech: getMemStoreItem("speechHistory") ?: [] ]
