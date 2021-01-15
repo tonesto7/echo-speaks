@@ -3101,7 +3101,7 @@ void receiveEventData(Map evtData, String src) {
                                 logInfo("Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)${((Boolean)settings.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : sBLANK }")
                                 childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
                             } catch(ex) {
-                                logError("AddDevice Error! | ${ex}")
+                                logError("AddDevice Error! | ${ex}", false, ex)
                             }
                             runIn(10, "updChildSocketStatus")
                         } else {
@@ -3306,7 +3306,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
         // log.debug "seqNode: $seqNode"
         return seqNode
     } catch (ex) {
-        logError("createSequenceNode Exception: ${ex}")
+        logError("createSequenceNode Exception: ${ex}", false, ex)
     }
     return [:]
 }
@@ -3768,7 +3768,7 @@ Boolean queueFirebaseData(String url, String path, String data, String cmdType=s
             result = true
         } else { logWarn("queueFirebaseData UNKNOWN cmdType: ${cmdType}") }
 
-    } catch(ex) { logError("queueFirebaseData (type: $typeDesc) Exception: ${ex}") }
+    } catch(ex) { logError("queueFirebaseData (type: $typeDesc) Exception: ${ex}", false, ex) }
     return result
 }
 
@@ -3781,9 +3781,9 @@ Boolean removeFirebaseData(String pathVal) {
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("removeFirebaseData Response Exception: ${ex}")
+            logError("removeFirebaseData Response Exception: ${ex}", false, ex)
         } else {
-            logError("removeFirebaseData Exception: ${ex}")
+            logError("removeFirebaseData Exception: ${ex}", false, ex)
             result = false
         }
     }
@@ -3804,7 +3804,7 @@ void processFirebaseResponse(resp, Map data) {
         } else { logWarn(mName+": 'Unexpected' Response: ${resp?.status}") }
 //        if (isStFLD && resp?.hasError()) { logError(mName+": errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}") }
     } catch(ex) {
-        logError(mName+" (type: $typeDesc) Exception: ${ex}")
+        logError(mName+" (type: $typeDesc) Exception: ${ex}", false, ex)
     }
 }
 
@@ -3812,7 +3812,7 @@ def renderMetricData() {
     try {
         String json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
         render contentType: sAPPJSON, data: json, status: 200
-    } catch (ex) { logError("renderMetricData Exception: ${ex}") }
+    } catch (ex) { logError("renderMetricData Exception: ${ex}", false, ex) }
 }
 
 private Map getSkippedDevsAnon() {
@@ -4369,7 +4369,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
         Long diff = (stop - start) / 1000L
         return diff.abs()
     } catch (ex) {
-        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex}")
+        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex}", false, ex)
         return 10000L
     }
 }
@@ -5706,21 +5706,26 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
     releaseTheLock(sHMLF)
 }
 
-void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug "EchoApp (v${appVersionFLD}) | ${msg}" } }
-void logInfo(String msg) { if((Boolean)settings.logInfo) { log.info " EchoApp (v${appVersionFLD}) | ${msg}" } }
-void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace "EchoApp (v${appVersionFLD}) | ${msg}" } }
-void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn " EchoApp (v${appVersionFLD}) | ${msg}" }; if(!noHist) { addToLogHistory("warnHistory", msg, 15) } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+
 void logError(String msg, Boolean noHist=false, ex=null) {
-    if((Boolean)settings.logError) {
-        log.error "EchoApp (v${appVersionFLD}) | "+msg
+    if((Boolean)settings.logError != false) {
+        log.error addHead(msg)
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
         } catch (e) {
         }
-        if(a) log.error "EchoApp (v${appVersionFLD}) | "+a
+        if(a) log.error addHead(a)
     }
     if(!noHist) { addToLogHistory("errorHistory", msg, 15) }
+}
+
+String addHead(String msg) {
+    return "EchoApp (v"+appVersionFLD+") | "+msg
 }
 
 // public hasLogDevice() { return (settings?.logDevice != null) }
