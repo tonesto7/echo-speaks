@@ -260,9 +260,9 @@ def readHex(String str, Integer ind, Integer len, Boolean logs=false) {
     return res
 }
 
-String readString(String str, Integer ind, Integer len, Boolean logs=false) {
-    String s = str[ind..len]
-    if(logs) log.debug "readString(ind: $ind, len: $len): ${s}"
+String readString(String str, Integer sind, Integer eind, Boolean logs=false) {
+    String s = str[sind..eind]
+    if(logs) log.debug "readString(ind: $sind, eind: $eind): ${s}"
     return s
 }
 
@@ -294,13 +294,13 @@ void parseIncomingMessage(String data) {
                 } catch (e) {}
             }
         } else if ((String)message.service == 'FABE') {
-            message.messageType = readString(dStr, idx, 3)
+            message.messageType = parseString(dStr, idx, 3)
             idx += 4
             message.channel = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
             message.messageId = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
-            message.moreFlag = readString(dStr, idx, 1)
+            message.moreFlag = parseString(dStr, idx, 1)
             idx += 2 // 1 + delimiter;
             message.seq = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
@@ -337,7 +337,7 @@ void parseIncomingMessage(String data) {
                 }
             } else if (message?.channel == 866) { // 0x362 GW_CHANNEL
                 if (message.content?.messageType == 'GWM') {
-                    message.content.subMessageType = readString(dStr, idx, 3)
+                    message.content.subMessageType = parseString(dStr, idx, 3)
                     idx += 4
                     message.content.channelStr = parseString(dStr, idx, 10)
                     message.content.channel = readHex(dStr, idx, 10)
@@ -387,7 +387,7 @@ void parseIncomingMessage(String data) {
             } else if (message?.channel == 101) { // 0x65 CHANNEL_FOR_HEARTBEAT
                 idx -= 1 // no delimiter!
                 dumpMsg(message)
-                message.content.payloadData = dStr.slice(idx, dLen - 4)
+                message.content.payloadData = readString(dStr, idx, dLen - 4)
             } else {
                 dumpMsg(message)
                 // logWarn("UNKNOWN CHANNEL: ${message?.channel}")
