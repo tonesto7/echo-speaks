@@ -1363,6 +1363,7 @@ def initialize() {
         }
     }
     if(!(Boolean)state.resumeConfig) {
+        updChildVers()
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
@@ -1392,7 +1393,6 @@ void restartSocket(){
 void stateMigrationChk() {
     if(!getAppFlag("stateMapConverted")) { stateMapMigration() }
 }
-
 
 void updateZoneSubscriptions() {
     if(state.zoneEvtsActive != true) {
@@ -1647,56 +1647,62 @@ String getEnvParamsStr() {
 Boolean checkIfCodeUpdated() {
     Boolean codeUpdated = false
     List chgs = []
-    // updChildVers()
-    Map codeVer = (Map)state.codeVersions ?: null
+    Map codeVer = (Map)state.codeVersions ?: [:]
     logTrace("Code versions: ${codeVer}")
-    if(codeVer) {
-        if(codeVer.mainApp != appVersionFLD) {
-            checkVersionData(true)
-            chgs.push("mainApp")
-            state.pollBlocked = true
-            updCodeVerMap("mainApp", appVersionFLD)
-            Map iData = state.installData
-            iData = iData ?: [:]
-            iData["updatedDt"] = getDtNow()
-            iData["shownChgLog"] = false
-            if(iData?.shownDonation == null) {
-                iData["shownDonation"] = false
-            }
-            state.installData = iData
-            codeUpdated = true
+    if(codeVer.mainApp != appVersionFLD) {
+        checkVersionData(true)
+        chgs.push("mainApp")
+        state.pollBlocked = true
+        updCodeVerMap("mainApp", appVersionFLD)
+        Map iData = state.installData
+        iData = iData ?: [:]
+        iData["updatedDt"] = getDtNow()
+        iData["shownChgLog"] = false
+        if(iData?.shownDonation == null) {
+            iData["shownDonation"] = false
         }
-        List cDevs = getEsDevices()
-//        List cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
-//        if(echoDev && (String)codeVer.echoDevice != (String)echoDev?.devVersion()) {
-        if(cDevs?.size() && (String)codeVer.echoDevice != (String)cDevs[0]?.devVersion()) {
+        state.installData = iData
+        codeUpdated = true
+    }
+    List cDevs = getEsDevices()
+    if(cDevs?.size()) {
+        String ver = (String)cDevs[0]?.devVersion()
+        if((String)codeVer.echoDevice != ver) {
             chgs.push("echoDevice")
             state.pollBlocked = true
-            updCodeVerMap("echoDevice", (String)echoDev?.devVersion())
+            updCodeVerMap("echoDevice", ver)
             codeUpdated = true
         }
-        if(!isStFLD) {
-//            def wsDev = cDevs?.find { it?.isWS() }
-            def wsDev = getSocketDevice()
-            if(wsDev && (String)codeVer.wsDevice != (String)wsDev?.devVersion()) {
+    }
+    if(!isStFLD) {
+        def wsDev = getSocketDevice()
+        if(wsDev) {
+            String ver = (String)wsDev?.devVersion()
+            if((String)codeVer.wsDevice != ver) {
                 chgs.push("wsDevice")
-                updCodeVerMap("wsDevice", (String)wsDev?.devVersion())
+                updCodeVerMap("wsDevice", ver)
                 codeUpdated = true
             }
         }
-        List cApps = getActionApps()
-        if(cApps?.size() && (String)codeVer.actionApp != (String)cApps[0]?.appVersionFLD) {
+    }
+    List cApps = getActionApps()
+    if(cApps?.size()) {
+        String ver = (String)cApps[0]?.appVersion()
+        if((String)codeVer.actionApp != ver) {
             chgs.push("actionApp")
             state.pollBlocked = true
-            updCodeVerMap("actionApp", (String)cApps[0]?.appVersionFLD)
+            updCodeVerMap("actionApp", ver)
             codeUpdated = true
         }
-        List zApps = getZoneApps()
-        if(zApps?.size() && (String)codeVer.zoneApp != (String)zApps[0]?.appVersionFLD) {
+    }
+    List zApps = getZoneApps()
+    if(zApps?.size()) {
+        String ver = (String)zApps[0]?.appVersion()
+        if((String)codeVer.zoneApp != ver) {
             chgs.push("zoneApp")
             state.pollBlocked = true
-            // log.debug "zoneVer: ${zApps[0]?.appVersionFLD}"
-            updCodeVerMap("zoneApp", (String)zApps[0]?.appVersionFLD)
+            // log.debug "zoneVer: ver"
+            updCodeVerMap("zoneApp", ver)
             codeUpdated = true
         }
     }
@@ -1721,7 +1727,6 @@ void resetQueues() {
 
 void reInitChildDevices() {
     getEsDevices()?.each { it?.triggerInitialize() }
-    updChildVers()
     reInitChildActions()
 }
 
@@ -2222,14 +2227,11 @@ public void childInitiatedRefresh() {
 public updChildVers() {
     List cApps = getActionApps()
     List zApps = getZoneApps()
-//    List cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
-//    List eDevs = cDevs?.findAll { it?.isWS() != true }
     List eDevs = getEsDevices()
-    updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersionFLD : null)
-    updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersionFLD : null)
+    updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
+    updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
     updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
     if(!isStFLD) {
-//        def wDevs = cDevs?.findAll { it?.isWS() == true }
         def wDevs = getSocketDevice()
         updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
     }
@@ -4599,20 +4601,20 @@ void settingRemove(String name) {
 }
 
 void updCodeVerMap(String key, String val) {
-    Map cv = atomicState?.codeVersions
+    Map cv = state.codeVersions
     cv = cv ?: [:]
     if(val && (!cv.containsKey(key) || (cv.containsKey(key) && cv[key] != val))) { cv[key] = val }
     if (cv.containsKey(key) && val == sNULL) { cv.remove(key) }
-    atomicState.codeVersions = cv
+    state.codeVersions = cv
 }
 
 void cleanUpdVerMap() {
-    Map cv = atomicState?.codeVersions
+    Map cv = state.codeVersions
     cv = cv ?: [:]
     List ri = ["groupApp"]
     cv.each { String k, String v-> if(v == null) ri.push(k) }
     ri.each { cv.remove(it) }
-    atomicState.codeVersions = cv
+    state.codeVersions = cv
 }
 
 String getRandAppName() {
