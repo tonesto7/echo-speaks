@@ -4066,7 +4066,7 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
             }
         }
     } catch (ex) {
-        logError("sendNotifMsg $sentSrc Exception: ${ex}")
+        logError("sendNotifMsg $sentSrc Exception: ${ex}", false, ex)
     }
     return sent
 }
@@ -4379,7 +4379,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
         return diff
     }
     catch (ex) {
-        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex?.message}")
+        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex?.message}", false, ex)
         return 10000L
     }
 }
@@ -4832,11 +4832,23 @@ private addToLogHistory(String logKey, String data, Integer max=10) {
     releaseTheLock(sHMLF)
 }
 
-private void logDebug(String msg) { if((Boolean)settings.logDebug == true) { log.debug addHead(msg) } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
-private void logTrace(String msg) { if((Boolean)settings.logTrace == true) { log.trace addHead(msg) } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
 private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
-private void logError(String msg, Boolean noHist=false) { if((Boolean)settings.logError != false) { log.error addHead(msg) }; if(!noHist) { addToLogHistory("errorHistory", msg, 15); } }
+
+void logError(String msg, Boolean noHist=false, ex=null) {
+    if((Boolean)settings.logError != false) {
+        log.error addHead(msg)
+        String a
+        try {
+            if (ex) a = getExceptionMessageWithLine(ex)
+        } catch (e) {
+        }
+        if(a) log.error addHead(a)
+    }
+    if(!noHist) { addToLogHistory("errorHistory", msg, 15) }
+}
 
 String addHead(String msg) {
     return "Action (v"+appVersionFLD+") | "+msg
