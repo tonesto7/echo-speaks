@@ -1344,6 +1344,7 @@ def updated() {
 }
 
 def initialize() {
+    logInfo("running initialize...")
     //if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if((Boolean)settings.optOutMetrics && (String)state.appGuid) { if(removeInstallData()) { state.appGuid = sNULL } }
     subscribe(location, "systemStart", startHandler)
@@ -2101,7 +2102,7 @@ Boolean validateCookie(Boolean frc=false) {
             timeout: 20,
         ]
         logTrace(meth)
-        if(!frc) execAsyncCmd("get", "validateCookieResp", params, [:])
+        if(!frc) execAsyncCmd("get", "validateCookieResp", params, [dt:execDt])
         else {
             httpGet(params) { resp->
                 valid = validateCookieResp(resp, [dt:execDt])
