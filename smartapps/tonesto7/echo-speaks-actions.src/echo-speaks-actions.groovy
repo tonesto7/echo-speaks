@@ -2003,7 +2003,7 @@ def updated() {
 }
 
 def initialize() {
-    // logInfo("Initialize Event Received...")
+    logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
     state.isInstalled = true
