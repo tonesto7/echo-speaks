@@ -248,12 +248,11 @@ def conditionsPage() {
             }
         }
         Boolean multiConds = multipleConditions()
-        if(!multiConds && (Boolean)settings.cond_require_all) { settingUpdate("cond_require_all", sFALSE, sBOOL) }
         section() {
             if(multiConds) {
                 input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
             }
-            paragraph pTS("Notice:\n${!multiConds || (Boolean)settings.cond_require_all ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", sNULL, false, sCLR4D9), state: sCOMPLT
+            paragraph pTS("Notice:\n${reqAllCond() ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", sNULL, false, sCLR4D9), state: sCOMPLT
         }
         section(sTS("Time/Date Restrictions")) {
             href "condTimePage", title: inTS1("Time Schedule", "clock"), description: getTimeCondDesc(false), state: timeCondConfigured() ? sCOMPLT : sNULL, image: getAppImg("clock")
@@ -764,7 +763,7 @@ Boolean locationCondOk() {
     Boolean aOk
     if(!(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null)) {
         Boolean reqAll = reqAllCond()
-        mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
+        mOk = (settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
         aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
@@ -822,15 +821,15 @@ Boolean checkDeviceNumCondOk(String type) {
 }
 
 private Boolean isConditionOk(String evt) {
-    if([sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "water"]?.contains(evt)) {
+    if([sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "water"].contains(evt)) {
         if(!settings."cond_${evt}") { true }
         return checkDeviceCondOk(evt)
-    } else if(["temperature", "humidity", "illuminance", "level", "power", "battery"]?.contains(evt)) {
+    } else if(["temperature", "humidity", "illuminance", "level", "power", "battery"].contains(evt)) {
         if(!settings."cond_${evt}") { true }
         return checkDeviceNumCondOk(evt)
     } else if (evt == "mode") {
-        return (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
-    } else if (["hsmStatus", "alarmSystemStatus"]?.contains(evt)) {
+        return (settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
+    } else if (["hsmStatus", "alarmSystemStatus"].contains(evt)) {
         return settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
     } else {
         return true
@@ -1504,7 +1503,7 @@ String getAppNotifDesc(Boolean hide=false) {
     String str = sBLANK
     if(isZoneNotifConfigured()) {
         Boolean ok = getOk2Notify()
-        str += hide ? sBLANK : "Send: (${ok ? okSymFLD : notOkSymFLD})\n"
+        str += hide ? sBLANK : "Send allowed: (${ok ? okSymFLD : notOkSymFLD})\n"
         if(isStFLD) {
             str += settings.notif_sms_numbers ? " \u2022 (${settings.notif_sms_numbers?.tokenize(",")?.size()} SMS Numbers)\n" : sBLANK
             str += settings.notif_send_push ? " \u2022 (Push Message)\n" : sBLANK
@@ -1564,7 +1563,7 @@ String getNotifSchedDesc(Boolean min=false) {
     str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
     a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
     str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
-    str = str ? " \u2022 Restrictions: (${rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
+    str = str ? " \u2022 Restrictions Active: (${rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
     return (str != sBLANK) ? str : sNULL
 }
 
@@ -1573,21 +1572,22 @@ String getConditionsDesc(Boolean addE=true) {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions Active: (${((Boolean)conditionStatus().ok == true) ? okSymFLD : notOkSymFLD})\n"
-        str += (!(Boolean)settings.cond_require_all) ? " \u2022 Any Condition Allowed\n" : " \u2022 All Conditions Required\n"
+        String str = "Zone is Active: (${((Boolean)conditionStatus().ok == true) ? okSymFLD : notOkSymFLD})\n\n"
+        str += (reqAllCond()) ? " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
-            str += " \u2022 Time Between: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
+            str += " \u2022 Time Between Allowed: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
             str += " \u2022 Date:\n"
-            str += settings.cond_days      ? "    - Days: (${(isDayOfWeek(settings.cond_days)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            str += settings.cond_months    ? "    - Months: (${(isMonthOfYear(settings.cond_months)) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
+            str += settings.cond_days      ? "    - Days Allowed: (${(isDayOfWeek(settings.cond_days)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += settings.cond_months    ? "    - Months Allowed: (${(isMonthOfYear(settings.cond_months)) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
         }
         if(settings.cond_alarm || settings.cond_mode) {
             str += " \u2022 Location: (${locationCondOk() ? okSymFLD : notOkSymFLD})\n"
-            str += settings.cond_alarm ? "    - Alarm Modes: (${(isInAlarmMode(settings.cond_alarm)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            str += settings.cond_mode  ? "    - Location Modes: (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += settings.cond_alarm ? "    - Alarm Modes Allowed: (${(isInAlarmMode(settings.cond_alarm)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            Boolean not = settings.cond_mode_cmd == "not"
+            str += settings.cond_mode  ? "    - Allowed Location Modes (${not? "not in" : "in"}): (${(isInMode(settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
             [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
