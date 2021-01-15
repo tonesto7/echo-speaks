@@ -834,12 +834,11 @@ def conditionsPage() {
             }
         }
         Boolean multiConds = multipleConditions()
-        if(!multiConds && (Boolean)settings.cond_require_all) { settingUpdate("cond_require_all", sFALSE, sBOOL) }
         section() {
             if(multiConds) {
                 input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sCHKBOX)
             }
-            paragraph pTS("Notice:\n${!multiConds || (Boolean)settings.cond_require_all ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", sNULL, false, sCLR4D9), state: sCOMPLT
+            paragraph pTS("Notice:\n${reqAllCond() ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate."}", sNULL, false, sCLR4D9), state: sCOMPLT
         }
         section(sTS("Time/Date")) {
             // input "test_time", "time", title: "Trigger Time?", required: false, submitOnChange: true, image: getAppImg("clock")
@@ -3056,7 +3055,7 @@ Boolean locationCondOk() {
     Boolean aOk
     if(!(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null)) {
         Boolean reqAll = reqAllCond()
-        mOk = (settings.cond_mode && settings.cond_mode_cmd) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
+        mOk = (settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
         aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
@@ -4449,7 +4448,7 @@ String getAppNotifDesc(Boolean hide=false) {
     String str = sBLANK
     if(isActNotifConfigured()) {
         Boolean ok = getOk2Notify()
-        str += hide ? sBLANK : "Send: (${ok ? okSymFLD : notOkSymFLD})\n"
+        str += hide ? sBLANK : "Send allowed: (${ok ? okSymFLD : notOkSymFLD})\n"
         if(isStFLD) {
             str += settings.notif_sms_numbers ? " \u2022 (${settings.notif_sms_numbers?.tokenize(",")?.size()} SMS Numbers)\n" : sBLANK
             str += settings.notif_send_push ? " \u2022 (Push Message)\n" : sBLANK
@@ -4509,7 +4508,7 @@ String getNotifSchedDesc(Boolean min=false) {
     str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
     a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
     str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
-    str = str ? " \u2022 Restrictions: (${rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
+    str = str ? " \u2022 Restrictions Active: (${rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
     return (str != sBLANK) ? str : sNULL
 }
 
@@ -4597,21 +4596,22 @@ String getConditionsDesc(Boolean addE=true) {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions: (${((Boolean)conditionStatus().ok == true) ? okSymFLD : notOkSymFLD})\n"
+        String str = "Conditions Allow Operation: (${((Boolean)conditionStatus().ok == true) ? okSymFLD : notOkSymFLD})\n"
         str += reqAllCond() ?  " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
-            str += " • Time Between: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
+            str += " • Time Between Allowed: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
             str += "    - ${getTimeCondDesc(false)}\n"
         }
         if(dateCondConfigured()) {
             str += " • Date:\n"
-            str += settings.cond_days      ? "    - Days: (${isDayOfWeek(settings.cond_days) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            str += settings.cond_months    ? "    - Months: (${isMonthOfYear(settings.cond_months) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
+            str += settings.cond_days      ? "    - Days Allowed: (${isDayOfWeek(settings.cond_days) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += settings.cond_months    ? "    - Months Allowed: (${isMonthOfYear(settings.cond_months) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
         }
-        if(settings.cond_alarm || (settings.cond_mode && settings.cond_mode_cmd)) {
+        if(settings.cond_alarm || (settings.cond_mode /*&& settings.cond_mode_cmd*/)) {
             str += " • Location: (${locationCondOk() ? okSymFLD : notOkSymFLD})\n"
-            str += settings.cond_alarm ? "    - Alarm Modes: (${isInAlarmMode(settings.cond_alarm) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            str += settings.cond_mode ? "    - Modes(${settings.cond_mode_cmd == "not" ? "not in" : "in"}): (${(isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += settings.cond_alarm ? "    - Alarm Modes Allowed: (${isInAlarmMode(settings.cond_alarm) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            Boolean not = settings.cond_mode_cmd == "not"
+            str += settings.cond_mode ? "    - Allowed Modes (${not ? "not in" : "in"}): (${(isInMode(settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
             [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
@@ -4685,7 +4685,7 @@ String getActionDesc(Boolean addE=true) {
         String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
         String tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : sNULL
         str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n${eDevs?.size() ? "\n": ""}" : sBLANK
-        str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Zone backups)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join("\n")}\n" : sBLANK
+        str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Inactive Zone default)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join("\n")}\n" : sBLANK
         str += tierDesc ? "\n${tierDesc}${tierStart || tierStop ? sBLANK : "\n"}" : sBLANK
         str += tierStart ? tierStart+"\n" : sBLANK
         str += tierStop ? tierStop+"\n" : sBLANK
