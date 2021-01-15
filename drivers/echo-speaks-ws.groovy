@@ -699,22 +699,24 @@ private void addToLogHistory(String logKey, String msg, statusData, Integer max=
     if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
     updMemStoreItem(logKey, eData)
 }
-/*
-private addToLogHistory(String logKey, String msg, statusData, Integer max=10) {
-    Boolean ssOk = (stateSizePerc() <= 70)
-    List eData = state.containsKey(logKey as String) ? state[logKey as String] : []
-    if(eData?.find { it?.message == msg }) { return; }
-    if(status) { eData.push([dt: getDtNow(), message: msg, status: statusData]) }
-    else { eData.push([dt: getDtNow(), message: msg]) }
-	if(!ssOK || eData?.size() > max) { eData = eData?.drop( (eData?.size()-max)+1 ) }
-	state[logKey as String] = eData
-}*/
 
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
 private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
-private void logError(String msg, Boolean noHist=false) { if((Boolean)settings.logError != false) { log.error addHead(msg) }; if(noHist) { addToLogHistory("errorHistory", msg, null, 15) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15); } }
+
+void logError(String msg, Boolean noHist=false, ex=null) {
+    if((Boolean)settings.logError != false) {
+        log.error addHead(msg)
+        String a
+        try {
+            if (ex) a = getExceptionMessageWithLine(ex)
+        } catch (e) {
+        }
+        if(a) log.error addHead(a)
+    }
+    if(!noHist) { addToLogHistory("errorHistory", msg, null, 15) }
+}
 
 String addHead(String msg) {
     return "Socket ("+devVersionFLD+") | "+msg
