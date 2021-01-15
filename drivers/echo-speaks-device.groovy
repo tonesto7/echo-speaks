@@ -200,7 +200,7 @@ def installed() {
 }
 
 def updated() {
-    logTrace("${device?.displayName} Executing Updated()")
+    logInfo("${device?.displayName} Executing Updated()")
     initialize()
 }
 
