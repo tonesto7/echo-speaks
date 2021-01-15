@@ -1408,7 +1408,7 @@ void postInitialize() {
     logTrace("postInitialize")
     runEvery15Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
     appCleanup()
-    reInitChildDevices()
+    reInitChildren()
 }
 
 def uninstalled() {
@@ -1602,7 +1602,6 @@ def getSocketDevice() {
     String nmS = 'echoSpeaks_websocket'
     nmS = myId+'|'+nmS
     return getChildDevice(nmS)
-//    return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
 }
 
 mappings {
@@ -1726,9 +1725,10 @@ void resetQueues() {
     getEsDevices()?.each { it?.resetQueue() }
 }
 
-void reInitChildDevices() {
+void reInitChildren() {
     getEsDevices()?.each { it?.triggerInitialize() }
-    reInitChildActions()
+    getSocketDevice()?.triggerInitialize()
+    runIn(11, "reInitChildActions")
 }
 
 void reInitChildActions() {
@@ -3428,10 +3428,9 @@ void healthCheck() {
     } else if (getLastTsValSecs("lastGuardSupChkDt") > 43200) {
         checkGuardSupport()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
-    if(!isStFLD){
-        def dev= getSocketDevice()
-        if(!(Boolean)dev?.isSocketActive()) { dev?.triggerInitialize() }
-    }
+
+    restartSocket()
+
     if((Boolean)state.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(advLogsActive()) { logsDisable() }
     appUpdateNotify()
