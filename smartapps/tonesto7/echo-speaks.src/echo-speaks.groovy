@@ -1344,6 +1344,7 @@ def updated() {
 }
 
 def initialize() {
+    logInfo("running initialize...")
     //if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if((Boolean)settings.optOutMetrics && (String)state.appGuid) { if(removeInstallData()) { state.appGuid = sNULL } }
     subscribe(location, "systemStart", startHandler)
@@ -1363,6 +1364,7 @@ def initialize() {
         }
     }
     if(!(Boolean)state.resumeConfig) {
+        updChildVers()
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
@@ -1393,7 +1395,6 @@ void stateMigrationChk() {
     if(!getAppFlag("stateMapConverted")) { stateMapMigration() }
 }
 
-
 void updateZoneSubscriptions() {
     if(state.zoneEvtsActive != true) {
         subscribe(location, "es3ZoneState", zoneStateHandler)
@@ -1407,7 +1408,7 @@ void postInitialize() {
     logTrace("postInitialize")
     runEvery15Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
     appCleanup()
-    reInitChildDevices()
+    reInitChildren()
 }
 
 def uninstalled() {
@@ -1601,7 +1602,6 @@ def getSocketDevice() {
     String nmS = 'echoSpeaks_websocket'
     nmS = myId+'|'+nmS
     return getChildDevice(nmS)
-//    return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.find { it?.isWS() == true }
 }
 
 mappings {
@@ -1647,56 +1647,62 @@ String getEnvParamsStr() {
 Boolean checkIfCodeUpdated() {
     Boolean codeUpdated = false
     List chgs = []
-    // updChildVers()
-    Map codeVer = (Map)state.codeVersions ?: null
+    Map codeVer = (Map)state.codeVersions ?: [:]
     logTrace("Code versions: ${codeVer}")
-    if(codeVer) {
-        if(codeVer.mainApp != appVersionFLD) {
-            checkVersionData(true)
-            chgs.push("mainApp")
-            state.pollBlocked = true
-            updCodeVerMap("mainApp", appVersionFLD)
-            Map iData = state.installData
-            iData = iData ?: [:]
-            iData["updatedDt"] = getDtNow()
-            iData["shownChgLog"] = false
-            if(iData?.shownDonation == null) {
-                iData["shownDonation"] = false
-            }
-            state.installData = iData
-            codeUpdated = true
+    if(codeVer.mainApp != appVersionFLD) {
+        checkVersionData(true)
+        chgs.push("mainApp")
+        state.pollBlocked = true
+        updCodeVerMap("mainApp", appVersionFLD)
+        Map iData = state.installData
+        iData = iData ?: [:]
+        iData["updatedDt"] = getDtNow()
+        iData["shownChgLog"] = false
+        if(iData?.shownDonation == null) {
+            iData["shownDonation"] = false
         }
-        List cDevs = getEsDevices()
-//        List cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
-//        if(echoDev && (String)codeVer.echoDevice != (String)echoDev?.devVersion()) {
-        if(cDevs?.size() && (String)codeVer.echoDevice != (String)cDevs[0]?.devVersion()) {
+        state.installData = iData
+        codeUpdated = true
+    }
+    List cDevs = getEsDevices()
+    if(cDevs?.size()) {
+        String ver = (String)cDevs[0]?.devVersion()
+        if((String)codeVer.echoDevice != ver) {
             chgs.push("echoDevice")
             state.pollBlocked = true
-            updCodeVerMap("echoDevice", (String)echoDev?.devVersion())
+            updCodeVerMap("echoDevice", ver)
             codeUpdated = true
         }
-        if(!isStFLD) {
-//            def wsDev = cDevs?.find { it?.isWS() }
-            def wsDev = getSocketDevice()
-            if(wsDev && (String)codeVer.wsDevice != (String)wsDev?.devVersion()) {
+    }
+    if(!isStFLD) {
+        def wsDev = getSocketDevice()
+        if(wsDev) {
+            String ver = (String)wsDev?.devVersion()
+            if((String)codeVer.wsDevice != ver) {
                 chgs.push("wsDevice")
-                updCodeVerMap("wsDevice", (String)wsDev?.devVersion())
+                updCodeVerMap("wsDevice", ver)
                 codeUpdated = true
             }
         }
-        List cApps = getActionApps()
-        if(cApps?.size() && (String)codeVer.actionApp != (String)cApps[0]?.appVersionFLD) {
+    }
+    List cApps = getActionApps()
+    if(cApps?.size()) {
+        String ver = (String)cApps[0]?.appVersion()
+        if((String)codeVer.actionApp != ver) {
             chgs.push("actionApp")
             state.pollBlocked = true
-            updCodeVerMap("actionApp", (String)cApps[0]?.appVersionFLD)
+            updCodeVerMap("actionApp", ver)
             codeUpdated = true
         }
-        List zApps = getZoneApps()
-        if(zApps?.size() && (String)codeVer.zoneApp != (String)zApps[0]?.appVersionFLD) {
+    }
+    List zApps = getZoneApps()
+    if(zApps?.size()) {
+        String ver = (String)zApps[0]?.appVersion()
+        if((String)codeVer.zoneApp != ver) {
             chgs.push("zoneApp")
             state.pollBlocked = true
-            // log.debug "zoneVer: ${zApps[0]?.appVersionFLD}"
-            updCodeVerMap("zoneApp", (String)zApps[0]?.appVersionFLD)
+            // log.debug "zoneVer: ver"
+            updCodeVerMap("zoneApp", ver)
             codeUpdated = true
         }
     }
@@ -1719,10 +1725,10 @@ void resetQueues() {
     getEsDevices()?.each { it?.resetQueue() }
 }
 
-void reInitChildDevices() {
+void reInitChildren() {
     getEsDevices()?.each { it?.triggerInitialize() }
-    updChildVers()
-    reInitChildActions()
+    getSocketDevice()?.triggerInitialize()
+    runIn(11, "reInitChildActions")
 }
 
 void reInitChildActions() {
@@ -2096,7 +2102,7 @@ Boolean validateCookie(Boolean frc=false) {
             timeout: 20,
         ]
         logTrace(meth)
-        if(!frc) execAsyncCmd("get", "validateCookieResp", params, [:])
+        if(!frc) execAsyncCmd("get", "validateCookieResp", params, [dt:execDt])
         else {
             httpGet(params) { resp->
                 valid = validateCookieResp(resp, [dt:execDt])
@@ -2222,14 +2228,11 @@ public void childInitiatedRefresh() {
 public updChildVers() {
     List cApps = getActionApps()
     List zApps = getZoneApps()
-//    List cDevs = (isStFLD ? app?.getChildDevices(true) : getChildDevices())
-//    List eDevs = cDevs?.findAll { it?.isWS() != true }
     List eDevs = getEsDevices()
-    updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersionFLD : null)
-    updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersionFLD : null)
+    updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
+    updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
     updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
     if(!isStFLD) {
-//        def wDevs = cDevs?.findAll { it?.isWS() == true }
         def wDevs = getSocketDevice()
         updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
     }
@@ -3101,7 +3104,7 @@ void receiveEventData(Map evtData, String src) {
                                 logInfo("Creating NEW Echo Speaks Device!!! | Device Label: ($devLabel)${((Boolean)settings.bypassDeviceBlocks && unsupportedDevice) ? " | (UNSUPPORTED DEVICE)" : sBLANK }")
                                 childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
                             } catch(ex) {
-                                logError("AddDevice Error! | ${ex}")
+                                logError("AddDevice Error! | ${ex}", false, ex)
                             }
                             runIn(10, "updChildSocketStatus")
                         } else {
@@ -3306,7 +3309,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
         // log.debug "seqNode: $seqNode"
         return seqNode
     } catch (ex) {
-        logError("createSequenceNode Exception: ${ex}")
+        logError("createSequenceNode Exception: ${ex}", false, ex)
     }
     return [:]
 }
@@ -3425,10 +3428,9 @@ void healthCheck() {
     } else if (getLastTsValSecs("lastGuardSupChkDt") > 43200) {
         checkGuardSupport()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
-    if(!isStFLD){
-        def dev= getSocketDevice()
-        if(!(Boolean)dev?.isSocketActive()) { dev?.triggerInitialize() }
-    }
+
+    restartSocket()
+
     if((Boolean)state.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(advLogsActive()) { logsDisable() }
     appUpdateNotify()
@@ -3768,7 +3770,7 @@ Boolean queueFirebaseData(String url, String path, String data, String cmdType=s
             result = true
         } else { logWarn("queueFirebaseData UNKNOWN cmdType: ${cmdType}") }
 
-    } catch(ex) { logError("queueFirebaseData (type: $typeDesc) Exception: ${ex}") }
+    } catch(ex) { logError("queueFirebaseData (type: $typeDesc) Exception: ${ex}", false, ex) }
     return result
 }
 
@@ -3781,9 +3783,9 @@ Boolean removeFirebaseData(String pathVal) {
         }
     } catch (ex) {
         if(ex instanceof groovyx.net.http.HttpResponseException ) {
-            logError("removeFirebaseData Response Exception: ${ex}")
+            logError("removeFirebaseData Response Exception: ${ex}", false, ex)
         } else {
-            logError("removeFirebaseData Exception: ${ex}")
+            logError("removeFirebaseData Exception: ${ex}", false, ex)
             result = false
         }
     }
@@ -3804,7 +3806,7 @@ void processFirebaseResponse(resp, Map data) {
         } else { logWarn(mName+": 'Unexpected' Response: ${resp?.status}") }
 //        if (isStFLD && resp?.hasError()) { logError(mName+": errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}") }
     } catch(ex) {
-        logError(mName+" (type: $typeDesc) Exception: ${ex}")
+        logError(mName+" (type: $typeDesc) Exception: ${ex}", false, ex)
     }
 }
 
@@ -3812,7 +3814,7 @@ def renderMetricData() {
     try {
         String json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
         render contentType: sAPPJSON, data: json, status: 200
-    } catch (ex) { logError("renderMetricData Exception: ${ex}") }
+    } catch (ex) { logError("renderMetricData Exception: ${ex}", false, ex) }
 }
 
 private Map getSkippedDevsAnon() {
@@ -4369,7 +4371,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
         Long diff = (stop - start) / 1000L
         return diff.abs()
     } catch (ex) {
-        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex}")
+        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex}", false, ex)
         return 10000L
     }
 }
@@ -4599,20 +4601,20 @@ void settingRemove(String name) {
 }
 
 void updCodeVerMap(String key, String val) {
-    Map cv = atomicState?.codeVersions
+    Map cv = state.codeVersions
     cv = cv ?: [:]
     if(val && (!cv.containsKey(key) || (cv.containsKey(key) && cv[key] != val))) { cv[key] = val }
     if (cv.containsKey(key) && val == sNULL) { cv.remove(key) }
-    atomicState.codeVersions = cv
+    state.codeVersions = cv
 }
 
 void cleanUpdVerMap() {
-    Map cv = atomicState?.codeVersions
+    Map cv = state.codeVersions
     cv = cv ?: [:]
     List ri = ["groupApp"]
     cv.each { String k, String v-> if(v == null) ri.push(k) }
     ri.each { cv.remove(it) }
-    atomicState.codeVersions = cv
+    state.codeVersions = cv
 }
 
 String getRandAppName() {
@@ -5706,21 +5708,26 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
     releaseTheLock(sHMLF)
 }
 
-void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug "EchoApp (v${appVersionFLD}) | ${msg}" } }
-void logInfo(String msg) { if((Boolean)settings.logInfo) { log.info " EchoApp (v${appVersionFLD}) | ${msg}" } }
-void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace "EchoApp (v${appVersionFLD}) | ${msg}" } }
-void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn " EchoApp (v${appVersionFLD}) | ${msg}" }; if(!noHist) { addToLogHistory("warnHistory", msg, 15) } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+
 void logError(String msg, Boolean noHist=false, ex=null) {
-    if((Boolean)settings.logError) {
-        log.error "EchoApp (v${appVersionFLD}) | "+msg
+    if((Boolean)settings.logError != false) {
+        log.error addHead(msg)
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
         } catch (e) {
         }
-        if(a) log.error "EchoApp (v${appVersionFLD}) | "+a
+        if(a) log.error addHead(a)
     }
     if(!noHist) { addToLogHistory("errorHistory", msg, 15) }
+}
+
+String addHead(String msg) {
+    return "EchoApp (v"+appVersionFLD+") | "+msg
 }
 
 // public hasLogDevice() { return (settings?.logDevice != null) }
