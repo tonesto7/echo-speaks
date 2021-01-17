@@ -289,6 +289,8 @@ def conditionsPage() {
 
         condNonNumSect("lock", "lock", "Lock Conditions", "Smart Locks", ["locked", "unlocked"], "are", "lock")
 
+        condNonNumSect("securityKeypad", "securityKeypad", "Security Keypad Conditions", "Security Kepads", ["disarmed", "armed home", "armed away"], "are", "lock")
+
         condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", ["open", "closed"], "are", "garage_door")
 
         condNumValSect("temperature", "temperatureMeasurement", "Temperature Conditions", "Temperature Sensors", "Temperature", "temperature")
@@ -657,7 +659,7 @@ void subscribeToEvts() {
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
     state.handleGuardEvents = false
-    List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "shade", "valve", "door", "contact", "acceleration", sSWITCH, "battery", "level"]
+    List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "securityKeypad", "shade", "valve", "door", "contact", "acceleration", sSWITCH, "battery", "level"]
 
     //SCHEDULING
     if(timeCondConfigured() || dateCondConfigured()) {
@@ -821,7 +823,7 @@ Boolean checkDeviceNumCondOk(String type) {
 }
 
 private Boolean isConditionOk(String evt) {
-    if([sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "water"].contains(evt)) {
+    if([sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "water"].contains(evt)) {
         if(!settings."cond_${evt}") { true }
         return checkDeviceCondOk(evt)
     } else if(["temperature", "humidity", "illuminance", "level", "power", "battery"].contains(evt)) {
@@ -840,7 +842,7 @@ Boolean deviceCondOk() {
     List skipped = []
     List passed = []
     List failed = []
-    [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "water"]?.each { String i->
+    [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "water"]?.each { String i->
         if(!settings."cond_${i}") { skipped.push(i); return; }
         checkDeviceCondOk(i) ? passed.push(i) : failed.push(i);
     }
@@ -900,14 +902,14 @@ Boolean locationCondConfigured() {
 }
 
 Boolean deviceCondConfigured() {
-//    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+//    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
 //    List items = []
 //    devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
     return (deviceCondCount() > 0)
 }
 
 Integer deviceCondCount() {
-    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water"]
+    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water"]
     List items = []
     devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
     return items.size()
@@ -1590,10 +1592,10 @@ String getConditionsDesc(Boolean addE=true) {
             str += settings.cond_mode  ? "    - Allowed Location Modes (${not? "not in" : "in"}): (${(isInMode(settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
-            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
+            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
                 if(devCondConfigured(evt)) {
                     Boolean condOk = false
-                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
+                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "humidity", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
                     // str += settings."${}"
                     str += settings."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
