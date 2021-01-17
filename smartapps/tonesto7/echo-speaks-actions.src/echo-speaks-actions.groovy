@@ -151,7 +151,7 @@ private buildTriggerEnum() {
         buildItems.Location.remove("pistonExecuted")
     }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power", "acceleration":"Accelorometers"]?.sort{ it?.value }
-    buildItems["Actionable Devices"] = ["lock":"Locks", "button":"Buttons", sSWITCH:"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
+    buildItems["Actionable Devices"] = ["lock":"Locks", "keypad":"Keypads", "button":"Buttons", sSWITCH:"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
     if(!isStFLD) {
         buildItems["Actionable Devices"].remove("button")
         buildItems["Button Devices"] = ["pushed":"Button (Pushable)", "released":"Button (Releasable)", "held":"Button (Holdable)", "doubleTapped":"Button (Double Tapable)"]?.sort{ it?.value }
@@ -436,7 +436,7 @@ def triggersPage() {
                 }
             }
 
-            if(valTrigEvt("routineExecuted") && isStFLD) {
+/*            if(valTrigEvt("routineExecuted") && isStFLD) {
                 List stRoutines = isStFLD ? ( getLocationRoutines() ?: [] ) : []
                 section(sTS("Routine Events"), hideable: true) {
                     input "trig_routineExecuted", sENUM, title: inTS1("Routines", "routine"), options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
@@ -446,7 +446,7 @@ def triggersPage() {
                         triggerVariableDesc("routineExecuted", false, trigItemCnt++)
                     }
                 }
-            }
+            } */
 
             if(valTrigEvt("pistonExecuted")) {
                 section(sTS("webCoRE Piston Executed Events"), hideable: true) {
@@ -504,24 +504,13 @@ def triggersPage() {
             }
 
             if (valTrigEvt("lock")) {
-                //TODO: Add lock code triggers
-                trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", "any"], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++, (settings.trig_lockCode))
-                // section (sTS("Lock Code Events"), hideable: true) {
-                //     input "trig_lockCode", "capability.lock", title: inTS1("Monitor Lock Codes", "lock"), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
-                //     if (settings.trig_lockCode) {
-                //         def lockCodes = settings.trig_lockCode?.currentValue("lockCodes") ?: null
-                //         Map codeOpts = lockCodes ? parseJson(lockCodes[0]?.toString()) : [:]
-                //         log.debug "lockCodes: ${codeOpts}"
-                //         input "trig_lockCode_items", sENUM, title: inTS1("Lock code items...", sCOMMAND), options: codeOpts?.collectEntries { [(it?.key as String): "Code ${it?.key}: (${it?.value})"] }, multiple: true, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
-                //         if(settings."trig_lockCode_items") {
-                //             input "trig_lockCode_once", sBOOL, title: inTS1("Only alert once a day?\n(per device)", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                //             input "trig_lockCode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
-                //             triggerVariableDesc("Lock Code", true, trigItemCnt)
-                //         }
-                //     }
-                // }
+                trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", "any"], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++, (settings.trig_lockCodes), ((settings.trig_lock && settings.trig_lock_cmd in ["unlocked", "any"])  ? this.&handleCodeSect : null), "Unlocked" )
             }
 
+            if (valTrigEvt("keypad")) {
+                trigNonNumSect("keypad", "securityKeypad", "Security Keypad", "Security Keypad", ["disarmed", "armed home", "armed away", "unknown", "any"], "changes to", ["disarmed", "armed home", "armed away", "unknown"], "lock", trigItemCnt++, (settings.trig_keypadCodes), ((settings.trig_keypad && settings.trig_keypad_cmd in ["disarmed", "any"]) ? this.&handleCodeSect : null), "Keypad Disarmed" )
+            }
+/*
             if (valTrigEvt("button") && isStFLD) {
                 section (sTS("Button Events"), hideable: true) {
                     input "trig_button", "capability.button", title: inTS1("Buttons", "button"), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
@@ -532,7 +521,8 @@ def triggersPage() {
                         }
                     }
                 }
-            }
+            } */
+
             if (valTrigEvt("pushed")) {
                 section (sTS("Button Pushed Events"), hideable: true) {
                     input "trig_pushed", "capability.pushableButton", title: inTS1("Pushable Buttons", "button"), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
@@ -699,7 +689,7 @@ def triggersPage() {
             }
             if(triggersConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS("You are all done with this step.\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT, image: getAppImg("done")
+                    paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT, image: getAppImg("done")
                 }
             }
         }
@@ -707,7 +697,36 @@ def triggersPage() {
     }
 }
 
-def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt, devReq=true) {
+def handleCodeSect(String typ, String lbl) {
+    Map<String, Map> lockCodes = getCodes(settings."trig_${typ}")
+    log.debug "lockCodes: ${lockCodes}"
+    if(lockCodes) {
+//        section (sTS("Filter ${lbl} Code Events"), hideable: true) {
+            Map codeOpts = lockCodes.collectEntries { [((String)it.key): it.value?.name ? "Name: "+(String)it.value.name : "Code Number ${(String)it.key}: (${(String)it.value?.code})"] }
+            input "trig_${typ}Codes", sENUM, title: inTS1("Filter ${lbl} codes...", sCOMMAND), options: codeOpts, multiple: true, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+//        }
+    }
+}
+
+Map<String,Map> getCodes(devs) {
+    // lockCodes are:
+    // ["<codeNumber>":["code":"<pinCode>", "name":"<display name for code>"],"<codeNumber>":["code":"<pinCode>", "name":"<display name for code>"]]
+    Map result = [:]
+    try {
+        String lockCodes = devs ? devs[0]?.currentValue("lockCodes") : sNULL
+        if (lockCodes) {
+            //decrypt codes if they're encrypted
+            if (lockCodes[0] == "{") result = parseJson(lockCodes)
+            else result = parseJson(decrypt(lockCodes))
+            log.debug "lockCodes: ${result}"
+        }
+    } catch(ex) { logError("getLockCodes error", true, ex) }
+    return result
+}
+
+def dummy(a,b) {}
+
+def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt, devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
     section (sTS(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, required: devReq, submitOnChange: true, image: getAppImg(image)
         if (settings."trig_${inType}") {
@@ -716,6 +735,8 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                 if (settings."trig_${inType}"?.size() > 1 && settings."trig_${inType}_cmd" != "any") {
                     input "trig_${inType}_all", sBOOL, title: inTS1("Require ALL ${devTitle} to be (${settings."trig_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
                 }
+                extraMeth(inType, extraStr)
+
                 if(!isTierAction() && settings."trig_${inType}_cmd" in cmdAfterOpts) {
                     input "trig_${inType}_after", sNUMBER, title: inTS1("Only after (${settings."trig_${inType}_cmd"}) for (xx) seconds?", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
                     if(settings."trig_${inType}_after") {
@@ -867,6 +888,8 @@ def conditionsPage() {
         condNonNumSect("acceleration", "accelerationSensor", "Accelorometer Conditions", "Accelorometer Sensors", ["active","inactive"], "are", "acceleration")
 
         condNonNumSect("lock", "lock", "Lock Conditions", "Smart Locks", ["locked", "unlocked"], "are", "lock")
+
+        condNonNumSect("securityKeypad", "securityKeypad", "Security Keypad Conditions", "Security Kepads", ["disarmed", "armed home", "armed away"], "are", "lock")
 
         condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", ["open", "closed"], "are", "garage_door")
 
@@ -1031,7 +1054,7 @@ def actionTiersPage() {
             }
             if(isTierActConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS("You are all done configuring tier responses.\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT, image: getAppImg("done")
+                    paragraph pTS("You are all done configuring tier responses.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT, image: getAppImg("done")
                 }
             }
         }
@@ -1482,7 +1505,7 @@ def actionsPage() {
                 }
                 actionSimulationSect()
                 section(sBLANK) {
-                    paragraph pTS("You are all done with this step.\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT, image: getAppImg("done")
+                    paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT, image: getAppImg("done")
                 }
                 actionExecMap.config.volume = [change: settings.act_volume_change, restore: settings.act_volume_restore, alarm: settings.act_alarm_volume]
 
@@ -1575,10 +1598,10 @@ def actTrigTasksPage(params) {
             if(!isStFLD) {
                 input "${t}alarm_run", sENUM, title: inTS1("Set ${getAlarmSystemName()} mode${dMap?.def}\n(Optional)", "alarm_home"), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
             }
-            if(isStFLD) {
+/*            if(isStFLD) {
                 def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
                 input "${t}routine_run", sENUM, title: inTS1("Execute a routine${dMap?.def}\n(Optional)", "routine"), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
-            }
+            } */
 
             if(settings.enableWebCoRE) {
 //                section (sTS("Execute a webCoRE Piston:")) {
@@ -1615,7 +1638,7 @@ private executeTaskCommands(data) {
     if(settings."${p}mode_run") { setLocationMode(settings."${p}mode_run" as String) }
     if(settings."${p}alarm_run") { sendLocationEvent(name: "hsmSetArm", value: settings."${p}alarm_run" as String) }
     if(settings.enableWebCoRE && settings."${p}piston_run") { webCoRE_execute(settings."${p}piston_run") }
-    if(isStFLD && settings."${p}routine_run") { execRoutineById(settings."${p}routine_run" as String) }
+//    if(isStFLD && settings."${p}routine_run") { execRoutineById(settings."${p}routine_run" as String) }
 
     if(settings."${p}switches_off") { settings."${p}switches_off"*.off() }
     if(settings."${p}switches_on") { settings."${p}switches_on"*.on() }
@@ -1665,7 +1688,7 @@ String actTaskDesc(String t, Boolean isInpt=false) {
 
         str += settings."${t}mode_run" ? "\n \u2022 Set Mode:\n \u2022 ${settings."${t}mode_run"}" : sBLANK
         str += settings."${t}alarm_run" ? "\n \u2022 Set Alarm:\n \u2022 ${settings."${t}alarm_run"}" : sBLANK
-        str += settings."${t}routine_run" ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(settings."${t}routine_run")?.label}" : sBLANK
+//        str += settings."${t}routine_run" ? "\n \u2022 Execute Routine:\n    - ${getRoutineById(settings."${t}routine_run")?.label}" : sBLANK
         str += (settings.enableWebCoRE && settings."${t}piston_run") ? "\n \u2022 Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
     }
     return str != sBLANK ? (isInpt ? "${str}\n\n"+sTTM : str) : (isInpt ? "On trigger control devices, set mode, set alarm state, execute WebCore Pistons\n\n"+sTTC : sNULL)
@@ -2076,8 +2099,9 @@ private void actionCleanup() {
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     //Cleans up unused action setting items
     List setItems = []
-    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_routine_run", "act_piston_run", "act_mode_run", "act_alarm_run"]
-    if(settings.act_EchoZones) { setIgn.push("act_EchoZones") }
+    List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_piston_run", "act_mode_run", "act_alarm_run"]
+//    if (isStFLD) setIgn.push("act_routine_run")
+    if(settings.act_EchoZones) { setIgn.push("act_EchoZones"); Map a = getActiveZones() }
     else if(settings.act_EchoDevices) { setIgn.push("act_EchoDevices"); setIgn.push("act_EchoDeviceList") }
 
     if((String)settings.actionType) {
@@ -2286,10 +2310,10 @@ void subscribeToEvts() {
                     break
                 case "pistonExecuted":
                     break
-                case "routineExecuted":
+/*                case "routineExecuted":
                     // Routine Execution Events
                     if(isStFLD) subscribe(location, "routineExecuted", routineEvtHandler)
-                    break
+                    break */
                 case "thermostat":
                     // Thermostat Events
                     subscribe(settings."trig_${te}", attributeConvert(te), thermostatEvtHandler)
@@ -2304,7 +2328,7 @@ void subscribeToEvts() {
 }
 
 static String attributeConvert(String attr) {
-    Map atts = ["door":"garageDoorControl", "shade":"windowShade"]
+    Map atts = ["door":"garageDoorControl", "shade":"windowShade", "keypad":"securityKeypad"]
     return (atts.containsKey(attr)) ? atts[attr] : attr
 }
 
@@ -2475,20 +2499,20 @@ def eventCompletion(evt, String dId, Boolean dco, Integer dcw, String meth, evtV
         processTierTrigEvt(evt, true)
     } else { executeAction(evt, false, meth, false, false) }
 }
-
+/*
 def routineEvtHandler(evt) {
     logTrace( "${evt?.name?.toUpperCase()} Event | Routine: ${evt?.displayName} | with a delay of ${now() - evt?.date?.getTime()}ms")
     if(evt?.displayName in settings.trig_routineExecuted) {
         Boolean dco = (settings.trig_routineExecuted_once == true)
         Integer dcw = settings.trig_routineExecuted_wait ?: null
         eventCompletion(evt, "routineExecuted", dco, dcw, "routineEvtHandler", evt?.displayName, evt?.displayName)
-/*        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "routineExecuted", value: evt?.displayName, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
-        if(!evtWaitOk) { return }
-        if(getConfStatusItem("tiers")) {
-            processTierTrigEvt(evt, true)
-        } else { executeAction(evt, false, "routineEvtHandler", false, false) }*/
+//        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "routineExecuted", value: evt?.displayName, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+//        if(!evtWaitOk) { return }
+//        if(getConfStatusItem("tiers")) {
+//            processTierTrigEvt(evt, true)
+//        } else { executeAction(evt, false, "routineEvtHandler", false, false) }
     }
-}
+} */
 
 def webcoreEvtHandler(evt) {
     String disN = evt?.jsonData?.name
@@ -2658,6 +2682,7 @@ def deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     switch(evntNam) {
         case sSWITCH:
         case "lock":
+        case "securityKeypad":
         case "door":
         case "smoke":
         case "carbonMonoxide":
@@ -3113,7 +3138,7 @@ Boolean deviceCondOk() {
     List skipped = []
     List passed = []
     List failed = []
-    [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "water" ]?.each { String i->
+    [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "keypad", "door", "shade", "valve", "water" ]?.each { String i->
         if(!settings."cond_${i}") { skipped.push(i); return }
         checkDeviceCondOk(i) ? passed.push(i) : failed.push(i)
     }
@@ -3175,7 +3200,7 @@ Boolean locationAlarmConfigured() {
 }
 
 Boolean deviceCondConfigured() {
-//    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+//    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "keypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
 //    List items = []
 //    devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
 //    return (items.size() > 0)
@@ -3183,7 +3208,7 @@ Boolean deviceCondConfigured() {
 }
 
 Integer deviceCondCount() {
-    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water"]
+    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "keypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water"]
     List items = []
     devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
     return items.size()
@@ -3253,9 +3278,9 @@ Map getRandomTrigEvt() {
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
-        routineExecuted: (isStFLD ? getRandomItem(getLocationRoutines()) : null),
+//        routineExecuted: (isStFLD ? getRandomItem(getLocationRoutines()) : null),
             //ERS
-        // pistonExecuted: getRandomItem(getLocationPistons())
+        pistonExecuted: getRandomItem(getLocationPistons())
     ]
     Map evt = [:]
     if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
@@ -4145,8 +4170,8 @@ public webCoRE_execute(String pistonIdOrName,Map data=[:]) {
     if(i){sendLocationEvent([name:i,value:app.label,isStateChange:true,displayed:false,data:data])}
 }
 
-public webCoRE_list(String mode){
-    return (List) webCoREFLD?.pistons?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
+public List webCoRE_list(String mode){
+    return (List)webCoREFLD?.pistons?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
 }
 
 public getPistonByName(String pistonIdOrName) {
@@ -4208,21 +4233,22 @@ List getLocationRoutines() {
    return (isStFLD) ? location.helloHome?.getPhrases()*.label?.sort() : []
 }
 
-List getLocationPistons() {
-    List aa = (List) webCoRE_list()
+List<String> getLocationPistons() {
+//    List aa = webCoRE_list()
+    List aa = (webCoREFLD?.pistons ?: []).findAll { it.id }.collect { (String)it.id }
     return aa ?: []
 }
-
+/*
 def getRoutineById(rId) {
     return (isStFLD) ? location?.helloHome?.getPhrases()?.find{it?.id == rId} : null
-}
-
+} */
+/*
 def execRoutineById(rId) {
     if(rId && isStFLD) {
         def nId = getRoutineById(rId)
         if(nId && nId?.label) { location.helloHome?.execute(nId?.label) }
     }
-}
+} */
 
 def getModeById(mId) {
     return location?.getModes()?.find{it?.id == mId}
@@ -4614,10 +4640,10 @@ String getConditionsDesc(Boolean addE=true) {
             str += settings.cond_mode ? "    - Allowed Modes (${not ? "not in" : "in"}): (${(isInMode(settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
-            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
+            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "keypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
                 if(devCondConfigured(evt)) {
                     Boolean condOk = false
-                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
+                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "keypad", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity"]) { condOk = checkDeviceNumCondOk(evt) }
 
                     str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
