@@ -4655,7 +4655,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addE=true) {
     String sPre = "trig_"
     if(confd && setItem?.size()) {
         if(!hideDesc) {
-            String str = "Triggers:\n"
+            String str = "Triggers${!addE ? " for "+buildActTypeEnum()."${settings.actionType}" : sBLANK}:\n"
             setItem?.each { String evt->
                 String adder = sBLANK
                 switch(evt) {
@@ -4813,7 +4813,8 @@ String getActionDesc(Boolean addE=true) {
 //    def time = null
 //    String sPre = "act_"
     String str = sBLANK
-    str += addE && (String)settings.actionType ? "Action:\n • ${(String)settings.actionType}\n\n" : sBLANK
+//    str += addE && (String)settings.actionType ? "Action:\n • ${(String)settings.actionType}\n\n" : sBLANK
+    str += addE ? "Action:\n • "+buildActTypeEnum()."${settings.actionType}"+"\n\n" : sBLANK
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
         def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
