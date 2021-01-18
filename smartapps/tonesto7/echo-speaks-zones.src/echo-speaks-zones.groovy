@@ -2068,10 +2068,13 @@ public Map getSettingsAndStateMap() {
         }
         ((Map<String,String>)typeObj.caps).each { ck, cv->
             //settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
-            settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability", value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
+            settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv->
+                setObjs[fk] = [type: "capability", value: (fv instanceof List ? fv?.collect { it?.id?.toString() } : it?.id?.toString ) ] } //.toString().toList()
         }
         ((Map<String, String>)typeObj.dev).each { dk, dv->
-            settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
+            //settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv.collect { it?.id?.toString() }] } //.toString().toList()
+            settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv->
+                setObjs[fk] = [type: "device", value: (fv instanceof List ? fv.collect { it?.id?.toString() } : it?.id?.toString() ) ] } //.toString().toList()
         }
     }
     Map data = [:]
@@ -2088,3 +2091,4 @@ public Map getSettingsAndStateMap() {
     data.state = state?.findAll { !(it?.key in stskip) }
     return data
 }
+
