@@ -44,9 +44,9 @@ import groovy.transform.Field
 @Field static final String sTTM           = 'Tap to modify...'
 @Field static final String sTTC           = 'Tap to configure...'
 @Field static final String sTTP           = 'Tap to proceed...'
-@Field static final String sTTS           = 'Tap to select...'
-@Field static final String sSETTINGS      = 'settings'
-@Field static final String sRESET         = 'reset'
+//@Field static final String sTTS           = 'Tap to select...'
+//@Field static final String sSETTINGS      = 'settings'
+//@Field static final String sRESET         = 'reset'
 @Field static final String sEXTNRL        = 'external'
 @Field static final String sDEBUG         = 'debug'
 @Field static final String sSWITCH        = 'switch'
@@ -277,11 +277,11 @@ def mainPage() {
 def prefsPage() {
     return dynamicPage(name: "prefsPage", install: false, uninstall: false) {
         section(sTS("Logging:")) {
-            input "logInfo",  sBOOL, title: inTS1("Show Info Logs?", "debug"), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logWarn",  sBOOL, title: inTS1("Show Warning Logs?", "debug"), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logError", sBOOL, title: inTS1("Show Error Logs?", "debug"), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", "debug"), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
-            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", "debug"), description: "Only enable when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logInfo",  sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logWarn",  sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enable when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEBUG)
         }
         if(advLogsActive()) { logsEnabled() }
         section(sTS("Other:")) {
@@ -2325,9 +2325,9 @@ void scheduleSunriseSet() {
 }
 
 void subscribeToEvts() {
+    state.handleGuardEvents = false
     if(minVersionFailed ()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return }
     if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
-    state.handleGuardEvents = false
     settings.triggerEvents?.each { String te->
         if(te == "scheduled" || settings."trig_${te}") {
             switch (te) {
@@ -2464,17 +2464,23 @@ def scheduleTrigEvt(evt=null) {
                     //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
     if (!schedulesConfigured()) { return }
     String schedType = (String)settings.trig_scheduled_type
-    Boolean recur = schedType = 'Recurring'
+    Boolean recur = schedType == 'Recurring'
     Map dateMap = getDateMap()
     // log.debug "dateMap: $dateMap"
-    //ERS
-    Map t0 = atomicState.schedTrigMap
-    Map sTrigMap = t0 ?: [:]
-    String srecur = schedType == 'Recurring' ? settings.trig_scheduled_recurrence : sNULL
+    String srecur = recur ? settings.trig_scheduled_recurrence : sNULL
     List days = recur ? settings.trig_scheduled_weekdays : null
     List daynums = recur ? settings.trig_scheduled_daynums : null
     List weeks = recur ? settings.trig_scheduled_weeks : null
     List months = recur ? settings.trig_scheduled_months : null
+
+    //ERS
+    Boolean aa = getTheLock(sHMLF, "scheduleTrigEvt")
+    // log.trace "lock wait: ${aa}"
+//    Map t0 = atomicState.schedTrigMap
+//    Map sTrigMap = t0 ?: [:]
+    Map sTrigMap = getMemStoreItem("schedTrigMap", [:])
+    if(!sTrigMap) sTrigMap = state.schedTrigMap ?: [:]
+
     Boolean wdOk = (days && srecur in ["Daily", "Weekly"]) ? (dateMap.dayNameShort in days && sTrigMap?.lastRun?.dayName != dateMap.dayNameShort) : true
     Boolean mdOk = daynums ? (dateMap.day in daynums && sTrigMap?.lastRun?.day != dateMap.day) : true
     Boolean wOk = (weeks && srecur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
@@ -2482,7 +2488,10 @@ def scheduleTrigEvt(evt=null) {
     // Boolean yOk = (srecur in ["Yearly"]) ? (sTrigMap?.lastRun?.y != dateMap.y) : true
     if(wdOk && mdOk && wOk && mOk) {
         sTrigMap.lastRun = dateMap
-        atomicState.schedTrigMap = sTrigMap
+        updMemStoreItem("schedTrigMap", sTrigMap)
+        state.schedTrigMap = sTrigMap
+//        atomicState.schedTrigMap = sTrigMap
+        releaseTheLock(sHMLF)
         if(evt) {
             executeAction(evt, false, "scheduleTrigEvt", false, false)
         } else {
@@ -2490,6 +2499,7 @@ def scheduleTrigEvt(evt=null) {
             executeAction([name: "Schedule", displayName: "Scheduled Trigger", value: fmtTime(dt), date: dt, deviceId: null], false, "scheduleTrigEvt", false, false)
         }
     } else {
+        releaseTheLock(sHMLF)
         logDebug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
     }
 }
@@ -4857,6 +4867,8 @@ String getTimeCondDesc(Boolean addPre=true) {
         stopTime = stopType == 'time'  && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
     }
 
+    String startLbl1 = sBLANK
+    String stopLbl1 = sBLANK
     if(startType in lSUNRISESET || stopType in lSUNRISESET) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
@@ -4866,16 +4878,18 @@ String getTimeCondDesc(Boolean addPre=true) {
         if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
+            startLbl1 = startType.capitalize() + sSPACE + "${startoffset ? "with offset " : sBLANK}"
         }
         if(stopType in lSUNRISESET) {
             Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
             stopTime = new Date(stopl)
+            stopLbl1 = stopType.capitalize() + sSPACE + "${stopoffset ? "with offset " : sBLANK}"
         }
     }
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
 
-    return startLbl && stopLbl ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl} - ${stopLbl})" : sTTC
+    return startLbl && stopLbl ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl1}${startLbl} - ${stopLbl1}${stopLbl})" : sTTC
 }
 
 static String getInputToStringDesc(inpt, addSpace = null) {
