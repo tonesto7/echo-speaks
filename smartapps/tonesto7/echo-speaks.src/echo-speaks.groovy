@@ -5894,8 +5894,11 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
     ],
 //
     ends: [
-        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db"],
-        enum: ["_cmd", "_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_weekdays", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_piston_run", "_alarm_run", "_rt", "_rt_wd", "_nums", "_Codes", "_pistonExecuted", "_days", "_months", "_alarm_events"],
+        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause"],
+        enum: ["_cmd", "_type", "_routineExecuted",
+               "_EchoDevices",
+               "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_weekdays", "_scheduled_months", "_scheduled_daynums", "_scheduled_type",
+               "_routine_run", "_mode_run", "_piston_run", "_alarm_run", "_rt", "_rt_wd", "_nums", "_Codes", "_pistonExecuted", "_days", "_months", "_alarm_events"],
         number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore"],
         text: ["_txt", "_sms_numbers", "_label", "_date", "_message"],
         mode: ["_modes"],
@@ -5938,12 +5941,13 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         _switches_off: "switch",
         _switches_on: "switch",
         _lights: "level",
-        _color: "colorControl"
+        _color: "colorControl",
+        _EchoDeviceList: ""
     ],
     dev: [
         _scene: "sceneActivator",
-        _EchoDevices: "EchoSpeaksDevice",
-        _EchoDeviceList: "EchoSpeaksDevice"
+//        _EchoDevices: "EchoSpeaksDevice",
+//        _EchoDeviceList: "EchoSpeaksDevice"
     ]
 ]
 
