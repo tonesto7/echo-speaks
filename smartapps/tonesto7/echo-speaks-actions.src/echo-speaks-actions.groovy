@@ -55,6 +55,8 @@ import groovy.transform.Field
 @Field static final String sNUMBER        = 'number'
 @Field static final String sANY           = 'any'
 @Field static final String sBETWEEN       = 'between'
+@Field static final String sBELOW        = 'below'
+@Field static final String sABOVE        = 'above'
 
 static String appVersion()  { return appVersionFLD }
 
@@ -653,12 +655,12 @@ def triggersPage() {
                             if (settings.trig_thermostat_cmd == "setpoint") {
                                 input "trig_thermostat_setpoint_type", sENUM, title: inTS1("SetPoint type is...", sCOMMAND), options: ["cooling", "heating", sANY], required: false, submitOnChange: true, image: getAppImg(sCOMMAND)
                                 if(settings.trig_thermostat_setpoint_type) {
-                                    input "trig_thermostat_setpoint_cmd", sENUM, title: inTS1("Setpoint temp is...", sCOMMAND), options: [sBETWEEN, "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                    input "trig_thermostat_setpoint_cmd", sENUM, title: inTS1("Setpoint temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
                                     if (settings.trig_thermostat_setpoint_cmd) {
-                                        if (settings.trig_thermostat_setpoint_cmd in [sBETWEEN, "below"]) {
+                                        if (settings.trig_thermostat_setpoint_cmd in [sBETWEEN, sBELOW]) {
                                             input "trig_thermostat_setpoint_low", sNUMBER, title: inTS1("a ${trig_thermostat_setpoint_cmd == sBETWEEN ? "Low " : sBLANK}Setpoint temp of...", "low"), required: true, submitOnChange: true
                                         }
-                                        if (settings.trig_thermostat_setpoint_cmd in [sBETWEEN, "above"]) {
+                                        if (settings.trig_thermostat_setpoint_cmd in [sBETWEEN, sABOVE]) {
                                             input "trig_thermostat_setpoint_high", sNUMBER, title: inTS1("${trig_thermostat_setpoint_cmd == sBETWEEN ? "and a high " : "a "}Setpoint temp of...", "high"), required: true, submitOnChange: true
                                         }
                                         if (settings.trig_thermostat_setpoint_cmd == "equals") {
@@ -668,12 +670,12 @@ def triggersPage() {
                                 }
                             }
                             if(settings.trig_thermostat_cmd == "ambient") {
-                                input "trig_thermostat_ambient_cmd", sENUM, title: inTS1("Ambient Temp is...", sCOMMAND), options: [sBETWEEN, "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                input "trig_thermostat_ambient_cmd", sENUM, title: inTS1("Ambient Temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
                                 if (settings.trig_thermostat_ambient_cmd) {
-                                    if (settings.trig_thermostat_ambient_cmd in [sBETWEEN, "below"]) {
+                                    if (settings.trig_thermostat_ambient_cmd in [sBETWEEN, sBELOW]) {
                                         input "trig_thermostat_ambient_low", sNUMBER, title: inTS1("a ${trig_thermostat_ambient_cmd == sBETWEEN ? "Low " : sBLANK}Ambient Temp of...", "low"), required: true, submitOnChange: true
                                     }
-                                    if (settings.trig_thermostat_ambient_cmd in [sBETWEEN, "above"]) {
+                                    if (settings.trig_thermostat_ambient_cmd in [sBETWEEN, sABOVE]) {
                                         input "trig_thermostat_ambient_high", sNUMBER, title: inTS1("${trig_thermostat_ambient_cmd == sBETWEEN ? "and a high " : "a "}Ambient Temp of...", "high"), required: true, submitOnChange: true
                                     }
                                     if (settings.trig_thermostat_ambient_cmd == "equals") {
@@ -767,12 +769,12 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
     section (sTS(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", tite: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: devReq, image: getAppImg(image)
         if(settings."trig_${inType}") {
-            input "trig_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+            input "trig_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
             if (settings."trig_${inType}_cmd") {
-                if (settings."trig_${inType}_cmd" in [sBETWEEN, "below"]) {
+                if (settings."trig_${inType}_cmd" in [sBETWEEN, sBELOW]) {
                     input "trig_${inType}_low", sNUMBER, title: inTS1("a ${settings."trig_${inType}_cmd" == sBETWEEN ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true, image: getAppImg("low")
                 }
-                if (settings."trig_${inType}_cmd" in [sBETWEEN, "above"]) {
+                if (settings."trig_${inType}_cmd" in [sBETWEEN, sABOVE]) {
                     input "trig_${inType}_high", sNUMBER, title: inTS1("${settings."trig_${inType}_cmd" == sBETWEEN ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true, image: getAppImg("high")
                 }
                 if (settings."trig_${inType}_cmd" == "equals") {
@@ -936,12 +938,12 @@ def condNumValSect(String inType, String capType, String sectStr, String devTitl
     section (sTS(sectStr), hideWhenEmpty: true) {
         input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: false, image: getAppImg(image), hideWhenEmpty: true
         if(settings."cond_${inType}") {
-            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, "below", "above", "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
             if (settings."cond_${inType}_cmd") {
-                if (settings."cond_${inType}_cmd" in [sBETWEEN, "below"]) {
+                if (settings."cond_${inType}_cmd" in [sBETWEEN, sBELOW]) {
                     input "cond_${inType}_low", sNUMBER, title: inTS1("a ${settings."cond_${inType}_cmd" == sBETWEEN ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true, image: getAppImg("low")
                 }
-                if (settings."cond_${inType}_cmd" in [sBETWEEN, "above"]) {
+                if (settings."cond_${inType}_cmd" in [sBETWEEN, sABOVE]) {
                     input "cond_${inType}_high", sNUMBER, title: inTS1("${settings."cond_${inType}_cmd" == sBETWEEN ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true, image: getAppImg("high")
                 }
                 if (settings."cond_${inType}_cmd" == "equals") {
@@ -2923,12 +2925,12 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
                     evtOk=true
                 } else if(dca && dcl && dch && allDevCapNumValsBetween(devs, evt?.name, dcl, dch)) { evtOk=true; evtAd=true }
                 break
-            case "above":
+            case sABOVE:
                 if(!dca && dch && (evtValue > dch)) {
                     evtOk=true
                 } else if(dca && dch && allDevCapNumValsAbove(devs, evt?.name, dch)) { evtOk=true; evtAd=true }
                 break
-            case "below":
+            case sBELOW:
                 if(dcl && (evtValue < dcl)) {
                     evtOk=true
                 } else if(dca && dcl && allDevCapNumValsBelow(devs, evt?.name, dcl)) { evtOk=true; evtAd=true }
@@ -3215,13 +3217,13 @@ Boolean checkDeviceNumCondOk(String type) {
                 else { return anyDevCapNumValBetween(devs, type, dcl, dch) }
             }
             break
-        case "above":
+        case sABOVE:
             if(dch) {
                 if(dca) { return allDevCapNumValsAbove(devs, type, dch) }
                 else { return anyDevCapNumValAbove(devs, type, dch) }
             }
             break
-        case "below":
+        case sBELOW:
             if(dcl) {
                 if(dca) { return allDevCapNumValsBelow(devs, type, dcl) }
                 else { return anyDevCapNumValBelow(devs, type, dcl) }
@@ -4696,12 +4698,12 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addE=true) {
                     default:
                         str += " \u2022 ${adder}${evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
                         def subStr = sBLANK
-                        if(settings."${sPre}${evt}_cmd" in ["above", "below", "equal", sBETWEEN]) {
+                        if(settings."${sPre}${evt}_cmd" in [sABOVE, sBELOW, "equal", sBETWEEN]) {
                             if (settings."${sPre}${evt}_cmd" == sBETWEEN) {
                                 str += settings."${sPre}${evt}_cmd"  ? "    \u25E6 ${settings."${sPre}${evt}_cmd"}: (${settings."${sPre}${evt}_low"} - ${settings."${sPre}${evt}_high"})\n" : sBLANK
                             } else {
-                                str += (settings."${sPre}${evt}_cmd" == "above" && settings."${sPre}${evt}_high")     ? "    \u25E6 Above: (${settings."${sPre}${evt}_high"})\n" : sBLANK
-                                str += (settings."${sPre}${evt}_cmd" == "below" && settings."${sPre}${evt}_low")      ? "    \u25E6 Below: (${settings."${sPre}${evt}_low"})\n" : sBLANK
+                                str += (settings."${sPre}${evt}_cmd" == sABOVE && settings."${sPre}${evt}_high")     ? "    \u25E6 Above: (${settings."${sPre}${evt}_high"})\n" : sBLANK
+                                str += (settings."${sPre}${evt}_cmd" == sBELOW && settings."${sPre}${evt}_low")      ? "    \u25E6 Below: (${settings."${sPre}${evt}_low"})\n" : sBLANK
                                 str += (settings."${sPre}${evt}_cmd" == "equal" && settings."${sPre}${evt}_equal")    ? "    \u25E6 Equals: (${settings."${sPre}${evt}_equal"})\n" : sBLANK
                             }
                         } else {
@@ -4759,14 +4761,14 @@ String getConditionsDesc(Boolean addE=true) {
 
                     str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
-                    if(cmd in [sBETWEEN, "below", "above", "equals"]) {
+                    if(cmd in [sBETWEEN, sBELOW, sABOVE, "equals"]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
                         str += (cmd == "equals" && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
                         str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? "    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
-                        str += (cmd == "above" && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
-                        str += (cmd == "below" && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
+                        str += (cmd == sABOVE && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
+                        str += (cmd == sBELOW && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
                     } else {
                         str += cmd ? "    - Value: (${cmd})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
                     }
