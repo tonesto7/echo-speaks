@@ -992,11 +992,11 @@ void checkZoneStatus(evt) {
 void sendZoneStatus() {
     Boolean st = (Boolean)state.zoneConditionsOk
     st = st != null ? st : ((Boolean)conditionStatus().ok == true)
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: st, paused: isPaused()], isStateChange: true, display: false, displayed: false)
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: st, paused: isPaused()], isStateChange: true, display: false, displayed: false)
 }
 
 void sendZoneRemoved() {
-    sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: getZoneName()], isStateChange: true, display: false, displayed: false)
+    sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: app?.getLabel()], isStateChange: true, display: false, displayed: false)
 }
 
 void updateZoneStatus(Map data) {
@@ -2075,6 +2075,7 @@ public Map getSettingsAndStateMap() {
         }
     }
     Map data = [:]
+    //String newLbl = settings.appLbl?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
     String newlbl = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", sBLANK)
     data.label = newlbl?.replace(" (Z)", sBLANK)
 //    data.label = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", sBLANK)
