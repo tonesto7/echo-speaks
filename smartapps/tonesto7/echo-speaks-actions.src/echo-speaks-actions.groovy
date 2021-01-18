@@ -37,6 +37,9 @@ import groovy.transform.Field
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
 @Field static final String sENUM          = 'enum'
+@Field static final String sNUMBER        = 'number'
+@Field static final String sTEXT          = 'text'
+@Field static final String sTIME          = 'time'
 @Field static final String sCOMPLT        = 'complete'
 @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
@@ -52,7 +55,6 @@ import groovy.transform.Field
 @Field static final String sSWITCH        = 'switch'
 @Field static final String sCHKBOX        = 'checkbox'
 @Field static final String sCOMMAND       = 'command'
-@Field static final String sNUMBER        = 'number'
 @Field static final String sANY           = 'any'
 @Field static final String sBETWEEN       = 'between'
 @Field static final String sBELOW         = 'below'
@@ -99,7 +101,7 @@ preferences {
 
 def startPage() {
     if(parent != null) {
-        if(!(Boolean)state.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
+        if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
             state.isParent = false
             List aa = settings.act_EchoDevices
@@ -121,11 +123,11 @@ def uhOhPage () {
             paragraph "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Actions can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them.", required: true,
             state: null, image: getAppImg("exclude")
         }
-        if(isStFLD) { remove("Remove this invalid Action", "WARNING!!!", "This is a BAD install of an Action SHOULD be removed") }
+//        if(isStFLD) { remove("Remove this invalid Action", "WARNING!!!", "This is a BAD install of an Action SHOULD be removed") }
     }
 }
 
-def appInfoSect(sect=true)	{
+def appInfoSect()	{
     String instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
     section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: "${instDt ? "Installed: ${instDt}\n" : sBLANK}Version: ${appVersionFLD}", image: getAppImg("es_actions") }
 }
@@ -163,11 +165,13 @@ private buildTriggerEnum() {
     }
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
-    if(isStFLD) {
+/*    if(isStFLD) {
         buildItems.each { String key, val-> addInputGrp(enumOpts, key, val) }
         // log.debug "enumOpts: $enumOpts"
         return enumOpts
-    } else { return buildItems.collectEntries { it?.value }?.sort { it?.value } } // was it?.key
+    } else {*/
+        return buildItems.collectEntries { it?.value }?.sort { it?.value }
+//    } // was it?.key
 }
 
 private buildActTypeEnum() {
@@ -180,14 +184,16 @@ private buildActTypeEnum() {
     buildItems["Alarms/Reminders"] = ["alarm":"Create Alarm", "reminder":"Create Reminder"]?.sort{ it?.key }
     buildItems["Devices Settings"] = ["wakeword":"Change Wake Word", "dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control"]?.sort{ it?.key }
     buildItems["Custom"] = ["voicecmd":"Execute a voice command","sequence":"Execute Sequence", "alexaroutine": "Execute Alexa Routine(s)"]?.sort{ it?.key }
-    if(isStFLD) {
+/*    if(isStFLD) {
         buildItems.each { String key, val-> addInputGrp(enumOpts, key, val) }
         return enumOpts
-    } else { return buildItems.collectEntries { it?.value }?.sort { it?.value } }
+    } else { */
+        return buildItems.collectEntries { it?.value }?.sort { it?.value }
+//    }
 }
 
 def mainPage() {
-    Boolean newInstall = ((Boolean)state.isInstalled != true)
+    Boolean newInstall = (!(Boolean)state.isInstalled)
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? sBLANK : "namePage"), uninstall: newInstall, install: !newInstall) {
         if(settings.enableWebCoRE) {
             if(!webCoREFLD) webCoRE_init()
@@ -212,9 +218,11 @@ def mainPage() {
             condConf = conditionsConfigured()
             actConf = executionConfigured()
             section(sTS("Configuration: Part 1")) {
-                if(isStFLD) {
+/*                if(isStFLD) {
                     input "actionType", sENUM, title: inTS1("Action Type", "list"), description: sBLANK, groupedOptions: buildActTypeEnum(), multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
-                } else { input "actionType", sENUM, title: inTS1("Action Type", "list"), description: sBLANK, options: buildActTypeEnum(), multiple: false, required: true, submitOnChange: true, image: getAppImg("list") }
+                } else {*/
+                    input "actionType", sENUM, title: inTS1("Action Type", "list"), description: sBLANK, options: buildActTypeEnum(), multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
+//                }
             }
             section (sTS("Configuration: Part 2")) {
                 if((String)settings.actionType) {
@@ -258,7 +266,7 @@ def mainPage() {
             }
             if((Boolean)state.isInstalled) {
                 section(sTS("Name this Action:")) {
-                    input "appLbl", "text", title: inTS1("Action Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true, image: getAppImg("name_tag")
+                    input "appLbl", sTEXT, title: inTS1("Action Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true, image: getAppImg("name_tag")
                 }
                 section(sTS("Remove Action:")) {
                     href "uninstallPage", title: inTS1("Remove this Action", "uninstall"), description: "Tap to Remove...", image: getAppImg("uninstall")
@@ -294,7 +302,7 @@ def prefsPage() {
 def namePage() {
     return dynamicPage(name: "namePage", install: true, uninstall: false) {
         section(sTS("Name this Automation:")) {
-            input "appLbl", "text", title: inTS1("Label this Action", "name_tag"), description: sBLANK, required:true, submitOnChange: true, image: getAppImg("name_tag")
+            input "appLbl", sTEXT, title: inTS1("Label this Action", "name_tag"), description: sBLANK, required:true, submitOnChange: true, image: getAppImg("name_tag")
         }
     }
 }
@@ -345,11 +353,11 @@ def triggersPage() {
         }
         Boolean showSpeakEvtVars = false
         section (sTS("Select Capabilities")) {
-            if(isStFLD) {
+/*            if(isStFLD) {
                 input "triggerEvents", sENUM, title: "Select Trigger Event(s)", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("trigger")
-            } else {
+            } else { */
                 input "triggerEvents", sENUM, title: inTS1("Select Trigger Event(s)", "trigger"), options: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true
-            }
+//            }
         }
         Integer trigEvtCnt = settings.triggerEvents?.size()
         if (trigEvtCnt) {
@@ -364,7 +372,7 @@ def triggersPage() {
                         switch(schedType) {
                             case "One-Time":
                             case "Recurring":
-                                input "trig_scheduled_time", "time", title: inTS1("Trigger Time?", "clock"), required: false, submitOnChange: true, image: getAppImg("clock")
+                                input "trig_scheduled_time", sTIME, title: inTS1("Trigger Time?", "clock"), required: false, submitOnChange: true, image: getAppImg("clock")
                                 if(settings.trig_scheduled_time && schedType == "Recurring") {
                                     List recurOpts = ["Daily", "Weekly", "Monthly"]
                                     input "trig_scheduled_recurrence", sENUM, title: inTS1("Recurrence?", "day_calendar"), description: sBLANK, multiple: false, required: true, submitOnChange: true, options: recurOpts, defaultValue: "Once", image: getAppImg("day_calendar")
@@ -469,7 +477,7 @@ def triggersPage() {
                     }
                 }
             }
-
+/*
             if(valTrigEvt("scene") && isStFLD) {
                 section(sTS("Scene Events"), hideable: true) {
                     input "trig_scene", "device.sceneActivator", title: inTS1("Scene Devices", "routine"), multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
@@ -479,7 +487,7 @@ def triggersPage() {
                         triggerVariableDesc("scene", false, trigItemCnt++)
                     }
                 }
-            }
+            } */
 
             if (valTrigEvt(sSWITCH)) {
                 trigNonNumSect(sSWITCH, sSWITCH, "Switches", "Switches", lONOFF+lANY, "are turned", lONOFF, sSWITCH, trigItemCnt++)
@@ -718,10 +726,10 @@ def handleCodeSect(String typ, String lbl) {
     }
 }
 
-Map<String,Map> getCodes(devs, String code=sNULL) {
+Map<String,Map> getCodes(List devs, String code=sNULL) {
     // lockCodes are:
     // ["<codeNumber>":["code":"<pinCode>", "name":"<display name for code>"],"<codeNumber>":["code":"<pinCode>", "name":"<display name for code>"]]
-    Map result = [:]
+    Map<String,Map> result = [:]
     try {
         String lockCodes = devs && devs.size() == 1 ? devs[0]?.currentValue("lockCodes") : (code ?: sNULL)
         if (lockCodes) {
@@ -872,7 +880,7 @@ def conditionsPage() {
             paragraph pTS("Notice:\n${reqAllCond() ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate."}", sNULL, false, sCLR4D9), state: sCOMPLT
         }
         section(sTS("Time/Date")) {
-            // input "test_time", "time", title: "Trigger Time?", required: false, submitOnChange: true, image: getAppImg("clock")
+            // input "test_time", sTIME, title: "Trigger Time?", required: false, submitOnChange: true, image: getAppImg("clock")
             href "condTimePage", title: inTS1("Time Schedule", "clock"), description: getTimeCondDesc(false), state: (timeCondConfigured() ? sCOMPLT : null), image: getAppImg("clock")
             input "cond_days", sENUM, title: inTS1("Days of the week", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
             input "cond_months", sENUM, title: inTS1("Months of the year", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: monthEnum(), image: getAppImg("day_calendar")
@@ -1004,13 +1012,13 @@ def triggerVariableDesc(String inType, Boolean showRepInputs=false, Integer item
         paragraph pTS(str, getAppImg("info", true), false, sCLR4D9), required: true, state: sCOMPLT, image: getAppImg("info")
         //Custom Text Options
         href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings."trig_${inType}_txt" ? sCOMPLT : ''),
-                description: settings."trig_${inType}_txt" ?: "Open Response Designer...", image: getAppImg("text")
+                description: settings."trig_${inType}_txt" ?: "Open Response Designer...", image: getAppImg(sTEXT)
         if(showRepInputs) {
             if(settings."trig_${inType}_after_repeat") {
                 //Custom Repeat Text Options
                 paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info")
-                href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: inTS1("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", "text"),
-                        description: settings."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings."trig_${inType}_after_repeat_txt" ? sCOMPLT : '') , submitOnChange: true, required: false, image: getAppImg("text")
+                href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: inTS1("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", sTEXT),
+                        description: settings."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings."trig_${inType}_after_repeat_txt" ? sCOMPLT : '') , submitOnChange: true, required: false, image: getAppImg(sTEXT)
             }
         }
     }
@@ -1055,8 +1063,8 @@ def actionTiersPage() {
                         input "act_tier_item_${ti}_delay", sNUMBER, title: inTS1("Delay after Tier ${ti-1}\n(seconds)", "equal"), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true, image: getAppImg("equal")
                     }
                     if(ti==1 || settings."act_tier_item_${ti}_delay") {
-                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: sEXTNRL, required: true, title: inTS1("Tier Item ${ti} Response", "text"), state: (settings."act_tier_item_${ti}_txt" ? sCOMPLT : sBLANK),
-                                    description: settings."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg("text")
+                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: sEXTNRL, required: true, title: inTS1("Tier Item ${ti} Response", sTEXT), state: (settings."act_tier_item_${ti}_txt" ? sCOMPLT : sBLANK),
+                                    description: settings."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg(sTEXT)
                     }
                     input "act_tier_item_${ti}_volume_change", sNUMBER, title: inTS1("Tier Item Volume", "speed_knob"), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("speed_knob")
                     input "act_tier_item_${ti}_volume_restore", sNUMBER, title: inTS1("Tier Item Volume Restore", "speed_knob"), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("speed_knob")
@@ -1132,12 +1140,12 @@ void tierItemCleanup() {
 def actTextOrTiersInput(type) {
     if(isTierAction()) {
         String tDesc = getTierRespDesc()
-        href "actionTiersPage", title: inTS1("Create Tiered Responses?", "text", (tDesc ? "#2678D9" : sCLRRED)), description: (tDesc ? "${tDesc}\n\n"+sTTM : sTTC), required: true, state: (tDesc ? sCOMPLT : null), image: getAppImg("text")
+        href "actionTiersPage", title: inTS1("Create Tiered Responses?", sTEXT, (tDesc ? "#2678D9" : sCLRRED)), description: (tDesc ? "${tDesc}\n\n"+sTTM : sTTC), required: true, state: (tDesc ? sCOMPLT : null), image: getAppImg(sTEXT)
         input "act_tier_stop_on_clear", sBOOL, title: inTS1("Stop responses when trigger is cleared?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
-        href url: textUrl, style: (isStFLD ? "embedded" : sEXTNRL), required: false, title: inTS1("Default Action Response\n(Optional)", "text"), state: (settings."${type}" ? sCOMPLT : sBLANK),
-                description: settings."${type}" ?: "Open Response Designer...", image: getAppImg("text")
+        href url: textUrl, style: (isStFLD ? "embedded" : sEXTNRL), required: false, title: inTS1("Default Action Response\n(Optional)", sTEXT), state: (settings."${type}" ? sCOMPLT : sBLANK),
+                description: settings."${type}" ?: "Open Response Designer...", image: getAppImg(sTEXT)
     }
 }
 
@@ -1200,7 +1208,7 @@ def actionsPage() {
                     echoDevicesInputByPerm("voicecmd")
                     if(settings.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
-                            input "act_voicecmd_txt", "text", title: inTS1("Enter voice command text", "text"), submitOnChange: true, required: false, image: getAppImg("text")
+                            input "act_voicecmd_txt", sTEXT, title: inTS1("Enter voice command text", sTEXT), submitOnChange: true, required: false, image: getAppImg(sTEXT)
                         }
                         actionExecMap.config.voicecmd = [text: settings.act_voicecmd_txt]
                         if(act_voicecmd_txt) { done = true } else { done = false }
@@ -1238,7 +1246,7 @@ def actionsPage() {
                             paragraph pTS("Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", sNULL, false, "violet"), state: sCOMPLT
                         }
                         section(sTS("Action Type Config:")) {
-                            input "act_sequence_txt", "text", title: inTS1("Enter sequence text", "text"), submitOnChange: true, required: false, image: getAppImg("text")
+                            input "act_sequence_txt", sTEXT, title: inTS1("Enter sequence text", sTEXT), submitOnChange: true, required: false, image: getAppImg(sTEXT)
                         }
                         actionExecMap.config.sequence = [text: settings.act_sequence_txt]
                         if(settings.act_sequence_txt) { done = true } else { done = false }
@@ -1317,14 +1325,14 @@ def actionsPage() {
                                 if(settings.act_music_provider == "TuneIn") {
                                     section(sTS("TuneIn Search Results:")) {
                                         paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: sCOMPLT
-                                        input "tuneinSearchQuery", "text", title: inTS1("Enter search phrase for TuneIn", "tunein"), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("tunein")
+                                        input "tuneinSearchQuery", sTEXT, title: inTS1("Enter search phrase for TuneIn", "tunein"), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("tunein")
                                         if(settings.tuneinSearchQuery) {
                                             href "searchTuneInResultsPage", title: inTS1("View search results!", "search"), description: sTTP, image: getAppImg("search")
                                         }
                                     }
                                 }
                                 section(sTS("Action Type Config:")) {
-                                    input "act_music_txt", "text", title: inTS1("Enter Music Search text", "text"), submitOnChange: true, required: false, image: getAppImg("text")
+                                    input "act_music_txt", sTEXT, title: inTS1("Enter Music Search text", sTEXT), submitOnChange: true, required: false, image: getAppImg(sTEXT)
                                 }
                                 actionVolumeInputs(devices)
                             }
@@ -1357,9 +1365,9 @@ def actionsPage() {
                         String rptType = null
                         def rptTypeOpts = null
                         section(sTS("Action Type Config:")) {
-                            input "act_alarm_label", "text", title: inTS1("Alarm Label", "name_tag"), submitOnChange: true, required: true, image: getAppImg("name_tag")
-                            input "act_alarm_date", "text", title: inTS1("Alarm Date\n(yyyy-mm-dd)", "day_calendar"), submitOnChange: true, required: true, image: getAppImg("day_calendar")
-                            input "act_alarm_time", "time", title: inTS1("Alarm Time", "clock"), submitOnChange: true, required: true, image: getAppImg("clock")
+                            input "act_alarm_label", sTEXT, title: inTS1("Alarm Label", "name_tag"), submitOnChange: true, required: true, image: getAppImg("name_tag")
+                            input "act_alarm_date", sTEXT, title: inTS1("Alarm Date\n(yyyy-mm-dd)", "day_calendar"), submitOnChange: true, required: true, image: getAppImg("day_calendar")
+                            input "act_alarm_time", sTIME, title: inTS1("Alarm Time", "clock"), submitOnChange: true, required: true, image: getAppImg("clock")
                             // if(act_alarm_label && act_alarm_date && act_alarm_time) {
                             //     input "act_alarm_rt", sENUM, title: inTS1("Repeat (Optional)", sCOMMAND), description: sBLANK, options: repeatOpts, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
                             //     if(settings."act_alarm_rt") {
@@ -1392,9 +1400,9 @@ def actionsPage() {
                         String rptType = null
                         def rptTypeOpts = null
                         section(sTS("Action Type Config:")) {
-                            input "act_reminder_label", "text", title: inTS1("Reminder Label", "name_tag"), submitOnChange: true, required: true, image: getAppImg("name_tag")
-                            input "act_reminder_date", "text", title: inTS1("Reminder Date\n(yyyy-mm-dd)", "day_calendar"), submitOnChange: true, required: true, image: getAppImg("day_calendar")
-                            input "act_reminder_time", "time", title: inTS1("Reminder Time", "clock"), submitOnChange: true, required: true, image: getAppImg("clock")
+                            input "act_reminder_label", sTEXT, title: inTS1("Reminder Label", "name_tag"), submitOnChange: true, required: true, image: getAppImg("name_tag")
+                            input "act_reminder_date", sTEXT, title: inTS1("Reminder Date\n(yyyy-mm-dd)", "day_calendar"), submitOnChange: true, required: true, image: getAppImg("day_calendar")
+                            input "act_reminder_time", sTIME, title: inTS1("Reminder Time", "clock"), submitOnChange: true, required: true, image: getAppImg("clock")
                             // if(act_reminder_label && act_reminder_date && act_reminder_time) {
                             //     input "act_reminder_rt", sENUM, title: inTS1("Repeat (Optional)", sCOMMAND), description: sBLANK, options: repeatOpts, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
                             //     if(settings."act_reminder_rt") {
@@ -1795,10 +1803,10 @@ def actNotifPage() {
             paragraph pTS("When using speak and announcements you can leave this off and a notification will be sent with speech text.  For other action types a custom message is required", sNULL, false, sCLRGRY)
             input "notif_use_custom", sBOOL, title: inTS1("Send a custom notification...", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
             if(settings.notif_use_custom || custMsgReq) {
-                input "notif_custom_message", "text", title: inTS1("Enter custom message...", "text"), required: custMsgReq, submitOnChange: true, image: getAppImg("text")
+                input "notif_custom_message", sTEXT, title: inTS1("Enter custom message...", sTEXT), required: custMsgReq, submitOnChange: true, image: getAppImg(sTEXT)
             }
         }
-
+/*
         if(isStFLD) {
             section (sTS("Push Messages:")) {
                 input "notif_send_push", sBOOL, title: inTS1("Send Push Notifications...", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
@@ -1806,9 +1814,9 @@ def actNotifPage() {
             section (sTS("Text Messages:"), hideWhenEmpty: true) {
                 paragraph pTS("To send to multiple numbers separate the number by a comma\n\nE.g. 8045551122,8046663344", getAppImg("info", true), false, sCLRGRY)
                 paragraph pTS("SMS Support will soon be removed from Hubitat and SmartThings (UK)", getAppImg("info", true), false, sCLRGRY)
-                input "notif_sms_numbers", "text", title: inTS1("Send SMS Text to...", "sms_phone"), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+                input "notif_sms_numbers", sTEXT, title: inTS1("Send SMS Text to...", "sms_phone"), required: false, submitOnChange: true, image: getAppImg("sms_phone")
             }
-        }
+        } */
 
         section (sTS("Notification Devices:")) {
             input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
@@ -1817,7 +1825,7 @@ def actNotifPage() {
             paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
             input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
         }
-        if(isStFLD) {
+/*        if(isStFLD) {
             section(sTS("Pushover Support:")) {
                 input "notif_pushover", sBOOL, title: inTS1("Use Pushover Integration", "pushover_icon"), required: false, submitOnChange: true, image: getAppImg("pushover")
                 if(settings.notif_pushover == true) {
@@ -1835,15 +1843,15 @@ def actNotifPage() {
                     }
                 }
             }
-        }
+        } */
         if(isActNotifConfigured()) {
             section(sTS("Notification Restrictions:")) {
                 String nsd = getNotifSchedDesc()
                 href "actNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : null), image: getAppImg("restriction")
             }
             if(!state.notif_message_tested) {
-                def actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
-                def aMsgDev = actDevices?.size() && settings.notif_alexa_mobile ? actDevices[0] : null
+                def actDevices = (Boolean)settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
+                def aMsgDev = actDevices?.size() && (Boolean)settings.notif_alexa_mobile ? actDevices[0] : null
                 if(sendNotifMsg("Info", "Action Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state.notif_message_tested = true }
             }
         } else { state.notif_message_tested = false }
@@ -1862,17 +1870,17 @@ def actNotifTimePage() {
         String pre = "notif"
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
         section(sTS("Quiet Start Time:")) {
-            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
-            if(settings."${pre}_time_start_type" == "time") {
-                input "${pre}_time_start", "time", title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
+            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            if(settings."${pre}_time_start_type" == sTIME) {
+                input "${pre}_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
             } else if(settings."${pre}_time_start_type" in lSUNRISESET) {
                 input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
         section(sTS("Quiet Stop Time:")) {
-            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
-            if(settings."${pre}_time_stop_type" == "time") {
-                input "${pre}_time_stop", "time", title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
+            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            if(settings."${pre}_time_stop_type" == sTIME) {
+                input "${pre}_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
             } else if(settings."${pre}_time_stop_type" in lSUNRISESET) {
                 input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
@@ -2007,17 +2015,17 @@ def condTimePage() {
     return dynamicPage(name:"condTimePage", title: sBLANK, install: false, uninstall: false) {
         Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
         section(sTS("Condition Start Time:")) {
-            input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
-            if(settings.cond_time_start_type  == "time") {
-                input "cond_time_start", "time", title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
+            input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            if(settings.cond_time_start_type  == sTIME) {
+                input "cond_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
             } else if(settings.cond_time_start_type in lSUNRISESET) {
                 input "cond_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
         section(sTS("Condition Stop Time:")) {
-            input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
-            if(settings.cond_time_stop_type == "time") {
-                input "cond_time_stop", "time", title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
+            input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            if(settings.cond_time_stop_type == sTIME) {
+                input "cond_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
             } else if(settings.cond_time_stop_type in lSUNRISESET) {
                 input "cond_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
@@ -2028,7 +2036,7 @@ def condTimePage() {
 def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
         section(sBLANK) { paragraph "This will delete this Echo Speaks Action." }
-        if(isStFLD) { remove("Remove ${app?.label} Action", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Action will be removed") }
+//        if(isStFLD) { remove("Remove ${app?.label} Action", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Action will be removed") }
     }
 }
 
@@ -2085,10 +2093,10 @@ private void processDuplication() {
     Map dupData = parent?.getChildDupeData("actions", dupSrcId)
     // log.debug "dupData: ${dupData}"
     if(dupData && dupData.state?.size()) {
-        dupData.state.each {k,v-> state[k] = v }
+        dupData.state.each { String k,v-> state[k] = v }
     }
     if(dupData && dupData.settings?.size()) {
-        dupData.settings.each {k,v-> settingUpdate(k, (v.value != null ? v.value : null), v.type) }
+        dupData.settings.each { String k, Map v-> settingUpdate(k, (v.value != null ? v.value : null), (String)v.type) }
     }
     parent.childAppDuplicationFinished("action", dupSrcId)
     logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
@@ -2108,7 +2116,7 @@ private void updateZoneSubscriptions() {
 String getActionName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
-    String newLbl = "${settings.appLbl} (A${isPaused() ? " \u275A\u275A" : sBLANK})".replaceAll(/(Dup)/, sBLANK).replaceAll("\\s"," ")
+    String newLbl = "${settings.appLbl} (A${isPaused() ? " \u275A\u275A" : sBLANK})".replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s"," ")
     if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -2144,7 +2152,7 @@ private void actionCleanup() {
     List setItems = []
     List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_piston_run", "act_mode_run", "act_alarm_run"]
 //    if (isStFLD) setIgn.push("act_routine_run")
-    if(settings.act_EchoZones) { setIgn.push("act_EchoZones"); Map a = getActiveZones() }
+    if(settings.act_EchoZones) { setIgn.push("act_EchoZones"); Map a = getActiveZones() } // to fill in FLD
     else if(settings.act_EchoDevices) { setIgn.push("act_EchoDevices"); setIgn.push("act_EchoDeviceList") }
 
     tierItemCleanup()
@@ -3267,7 +3275,7 @@ Map conditionStatus() {
     List failed = []
     List passed = []
     List skipped = []
-    ["time", "date", "location", "device"]?.each { String i->
+    [sTIME, "date", "location", "device"]?.each { String i->
         def s = "${i}CondOk"()
         if(s == null) { skipped.push(i); return }
         s ? passed.push(i) : failed.push(i)
@@ -3289,8 +3297,8 @@ Boolean devNumCondConfigured(String type) {
 }
 
 Boolean timeCondConfigured() {
-    Boolean startTime = (settings.cond_time_start_type in lSUNRISESET || (settings.cond_time_start_type == "time" && settings.cond_time_start))
-    Boolean stopTime = (settings.cond_time_stop_type in lSUNRISESET || (settings.cond_time_stop_type == "time" && settings.cond_time_stop))
+    Boolean startTime = (settings.cond_time_start_type in lSUNRISESET || (settings.cond_time_start_type == sTIME && settings.cond_time_start))
+    Boolean stopTime = (settings.cond_time_stop_type in lSUNRISESET || (settings.cond_time_stop_type == sTIME && settings.cond_time_stop))
     return (startTime && stopTime)
 }
 
@@ -3618,7 +3626,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
     Boolean lastTierMsg = (tierData && tierData.isLast == true)
     Boolean actOk = getConfStatusItem("actions")
     if(actOk && actType) {
-        def alexaMsgDev = actDevSiz && settings.notif_alexa_mobile ? actDevices[0] : null
+        def alexaMsgDev = actDevSiz && (Boolean)settings.notif_alexa_mobile ? actDevices[0] : null
         if(!(Boolean)condStatus.ok) { logWarn("executeAction | Skipping execution because ${condStatus.blocks} conditions have not been met", true); return }
         if(!actMap || !actMap?.size()) { logError("executeAction Error | The ActionExecutionMap is not found or is empty", true); return }
         if(settings.act_EchoZones && actZonesSiz == 0 && actDevSiz == 0) { logWarn("executeAction | No Active Zones Available and No Alternate Echo Devices Selected.", true); return }
@@ -4036,13 +4044,13 @@ private void stateMapMigration() {
 }
 
 void settingUpdate(String name, value, String type=sNULL) {
-    if(name && type) { app?.updateSetting("$name", [type: type, value: value]) }
+    if(name && type) { app?.updateSetting(name, [type: type, value: value]) }
     else if (name && type == sNULL) { app?.updateSetting(name, value) }
 }
 
 void settingRemove(String name) {
     logTrace("settingRemove($name)...")
-    if(name && settings.containsKey(name)) { isStFLD ? app?.deleteSetting(name) : app?.removeSetting(name) }
+    if(name && settings.containsKey(name)) { /* isStFLD ? app?.deleteSetting(name) : */ app?.removeSetting(name) }
 }
 
 static List weekDaysEnum() { return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] }
@@ -4053,7 +4061,7 @@ static Map weeksOfMonthMap() { return ["1":"1st Week", "2":"2nd Week", "3":"3rd 
 static Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 static Map getAlarmTrigOpts() {
-    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarmed":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
+    return /* isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : */ ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarmed":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
 }
 
 private static Map getAlarmSystemAlertOptions(){
@@ -4104,17 +4112,17 @@ public Map getActionMetrics() {
     return out
 }
 
-String pushStatus() { return (isStFLD && (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover)) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : sNULL }
+//String pushStatus() { return (isStFLD && (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover)) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : sNULL }
 
 Integer getLastNotifMsgSec() { return getLastTsValSec("lastNotifMsgDt") }
 //Integer getLastChildInitRefreshSec() { return getLastTsValSec("lastChildInitRefreshDt", 3600) }
 //Integer getLastNotifMsgSec() { return !state.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state.lastNotifMsgDt, "getLastMsgSec").toInteger() }
 
 Boolean getOk2Notify() {
-    Boolean smsOk = (isStFLD && settings.notif_sms_numbers?.toString()?.length()>=10)
-    Boolean pushOk = (isStFLD && settings.notif_send_push)
-    Boolean pushOver = (isStFLD && settings.notif_pushover && settings.notif_pushover_devices)
-    Boolean alexaMsg = (settings.notif_alexa_mobile)
+    Boolean smsOk // = (isStFLD && settings.notif_sms_numbers?.toString()?.length()>=10)
+    Boolean pushOk // = (isStFLD && settings.notif_send_push)
+    Boolean pushOver // = (isStFLD && settings.notif_pushover && settings.notif_pushover_devices)
+    Boolean alexaMsg = ((Boolean)settings.notif_alexa_mobile)
     Boolean notifDevsOk = (settings.notif_devs?.size())
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
@@ -4171,9 +4179,9 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
         String flatMsg = newMsg.replaceAll("\n", sSPACE)
         if(!getOk2Notify()) {
             logInfo( "sendNotifMsg: Notification not configured or Message Skipped During Quiet Time ($flatMsg)")
-//            if(showEvt) { sendNotificationEvent(newMsg) }
+//            if(isStFLD && showEvt) { sendNotificationEvent(newMsg) }
         } else {
-            if(isStFLD) {
+/*            if(isStFLD) {
                 if(settings.notif_send_push) {
                     sentSrc.push("Push Message")
                     if(showEvt) {
@@ -4200,13 +4208,13 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
                     sentSrc.push("SMS Message to [${phones}]".toString())
                     sent = true
                 }
-            }
+            } */
             if(settings.notif_devs) {
                 sentSrc.push("Notification Devices")
                 settings.notif_devs?.each { it?.deviceNotification(newMsg) }
                 sent = true
             }
-            if(settings.notif_alexa_mobile && alexaDev) {
+            if((Boolean)settings.notif_alexa_mobile && alexaDev) {
                 alexaDev?.sendAlexaAppNotification(newMsg)
                 sentSrc.push("Alexa Mobile App")
                 sent = true
@@ -4226,11 +4234,11 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
 
 Boolean isActNotifConfigured() {
     if(customMsgRequired() && !(settings.notif_use_custom && settings.notif_custom_message)) { return false }
-    if(isStFLD) {
-        return (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_devs || settings.notif_alexa_mobile || (settings.notif_pushover && settings.notif_pushover_devices))
-    } else {
-        return (settings.notif_devs || settings.notif_alexa_mobile)
-   }
+/*    if(isStFLD) {
+        return (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_devs || (Boolean)settings.notif_alexa_mobile || (settings.notif_pushover && settings.notif_pushover_devices))
+    } else { */
+        return (settings.notif_devs || (Boolean)settings.notif_alexa_mobile)
+//   }
 }
 
 //PushOver-Manager Input Generation Functions
@@ -4356,10 +4364,10 @@ List getLocationModes(Boolean sorted=false) {
     // log.debug "modes: ${modes}"
     return (sorted) ? modes?.sort() : modes
 }
-
+/*
 List getLocationRoutines() {
    return (isStFLD) ? location.helloHome?.getPhrases()*.label?.sort() : []
-}
+} */
 
 List<String> getLocationPistons() {
 //    List aa = webCoRE_list()
@@ -4438,7 +4446,7 @@ Boolean devCapValEqual(List devs, String devId, String cap, val) {
 }
 
 String getAlarmSystemName(Boolean abbr=false) {
-    return isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
+    return /* isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : */ (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 /******************************************
 |    Time and Date Conversion Functions
@@ -4603,13 +4611,13 @@ String getAppNotifDesc(Boolean hide=false) {
     if(isActNotifConfigured()) {
         Boolean ok = getOk2Notify()
         str += hide ? sBLANK : "Send allowed: (${ok ? okSymFLD : notOkSymFLD})\n"
-        if(isStFLD) {
+/*        if(isStFLD) {
             str += settings.notif_sms_numbers ? " \u2022 (${settings.notif_sms_numbers?.tokenize(",")?.size()} SMS Numbers)\n" : sBLANK
             str += settings.notif_send_push ? " \u2022 (Push Message)\n" : sBLANK
             str += (settings.notif_pushover && settings.notif_pushover_devices?.size()) ? " \u2022 Pushover Device${pluralizeStr(settings.notif_pushover_devices)} (${settings.notif_pushover_devices?.size()})\n" : sBLANK
-        }
+        } */
         str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
-        str += settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
+        str += (Boolean)settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
         String res = getNotifSchedDesc(true)
         str += res ?: sBLANK
     }
@@ -4919,7 +4927,7 @@ def getRandomItem(items) {
     return list?.get(new Random().nextInt(list?.size()));
 }
 
-Boolean showChgLogOk() { return ((Boolean)state.isInstalled && (Boolean)state.shownChgLog != true) }
+Boolean showChgLogOk() { return ((Boolean)state.isInstalled && !(Boolean)state.shownChgLog) }
 
 static String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
 static String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK }
@@ -5174,18 +5182,24 @@ def searchTuneInResultsPage() {
                                 str += "ContentType: (${item2?.contentType})"
                                 str += "\nId: (${item2?.id})"
                                 str += "\nDescription: ${item2?.description}"
+/*
                                 if(isStFLD) {
                                     paragraph title: pTS(item2?.name?.take(75), (isStFLD ? sNULL : item2?.image)), str, required: true, state: (!item2?.name?.contains("Not Supported") ? sCOMPLT : sNULL), image: item2?.image ?: sBLANK
-                                } else { href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), (isStFLD ? sNULL : item2?.image)), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? sCOMPLT : sNULL), image: isStFLD && item2?.image ? item2?.image : null }
+                                } else { */
+                                    href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), item2?.image), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? sCOMPLT : sNULL)
+//                              }
                             }
                         } else {
                             String str = sBLANK
                             str += "ContentType: (${item?.contentType})"
                             str += "\nId: (${item?.id})"
                             str += "\nDescription: ${item?.description}"
+/*
                             if(isStFLD) {
                                 paragraph title: pTS(item?.name?.take(75), (isStFLD ? sNULL : item?.image)), str, required: true, state: (!item?.name?.contains("Not Supported") ? sCOMPLT : sNULL), image: item?.image ?: sBLANK
-                            } else { href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (isStFLD ? sNULL : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? sCOMPLT : null), image: isStFLD && item?.image ? item?.image : null }
+                            } else { */
+                                href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (isStFLD ? sNULL : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? sCOMPLT : null)
+//                            }
                         }
                     }
                 }
@@ -5299,20 +5313,26 @@ private restoreLightState(devs) {
 public Map getSettingsAndStateMap() {
     Map typeObj = parent?.getAppDuplTypes()
     Map setObjs = [:]
-    typeObj?.stat?.each { sk,sv->
-        sv?.each { svi-> if(settings.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi] ] } }
-    }
-    typeObj?.ends?.each { ek,ev->
-        ev?.each { evi-> settings.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }
-    }
-    typeObj?.caps?.each { ck,cv->
-        settings.findAll { it?.key?.endsWith(ck) }?.each { fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id as String }] }.toString().toList()
-    }
-    typeObj?.dev?.each { dk,dv->
-        settings.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
+    if(typeObj) {
+        ((Map<String, List<String>>)typeObj.stat).each { sk, sv->
+            sv?.each { svi-> if(settings.containsKey(svi)) { setObjs[svi] = [type: sk, value: settings[svi] ] } }
+        }
+        ((Map<String, List<String>>)typeObj.ends).each { ek, ev->
+            ev?.each { evi-> settings.findAll { it?.key?.endsWith(evi) }?.each { String fk, fv-> setObjs[fk] = [type: ek, value: fv] } }
+        }
+        // this likely won't work
+        ((Map<String,String>)typeObj.caps).each { ck, cv->
+//            settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
+            settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability", value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
+        }
+        ((Map<String, String>)typeObj.dev).each { dk, dv->
+            settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
+        }
     }
     Map data = [:]
-    data.label = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", sBLANK)
+//    data.label = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", sBLANK)
+    String newlbl = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", sBLANK)
+    data.label = newlbl?.replace(" (A)", sBLANK)
     data.settings = setObjs
 
     List stskip = [
