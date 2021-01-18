@@ -34,22 +34,24 @@ import groovy.transform.Field
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
 @Field static final String sENUM          = 'enum'
+@Field static final String sNUMBER        = 'number'
+@Field static final String sTEXT          = 'text'
+@Field static final String sTIME          = 'time'
 @Field static final String sCOMPLT        = 'complete'
 @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
 @Field static final String sCLRGRY        = 'gray'
 @Field static final String sTTM           = 'Tap to modify...'
 @Field static final String sTTC           = 'Tap to configure...'
-@Field static final String sTTP           = 'Tap to proceed...'
+//@Field static final String sTTP           = 'Tap to proceed...'
 @Field static final String sTTS           = 'Tap to select...'
 @Field static final String sSETTINGS      = 'settings'
 @Field static final String sRESET         = 'reset'
-@Field static final String sEXTNRL        = 'external'
+//@Field static final String sEXTNRL        = 'external'
 @Field static final String sDEBUG         = 'debug'
 @Field static final String sSWITCH        = 'switch'
 @Field static final String sCHKBOX        = 'checkbox'
 @Field static final String sCOMMAND       = 'command'
-@Field static final String sNUMBER        = 'number'
 
 @Field static final String zoneHisFLD    = 'zoneHistory'
 
@@ -85,9 +87,9 @@ preferences {
 
 def startPage() {
     if(parent != null) {
-        if(!state.isInstalled && parent?.childInstallOk() != true) { return uhOhPage() }
+        if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
-            state.isParent = false;
+            state.isParent = false
             List aa = settings.zone_EchoDevices
             List devIt = aa.collect { it ? it.toInteger():null }
             app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
@@ -96,7 +98,7 @@ def startPage() {
     } else { return uhOhPage() }
 }
 
-def appInfoSect(sect=true) {
+def appInfoSect() {
     def instDt = state?.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@'h:mm a", true) : null
     section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : sBLANK}Version: ${appVersionFLD}", image: getAppImg("es_groups") }
 }
@@ -113,12 +115,12 @@ def uhOhPage () {
             def str = "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Zones can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them."
             paragraph str, required: true, state: null, image: getAppImg("exclude")
         }
-        if(isStFLD) { remove("Remove this bad Zone", "WARNING!!!", "BAD Zone SHOULD be removed") }
+//        if(isStFLD) { remove("Remove this bad Zone", "WARNING!!!", "BAD Zone SHOULD be removed") }
     }
 }
 
 def mainPage() {
-    Boolean newInstall = (state?.isInstalled != true)
+    Boolean newInstall = (!(Boolean)state.isInstalled)
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
         appInfoSect()
         Boolean paused = isPaused()
@@ -164,15 +166,15 @@ def mainPage() {
         }
 
         section(sTS("Preferences")) {
-            href "prefsPage", title: inTS1("Logging Preferences", "settings"), description: "", image: getAppImg("settings")
-            if(state.isInstalled) {
+            href "prefsPage", title: inTS1("Logging Preferences", sSETTINGS), description: "", image: getAppImg(sSETTINGS)
+            if((Boolean)state.isInstalled) {
                 input "zonePause", sBOOL, title: inTS1("Disable Zone?", "pause_orange"), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
         }
-        if(state.isInstalled) {
+        if((Boolean)state.isInstalled) {
             section(sTS("Name this Zone:")) {
-                input "appLbl", "text", title: inTS1("Zone Name", "name_tag"), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
+                input "appLbl", sTEXT, title: inTS1("Zone Name", "name_tag"), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
             }
             section(sTS("Remove Zone:")) {
                 href "uninstallPage", title: inTS1("Remove this Zone", "uninstall"), description: "Tap to Remove...", image: getAppImg("uninstall")
@@ -200,7 +202,7 @@ def zoneHistoryPage() {
         List eData = getMemStoreItem(zoneHisFLD) ?: []
         if(eData.size()) {
             section("") {
-                input "clearZoneHistory", sBOOL, title: inTS1("Clear Zone History?", "reset"), description: "Clears Stored Zone History.", defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                input "clearZoneHistory", sBOOL, title: inTS1("Clear Zone History?", sRESET), description: "Clears Stored Zone History.", defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
                 if(settings.clearZoneHistory) { settingUpdate("clearZoneHistory", sFALSE, sBOOL); updMemStoreItem(zoneHisFLD, []) }
             }
         }
@@ -210,11 +212,11 @@ def zoneHistoryPage() {
 def prefsPage() {
     return dynamicPage(name: "prefsPage", install: false, uninstall: false) {
         section(sTS("Logging:")) {
-            input "logInfo", sBOOL, title: inTS1("Show Info Logs?", "debug"), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logWarn", sBOOL, title: inTS1("Show Warning Logs?", "debug"), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logError", sBOOL, title: inTS1("Show Error Logs?", "debug"), required: false, defaultValue: true, submitOnChange: true, image: getAppImg("debug")
-            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", "debug"), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
-            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", "debug"), description: "Only enable when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("debug")
+            input "logInfo", sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logWarn", sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enable when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEBUG)
         }
         if(advLogsActive()) { logsEnabled() }
     }
@@ -223,7 +225,7 @@ def prefsPage() {
 def namePage() {
     return dynamicPage(name: "namePage", install: true, uninstall: false) {
         section(sTS("Zone Description:")) {
-            input "appLbl", "text", title: inTS1("Name this Zone", "name_tag"), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
+            input "appLbl", sTEXT, title: inTS1("Name this Zone", "name_tag"), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
         }
     }
 }
@@ -231,7 +233,7 @@ def namePage() {
 def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
         section("") { paragraph "This will delete this Echo Speaks Zone." }
-        if(isStFLD) { remove("Remove ${app?.label} Zone", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Zone will be removed") }
+//        if(isStFLD) { remove("Remove ${app?.label} Zone", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Zone will be removed") }
     }
 }
 
@@ -357,17 +359,17 @@ def condTimePage() {
     return dynamicPage(name:"condTimePage", title: "", install: false, uninstall: false) {
         Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
         section(sTS("Start Time:")) {
-            input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
-            if(cond_time_start_type  == "time") {
-                input "cond_time_start", "time", title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
+            input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            if(cond_time_start_type  == sTIME) {
+                input "cond_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
             } else if(cond_time_start_type in ["sunrise", "sunset"]) {
                 input "cond_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
         section(sTS("Stop Time:")) {
-            input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
-            if(cond_time_stop_type == "time") {
-                input "cond_time_stop", "time", title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
+            input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            if(cond_time_stop_type == sTIME) {
+                input "cond_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
             } else if(cond_time_stop_type in ["sunrise", "sunset"]) {
                 input "cond_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
@@ -384,10 +386,11 @@ def zoneNotifPage() {
             }
         }
         section (sTS("Message Customization:")) {
-            input "notif_active_message", "text", title: inTS1("Active Message?", "text"), required: false, submitOnChange: true, image: getAppImg("text")
-            input "notif_inactive_message", "text", title: inTS1("Inactive Message?", "text"), required: false, submitOnChange: true, image: getAppImg("text")
+            input "notif_active_message", sTEXT, title: inTS1("Active Message?", sTEXT), required: false, submitOnChange: true, image: getAppImg(sTEXT)
+            input "notif_inactive_message", sTEXT, title: inTS1("Inactive Message?", sTEXT), required: false, submitOnChange: true, image: getAppImg(sTEXT)
         }
         if(settings.notif_active_message || settings.notif_inactive_message) {
+/*
             if(isStFLD) {
                 section (sTS("Push Messages:")) {
                     input "notif_send_push", sBOOL, title: inTS1("Send Push Notifications...", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
@@ -395,9 +398,10 @@ def zoneNotifPage() {
                 section (sTS("Text Messages:"), hideWhenEmpty: true) {
                     paragraph pTS("To send to multiple numbers separate the number by a comma\n\nE.g. 8045551122,8046663344", getAppImg("info", true), false, sCLRGRY)
                     paragraph pTS("SMS Support will soon be removed from Hubitat and SmartThings (UK)", getAppImg("info", true), false, sCLRGRY)
-                    input "notif_sms_numbers", "text", title: inTS1("Send SMS Text to...", "sms_phone"), required: false, submitOnChange: true, image: getAppImg("sms_phone")
+                    input "notif_sms_numbers", sTEXT, title: inTS1("Send SMS Text to...", "sms_phone"), required: false, submitOnChange: true, image: getAppImg("sms_phone")
                 }
             }
+*/
             section (sTS("Notification Devices:")) {
                 input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
             }
@@ -405,6 +409,7 @@ def zoneNotifPage() {
                 paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
                 input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
             }
+/*
             if(isStFLD) {
                 section(sTS("Pushover Support:")) {
                     input "notif_pushover", sBOOL, title: inTS1("Use Pushover Integration", "pushover_icon"), required: false, submitOnChange: true, image: getAppImg("pushover")
@@ -423,7 +428,7 @@ def zoneNotifPage() {
                         }
                     }
                 }
-            }
+            } */
             if(isZoneNotifConfigured()) {
                 section(sTS("Notification Restrictions:")) {
                     String nsd = getNotifSchedDesc()
@@ -453,17 +458,17 @@ def zoneNotifTimePage() {
         String pre = "notif"
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
         section(sTS("Quiet Start Time:")) {
-            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
-            if(settings."${pre}_time_start_type" == "time") {
-                input "${pre}_time_start", "time", title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
+            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            if(settings."${pre}_time_start_type" == sTIME) {
+                input "${pre}_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
             } else if(settings."${pre}_time_start_type" in ["sunrise", "sunset"]) {
                 input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
         section(sTS("Quiet Stop Time:")) {
-            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
-            if(settings."${pre}_time_stop_type" == "time") {
-                input "${pre}_time_stop", "time", title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
+            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            if(settings."${pre}_time_stop_type" == sTIME) {
+                input "${pre}_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
             } else if(settings."${pre}_time_stop_type" in ["sunrise", "sunset"]) {
                 input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
@@ -525,11 +530,11 @@ private void processDuplication() {
     state.dupPendingSetup = true
     Map dupData = parent?.getChildDupeData("zones", dupSrcId)
     // log.debug "dupData: ${dupData}"
-    if(dupData && dupData?.state?.size()) {
-        dupData.state?.each {k,v-> state[k] = v }
+    if(dupData && dupData.state?.size()) {
+        dupData.state.each { String k,v-> state[k] = v }
     }
-    if(dupData && dupData?.settings?.size()) {
-        dupData.settings?.each {k,v-> settingUpdate(k, (v.value != null ? v.value : null), v.type) }
+    if(dupData && dupData.settings?.size()) {
+        dupData.settings.each { String k, Map v-> settingUpdate(k, (v.value != null ? v.value : null), (String)v.type) }
     }
     parent.childAppDuplicationFinished("zones", dupSrcId)
     logInfo("Duplicated Zone has been created... Please open zone and configure to complete setup...")
@@ -545,7 +550,7 @@ def uninstalled() {
 String getZoneName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
-    String newLbl = "${settings.appLbl} (Z${isPaused() ? " \u275A\u275A" : sBLANK})"?.replaceAll(/(Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings.appLbl} (Z${isPaused() ? " \u275A\u275A" : sBLANK})"?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
     if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) } //ERS send event for add/rename a zone
 }
 /*
@@ -862,7 +867,7 @@ Map conditionStatus() {
     List failed = []
     List passed = []
     List skipped = []
-    ["time", "date", "location", "device"]?.each { i->
+    [sTIME, "date", "location", "device"]?.each { i->
         Boolean s = "${i}CondOk"()
         if(s == null) { skipped.push(i); return; }
         s ? passed.push(i) : failed.push(i);
@@ -883,8 +888,8 @@ Boolean devNumCondConfigured(String type) {
 }
 
 Boolean timeCondConfigured() {
-    Boolean startTime = (settings.cond_time_start_type in ["sunrise", "sunset"] || (settings.cond_time_start_type == "time" && settings.cond_time_start))
-    Boolean stopTime = (settings.cond_time_stop_type in ["sunrise", "sunset"] || (settings.cond_time_stop_type == "time" && settings.cond_time_stop))
+    Boolean startTime = (settings.cond_time_start_type in ["sunrise", "sunset"] || (settings.cond_time_start_type == sTIME && settings.cond_time_start))
+    Boolean stopTime = (settings.cond_time_stop_type in ["sunrise", "sunset"] || (settings.cond_time_stop_type == sTIME && settings.cond_time_stop))
     return (startTime && stopTime)
 }
 
@@ -987,11 +992,11 @@ void checkZoneStatus(evt) {
 void sendZoneStatus() {
     Boolean st = (Boolean)state.zoneConditionsOk
     st = st != null ? st : ((Boolean)conditionStatus().ok == true)
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: getZoneName(), active: st, paused: isPaused()], isStateChange: true, display: false, displayed: false)
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: st, paused: isPaused()], isStateChange: true, display: false, displayed: false)
 }
 
 void sendZoneRemoved() {
-    sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: getZoneName()], isStateChange: true, display: false, displayed: false)
+    sendLocationEvent(name: "es3ZoneRemoved", value: app?.getId(), data:[name: app?.getLabel()], isStateChange: true, display: false, displayed: false)
 }
 
 void updateZoneStatus(Map data) {
@@ -1190,10 +1195,10 @@ List getLocationModes(Boolean sorted=false) {
     // log.debug "modes: ${modes}"
     return (sorted) ? modes?.sort() : modes
 }
-
+/*
 List getLocationRoutines() {
     return (isStFLD) ? location.helloHome?.getPhrases()*.label?.sort() : []
-}
+} */
 
 Boolean isInMode(List modes, Boolean not=false) {
     return (modes) ? (not ? (!(getCurrentMode() in modes)) : (getCurrentMode() in modes)) : false
@@ -1251,7 +1256,7 @@ Boolean devCapValEqual(List devs, String devId, String cap, val) {
 }
 
 String getAlarmSystemName(Boolean abbr=false) {
-    return isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
+    return /* isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : */ (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 
 public Map getZoneMetrics() {
@@ -1506,11 +1511,12 @@ String getAppNotifDesc(Boolean hide=false) {
     if(isZoneNotifConfigured()) {
         Boolean ok = getOk2Notify()
         str += hide ? sBLANK : "Send allowed: (${ok ? okSymFLD : notOkSymFLD})\n"
+/*
         if(isStFLD) {
             str += settings.notif_sms_numbers ? " \u2022 (${settings.notif_sms_numbers?.tokenize(",")?.size()} SMS Numbers)\n" : sBLANK
             str += settings.notif_send_push ? " \u2022 (Push Message)\n" : sBLANK
             str += (settings.notif_pushover && settings.notif_pushover_devices?.size()) ? " \u2022 Pushover Device${pluralizeStr(settings.notif_pushover_devices)} (${settings.notif_pushover_devices?.size()})\n" : sBLANK
-        }
+        } */
         str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
         str += settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
         String res = getNotifSchedDesc(true)
@@ -1709,7 +1715,7 @@ void settingUpdate(String name, value, String type=sNULL) {
 
 void settingRemove(String name) {
     logTrace("settingRemove($name)...")
-    if(name && settings.containsKey(name)) { isStFLD ? app?.deleteSetting(name) : app?.removeSetting(name) }
+    if(name && settings.containsKey(name)) { /* isStFLD ? app?.deleteSetting(name) : */ app?.removeSetting(name) }
 }
 
 static List weekDaysEnum() { return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] }
@@ -1721,7 +1727,7 @@ static List monthEnum() { return ["January", "February", "March", "April", "May"
 static Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 static Map getAlarmTrigOpts() {
-    return isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarmed":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
+    return /* isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : */ ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarmed":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
 }
 /*
 def getShmIncidents() {
@@ -1736,9 +1742,9 @@ Integer getLastNotifMsgSec() { return !state.lastNotifMsgDt ? 100000 : GetTimeDi
 Integer getLastChildInitRefreshSec() { return !state.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds(state.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 
 Boolean getOk2Notify() {
-    Boolean smsOk = (isStFLD && settings.notif_sms_numbers?.toString()?.length()>=10)
-    Boolean pushOk = isStFLD && settings.notif_send_push
-    Boolean pushOver = (isStFLD && settings.notif_pushover && settings.notif_pushover_devices)
+    Boolean smsOk // = (isStFLD && settings.notif_sms_numbers?.toString()?.length()>=10)
+    Boolean pushOk // = isStFLD && settings.notif_send_push
+    Boolean pushOver // = (isStFLD && settings.notif_pushover && settings.notif_pushover_devices)
     Boolean alexaMsg = (settings.notif_alexa_mobile)
     Boolean notifDevsOk = (settings.notif_devs?.size())
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
@@ -1798,8 +1804,9 @@ public Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean 
             logInfo( "sendNotifMsg: Notification not configured or Message Skipped During Quiet Time ($flatMsg)")
             //if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
+/*
             if(isStFLD) {
-                if(isStFLD && settings.notif_send_push) {
+                if(settings.notif_send_push) {
                     sentSrc.push("Push Message")
                     if(showEvt) {
                         sendPush(newMsg)	// sends push and notification feed
@@ -1826,6 +1833,7 @@ public Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean 
                     sent = true
                 }
             }
+*/
             if(settings.notif_devs) {
                 sentSrc.push("Notification Devices")
                 settings.notif_devs?.each { it?.deviceNotification(newMsg) }
@@ -2051,20 +2059,26 @@ void releaseTheLock(String qname){
 public Map getSettingsAndStateMap() {
     Map typeObj = parent?.getAppDuplTypes()
     Map setObjs = [:]
-    typeObj?.stat?.each { sk,sv->
-        sv?.each { svi-> if(settings.containsKey(svi)) { setObjs[svi] = [type: sk as String, value: settings[svi] ] } }
-    }
-    typeObj?.ends?.each { ek,ev->
-        ev?.each { evi-> settings.findAll { it?.key?.endsWith(evi) }?.each { fk, fv-> setObjs[fk] = [type: ek as String, value: fv] } }
-    }
-    typeObj?.caps?.each { ck,cv->
-        settings.findAll { it?.key?.endsWith(ck) }?.each { fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id as String }] }.toString().toList()
-    }
-    typeObj?.dev?.each { dk,dv->
-        settings.findAll { it?.key?.endsWith(dk) }?.each { fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
+    if(typeObj) {
+        ((Map<String, List<String>>)typeObj.stat).each { sk, sv->
+            sv?.each { svi-> if(settings.containsKey(svi)) { setObjs[svi] = [type: sk, value: settings[svi] ] } }
+        }
+        ((Map<String, List<String>>)typeObj.ends).each { ek, ev->
+            ev?.each { evi-> settings.findAll { it?.key?.endsWith(evi) }?.each { String fk, fv-> setObjs[fk] = [type: ek, value: fv] } }
+        }
+        ((Map<String,String>)typeObj.caps).each { ck, cv->
+            //settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
+            settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability", value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
+        }
+        ((Map<String, String>)typeObj.dev).each { dk, dv->
+            settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
+        }
     }
     Map data = [:]
-    data.label = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", sBLANK)
+    //String newLbl = settings.appLbl?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
+    String newlbl = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", sBLANK)
+    data.label = newlbl?.replace(" (Z)", sBLANK)
+//    data.label = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", sBLANK)
     data.settings = setObjs
 
     List stskip = [
