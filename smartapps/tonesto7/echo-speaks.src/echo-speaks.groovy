@@ -577,6 +577,7 @@ def zoneDuplicationPage() {
                         if(!childDupMapFLD[myId]) childDupMapFLD[myId] = [:]
                         if(!childDupMapFLD[myId].zones) childDupMapFLD[myId].zones = [:]
                         childDupMapFLD[myId].zones[zn.id.toString()] = znData
+                        log.debug "Dup Data: ${childDupMapFLD[myId].zones[zn.id.toString()]}"
                     }
                     // log.debug "Dup Data: ${actData}"
                     znData.settings["duplicateFlag"] = [type: sBOOL, value: true]
@@ -3676,10 +3677,10 @@ static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under
 static String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
 
 def appFooter() {
-	section() {
-		paragraph htmlLine("orange")
-		paragraph """<div style='color:orange;text-align:center'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
-	}       
+    section() {
+        paragraph htmlLine("orange")
+        paragraph """<div style='color:orange;text-align:center'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
+    }       
 }
 
 static String actChildName(){ return "Echo Speaks - Actions" }
@@ -3725,7 +3726,7 @@ Integer getDaysSinceUpdated() {
     } else {
         Date start = Date.parse("E MMM dd HH:mm:ss z yyyy", updDt)
         Date stop = new Date()
-        if(start && stop) {	return (stop - start) }
+        if(start && stop) { return (stop - start) }
         return 0
     }
 }
@@ -4781,12 +4782,11 @@ String getInputToStringDesc(List inpt, Boolean addSpace=false) {
     //log.debug "str: $str"
     return (str != sBLANK) ? str : sNULL
 }
-
+/*
 def appInfoSect2() {
 //    Map codeVer = (Map)state.codeVersions ?: null
     Boolean isNote = false
     String tStr = """<small style="color: gray;"><b>Version:</b> v${appVersionFLD}</small>${state.pluginDetails?.version ? """<br><small style="color: gray;"><b>Plugin:</b> v${state.pluginDetails?.version}</small>""" : sBLANK}"""
-/* """ */
     section (s3TS(app?.name, tStr, getAppImg("hb_tonesto7@2x", true), "orange")) {
         Map minUpdMap = getMinVerUpdsRequired()
         List codeUpdItems = codeUpdateItems(true)
@@ -4804,10 +4804,10 @@ def appInfoSect2() {
         }
         if(!isNote) { paragraph """<small style="color: gray;">No Issues to Report</small>""" }
         paragraph htmlLine("orange")
-	}
-}
+    }
+} */
 
-def appInfoSect()	{
+def appInfoSect() {
     Map codeVer = (Map)state.codeVersions ?: null
     String str = sBLANK
     Boolean isNote = false
@@ -5830,11 +5830,11 @@ private Integer getSemaNum(String name) {
 }
 
 java.util.concurrent.Semaphore getSema(Integer snum) {
-	switch(snum) {
-		case 0: return histMapLockFLD
-		default: log.error "bad hash result $snum"
-			return null
-	}
+    switch(snum) {
+        case 0: return histMapLockFLD
+        default: log.error "bad hash result $snum"
+            return null
+    }
 }
 
 @Field volatile static Map<String,Long> lockTimesFLD = [:]
@@ -5885,23 +5885,28 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 @Field static final Map appDuplicationTypesMapFLD = [
     stat: [
         bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
-        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarm", "cond_months", "cond_days", "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", "trig_alarm", "trig_guard", "webCorePistons"],
+        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarm", "cond_months", /* "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", */ "trig_alarm", "trig_guard"],
         mode: ["cond_mode", "trig_mode"],
         number: [],
         text: ["appLbl"]
     ],
+//
     ends: [
         bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db"],
-        enum: ["_cmd", "_type", "_time_start_type", "cond_time_stop_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_webCorePistons", "_rt", "_rt_wd", "_nums"],
-        number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_scheduled_sunState_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore"],
-        text: ["_txt", "_sms_numbers"],
-        time: ["_time_start", "_time_stop", "_scheduled_time"]
+        enum: ["_cmd", "_type", "_routineExecuted", "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_weekdays", "_scheduled_months", "_scheduled_daynums", "_scheduled_type", "_routine_run", "_mode_run", "_piston_run", "_alarm_run", "_rt", "_rt_wd", "_nums", "_Codes", "_pistonExecuted", "_days", "_months", "_alarm_events"],
+        number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore"],
+        text: ["_txt", "_sms_numbers", "_label", "_date", "_message"],
+        mode: ["_modes"],
+        time: ["_time_start", "_time_stop", "_time", "_scheduled_time"]
     ],
     caps: [
+        _devs: "notification",
         _acceleration: "accelerationSensor",
         _battery: "battery",
         _contact: "contactSensor",
         _door: "garageDoorControl",
+        _doors_open: "garageDoorControl",
+        _doors_close: "garageDoorControl",
         _temperature: "temperatureMeasurement",
         _illuminance: "illuminanceMeasurement",
         _humidity: "relativeHumidityMeasurement",
@@ -5913,6 +5918,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         _released: "releasableButton",
         _doubleTapped: "doubleTapableButton",
         _presence: "presenceSensor",
+        _sirens: "alarm",
         _switch: "switch",
         _power: "powerMeter",
         _shade: "windowShades",
@@ -5922,7 +5928,11 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         _carbonMonoxide: "carbonMonoxideDetector",
         _smoke: "smokeDetector",
         _lock: "lock",
-        _lock_code: "lock",
+        _unlock: "lock",
+        _securityKeypad: "securityKeypad",
+        _disarm: "securityKeypad",
+        _armHome: "securityKeypad",
+        _armAway: "securityKeypad",
         _switches_off: "switch",
         _switches_on: "switch",
         _lights: "level",
