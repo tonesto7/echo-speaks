@@ -96,7 +96,7 @@ def startPage() {
     } else { return uhOhPage() }
 }
 
-def appInfoSect(sect=true)	{
+def appInfoSect(sect=true) {
     def instDt = state?.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@'h:mm a", true) : null
     section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : sBLANK}Version: ${appVersionFLD}", image: getAppImg("es_groups") }
 }
@@ -288,6 +288,8 @@ def conditionsPage() {
         condNonNumSect("acceleration", "accelerationSensor", "Accelorometer Conditions", "Accelorometer Sensors", ["active","inactive"], "are", "acceleration")
 
         condNonNumSect("lock", "lock", "Lock Conditions", "Smart Locks", ["locked", "unlocked"], "are", "lock")
+
+        condNonNumSect("securityKeypad", "securityKeypad", "Security Keypad Conditions", "Security Kepads", ["disarmed", "armed home", "armed away"], "are", "lock")
 
         condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", ["open", "closed"], "are", "garage_door")
 
@@ -483,7 +485,7 @@ def zoneNotifTimePage() {
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
-    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)") 
+    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
     if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
     if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
         runIn(3, "processDuplication")
@@ -495,7 +497,7 @@ def installed() {
 
 def updated() {
     logInfo("Updated Event Received...")
-    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)") 
+    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
     if(maybeDup) logInfo("updated found maybe a dup... ${settings.duplicateFlag}")
     if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
     if(!state.dupPendingSetup) initialize()
@@ -624,17 +626,17 @@ void scheduleCondition() {
             Long nextEvtT = 0L
             if(!not) {
                 if(t<lstart) {
-			nextEvtT= lstart - t 
+                    nextEvtT= lstart - t
                 } else if(t<lstop){
-                        nextEvtT = lstop - t 
+                        nextEvtT = lstop - t
                         isStart = false
                 }
             } else {
                 if(t<lstop){
-                    nextEvtT = lstop - t 
+                    nextEvtT = lstop - t
                     isStart = false
                 } else if(t<lstart) {
-			nextEvtT= lstart - t 
+                    nextEvtT= lstart - t
                 }
             }
 
@@ -654,10 +656,10 @@ void scheduleCondition() {
 }
 
 void subscribeToEvts() {
+    state.handleGuardEvents = false
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
-    state.handleGuardEvents = false
-    List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "shade", "valve", "door", "contact", "acceleration", sSWITCH, "battery", "level"]
+    List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "securityKeypad", "shade", "valve", "door", "contact", "acceleration", sSWITCH, "battery", "level"]
 
     //SCHEDULING
     if(timeCondConfigured() || dateCondConfigured()) {
@@ -728,7 +730,7 @@ Boolean timeCondOk() {
         }
 
         if(startTime && stopTime) {
-            Boolean not = startTime.getTime() > stopTime.getTime() 
+            Boolean not = startTime.getTime() > stopTime.getTime()
             Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone)
             isBtwn = not ? !isBtwn : isBtwn
             state.startTime =  formatDt(startTime) //ERS
@@ -821,7 +823,7 @@ Boolean checkDeviceNumCondOk(String type) {
 }
 
 private Boolean isConditionOk(String evt) {
-    if([sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "water"].contains(evt)) {
+    if([sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "water"].contains(evt)) {
         if(!settings."cond_${evt}") { true }
         return checkDeviceCondOk(evt)
     } else if(["temperature", "humidity", "illuminance", "level", "power", "battery"].contains(evt)) {
@@ -840,7 +842,7 @@ Boolean deviceCondOk() {
     List skipped = []
     List passed = []
     List failed = []
-    [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "water"]?.each { String i->
+    [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "water"]?.each { String i->
         if(!settings."cond_${i}") { skipped.push(i); return; }
         checkDeviceCondOk(i) ? passed.push(i) : failed.push(i);
     }
@@ -900,14 +902,14 @@ Boolean locationCondConfigured() {
 }
 
 Boolean deviceCondConfigured() {
-//    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
+//    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
 //    List items = []
 //    devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
     return (deviceCondCount() > 0)
 }
 
 Integer deviceCondCount() {
-    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water"]
+    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water"]
     List items = []
     devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
     return items.size()
@@ -1272,7 +1274,7 @@ String formatDt(Date dt, Boolean tzChg=true) {
     if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
     return (String)tf.format(dt)
 }
-
+/*
 String dateTimeFmt(dt, String fmt) {
     if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new java.text.SimpleDateFormat(fmt)
@@ -1295,17 +1297,17 @@ String convToDateTime(dt) {
     String t = dateTimeFmt(dt, "h:mm a")
     String d = dateTimeFmt(dt, "EEE, MMM d")
     return "$d, $t"
-}
+} */
 
 Date parseDate(String dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
 String strCapitalize(String str) { return str ? str?.toString().capitalize() : sNULL }
 String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
-
+/*
 String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
     Date newDt = Date.parse(pFormat, dt)
     return formatDt(newDt, tzFmt)
-}
+} */
 
 String getDtNow() {
     Date now = new Date()
@@ -1424,9 +1426,9 @@ public void logsDisable() {
 }
 
 private void updTsVal(String key, String dt=sNULL) {
-	Map data = atomicState?.tsDtMap ?: [:]
-	if(key) { data[key] = dt ?: getDtNow() }
-	atomicState.tsDtMap = data
+    Map data = atomicState?.tsDtMap ?: [:]
+    if(key) { data[key] = dt ?: getDtNow() }
+    atomicState.tsDtMap = data
 }
 
 private void remTsVal(key) {
@@ -1440,15 +1442,15 @@ private void remTsVal(key) {
 }
 
 String getTsVal(String val) {
-	Map tsMap = atomicState.tsDtMap
-	if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
-	return sNULL
+    Map tsMap = atomicState.tsDtMap
+    if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
+    return sNULL
 }
 
 private void updAppFlag(String key, Boolean val) {
-	def data = atomicState?.appFlagsMap ?: [:]
-	if(key) { data[key] = val }
-	atomicState?.appFlagsMap = data
+    def data = atomicState?.appFlagsMap ?: [:]
+    if(key) { data[key] = val }
+    atomicState?.appFlagsMap = data
 }
 
 private void remAppFlag(key) {
@@ -1479,8 +1481,8 @@ private stateMapMigration() {
 }
 
 Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
-	Map tsMap = atomicState?.tsDtMap
-	return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
+    Map tsMap = atomicState?.tsDtMap
+    return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
 }
 
 /******************************************
@@ -1518,9 +1520,9 @@ String getAppNotifDesc(Boolean hide=false) {
 }
 
 List getQuietDays() {
-	List allDays = weekDaysEnum()
-	List curDays = settings.notif_days ?: []
-	return allDays?.findAll { (!curDays?.contains(it as String)) }
+    List allDays = weekDaysEnum()
+    List curDays = settings.notif_days ?: []
+    return allDays?.findAll { (!curDays?.contains(it as String)) }
 }
 
 String getNotifSchedDesc(Boolean min=false) {
@@ -1590,10 +1592,10 @@ String getConditionsDesc(Boolean addE=true) {
             str += settings.cond_mode  ? "    - Allowed Location Modes (${not? "not in" : "in"}): (${(isInMode(settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
-            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
+            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
                 if(devCondConfigured(evt)) {
                     Boolean condOk = false
-                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
+                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "humidity", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
                     // str += settings."${}"
                     str += settings."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
@@ -1633,6 +1635,8 @@ String getZoneDesc() {
     }
 }
 
+@Field static final List<String> lSUNRISESET   = ["sunrise", "sunset"]
+
 String getTimeCondDesc(Boolean addPre=true) {
     Date startTime
     Date stopTime
@@ -1643,28 +1647,32 @@ String getTimeCondDesc(Boolean addPre=true) {
         stopTime = stopType == 'time' && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
     }
 
-    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+    String startLbl1 = sBLANK
+    String stopLbl1 = sBLANK
+    if(startType in lSUNRISESET || stopType in lSUNRISESET) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
         Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
-        if(startType in ["sunrise","sunset"]) {
+        if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
+            startLbl1 = startType.capitalize() + sSPACE + "${startoffset ? "with offset " : sBLANK}"
         }
-        if(stopType in ["sunrise","sunset"]) {
+        if(stopType in lSUNRISESET) {
             Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
             stopTime = new Date(stopl)
+            stopLbl1 = stopType.capitalize() + sSPACE + "${stopoffset ? "with offset " : sBLANK}"
         }
     }
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
 
-    return startLbl && stopLbl ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl} - ${stopLbl})" : sTTC
+    return startLbl && stopLbl ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl1}${startLbl} - ${stopLbl1}${stopLbl})" : sTTC
 }
 
-String getInputToStringDesc(inpt, addSpace = null) {
+static String getInputToStringDesc(inpt, addSpace = null) {
     Integer cnt = 0
     String str = sBLANK
     if(inpt) {
@@ -1872,7 +1880,7 @@ Boolean minVersionFailed() {
         Integer minDevVer = parent?.minVersions()["zoneApp"]
         if(minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer) { return true }
         else { return false }
-    } catch (e) { 
+    } catch (e) {
         return false
     }
 }
@@ -1886,13 +1894,13 @@ static String getHEPublicImg(String imgName) { return getPublicImg(imgName, true
 static String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : "" }
 
 static String sTS(String t, String i = sNULL) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
-/* """ */ 
+/* """ */
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
-/* """ */ 
+/* """ */
 
 static String inTS1(String t, String i = sNULL, String color=sNULL) { return inTS(t, getHEAppImg(i), color) }
 static String inTS(String t, String i = sNULL, String color=sNULL) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : sBLANK}""" }
-/* """ */ 
+/* """ */
 
 static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"}"+sSPACE+sBULLET+sSPACE+strVal }
 static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - "+strVal }
@@ -1976,7 +1984,7 @@ static void mb(String meth=sNULL){
 @Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
 
 private Integer getSemaNum(String name) {
-    if(name == sHMLF) return 0 
+    if(name == sHMLF) return 0
     log.warn "unrecognized lock name..."
     return 0
 	// Integer stripes=22
