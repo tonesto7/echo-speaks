@@ -55,8 +55,9 @@ import groovy.transform.Field
 @Field static final String sNUMBER        = 'number'
 @Field static final String sANY           = 'any'
 @Field static final String sBETWEEN       = 'between'
-@Field static final String sBELOW        = 'below'
-@Field static final String sABOVE        = 'above'
+@Field static final String sBELOW         = 'below'
+@Field static final String sABOVE         = 'above'
+@Field static final String sEQUALS        = 'equals'
 
 static String appVersion()  { return appVersionFLD }
 
@@ -655,7 +656,7 @@ def triggersPage() {
                             if (settings.trig_thermostat_cmd == "setpoint") {
                                 input "trig_thermostat_setpoint_type", sENUM, title: inTS1("SetPoint type is...", sCOMMAND), options: ["cooling", "heating", sANY], required: false, submitOnChange: true, image: getAppImg(sCOMMAND)
                                 if(settings.trig_thermostat_setpoint_type) {
-                                    input "trig_thermostat_setpoint_cmd", sENUM, title: inTS1("Setpoint temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                    input "trig_thermostat_setpoint_cmd", sENUM, title: inTS1("Setpoint temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
                                     if (settings.trig_thermostat_setpoint_cmd) {
                                         if (settings.trig_thermostat_setpoint_cmd in [sBETWEEN, sBELOW]) {
                                             input "trig_thermostat_setpoint_low", sNUMBER, title: inTS1("a ${trig_thermostat_setpoint_cmd == sBETWEEN ? "Low " : sBLANK}Setpoint temp of...", "low"), required: true, submitOnChange: true
@@ -663,14 +664,14 @@ def triggersPage() {
                                         if (settings.trig_thermostat_setpoint_cmd in [sBETWEEN, sABOVE]) {
                                             input "trig_thermostat_setpoint_high", sNUMBER, title: inTS1("${trig_thermostat_setpoint_cmd == sBETWEEN ? "and a high " : "a "}Setpoint temp of...", "high"), required: true, submitOnChange: true
                                         }
-                                        if (settings.trig_thermostat_setpoint_cmd == "equals") {
+                                        if (settings.trig_thermostat_setpoint_cmd == sEQUALS) {
                                             input "trig_thermostat_setpoint_equal", sNUMBER, title: inTS1("a Setpoint temp of...", "equal"), required: true, submitOnChange: true
                                         }
                                     }
                                 }
                             }
                             if(settings.trig_thermostat_cmd == "ambient") {
-                                input "trig_thermostat_ambient_cmd", sENUM, title: inTS1("Ambient Temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                input "trig_thermostat_ambient_cmd", sENUM, title: inTS1("Ambient Temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
                                 if (settings.trig_thermostat_ambient_cmd) {
                                     if (settings.trig_thermostat_ambient_cmd in [sBETWEEN, sBELOW]) {
                                         input "trig_thermostat_ambient_low", sNUMBER, title: inTS1("a ${trig_thermostat_ambient_cmd == sBETWEEN ? "Low " : sBLANK}Ambient Temp of...", "low"), required: true, submitOnChange: true
@@ -678,7 +679,7 @@ def triggersPage() {
                                     if (settings.trig_thermostat_ambient_cmd in [sBETWEEN, sABOVE]) {
                                         input "trig_thermostat_ambient_high", sNUMBER, title: inTS1("${trig_thermostat_ambient_cmd == sBETWEEN ? "and a high " : "a "}Ambient Temp of...", "high"), required: true, submitOnChange: true
                                     }
-                                    if (settings.trig_thermostat_ambient_cmd == "equals") {
+                                    if (settings.trig_thermostat_ambient_cmd == sEQUALS) {
                                         input "trig_thermostat_ambient_equal", sNUMBER, title: inTS1("a Ambient Temp of...", "equal"), required: true, submitOnChange: true
                                     }
                                 }
@@ -769,7 +770,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
     section (sTS(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", tite: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: devReq, image: getAppImg(image)
         if(settings."trig_${inType}") {
-            input "trig_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+            input "trig_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
             if (settings."trig_${inType}_cmd") {
                 if (settings."trig_${inType}_cmd" in [sBETWEEN, sBELOW]) {
                     input "trig_${inType}_low", sNUMBER, title: inTS1("a ${settings."trig_${inType}_cmd" == sBETWEEN ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true, image: getAppImg("low")
@@ -777,7 +778,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                 if (settings."trig_${inType}_cmd" in [sBETWEEN, sABOVE]) {
                     input "trig_${inType}_high", sNUMBER, title: inTS1("${settings."trig_${inType}_cmd" == sBETWEEN ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true, image: getAppImg("high")
                 }
-                if (settings."trig_${inType}_cmd" == "equals") {
+                if (settings."trig_${inType}_cmd" == sEQUALS) {
                     input "trig_${inType}_equal", sNUMBER, title: inTS1("a ${cmdTitle} of...", "equal"), required: true, submitOnChange: true, image: getAppImg("equal")
                 }
                 if (settings."trig_${inType}"?.size() > 1) {
@@ -938,7 +939,7 @@ def condNumValSect(String inType, String capType, String sectStr, String devTitl
     section (sTS(sectStr), hideWhenEmpty: true) {
         input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: false, image: getAppImg(image), hideWhenEmpty: true
         if(settings."cond_${inType}") {
-            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, "equals"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
             if (settings."cond_${inType}_cmd") {
                 if (settings."cond_${inType}_cmd" in [sBETWEEN, sBELOW]) {
                     input "cond_${inType}_low", sNUMBER, title: inTS1("a ${settings."cond_${inType}_cmd" == sBETWEEN ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true, image: getAppImg("low")
@@ -946,7 +947,7 @@ def condNumValSect(String inType, String capType, String sectStr, String devTitl
                 if (settings."cond_${inType}_cmd" in [sBETWEEN, sABOVE]) {
                     input "cond_${inType}_high", sNUMBER, title: inTS1("${settings."cond_${inType}_cmd" == sBETWEEN ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true, image: getAppImg("high")
                 }
-                if (settings."cond_${inType}_cmd" == "equals") {
+                if (settings."cond_${inType}_cmd" == sEQUALS) {
                     input "cond_${inType}_equal", sNUMBER, title: inTS1("a ${cmdTitle} of...", "equal"), required: true, submitOnChange: true, image: getAppImg("equal")
                 }
                 if (settings."cond_${inType}"?.size() > 1) {
@@ -1864,7 +1865,7 @@ def actNotifTimePage() {
             input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
             if(settings."${pre}_time_start_type" == "time") {
                 input "${pre}_time_start", "time", title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
-            } else if(settings."${pre}_time_start_type" in ["sunrise", "sunset"]) {
+            } else if(settings."${pre}_time_start_type" in lSUNRISESET) {
                 input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -1872,7 +1873,7 @@ def actNotifTimePage() {
             input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
             if(settings."${pre}_time_stop_type" == "time") {
                 input "${pre}_time_stop", "time", title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
-            } else if(settings."${pre}_time_stop_type" in ["sunrise", "sunset"]) {
+            } else if(settings."${pre}_time_stop_type" in lSUNRISESET) {
                 input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -2009,7 +2010,7 @@ def condTimePage() {
             input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
             if(settings.cond_time_start_type  == "time") {
                 input "cond_time_start", "time", title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
-            } else if(settings.cond_time_start_type in ["sunrise", "sunset"]) {
+            } else if(settings.cond_time_start_type in lSUNRISESET) {
                 input "cond_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -2017,7 +2018,7 @@ def condTimePage() {
             input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
             if(settings.cond_time_stop_type == "time") {
                 input "cond_time_stop", "time", title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
-            } else if(settings.cond_time_stop_type in ["sunrise", "sunset"]) {
+            } else if(settings.cond_time_stop_type in lSUNRISESET) {
                 input "cond_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -2915,7 +2916,7 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
         Double evtValue = (dcavg ? getDevValueAvg(devs, evt?.name) : evt?.value) as Double
         log.debug "evtValue: ${evtValue}"
         switch(cmd) {
-            case "equals":
+            case sEQUALS:
                 if(!dca && dce && dce?.toDouble() == evtValue) {
                     evtOk=true
                 } else if(dca && dce && allDevCapNumValsEqual(devs, evt?.name, dce)) { evtOk=true; evtAd=true }
@@ -3127,17 +3128,17 @@ Boolean timeCondOk() {
         startTime = startType == 'time' && settings.cond_time_start ? toDateTime(settings.cond_time_start) : null
         stopTime = stopType == 'time' && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
 
-        if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+        if(startType in lSUNRISESET || stopType in lSUNRISESET) {
             def sun = getSunriseAndSunset()
             Long lsunset = sun.sunset.time
             Long lsunrise = sun.sunrise.time
             Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
             Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
-            if(startType in ["sunrise","sunset"]) {
+            if(startType in lSUNRISESET) {
                 Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
                 startTime = new Date(startl)
             }
-            if(stopType in ["sunrise","sunset"]) {
+            if(stopType in lSUNRISESET) {
                 Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
                 stopTime = new Date(stopl)
             }
@@ -3205,7 +3206,7 @@ Boolean checkDeviceNumCondOk(String type) {
     if( !(type && devs && cmd) ) { return true }
 
     switch(cmd) {
-        case "equals":
+        case sEQUALS:
             if(dce) {
                 if(dca) { return allDevCapNumValsEqual(devs, type, dce) }
                 else { return anyDevCapNumValEqual(devs, type, dce) }
@@ -3278,8 +3279,8 @@ Boolean devNumCondConfigured(String type) {
 }
 
 Boolean timeCondConfigured() {
-    Boolean startTime = (settings.cond_time_start_type in ["sunrise", "sunset"] || (settings.cond_time_start_type == "time" && settings.cond_time_start))
-    Boolean stopTime = (settings.cond_time_stop_type in ["sunrise", "sunset"] || (settings.cond_time_stop_type == "time" && settings.cond_time_stop))
+    Boolean startTime = (settings.cond_time_start_type in lSUNRISESET || (settings.cond_time_start_type == "time" && settings.cond_time_start))
+    Boolean stopTime = (settings.cond_time_stop_type in lSUNRISESET || (settings.cond_time_stop_type == "time" && settings.cond_time_stop))
     return (startTime && stopTime)
 }
 
@@ -3348,6 +3349,7 @@ private executeActTest() {
 @Field static final List<String> lANY          = ["any"]
 @Field static final List<String> lOPNCLS       = ["open", "closed"]
 @Field static final List<String> lACTINACT     = ["active", "inactive"]
+@Field static final List<String> lSUNRISESET   = ["sunrise", "sunset"]
 
 Map getRandomTrigEvt() {
     String trig = getRandomItem(settings.triggerEvents?.collect { it as String })
@@ -3405,26 +3407,29 @@ static String convEvtType(String type) {
 }
 
 String decodeVariables(evt, String str) {
-    if(evt && str) {
+    if(!str) return str
+    if(evt) {
         // log.debug "str: ${str} | vars: ${(str =~ /%[a-z]+%/)}"
-        if(str?.contains("%type%") && str?.contains("%name%")) {
-            str = (str?.contains("%type%") && evt?.name) ? str?.replaceAll("%type%", !evt?.displayName?.toLowerCase()?.contains(evt?.name) ? convEvtType(evt?.name) : sBLANK) : str
-            str = (str?.contains("%name%")) ? str?.replaceAll("%name%", evt?.displayName) : str
+        if(str.contains("%type%") && str.contains("%name%")) {
+            str = (str.contains("%type%") && evt.name) ? str.replaceAll("%type%", !evt?.displayName?.toLowerCase()?.contains(evt?.name) ? convEvtType(evt?.name) : sBLANK) : str
+            str = (str.contains("%name%")) ? str.replaceAll("%name%", evt?.displayName) : str
         } else {
-            str = (str?.contains("%type%") && evt?.name) ? str?.replaceAll("%type%", convEvtType(evt?.name)) : str
-            str = (str?.contains("%name%")) ? str?.replaceAll("%name%", evt?.displayName) : str
+            str = (str.contains("%type%") && evt?.name) ? str.replaceAll("%type%", convEvtType(evt?.name)) : str
+            str = (str.contains("%name%")) ? str.replaceAll("%name%", evt?.displayName) : str
         }
-        str = (str?.contains("%unit%") && evt?.name) ? str?.replaceAll("%unit%", getAttrPostfix(evt?.name)) : str
-        str = (str?.contains("%value%") && evt?.value) ? str?.replaceAll("%value%", evt?.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
-        str = (str?.contains("%duration%") && evt?.totalDur) ? str?.replaceAll("%duration%", "${evt?.totalDur} second${evt?.totalDur > 1 ? "s" : sBLANK} ago") : str
-        str = (str?.contains("%duration_min%") && evt?.totalDur) ? str?.replaceAll("%duration_min%", "${durationToMinutes(evt?.totalDur)} minute${durationToMinutes(evt?.totalDur) > 1 ? "s" : sBLANK} ago") : str
-        str = (str?.contains("%durationmin%") && evt?.totalDur) ? str?.replaceAll("%durationmin%", "${durationToMinutes(evt?.totalDur)} minute${durationToMinutes(evt?.totalDur) > 1 ? "s" : sBLANK} ago") : str
-        str = (str?.contains("%durationval%") && evt?.totalDur) ? str?.replaceAll("%durationval%", "${evt?.totalDur} second${evt?.totalDur > 1 ? "s" : sBLANK}") : str
-        str = (str?.contains("%durationvalmin%") && evt?.totalDur) ? str?.replaceAll("%durationvalmin%", "${durationToMinutes(evt?.totalDur)} minute${durationToMinutes(evt?.totalDur) > 1 ? "s" : sBLANK}") : str
+        str = (str.contains("%unit%") && evt?.name) ? str.replaceAll("%unit%", getAttrPostfix(evt?.name)) : str
+        str = (str.contains("%value%") && evt?.value) ? str.replaceAll("%value%", evt?.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
+        if(evt?.totalDur) {
+            str = (str.contains("%duration%")) ? str.replaceAll("%duration%", "${evt.totalDur} second${evt.totalDur > 1 ? "s" : sBLANK} ago") : str
+            str = (str.contains("%duration_min%")) ? str.replaceAll("%duration_min%", "${durationToMinutes(evt.totalDur)} minute${durationToMinutes(evt.totalDur) > 1 ? "s" : sBLANK} ago") : str
+            str = (str.contains("%durationmin%")) ? str.replaceAll("%durationmin%", "${durationToMinutes(evt.totalDur)} minute${durationToMinutes(evt.totalDur) > 1 ? "s" : sBLANK} ago") : str
+            str = (str.contains("%durationval%")) ? str.replaceAll("%durationval%", "${evt.totalDur} second${evt.totalDur > 1 ? "s" : sBLANK}") : str
+            str = (str.contains("%durationvalmin%")) ? str.replaceAll("%durationvalmin%", "${durationToMinutes(evt.totalDur)} minute${durationToMinutes(evt.totalDur) > 1 ? "s" : sBLANK}") : str
+        }
     }
-    str = (str?.contains("%date%")) ? str?.replaceAll("%date%", convToDate(evt?.date ?: new Date())) : str
-    str = (str?.contains("%time%")) ? str?.replaceAll("%time%", convToTime(evt?.date ?: new Date())) : str
-    str = (str?.contains("%datetime%")) ? str?.replaceAll("%datetime%", convToDateTime(evt?.date ?: new Date())) : str
+    str = (str.contains("%date%")) ? str.replaceAll("%date%", convToDate(evt?.date ?: new Date())) : str
+    str = (str.contains("%time%")) ? str.replaceAll("%time%", convToTime(evt?.date ?: new Date())) : str
+    str = (str.contains("%datetime%")) ? str.replaceAll("%datetime%", convToDateTime(evt?.date ?: new Date())) : str
     return str
 }
 
@@ -3438,19 +3443,19 @@ static Integer durationToHours(dur) {
     return dur?.toInteger()
 }
 
-String getResponseItem(evt, tierMsg=null, Boolean evtAd=false, Boolean isRepeat=false, Boolean testMode=false) {
+String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean isRepeat=false, Boolean testMode=false) {
     // log.debug "getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}"
-    String glbText = settings."act_${(String)settings.actionType}_txt" ?: null
+    String glbText = (String)settings."act_${(String)settings.actionType}_txt" ?: sNULL
     if(glbText) {
-        List eTxtItems = glbText.toString()?.tokenize(";")
+        List eTxtItems = glbText.tokenize(";")
         return decodeVariables(evt, getRandomItem(eTxtItems))
     } else if(tierMsg) {
-        List eTxtItems = tierMsg.toString()?.tokenize(";")
+        List eTxtItems = tierMsg?.tokenize(";")
         return decodeVariables(evt, getRandomItem(eTxtItems))
     } else {
         String evntNam = evt?.name
         List devs = settings."trig_${evntNam}" ?: []
-        String dc = settings."trig_${evntNam}_cmd"
+        String dc = (String)settings."trig_${evntNam}_cmd"
         Boolean dca = (settings."trig_${evntNam}_all" == true)
         String dct = settings."trig_${evntNam}_txt" ?: sNULL
         String dcart = settings."trig_${evntNam}_after_repeat" && settings."trig_${evntNam}_after_repeat_txt" ? settings."trig_${evntNam}_after_repeat_txt" : sNULL
@@ -4121,17 +4126,17 @@ Boolean notifTimeOk() {
     } else { return true }
 
     Date now = new Date()
-    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+    if(startType in lSUNRISESET || stopType in lSUNRISESET) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        if(startType in ["sunrise","sunset"]) {
+        if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
         }
-        if(stopType in ["sunrise","sunset"]) {
+        if(stopType in lSUNRISESET) {
             Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
             stopTime = new Date(stopl)
         }
@@ -4431,45 +4436,45 @@ String getAlarmSystemName(Boolean abbr=false) {
 String formatDt(Date dt, Boolean tzChg=true) {
     def tf = new java.text.SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
-    return tf?.format(dt)
+    return (String)tf.format(dt)
 }
 
-String dateTimeFmt(dt, String fmt) {
-    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
+String dateTimeFmt(Date dt, String fmt) {
+//    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new java.text.SimpleDateFormat(fmt)
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return tf?.format(dt)
+    return (String)tf.format(dt)
 }
 
-String convToTime(dt) {
+String convToTime(Date dt) {
     String newDt = dateTimeFmt(dt, "h:mm a")
     if(newDt?.contains(":00 ")) { newDt?.replaceAll(":00 ", sSPACE) }
     return newDt
 }
 
-String convToDate(dt) {
+String convToDate(Date dt) {
     String newDt = dateTimeFmt(dt, "EEE, MMM d")
     return newDt
 }
 
-String convToDateTime(dt) {
+String convToDateTime(Date dt) {
     String t = dateTimeFmt(dt, "h:mm a")
     String d = dateTimeFmt(dt, "EEE, MMM d")
-    return "$d, $t".toString()
+    return d+', '+t
 }
 
 Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
 Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
-String strCapitalize(str) { return str ? str?.toString().capitalize() : null }
-String pluralizeStr(obj, para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
-
+String strCapitalize(str) { return str ? str?.toString().capitalize() : sNULL }
+String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
+/*
 String parseDt(String pFormat, String dt, tzFmt=true) {
     String result
     Date newDt = Date.parse(pFormat.toString(), dt)
-    result = formatDt(newDt, tzFmt)
+    result = formatDt(newDt, tzFmt) // this is not right
     //log.debug "parseDt Result: $result"
     return result
-}
+} */
 
 String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
@@ -4488,7 +4493,7 @@ String epochToTime(Date tm) {
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
     return (String)tf.format(tm)
 }
-
+/*
 String time2Str(String time, String fmt="h:mm a") {
     if(time) {
         Date t = timeToday(time, location?.timeZone)
@@ -4497,7 +4502,7 @@ String time2Str(String time, String fmt="h:mm a") {
         return (String)f?.format(t)
     }
     return sNULL
-}
+} */
 
 String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
     if(!t) return sNULL
@@ -4532,7 +4537,7 @@ String getDateByFmt(String fmt, Date dt=null) {
 Map getDateMap() {
     Map m = [:]
     m.dayOfYear =    getDateByFmt("DD")
-    m.dayNameShort = getDateByFmt("EEE")?.toString()?.toUpperCase()
+    m.dayNameShort = getDateByFmt("EEE").toUpperCase()
     m.dayName =      getDateByFmt("EEEE")
     m.day =          getDateByFmt("d")
     m.week =         getDateByFmt("W")
@@ -4620,17 +4625,17 @@ String getNotifSchedDesc(Boolean min=false) {
         startTime = startType == 'time' && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
         stopTime = stopType == 'time' && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
     }
-    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+    if(startType in lSUNRISESET || stopType in lSUNRISESET) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        if(startType in ["sunrise","sunset"]) {
+        if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
         }
-        if(stopType in ["sunrise","sunset"]) {
+        if(stopType in lSUNRISESET) {
             Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
             stopTime = new Date(stopl)
         }
@@ -4761,11 +4766,11 @@ String getConditionsDesc(Boolean addE=true) {
 
                     str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
-                    if(cmd in [sBETWEEN, sBELOW, sABOVE, "equals"]) {
+                    if(cmd in [sBETWEEN, sBELOW, sABOVE, sEQUALS]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
-                        str += (cmd == "equals" && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
+                        str += (cmd == sEQUALS && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
                         str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? "    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
                         str += (cmd == sABOVE && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
                         str += (cmd == sBELOW && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
@@ -4852,17 +4857,17 @@ String getTimeCondDesc(Boolean addPre=true) {
         stopTime = stopType == 'time'  && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
     }
 
-    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+    if(startType in lSUNRISESET || stopType in lSUNRISESET) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
         Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
-        if(startType in ["sunrise","sunset"]) {
+        if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
         }
-        if(stopType in ["sunrise","sunset"]) {
+        if(stopType in lSUNRISESET) {
             Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
             stopTime = new Date(stopl)
         }
