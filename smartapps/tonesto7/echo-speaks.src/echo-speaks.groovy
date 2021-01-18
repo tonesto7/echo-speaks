@@ -544,16 +544,17 @@ def actionDuplicationPage() {
                 def act = getActionApps()?.find { it?.id?.toString() == settings.actionDuplicateSelect?.toString() }
                 if(act) {
                     Map actData = act.getSettingsAndStateMap() ?: [:]
+                    String actId = (String)act.getId().toString()
                     if(actData.settings && actData.state) {
                         String myId=app.getId()
                         if(!childDupMapFLD[myId]) childDupMapFLD[myId] = [:]
                         if(!childDupMapFLD[myId].actions) childDupMapFLD[myId].actions = [:]
-                        childDupMapFLD[myId].actions[act.id.toString()] = actData
-                        log.debug "Dup Data: ${childDupMapFLD[myId].actions[act.id as String]}"
+                        childDupMapFLD[myId].actions[actId] = actData
+                        log.debug "Dup Data: ${childDupMapFLD[myId].actions[actId]}"
                     }
                     actData.settings["duplicateFlag"] = [type: sBOOL, value: true]
                     // actData?.settings["actionPause"] = [type: sBOOL, value: true]
-                    actData.settings["duplicateSrcId"] = [type: "text", value: (String) act.getId()]
+                    actData.settings["duplicateSrcId"] = [type: "text", value: actId]
                     addChildApp("tonesto7", actChildName(), "${actData.label} (Dup)", [settings: actData.settings])
                     paragraph pTS("Action Duplicated...\n\nReturn to Action Page and look for the App with '(Dup)' in the name...", sNULL, true, sCLR4D9), state: sCOMPLT
                     state.actionDuplicated = true
@@ -572,17 +573,18 @@ def zoneDuplicationPage() {
                 def zn = getZoneApps()?.find { it.id.toString() == settings.zoneDuplicateSelect?.toString() }
                 if(zn) {
                     Map znData = zn?.getSettingsAndStateMap() ?: null
+                    String znId = (String)zn.getId().toString()
                     if(znData.settings && znData.state) {
                         String myId=app.getId()
                         if(!childDupMapFLD[myId]) childDupMapFLD[myId] = [:]
                         if(!childDupMapFLD[myId].zones) childDupMapFLD[myId].zones = [:]
-                        childDupMapFLD[myId].zones[zn.id.toString()] = znData
-                        log.debug "Dup Data: ${childDupMapFLD[myId].zones[zn.id.toString()]}"
+                        childDupMapFLD[myId].zones[znId] = znData
+                        log.debug "Dup Data: ${childDupMapFLD[myId].zones[znId]}"
                     }
                     // log.debug "Dup Data: ${actData}"
                     znData.settings["duplicateFlag"] = [type: sBOOL, value: true]
                     // znData?.settings["zonePause"] = [type: sBOOL, value: true]
-                    znData?.settings["duplicateSrcId"] = [type: "text", value: (String) zn.getId()]
+                    znData?.settings["duplicateSrcId"] = [type: "text", value: znId]
                     addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData.settings])
                     paragraph pTS("Zone Duplicated...\n\nReturn to Zone Page and look for the App with '(Dup)' in the name...", sNULL, true, sCLR4D9), state: sCOMPLT
                     state.zoneDuplicated = true
@@ -608,7 +610,7 @@ public void childAppDuplicationFinished(String type, String childId) {
     log.trace "childAppDuplicationFinished($type, $childId)"
 //    Map data = [:]
      String myId=app.getId()
-    if(childDupMapFLD[myId] && childDupMapFLD[myId][type] && childDupMapFLD[type][childId]) {
+    if(childDupMapFLD[myId] && childDupMapFLD[myId][type] && childDupMapFLD[myId][type][childId]) {
         childDupMapFLD[myId][type].remove(childId)
     }
     clearDuplicationItems()
