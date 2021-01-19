@@ -5465,7 +5465,7 @@ public Map getSettingsAndStateMap() {
             ev?.each { evi->
                 settings.findAll { it?.key?.endsWith(evi) }?.each { String fk, fv->
                     def vv = settings[fk] // fv
-                    if(ek==sTIME) vv = convToTime(toDateTime(vv))
+ //                   if(ek==sTIME) vv = convToTime(toDateTime(vv))
                     setObjs[fk] = [type: ek, value: vv]
                 }
             }
