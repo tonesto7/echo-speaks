@@ -96,7 +96,7 @@ metadata {
         command "doNotDisturbOff"
         // command "followUpModeOn"
         // command "followUpModeOff"
-        command "setAlarmVolume", [[name: "Alarm Volume", type: "NUMBER", description: "Sets the devices Alarm notification volume"]]
+        command "setAlarmVolume", [[name: "Alarm Volume*", type: "NUMBER", description: "Sets the devices Alarm notification volume"]]
         command "resetQueue"
         command "playWeather", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playSingASong", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
@@ -115,50 +115,50 @@ metadata {
         command "sayWelcomeHome", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         // command "playCannedRandomTts", ["string", "number", "number"]
         // command "playCannedTts", ["string", "string", "number", "number"]
-        command "playAnnouncement", [[name: "Message to Announcement", type: "STRING", description: "Message to announce"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "playAnnouncement", [[name: "Message to Announcement", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "playAnnouncementAll", [[name: "Message to Announcement", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"]]
+        command "playAnnouncement", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playAnnouncement", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playAnnouncementAll", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"]]
         command "playCalendarToday", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playCalendarTomorrow", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playCalendarNext", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "stopAllDevices"
-        command "searchMusic", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchAmazonMusic", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchAppleMusic", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchPandora", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchIheart", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchSiriusXm", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchSpotify", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        // command "searchTidal", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchTuneIn", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "sendAlexaAppNotification", [ [name: "Notification Message", type: "STRING", description: ""]]
-        command "executeSequenceCommand", [[name: "Sequence Message Text", type: "STRING", description: ""]]
-        command "executeRoutineId", [[name: "Routine Id", type: "STRING", description: ""]]
-        command "createAlarm", [[name: "Alarm Label", type: "STRING", description: "This is the title of the alarm"], [name: "Date",type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time", type: "STRING", description: "Time (18:10 | HH:MM)"]]
-        command "createReminder", [[name: "Reminder Label", type: "STRING", description: "This is the title of the reminder"], [name: "Date",type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time", type: "STRING", description: "Time (18:10 | HH:MM)"]]
+        command "searchMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider*", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchAmazonMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchAppleMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchPandora", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchIheart", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchSiriusXm", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchSpotify", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        // command "searchTidal", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchTuneIn", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "sendAlexaAppNotification", [ [name: "Notification Message*", type: "STRING", description: ""]]
+        command "executeSequenceCommand", [[name: "Sequence Message Text*", type: "STRING", description: ""]]
+        command "executeRoutineId", [[name: "Routine ID*", type: "STRING", description: ""]]
+        command "createAlarm", [[name: "Alarm Label*", type: "STRING", description: "This is the title of the alarm"], [name: "Date*",type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time*", type: "STRING", description: "Time (18:10 | HH:MM)"]]
+        command "createReminder", [[name: "Reminder Label*", type: "STRING", description: "This is the title of the reminder"], [name: "Date*", type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time*", type: "STRING", description: "Time (18:10 | HH:MM)"]]
         // command "createReminderNew", ["string", "string", "string", "string", "string"]
-        command "removeNotification", [[name: "Notification ID to Remove", type: "STRING", description: ""]]
+        command "removeNotification", [[name: "Notification ID to Remove*", type: "STRING", description: ""]]
         // command "removeAllNotificationsByType", ["string"]
-        command "setWakeWord", [[name: "New Wake Word", type: "STRING", description: ""]]
-        command "renameDevice", [[name: "New Device Name", type: "STRING", description: ""]]
+        command "setWakeWord", [[name: "New Wake Word*", type: "STRING", description: ""]]
+        command "renameDevice", [[name: "New Device Name*", type: "STRING", description: ""]]
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "togglePlayback"
-        command "setVolumeAndSpeak", [[name: "Volume", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak", type: "STRING", description: ""]]
-        command "setVolumeSpeakAndRestore", [[name: "Volume", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak", type: "STRING", description: ""],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "setVolumeAndSpeak", [[name: "Volume*", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""]]
+        command "setVolumeSpeakAndRestore", [[name: "Volume*", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""],[name: "Restore Volume*", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "volumeUp"
         command "volumeDown"
         command "speechTest"
-        command "speak", [[name: "Message to Speak", type: "STRING", description: ""]]
+        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""]]
         command "sendTestAnnouncement"
         command "sendTestAnnouncementAll"
         command "getDeviceActivity"
         command "getBluetoothDevices"
-        command "connectBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
+        command "connectBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
         command "disconnectBluetooth"
-        command "removeBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
+        command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
         command "sendAnnouncementToDevices", ["string", "string", "string", "number", "number"]
-        command "voiceCmdAsText", [[name: "Voice Command as Text", type: "STRING", description: ""]]
+        command "voiceCmdAsText", [[name: "Voice Command as Text*", type: "STRING", description: ""]]
     }
 
     preferences {
