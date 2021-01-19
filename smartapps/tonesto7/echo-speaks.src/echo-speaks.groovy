@@ -1633,8 +1633,8 @@ void clearCloudConfig() {
 
 String getEnvParamsStr() {
     Map<String, String> envParams = [:]
-    envParams["smartThingsUrl"] = "${getAppEndpointUrl("receiveData")}".toString()
-    envParams["appCallbackUrl"] = "${getAppEndpointUrl("receiveData")}".toString()
+    envParams["smartThingsUrl"] = getAppEndpointUrl("receiveData")
+    envParams["appCallbackUrl"] = getAppEndpointUrl("receiveData")
     envParams["hubPlatform"] = platformFLD
     envParams["useHeroku"] = (isStFLD || (Boolean)settings.useHeroku).toString()
     envParams["serviceDebug"] = sFALSE
@@ -3691,7 +3691,7 @@ static String documentationLink() { return "https://tonesto7.github.io/echo-spea
 static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, state: sCOMPLT, image: getAppImg("documentation")}
 
-String getAppEndpointUrl(subPath)   { return isStFLD ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}" }
+String getAppEndpointUrl(subPath)   { return isStFLD ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString() }
 
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}" }
 /*
@@ -3967,6 +3967,10 @@ private getWebData(Map params, String desc, Boolean text=true) {
     }
 }
 
+
+Map getAvailableSounds() {
+    return getAvailableSoundsFLD
+}
 
 // TODO: https://m.media-amazon.com/images/G/01/mobile-apps/dex/ask-tech-docs/ask-soundlibrary._TTH_.json
 @Field static final Map getAvailableSoundsFLD = [
@@ -5570,8 +5574,8 @@ def getSettingVal(String inName) {
     return value
 }
 
-String getTextEditorPath(cId, inName) {
-    return getAppEndpointUrl("textEditor/${cId}/${inName}") as String
+String getTextEditorPath(String cId, String inName) {
+    return getAppEndpointUrl("textEditor/${cId}/${inName}")
 }
 
 @Field static final List amazonDomainsFLD = ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx"]

@@ -22,7 +22,7 @@ import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String devVersionFLD  = "3.7.0.0"
-@Field static final String appModifiedFLD = "2021-01-18"
+@Field static final String appModifiedFLD = "2021-01-19"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -86,7 +86,7 @@ metadata {
 	    
 	attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
 
-        command "playText", ["string"] //This command is deprecated in ST but will work
+        command "playText", ["STRING"] //This command is deprecated in ST but will work
         command "playTextAndResume"
         command "playTrackAndResume"
         command "playTrackAndRestore"
@@ -96,69 +96,69 @@ metadata {
         command "doNotDisturbOff"
         // command "followUpModeOn"
         // command "followUpModeOff"
-        command "setAlarmVolume", ["number"]
+        command "setAlarmVolume", [[name: "Alarm Volume", type: "NUMBER", description: "Sets the devices Alarm notification volume"]]
         command "resetQueue"
-        command "playWeather", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-//  [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playSingASong", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playFlashBrief", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playFunFact", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playGoodNews", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playTraffic", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playJoke", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playSoundByName", ["string", "number", "number"]
-        command "playTellStory", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "sayGoodbye", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "sayGoodNight", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "sayBirthday", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "sayCompliment", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "sayGoodMorning", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "sayWelcomeHome", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
+        command "playWeather", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playSingASong", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playFlashBrief", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playFunFact", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playGoodNews", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playTraffic", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playJoke", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playSoundByName", [[name: "Sound Name", type: "STRING", description: "Sound object name"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playTellStory", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "sayGoodbye", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "sayGoodNight", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "sayBirthday", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "sayCompliment", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "sayGoodMorning", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "sayWelcomeHome", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         // command "playCannedRandomTts", ["string", "number", "number"]
         // command "playCannedTts", ["string", "string", "number", "number"]
-        command "playAnnouncement", [[name: "Text", type: "STRING", description: "Text to announce"],[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playAnnouncement", [[name: "Text*", type: "STRING", description: "Text to announce"],[name: "Title", type: "STRING", description: "Title to announce"],[name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playAnnouncementAll", [[name: "Text*", type: "STRING", description: "Text to announce"],[name: "Title", type: "STRING", description: "Title to announce"]]
-        command "playCalendarToday", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playCalendarTomorrow", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
-        command "playCalendarNext", [[ name: "Volume level", type: "NUMBER", description:'Set volume to'], [name:"restoreVolume", type: "NUMBER", description: "Restore volume to"]]
+        command "playAnnouncement", [[name: "Message to Announcement", type: "STRING", description: "Message to announce"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playAnnouncement", [[name: "Message to Announcement", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playAnnouncementAll", [[name: "Message to Announcement", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"]]
+        command "playCalendarToday", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playCalendarTomorrow", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playCalendarNext", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "stopAllDevices"
-        command "searchMusic", ["string", "string", "number", "number"]
-        command "searchAmazonMusic", ["string", "number", "number"]
-        command "searchAppleMusic", ["string", "number", "number"]
-        command "searchPandora", ["string", "number", "number"]
-        command "searchIheart", ["string", "number", "number"]
-        command "searchSiriusXm", ["string", "number", "number"]
-        command "searchSpotify", ["string", "number", "number"]
-        // command "searchTidal", ["string", "number", "number"]
-        command "searchTuneIn", ["string", "number", "number"]
-        command "sendAlexaAppNotification", ["string"]
-        command "executeSequenceCommand", ["string"]
-        command "executeRoutineId", ["string"]
-        command "createAlarm", ["string", "string", "string"]
-        command "createReminder", ["string", "string", "string"]
+        command "searchMusic", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchAmazonMusic", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchAppleMusic", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchPandora", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchIheart", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchSiriusXm", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchSpotify", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        // command "searchTidal", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchTuneIn", [[name: "Music Search Phrase", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "sendAlexaAppNotification", [ [name: "Notification Message", type: "STRING", description: ""]]
+        command "executeSequenceCommand", [[name: "Sequence Message Text", type: "STRING", description: ""]]
+        command "executeRoutineId", [[name: "Routine Id", type: "STRING", description: ""]]
+        command "createAlarm", [[name: "Alarm Label", type: "STRING", description: "This is the title of the alarm"], [name: "Date",type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time", type: "STRING", description: "Time (18:10 | HH:MM)"]]
+        command "createReminder", [[name: "Reminder Label", type: "STRING", description: "This is the title of the reminder"], [name: "Date",type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time", type: "STRING", description: "Time (18:10 | HH:MM)"]]
         // command "createReminderNew", ["string", "string", "string", "string", "string"]
-        command "removeNotification", ["string"]
+        command "removeNotification", [[name: "Notification ID to Remove", type: "STRING", description: ""]]
         // command "removeAllNotificationsByType", ["string"]
-        command "setWakeWord", ["string"]
-        command "renameDevice", ["string"]
+        command "setWakeWord", [[name: "New Wake Word", type: "STRING", description: ""]]
+        command "renameDevice", [[name: "New Device Name", type: "STRING", description: ""]]
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "togglePlayback"
-        command "setVolumeAndSpeak", ["number", "string"]
-        command "setVolumeSpeakAndRestore", ["number", "string", "number"]
+        command "setVolumeAndSpeak", [[name: "Volume", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak", type: "STRING", description: ""]]
+        command "setVolumeSpeakAndRestore", [[name: "Volume", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak", type: "STRING", description: ""],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "volumeUp"
         command "volumeDown"
         command "speechTest"
+        command "speak", [[name: "Message to Speak", type: "STRING", description: ""]]
         command "sendTestAnnouncement"
         command "sendTestAnnouncementAll"
         command "getDeviceActivity"
         command "getBluetoothDevices"
-        command "connectBluetooth", ["string"]
+        command "connectBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
         command "disconnectBluetooth"
-        command "removeBluetooth", ["string"]
+        command "removeBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
         command "sendAnnouncementToDevices", ["string", "string", "string", "number", "number"]
-        command "voiceCmdAsText", ["string"]
+        command "voiceCmdAsText", [[name: "Voice Command as Text", type: "STRING", description: ""]]
     }
 
     preferences {
