@@ -374,7 +374,7 @@ def triggersPage() {
                             case "Recurring":
                                 input "trig_scheduled_time", sTIME, title: inTS1("Trigger Time?", "clock"), required: false, submitOnChange: true, image: getAppImg("clock")
                                 if(settings.trig_scheduled_time && schedType == "Recurring") {
-                                    List recurOpts = ["Daily", "Weekly", "Monthly"]
+                                    List recurOpts = ["Daily", "Weekly", "Monthly"] // "Yearly"
                                     input "trig_scheduled_recurrence", sENUM, title: inTS1("Recurrence?", "day_calendar"), description: sBLANK, multiple: false, required: true, submitOnChange: true, options: recurOpts, defaultValue: "Once", image: getAppImg("day_calendar")
                                     // TODO: Build out the scheduling some more with quick items like below
                                     /*
@@ -2467,14 +2467,20 @@ def scheduleTest() {
 }
 
 def scheduleTrigEvt(evt=null) {
-    Long evtDelay = now() - evt?.date?.getTime()
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
-                    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
+    if(!evt) {
+        Date adate = new Date()
+        String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+        evt = [name: "Schedule", displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, deviceId: null]
+    }
+    Long evtDelay = now() - evt.date.getTime()
+    logTrace( "${evt.name} Event | Device: ${evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
     if (!schedulesConfigured()) { return }
+    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
     String schedType = (String)settings.trig_scheduled_type
     Boolean recur = schedType == 'Recurring'
     Map dateMap = getDateMap()
     // log.debug "dateMap: $dateMap"
+    //List recurOpts = ["Daily", "Weekly", "Monthly"] // "Yearly"
     String srecur = recur ? settings.trig_scheduled_recurrence : sNULL
     List days = recur ? settings.trig_scheduled_weekdays : null
     List daynums = recur ? settings.trig_scheduled_daynums : null
@@ -2493,19 +2499,14 @@ def scheduleTrigEvt(evt=null) {
     Boolean mdOk = daynums ? (dateMap.day in daynums && sTrigMap?.lastRun?.day != dateMap.day) : true
     Boolean wOk = (weeks && srecur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
     Boolean mOk = (months && srecur in ["Weekly", "Monthly"]) ? (dateMap.month in months && sTrigMap?.lastRun?.month != dateMap.month) : true
-    // Boolean yOk = (srecur in ["Yearly"]) ? (sTrigMap?.lastRun?.y != dateMap.y) : true
+    // Boolean yOk = (sTrigMap.lastRun && srecur in ["Yearly"]) ? (sTrigMap?.lastRun?.year != dateMap.year) : true
     if(wdOk && mdOk && wOk && mOk) {
         sTrigMap.lastRun = dateMap
         updMemStoreItem("schedTrigMap", sTrigMap)
         state.schedTrigMap = sTrigMap
 //        atomicState.schedTrigMap = sTrigMap
         releaseTheLock(sHMLF)
-        if(evt) {
-            executeAction(evt, false, "scheduleTrigEvt", false, false)
-        } else {
-            String dt = dateTimeFmt(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
-            executeAction([name: "Schedule", displayName: "Scheduled Trigger", value: fmtTime(dt), date: dt, deviceId: null], false, "scheduleTrigEvt", false, false)
-        }
+        executeAction(evt, false, "scheduleTrigEvt", false, false)
     } else {
         releaseTheLock(sHMLF)
         logDebug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
@@ -2828,10 +2829,13 @@ def deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
 }
 
 private processTierTrigEvt(evt, Boolean evtOk) {
-    // log.debug "processTierTrigEvt | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}"
+    logDebug("processTierTrigEvt | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
     if (evtOk) {
         //ERS
-        if(atomicState.actTierState?.size()) { return }
+        if(atomicState.actTierState?.size()) {
+            logDebug("processTierTrigEvt  found tier state | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
+            return
+        }
         tierEvtHandler(evt)
     } else if(!evtOk && settings.act_tier_stop_on_clear == true) {
         def tierConf = atomicState.actTierState?.evt
@@ -2842,7 +2846,7 @@ private processTierTrigEvt(evt, Boolean evtOk) {
             atomicState.tierSchedActive = false
             updTsVal("lastTierRespStopDt")
         }
-    }
+    } else logDebug("processTierTrigEvt no action | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
 }
 
 def getTierStatusSection() {
@@ -2867,11 +2871,16 @@ def getTierStatusSection() {
 private void resumeTierJobs() {
     //ERS
     if(atomicState.actTierState?.size() && (Boolean)atomicState.tierSchedActive) {
-        tierSchedHandler()
+        tierEvtHandler()
     }
 }
 
 private tierEvtHandler(evt=null) {
+    if(!evt) {
+        Date adate = new Date()
+        String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+        evt = [name: "Tiered Schedule", displayName: "Scheduled Tiered Trigger", value: fmtTime(dt), date: adate, deviceId: null]
+    }
     Map t0 = getTierMap()
     Map tierMap = t0 ?: [:]
     //ERS
@@ -2910,7 +2919,7 @@ private void tierSchedHandler(data) {
     if(data && data.tierState?.size() && data.tierState?.message) {
         // log.debug "tierSchedHandler(${data})"
         Map evt = data.tierState.evt
-        evt.date = dateTimeFmt(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+        //evt.date = dateTimeFmt(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         executeAction(evt, false, "tierSchedHandler", false, false, [msg: data?.tierState?.message as String, volume: data?.tierState?.volume, isFirst: (data?.tierState?.cycle == 1), isLast: (data?.tierState?.lastMsg == true)])
         if(data?.sched) {
             if(data.tierState.schedDelay && data.tierState.lastMsg == false) {
@@ -3180,8 +3189,8 @@ Boolean timeCondOk() {
 
 Boolean dateCondOk() {
     Boolean result = null
-    Boolean dOk
-    Boolean mOk
+    Boolean dOk = null
+    Boolean mOk = null
     if(!(settings.cond_days == null && settings.cond_months == null)) {
         Boolean reqAll = reqAllCond()
         dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : reqAll // true
@@ -3194,8 +3203,8 @@ Boolean dateCondOk() {
 
 Boolean locationCondOk() {
     Boolean result = null
-    Boolean mOk
-    Boolean aOk
+    Boolean mOk = null
+    Boolean aOk = null
     if(!(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null)) {
         Boolean reqAll = reqAllCond()
         mOk = (settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
@@ -3354,10 +3363,12 @@ private executeActTest() {
     settingUpdate("actTestRun", sFALSE, sBOOL)
     Map evt = [name: "contact", displayName: "some test device", value: "open", date: new Date()]
     if(getConfStatusItem("tiers")) {
-        processTierTrigEvt(null, true)
+        processTierTrigEvt(evt, true) // evt was null
     } else {
         if((String)settings.actionType in ["speak", "announcement"]) {
-            evt = getRandomTrigEvt()
+            Map aevt = getRandomTrigEvt()
+            if(!aevt) log.warn "no random event"
+            else evt = aevt
         }
         executeAction(evt, true, "executeActTest", false, false)
     }
@@ -3428,16 +3439,18 @@ String decodeVariables(evt, String str) {
     if(!str) return str
     if(evt) {
         // log.debug "str: ${str} | vars: ${(str =~ /%[a-z]+%/)}"
-        if(str.contains("%type%") && str.contains("%name%")) {
-            str = (str.contains("%type%") && evt.name) ? str.replaceAll("%type%", !evt?.displayName?.toLowerCase()?.contains(evt?.name) ? convEvtType(evt?.name) : sBLANK) : str
-            str = (str.contains("%name%")) ? str.replaceAll("%name%", evt?.displayName) : str
-        } else {
-            str = (str.contains("%type%") && evt?.name) ? str.replaceAll("%type%", convEvtType(evt?.name)) : str
-            str = (str.contains("%name%")) ? str.replaceAll("%name%", evt?.displayName) : str
+        if(str.contains("%type%") && evt.name) {
+            if(str.contains("%name%")) {
+                str = str.replaceAll("%type%", !evt.displayName?.toLowerCase()?.contains(evt.name) ? convEvtType(evt.name) : sBLANK)
+            } else {
+                str = str.replaceAll("%type%", convEvtType(evt.name))
+            }
         }
-        str = (str.contains("%unit%") && evt?.name) ? str.replaceAll("%unit%", getAttrPostfix(evt?.name)) : str
-        str = (str.contains("%value%") && evt?.value) ? str.replaceAll("%value%", evt?.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
-        if(evt?.totalDur) {
+        str = (str.contains("%name%")) ? str.replaceAll("%name%", evt.displayName) : str
+
+        str = (str.contains("%unit%") && evt.name) ? str.replaceAll("%unit%", getAttrPostfix(evt.name)) : str
+        str = (str.contains("%value%") && evt.value) ? str.replaceAll("%value%", evt.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
+        if(!(evt instanceof com.hubitat.hub.domain.Event) && evt.totalDur) {
             str = (str.contains("%duration%")) ? str.replaceAll("%duration%", "${evt.totalDur} second${evt.totalDur > 1 ? "s" : sBLANK} ago") : str
             str = (str.contains("%duration_min%")) ? str.replaceAll("%duration_min%", "${durationToMinutes(evt.totalDur)} minute${durationToMinutes(evt.totalDur) > 1 ? "s" : sBLANK} ago") : str
             str = (str.contains("%durationmin%")) ? str.replaceAll("%durationmin%", "${durationToMinutes(evt.totalDur)} minute${durationToMinutes(evt.totalDur) > 1 ? "s" : sBLANK} ago") : str
@@ -3445,9 +3458,10 @@ String decodeVariables(evt, String str) {
             str = (str.contains("%durationvalmin%")) ? str.replaceAll("%durationvalmin%", "${durationToMinutes(evt.totalDur)} minute${durationToMinutes(evt.totalDur) > 1 ? "s" : sBLANK}") : str
         }
     }
-    str = (str.contains("%date%")) ? str.replaceAll("%date%", convToDate(evt?.date ?: new Date())) : str
-    str = (str.contains("%time%")) ? str.replaceAll("%time%", convToTime(evt?.date ?: new Date())) : str
-    str = (str.contains("%datetime%")) ? str.replaceAll("%datetime%", convToDateTime(evt?.date ?: new Date())) : str
+    Date adate = (Date)evt.date ?: new Date()
+    str = (str.contains("%date%")) ? str.replaceAll("%date%", convToDate(adate)) : str
+    str = (str.contains("%time%")) ? str.replaceAll("%time%", convToTime(adate)) : str
+    str = (str.contains("%datetime%")) ? str.replaceAll("%datetime%", convToDateTime(adate)) : str
     return str
 }
 
@@ -5318,15 +5332,23 @@ public Map getSettingsAndStateMap() {
             sv?.each { svi-> if(settings.containsKey(svi)) { setObjs[svi] = [type: sk, value: settings[svi] ] } }
         }
         ((Map<String, List<String>>)typeObj.ends).each { ek, ev->
-            ev?.each { evi-> settings.findAll { it?.key?.endsWith(evi) }?.each { String fk, fv-> setObjs[fk] = [type: ek, value: fv] } }
+            ev?.each { evi->
+                settings.findAll { it?.key?.endsWith(evi) }?.each { String fk, fv->
+                    def vv = settings[fk] // fv
+                    if(ek==sTIME) vv = convToTime(toDateTime(vv))
+                    setObjs[fk] = [type: ek, value: vv]
+                }
+            }
         }
-        // this likely won't work
         ((Map<String,String>)typeObj.caps).each { ck, cv->
-//            settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
-            settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability", value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
+            //settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
+            settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv->
+                setObjs[fk] = [type: "capability", value: (fv instanceof List ? fv?.collect { it?.id?.toString() } : it?.id?.toString ) ] } //.toString().toList()
         }
         ((Map<String, String>)typeObj.dev).each { dk, dv->
-            settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv] }
+            //settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv.collect { it?.id?.toString() }] } //.toString().toList()
+            settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv->
+                setObjs[fk] = [type: "device", value: (fv instanceof List ? fv.collect { it?.id?.toString() } : it?.id?.toString() ) ] } //.toString().toList()
         }
     }
     Map data = [:]
