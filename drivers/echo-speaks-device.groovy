@@ -1646,6 +1646,7 @@ def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null
 }
 
 def voiceCmdAsText(String cmd) {
+    // log.trace "voiceCmdAsText($cmd)"
     if(cmd) {
         doSequenceCmd("voiceCmdAsText", "textcmd", cmd)
     }
@@ -3309,7 +3310,7 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
             case "textcmd":
                 seqNode.type = "Alexa.TextCommand"
                 seqNode.skillId = "amzn1.ask.1p.tellalexa"
-                seqNode.text = value
+                seqNode.operationPayload.text = value
                 break
             default:
                 return null
