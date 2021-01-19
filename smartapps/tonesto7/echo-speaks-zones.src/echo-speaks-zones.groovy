@@ -359,7 +359,7 @@ def condTimePage() {
     return dynamicPage(name:"condTimePage", title: "", install: false, uninstall: false) {
         Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
         section(sTS("Start Time:")) {
-            input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
             if(cond_time_start_type  == sTIME) {
                 input "cond_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
             } else if(cond_time_start_type in ["sunrise", "sunset"]) {
@@ -367,7 +367,7 @@ def condTimePage() {
             }
         }
         section(sTS("Stop Time:")) {
-            input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
             if(cond_time_stop_type == sTIME) {
                 input "cond_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
             } else if(cond_time_stop_type in ["sunrise", "sunset"]) {
@@ -458,7 +458,7 @@ def zoneNotifTimePage() {
         String pre = "notif"
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
         section(sTS("Quiet Start Time:")) {
-            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
             if(settings."${pre}_time_start_type" == sTIME) {
                 input "${pre}_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
             } else if(settings."${pre}_time_start_type" in ["sunrise", "sunset"]) {
@@ -466,7 +466,7 @@ def zoneNotifTimePage() {
             }
         }
         section(sTS("Quiet Stop Time:")) {
-            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
             if(settings."${pre}_time_stop_type" == sTIME) {
                 input "${pre}_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
             } else if(settings."${pre}_time_stop_type" in ["sunrise", "sunset"]) {
