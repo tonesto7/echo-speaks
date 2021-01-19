@@ -2014,7 +2014,7 @@ private transormRecurString(type, opt, tm, dt) {
     Map rd = null
     String rp = null
     if(!type) return [data: rd, pattern: rp]
-    def time = tm?.tokenize(':')
+    List time = tm?.tokenize(':')
     switch(type) {
         case "everyday":
             rd = [:]
