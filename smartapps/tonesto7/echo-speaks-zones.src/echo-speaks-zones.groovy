@@ -124,7 +124,7 @@ def mainPage() {
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
         appInfoSect()
         Boolean paused = isPaused()
-        Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
+        Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup == true)
         if(dup) {
             state.dupOpenedByUser = true
             section() { paragraph pTS("This Zone was just created from an existing zone.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null, image: getAppImg("pause_orange") }
@@ -187,6 +187,7 @@ private echoDevicesInputByPerm(type) {
     List echoDevs = parent?.getChildDevicesByCap(type as String)
     if(echoDevs?.size()) {
         def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
+        log.warn "settings.zone_EchoDevices " +getObjType(settings.zone_EchoDevices)
         input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
         List aa = settings.zone_EchoDevices
         List devIt = aa.collect { it ? it.toInteger():null }
@@ -362,7 +363,7 @@ def condTimePage() {
             input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
             if(cond_time_start_type  == sTIME) {
                 input "cond_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
-            } else if(cond_time_start_type in ["sunrise", "sunset"]) {
+            } else if(cond_time_start_type in lSUNRISESET) {
                 input "cond_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -370,7 +371,7 @@ def condTimePage() {
             input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
             if(cond_time_stop_type == sTIME) {
                 input "cond_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
-            } else if(cond_time_stop_type in ["sunrise", "sunset"]) {
+            } else if(cond_time_stop_type in lSUNRISESET) {
                 input "cond_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -461,7 +462,7 @@ def zoneNotifTimePage() {
             input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
             if(settings."${pre}_time_start_type" == sTIME) {
                 input "${pre}_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
-            } else if(settings."${pre}_time_start_type" in ["sunrise", "sunset"]) {
+            } else if(settings."${pre}_time_start_type" in lSUNRISESET) {
                 input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -469,7 +470,7 @@ def zoneNotifTimePage() {
             input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: ["time":"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
             if(settings."${pre}_time_stop_type" == sTIME) {
                 input "${pre}_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
-            } else if(settings."${pre}_time_stop_type" in ["sunrise", "sunset"]) {
+            } else if(settings."${pre}_time_stop_type" in lSUNRISESET) {
                 input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
             }
         }
@@ -505,7 +506,7 @@ def updated() {
     Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
     if(maybeDup) logInfo("updated found maybe a dup... ${settings.duplicateFlag}")
     if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
-    if(!state.dupPendingSetup) initialize()
+    if(!state.dupPendingSetup || state.dupOpenedByUser) initialize()
     else logInfo("This zone is duplicated and has not had configuration completed... Please open zone and configure to complete setup...")
 }
 
@@ -718,17 +719,17 @@ Boolean timeCondOk() {
         startTime = startType == 'time' && settings.cond_time_start ? toDateTime(settings.cond_time_start) : null
         stopTime = stopType == 'time' && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
 
-        if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+        if(startType in lSUNRISESET || stopType in lSUNRISESET) {
             def sun = getSunriseAndSunset()
             Long lsunset = sun.sunset.time
             Long lsunrise = sun.sunrise.time
             Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
             Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
-            if(startType in ["sunrise","sunset"]) {
+            if(startType in lSUNRISESET) {
                 Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
                 startTime = new Date(startl)
             }
-            if(stopType in ["sunrise","sunset"]) {
+            if(stopType in lSUNRISESET) {
                 Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
                 stopTime = new Date(stopl)
             }
@@ -888,8 +889,8 @@ Boolean devNumCondConfigured(String type) {
 }
 
 Boolean timeCondConfigured() {
-    Boolean startTime = (settings.cond_time_start_type in ["sunrise", "sunset"] || (settings.cond_time_start_type == sTIME && settings.cond_time_start))
-    Boolean stopTime = (settings.cond_time_stop_type in ["sunrise", "sunset"] || (settings.cond_time_stop_type == sTIME && settings.cond_time_stop))
+    Boolean startTime = (settings.cond_time_start_type in lSUNRISESET || (settings.cond_time_start_type == sTIME && settings.cond_time_start))
+    Boolean stopTime = (settings.cond_time_stop_type in lSUNRISESET || (settings.cond_time_stop_type == sTIME && settings.cond_time_stop))
     return (startTime && stopTime)
 }
 
@@ -1279,20 +1280,20 @@ String formatDt(Date dt, Boolean tzChg=true) {
     if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
     return (String)tf.format(dt)
 }
-/*
-String dateTimeFmt(dt, String fmt) {
-    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
+
+String dateTimeFmt(Date dt, String fmt) {
+//    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new java.text.SimpleDateFormat(fmt)
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return (String)tf?.format(dt)
 }
 
-String convToTime(dt) {
+String convToTime(Date dt) {
     String newDt = dateTimeFmt(dt, "h:mm a")
     if(newDt?.contains(":00 ")) { newDt?.toString()?.replaceAll(":00 ", " ") }
     return newDt
 }
-
+/*
 String convToDate(dt) {
     String newDt = dateTimeFmt(dt, "EEE, MMM d")
     return newDt
@@ -1544,17 +1545,17 @@ String getNotifSchedDesc(Boolean min=false) {
         startTime = startType == 'time' && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
         stopTime = stopType == 'time' && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
     }
-    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+    if(startType in lSUNRISESET || stopType in lSUNRISESET) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        if(startType in ["sunrise","sunset"]) {
+        if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
         }
-        if(stopType in ["sunrise","sunset"]) {
+        if(stopType in lSUNRISESET) {
             Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
             stopTime = new Date(stopl)
         }
@@ -1767,17 +1768,17 @@ Boolean notifTimeOk() {
     } else { return true }
 
     Date now = new Date()
-    if(startType in ["sunrise","sunset"] || stopType in ["sunrise","sunset"]) {
+    if(startType in lSUNRISESET || stopType in lSUNRISESET) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        if(startType in ["sunrise","sunset"]) {
+        if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
         }
-        if(stopType in ["sunrise","sunset"]) {
+        if(stopType in lSUNRISESET) {
             Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
             stopTime = new Date(stopl)
         }
@@ -2053,6 +2054,23 @@ void releaseTheLock(String qname){
     sema.release()
 } */
 
+String getObjType(obj) {
+    if(obj instanceof String) {return "String"}
+    else if(obj instanceof GString) {return "GString"}
+    else if(obj instanceof Map) {return "Map"}
+    else if(obj instanceof List) {return "List"}
+    else if(obj instanceof ArrayList) {return "ArrayList"}
+    else if(obj instanceof Integer) {return "Integer"}
+    else if(obj instanceof BigInteger) {return "BigInteger"}
+    else if(obj instanceof Long) {return "Long"}
+    else if(obj instanceof Boolean) {return "Boolean"}
+    else if(obj instanceof BigDecimal) {return "BigDecimal"}
+    else if(obj instanceof Float) {return "Float"}
+    else if(obj instanceof Byte) {return "Byte"}
+    else if(obj instanceof Date) {return "Date"}
+    else { return "unknown"}
+}
+
 //*******************************************************************
 //    CLONE CHILD LOGIC
 //*******************************************************************
@@ -2064,7 +2082,13 @@ public Map getSettingsAndStateMap() {
             sv?.each { svi-> if(settings.containsKey(svi)) { setObjs[svi] = [type: sk, value: settings[svi] ] } }
         }
         ((Map<String, List<String>>)typeObj.ends).each { ek, ev->
-            ev?.each { evi-> settings.findAll { it?.key?.endsWith(evi) }?.each { String fk, fv-> setObjs[fk] = [type: ek, value: fv] } }
+            ev?.each { evi->
+                settings.findAll { it?.key?.endsWith(evi) }?.each { String fk, fv->
+                    def vv = settings[fk] // fv
+//                    if(ek==sTIME) vv = convToTime(toDateTime(vv))
+                    setObjs[fk] = [type: ek, value: vv]
+                }
+            }
         }
         ((Map<String,String>)typeObj.caps).each { ck, cv->
             //settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
@@ -2091,4 +2115,3 @@ public Map getSettingsAndStateMap() {
     data.state = state?.findAll { !(it?.key in stskip) }
     return data
 }
-
