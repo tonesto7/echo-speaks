@@ -2751,8 +2751,8 @@ void afterEvtCheckHandler() {
                 updMemStoreItem("afterEvtMap", aEvtMap)
                 state.afterEvtMap = aEvtMap
 
-                logDebug("afterEvtCheckHandler  | TimeLeft: ${timeLeft}(<=4 ${(timeLeft <= 4)}) | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax}")
-                if(timeLeft <= 4 && nextVal.deviceId && nextVal.name) {
+                logDebug("afterEvtCheckHandler  | TimeLeft: ${timeLeft}(<=1 ${(timeLeft <= 1)}) | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax}")
+                if(timeLeft <= 1 && nextVal.deviceId && nextVal.name) {
                     timeLeft = reqDur
                     // log.debug "reqDur: $reqDur | evtElap: ${evtElap} | timeLeft: $timeLeft"
                     def devs = settings."trig_${nextVal.name}" ?: null
@@ -2793,8 +2793,8 @@ void afterEvtCheckHandler() {
         }
         // log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
         if(hasLock) releaseTheLock(sHMLF)
-        runIn(2, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
-        logTrace( "afterEvtCheckHandler scheduleAfterCheck in 2 seconds")
+        runIn(1, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
+        logTrace( "afterEvtCheckHandler scheduleAfterCheck in 1 second")
         // logTrace( "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})")
     } else {
         releaseTheLock(sHMLF)
@@ -4013,21 +4013,21 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             if(firstTierMsg) {
                 Integer del = settings.act_tier_start_delay
                 if(del) {
-                    logTrace( "scheduled executeTaskCommands scheduleAfterCheck in $del seconds - start delay")
+                    logTrace( "scheduled executeTaskCommands in $del seconds - start delay")
                     runIn(del, "executeTaskCommands", [data:[type: "act_tier_start_"]])
                 } else { executeTaskCommands([type:"act_tier_start_"]) }
             }
             if(lastTierMsg) {
                 Integer del = settings.act_tier_stop_delay
                 if(del) {
-                    logTrace( "scheduled executeTaskCommands scheduleAfterCheck in $del seconds - stop delay")
+                    logTrace( "scheduled executeTaskCommands in $del seconds - stop delay")
                     runIn(del, "executeTaskCommands", [data:[type: "act_tier_stop_"]])
                 } else { executeTaskCommands([type:"act_tier_stop_"]) }
             }
         } else {
             Integer del = settings.act_tasks_delay
             if(del) {
-                logTrace( "scheduled executeTaskCommands scheduleAfterCheck in $del seconds - action tasks delay")
+                logTrace( "scheduled executeTaskCommands in $del seconds - action tasks delay")
                 runIn(del, "executeTaskCommands", [data:[type: "act_"]])
             } else { executeTaskCommands([type: "act_"]) }
         }
