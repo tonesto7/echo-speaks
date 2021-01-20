@@ -3227,7 +3227,7 @@ static String getAttrPostfix(String attr) {
 }
 
 def scheduleAfterCheck(data) {
-    Integer val = data?.val ? (data?.val < 2 ? 2 : data?.val-4) : 60
+    Integer val = data?.val ? (data.val < 2 ? 2 : data.val-4) : 60
     String id = data?.id?.toString() ?: null
     Boolean rep = (data?.repeat == true)
     //ERS
@@ -4489,7 +4489,7 @@ public  webCoRE_handler(evt){
     }
 }
 
-public static String webCore_icon(){return "https://cdn.rawgit.com/ady624/webCoRE/master/resources/icons/app-CoRE.png"}
+public static String webCore_icon(){ return "https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/app-CoRE.png" }
 /******************************************
 |   Restriction validators
 *******************************************/
@@ -5203,7 +5203,7 @@ private void clearLogHistory() {
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, val) {
     String appId = app.getId()
-    Map memStore = historyMapFLD[appId] ?: [:]
+    Map<String, Object> memStore = historyMapFLD[appId] ?: [:]
     memStore[key] = val
     historyMapFLD[appId] = memStore
     historyMapFLD = historyMapFLD
@@ -5212,7 +5212,7 @@ private void updMemStoreItem(String key, val) {
 
 private getMemStoreItem(String key, defVal=[]){
     String appId = app.getId()
-    Map<String, List> memStore = historyMapFLD[appId] ?: [:]
+    Map<String, Object> memStore = historyMapFLD[appId] ?: [:]
     return memStore[key] ?: defVal
 }
 
