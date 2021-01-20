@@ -26,6 +26,7 @@ import groovy.transform.Field
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
 @Field static final Boolean betaFLD       = false
+@Field static final Boolean devModeFLD    = true
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -158,7 +159,7 @@ private buildTriggerEnum() {
         buildItems.Location.remove("pistonExecuted")
     }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power", "acceleration":"Accelorometers"]?.sort{ it?.value }
-    buildItems["Actionable Devices"] = ["lock":"Locks", "securityKeypad":"Keypads", "button":"Buttons", sSWITCH:"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
+    buildItems["Actionable Devices"] = ["lock":"Locks", "securityKeypad":"Keypads", "button":"Buttons", "switch":"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
     if(!isStFLD) {
         buildItems["Actionable Devices"].remove("button")
         buildItems["Button Devices"] = ["pushed":"Button (Pushable)", "released":"Button (Releasable)", "held":"Button (Holdable)", "doubleTapped":"Button (Double Tapable)"]?.sort{ it?.value }
@@ -420,7 +421,7 @@ def triggersPage() {
                                 break
                             case "Sunrise":
                             case "Sunset":
-                                input "trig_scheduled_sunState_offset", sNUMBER, range: "*..*", title: inTS1("Offset ${schedType} this number of minutes (+/-)", schedType?.toLowerCase()), required: true, image: getAppImg(schedType?.toLowerCase() + sBLANK)
+                                input "trig_scheduled_sunState_offset", sNUMBER, range: "*..*", title: inTS1("Offset ${schedType} this number of minutes (+/-)", schedType?.toLowerCase()), required: false, image: getAppImg(schedType?.toLowerCase() + sBLANK)
                                 break
                         }
                     }
@@ -1963,7 +1964,6 @@ Boolean hasUserDefinedTxt() {
 }
 
 Boolean executionConfigured() {
-    //ERS
     Boolean opts = (state.actionExecMap && state.actionExecMap.configured == true)
     Boolean devs = (settings.act_EchoDevices || settings.act_EchoZones)
     return (opts && devs)
@@ -2133,14 +2133,11 @@ private void updAppLabel() {
 
 private void updConfigStatusMap() {
     //ERS
-//    Map t0 = atomicState.configStatusMap
-//    Map sMap = t0 ?: [:]
     Map sMap = [:]
     sMap.triggers = triggersConfigured()
     sMap.conditions = conditionsConfigured()
     sMap.actions = executionConfigured()
     sMap.tiers = isTierActConfigured()
-//    atomicState.configStatusMap = sMap
     state.configStatusMap = sMap
 }
 
@@ -2161,6 +2158,7 @@ private void actionCleanup() {
     List items = ["afterEvtMap", "afterEvtChkSchedMap", "actTierState", "tierSchedActive", "zoneStatusMap"]
     updMemStoreItem("afterEvtMap", [:])
     updMemStoreItem("afterEvtChkSchedMap", [:])
+    updMemStoreItem("actTierState", [:])
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     //Cleans up unused action setting items
     List setItems = []
@@ -2647,12 +2645,9 @@ void afterEvtCheckWatcher() {
 
     Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
-//    Map t0 = atomicState.afterEvtMap
-//    Map aEvtMap = t0 ?: [:]
+
     Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
     if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
-//    Map t0 = atomicState.afterEvtChkSchedMap
-//    Map aSchedMap = t0 ?: null
 
     if((aEvtMap.size() == 0 && aSchedMap?.id) || (aEvtMap.size() && getLastAfterEvtCheck() > 240)) {
         runIn(2, "afterEvtCheckHandler")
@@ -2679,18 +2674,12 @@ void devAfterEvtHandler(evt) {
     // log.trace "lock wait: ${aa}"
     Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
-//    Map t0 = atomicState.afterEvtMap
-//    Map aEvtMap = t0 ?: [:]
 
-    if(aEvtMap.containsKey(eid)) {
-        if(dcaf && !schedChk) {
-            aEvtMap.remove(eid)
-            rem = true
-        }
+    if(aEvtMap.containsKey(eid) && dcaf && !schedChk) {
+        aEvtMap.remove(eid)
+        rem = true
     }
     Boolean ok = schedChk
-//    Boolean hasRepeat = (settings."trig_${nextVal.name}_after_repeat" != null)
-//    aEvtMap[nextItem?.key]?.repeatDt = formatDt(new Date())
     if(ok) { aEvtMap[eid] = [
             dt: evt?.date?.toString(),
             deviceId: evt?.deviceId as String,
@@ -2707,17 +2696,16 @@ void devAfterEvtHandler(evt) {
             repeatCnt: 0,
             repeatCntMax: dcafrc ]
     }
-//    atomicState.afterEvtMap = aEvtMap
     state.afterEvtMap = aEvtMap
     updMemStoreItem("afterEvtMap", aEvtMap)
     releaseTheLock(sHMLF)
 
-    if(rem) log.warn "Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${evt?.name?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${aEvtMap?.size()})"
+    if(rem) logInfo("Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${evt?.name?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${aEvtMap?.size()})")
 
     if(ok) {
         runIn(2, "afterEvtCheckHandler")
-        Boolean aftWatSched = state.afterEvtCheckWatcherSched ?: false
-        if(!aftWatSched) {
+        logTrace( "Scheduled afterEvent in 2 seconds")
+        if(!(Boolean)state.afterEvtCheckWatcherSched) {
             state.afterEvtCheckWatcherSched = true
             runEvery5Minutes("afterEvtCheckWatcher")
         }
@@ -2730,28 +2718,23 @@ void afterEvtCheckHandler() {
     // log.trace "lock wait: ${aa}"
     Map<String,Map> aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
-    releaseTheLock(sHMLF) // TODO fix
-//    Map t0 = atomicState.afterEvtMap
-//    Map aEvtMap = t0 ?: [:]
+    Boolean hasLock = true
+
     if(aEvtMap.size()) {
         // Collects all of the evt items and stores their wait values as a list
         Integer timeLeft = null
         Integer lowWait = aEvtMap.findAll {it -> it?.value?.wait != null }?.collect { it?.value?.wait }?.min()
         Integer lowLeft = aEvtMap.findAll {it -> it?.value?.wait == lowWait }?.collect { it?.value?.timeLeft} ?.min()
         def nextItem = aEvtMap.find {it -> it?.value?.wait == lowWait && (!it?.value?.timeLeft || it?.value?.timeLeft == lowLeft) }
-
-        log.debug "nextItem: $nextItem"
+        //ERS TODO
+        //log.debug "nextItem: $nextItem"
         Map nextVal = nextItem?.value ?: null
-        //Map nextVal = nextItem ?: null
-
-        log.debug "nextVal: $nextVal"
+        //log.debug "nextVal: $nextVal"
         String nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal?.deviceId}_${nextVal?.name}" : sNULL
-        log.debug "nextId: $nextId    key: nextItem?.key"
+        //log.debug "nextId: $nextId    key: ${nextItem?.key}"
         if(nextVal && nextId && aEvtMap[nextId]) {
             Date prevDt = (Boolean)nextVal.isRepeat && nextVal.repeatDt ? parseDate((String)nextVal.repeatDt) : parseDate((String)nextVal.dt)
             Date fullDt = parseDate((String)nextVal.dt)
-            def devs = settings."trig_${nextVal.name}" ?: null
-            // log.debug "nextVal: $nextVal"
             Integer repeatCnt = (nextVal.repeatCnt >= 0) ? nextVal.repeatCnt + 1 : 1
             Integer repeatCntMax = (Integer)nextVal.repeatCntMax ?: null
             Boolean isRepeat = (Boolean)nextVal.isRepeat ?: false
@@ -2762,36 +2745,42 @@ void afterEvtCheckHandler() {
                 Integer fullElap = Math.round((timeNow - fullDt.getTime())/1000L).toInteger()
                 Integer reqDur = ((Boolean)nextVal.isRepeat && nextVal.repeatWait) ? (Integer)nextVal.repeatWait : (Integer)nextVal.wait ?: null
                 timeLeft = (reqDur - evtElap)
-                aEvtMap[nextId]?.timeLeft = timeLeft
-                aEvtMap[nextId]?.repeatCnt = repeatCnt
+                aEvtMap[nextId].timeLeft = timeLeft
+                aEvtMap[nextId].repeatCnt = repeatCnt
+
                 updMemStoreItem("afterEvtMap", aEvtMap)
-//                atomicState.afterEvtMap = aEvtMap
-                // log.warn "After Debug | TimeLeft: ${timeLeft}(<=4 ${(timeLeft <= 4)}) | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax}"
+                state.afterEvtMap = aEvtMap
+
+                logDebug("afterEvtCheckHandler  | TimeLeft: ${timeLeft}(<=4 ${(timeLeft <= 4)}) | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax}")
                 if(timeLeft <= 4 && nextVal.deviceId && nextVal.name) {
                     timeLeft = reqDur
                     // log.debug "reqDur: $reqDur | evtElap: ${evtElap} | timeLeft: $timeLeft"
-                    Boolean skipEvt = (nextVal?.triggerState && nextVal?.deviceId && nextVal?.name && devs) ?
-                            !devCapValEqual(devs, nextVal?.deviceId as String, (String)nextVal?.name, nextVal?.triggerState) : true
+                    def devs = settings."trig_${nextVal.name}" ?: null
+                    Boolean skipEvt = (nextVal.triggerState && nextVal.deviceId && nextVal.name && devs) ?
+                            !devCapValEqual(devs, nextVal.deviceId as String, (String)nextVal.name, nextVal.triggerState) : true
                     Boolean skipEvtCnt = (repeatCntMax && (repeatCnt > repeatCntMax))
                     aEvtMap[nextId]?.timeLeft = timeLeft
                     if(!skipEvt && !skipEvtCnt) {
                         if(hasRepeat) {
                             // log.warn "Last Repeat ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | Required: ${reqDur}"
-                            aEvtMap[nextId]?.repeatDt = formatDt(new Date())
-                            aEvtMap[nextId]?.isRepeat = true
-//                            atomicState.afterEvtMap = aEvtMap
+                            aEvtMap[nextId].repeatDt = formatDt(new Date())
+                            aEvtMap[nextId].isRepeat = true
                             updMemStoreItem("afterEvtMap", aEvtMap)
+                            releaseTheLock(sHMLF)
+                            state.afterEvtMap = aEvtMap
+                            hasLock = false
                             deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data, totalDur: fullElap], true, isRepeat)
                         } else {
                             aEvtMap.remove(nextId)
-//                            atomicState.afterEvtMap = aEvtMap
                             updMemStoreItem("afterEvtMap", aEvtMap)
-                            log.warn "Wait Threshold (${reqDur} sec) Reached for ${nextVal?.displayName} (${nextVal?.name?.toString()?.capitalize()}) | TriggerState: (${nextVal?.triggerState}) | EvtDuration: ${fullElap}"
+                            releaseTheLock(sHMLF)
+                            state.afterEvtMap = aEvtMap
+                            hasLock = false
+                            logInfo("Wait Threshold (${reqDur} sec) Reached for ${nextVal?.displayName} (${nextVal?.name?.toString()?.capitalize()}) | Issuing held event | TriggerState: (${nextVal?.triggerState}) | EvtDuration: ${fullElap}")
                             deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data], true)
                         }
                     } else {
                         aEvtMap.remove(nextId)
-//                            atomicState.afterEvtMap = aEvtMap
                         updMemStoreItem("afterEvtMap", aEvtMap)
                         if(!skipEvt && skipEvtCnt) {
                             logInfo("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) has repeated ${repeatCntMax} times | Skipping Action Repeat...")
@@ -2803,15 +2792,15 @@ void afterEvtCheckHandler() {
             }
         }
         // log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
-        //atomicState.afterEvtMap = aEvtMap
-        state.afterEvtMap = aEvtMap
- //       updMemStoreItem("afterEvtMap", aEvtMap)
-//        releaseTheLock(sHMLF)  TODO fix
+        if(hasLock) releaseTheLock(sHMLF)
         runIn(2, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
+        logTrace( "afterEvtCheckHandler scheduleAfterCheck in 2 seconds")
         // logTrace( "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})")
-    } else { clearAfterCheckSchedule() }
+    } else {
+        releaseTheLock(sHMLF)
+        clearAfterCheckSchedule()
+    }
     updTsVal("lastAfterEvtCheck")
-//    state.lastAfterEvtCheck = getDtNow()
 }
 
 def deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
@@ -2902,58 +2891,64 @@ def deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     } else if (execOk) { executeAction(evt, false, "deviceEvtHandler(${evntNam})", evtAd, aftRepEvt) }
 }
 
-/*    Boolean aa = getTheLock(sHMLF, "scheduleTrigEvt")
-    // log.trace "lock wait: ${aa}"
-//    Map t0 = atomicState.schedTrigMap
-//    Map sTrigMap = t0 ?: [:]
-    Map sTrigMap = getMemStoreItem("schedTrigMap", [:])
-    if(!sTrigMap) sTrigMap = state.schedTrigMap ?: [:] */
 private processTierTrigEvt(evt, Boolean evtOk) {
     logDebug("processTierTrigEvt | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
+    //ERS
+    Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
+    // log.trace "lock wait: ${aa}"
+    Map aTierSt = getMemStoreItem("actTierState", [:])
+    if(!aTierSt) aTierSt = state.actTierState ?: [:]
+
     if (evtOk) {
-        //ERS
-        if(atomicState.actTierState?.size()) {
+        if(aTierSt.size()) {
+            releaseTheLock(sHMLF)
             logDebug("processTierTrigEvt  found tier state | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
             return
         }
+        releaseTheLock(sHMLF)
         tierEvtHandler(evt)
+
     } else if(!evtOk && settings.act_tier_stop_on_clear == true) {
-        def tierConf = atomicState.actTierState?.evt
+        //def tierConf = atomicState.actTierState?.evt
+        def tierConf = aTierSt.evt
         if(tierConf?.size() && tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
+            updMemStoreItem("actTierState", [:])
+            state.actTierState = [:]
+//            atomicState.actTierState = [:]
+            releaseTheLock(sHMLF)
             logDebug("Tier Trigger no longer valid... Clearing TierState and Schedule...")
             unschedule("tierEvtHandler")
-            atomicState.actTierState = [:]
             atomicState.tierSchedActive = false
             updTsVal("lastTierRespStopDt")
         }
-    } else logDebug("processTierTrigEvt no action | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
-/*    updMemStoreItem("schedTrigMap", sTrigMap)
-    state.schedTrigMap = sTrigMap
-//        atomicState.schedTrigMap = sTrigMap
-    releaseTheLock(sHMLF) */
+    } else {
+        releaseTheLock(sHMLF)
+        logDebug("processTierTrigEvt no action | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
+    }
 }
 
-/*    Boolean aa = getTheLock(sHMLF, "scheduleTrigEvt")
-    // log.trace "lock wait: ${aa}"
-//    Map t0 = atomicState.schedTrigMap
-//    Map sTrigMap = t0 ?: [:]
-    Map sTrigMap = getMemStoreItem("schedTrigMap", [:])
-    if(!sTrigMap) sTrigMap = state.schedTrigMap ?: [:] */
 def getTierStatusSection() {
     String str = sBLANK
     if(isTierAction()) {
         //ERS
-        Map t0 = atomicState.actTierState
-        Map tS = t0 ?: null
-        str += "Tier Size: ${getTierMap()?.size()}\n"
-        str += "Schedule Active: ${(Boolean)atomicState.tierSchedActive == true}\n"
+        Map lTierMap = getTierMap()
+        Boolean tsa = (Boolean)atomicState.tierSchedActive == true
+
+        Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
+        // log.trace "lock wait: ${aa}"
+        Map aTierSt = getMemStoreItem("actTierState", [:])
+        if(!aTierSt) aTierSt = state.actTierState ?: [:]
+
+//        Map tS = atomicState.actTierState
+        Map tS = aTierSt
+        str += "Tier Size: ${lTierMap?.size()}\n"
+        str += "Schedule Active: ${tsa}\n"
         str += tS?.cycle ? "Tier Cycle: ${tS?.cycle}\n" : sBLANK
         str += tS?.schedDelay ? "Next Delay: ${tS?.schedDelay}\n" : sBLANK
         str += tS?.lastMsg ? "Is Last Cycle: ${tS?.lastMsg == true}\n" : sBLANK
-/*    updMemStoreItem("schedTrigMap", sTrigMap)
-    state.schedTrigMap = sTrigMap
-//        atomicState.schedTrigMap = sTrigMap
-    releaseTheLock(sHMLF) */
+
+        releaseTheLock(sHMLF)
+
         str += getTsVal("lastTierRespStartDt") ? "Last Tier Start: ${getTsVal("lastTierRespStartDt")}\n" : sBLANK
         str += getTsVal("lastTierRespStopDt") ? "Last Tier Stop: ${getTsVal("lastTierRespStopDt")}\n" : sBLANK
         section("Tier Response Status: ") {
@@ -2964,19 +2959,21 @@ def getTierStatusSection() {
 
 private void resumeTierJobs() {
     //ERS
-/*    Boolean aa = getTheLock(sHMLF, "scheduleTrigEvt")
+    Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
-//    Map t0 = atomicState.schedTrigMap
-//    Map sTrigMap = t0 ?: [:]
-    Map sTrigMap = getMemStoreItem("schedTrigMap", [:])
-    if(!sTrigMap) sTrigMap = state.schedTrigMap ?: [:] */
-    if(atomicState.actTierState?.size() && (Boolean)atomicState.tierSchedActive) {
-        tierEvtHandler()
+    Map aTierSt = getMemStoreItem("actTierState", [:])
+    if(!aTierSt) aTierSt = state.actTierState ?: [:]
+
+    //if(atomicState.actTierState?.size() && (Boolean)atomicState.tierSchedActive) {
+    if(aTierSt?.size()) {
+        releaseTheLock(sHMLF)
+        Boolean tsa = (Boolean)atomicState.tierSchedActive == true
+        if(tsa) {
+            tierEvtHandler()
+        }
+        return
     }
-/*    updMemStoreItem("schedTrigMap", sTrigMap)
-    state.schedTrigMap = sTrigMap
-//        atomicState.schedTrigMap = sTrigMap
-    releaseTheLock(sHMLF) */
+    releaseTheLock(sHMLF)
 }
 
 private tierEvtHandler(evt=null) {
@@ -2988,24 +2985,20 @@ private tierEvtHandler(evt=null) {
     Map t0 = getTierMap()
     Map tierMap = t0 ?: [:]
     //ERS
-/*    Boolean aa = getTheLock(sHMLF, "scheduleTrigEvt")
+    Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
-//    Map t0 = atomicState.schedTrigMap
-//    Map sTrigMap = t0 ?: [:]
-    Map sTrigMap = getMemStoreItem("schedTrigMap", [:])
-    if(!sTrigMap) sTrigMap = state.schedTrigMap ?: [:] */
-    t0 = atomicState.actTierState
-    Map tierState = t0 ?: [:]
-    Boolean schedNext = false
+    Map aTierSt = getMemStoreItem("actTierState", [:])
+    if(!aTierSt) aTierSt = state.actTierState ?: [:]
+
+//    t0 = atomicState.actTierState
+    Map tierState = aTierSt
     // TODO
     log.debug "tierState: ${tierState}"
     log.debug "tierMap: ${tierMap}"
     if(tierMap.size()) {
         Map newEvt = tierState.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, deviceId: evt?.deviceId, date: evt?.date]
         Integer curPass = (tierState.cycle && tierState.cycle.toString()?.isNumber()) ? tierState.cycle.toInteger()+1 : 1
-        if(curPass == 1) { updTsVal("lastTierRespStartDt"); remTsVal("lastTierRespStopDt") }
         if(curPass <= tierMap.size()) {
-            schedNext = true
             tierState.cycle = curPass
             tierState.schedDelay = tierMap[curPass]?.delay ?: null
             tierState.message = tierMap[curPass]?.message ?: null
@@ -3014,20 +3007,27 @@ private tierEvtHandler(evt=null) {
             if(tierMap[curPass]?.volume?.restore) tierState.volume.restore = tierMap[curPass]?.volume?.restore ?: null
             tierState.evt = newEvt
             tierState.lastMsg = (curPass+1 > tierMap.size())
-            log.trace("tierSize: (${tierMap.size()}) | cycle: ${tierState.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState.schedDelay}) | Message: (${tierState.message}) | LastMsg: (${tierState.lastMsg})")
-            atomicState.actTierState = tierState
-            tierSchedHandler([sched: schedNext, tierState: tierState])
+
+            logTrace("tierSize: (${tierMap.size()}) | cycle: ${tierState.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState.schedDelay}) | Message: (${tierState.message}) | LastMsg: (${tierState.lastMsg})")
+
+            updMemStoreItem("actTierState", tierState)
+            state.actTierState = tierState
+//            atomicState.actTierState = tierState
+            releaseTheLock(sHMLF)
+
+            if(curPass == 1) { updTsVal("lastTierRespStartDt"); remTsVal("lastTierRespStopDt") }
+
+            tierSchedHandler([sched: true, tierState: tierState])
         } else {
             logDebug("Tier Cycle has completed... Clearing TierState...")
-            atomicState.actTierState = [:]
+            //atomicState.actTierState = [:]
+            updMemStoreItem("actTierState", [:])
+            state.actTierState = [:]
+            releaseTheLock(sHMLF)
             atomicState.tierSchedActive = false
             updTsVal("lastTierRespStopDt")
         }
-    }
-/*    updMemStoreItem("schedTrigMap", sTrigMap)
-    state.schedTrigMap = sTrigMap
-//        atomicState.schedTrigMap = sTrigMap
-    releaseTheLock(sHMLF) */
+    } else releaseTheLock(sHMLF)
 }
 
 private void tierSchedHandler(data) {
@@ -3039,7 +3039,7 @@ private void tierSchedHandler(data) {
         if(data?.sched) {
             if(data.tierState.schedDelay && data.tierState.lastMsg == false) {
                 logDebug("Scheduling Next Tier Message for (${data.tierState?.schedDelay} seconds)");
-                runIn(data.tierState.schedDelay - 1, "tierEvtHandler"); //Subtracted 2 seconds from delay to offset processing delay
+                runIn(data.tierState.schedDelay, "tierEvtHandler")
             } else {
                 logDebug("Scheduling cleanup for (5 seconds) as this was the last message");
                 runIn(5, "tierEvtHandler");
@@ -3246,7 +3246,7 @@ def scheduleAfterCheck(data) {
     state.afterEvtChkSchedMap = a
     updMemStoreItem("afterEvtChkSchedMap", a)
     releaseTheLock(sHMLF)
-    logDebug("Schedule After Event Check${rep ? " (Repeat)" : sBLANK} for (${val} seconds) | Id: ${id}")
+    logDebug("Schedule After Event Check${rep ? " (Repeat)" : sBLANK} in (${val} seconds) | Id: ${id}")
 }
 
 private clearAfterCheckSchedule() {
@@ -3324,7 +3324,7 @@ Boolean dateCondOk() {
         mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
         result = reqAll ? (mOk && dOk) : (mOk || dOk)
     }
-    logTrace("dateConditions | $result | monthOk: $mOk | daysOk: $dOk")
+//    logTrace("dateConditions | $result | monthOk: $mOk | daysOk: $dOk")
     return result
 }
 
@@ -3338,7 +3338,7 @@ Boolean locationCondOk() {
         aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
-    logTrace("locationConditions | $result | modeOk: $mOk | alarmOk: $aOk")
+//    logTrace("locationConditions | $result | modeOk: $mOk | alarmOk: $aOk")
     return result
 }
 
@@ -3403,7 +3403,7 @@ Boolean deviceCondOk() {
     Integer cndSize = (passed.size() + failed.size())
     Boolean result = null
     if(cndSize != 0) result = reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
-    logTrace("DeviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+//    logTrace("DeviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return result
 }
 
@@ -4011,18 +4011,24 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
         if(tierData?.size() && (Integer)settings.act_tier_cnt > 1) {
             log.debug "firstTierMsg: ${firstTierMsg} | lastTierMsg: ${lastTierMsg}"
             if(firstTierMsg) {
-                if(settings.act_tier_start_delay) {
-                    runIn(settings.act_tier_start_delay, "executeTaskCommands", [data:[type: "act_tier_start_"]])
+                Integer del = settings.act_tier_start_delay
+                if(del) {
+                    logTrace( "scheduled executeTaskCommands scheduleAfterCheck in $del seconds - start delay")
+                    runIn(del, "executeTaskCommands", [data:[type: "act_tier_start_"]])
                 } else { executeTaskCommands([type:"act_tier_start_"]) }
             }
             if(lastTierMsg) {
-                if(settings.act_tier_stop_delay) {
-                    runIn(settings.act_tier_stop_delay, "executeTaskCommands", [data:[type: "act_tier_stop_"]])
+                Integer del = settings.act_tier_stop_delay
+                if(del) {
+                    logTrace( "scheduled executeTaskCommands scheduleAfterCheck in $del seconds - stop delay")
+                    runIn(del, "executeTaskCommands", [data:[type: "act_tier_stop_"]])
                 } else { executeTaskCommands([type:"act_tier_stop_"]) }
             }
         } else {
-            if(settings.act_tasks_delay) {
-                runIn(settings.act_tasks_delay, "executeTaskCommands", [data:[type: "act_"]])
+            Integer del = settings.act_tasks_delay
+            if(del) {
+                logTrace( "scheduled executeTaskCommands scheduleAfterCheck in $del seconds - action tasks delay")
+                runIn(del, "executeTaskCommands", [data:[type: "act_"]])
             } else { executeTaskCommands([type: "act_"]) }
         }
     }
@@ -4179,11 +4185,11 @@ Boolean getAppFlag(val) {
 private void stateMapMigration() {
     //Timestamp State Migrations
     Map tsItems = ["lastAfterEvtCheck":"lastAfterEvtCheck", "lastNotifMsgDt":"lastNotifMsgDt"]
-    tsItems?.each { k, v-> if(state.containsKey(k)) { updTsVal(v as String, state[k as String]); state.remove(k as String) } }
+    tsItems?.each { String k, String v-> if(state.containsKey(k)) { updTsVal(v, state[k]); state.remove(k) } }
 
     //App Flag Migrations
     Map flagItems = [:]
-    flagItems?.each { k, v-> if(state.containsKey(k)) { updAppFlag(v as String, state[k as String]); state.remove(k as String) } }
+    flagItems?.each { String k, String v-> if(state.containsKey(k)) { updAppFlag(v, state[k]); state.remove(k) } }
     updAppFlag("stateMapConverted", true)
 }
 
