@@ -266,7 +266,7 @@ def mainPage() {
             if(allOk && !newInstall) {
                 input "actionPause", sBOOL, title: inTS1("Pause Action?", "pause_orange"), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
                 if((Boolean)settings.actionPause) { unsubscribe() }
-                if(!paused) {
+                else {
                     input "actTestRun", sBOOL, title: inTS1("Test this action?", "testing"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
                     if(actTestRun) { executeActTest() }
                 }
@@ -1543,15 +1543,11 @@ def actionsPage() {
 
                 actionExecMap.delay = settings.act_delay
                 actionExecMap.configured = true
-//                updConfigStatusMap()
                 actionCleanup()
-//                tierItemCleanup()
-                //TODO: Add Cleanup of non selected inputs
+                //TODO: Check Cleanup of non selected inputs
             } else { actionExecMap = [configured: false] }
         }
         Map t1 = (done && (Boolean)actionExecMap.configured) ? actionExecMap : [configured: false]
-        //ERS
-//        atomicState.actionExecMap = t1
         state.actionExecMap = t1
         updConfigStatusMap()
         logDebug("actionExecMap: ${t1}")
@@ -1600,14 +1596,17 @@ def actTrigTasksPage(params) {
                 List lights = settings."${t}lights"
                 if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
                     paragraph pTS("Not all selected devices support color. So color options are hidden.", sNULL, true, sCLRRED), state: null, required: true
+                    settingRemove("${t}lights_color".toString())
+                    settingRemove("${t}lights_color_delay".toString())
                 } else {
                     input "${t}lights_color", sENUM, title: inTS1("To this color?\n(Optional)", sCOMMAND), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true, image: getAppImg("color")
                     if(settings."${t}lights_color") {
-                        input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?\n(Optional)", "delay"), required: true, submitOnChange: true, image: getAppImg("delay")
+                        input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?\n(Optional)", "delay"), required: false, submitOnChange: true, image: getAppImg("delay")
                     }
                 }
                 if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
                     paragraph pTS("Not all selected devices support level. So level option is hidden.", sNULL, true, sCLRRED), state: null, required: true
+                    settingRemove("${t}lights_level".toString())
                 } else { input "${t}lights_level", sENUM, title: inTS1("At this level?\n(Optional)", "speed_knob"), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("speed_knob")}
             }
         }
@@ -2063,7 +2062,6 @@ def installed() {
         runIn(3, "processDuplication")
     } else {
         if(!maybeDup && !state.dupPendingSetup) initialize()
-       // initialize()
     }
 }
 
@@ -2086,14 +2084,16 @@ def initialize() {
     updAppLabel()
     if(advLogsActive()) { logsEnabled() }
     runIn(3, "actionCleanup")
-    runIn(7, "subscribeToEvts")
-    runEvery1Hour("healthCheck")
-    if(settings.enableWebCoRE){
-        remTsVal(sLASTWU)
-        webCoRE_init()
+    if(!isPaused()) {
+        runIn(7, "subscribeToEvts")
+        runEvery1Hour("healthCheck")
+        if(settings.enableWebCoRE){
+            remTsVal(sLASTWU)
+            webCoRE_init()
+        }
+        updConfigStatusMap()
+        resumeTierJobs()
     }
-    updConfigStatusMap()
-    resumeTierJobs()
 }
 
 private void processDuplication() {
@@ -2232,6 +2232,7 @@ private void actionCleanup() {
 }
 
 Boolean isPaused() { return (Boolean)settings.actionPause }
+
 public void triggerInitialize() { runIn(3, "initialize") }
 private Boolean valTrigEvt(String key) { return (key in settings.triggerEvents) }
 
@@ -2244,7 +2245,7 @@ public void updatePauseState(Boolean pause) {
 }
 
 private healthCheck() {
-    // logTrace("healthCheck", true)
+    logTrace("healthCheck")
     if(advLogsActive()) { logsDisable() }
     if(settings.enableWebCoRE) webCoRE_poll()
 }
@@ -2315,7 +2316,7 @@ String cronBuilder() {
             cron = cItems.join(" ")
         }
     }
-    logInfo("cronBuilder | Cron: ${cron}")
+    logDebug("cronBuilder | Cron: ${cron}")
     return cron
 }
 
@@ -2700,7 +2701,7 @@ void devAfterEvtHandler(evt) {
     updMemStoreItem("afterEvtMap", aEvtMap)
     releaseTheLock(sHMLF)
 
-    if(rem) logInfo("Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${evt?.name?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${aEvtMap?.size()})")
+    if(rem) logDebug("Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${evt?.name?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${aEvtMap?.size()})")
 
     if(ok) {
         runIn(2, "afterEvtCheckHandler")
@@ -2751,8 +2752,8 @@ void afterEvtCheckHandler() {
                 updMemStoreItem("afterEvtMap", aEvtMap)
                 state.afterEvtMap = aEvtMap
 
-                logDebug("afterEvtCheckHandler  | TimeLeft: ${timeLeft}(<=4 ${(timeLeft <= 4)}) | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax}")
-                if(timeLeft <= 4 && nextVal.deviceId && nextVal.name) {
+                logDebug("afterEvtCheckHandler  | TimeLeft: ${timeLeft}(<=1 ${(timeLeft <= 1)}) | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax}")
+                if(timeLeft <= 1 && nextVal.deviceId && nextVal.name) {
                     timeLeft = reqDur
                     // log.debug "reqDur: $reqDur | evtElap: ${evtElap} | timeLeft: $timeLeft"
                     def devs = settings."trig_${nextVal.name}" ?: null
@@ -2776,16 +2777,16 @@ void afterEvtCheckHandler() {
                             releaseTheLock(sHMLF)
                             state.afterEvtMap = aEvtMap
                             hasLock = false
-                            logInfo("Wait Threshold (${reqDur} sec) Reached for ${nextVal?.displayName} (${nextVal?.name?.toString()?.capitalize()}) | Issuing held event | TriggerState: (${nextVal?.triggerState}) | EvtDuration: ${fullElap}")
+                            logDebug("Wait Threshold (${reqDur} sec) Reached for ${nextVal?.displayName} (${nextVal?.name?.toString()?.capitalize()}) | Issuing held event | TriggerState: (${nextVal?.triggerState}) | EvtDuration: ${fullElap}")
                             deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data], true)
                         }
                     } else {
                         aEvtMap.remove(nextId)
                         updMemStoreItem("afterEvtMap", aEvtMap)
                         if(!skipEvt && skipEvtCnt) {
-                            logInfo("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) has repeated ${repeatCntMax} times | Skipping Action Repeat...")
+                            logDebug("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) has repeated ${repeatCntMax} times | Skipping Action Repeat...")
                         } else {
-                            logInfo("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) state is already ${nextVal?.triggerState} | Skipping Action...")
+                            logDebug("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) state is already ${nextVal?.triggerState} | Skipping Action...")
                         }
                     }
                 }
@@ -2793,8 +2794,8 @@ void afterEvtCheckHandler() {
         }
         // log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
         if(hasLock) releaseTheLock(sHMLF)
-        runIn(2, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
-        logTrace( "afterEvtCheckHandler scheduleAfterCheck in 2 seconds")
+        runIn(1, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
+        logTrace( "afterEvtCheckHandler scheduleAfterCheck in 1 second")
         // logTrace( "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})")
     } else {
         releaseTheLock(sHMLF)
@@ -4013,21 +4014,21 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             if(firstTierMsg) {
                 Integer del = settings.act_tier_start_delay
                 if(del) {
-                    logTrace( "scheduled executeTaskCommands scheduleAfterCheck in $del seconds - start delay")
+                    logTrace( "scheduled executeTaskCommands in $del seconds - start delay")
                     runIn(del, "executeTaskCommands", [data:[type: "act_tier_start_"]])
                 } else { executeTaskCommands([type:"act_tier_start_"]) }
             }
             if(lastTierMsg) {
                 Integer del = settings.act_tier_stop_delay
                 if(del) {
-                    logTrace( "scheduled executeTaskCommands scheduleAfterCheck in $del seconds - stop delay")
+                    logTrace( "scheduled executeTaskCommands in $del seconds - stop delay")
                     runIn(del, "executeTaskCommands", [data:[type: "act_tier_stop_"]])
                 } else { executeTaskCommands([type:"act_tier_stop_"]) }
             }
         } else {
             Integer del = settings.act_tasks_delay
             if(del) {
-                logTrace( "scheduled executeTaskCommands scheduleAfterCheck in $del seconds - action tasks delay")
+                logTrace( "scheduled executeTaskCommands in $del seconds - action tasks delay")
                 runIn(del, "executeTaskCommands", [data:[type: "act_"]])
             } else { executeTaskCommands([type: "act_"]) }
         }
