@@ -129,7 +129,25 @@ def mainPage() {
     Boolean newInstall = !(Boolean)state.isInstalled
 //    Boolean resumeConf = ((Boolean)state.resumeConfig == true)
     //if((Boolean)state.refreshDeviceData) { getEchoDevices(true) }
+
+// force defaults
+    if(settings.autoCreateDevices == null) settingUpdate("autoCreateDevices", sTRUE, sBOOL)
+    if(settings.autoRenameDevices == null) settingUpdate("autoRenameDevices", sTRUE, sBOOL)
+    if(settings.addEchoNamePrefix == null) settingUpdate("addEchoNamePrefix", sTRUE, sBOOL)
+    if(settings.refreshCookieDays == null) settingUpdate("refreshCookieDays", 5, "number")
+    if(settings.logInfo == null) settingUpdate("logInfo", sTRUE, sBOOL)
+    if(settings.logWarn == null) settingUpdate("logWarn", sTRUE, sBOOL)
+    if(settings.logError == null) settingUpdate("logError", sTRUE, sBOOL)
+    if(settings.sendMissedPollMsg == null) {
+        settingUpdate('sendMissedPollMsg', sTRUE, sBOOL)
+        settingUpdate('misPollNotifyWaitVal', 2700)
+        settingUpdate('misPollNotifyMsgWaitVal', 3600)
+    }
+    if(settings.sendCookieInvalidMsg == null) settingUpdate("sendCookieInvalidMsg", sTRUE, sBOOL)
+    if(settings.sendAppUpdateMsg == null) settingUpdate("sendAppUpdateMsg", sTRUE, sBOOL)
+
     getEchoDevices(true)
+
     return dynamicPage(name: "mainPage", uninstall: false, install: true) {
         appInfoSect()
         if(!tokenOk) {
@@ -241,8 +259,8 @@ def authStatusPage() {
             section(sTS("Cookie Tools: (Tap to show)", getHEAppImg("cookie")), hideable: true, hidden: true) {
                 String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
                 input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
-//                if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
-//                if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
+                if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
+                if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
 //                if(!isStFLD) { paragraph pTS("in Days (1-5 max)", sNULL, false, sCLRGRY) }
                 // Refreshes the cookie
                 input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET), state: (pastDayChkOk ? sBLANK : sNULL)
@@ -777,7 +795,7 @@ private List getRemovableDevs() {
 
 private String devicePrefsDesc() {
     String str = sBLANK
-    str += "Auto Create (${!(Boolean) settings.autoCreateDevices ? "Disabled" : "Enabled"})"
+    str += "Auto Create (${!(Boolean)settings.autoCreateDevices ? "Disabled" : "Enabled"})"
     if((Boolean)settings.autoCreateDevices) {
         str += (Boolean) settings.createTablets ? bulletItem(str, "Tablets") : sBLANK
         str += (Boolean) settings.createWHA ? bulletItem(str, "WHA") : sBLANK
@@ -1373,9 +1391,9 @@ def initialize() {
         if(!(Boolean)state.noAuthActive) {
             runEvery15Minutes("getOtherData")
             runEvery3Hours("getEchoDevices") //This will reload the device list from Amazon
-            // runEvery1Minute("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
             getOtherData()
+            remTsVal("lastDevDataUpdDt") // will force next one to gather EchoDevices
             getEchoDevices()
             if(advLogsActive()) { logsEnabled() }
         } else { unschedule("getEchoDevices"); unschedule("getOtherData") }
@@ -1826,7 +1844,7 @@ def storeCookieData() {
     // log.debug "csrf: ${state.cookieData?.csrf}"
     Boolean a=validateCookie(true)
     if((Boolean)state.authValid && cookieItems.localCookie  && cookieItems.csrf ) {
-        logInfo("Cookie data was updated | Reinitializing App... | Polling should restart in 10 seconds...")
+        logInfo("Cookie data was updated | Reinitializing App... | in 10 seconds...")
         state.serviceConfigured = true
         updTsVal("lastCookieRrshDt")
         checkGuardSupport()
@@ -1905,9 +1923,11 @@ void authValidationEvent(Boolean valid, String src=sNULL) {
 }
 
 void authEvtHandler(Boolean isAuth, String src=sNULL) {
-    logDebug "authEvtHandler(${isAuth},$src)"
+    Boolean stC = ((Boolean)state.authValid != isAuth)
+    logDebug "authEvtHandler(${isAuth},$src) stateChange: ${stC}"
     state.authValid = isAuth
     if(!isAuth && !(Boolean)state.noAuthActive) {
+        state.noAuthActive = true
         clearCookieData('authHandler', true)
         noAuthReminder()
         if((Boolean)settings.sendCookieInvalidMsg && getLastTsValSecs("lastCookieInvalidMsgDt") > 28800) {
@@ -1916,15 +1936,16 @@ void authEvtHandler(Boolean isAuth, String src=sNULL) {
             sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the ${loc} Web Config page...")
             updTsVal("lastCookieInvalidMsgDt")
         }
+        logDebug("Scheduling noAuthReminder ${stC}")
         runEvery1Hour("noAuthReminder")
-        state.noAuthActive = true
         state.authEvtClearReason = [dt: getDtNow(), src: src]
         updateChildAuth(isAuth)
     } else if(isAuth && (Boolean)state.noAuthActive) {
         unschedule("noAuthReminder")
         state.noAuthActive = false
+        logDebug("Scheduling initialize for auth change ${stC}")
         runIn(10, "initialize", [overwrite: true])
-    } else if (isAuth && (Boolean)state.noAuthActive) {
+//    } else if (isAuth && (Boolean)state.noAuthActive) {
         // waiting for initialize to run
 //        logWarn("OOPS Somehow your Auth is Valid but the NoAuthActive State is true.  Clearing noAuthActive flag to allow device refresh")
 //        unschedule("noAuthReminder")
@@ -3406,6 +3427,7 @@ void healthCheck() {
     logTrace("healthCheck")
     String appId=app.getId()
     if(!healthChkMapFLD[appId]) {
+/*
         if(settings.sendMissedPollMsg == null) {
             settingUpdate('sendMissedPollMsg', sTRUE, sBOOL)
             settingUpdate('misPollNotifyWaitVal', 2700)
@@ -3416,6 +3438,7 @@ void healthCheck() {
         if(settings.logError == null) settingUpdate('logError', sTRUE, sBOOL)
         if(settings.logDebug == null) settingUpdate('logDebug', sFALSE, sBOOL)
         if(settings.logTrace == null) settingUpdate('logTrace', sFALSE, sBOOL)
+ */
         healthChkMapFLD[appId] = true
         healthChkMapFLD = healthChkMapFLD
     }
@@ -3498,7 +3521,7 @@ void appUpdateNotify() {
     Integer updW
     Boolean on=false
     if(res) {
-        on = ((Boolean)settings.sendAppUpdateMsg != false)
+        on = ((Boolean)settings.sendAppUpdateMsg)
         updW = settings.updNotifyWaitVal
         if(updW == null) { updW = 43200; settingUpdate("updNotifyWaitVal", 43200) }
         secs=getLastTsValSecs("lastUpdMsgDt")
@@ -4743,10 +4766,10 @@ String getLoginStatusDesc() {
 
 String getAppNotifDesc() {
     String str = sBLANK
-    str += (Boolean)settings.sendMissedPollMsg != false ? bulletItem(str, "Missed Polls") : sBLANK
-    str += (Boolean)settings.sendAppUpdateMsg != false ? bulletItem(str, "Code Updates") : sBLANK
-    str += (Boolean)settings.sendCookieRefreshMsg == true ? bulletItem(str, "Cookie Refresh") : sBLANK
-    str += (Boolean)settings.sendCookieInvalidMsg == true ? bulletItem(str, "Cookie Invalid") : sBLANK
+    str += (Boolean)settings.sendMissedPollMsg ? bulletItem(str, "Missed Polls") : sBLANK
+    str += (Boolean)settings.sendAppUpdateMsg ? bulletItem(str, "Code Updates") : sBLANK
+    str += (Boolean)settings.sendCookieRefreshMsg ? bulletItem(str, "Cookie Refresh") : sBLANK
+    str += (Boolean)settings.sendCookieInvalidMsg ? bulletItem(str, "Cookie Invalid") : sBLANK
     return str != sBLANK ? str : sNULL
 }
 
@@ -5715,12 +5738,12 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
 }
 
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
-private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo) { log.info " "+addHead(msg) } }
 private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
-    if((Boolean)settings.logError != false) {
+    if((Boolean)settings.logError) {
         log.error addHead(msg)
         String a
         try {
