@@ -74,7 +74,7 @@ definition(
     iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
     iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
     iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
-    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
+    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
     oauth       : true,
     pausable    : true
 )
@@ -3756,7 +3756,15 @@ Integer getDaysSinceUpdated() {
     }
 }
 
-String changeLogData() { return getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/changelog.txt", contentType: "text/plain; charset=UTF-8"], "changelog") }
+String changeLogData() { 
+    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/changelog.md", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
+    txt = txt?.toString()?.replaceAll("##", sBLNK)?.replaceAll(/(_\*\*)/, "<b>")?.replaceAll(/(\*\*\_)/, "</b>") // Replaces header format
+    txt = txt?.toString()?.replaceAll(/(- )/, "   ${sBULLET} ")
+    txt = txt?.toString()?.replaceAll(/(\[NEW\])/, "<u>[NEW]</u>")
+    txt = txt?.toString()?.replaceAll(/(\[UPDATE\])/, "<u>[FIX]</u>")
+    txt = txt?.toString()?.replaceAll(/(\[FIX\])/, "<u>[FIX]</u>")
+    return txt?.toString() // Replaces ## then **_ and _** in changelog data
+}
 Boolean showChgLogOk() { return ((Boolean)state.isInstalled && !((String)state.curAppVer == appVersionFLD && (Boolean)getInstData('shownChgLog')) ) }
 
 def changeLogPage() {
@@ -3960,7 +3968,7 @@ void getConfigData() {
 
 void getNoticeData() {
     Map params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/notices.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/notices.json",
         contentType: sAPPJSON,
         timeout: 20,
     ]

@@ -38,7 +38,7 @@ static String devVersion()  { return devVersionFLD }
 static Boolean isWS()       { return false }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-device.groovy") {
         // capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
         // capability "Audio Track Data" // Not Compatible with Hubitat

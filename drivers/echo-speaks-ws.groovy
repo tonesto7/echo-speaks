@@ -37,7 +37,7 @@ static String devVersion()  { return devVersionFLD }
 static Boolean isWS()       { return true }
 
 metadata {
-    definition (name: "Echo Speaks WS", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-ws.groovy") {
+    definition (name: "Echo Speaks WS", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-ws.groovy") {
         capability "Initialize"
         capability "Refresh"
         capability "Actuator"
