@@ -16,14 +16,14 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "3.7.0.0"
-@Field static final String appModifiedFLD = "2021-01-19"
+@Field static final String appVersionFLD  = "4.0.0.0"
+@Field static final String appModifiedFLD = "2021-01-21"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = true
-@Field static final Map minVersionsFLD    = [echoDevice: 3700, wsDevice: 3400, actionApp: 3700, zoneApp: 3700, server: 250]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4000, wsDevice: 4000, actionApp: 4000, zoneApp: 4000, server: 250]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
