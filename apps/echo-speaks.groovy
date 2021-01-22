@@ -21,7 +21,7 @@ import groovy.transform.Field
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
-@Field static final Boolean betaFLD       = false
+@Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = true
 @Field static final Map minVersionsFLD    = [echoDevice: 4000, wsDevice: 4000, actionApp: 4000, zoneApp: 4000, server: 250]  //These values define the minimum versions of code this app will work with.
 
@@ -3757,21 +3757,23 @@ Integer getDaysSinceUpdated() {
 }
 
 String changeLogData() { 
-    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/changelog.md", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
-    txt = txt?.toString()?.replaceAll("##", sBLNK)?.replaceAll(/(_\*\*)/, "<b>")?.replaceAll(/(\*\*\_)/, "</b>") // Replaces header format
+    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/CHANGELOG.md", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
+    txt = txt?.toString()?.replaceAll("###", sBLANK)?.replaceAll(/(_\*\*)/, "<b><i>")?.replaceAll(/(\*\*\_)/, "</i></b>") // Replaces header format
+    txt = txt?.toString()?.replaceAll("##", sBLANK)?.replaceAll(/(_\*\*)/, "<b>")?.replaceAll(/(\*\*\_)/, "</b>") // Replaces header format
     txt = txt?.toString()?.replaceAll(/(- )/, "   ${sBULLET} ")
     txt = txt?.toString()?.replaceAll(/(\[NEW\])/, "<u>[NEW]</u>")
     txt = txt?.toString()?.replaceAll(/(\[UPDATE\])/, "<u>[FIX]</u>")
     txt = txt?.toString()?.replaceAll(/(\[FIX\])/, "<u>[FIX]</u>")
     return txt?.toString() // Replaces ## then **_ and _** in changelog data
 }
-Boolean showChgLogOk() { return ((Boolean)state.isInstalled && !((String)state.curAppVer == appVersionFLD && (Boolean)getInstData('shownChgLog')) ) }
+Boolean showChgLogOk() { return ((Boolean) state.isInstalled && !((String) state.curAppVer == appVersionFLD && (Boolean) getInstData('shownChgLog')) ) }
 
 def changeLogPage() {
     return dynamicPage(name: "changeLogPage", title: sBLANK, nextPage: "mainPage", install: false) {
         section() {
+            String aa = changeLogData()
             paragraph title: "Release Notes", pTS(isStFLD ? sBLANK : "Release Notes", getAppImg("whats_new", true), true), state: sCOMPLT, image: getAppImg("whats_new")
-            paragraph pTS(changeLogData(), sNULL, false, sCLRGRY)
+            paragraph pTS(aa != null ? aa : "No ChangeLog Data Found..." , sNULL, false, sCLRGRY)
         }
         state.curAppVer = appVersionFLD
         updInstData("shownChgLog", true)

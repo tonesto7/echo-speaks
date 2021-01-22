@@ -42,5 +42,5 @@
 - [NEW] Added new voiceCmdAsText() command to execute commands as if they are spoken to the device
 
 ### Echo Speaks WebSocket
-Less overhead
-Improved operations with websockets
+- [UPDATE] Less overhead
+- [UPDATE] Improved operations with websockets
