@@ -1,4 +1,8 @@
-## v4.0.0
+## v4.0.0.1
+### Echo Speaks App
+- [FIX] Heroku app.json missing when using Beta branch.
+
+## v4.0.0.0
 - [UPDATE] Reduced overhead and resource usage
 - [UPDATE] Add new echo devices
 

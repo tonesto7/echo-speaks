@@ -16,8 +16,8 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.0.0"
-@Field static final String appModifiedFLD = "2021-01-21"
+@Field static final String appVersionFLD  = "4.0.0.1"
+@Field static final String appModifiedFLD = "2021-01-22"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
@@ -4964,7 +4964,7 @@ def renderConfig() {
             </div>
             <div class="my-2 text-center">
                 <h5>2. Tap Button to deploy to Heroku</h5>
-                <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/${betaFLD ? "dev" : "master"}${getEnvParamsStr()}">
+                <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/${betaFLD ? "develop" : "master"}${getEnvParamsStr()}">
                     <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
                 </a>
             </div>
