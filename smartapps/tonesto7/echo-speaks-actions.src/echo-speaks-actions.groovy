@@ -4427,7 +4427,7 @@ Boolean minVersionFailed() {
 ************************************************************************************************************/
 private static String webCoRE_handle(){return'webCoRE'}
 
-private webCoRE_init(pistonExecutedCbk){
+private webCoRE_init(pistonExecutedCbk=null){
     subscribe(location,webCoRE_handle(),webCoRE_handler);
 //    if(pistonExecutedCbk)subscribe(location,"${webCoRE_handle()}.pistonExecuted",webCoRE_handler);
     if(!webCoREFLD) {
