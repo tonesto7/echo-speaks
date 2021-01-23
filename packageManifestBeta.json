@@ -24,7 +24,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks-actions.groovy",
             "required": true,
             "oauth": false,
-            "version": "4.0.0.0"
+            "version": "4.0.1.0"
         },
         {
             "id": "50ad91a0-eb51-4d6f-98d2-f1654221baa9",
@@ -33,7 +33,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks-zones.groovy",
             "required": true,
             "oauth": false,
-            "version": "4.0.0.0"
+            "version": "4.0.1.0"
         }
     ],
     "drivers": [{
