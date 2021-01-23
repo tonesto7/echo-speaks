@@ -2620,7 +2620,7 @@ void checkGuardSupportResponse(response, data) {
         if(response?.status != 200) logWarn("${response?.status} $data")
         if(response?.status == 200 && data?.aws) updTsVal("lastSpokeToAmazon")
         Integer respLen = response?.data?.toString()?.length() ?: null
-        log.trace("GuardSupport Response Length: ${respLen}")
+        // log.trace("GuardSupport Response Length: ${respLen}")
         if(response?.data && respLen && respLen > 485000) {
             Map minUpdMap = getMinVerUpdsRequired()
             if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
@@ -2647,7 +2647,7 @@ void checkGuardSupportResponse(response, data) {
                         friendlyName: guardData?.friendlyName,
                     ]
                     guardSupported = true
-                } else { logError("checkGuardSupportResponse Error | No data received...") }
+                } // else { logDebug("checkGuardSupportResponse | No Guard Data Received Must Not Be Enabled...") }
             }
         } else { logError("checkGuardSupportResponse Error | No data received...") }
     } catch (ex) {
@@ -2681,10 +2681,12 @@ void checkGuardSupportServerResponse(response, data) {
         } else {
             Map resp = response?.data ? parseJson(response?.data?.toString()) : null
             // log.debug "GuardSupport Server Response: ${resp}"
-            if(resp && resp.guardData) {
-                log.debug "AGS Server Resp: ${resp?.guardData}"
-                state.guardData = resp.guardData
-                guardSupported = true
+            if(resp) {
+                if(resp.guardData) {
+                    log.debug "AGS Server Resp: ${resp?.guardData}"
+                    state.guardData = resp.guardData
+                    guardSupported = true
+                }
             } else { logError("checkGuardSupportServerResponse Error | No data received..."); return }
         }
     } catch (ex) {
