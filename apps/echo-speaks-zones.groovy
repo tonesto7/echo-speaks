@@ -17,8 +17,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.0.0"
-@Field static final String appModifiedFLD = "2021-01-21"
+@Field static final String appVersionFLD  = "4.0.1.0"
+@Field static final String appModifiedFLD = "2021-01-22"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
@@ -67,8 +67,7 @@ definition(
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
     iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
     iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
-    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks-zones.src/echo-speaks-zones.groovy",
-    pausable: true)
+    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks-zones.groovy")
 
 preferences {
     page(name: "startPage")
@@ -115,7 +114,6 @@ def uhOhPage () {
             def str = "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Zones can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them."
             paragraph str, required: true, state: null, image: getAppImg("exclude")
         }
-//        if(isStFLD) { remove("Remove this bad Zone", "WARNING!!!", "BAD Zone SHOULD be removed") }
     }
 }
 
@@ -172,7 +170,7 @@ def mainPage() {
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
         }
-        if((Boolean)state.isInstalled) {
+        if((Boolean) state.isInstalled) {
             section(sTS("Name this Zone:")) {
                 input "appLbl", sTEXT, title: inTS1("Zone Name", "name_tag"), description: "", required:true, submitOnChange: true, image: getAppImg("name_tag")
             }
@@ -410,26 +408,7 @@ def zoneNotifPage() {
                 paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
                 input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
             }
-/*
-            if(isStFLD) {
-                section(sTS("Pushover Support:")) {
-                    input "notif_pushover", sBOOL, title: inTS1("Use Pushover Integration", "pushover_icon"), required: false, submitOnChange: true, image: getAppImg("pushover")
-                    if(settings.notif_pushover == true) {
-                        def poDevices = parent?.getPushoverDevices()
-                        if(!poDevices) {
-                            parent?.pushover_init()
-                            paragraph pTS("If this is the first time enabling Pushover than leave this page and come back if the devices list is empty", sNULL, false, sCLR4D9), state: sCOMPLT
-                        } else {
-                            input "notif_pushover_devices", sENUM, title: inTS1("Select Pushover Devices", "select_icon"), description: sTTS, groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
-                            if(settings.notif_pushover_devices) {
-                                def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
-                                input "notif_pushover_priority", sENUM, title: inTS1("Notification Priority (Optional)", "priority"), description: sTTS, defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority")
-                                input "notif_pushover_sound", sENUM, title: inTS1("Notification Sound (Optional)", "sound"), description: sTTS, defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound")
-                            }
-                        }
-                    }
-                }
-            } */
+
             if(isZoneNotifConfigured()) {
                 section(sTS("Notification Restrictions:")) {
                     String nsd = getNotifSchedDesc()
@@ -1110,19 +1089,19 @@ public zoneCmdHandler(evt) {
                 break
 
             case "voicecmd":
-                logDebug("Sending VoiceCmd Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
+                logDebug("Sending VoiceCmdAsText Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.devices?.each { dev->
                     if(isStFLD && delay) {
-                        dev?.voiceCmdAsText(data?.message, [delay: delay])
-                    } else { dev?.voiceCmdAsText(data?.message) }
+                        dev?.voiceCmdAsText(data?.message as String, [delay: delay])
+                    } else { dev?.voiceCmdAsText(data?.message as String) }
                 }
                 break
             case "sequence":
                 logDebug("Sending Sequence Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.devices?.each { dev->
                     if(isStFLD && delay) {
-                        dev?.executeSequenceCommand(data?.message, [delay: delay])
-                    } else { dev?.executeSequenceCommand(data?.message) }
+                        dev?.executeSequenceCommand(data?.message as String, [delay: delay])
+                    } else { dev?.executeSequenceCommand(data?.message as String) }
                 }
                 break
             case "builtin":
