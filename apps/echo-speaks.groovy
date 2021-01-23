@@ -230,6 +230,7 @@ def mainPage() {
                 state.resumeConfig = true
             }
         }
+        appFooter()
         state.ok2InstallActionFlag = false
         clearDuplicationItems()
     }
@@ -1087,25 +1088,29 @@ def announcePage() {
 }
 
 @Field final Map seqItemsAvailFLD = [
-        other: [
-            "weather":sNULL, "traffic":sNULL, "flashbriefing":sNULL, "goodnews":sNULL, "goodmorning":sNULL, "goodnight":sNULL, "cleanup":sNULL,
-            "singasong":sNULL, "tellstory":sNULL, "funfact":sNULL, "joke":sNULL, "playsearch":sNULL, "calendartoday":sNULL,
-            "calendartomorrow":sNULL, "calendarnext":sNULL, "stop":sNULL, "stopalldevices":sNULL,
-            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message", "email": sNULL
-        ],
-        // dnd: [
-        //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
-        //     "dnd_duration":"2H30M", "dnd_time":"00:30"
-        // ],
-        speech: [
-            "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
-        ],
-        music: [
-            "amazonmusic": "search term", "applemusic": "search term", "iheartradio": "search term", "pandora": "search term",
-            "spotify": "search term", "tunein": "search term", "cloudplayer": "search term"
-        ]
+    other: [
+        "weather":sNULL, "traffic":sNULL, "flashbriefing":sNULL, "goodnews":sNULL, "goodmorning":sNULL, "goodnight":sNULL, "cleanup":sNULL,
+        "singasong":sNULL, "tellstory":sNULL, "funfact":sNULL, "joke":sNULL, "playsearch":sNULL, "calendartoday":sNULL,
+        "calendartomorrow":sNULL, "calendarnext":sNULL, "stop":sNULL, "stopalldevices":sNULL,
+        "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
+        "announcementall": "message", "pushnotification": "message", "email": sNULL
+    ],
+    // dnd: [
+    //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
+    //     "dnd_duration":"2H30M", "dnd_time":"00:30"
+    // ],
+    speech: [
+        "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
+    ],
+    music: [
+        "amazonmusic": "search term", "applemusic": "search term", "iheartradio": "search term", "pandora": "search term",
+        "spotify": "search term", "tunein": "search term", "cloudplayer": "search term"
     ]
+]
+
+public Map seqItemsAvail() {
+    return seqItemsAvailFLD
+}
 
 def sequencePage() {
     return dynamicPage(name: "sequencePage", uninstall: false, install: false) {
@@ -3613,6 +3618,10 @@ String sTS(String t, String i = sNULL, Boolean bold=false) { return isStFLD ? t 
 String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return isStFLD ? t : """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
 /* """ */
 
+static String sectTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="48"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
+
+static String sectH3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="48"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ?: sBLANK}""" }
+
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
 /* """ */
 
@@ -3624,8 +3633,8 @@ static String htmlLine(String color="#1A77C9") { return "<hr style='background-c
 
 def appFooter() {
     section() {
-        paragraph htmlLine("orange")
-        paragraph """<div style='color:orange;text-align:center'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
+        paragraph htmlLine()
+        paragraph """<div style='color:#1A77C9;text-align:center'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
     }       
 }
 
@@ -3661,24 +3670,22 @@ Integer getDaysSinceUpdated() {
 
 String changeLogData() { 
     String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/CHANGELOG.md", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
-    txt = txt?.toString()?.replaceAll("###", sBLANK)?.replaceAll(/(_\*\*)/, "<b><i>")?.replaceAll(/(\*\*\_)/, "</i></b>") // Replaces header format
-    txt = txt?.toString()?.replaceAll("##", sBLANK)?.replaceAll(/(_\*\*)/, "<h4>")?.replaceAll(/(\*\*\_)/, "</h4>") // Replaces header format
-    txt = txt?.toString()?.replaceAll("#", sBLANK)?.replaceAll(/(_\*\*)/, "<h2>")?.replaceAll(/(\*\*\_)/, "</h2>") // Replaces header format
+    txt = txt?.toString()?.replaceAll(/(\#\#\#\s)/, sBLANK)?.replaceAll(/(_\*\*)/, '<h5 style="font-size: 1.0em; font-weight: bold;">')?.replaceAll(/(\*\*\_)/, "</h5>") // Replaces header format
+    txt = txt?.toString()?.replaceAll(/(\#\#\s)/, sBLANK)?.replaceAll(/(_\*\*)/, '<h3 style="color: red; font-size: 1.3em; font-weight: bolder;">')?.replaceAll(/(\*\*\_)/, "</h3>") // Replaces header format
+    // txt = txt?.toString()?.replaceAll("#", sBLANK)?.replaceAll(/(_\*\*)/, "<p style='font-size: 1.5em; font-weight: bolder; color:#1A77C9;'>")?.replaceAll(/(\*\*\_)/, "</p>") // Replaces header format
     txt = txt?.toString()?.replaceAll(/(- )/, "   ${sBULLET} ")
     txt = txt?.toString()?.replaceAll(/(\[NEW\])/, "<u>[NEW]</u>")
     txt = txt?.toString()?.replaceAll(/(\[UPDATE\])/, "<u>[FIX]</u>")
     txt = txt?.toString()?.replaceAll(/(\[FIX\])/, "<u>[FIX]</u>")
+    txt += "<hr>"
+    // log.debug "txt: $txt"
     return txt?.toString() // Replaces ## then **_ and _** in changelog data
 }
 Boolean showChgLogOk() { return ((Boolean) state.isInstalled && !((String) state.curAppVer == appVersionFLD && (Boolean) getInstData('shownChgLog')) ) }
 
 def changeLogPage() {
     return dynamicPage(name: "changeLogPage", title: sBLANK, nextPage: "mainPage", install: false) {
-        section() {
-            String aa = changeLogData()
-            paragraph title: "Release Notes", pTS(isStFLD ? sBLANK : "Release Notes", getAppImg("whats_new", true), true), state: sCOMPLT, image: getAppImg("whats_new")
-            paragraph pTS(aa != null ? aa : "No ChangeLog Data Found..." , sNULL, false, sCLRGRY)
-        }
+        section(sectTS("Release Notes:", getAppImg("change_log", true), true)) { paragraph changeLogData() }
         state.curAppVer = appVersionFLD
         updInstData("shownChgLog", true)
     }
@@ -4620,7 +4627,8 @@ String getServiceConfDesc() {
 }
 
 String getLoginStatusDesc() {
-    String s = "Login Status: (${(Boolean)state.authValid ? "Valid" : "Invalid"})"
+    String s = """<span style="color: gray;">Login Status:</b> ${(Boolean) state.authValid ? """<div style="color: green;">(Valid)</div>""" : """<div style="color: red;">(Invalid)</div>"""}</span>"""
+    
     s += (getTsVal("lastCookieRrshDt")) ? "\nCookie Updated:\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})" : sBLANK
     return s
 }
@@ -4675,17 +4683,18 @@ String getInputToStringDesc(List inpt, Boolean addSpace=false) {
 
 def appInfoSect() {
     Map codeVer = (Map)state.codeVersions ?: null
-    String str = sBLANK
+    String tStr = sBLANK
     Boolean isNote = false
     if(codeVer && (codeVer.server || codeVer.actionApp || codeVer.echoDevice)) {
-        str += (codeVer.echoDevice) ? bulletItem(str, "Device: (v${codeVer.echoDevice})") : sBLANK
-        str += (codeVer.actionApp) ? bulletItem(str, "Action: (v${codeVer.actionApp})") : sBLANK
-        str += (codeVer.zoneApp) ? bulletItem(str, "Zone: (v${codeVer.zoneApp})") : sBLANK
-        str += (codeVer.wsDevice) ? bulletItem(str, "Socket: (v${codeVer.wsDevice})") : sBLANK
-        str += (codeVer.server) ? bulletItem(str, "Server: (v${codeVer.server})") : sBLANK
+        tStr += """<small style="color: gray;"><b>App:</b> v${appVersionFLD}</small>"""
+        tStr += (codeVer.echoDevice) ? """<br><small style="color: gray;"><b>Device:</b> v${codeVer.echoDevice}</small>""" : sBLANK
+        tStr += (codeVer.actionApp) ? """<br><small style="color: gray;"><b>Action:</b> v${codeVer.actionApp}</small>""" : sBLANK
+        tStr += (codeVer.zoneApp) ? """<br><small style="color: gray;"><b>Zone:</b> v${codeVer.zoneApp}</small>""" : sBLANK
+        tStr += (codeVer.wsDevice) ? """<br><small style="color: gray;"><b>Socket:</b> v${codeVer.wsDevice}</small>""" : sBLANK
+        tStr += (codeVer.server) ? """<br><small style="color: gray;"><b>Server:</b> v${codeVer.server}</small>""" : sBLANK
     }
-    section() {
-        href "changeLogPage", title: pTS("${app?.name} (v${appVersionFLD})", getAppImg("echo_speaks_3.2x", true)), description: str+"\n\nTap to view...", image: getAppImg("echo_speaks_3.2x")
+
+    section (sectH3TS(app?.name, tStr, getAppImg("echo_speaks_3.2x", true), "#1A77C9")) {
         if(!(Boolean)state.isInstalled) {
             paragraph pTS("--NEW Install--", sNULL, true, sCLR4D9), state: sCOMPLT
         } else {
@@ -4694,31 +4703,40 @@ def appInfoSect() {
             Map minUpdMap = getMinVerUpdsRequired()
             List codeUpdItems = codeUpdateItems(true)
             List remDevs = getRemovableDevs()
-            if((Boolean)minUpdMap.updRequired && ((List)minUpdMap.updItems).size()) {
+            if((Boolean)minUpdMap?.updRequired && ((List)minUpdMap.updItems).size()>0) {
                 isNote=true
-                String str3 = "Updates Required for:"
-                minUpdMap?.updItems?.each { String item-> str3 += bulletItem(str3, item)  }
-                paragraph pTS(str3, sNULL, true, sCLRRED), required: true, state: sNULL
-                paragraph pTS("If you just updated the code please press Done/Save to let the app process the changes.", sNULL, true, sCLRRED), required: true, state: sNULL
+                String str3 = """<small style="color: red;"><b>Updates Required:</b></small>"""
+                ((List) minUpdMap.updItems).each { item-> str3 += """<br><small style="color: red;">  ${sBULLET} ${item}</small>""" }
+                str3 += """<br><br><small style="color: red; font-weight: bold;">If you just updated the code please press Done/Next to let the app process the changes.</small>"""
+                paragraph str3
                 showDocs = true
             } else if(codeUpdItems?.size()) {
                 isNote=true
-                String str2 = "Code Updates Available for:"
-                codeUpdItems.each { String item-> str2 += bulletItem(str2, item) }
-                paragraph pTS(str2, sNULL, false, sCLR4D9), required: true, state: sNULL
+                String str2 = """<small style="color: red;"><b>Code Updates Available:</b></small>"""
+                codeUpdItems?.each { item-> str2 += """<br><small style="color: red;">  ${sBULLET} ${item}</small>""" }
+                paragraph str2
                 showDocs = true
             }
             if(showDocs) { updateDocsInput() }
-            if(!(Boolean)state.authValid && !(Boolean)state.resumeConfig) { isNote = true; paragraph pTS("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", sNULL, false, sCLRRED), required: true, state: sNULL }
+            if(!(Boolean) state.authValid && !(Boolean) state.resumeConfig) { 
+                isNote = true; 
+                String str4 = """<small style="color: orange;"><b>Login Issue:</b></small>"""
+                str4 += """<br><br><small style="color: orange;">You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!</small>"""
+                paragraph str4 
+            }
             if(state.noticeData && state.noticeData.notices && state.noticeData.notices?.size()) {
-                isNote = true; state.noticeData.notices.each { String item-> paragraph pTS(bulletItem(str, item), sNULL, false, sCLRRED), required: true, state: sNULL }
+                isNote = true; 
+                String str1 = ""
+                state.noticeData.notices.each { String item-> str1 += """<br><small style="color: red;">  ${sBULLET} ${item}</small>""" }
+                paragraph str1
             }
             if(remDevs?.size()) {
                 isNote = true
-                paragraph pTS("Device Removal:\n(${remDevs?.size()}) devices can be removed", sNULL, false), required: true, state: sNULL
+                paragraph """<small style="color: red;"><b>Device Removal:</b>\n(${remDevs?.size()}) devices can be removed</small>"""
             }
-            if(!isNote) { paragraph pTS("No Issues to Report", sNULL, true) }
+            if(!isNote) { paragraph """<small style="color: gray;">No Issues to Report</small>""" }
         }
+        paragraph htmlLine()
     }
     List unkDevs = getUnknownDevices()
     if(unkDevs?.size()) {
