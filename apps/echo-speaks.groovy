@@ -1088,25 +1088,29 @@ def announcePage() {
 }
 
 @Field final Map seqItemsAvailFLD = [
-        other: [
-            "weather":sNULL, "traffic":sNULL, "flashbriefing":sNULL, "goodnews":sNULL, "goodmorning":sNULL, "goodnight":sNULL, "cleanup":sNULL,
-            "singasong":sNULL, "tellstory":sNULL, "funfact":sNULL, "joke":sNULL, "playsearch":sNULL, "calendartoday":sNULL,
-            "calendartomorrow":sNULL, "calendarnext":sNULL, "stop":sNULL, "stopalldevices":sNULL,
-            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message", "email": sNULL
-        ],
-        // dnd: [
-        //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
-        //     "dnd_duration":"2H30M", "dnd_time":"00:30"
-        // ],
-        speech: [
-            "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
-        ],
-        music: [
-            "amazonmusic": "search term", "applemusic": "search term", "iheartradio": "search term", "pandora": "search term",
-            "spotify": "search term", "tunein": "search term", "cloudplayer": "search term"
-        ]
+    other: [
+        "weather":sNULL, "traffic":sNULL, "flashbriefing":sNULL, "goodnews":sNULL, "goodmorning":sNULL, "goodnight":sNULL, "cleanup":sNULL,
+        "singasong":sNULL, "tellstory":sNULL, "funfact":sNULL, "joke":sNULL, "playsearch":sNULL, "calendartoday":sNULL,
+        "calendartomorrow":sNULL, "calendarnext":sNULL, "stop":sNULL, "stopalldevices":sNULL,
+        "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
+        "announcementall": "message", "pushnotification": "message", "email": sNULL
+    ],
+    // dnd: [
+    //     "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
+    //     "dnd_duration":"2H30M", "dnd_time":"00:30"
+    // ],
+    speech: [
+        "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
+    ],
+    music: [
+        "amazonmusic": "search term", "applemusic": "search term", "iheartradio": "search term", "pandora": "search term",
+        "spotify": "search term", "tunein": "search term", "cloudplayer": "search term"
     ]
+]
+
+public Map seqItemsAvail() {
+    return seqItemsAvailFLD
+}
 
 def sequencePage() {
     return dynamicPage(name: "sequencePage", uninstall: false, install: false) {
