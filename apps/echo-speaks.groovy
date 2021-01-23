@@ -16,14 +16,14 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.0.1"
+@Field static final String appVersionFLD  = "4.0.1.0"
 @Field static final String appModifiedFLD = "2021-01-22"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = true
-@Field static final Map minVersionsFLD    = [echoDevice: 4000, wsDevice: 4000, actionApp: 4000, zoneApp: 4000, server: 250]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4010, wsDevice: 4010, actionApp: 4000, zoneApp: 4000, server: 260]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -2398,7 +2398,7 @@ Map getBluetoothData(String serialNumber) {
 @Field volatile static Map<String,Map> devActivityMapFLD = [:]
 
 void getDeviceActivityRunIn() {
-     Map a=getDeviceActivity(sNULL, true)
+     Map a = getDeviceActivity(sNULL, true)
 }
 
 Map getDeviceActivity(String serialNum, Boolean frc=false) {
@@ -2420,7 +2420,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
         // log.debug "lastUpdSec: $lastUpdSec"
 
         if((frc && lastUpdSec > 3) || lastUpdSec >= 360) {
-            logTrace("getDeviceActivity($serialNum,$frc)")
+            logTrace("getDeviceActivity($serialNum, $frc)")
             updTsVal("lastDevActChk")
             httpGet(params) { response->
                 if(response?.status != 200) logWarn("${response?.status} $params")
@@ -2437,8 +2437,8 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
                         def lastDevice = lastCommand.sourceDeviceIds?.get(0)
                         lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
 
-                        devActivityMapFLD[appId]=lastActData
-                        devActivityMapFLD=devActivityMapFLD
+                        devActivityMapFLD[appId] = lastActData
+                        devActivityMapFLD = devActivityMapFLD
                     }
                 }
             }
