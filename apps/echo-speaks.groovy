@@ -23,7 +23,7 @@ import groovy.transform.Field
 @Field static final Boolean isStFLD       = false
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = true
-@Field static final Map minVersionsFLD    = [echoDevice: 4010, wsDevice: 4010, actionApp: 4000, zoneApp: 4000, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4010, wsDevice: 4010, actionApp: 4010, zoneApp: 4010, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
