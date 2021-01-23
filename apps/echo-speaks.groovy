@@ -1051,7 +1051,7 @@ def speechPage() {
             paragraph pTS("This feature has been known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
             Map<String,String> devs = getDeviceList(true, [tts])
             input "test_speechDevices", sENUM, title: inTS("Select Devices to Test the Speech"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
-            if((List)settings.test_speechDevices?.size() >= 3) { paragraph "Amazon will Rate Limit more than 3 device commands at a time.  There will be a delay in the other devices but they should play the test after a few seconds", state: sNULL}
+            if(((List)settings.test_speechDevices)?.size() >= 3) { paragraph "Amazon will Rate Limit more than 3 device commands at a time.  There will be a delay in the other devices but they should play the test after a few seconds", state: sNULL}
             input "test_speechVolume", "number", title: inTS("Speak at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
             input "test_speechRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
             input "test_speechMessage", "text", title: inTS("Message to Speak"), defaultValue: "This is a speech test for your Echo speaks device!!!", required: true, submitOnChange: true
