@@ -1646,7 +1646,7 @@ def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null
 def voiceCmdAsText(String cmd) {
     // log.trace "voiceCmdAsText($cmd)"
     if(cmd) {
-        doSequenceCmd("voiceCmdAsText", "textcmd", cmd)
+        doSequenceCmd("voiceCmdAsText", "voicecmdtxt", cmd)
     }
 }
 
@@ -2540,7 +2540,7 @@ def sendTestAlexaMsg() {
             "sound": "message",
             "date": null, "time": null,
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message", "email": null, "textcmd": "voice command as text"
+            "announcementall": "message", "pushnotification": "message", "email": null, "voicecmdtxt": "voice command as text"
         ],
         music: [
             "amazonmusic": "AMAZON_MUSIC", "applemusic": "APPLE_MUSIC", "iheartradio": "I_HEART_RADIO", "pandora": "PANDORA",
@@ -3305,7 +3305,7 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                 seqNode.type = "Alexa.GoodNews.Play"
                 seqNode.skillId = "amzn1.ask.1p.goodnews"
                 break
-            case "textcmd":
+            case "voicecmdtxt":
                 seqNode.type = "Alexa.TextCommand"
                 seqNode.skillId = "amzn1.ask.1p.tellalexa"
                 seqNode.operationPayload.text = value
