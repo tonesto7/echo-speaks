@@ -2,7 +2,7 @@
     "appDataVer": "4.0",
     "versions": {
         "mainApp": {
-            "ver": "4.0.0.0"
+            "ver": "4.0.1.0"
         },
         "actionApp": {
             "ver": "4.0.0.0"
@@ -11,13 +11,13 @@
             "ver": "4.0.0.0"
         },
         "echoDevice": {
-            "ver": "4.0.0.0"
+            "ver": "4.0.1.0"
         },
         "wsDevice": {
-            "ver": "4.0.0.0"
+            "ver": "4.0.1.0"
         },
         "server": {
-            "ver": "2.6.0"
+            "ver": "2.7.0"
         }
     },
     "amazonDomains": ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx", "amazon.es", "amazon.in", "amazon.fr"],

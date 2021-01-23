@@ -1,9 +1,22 @@
 # v4.0.1.0
 ## Echo Speaks App
 - [UPDATE] Updated minimum code versions for Echo Device and WebSocket.
+- [UPDATE] Lot's of code cleanups
+- [FIX] Fixed guardData response error when guard is not enabled on Alexa account.
+
+## Echo Speaks Actions
+- [UPDATE] Lot's of code cleanups
+- [FIX] Fixed issue with being able to unpause action.
+- [FIX] Fixed issue with voicecmd actiontypes.
+
+## Echo Speaks Zones
+- [UPDATE] Lot's of code cleanups
+- [FIX] Fixed issue with relaying voicecmds.
 
 ## Echo Speaks Device
 - [FIX] VoiceActivity should now update the state correctly.
+- [FIX] WebSocket fixes.
+- [UPDATE] Rename voicecmd sequence string to voicecmdtxt.
 
 ## Echo Speaks WebSocket
 - [FIX] Fixed Issue with WebSocket not working in v4.x.

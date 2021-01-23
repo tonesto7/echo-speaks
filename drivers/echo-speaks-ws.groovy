@@ -20,12 +20,12 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.0.0"
-@Field static final String appModifiedFLD = "2021-01-21"
+@Field static final String devVersionFLD  = "4.0.1.0"
+@Field static final String appModifiedFLD = "2021-01-22"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
-@Field static final String sNULL          = (String)null
+@Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
 @Field static final String sAPPJSON       = 'application/json'
 
@@ -182,7 +182,6 @@ def webSocketStatus(String status) {
         state.connectionActive = true
         // log.trace("Connection Initiation (Step 1)")
         runIn(1, "nextMsgSend")
-//        sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE"))
     } else if (status == "status: closing") {
         logWarn("WebSocket connection closing.")
         updSocketStatus(false)
@@ -227,21 +226,12 @@ def parse(message) {
         if(newMsg == """0x37a3b607 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
         // if(newMsg == """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
             runIn(4, "nextMsgSend1")
-//            sendWsMsg(strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE"""))
-//            pauseExecution(1000)
             runIn(6, "nextMsgSend2")
-//            sendWsMsg(strToHex(encodeGWHandshake()))
-//            logTrace("Gateway Handshake Message Sent (Step 2)")
             return
         } else if (newMsg?.startsWith("MSG 0x00000361 ") && newMsg?.endsWith(" END FABE")) {
             runIn(2, "nextMsgSend3")
-//            sendWsMsg(strToHex(encodeGWRegister()))
-//            logTrace("Gateway Registration Message Sent (Step 3)")
 //            pauseExecution(1000)
             runIn(4, "nextMsgSend4")
-//            sendWsMsg(strToHex(encodePing()))
-//            logTrace("Encoded Ping Message Sent (Step 4)")
-//            return
         }
         parseIncomingMessage(newMsg)
     }
@@ -281,10 +271,10 @@ void parseIncomingMessage(String data) {
         message.service = readString(dStr, dLen-4, dLen-1)
         // log.debug "Message Service: ${message?.service}"
 
-        if ((String)message.service == "TUNE") {
+        if ((String) message.service == "TUNE") {
             message.checksum = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
-            Integer contentLength = (Integer)readHex(dStr, idx, 10)
+            Integer contentLength = (Integer) readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
             message.content = parseString(dStr, idx, contentLength - 4 - idx)
             if (message.content?.startsWith('{') && message.content?.endsWith('}')) {
@@ -294,20 +284,20 @@ void parseIncomingMessage(String data) {
                 } catch (e) {}
             }
         } else if ((String)message.service == 'FABE') {
-            message.messageType = parseString(dStr, idx, 3)
+            message.messageType = readString(dStr, idx, 3)
             idx += 4
             message.channel = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
             message.messageId = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
-            message.moreFlag = parseString(dStr, idx, 1)
+            message.moreFlag = readString(dStr, idx, 1)
             idx += 2 // 1 + delimiter;
             message.seq = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
             message.checksum = readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
 
-            Integer contentLength = (Integer)readHex(dStr, idx, 10)
+            Integer contentLength = (Integer) readHex(dStr, idx, 10)
             idx += 11 // 10 + delimiter;
             message.content = [:]
             message.content.messageType = parseString(dStr, idx, 3)
@@ -316,11 +306,11 @@ void parseIncomingMessage(String data) {
 
             if (message.channel == 865) { //0x361 GW_HANDSHAKE_CHANNEL
                 if (message.content?.messageType == "ACK") {
-                    Integer length = (Integer)readHex(dStr, idx, 10)
+                    Integer length = (Integer) readHex(dStr, idx, 10)
                     idx += 11 // 10 + delimiter;
                     message.content.protocolVersion = parseString(dStr, idx, length)
                     idx += length + 1
-                    length = (Integer)readHex(dStr, idx, 10)
+                    length = (Integer) readHex(dStr, idx, 10)
                     idx += 11 // 10 + delimiter;
                     message.content.connectionUUID = parseString(dStr, idx, length)
                     idx += length + 1
@@ -337,7 +327,7 @@ void parseIncomingMessage(String data) {
                 }
             } else if (message?.channel == 866) { // 0x362 GW_CHANNEL
                 if (message.content?.messageType == 'GWM') {
-                    message.content.subMessageType = parseString(dStr, idx, 3)
+                    message.content.subMessageType = readString(dStr, idx, 3)
                     idx += 4
                     message.content.channelStr = parseString(dStr, idx, 10)
                     message.content.channel = readHex(dStr, idx, 10)
@@ -345,13 +335,13 @@ void parseIncomingMessage(String data) {
                     idx += 11 // 10 + delimiter;
 
                     if (message?.content?.channel == 46201) { // 0xb479 DEE_WEBSITE_MESSAGING
-                        Integer length = (Integer)readHex(dStr, idx, 10)
+                        Integer length = (Integer) readHex(dStr, idx, 10)
                         idx += 11
                         message.content.destinationIdentityUrn = parseString(dStr, idx, length)
                         idx += length + 1
-                        length = (Integer)readHex(dStr, idx, 10)
+                        length = (Integer) readHex(dStr, idx, 10)
                         idx += 11
-                        String idData = parseString(dStr, idx, length)
+                        def idData = parseString(dStr, idx, length)
                         idx += length + 1
                         idData = idData?.tokenize(' ')
                         // log.debug "idData: $idData"

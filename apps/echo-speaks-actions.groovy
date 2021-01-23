@@ -20,8 +20,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.0.0"
-@Field static final String appModifiedFLD = "2021-01-21"
+@Field static final String appVersionFLD  = "4.0.1.0"
+@Field static final String appModifiedFLD = "2021-01-22"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean isStFLD       = false
@@ -74,8 +74,7 @@ definition(
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
     iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
-    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
-    pausable: true)
+    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks-actions.groovy")
 
 preferences {
     page(name: "startPage")
@@ -166,13 +165,7 @@ private buildTriggerEnum() {
     }
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
-/*    if(isStFLD) {
-        buildItems.each { String key, val-> addInputGrp(enumOpts, key, val) }
-        // log.debug "enumOpts: $enumOpts"
-        return enumOpts
-    } else {*/
-        return buildItems.collectEntries { it?.value }?.sort { it?.value }
-//    } // was it?.key
+    return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
 
 private buildActTypeEnum() {
@@ -185,12 +178,7 @@ private buildActTypeEnum() {
     buildItems["Alarms/Reminders"] = ["alarm":"Create Alarm", "reminder":"Create Reminder"]?.sort{ it?.key }
     buildItems["Devices Settings"] = ["wakeword":"Change Wake Word", "dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control"]?.sort{ it?.key }
     buildItems["Custom"] = ["voicecmd":"Execute a voice command","sequence":"Execute Sequence", "alexaroutine": "Execute Alexa Routine(s)"]?.sort{ it?.key }
-/*    if(isStFLD) {
-        buildItems.each { String key, val-> addInputGrp(enumOpts, key, val) }
-        return enumOpts
-    } else { */
-        return buildItems.collectEntries { it?.value }?.sort { it?.value }
-//    }
+    return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
 
 def mainPage() {
@@ -219,13 +207,9 @@ def mainPage() {
             trigConf = triggersConfigured()
             condConf = conditionsConfigured()
             actConf = executionConfigured()
-            allOk = ((String)settings.actionType && trigConf && actConf)
+            allOk = (Boolean) (settings.actionType && trigConf && actConf)
             section(sTS("Configuration: Part 1")) {
-/*                if(isStFLD) {
-                    input "actionType", sENUM, title: inTS1("Action Type", "list"), description: sBLANK, groupedOptions: buildActTypeEnum(), multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
-                } else {*/
                 input "actionType", sENUM, title: inTS1("Action Type", "list"), description: sBLANK, options: buildActTypeEnum(), multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
-//                }
             }
             if (newInstall) {
                 section("Configuration: Part 2") {
@@ -263,7 +247,7 @@ def mainPage() {
 
         section(sTS("Preferences")) {
             href "prefsPage", title: inTS1("Debug/Preferences", "settings"), description: sBLANK, image: getAppImg("settings")
-            if(allOk && !newInstall) {
+            if(!newInstall) {
                 input "actionPause", sBOOL, title: inTS1("Pause Action?", "pause_orange"), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
                 if((Boolean)settings.actionPause) { unsubscribe() }
                 else {
@@ -273,18 +257,20 @@ def mainPage() {
             }
         }
 
-        if(allOk && !newInstall) {
+        if(!newInstall) {
             section(sTS("Name this Action:")) {
                 input "appLbl", sTEXT, title: inTS1("Action Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true, image: getAppImg("name_tag")
             }
             section(sTS("Remove Action:")) {
                 href "uninstallPage", title: inTS1("Remove this Action", "uninstall"), description: "Tap to Remove...", image: getAppImg("uninstall")
             }
-            section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
-                String issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28ACTIONS+BUG%29+&projects=echo-speaks%2F6"
-                String featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BActions+Feature+Request%5D&projects=echo-speaks%2F6"
-                href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: "Tap to open browser", image: getAppImg("www")
-                href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: "Tap to open browser", image: getAppImg("www")
+            if(allOk) {
+                section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
+                    String issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28ACTIONS+BUG%29+&projects=echo-speaks%2F6"
+                    String featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BActions+Feature+Request%5D&projects=echo-speaks%2F6"
+                    href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: "Tap to open browser", image: getAppImg("www")
+                    href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: "Tap to open browser", image: getAppImg("www")
+                }
             }
         }
     }
@@ -363,11 +349,7 @@ def triggersPage() {
         }
         Boolean showSpeakEvtVars = false
         section (sTS("Select Capabilities")) {
-/*            if(isStFLD) {
-                input "triggerEvents", sENUM, title: "Select Trigger Event(s)", groupedOptions: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg("trigger")
-            } else { */
             input "triggerEvents", sENUM, title: inTS1("Select Trigger Event(s)", "trigger"), options: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true
-//            }
         }
         Integer trigEvtCnt = settings.triggerEvents?.size()
         if (trigEvtCnt) {
@@ -464,18 +446,6 @@ def triggersPage() {
                 }
             }
 
-/*            if(valTrigEvt("routineExecuted") && isStFLD) {
-                List stRoutines = isStFLD ? ( getLocationRoutines() ?: [] ) : []
-                section(sTS("Routine Events"), hideable: true) {
-                    input "trig_routineExecuted", sENUM, title: inTS1("Routines", "routine"), options: stRoutines, multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
-                    if(settings.trig_routineExecuted) {
-                        input "trig_routineExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: routine)", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        input "trig_routineExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
-                        triggerVariableDesc("routineExecuted", false, trigItemCnt++)
-                    }
-                }
-            } */
-
             if(valTrigEvt("pistonExecuted")) {
                 section(sTS("webCoRE Piston Executed Events"), hideable: true) {
                     input "trig_pistonExecuted", sENUM, title: inTS("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true, image: webCore_icon()
@@ -487,17 +457,6 @@ def triggersPage() {
                     }
                 }
             }
-/*
-            if(valTrigEvt("scene") && isStFLD) {
-                section(sTS("Scene Events"), hideable: true) {
-                    input "trig_scene", "device.sceneActivator", title: inTS1("Scene Devices", "routine"), multiple: true, required: true, submitOnChange: true, image: getAppImg("routine")
-                    if(settings.trig_scene) {
-                        input "trig_scene_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: scene)", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        input "trig_scene_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
-                        triggerVariableDesc("scene", false, trigItemCnt++)
-                    }
-                }
-            } */
 
             if (valTrigEvt(sSWITCH)) {
                 trigNonNumSect(sSWITCH, sSWITCH, "Switches", "Switches", lONOFF+lANY, "are turned", lONOFF, sSWITCH, trigItemCnt++)
@@ -538,18 +497,6 @@ def triggersPage() {
             if (valTrigEvt("securityKeypad")) {
                 trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", ["disarmed", "armed home", "armed away", "unknown", sANY], "changes to", ["disarmed", "armed home", "armed away", "unknown"], "lock", trigItemCnt++, (settings.trig_securityKeypad_Codes), ((settings.trig_securityKeypad && settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
             }
-/*
-            if (valTrigEvt("button") && isStFLD) {
-                section (sTS("Button Events"), hideable: true) {
-                    input "trig_button", "capability.button", title: inTS1("Buttons", "button"), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
-                    if (settings.trig_button) {
-                        input "trig_button_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: ["pushed", "held", sANY], required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
-                        if(settings.trig_button_cmd) {
-                            triggerVariableDesc("button", false, trigItemCnt++)
-                        }
-                    }
-                }
-            } */
 
             if (valTrigEvt("pushed")) {
                 section (sTS("Button Pushed Events"), hideable: true) {
@@ -1215,13 +1162,13 @@ def actionsPage() {
 
                 case "voicecmd":
                     section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
-                    echoDevicesInputByPerm("voicecmd")
+                    echoDevicesInputByPerm("TTS")
                     if(settings.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
                             input "act_voicecmd_txt", sTEXT, title: inTS1("Enter voice command text", sTEXT), submitOnChange: true, required: false, image: getAppImg(sTEXT)
                         }
                         actionExecMap.config.voicecmd = [text: settings.act_voicecmd_txt]
-                        if(act_voicecmd_txt) { done = true } else { done = false }
+                        if(settings.act_voicecmd_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
 
@@ -1639,10 +1586,6 @@ def actTrigTasksPage(params) {
             if(!isStFLD) {
                 input "${t}alarm_run", sENUM, title: inTS1("Set ${getAlarmSystemName()} mode${dMap?.def}\n(Optional)", "alarm_home"), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
             }
-/*            if(isStFLD) {
-                def routines = location.helloHome?.getPhrases()?.collectEntries { [(it?.id): it?.label] }?.sort { it?.value }
-                input "${t}routine_run", sENUM, title: inTS1("Execute a routine${dMap?.def}\n(Optional)", "routine"), options: routines, multiple: false, required: false, submitOnChange: true, image: getAppImg("routine")
-            } */
 
             if(settings.enableWebCoRE) {
 //                section (sTS("Execute a webCoRE Piston:")) {
@@ -1834,25 +1777,7 @@ def actNotifPage() {
             paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
             input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
         }
-/*        if(isStFLD) {
-            section(sTS("Pushover Support:")) {
-                input "notif_pushover", sBOOL, title: inTS1("Use Pushover Integration", "pushover_icon"), required: false, submitOnChange: true, image: getAppImg("pushover")
-                if(settings.notif_pushover == true) {
-                    def poDevices = parent?.getPushoverDevices()
-                    if(!poDevices) {
-                        parent?.pushover_init()
-                        paragraph pTS("If this is the first time enabling Pushover than leave this page and come back if the devices list is empty", sNULL, false, sCLR4D9), state: sCOMPLT
-                    } else {
-                        input "notif_pushover_devices", sENUM, title: inTS1("Select Pushover Devices", "select_icon"), description: "Tap to select", groupedOptions: poDevices, multiple: true, required: false, submitOnChange: true, image: getAppImg("select_icon")
-                        if(settings.notif_pushover_devices) {
-                            def t0 = [(-2):"Lowest", (-1):"Low", 0:"Normal", 1:"High", 2:"Emergency"]
-                            input "notif_pushover_priority", sENUM, title: inTS1("Notification Priority (Optional)", "priority"), description: "Tap to select", defaultValue: 0, required: false, multiple: false, submitOnChange: true, options: t0, image: getAppImg("priority")
-                            input "notif_pushover_sound", sENUM, title: inTS1("Notification Sound (Optional)", "sound"), description: "Tap to select", defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: parent?.getPushoverSounds(), image: getAppImg("sound")
-                        }
-                    }
-                }
-            }
-        } */
+
         if(isActNotifConfigured()) {
             section(sTS("Notification Restrictions:")) {
                 String nsd = getNotifSchedDesc()
@@ -1976,7 +1901,7 @@ private getLastEchoSpokenTo() {
 private echoDevicesInputByPerm(String type) {
     List echoDevs = parent?.getChildDevicesByCap(type)
     Boolean capOk = (type in ["TTS", "announce"])
-    Boolean zonesOk = ((String)settings.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "voicecmd", "sequence", "weather", "calendar", "music", "sounds", "builtin"])
+    Boolean zonesOk = ((String) settings.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "voicecmd", "sequence", "weather", "calendar", "music", "sounds", "builtin"])
     Map echoZones = (capOk && zonesOk) ? getZones() : [:]
     section(sTS("${echoZones?.size() ? "Zones & " : sBLANK}Alexa Devices:")) {
 //    section(sTS("Alexa Devices${echoZones?.size() ? " & Zones" : sBLANK}:")) {
@@ -3839,14 +3764,14 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                 if(actConf[actType] && actConf[actType].text) {
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actType, message: actConf[actType]?.text, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending VoiceCmd Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        log.debug("Sending VoiceCmdAsText Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
                             if(isStFLD && actDelayMs) {
                                 dev?.voiceCmdAsText(actConf[actType].text as String, [delay: actDelayMs])
-                            } else { dev?.executeSequenceCommand(actConf[actType].text as String) }
+                            } else { dev?.voiceCmdAsText(actConf[actType].text as String) }
                         }
-                        logDebug("Sending VoiceCmd Command to Zones: (${actConf[actType].text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        logDebug("Sending VoiceCmdAsText Command to Zones: (${actConf[actType].text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     }
                 }
                 break
