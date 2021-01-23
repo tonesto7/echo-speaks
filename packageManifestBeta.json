@@ -1,7 +1,7 @@
 {
     "packageName": "Echo Speaks",
     "author": "Anthony S.",
-    "version": "4.0.0.1",
+    "version": "4.0.1.0",
     "minimumHEVersion": "1.0.0",
     "dateReleased": "2021-01-21",
     "documentationLink": "https://tonesto7.github.io/echo-speaks-docs",
@@ -15,7 +15,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks.groovy",
             "required": true,
             "oauth": true,
-            "version": "4.0.0.1"
+            "version": "4.0.1.0"
         },
         {
             "id": "cd4762db-aa0b-4d32-98ca-06de955dbc33",
@@ -42,7 +42,7 @@
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-device.groovy",
             "required": true,
-            "version": "4.0.0.0"
+            "version": "4.0.1.0"
         },
         {
             "id": "e708fa5f-91be-421a-848c-e989406317bd",
@@ -50,7 +50,7 @@
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-ws.groovy",
             "required": true,
-            "version": "4.0.0.0"
+            "version": "4.0.1.0"
         }
     ]
 }

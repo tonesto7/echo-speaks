@@ -23,7 +23,7 @@ import groovy.transform.Field
 @Field static final Boolean isStFLD       = false
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = true
-@Field static final Map minVersionsFLD    = [echoDevice: 4010, wsDevice: 4010, actionApp: 4000, zoneApp: 4000, server: 260]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4010, wsDevice: 4010, actionApp: 4000, zoneApp: 4000, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -2620,11 +2620,11 @@ void checkGuardSupportResponse(response, data) {
         if(response?.status != 200) logWarn("${response?.status} $data")
         if(response?.status == 200 && data?.aws) updTsVal("lastSpokeToAmazon")
         Integer respLen = response?.data?.toString()?.length() ?: null
-        logTrace("GuardSupport Response Length: ${respLen}")
+        log.trace("GuardSupport Response Length: ${respLen}")
         if(response?.data && respLen && respLen > 485000) {
             Map minUpdMap = getMinVerUpdsRequired()
             if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
-                wakeupServer(false, true, "checkGuardSupport")
+                wakeupServer(false, false, "checkGuardSupport")
                 logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
             } else {
                 logWarn("Can't check for Guard Support because server version is out of date...  Please update to the latest version...")
@@ -3429,6 +3429,7 @@ void healthCheck() {
     logTrace("healthCheck")
     String appId=app.getId()
     if(!healthChkMapFLD[appId]) {
+        // Eric: Shouldn't these be re-enabled?
 /*
         if(settings.sendMissedPollMsg == null) {
             settingUpdate('sendMissedPollMsg', sTRUE, sBOOL)
@@ -3761,7 +3762,8 @@ Integer getDaysSinceUpdated() {
 String changeLogData() { 
     String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/CHANGELOG.md", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
     txt = txt?.toString()?.replaceAll("###", sBLANK)?.replaceAll(/(_\*\*)/, "<b><i>")?.replaceAll(/(\*\*\_)/, "</i></b>") // Replaces header format
-    txt = txt?.toString()?.replaceAll("##", sBLANK)?.replaceAll(/(_\*\*)/, "<b>")?.replaceAll(/(\*\*\_)/, "</b>") // Replaces header format
+    txt = txt?.toString()?.replaceAll("##", sBLANK)?.replaceAll(/(_\*\*)/, "<h4>")?.replaceAll(/(\*\*\_)/, "</h4>") // Replaces header format
+    txt = txt?.toString()?.replaceAll("#", sBLANK)?.replaceAll(/(_\*\*)/, "<h2>")?.replaceAll(/(\*\*\_)/, "</h2>") // Replaces header format
     txt = txt?.toString()?.replaceAll(/(- )/, "   ${sBULLET} ")
     txt = txt?.toString()?.replaceAll(/(\[NEW\])/, "<u>[NEW]</u>")
     txt = txt?.toString()?.replaceAll(/(\[UPDATE\])/, "<u>[FIX]</u>")
@@ -4823,30 +4825,6 @@ String getInputToStringDesc(List inpt, Boolean addSpace=false) {
     //log.debug "str: $str"
     return (str != sBLANK) ? str : sNULL
 }
-/*
-def appInfoSect2() {
-//    Map codeVer = (Map)state.codeVersions ?: null
-    Boolean isNote = false
-    String tStr = """<small style="color: gray;"><b>Version:</b> v${appVersionFLD}</small>${state.pluginDetails?.version ? """<br><small style="color: gray;"><b>Plugin:</b> v${state.pluginDetails?.version}</small>""" : sBLANK}"""
-    section (s3TS(app?.name, tStr, getAppImg("hb_tonesto7@2x", true), "orange")) {
-        Map minUpdMap = getMinVerUpdsRequired()
-        List codeUpdItems = codeUpdateItems(true)
-        if(minUpdMap?.updRequired && minUpdMap?.updItems?.size()) {
-            isNote=true
-            String str3 = """<small style="color: red;"><b>Updates Required:</b></small>"""
-            minUpdMap?.updItems?.each { String item-> str3 += """<br><small style="color: red;">  \u2022 ${item}</small>""" }
-            str3 += """<br><br><small style="color: red; font-weight: bold;">If you just updated the code please press Done/Next to let the app process the changes.</small>"""
-            paragraph str3
-        } else if(codeUpdItems?.size()) {
-            isNote=true
-            String str2 = """<small style="color: red;"><b>Code Updates Available:</b></small>"""
-            codeUpdItems?.each { item-> str2 += """<br><small style="color: red;">  \u2022 ${item}</small>""" }
-            paragraph str2
-        }
-        if(!isNote) { paragraph """<small style="color: gray;">No Issues to Report</small>""" }
-        paragraph htmlLine("orange")
-    }
-} */
 
 def appInfoSect() {
     Map codeVer = (Map)state.codeVersions ?: null
