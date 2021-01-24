@@ -95,7 +95,7 @@ def initialize() {
     state.remove('warnHistory'); state.remove('errorHistory')
 
     if(settings.autoConnectWs != false) {
-        if(!state.cookie || state.cookie instanceof String) state.cookie = parent?.getCookieMap()
+        if(!state.cookie || state.cookie instanceof String) state.cookie = (Map)parent?.getCookieMap()
         String cookS = getCookieVal() //state.cookie = parent?.getCookieVal()
         if(cookS) {
             if(!state.amazonDomain) {
@@ -108,7 +108,7 @@ def initialize() {
             state.remove('messageInitCnt') // state.messageInitCnt = 0
             runIn(2,"connect")
         } else {
-            logInfo("Skipping Socket Open... Cookie Data is Missing")
+            logInfo("Skipping Socket Open... Cookie Data is Missing $cookS   $state.cookie")
         }
     } else {
         logInfo("Skipping Socket Open... autoconnect disabled")
