@@ -156,6 +156,7 @@ def mainPage() {
                     href "zoneNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC), state: (t0 ? sCOMPLT : null)
                 }
             }
+            updConfigStatusMap()
         }
 
         section(sTS("Zone History")) {
@@ -184,11 +185,7 @@ private echoDevicesInputByPerm(String type) {
     List echoDevs = parent?.getChildDevicesByCap(type)
     if(echoDevs?.size()) {
         Map eDevsMap = echoDevs?.collectEntries { [(it.getId()): [label: (String)it.getLabel(), lsd: (it.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-//      log.warn "eDevsMap: $eDevsMap " +getObjType(eDevsMap)
-//      log.warn "settings.zone_EchoDevices: ${settings.zone_EchoDevices} " +getObjType(settings.zone_EchoDevices)
-//      fixEnumBug("zone_EchoDevices")
         Map moptions =  eDevsMap?.collectEntries { [(it.key.toString()): "${it?.value?.label}${(it?.value?.lsd == true) ? " (Last Spoken To)" : sBLANK}".toString()] }
-//      log.warn "moptions: $moptions " +getObjType(moptions)
         input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: "Select the devices", options: moptions, multiple: true, required: true, submitOnChange: true
 
         List aa = settings.zone_EchoDevices
@@ -196,18 +193,6 @@ private echoDevicesInputByPerm(String type) {
         app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt.unique()]) // this won't take effect until next execution
     } else { paragraph "No devices were found with support for ($type)"}
 }
-/*
-private fixEnumBug(String a) {
-    def mdef = settings."${a}"
-    if(mdef instanceof List){
-      log.warn "type is "+getObjType(mdef[0])
-        if((Boolean)state.dupOpenedByUser && mdef) {
-            settingRemove(a)
-            if(mdef)settingUpdate(a, mdef, sENUM)
-        }
-    }
-  log.warn "mdef: $mdef " +getObjType(mdef)
-} */
 
 def zoneHistoryPage() {
     return dynamicPage(name: "zoneHistoryPage", install: false, uninstall: false) {
@@ -499,9 +484,11 @@ def initialize() {
     updAppLabel()
     if(advLogsActive()) { logsEnabled() }
     runIn(3, "zoneCleanup")
-    runIn(7, "subscribeToEvts")
-    runEvery1Hour("healthCheck")
-    updConfigStatusMap()
+    if(!isPaused()) {
+        runIn(7, "subscribeToEvts")
+        runEvery1Hour("healthCheck")
+        updConfigStatusMap()
+    }
     checkZoneStatus([name: "initialize", displayName: "initialize"])
 }
 
@@ -510,7 +497,6 @@ private void processDuplication() {
     app?.updateLabel(newLbl)
     state.dupPendingSetup = true
 
-//            if(!state.dupParentDone) {
     String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
     Map dupData = parent?.getChildDupeData("zones", dupSrcId)
     log.debug "dupData: ${dupData}"
@@ -524,26 +510,9 @@ private void processDuplication() {
             settingUpdate(k, v.value, (String)v.type)
         }
    }
-//               }
-/*
-    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
-//        fixEnumBug("zone_EchoDevices")
-    Map dupData = parent?.getChildDupeData("zones", dupSrcId)
-    // log.debug "dupData: ${dupData}"
-    if(dupData && dupData.state?.size()) {
-        dupData.state.each { String k,v-> state[k] = v }
-    }
-    if(dupData && dupData.settings?.size()) {
-        dupData.settings.each { String k, Map v-> settingUpdate(k, (v.value != null ? v.value : null), (String)v.type) }
-    }
-    parent.childAppDuplicationFinished("zones", dupSrcId)
-*/
     sendZoneStatus()
     subscribe(location, "es3ZoneRefresh", zoneRefreshHandler)
     logInfo("Duplicated Zone has been created... Please open zone and configure to complete setup...")
-        //Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
-            //state.dupOpenedByUser = true
-    //if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
 }
 
 def uninstalled() {
@@ -569,15 +538,15 @@ public guardEventHandler(guardState) {
 }
 */
 private void updConfigStatusMap() {
-    Map sMap = atomicState?.configStatusMap
+    Map sMap = state.configStatusMap
     sMap = sMap ?: [:]
     sMap.conditions = conditionsConfigured()
     sMap.devices = devicesConfigured()
-    atomicState.configStatusMap = sMap
+    state.configStatusMap = sMap
 }
 
 Boolean devicesConfigured() { return (settings.zone_EchoDevices?.size() > 0) }
-private Boolean getConfStatusItem(String item) { Map sMap = atomicState?.configStatusMap; return (sMap?.containsKey(item) && sMap[item] == true) }
+private Boolean getConfStatusItem(String item) { Map sMap = state.configStatusMap; return (sMap?.containsKey(item) && sMap[item] == true) }
 
 private void zoneCleanup() {
     // State Cleanup
@@ -1393,26 +1362,46 @@ public void logsDisable() {
     }
 }
 
+@Field volatile static Map<String,Map> tsDtMapFLD=[:]
+
 private void updTsVal(String key, String dt=sNULL) {
-    Map data = atomicState?.tsDtMap ?: [:]
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:] 
+    if(!data) data = state.tsDtMap ?: [:]
     if(key) { data[key] = dt ?: getDtNow() }
-    atomicState.tsDtMap = data
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
+    
+    state.tsDtMap = data
 }
 
 private void remTsVal(key) {
-    Map data = atomicState?.tsDtMap ?: [:]
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:] 
+    if(!data) data = state.tsDtMap ?: [:]
     if(key) {
-        if(key instanceof List) {
-            key?.each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
-        } else { if(data?.containsKey((String)key)) { data?.remove((String)key) } }
-        atomicState.tsDtMap = data
+        if(key instanceof List) { 
+                key.each { String k->
+                    if(data.containsKey(k)) { data.remove(k) }
+                }
+        } else if(data.containsKey((String)key)) { data.remove((String)key) }
     }
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
+    
+    state.tsDtMap = data
 }
 
-String getTsVal(String val) {
-    Map tsMap = atomicState.tsDtMap
-    if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
+String getTsVal(String key) {
+    String appId=app.getId()
+    Map tsMap=tsDtMapFLD[appId]
+    if(!tsMap) tsMap = state.tsDtMap ?: [:] 
+    if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
     return sNULL
+}
+
+Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
+    return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
 private void updAppFlag(String key, Boolean val) {
@@ -1446,11 +1435,6 @@ private stateMapMigration() {
     Map flagItems = [:]
     flagItems?.each { k, v-> if(state.containsKey(k)) { updAppFlag(v as String, state[k as String]); state.remove(k as String); } }
     updAppFlag("stateMapConverted", true)
-}
-
-Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
-    Map tsMap = atomicState?.tsDtMap
-    return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
 }
 
 /******************************************
@@ -1699,10 +1683,11 @@ Boolean getOk2Notify() {
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = settings.notif_modes ? (isInMode(settings.notif_modes)) : true
-    logTrace("getOk2Notify() | notifDevs: $notifDevsOk | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
-    if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
-    if(!(daysOk && modesOk && timeOk)) { return false }
-    return true
+    Boolean result = true
+    if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { result = false }
+    if(!(daysOk && modesOk && timeOk)) { result = false }
+    logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    return result
 }
 
 Boolean notifTimeOk() {
@@ -1764,8 +1749,8 @@ public Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean 
                 sent = true
             }
             if(sent) {
-                state?.lastNotificationMsg = flatMsg
-                updTsVal("lastNotifMsgDt") //state?.lastNotifMsgDt = getDtNow()
+                state.lastNotificationMsg = flatMsg
+                updTsVal("lastNotifMsgDt")
                 logDebug("sendNotifMsg: Sent ${sentSrc} (${flatMsg})")
             }
         }
@@ -1778,7 +1763,7 @@ public Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean 
 Boolean isZoneNotifConfigured() {
     return (
         (settings.notif_active_message || settings.notif_inactive_message) &&
-        (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_devs || settings.notif_alexa_mobile || settings.notif_pushover_devices)
+        (settings.notif_devs || settings.notif_alexa_mobile)
     )
 }
 
@@ -1992,12 +1977,10 @@ public Map getSettingsAndStateMap() {
             }
         }
         ((Map<String,String>)typeObj.caps).each { ck, cv->
-            //settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
             settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv->
                 setObjs[fk] = [type: "capability", value: (fv instanceof List ? fv?.collect { it?.id?.toString() } : it?.id?.toString ) ] } //.toString().toList()
         }
         ((Map<String, String>)typeObj.dev).each { dk, dv->
-            //settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv.collect { it?.id?.toString() }] } //.toString().toList()
             settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv->
                 setObjs[fk] = [type: "device", value: (fv instanceof List ? fv.collect { it?.id?.toString() } : it?.id?.toString() ) ] } //.toString().toList()
         }
@@ -2006,7 +1989,6 @@ public Map getSettingsAndStateMap() {
     //String newLbl = settings.appLbl?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
     String newlbl = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", sBLANK)
     data.label = newlbl?.replace(" (Z)", sBLANK)
-//    data.label = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", sBLANK)
     data.settings = setObjs
 
     List stskip = [
