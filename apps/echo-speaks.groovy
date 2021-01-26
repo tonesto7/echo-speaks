@@ -1610,11 +1610,11 @@ String getEnvParamsStr() {
     envParams["smartThingsUrl"] = getAppEndpointUrl("receiveData")
     envParams["appCallbackUrl"] = getAppEndpointUrl("receiveData")
     envParams["hubPlatform"] = platformFLD
-    envParams["useHeroku"] = (Boolean) settings.useHeroku.toString()
+    envParams["useHeroku"] = ((Boolean)settings.useHeroku).toString()
     envParams["serviceDebug"] = sFALSE
     envParams["serviceTrace"] = sFALSE
-    envParams["amazonDomain"] = (String) settings.amazonDomain ?: "amazon.com"
-    envParams["regionLocale"] = (String) settings.regionLocale ?: "en-US"
+    envParams["amazonDomain"] = (String)settings.amazonDomain ?: "amazon.com"
+    envParams["regionLocale"] = (String)settings.regionLocale ?: "en-US"
     envParams["hostUrl"] = "${getRandAppName()}.herokuapp.com".toString()
     String envs = sBLANK
     envParams.each { String k, String v-> envs += "&env[${k}]=${v}".toString() }
@@ -4328,14 +4328,14 @@ private getInstData(String key) {
 @Field volatile static Map<String,Map> tsDtMapFLD=[:]
 
 private void updTsVal(String key, String dt=sNULL) {
-        String val = dt ?: getDtNow()
-        if(key == "lastCookieRrshDt") { updServerItem(key, val); return }
+    String val = dt ?: getDtNow()
+    if(key == "lastCookieRrshDt") { updServerItem(key, val); return }
 
-        String appId=app.getId()
-        Map data=tsDtMapFLD[appId] ?: [:]
-        if(key) data[key]=val
-        tsDtMapFLD[appId]=data
-        tsDtMapFLD=tsDtMapFLD
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:]
+    if(key) data[key]=val
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
 }
 
 private void remTsVal(key) {
@@ -4357,13 +4357,17 @@ private void remTsVal(key) {
 }
 
 private String getTsVal(String key) {
-        if(key == "lastCookieRrshDt") {
-            return (String)getServerItem(key)
-        }
-        String appId=app.getId()
-        Map tsMap=tsDtMapFLD[appId]
-        if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
-        return sNULL
+    if(key == "lastCookieRrshDt") {
+        return (String)getServerItem(key)
+    }
+    String appId=app.getId()
+    Map tsMap=tsDtMapFLD[appId]
+    if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
+    return sNULL
+}
+
+Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
+        return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
 @Field volatile static Map<String,Map> serverDataMapFLD=[:]
@@ -4453,10 +4457,6 @@ void stateMapMigration() {
     servItems?.each { String k, String v-> if(state.containsKey(k)) { updServerItem(v, state[k]); state.remove(k); } }
     if(state.generatedHerokuName) { state.herokuName = state.generatedHerokuName; state.remove("generatedHerokuName") }
     updAppFlag("stateMapConverted", true)
-}
-
-Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
-        return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
 void settingUpdate(String name, value, String type=sNULL) {
