@@ -2008,17 +2008,6 @@ private void processDuplication() {
         }
     }
     parent.childAppDuplicationFinished("actions", dupSrcId)
-/*
-    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
-    Map dupData = parent?.getChildDupeData("actions", dupSrcId)
-    // log.debug "dupData: ${dupData}"
-    if(dupData && dupData.state?.size()) {
-        dupData.state.each { String k,v-> state[k] = v }
-    }
-    if(dupData && dupData.settings?.size()) {
-        dupData.settings.each { String k, Map v-> settingUpdate(k, (v.value != null ? v.value : null), (String)v.type) }
-    }
-    parent.childAppDuplicationFinished("actions", dupSrcId) */
     logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
 }
 /*
@@ -3966,37 +3955,46 @@ public void logsDisable() {
     }
 }
 
-private void updTsVal(key, dt=null) {
-    //ERS
-    def t0 = atomicState.tsDtMap
-    def data = t0 ?: [:]
+@Field volatile static Map<String,Map> tsDtMapFLD=[:]
+
+private void updTsVal(String key, String dt=sNULL) {
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:]
+    if(!data) data = state.tsDtMap ?: [:]
     if(key) { data[key] = dt ?: getDtNow() }
-    atomicState.tsDtMap = data
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
+
+    state.tsDtMap = data
 }
 
 private void remTsVal(key) {
-    //ERS
-    def t0 = atomicState.tsDtMap
-    def data = t0 ?: [:]
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:]
+    if(!data) data = state.tsDtMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
-        } else { if(data.containsKey((String)key)) { data.remove((String)key) } }
-        atomicState.tsDtMap = data
+                key.each { String k->
+                    if(data.containsKey(k)) { data.remove(k) }
+                }
+        } else if(data.containsKey((String)key)) { data.remove((String)key) }
     }
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
+
+    state.tsDtMap = data
 }
 
-String getTsVal(String val) {
-    //ERS
-    def tsMap = atomicState.tsDtMap
-    if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
+String getTsVal(String key) {
+    String appId=app.getId()
+    Map tsMap=tsDtMapFLD[appId]
+    if(!tsMap) tsMap = state.tsDtMap ?: [:]
+    if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
     return sNULL
 }
 
 Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
-    //ERS
-    def tsMap = atomicState.tsDtMap
-    return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
+    return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
 private void updAppFlag(String key, val) {
