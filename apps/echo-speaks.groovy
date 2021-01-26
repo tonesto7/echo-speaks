@@ -859,7 +859,8 @@ def unrecogDevicesPage() {
         section(sTS("Unrecognized/Unsupported Devices:")) {
             if(unDevs?.size()) {
                 unDevs.sort { it?.value?.name }?.each { String k, Map v->
-                    String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span>"
+                    log.debug "v: $v"
+                    String str = "<span>Status: (${(Boolean)v.online ? "Online" : "Offline"})</span>"
                     str += "<br><span>Style: ${(String) v.desc}</span>"
                     str += "<br><span>Family: ${(String)v.family}</span>"
                     str += "<br><span>Type: ${(String)v.type}</span>"
@@ -867,7 +868,7 @@ def unrecogDevicesPage() {
                     str += "<br><span>Text-to-Speech: (${v?.tts?.toString()?.capitalize()})</span>"
                     str += "<br><span>Music Player: (${v?.mediaPlayer?.toString()?.capitalize()})</span>"
                     str += "<br><span>Reason Ignored: (${v?.reason})</span>"
-                    paragraph paraTS(v.name, str, v.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? '#1A77C9' : 'gray')])
+                    paragraph paraTS((String)v.name, str, (String)v.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? '#1A77C9' : 'gray')])
                 }
                 input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
@@ -3591,10 +3592,10 @@ static String sectH3TS(String t, String st, String i = sNULL, String c="#1A77C9"
 
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
 
-public String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: (String) 'normal', c: (String) 'black', b: (Boolean) true, u: (Boolean) true], Map bOpts = [s:(String) 'normal', c: (String) null, b: (Boolean) false]) { 
+public String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: 'normal', c: 'black', b: true, u:true], Map bOpts = [s:'normal', c: sNULL, b: false]) { 
     String s = ""
-    s += title ? "<div style='${tOpts && tOpts.c != null ? 'color: ${tOpts.c};' : sBLANK}${tOpts && tOpts.s != null ? 'font-size: ${tOpts.s};' : sBLANK}${tOpts && tOpts.b ? 'font-weight: bold;' : sBLANK}${tOpts && tOpts.u ? 'text-decoration: underline;' : sBLANK}'>${img != null ? '<img src="${img}" width="42"> ' : sBLANK}${title}</div>" : sBLANK
-    s += body ? "<div style='${bOpts && bOpts.c != null ? 'color: ${bOpts.c};' : sBLANK}${bOpts && bOpts.s != null ? 'font-size: ${bOpts.s};' : sBLANK}${bOpts && bOpts.b ? 'font-weight: bold;' : sBLANK}'>${body}</div>" : sBLANK
+    s += title ? "<div style=${tOpts && (String)tOpts.c != sNULL ? "color: ${(String)tOpts.c};" : sBLANK}${tOpts && (String)tOpts.s != sNULL ? "font-size: ${(String)tOpts.s};" : sBLANK}${tOpts && (Boolean)tOpts.b ? "font-weight: bold;" : sBLANK}${tOpts && (Boolean)tOpts.u ? "text-decoration: underline;" : sBLANK}>${img != sNULL ? """<img src=${getHEAppImg(img)} width="42"> """ : sBLANK}${title}</div>" : sBLANK
+    s += body ? "<div style=${bOpts && (String)bOpts.c != sNULL ? "color: ${(String)bOpts.c};" : sBLANK}${bOpts && (String)bOpts.s != sNULL ? "font-size: ${(String)bOpts.s};" : sBLANK}${bOpts && (Boolean)bOpts.b ? "font-weight: bold;" : sBLANK}>${body}</div>" : sBLANK
     log.debug "s: $s"
     return s
 }
