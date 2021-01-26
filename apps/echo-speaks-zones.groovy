@@ -88,7 +88,7 @@ def startPage() {
     if(parent != null) {
         if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
-            state.isParent = false
+//            state.isParent = false
             List aa = settings.zone_EchoDevices
             List devIt = aa.collect { it ? it.toInteger():null }
             app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
@@ -98,7 +98,7 @@ def startPage() {
 }
 
 def appInfoSect() {
-    def instDt = state?.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@'h:mm a", true) : null
+    def instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@'h:mm a", true) : null
     section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : sBLANK}Version: ${appVersionFLD}", image: getAppImg("es_groups") }
 }
 
@@ -120,13 +120,13 @@ def uhOhPage () {
 def mainPage() {
     Boolean newInstall = (!(Boolean)state.isInstalled)
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
-        appInfoSect()
-        Boolean paused = isPaused()
-        Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup == true)
+        Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup)
         if(dup) {
             state.dupOpenedByUser = true
             section() { paragraph pTS("This Zone was just created from an existing zone.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null, image: getAppImg("pause_orange") }
         }
+        appInfoSect()
+        Boolean paused = isPaused()
         if(paused) {
             section() {
                 paragraph pTS("This Zone is currently disabled...\nTo edit the please re-enable it.", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null, image: getAppImg("pause_orange")
@@ -181,17 +181,34 @@ def mainPage() {
     }
 }
 
-private echoDevicesInputByPerm(type) {
-    List echoDevs = parent?.getChildDevicesByCap(type as String)
+private echoDevicesInputByPerm(String type) {
+    List echoDevs = parent?.getChildDevicesByCap(type)
     if(echoDevs?.size()) {
-        def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-        log.warn "settings.zone_EchoDevices " +getObjType(settings.zone_EchoDevices)
-        input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: "Select the devices", options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: true, submitOnChange: true, image: getAppImg("echo_gen1")
+        Map eDevsMap = echoDevs?.collectEntries { [(it.getId()): [label: (String)it.getLabel(), lsd: (it.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
+//      log.warn "eDevsMap: $eDevsMap " +getObjType(eDevsMap)
+//      log.warn "settings.zone_EchoDevices: ${settings.zone_EchoDevices} " +getObjType(settings.zone_EchoDevices)
+//      fixEnumBug("zone_EchoDevices")
+        Map moptions =  eDevsMap?.collectEntries { [(it.key.toString()): "${it?.value?.label}${(it?.value?.lsd == true) ? " (Last Spoken To)" : sBLANK}".toString()] }
+//      log.warn "moptions: $moptions " +getObjType(moptions)
+        input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: "Select the devices", options: moptions, multiple: true, required: true, submitOnChange: true
+
         List aa = settings.zone_EchoDevices
         List devIt = aa.collect { it ? it.toInteger():null }
         app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt.unique()]) // this won't take effect until next execution
     } else { paragraph "No devices were found with support for ($type)"}
 }
+/*
+private fixEnumBug(String a) {
+    def mdef = settings."${a}"
+    if(mdef instanceof List){
+      log.warn "type is "+getObjType(mdef[0])
+        if((Boolean)state.dupOpenedByUser && mdef) {
+            settingRemove(a)
+            if(mdef)settingUpdate(a, mdef, sENUM)
+        }
+    }
+  log.warn "mdef: $mdef " +getObjType(mdef)
+} */
 
 def zoneHistoryPage() {
     return dynamicPage(name: "zoneHistoryPage", install: false, uninstall: false) {
@@ -473,10 +490,9 @@ def installed() {
     Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
     if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
     if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
-        runIn(3, "processDuplication")
+        runIn(2, "processDuplication")
     } else {
-        if(!maybeDup && !state.dupPendingSetup) initialize()
-       // initialize()
+        if(!state.dupPendingSetup) initialize()
     }
 }
 
@@ -505,9 +521,27 @@ def initialize() {
 
 private void processDuplication() {
     String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains(" (Dup)") ? "" : " (Dup)"}"
-    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
     app?.updateLabel(newLbl)
     state.dupPendingSetup = true
+
+//            if(!state.dupParentDone) {
+    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
+    Map dupData = parent?.getChildDupeData("zones", dupSrcId)
+    log.debug "dupData: ${dupData}"
+    if(dupData && dupData.state?.size()) {
+        dupData.state.each { String k,v-> state[k] = v }
+    }
+
+    if(dupData && dupData.settings?.size()) {
+        dupData.settings.each { String k, Map v->
+            if((String)v.type == sENUM) settingRemove(k)
+            settingUpdate(k, v.value, (String)v.type)
+        }
+   }
+//               }
+/*
+    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
+//        fixEnumBug("zone_EchoDevices")
     Map dupData = parent?.getChildDupeData("zones", dupSrcId)
     // log.debug "dupData: ${dupData}"
     if(dupData && dupData.state?.size()) {
@@ -517,6 +551,9 @@ private void processDuplication() {
         dupData.settings.each { String k, Map v-> settingUpdate(k, (v.value != null ? v.value : null), (String)v.type) }
     }
     parent.childAppDuplicationFinished("zones", dupSrcId)
+*/
+    sendZoneStatus()
+    subscribe(location, "es3ZoneRefresh", zoneRefreshHandler)
     logInfo("Duplicated Zone has been created... Please open zone and configure to complete setup...")
         //Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
             //state.dupOpenedByUser = true
@@ -641,7 +678,7 @@ void scheduleCondition() {
 }
 
 void subscribeToEvts() {
-    state.handleGuardEvents = false
+//    state.handleGuardEvents = false
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
     if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
     List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "securityKeypad", "shade", "valve", "door", "contact", "acceleration", sSWITCH, "battery", "level"]
@@ -847,14 +884,18 @@ Map conditionStatus() {
     List failed = []
     List passed = []
     List skipped = []
-    [sTIME, "date", "location", "device"]?.each { i->
-        Boolean s = "${i}CondOk"()
-        if(s == null) { skipped.push(i); return; }
-        s ? passed.push(i) : failed.push(i);
+    Boolean ok = true
+    if((Boolean)state.dupPendingSetup) ok = false
+    if(ok) {
+        [sTIME, "date", "location", "device"]?.each { i->
+            Boolean s = "${i}CondOk"()
+            if(s == null) { skipped.push(i); return; }
+            s ? passed.push(i) : failed.push(i);
+        }
+        Integer cndSize = passed.size() + failed.size()
+        ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
+        if(cndSize == 0) ok = true
     }
-    Integer cndSize = passed.size() + failed.size()
-    Boolean ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
-    if(cndSize == 0) ok = true
     logTrace("ConditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return [ok: ok, passed: passed, blocks: failed]
 }
@@ -1235,36 +1276,34 @@ Boolean devCapValEqual(List devs, String devId, String cap, val) {
     return false
 }
 
-String getAlarmSystemName(Boolean abbr=false) {
+static String getAlarmSystemName(Boolean abbr=false) {
     return /* isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : */ (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 
 public Map getZoneMetrics() {
     Map out = [:]
-    out?.version = appVersionFLD
-    out?.activeDelay = settings.zone_active_delay ?: 0
-    out?.inactiveDelay = settings.zone_inactive_delay ?: 0
-    out?.zoneDevices = settings.zone_EchoDevices ?: []
-    out?.activeSwitchesOnCnt = settings.zone_active_switches_on ?: []
-    out?.activeSwitchesOffCnt = settings.zone_active_switches_off ?: []
-    out?.inactiveSwitchesOnCnt = settings.zone_inactive_switches_on ?: []
-    out?.inactiveSwitchesOffCnt = settings.zone_inactive_switches_off ?: []
+    out.version = appVersionFLD
+    out.activeDelay = settings.zone_active_delay ?: 0
+    out.inactiveDelay = settings.zone_inactive_delay ?: 0
+    out.zoneDevices = settings.zone_EchoDevices ?: []
+    out.activeSwitchesOnCnt = settings.zone_active_switches_on ?: []
+    out.activeSwitchesOffCnt = settings.zone_active_switches_off ?: []
+    out.inactiveSwitchesOnCnt = settings.zone_inactive_switches_on ?: []
+    out.inactiveSwitchesOffCnt = settings.zone_inactive_switches_off ?: []
     return out
 }
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
 String formatDt(Date dt, Boolean tzChg=true) {
-    def tf = new java.text.SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-    if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
-    return (String)tf.format(dt)
+    return dateTimeFmt(dt, "E MMM dd HH:mm:ss z yyyy", tzChg)
 }
 
-String dateTimeFmt(Date dt, String fmt) {
+String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
 //    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new java.text.SimpleDateFormat(fmt)
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return (String)tf?.format(dt)
+    if(tzChg && location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    return (String)tf.format(dt)
 }
 
 String convToTime(Date dt) {
@@ -1281,13 +1320,16 @@ String convToDate(dt) {
 String convToDateTime(dt) {
     String t = dateTimeFmt(dt, "h:mm a")
     String d = dateTimeFmt(dt, "EEE, MMM d")
-    return "$d, $t"
+    return d+', '+t
 } */
 
-Date parseDate(String dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt) }
-Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
-String strCapitalize(String str) { return str ? str?.toString().capitalize() : sNULL }
-String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
+static Date parseDate(String dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt) }
+
+static Boolean isDateToday(Date dt) { return (dt && dt.clearTime().compareTo(new Date().clearTime()) >= 0) }
+
+static String strCapitalize(String str) { return str ? str.toString().capitalize() : sNULL }
+
+static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
 /*
 String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
     Date newDt = Date.parse(pFormat, dt)
@@ -1299,34 +1341,28 @@ String getDtNow() {
     return formatDt(now)
 }
 
-String epochToTime(Date tm) {
-    def tf = new java.text.SimpleDateFormat("h:mm a")
-    if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return (String)tf.format(tm)
+String epochToTime(Date dt) {
+    return dateTimeFmt(dt, "h:mm a")
 }
-
+/*
 String time2Str(String time) {
     if(time) {
         Date t = timeToday(time, location?.timeZone)
-        def f = new java.text.SimpleDateFormat("h:mm a")
-        if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-        return (String)f?.format(t)
+        return dateTimeFmt(t, "h:mm a")
     }
     return sNULL
-}
+} */
 
 String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
     if(!t) return sNULL
-    Date dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t?.toString())
-    def tf = new java.text.SimpleDateFormat(fmt as String)
-    if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return (String)tf?.format(dt)
+    Date dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t.toString())
+    return dateTimeFmt(dt, fmt)
 }
 
 Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
     try {
         if(lastDate?.contains("dtNow")) { return 10000 }
-        Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
+        Date lastDt = parseDate(lastDate) // Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
         Long start = lastDt.getTime()
         Long stop = now()
         Long diff = (stop - start) / 1000L
@@ -2053,6 +2089,7 @@ String getObjType(obj) {
 //*******************************************************************
 //    CLONE CHILD LOGIC
 //*******************************************************************
+
 public Map getSettingsAndStateMap() {
     Map typeObj = parent?.getAppDuplTypes()
     Map setObjs = [:]
@@ -2064,7 +2101,7 @@ public Map getSettingsAndStateMap() {
             ev?.each { evi->
                 settings.findAll { it?.key?.endsWith(evi) }?.each { String fk, fv->
                     def vv = settings[fk] // fv
-//                    if(ek==sTIME) vv = convToTime(toDateTime(vv))
+                    if(ek==sTIME) vv = dateTimeFmt(toDateTime(vv), "HH:mm")
                     setObjs[fk] = [type: ek, value: vv]
                 }
             }
@@ -2088,8 +2125,14 @@ public Map getSettingsAndStateMap() {
     data.settings = setObjs
 
     List stskip = [
-        "isInstalled", "isParent", "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
-        "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory"
+        /*"isInstalled", "isParent", */ "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
+        "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory",
+// actions
+        "tierSchedActive",
+// zones
+        "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", "handleGuardEvents", "startTime", "stopTime", "alexaGuardState", "appFlagsMap",
+
+        "dupPendingSetup", "dupOpenedByUser"
     ]
     data.state = state?.findAll { !(it?.key in stskip) }
     return data
