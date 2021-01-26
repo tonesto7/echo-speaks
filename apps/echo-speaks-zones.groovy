@@ -1699,10 +1699,11 @@ Boolean getOk2Notify() {
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = settings.notif_modes ? (isInMode(settings.notif_modes)) : true
-    logTrace("getOk2Notify() | notifDevs: $notifDevsOk | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
-    if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
-    if(!(daysOk && modesOk && timeOk)) { return false }
-    return true
+    Boolean result = true
+    if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { result = false }
+    if(!(daysOk && modesOk && timeOk)) { result = false }
+    logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    return result
 }
 
 Boolean notifTimeOk() {
@@ -1764,8 +1765,8 @@ public Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean 
                 sent = true
             }
             if(sent) {
-                state?.lastNotificationMsg = flatMsg
-                updTsVal("lastNotifMsgDt") //state?.lastNotifMsgDt = getDtNow()
+                state.lastNotificationMsg = flatMsg
+                updTsVal("lastNotifMsgDt")
                 logDebug("sendNotifMsg: Sent ${sentSrc} (${flatMsg})")
             }
         }
@@ -1778,7 +1779,7 @@ public Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean 
 Boolean isZoneNotifConfigured() {
     return (
         (settings.notif_active_message || settings.notif_inactive_message) &&
-        (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_devs || settings.notif_alexa_mobile || settings.notif_pushover_devices)
+        (settings.notif_devs || settings.notif_alexa_mobile)
     )
 }
 
@@ -1992,12 +1993,10 @@ public Map getSettingsAndStateMap() {
             }
         }
         ((Map<String,String>)typeObj.caps).each { ck, cv->
-            //settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
             settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv->
                 setObjs[fk] = [type: "capability", value: (fv instanceof List ? fv?.collect { it?.id?.toString() } : it?.id?.toString ) ] } //.toString().toList()
         }
         ((Map<String, String>)typeObj.dev).each { dk, dv->
-            //settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv.collect { it?.id?.toString() }] } //.toString().toList()
             settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv->
                 setObjs[fk] = [type: "device", value: (fv instanceof List ? fv.collect { it?.id?.toString() } : it?.id?.toString() ) ] } //.toString().toList()
         }
@@ -2006,7 +2005,6 @@ public Map getSettingsAndStateMap() {
     //String newLbl = settings.appLbl?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
     String newlbl = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", sBLANK)
     data.label = newlbl?.replace(" (Z)", sBLANK)
-//    data.label = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", sBLANK)
     data.settings = setObjs
 
     List stskip = [
