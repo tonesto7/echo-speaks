@@ -28,6 +28,8 @@ import groovy.transform.Field
 @Field static final Boolean betaFLD       = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
+@Field static final String sTRUE          = 'true'
+@Field static final String sFALSE         = 'false'
 @Field static final String sAPPJSON       = 'application/json'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
@@ -60,6 +62,7 @@ metadata {
         attribute "currentStation", "string"
         attribute "deviceFamily", "string"
         attribute "deviceSerial", "string"
+
         attribute "deviceStatus", "string"
         attribute "deviceStyle", "string"
         attribute "deviceType", "string"
@@ -188,14 +191,14 @@ def installed() {
     sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
     sendEvent(name: "trackDescription", value: sBLANK)
     sendEvent(name: "lastSpeakCmd", value: "Nothing sent yet...")
-    sendEvent(name: "wasLastSpokenToDevice", value: false)
-    sendEvent(name: "doNotDisturb", value: false)
+    sendEvent(name: "wasLastSpokenToDevice", value: sFALSE)
+    sendEvent(name: "doNotDisturb", value: sFALSE)
     sendEvent(name: "onlineStatus", value: "online")
-    sendEvent(name: "followUpMode", value: false)
+    sendEvent(name: "followUpMode", value: sFALSE)
     sendEvent(name: "alarmVolume", value: 0)
     sendEvent(name: "alexaWakeWord", value: "ALEXA")
     sendEvent(name: "mediaSource", value: sBLANK)
-    state?.doNotDisturb = false
+    state.doNotDisturb = false
     initialize()
     runIn(20, "postInstall")
 }
@@ -223,8 +226,8 @@ def initialize() {
 
 Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
 public void logsOff() {
-    device.updateSetting("logDebug",[value:"false",type:"bool"])
-    device.updateSetting("logTrace",[value:"false",type:"bool"])
+    device.updateSetting("logDebug",[value:sFALSE,type:"bool"])
+    device.updateSetting("logTrace",[value:sFALSE,type:"bool"])
     log.debug "Disabling debug logs"
 }
 
@@ -296,7 +299,7 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
     if(state.isSupportedDevice == false) { logWarn("You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer", true); return true }
     if(!type) { if(!noLogs) { logWarn("Invalid Permissions Type Received: ${type}", true) }; return false }
     if(state.permissions == null) { if(!noLogs) { logWarn("Permissions State Object Missing: ${state.permissions}", true) }; return false }
-    if(device?.currentValue("doNotDisturb") == "true" && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
+    if(device?.currentValue("doNotDisturb") == sTRUE && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
     if(state.permissions.containsKey(type) && state.permissions[type] == true) { return true }
     else {
         String warnMsg = sNULL
@@ -787,10 +790,10 @@ private getDeviceSettings() {
             def devData = t0 ?: null
             state.devicePreferences = devData ?: [:]
             // log.debug "devData: $devData"
-            def fupMode = (devData?.goldfishEnabled == true)
-            if(isStateChange(device, "followUpMode", fupMode?.toString())) {
+            Boolean fupMode = (devData?.goldfishEnabled == true)
+            if(isStateChange(device, "followUpMode", fupMode.toString())) {
                 logDebug("FollowUp Mode Changed to ${(fupMode)}")
-                sendEvent(name: "followUpMode", value: fupMode, display: false, displayed: false)
+                sendEvent(name: "followUpMode", value: fupMode.toString(), display: false, displayed: false)
             }
             // logTrace("getDeviceSettingsHandler: ${sData}")
         }
@@ -949,9 +952,9 @@ private getDeviceActivity() {
                 sendEvent(name: "lastSpokenToTime", value: (String) actData?.lastSpokenDt, display: false, displayed: false)
             }
         }
-        if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice as String)) {
+        if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice.toString())) {
             logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
-            sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice, display: false, displayed: false)
+            sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice.toString(), display: false, displayed: false)
         }
     } catch (ex) {
         logError("updDeviceActivity Error: ${ex.message}")
