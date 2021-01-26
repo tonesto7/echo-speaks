@@ -185,11 +185,7 @@ private echoDevicesInputByPerm(String type) {
     List echoDevs = parent?.getChildDevicesByCap(type)
     if(echoDevs?.size()) {
         Map eDevsMap = echoDevs?.collectEntries { [(it.getId()): [label: (String)it.getLabel(), lsd: (it.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-//      log.warn "eDevsMap: $eDevsMap " +getObjType(eDevsMap)
-//      log.warn "settings.zone_EchoDevices: ${settings.zone_EchoDevices} " +getObjType(settings.zone_EchoDevices)
-//      fixEnumBug("zone_EchoDevices")
         Map moptions =  eDevsMap?.collectEntries { [(it.key.toString()): "${it?.value?.label}${(it?.value?.lsd == true) ? " (Last Spoken To)" : sBLANK}".toString()] }
-//      log.warn "moptions: $moptions " +getObjType(moptions)
         input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: "Select the devices", options: moptions, multiple: true, required: true, submitOnChange: true
 
         List aa = settings.zone_EchoDevices
@@ -197,18 +193,6 @@ private echoDevicesInputByPerm(String type) {
         app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt.unique()]) // this won't take effect until next execution
     } else { paragraph "No devices were found with support for ($type)"}
 }
-/*
-private fixEnumBug(String a) {
-    def mdef = settings."${a}"
-    if(mdef instanceof List){
-      log.warn "type is "+getObjType(mdef[0])
-        if((Boolean)state.dupOpenedByUser && mdef) {
-            settingRemove(a)
-            if(mdef)settingUpdate(a, mdef, sENUM)
-        }
-    }
-  log.warn "mdef: $mdef " +getObjType(mdef)
-} */
 
 def zoneHistoryPage() {
     return dynamicPage(name: "zoneHistoryPage", install: false, uninstall: false) {
