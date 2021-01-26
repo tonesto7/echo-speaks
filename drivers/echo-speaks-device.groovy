@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.1.0"
-@Field static final String appModifiedFLD = "2021-01-22"
+@Field static final String devVersionFLD  = "4.0.2.0"
+@Field static final String appModifiedFLD = "2021-01-25"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -1021,10 +1021,7 @@ private void sendAmazonBasicCommand(String cmdType) {
 private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
     if(method && callbackHandler && params) {
         String m = method?.toString()?.toLowerCase()
-        if(isStFLD) {
-            include 'asynchttp_v1'
-            asynchttp_v1."${m}"(callbackHandler, params, otherData)
-        } else { "asynchttp${m?.capitalize()}"("${callbackHandler}", params, otherData) }
+        "asynchttp${m?.capitalize()}"("${callbackHandler}", params, otherData)
     } else { logError("execAsyncCmd Error | Missing a required parameter") }
 }
 

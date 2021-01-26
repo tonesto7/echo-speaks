@@ -22,7 +22,7 @@ import groovy.transform.Field
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = true
-@Field static final Map minVersionsFLD    = [echoDevice: 4010, wsDevice: 4010, actionApp: 4010, zoneApp: 4010, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4020, wsDevice: 4020, actionApp: 4020, zoneApp: 4020, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -158,7 +158,7 @@ def mainPage() {
                 if((Boolean)state.alexaGuardSupported) {
                     String gState = (String)state.alexaGuardState ? ((String)state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : "Unknown"
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
-                    href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? sCOMPLT : sNULL,
+                    href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), state: guardAutoConfigured() ? sCOMPLT : sNULL,
                             description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : sBLANK}\n\n${sTTM}"
                 } else { paragraph pTS("Alexa Guard is not enabled or supported by any of your Echo Devices", sNULL, false, sCLRGRY) }
             }
@@ -172,30 +172,30 @@ def mainPage() {
                     if(remDevs?.size()) {
                         href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: sNULL
                     }
-                    href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: "(${devs?.size()}) Installed\n\n${sTTM}", state: sCOMPLT, image: getAppImg(sDEVICES)
+                    href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: "(${devs?.size()}) Installed\n\n${sTTM}", state: sCOMPLT
                 } else { paragraph "Device Management will be displayed after install is complete" }
             }
 
             section(sTS("Companion Apps:")) {
                 List zones = getZoneApps()
                 List acts = getActionApps()
-                href "zonesPage", title: inTS1("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > 1 ? "Zones" : "Zone"})" : sBLANK}", "es_groups"), description: getZoneDesc(), state: (zones?.size() ? sCOMPLT : sNULL), image: getAppImg("es_groups")
-                href "actionsPage", title: inTS1("Manage Actions${acts?.size() ? " (${acts?.size()} ${acts?.size() > 1 ? "Actions" : "Action"})" : sBLANK}", "es_actions"), description: getActionsDesc(), state: (acts?.size() ? sCOMPLT : sNULL), image: getAppImg("es_actions")
+                href "zonesPage", title: inTS1("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > 1 ? "Zones" : "Zone"})" : sBLANK}", "es_groups"), description: getZoneDesc(), state: (zones?.size() ? sCOMPLT : sNULL)
+                href "actionsPage", title: inTS1("Manage Actions${acts?.size() ? " (${acts?.size()} ${acts?.size() > 1 ? "Actions" : "Action"})" : sBLANK}", "es_actions"), description: getActionsDesc(), state: (acts?.size() ? sCOMPLT : sNULL)
             }
 
             section(sTS("Alexa Login Service:")) {
                 String ls = getLoginStatusDesc()
-                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}\n\n${sTTM}" : sTTC), state: (ls ? sCOMPLT : sNULL), image: getAppImg(sSETTINGS)
+                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}\n\n${sTTM}" : sTTC), state: (ls ? sCOMPLT : sNULL)
             }
             if(!(Boolean)state.shownDevSharePage) { showDevSharePrefs() }
         }
         section(sTS("Notifications:")) {
             String t0 = getAppNotifConfDesc()
-            href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL), image: getAppImg("notification2")
+            href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL)
         }
         section(sTS("Documentation & Settings:")) {
-            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, image: getAppImg("documentation")
-            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: "${sTTM}", image: getAppImg(sSETTINGS)
+            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP
+            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: "${sTTM}"
         }
 
 //        if((Boolean)state.isInstalled) {
@@ -205,20 +205,20 @@ def mainPage() {
 
         if(!newInstall) {
             section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: "Test Speech, Announcements, and Sequences Builder\n\n${sTTP}", image: getAppImg("testing")
-                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: "Test music queries\n\n${sTTP}", image: getAppImg("music")
+                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: "Test Speech, Announcements, and Sequences Builder\n\n${sTTP}"
+                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: "Test music queries\n\n${sTTP}"
             }
             section(sTS("Donations:")) {
-                href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: "Tap to open browser", image: getAppImg("donate")
+                href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: "Tap to open browser"
             }
             section(sTS("Remove Everything:")) {
-                href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: "Tap to Remove...", image: getAppImg("uninstall")
+                href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: "Tap to Remove..."
             }
             section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
                 def issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28BUG%29+&projects=echo-speaks%2F6"
                 def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BFeature+Request%5D&projects=echo-speaks%2F6"
-                href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: "Tap to open browser", image: getAppImg("www")
-                href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: "Tap to open browser", image: getAppImg("www")
+                href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: "Tap to open browser"
+                href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: "Tap to open browser"
             }
         } else {
             showDevSharePrefs()
@@ -255,17 +255,17 @@ def authStatusPage() {
 
             section(sTS("Cookie Tools: (Tap to show)", getHEAppImg("cookie")), hideable: true, hidden: true) {
                 String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
-                input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
+                input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true
                 if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
                 if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
                 // Refreshes the cookie
-                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET), state: (pastDayChkOk ? sBLANK : sNULL)
+                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, state: (pastDayChkOk ? sBLANK : sNULL)
                 paragraph pTS(ckDesc, sNULL, false, pastDayChkOk ? sNULL : sCLRRED)
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", sNULL, false, sCLR4D9), state: sCOMPLT
                 // Clears cookies for app and devices
-                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET), description: "Clear all stored cookie data from the app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
+                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET), description: "Clear all stored cookie data from the app and devices.", required: false, defaultValue: false, submitOnChange: true
                 paragraph pTS("Clear all stored cookie data from the app and devices.", sNULL, false, sCLRGRY)
-                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
+                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true
                 paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, sCLRGRY)
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", sFALSE, sBOOL); runIn(2, "runCookieRefresh") }
                 if(settings.resetCookies) { clearCookieData("resetCookieToggle", false) }
@@ -275,7 +275,7 @@ def authStatusPage() {
 
         section(sTS("Cookie Service Management")) {
             String t0 = getServiceConfDesc()
-            href "servPrefPage", title: inTS1("Manage Cookie Login Service", sSETTINGS), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL), image: getAppImg(sSETTINGS)
+            href "servPrefPage", title: inTS1("Manage Cookie Login Service", sSETTINGS), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL)
         }
     }
 }
@@ -294,13 +294,13 @@ def servPrefPage() {
 
         if(!(Boolean)state.serviceConfigured) {
             section(sTS("Cookie Server Deployment Option:")) {
-                input "useHeroku", sBOOL, title: inTS1("Deploy server to Heroku?", sHEROKU), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sHEROKU)
+                input "useHeroku", sBOOL, title: inTS1("Deploy server to Heroku?", sHEROKU), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true
                 if(!(Boolean)settings.useHeroku) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
             }
             section() { paragraph pTS("To proceed with the server setup.\nTap on 'Begin Server Setup' below", sNULL, true, sCLR4D9), state: sCOMPLT }
             srvcPrefOpts(true)
             section(sTS("Deploy the Server:")) {
-                href (url: getAppEndpointUrl("config"), style: sEXTNRL, title: inTS1("Begin Server Setup", "upload"), description: sTTP, required: false, state: sCOMPLT, image: getAppImg("upload"))
+                href (url: getAppEndpointUrl("config"), style: sEXTNRL, title: inTS1("Begin Server Setup", "upload"), description: sTTP, required: false, state: sCOMPLT)
             }
         } else {
             String myUrl = "${getServerHostURL()}/config"
@@ -308,28 +308,28 @@ def servPrefPage() {
             if(!authValid) {
                 section(sTS("Authentication:")) {
                     paragraph pTS("You still need to Login to Amazon to complete the setup", sNULL, true, sCLRRED), required: true, state: sNULL
-                    href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP, image: getAppImg(sAMAZONORNG)
+                    href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP
                 }
             } else {
                 Boolean oH = (Boolean)getServerItem("onHeroku")
                     section(sTS("Server Management:")) {
                         if(oH && (String)state.herokuName) { paragraph pTS("Heroku Name:\n \u2022 ${(String)state.herokuName}", sNULL, true, sCLR4D9), state: sCOMPLT }
-                        href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP, image: getAppImg(sAMAZONORNG)
-                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, required: false, title: inTS1("Heroku App Settings", sHEROKU), description: sTTP, image: getAppImg(sHEROKU)
-                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, required: false, title: inTS1("Heroku App Logs", sHEROKU), description: sTTP, image: getAppImg(sHEROKU)
+                        href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP
+                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, required: false, title: inTS1("Heroku App Settings", sHEROKU), description: sTTP
+                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, required: false, title: inTS1("Heroku App Logs", sHEROKU), description: sTTP
                     }
             }
             srvcPrefOpts()
         }
         section(sTS("Reset Options (Tap to show):"), hideable: true, hidden: true) {
             input "resetService", sBOOL, title: inTS1("Reset Service Data?", sRESET), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
-                required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
+                required: false, defaultValue: false, submitOnChange: true
             paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, sCLRGRY)
             if(settings?.resetService) { clearCloudConfig() }
         }
 /*        section(sTS("Documentation & Settings:")) {
-            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, image: getAppImg("documentation")
-            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: sTTM, image: getAppImg(sSETTINGS)
+            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP
+            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: sTTM
         } */
         state.resumeConfig = false
     }
@@ -338,13 +338,13 @@ def servPrefPage() {
 def srvcPrefOpts(Boolean req=false) {
     section(sTS("${req ? "Required " : sBLANK}Amazon Locale Settings"), hideable: false, hidden: false) {
         if(req) {
-            input "amazonDomain", sENUM, title: inTS1("Select your Amazon Domain?", sAMAZONORNG), description: sBLANK, required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg(sAMAZONORNG)
-            input "regionLocale", sENUM, title: inTS1("Select your Locale?", "www"), description: sBLANK, required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
+            input "amazonDomain", sENUM, title: inTS1("Select your Amazon Domain?", sAMAZONORNG), description: sBLANK, required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true
+            input "regionLocale", sENUM, title: inTS1("Select your Locale?", "www"), description: sBLANK, required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true
         } else {
             String s = sBLANK
             s += settings.amazonDomain ? "Amazon Domain: (${settings.amazonDomain})" : sBLANK
             s += settings.regionLocale ? "\nLocale Region: (${settings.regionLocale})" : sBLANK
-            paragraph pTS(s, getHEAppImg(sAMAZONORNG), false, sCLR4D9), state: sCOMPLT, image: getAppImg(sAMAZONORNG)
+            paragraph pTS(s, getHEAppImg(sAMAZONORNG), false, sCLR4D9), state: sCOMPLT
         }
     }
 }
@@ -372,7 +372,7 @@ def deviceManagePage() {
                 }
             }
             String devPrefDesc = devicePrefsDesc()
-            href "devicePrefsPage", title: inTS1("Device Detection\nPreferences", sDEVICES), description: "${devPrefDesc ? "${devPrefDesc}\n\n${sTTM}" : sTTC}", state: sCOMPLT, image: getAppImg(sDEVICES)
+            href "devicePrefsPage", title: inTS1("Device Detection\nPreferences", sDEVICES), description: "${devPrefDesc ? "${devPrefDesc}\n\n${sTTM}" : sTTC}", state: sCOMPLT
         }
     }
 }
@@ -383,7 +383,7 @@ def alexaGuardPage() {
         String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
         String gStateTitle = (gState == "Unknown" || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
         section(sTS("Alexa Guard Control")) {
-            input "alexaGuardAwayToggle", sBOOL, title: inTS1(gStateTitle, gStateIcon), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getAppImg(gStateIcon)
+            input "alexaGuardAwayToggle", sBOOL, title: inTS1(gStateTitle, gStateIcon), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true
         }
         if(settings?.alexaGuardAwayToggle != state.alexaGuardAwayToggle) {
             setGuardState(settings.alexaGuardAwayToggle == true ? sARM_AWAY : sARM_STAY)
@@ -391,7 +391,7 @@ def alexaGuardPage() {
         state.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
         section(sTS("Automate Guard Control")) {
             String t0 = guardAutoDesc()
-            href "alexaGuardAutoPage", title: inTS1("Automate Guard Changes", "alarm_disarm"), description: t0, image: getAppImg("alarm_disarm"), state: (t0==sTTC ? sNULL : sCOMPLT)
+            href "alexaGuardAutoPage", title: inTS1("Automate Guard Changes", "alarm_disarm"), description: t0, state: (t0==sTTC ? sNULL : sCOMPLT)
         }
     }
 }
@@ -404,31 +404,31 @@ def alexaGuardAutoPage() {
         Boolean modeReq = (settings.guardAwayModes || settings.guardHomeModes)
         // Boolean swReq = (settings?.guardAwaySw || settings?.guardHomeSw)
         section(sTS("Set Guard Using ${asn}")) {
-            input "guardHomeAlarm", sENUM, title: inTS1("Home in ${asn} modes.", "alarm_home"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
-            input "guardAwayAlarm", sENUM, title: inTS1("Away in ${asn} modes.", "alarm_away"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
+            input "guardHomeAlarm", sENUM, title: inTS1("Home in ${asn} modes.", "alarm_home"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true
+            input "guardAwayAlarm", sENUM, title: inTS1("Away in ${asn} modes.", "alarm_away"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true
         }
 
         section(sTS("Set Guard Using Modes")) {
-            input "guardHomeModes", "mode", title: inTS1("Home in these Modes?", "mode"), description: sTTS, required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
-            input "guardAwayModes", "mode", title: inTS1("Away in these Modes?", "mode"), description: sTTS, required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
+            input "guardHomeModes", "mode", title: inTS1("Home in these Modes?", "mode"), description: sTTS, required: modeReq, multiple: true, submitOnChange: true
+            input "guardAwayModes", "mode", title: inTS1("Away in these Modes?", "mode"), description: sTTS, required: modeReq, multiple: true, submitOnChange: true
         }
 
         section(sTS("Set Guard Using Switches:")) {
-            input "guardHomeSwitch", "capability.switch", title: inTS1("Home when any of these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg(sSWITCH)
-            input "guardAwaySwitch", "capability.switch", title: inTS1("Away when any of these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg(sSWITCH)
+            input "guardHomeSwitch", "capability.switch", title: inTS1("Home when any of these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
+            input "guardAwaySwitch", "capability.switch", title: inTS1("Away when any of these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
         }
 
         section(sTS("Set Guard using Presence")) {
-            input "guardAwayPresence", "capability.presenceSensor", title: inTS1("Away when these devices are All away?", "presence"), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
+            input "guardAwayPresence", "capability.presenceSensor", title: inTS1("Away when these devices are All away?", "presence"), description: sTTS, multiple: true, required: false, submitOnChange: true
         }
         if(guardAutoConfigured()) {
             section(sTS("Delay:")) {
-                input "guardAwayDelay", "number", title: inTS1("Delay before arming Away?\n(in seconds)", "delay_time"), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
+                input "guardAwayDelay", "number", title: inTS1("Delay before arming Away?\n(in seconds)", "delay_time"), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true
             }
         }
         section(sTS("Restrict Guard Changes (Optional):")) {
-            input "guardRestrictOnSwitch", "capability.switch", title: inTS1("Only when these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg(sSWITCH)
-            input "guardRestrictOffSwitch", "capability.switch", title: inTS1("Only when these are Off?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg(sSWITCH)
+            input "guardRestrictOnSwitch", "capability.switch", title: inTS1("Only when these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
+            input "guardRestrictOffSwitch", "capability.switch", title: inTS1("Only when these are Off?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
         }
     }
 }
@@ -514,31 +514,31 @@ def actionsPage() {
         if(actApps) { /*Nothing to add here yet*/ }
         else { section(sBLANK) { paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started") } }
         section() {
-            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Action", "es_actions"), image: getAppImg("es_actions"))
+            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Action", "es_actions"))
             if(actApps?.size()) {
-                input "actionDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Action", "es_actions"), description: sTTS, options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
+                input "actionDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Action", "es_actions"), description: sTTS, options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true
                 if(settings.actionDuplicateSelect) {
-                    href "actionDuplicationPage", title: inTS1("Create Duplicate Action?", "question"), description: sTTP, image: getAppImg("question")
+                    href "actionDuplicationPage", title: inTS1("Create Duplicate Action?", "question"), description: sTTP
                 }
             }
         }
         if(actApps?.size()) {
             section (sTS("Action History:")) {
-                href "viewActionHistory", title: inTS1("View Action History", "tasks"), description: "(Grouped by Action)", image: getAppImg("tasks"), state: sCOMPLT
+                href "viewActionHistory", title: inTS1("View Action History", "tasks"), description: "(Grouped by Action)", state: sCOMPLT
             }
 
             section (sTS("Global Actions Management:"), hideable: true, hidden: true) {
                 if(activeActions?.size()) {
                     input "pauseChildActions", sBOOL, title: inTS1("Pause all actions?", "pause_orange"), description: "When pausing all Actions you can either restore all or open each action and manually unpause it.",
-                            defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                            defaultValue: false, submitOnChange: true
                     if((Boolean)settings.pauseChildActions) { settingUpdate("pauseChildActions", sFALSE, sBOOL); runIn(3, "executeActionPause") }
                     paragraph pTS("When pausing all Actions you can either restore all or open each action and manually unpause it.", sNULL, false, sCLRGRY)
                 }
                 if(pausedActions?.size()) {
-                    input "unpauseChildActions", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                    input "unpauseChildActions", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true
                     if(settings.unpauseChildActions) { settingUpdate("unpauseChildActions", sFALSE, sBOOL); runIn(3, "executeActionUnpause") }
                 }
-                input "reinitChildActions", sBOOL, title: inTS1("Force Refresh all actions?", sRESET), defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
+                input "reinitChildActions", sBOOL, title: inTS1("Force Refresh all actions?", sRESET), defaultValue: false, submitOnChange: true
                 if(settings.reinitChildActions) { settingUpdate("reinitChildActions", sFALSE, sBOOL); runIn(3, "executeActionUpdate") }
             }
         }
@@ -638,31 +638,31 @@ def zonesPage() {
             section(sBLANK) { paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started") }
         }
         section() {
-            app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Zone", "es_groups"), image: getAppImg("es_groups"))
+            app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Zone", "es_groups"))
             if(zApps?.size()) {
-                input "zoneDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Zone", "es_groups"), description: sTTS, options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
+                input "zoneDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Zone", "es_groups"), description: sTTS, options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true
                 if(settings.zoneDuplicateSelect) {
-                    href "zoneDuplicationPage", title: inTS1("Create Duplicate Zone?", "question"), description: sTTP, image: getAppImg("question")
+                    href "zoneDuplicationPage", title: inTS1("Create Duplicate Zone?", "question"), description: sTTP
                 }
             }
         }
         if(zApps?.size()) {
             section (sTS("Zone History:")) {
-                href "viewZoneHistory", title: inTS1("View Zone History", "tasks"), description: "(Grouped by Zone)", image: getAppImg("tasks"), state: sCOMPLT
+                href "viewZoneHistory", title: inTS1("View Zone History", "tasks"), description: "(Grouped by Zone)", state: sCOMPLT
             }
         }
         section (sTS("Zone Management:"), hideable: true, hidden: true) {
             if(activeZones?.size()) {
                 input "pauseChildZones", sBOOL, title: inTS1("Pause all Zones?", "pause_orange"), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
-                        defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                        defaultValue: false, submitOnChange: true
                 if(settings.pauseChildZones) { settingUpdate("pauseChildZones", sFALSE, sBOOL); runIn(3, "executeZonePause") }
                 paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", sNULL, false, sCLRGRY)
             }
             if(pausedZones?.size()) {
-                input "unpauseChildZone", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                input "unpauseChildZone", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true
                 if(settings?.unpauseChildZones) { settingUpdate("unpauseChildZones", sFALSE, sBOOL); runIn(3, "executeZoneUnpause") }
             }
-            input "reinitChildZones", sBOOL, title: inTS1("Clear Zones Status and force a full status refresh for all zones?", sRESET), defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
+            input "reinitChildZones", sBOOL, title: inTS1("Clear Zones Status and force a full status refresh for all zones?", sRESET), defaultValue: false, submitOnChange: true
             if(settings?.reinitChildZones) { settingUpdate("reinitChildZones", sFALSE, sBOOL); runIn(3, "executeZoneUpdate") }
         }
         state.childInstallOkFlag = true
@@ -738,15 +738,15 @@ private deviceDetectOpts() {
 //    Boolean newInstall = !(Boolean) state.isInstalled
 //    Boolean resumeConf = (Boolean) state.resumeConfig
     section(sTS("Device Detection Preferences")) {
-        input "autoCreateDevices", sBOOL, title: inTS1("Auto Create New Devices?", sDEVICES), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEVICES)
-        input "createTablets", sBOOL, title: inTS1("Create Devices for Tablets?", "amazon_tablet"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet")
-        input "createWHA", sBOOL, title: inTS1("Create Multiroom Devices?", "echo_wha"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
-        input "createOtherDevices", sBOOL, title: inTS1("Create Other Alexa Enabled Devices?", sDEVICES), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEVICES)
-        input "autoRenameDevices", sBOOL, title: inTS1("Rename Devices to Match Amazon Echo Name?", "name_tag"), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
-        input "addEchoNamePrefix", sBOOL, title: inTS1("Add 'Echo - ' Prefix to label?", "name_tag"), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
+        input "autoCreateDevices", sBOOL, title: inTS1("Auto Create New Devices?", sDEVICES), description: sBLANK, required: false, defaultValue: true, submitOnChange: true
+        input "createTablets", sBOOL, title: inTS1("Create Devices for Tablets?", "amazon_tablet"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+        input "createWHA", sBOOL, title: inTS1("Create Multiroom Devices?", "echo_wha"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+        input "createOtherDevices", sBOOL, title: inTS1("Create Other Alexa Enabled Devices?", sDEVICES), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true
+        input "autoRenameDevices", sBOOL, title: inTS1("Rename Devices to Match Amazon Echo Name?", "name_tag"), description: sBLANK, required: false, defaultValue: true, submitOnChange: true
+        input "addEchoNamePrefix", sBOOL, title: inTS1("Add 'Echo - ' Prefix to label?", "name_tag"), description: sBLANK, required: false, defaultValue: true, submitOnChange: true
         Map devs = getAllDevices(true)
         if(devs?.size()) {
-            input "echoDeviceFilter", sENUM, title: inTS1("Don't Use these Devices", "exclude"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
+            input "echoDeviceFilter", sENUM, title: inTS1("Don't Use these Devices", "exclude"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             paragraph title:"Notice:", pTS("To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use these devices input above before removing.", getAppImg("info", true), false)
         }
     }
@@ -803,17 +803,17 @@ private String devicePrefsDesc() {
 def settingsPage() {
     return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
         section(sTS("Logging:")) {
-            input "logInfo", sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logWarn", sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logInfo", sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+            input "logWarn", sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+            input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
+            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
         }
         if(advLogsActive()) { logsEnabled() }
         showDevSharePrefs()
         section(sTS("Diagnostic Data:")) {
             paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", sNULL, false, sCLRGRY)
-            input "diagShareSensitveData", sBOOL, title: inTS1("Share Cookie Data?", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+            input "diagShareSensitveData", sBOOL, title: inTS1("Share Cookie Data?", "question"), required: false, defaultValue: false, submitOnChange: true
             href url: getAppEndpointUrl("diagData"), style: sEXTNRL, title: inTS("Diagnostic Data"), description: "Tap to view"
         }
     }
@@ -834,7 +834,7 @@ def deviceListPage() {
                 str += v.supported != true ? "\nUnsupported Device: (True)" : sBLANK
                 str += (v.mediaPlayer == true && v.musicProviders) ? "\nMusic Providers: [${v.musicProviders}]" : sBLANK
                 String a = (String)v.style?.image
-                href "deviceListPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v.online ? sCOMPLT : sNULL), image: getAppImg(a)
+                href "deviceListPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v.online ? sCOMPLT : sNULL)
             }
         }
     }
@@ -851,7 +851,7 @@ def unrecogDevicesPage() {
                     String str = "Status: (${v.online ? "Online" : "Offline"})\nStyle: ${(String)v.desc}\nFamily: ${(String)v.family}\nType: ${(String)v.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
                     str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
                     String a = (String)v.image
-                    href "unrecogDevicesPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v.online ? sCOMPLT : sNULL), image: getAppImg(a)
+                    href "unrecogDevicesPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v.online ? sCOMPLT : sNULL)
                 }
                 input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
@@ -864,7 +864,7 @@ def unrecogDevicesPage() {
                     String str = "Status: (${v.online ? "Online" : "Offline"})\nStyle: ${(String)v.desc}\nFamily: ${(String)v.family}\nType: ${(String)v.type}\nVolume Control: (${v.volume?.toString()?.capitalize()})"
                     str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
                     String a = (String)v.image
-                    href "unrecogDevicesPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v?.online ? sCOMPLT : sNULL), image: getAppImg(a)
+                    href "unrecogDevicesPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v?.online ? sCOMPLT : sNULL)
                 }
             }
         }
@@ -874,13 +874,13 @@ def unrecogDevicesPage() {
 def showDevSharePrefs() {
     section(sTS("Share Data with Developer:")) {
         paragraph title: "What is this used for?", pTS("These options send non-user identifiable information and error data to diagnose catch trending issues.", sNULL, false)
-        input ("optOutMetrics", sBOOL, title: inTS1("Do Not Share Data?", "analytics"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
+        input ("optOutMetrics", sBOOL, title: inTS1("Do Not Share Data?", "analytics"), required: false, defaultValue: false, submitOnChange: true)
 //        if(!(Boolean)settings.optOutMetrics) {
-            href url: getAppEndpointUrl("renderMetricData"), style: sEXTNRL, title: inTS1("View the Data shared with Developer", "view"), description: "Tap to view Data", required: false, image: getAppImg("view")
+            href url: getAppEndpointUrl("renderMetricData"), style: sEXTNRL, title: inTS1("View the Data shared with Developer", "view"), description: "Tap to view Data", required: false
  //       }
     }
     if(!(Boolean)settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
-        section() { input "sendMetricsNow", sBOOL, title: inTS1("Send Metrics Now?", sRESET), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET) }
+        section() { input "sendMetricsNow", sBOOL, title: inTS1("Send Metrics Now?", sRESET), description: sBLANK, required: false, defaultValue: false, submitOnChange: true }
         if(sendMetricsNow) { sendInstallData() }
     }
     state.shownDevSharePage = true
@@ -915,7 +915,7 @@ def notifPrefPage() {
         if(settings.smsNumbers) settingRemove('smsNumbers')
         if(settings.usePush) settingRemove('usePush')
         section (sTS("Notification Devices:")) {
-            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
+            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
         }
         
         state.remove('pushoverManager')
@@ -931,23 +931,23 @@ def notifPrefPage() {
             }
             section(sTS("Notification Restrictions:")) {
                 String t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (t1 ? "${t1}\n\n${sTTM}" : sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("restriction")
+                href "setNotificationTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (t1 ? "${t1}\n\n${sTTM}" : sTTC), state: (t1 ? sCOMPLT : sNULL)
             }
             section(sTS("Missed Poll Alerts:")) {
-                input (name: "sendMissedPollMsg", type: sBOOL, title: inTS1("Send Missed Checkin Alerts?", "late"), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
+                input (name: "sendMissedPollMsg", type: sBOOL, title: inTS1("Send Missed Checkin Alerts?", "late"), defaultValue: true, submitOnChange: true)
                 if((Boolean)settings.sendMissedPollMsg) {
-                    input (name: "misPollNotifyWaitVal", type: sENUM, title: inTS1("Time Past the Missed Checkin?", "delay_time"), description: "Default: 45 Minutes", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time"))
-                    input (name: "misPollNotifyMsgWaitVal", type: sENUM, title: inTS1("Send Reminder After?", "reminder"), description: "Default: 1 Hour", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
+                    input (name: "misPollNotifyWaitVal", type: sENUM, title: inTS1("Time Past the Missed Checkin?", "delay_time"), description: "Default: 45 Minutes", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true)
+                    input (name: "misPollNotifyMsgWaitVal", type: sENUM, title: inTS1("Send Reminder After?", "reminder"), description: "Default: 1 Hour", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true)
                 }
             }
             section(sTS("Cookie Alerts:")) {
-                input (name: "sendCookieRefreshMsg", type: sBOOL, title: inTS1("Send on Refreshed Cookie?", "cookie"), defaultValue: false, submitOnChange: true, image: getAppImg("cookie"))
-                input (name: "sendCookieInvalidMsg", type: sBOOL, title: inTS1("Send on Invalid Cookie?", "cookie"), defaultValue: true, submitOnChange: true, image: getAppImg("cookie"))
+                input (name: "sendCookieRefreshMsg", type: sBOOL, title: inTS1("Send on Refreshed Cookie?", "cookie"), defaultValue: false, submitOnChange: true)
+                input (name: "sendCookieInvalidMsg", type: sBOOL, title: inTS1("Send on Invalid Cookie?", "cookie"), defaultValue: true, submitOnChange: true)
             }
             section(sTS("Code Update Alerts:")) {
-                input "sendAppUpdateMsg", sBOOL, title: inTS1("Send for Updates...", "update"), defaultValue: true, submitOnChange: true, image: getAppImg("update")
+                input "sendAppUpdateMsg", sBOOL, title: inTS1("Send for Updates...", "update"), defaultValue: true, submitOnChange: true
                 if((Boolean)settings.sendAppUpdateMsg) {
-                    input (name: "updNotifyWaitVal", type: sENUM, title: inTS1("Send Reminders After?", "reminder"), description: "Default: 12 Hours", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
+                    input (name: "updNotifyWaitVal", type: sENUM, title: inTS1("Send Reminders After?", "reminder"), description: "Default: 12 Hours", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true)
                 }
             }
         } else { state.pushTested = false }
@@ -965,16 +965,16 @@ def setNotificationTimePage() {
          }
         Boolean timeReq = settings["qStartTime"] || settings["qStopTime"]
         section() {
-            input "qStartInput", sENUM, title: inTS1("Starting at", "start_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
+            input "qStartInput", sENUM, title: inTS1("Starting at", "start_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false
             if(settings["qStartInput"] == "A specific time") {
-                input "qStartTime", "time", title: inTS1("Start time", "start_time"), required: timeReq, image: getAppImg("start_time")
+                input "qStartTime", "time", title: inTS1("Start time", "start_time"), required: timeReq
             }
-            input "qStopInput", sENUM, title: inTS1("Stopping at", "stop_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
+            input "qStopInput", sENUM, title: inTS1("Stopping at", "stop_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false
             if(settings?."qStopInput" == "A specific time") {
-                input "qStopTime", "time", title: inTS1("Stop time", "stop_time"), required: timeReq, image: getAppImg("stop_time")
+                input "qStopTime", "time", title: inTS1("Stop time", "stop_time"), required: timeReq
             }
-            input "quietDays", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
-            input "quietModes", "mode", title: inTS1("When these modes are Active", "mode"), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
+            input "quietDays", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
+            input "quietModes", "mode", title: inTS1("When these modes are Active", "mode"), multiple: true, submitOnChange: true, required: false
         }
     }
 }
@@ -992,9 +992,9 @@ def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
         String t1 = sNULL
         section(sBLANK) {
-            href "speechPage", title: inTS1("Speech Test", "broadcast"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("broadcast")
-            href "announcePage", title: inTS1("Announcement Test","announcement"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("announcement")
-            href "sequencePage", title: inTS1("Sequence Creator Test", "sequence"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("sequence")
+            href "speechPage", title: inTS1("Speech Test", "broadcast"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL)
+            href "announcePage", title: inTS1("Announcement Test","announcement"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL)
+            href "sequencePage", title: inTS1("Sequence Creator Test", "sequence"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL)
         }
     }
 }
@@ -1201,13 +1201,13 @@ def musicSearchTestPage() {
         section("Test a Music Search on Device:") {
             paragraph "Use this to test the search you discovered above directly on a device.", state: sCOMPLT
             Map testEnum = ["CLOUDPLAYER": "My Library", "AMAZON_MUSIC": "Amazon Music", "I_HEART_RADIO": "iHeartRadio", "PANDORA": "Pandora", "APPLE_MUSIC": "Apple Music", "TUNEIN": "TuneIn", "SIRIUSXM": "siriusXm", "SPOTIFY": "Spotify"]
-            input "test_musicProvider", sENUM, title: inTS1("Select Music Provider to perform test", "music"), defaultValue: null, required: false, options: testEnum, multiple: false, submitOnChange: true, image: getAppImg("music")
+            input "test_musicProvider", sENUM, title: inTS1("Select Music Provider to perform test", "music"), defaultValue: null, required: false, options: testEnum, multiple: false, submitOnChange: true
             if((String)settings.test_musicProvider) {
-                input "test_musicQuery", "text", title: inTS1("Music Search term to test on Device", "search2"), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("search2")
+                input "test_musicQuery", "text", title: inTS1("Music Search term to test on Device", "search2"), defaultValue: null, required: false, submitOnChange: true
                 if((String)settings.test_musicQuery) {
-                    input "test_musicDevice", "device.EchoSpeaksDevice", title: inTS1("Select a Device to Test Music Search", "echo_speaks_3.1x"), description: sTTS, multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks_3.1x")
+                    input "test_musicDevice", "device.EchoSpeaksDevice", title: inTS1("Select a Device to Test Music Search", "echo_speaks_3.1x"), description: sTTS, multiple: false, required: false, submitOnChange: true
                     if(settings.test_musicDevice) {
-                        input "test_musicSearchRun", sBOOL, title: inTS1("Perform the Music Search Test?", "music"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music")
+                        input "test_musicSearchRun", sBOOL, title: inTS1("Perform the Music Search Test?", "music"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                         if((Boolean)settings.test_musicSearchRun) { executeMusicSearchTest() }
                     }
                 }
@@ -1215,9 +1215,9 @@ def musicSearchTestPage() {
         }
         section(sTS("TuneIn Search Results:")) {
             paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: sCOMPLT
-            input "test_tuneinSearchQuery", "text", title: inTS1("Enter search phrase for TuneIn", "tunein"), defaultValue: sNULL, required: false, submitOnChange: true, image: getAppImg("tunein")
+            input "test_tuneinSearchQuery", "text", title: inTS1("Enter search phrase for TuneIn", "tunein"), defaultValue: sNULL, required: false, submitOnChange: true
             if((String)settings.test_tuneinSearchQuery) {
-                href "searchTuneInResultsPage", title: inTS1("View search results!", "search2"), description: sTTP, image: getAppImg("search2")
+                href "searchTuneInResultsPage", title: inTS1("View search results!", "search2"), description: sTTP
             }
         }
     }
@@ -1252,7 +1252,7 @@ def dumpBrowseItem(Map item) {
     String a = (String)item.image ?: sNULL
     String b = ((String)item.name).take(75)
     Boolean c = !item.name?.contains("Not Supported")
-    href "searchTuneInResultsPage", title: pTS(b, a, false), description: str, required: true, state: (c ? sCOMPLT : sNULL), image: a
+    href "searchTuneInResultsPage", title: pTS(b, a, false), description: str, required: true, state: (c ? sCOMPLT : sNULL)
 }
 
 private getChildDeviceBySerial(String serial) {
@@ -1296,7 +1296,7 @@ def donationPage() {
 
             str += "\n\nThanks again for using Echo Speaks"
             paragraph str, required: true, state: sNULL
-            href url: textDonateLink(), style: sEXTNRL, required: false, title: "Donations", description: "Tap to open in browser", state: sCOMPLT, image: getAppImg("donate")
+            href url: textDonateLink(), style: sEXTNRL, required: false, title: "Donations", description: "Tap to open in browser", state: sCOMPLT
         }
         updInstData("shownDonation", true)
     }
@@ -3587,7 +3587,7 @@ static String actChildName(){ return "Echo Speaks - Actions" }
 static String zoneChildName(){ return "Echo Speaks - Zones" }
 static String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
-def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, state: sCOMPLT, image: getAppImg("documentation")}
+def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, state: sCOMPLT}
 
 String getAppEndpointUrl(subPath)   { return "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString() }
 
@@ -4687,7 +4687,7 @@ def appInfoSect() {
         section() {
             Map params = [ assignees: "tonesto7", labels: "add_device_support", title: "[ADD DEVICE SUPPORT] (${unkDevs?.size()}) Devices", body: "Requesting device support from the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "${k}: ${v}" }?.join("\n") }?.join("\n\n")?.toString() ]
             def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?${UrlParamBuilder(params)}"
-            href url: featUrl, style: sEXTNRL, required: false, title: inTS1("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", "info"), description: "Tap to open browser", image: getAppImg("info")
+            href url: featUrl, style: sEXTNRL, required: false, title: inTS1("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", "info"), description: "Tap to open browser"
         }
     }
 }
