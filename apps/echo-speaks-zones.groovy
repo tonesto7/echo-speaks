@@ -131,7 +131,7 @@ def mainPage() {
                 paragraph pTS("This Zone is currently disabled...\nTo edit the please re-enable it.", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null
             }
         } else {
-            if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+            if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
             Boolean condConf = conditionsConfigured()
             section(sTS("Zone Configuration:")) {
                 href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions"), description: getConditionsDesc(), required: true, state: (condConf ? sCOMPLT: null)
@@ -273,7 +273,7 @@ def conditionsPage() {
 
         section (sTS("Alarm Conditions")) {
             input "cond_alarm", sENUM, title: inTS1("${getAlarmSystemName()} is...", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true
-            if(settings.cond_alarm) {
+            if((List)settings.cond_alarm) {
                 input "cond_alarm_db", sBOOL, title: inTS1("Deactivate Zone immediately when Alarm condition no longer passes?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
             }
         }
@@ -578,7 +578,7 @@ private healthCheck() {
 //private condItemSet(String key) { return (settings.containsKey("cond_${key}") && settings["cond_${key}"]) }
 
 void scheduleCondition() {
-    if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
+    if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     Boolean tC = timeCondConfigured()
     Boolean dC = dateCondConfigured()
     if (tC || dC) {
@@ -656,7 +656,7 @@ void subscribeToEvts() {
                     subscribe(location, "hsmStatus", zoneEvtHandler)
                     break
                 case "mode":
-                    if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+                    if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
                     subscribe(location, si, zoneEvtHandler)
                     break
                 default:
@@ -727,10 +727,10 @@ Boolean dateCondOk() {
     Boolean result = null
     Boolean dOk
     Boolean mOk
-    if(!(settings.cond_days == null && settings.cond_months == null)) {
+    if(((List)settings.cond_days || (List)settings.cond_months) ) {
         Boolean reqAll = reqAllCond()
-        dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : reqAll // true
-        mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
+        dOk = (List)settings.cond_days ? (isDayOfWeek((List)settings.cond_days)) : reqAll // true
+        mOk = (List)settings.cond_months ? (isMonthOfYear((List)settings.cond_months)) : reqAll //true
         result = reqAll ? (mOk && dOk) : (mOk || dOk)
     }
     logTrace("dateConditions | $result | monthOk: $mOk | daysOk: $dOk")
@@ -741,10 +741,10 @@ Boolean locationCondOk() {
     Boolean result = null
     Boolean mOk
     Boolean aOk
-    if(!(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null)) {
+    if((List)settings.cond_mode || settings.cond_mode_cmd || (List)settings.cond_alarm) {
         Boolean reqAll = reqAllCond()
-        mOk = (settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
-        aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
+        mOk = ((List)settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
+        aOk = (List)settings.cond_alarm ? isInAlarmMode((List)settings.cond_alarm) : reqAll //true
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
     logTrace("locationConditions | $result | modeOk: $mOk | alarmOk: $aOk")
@@ -808,9 +808,9 @@ private Boolean isConditionOk(String evt) {
         if(!settings."cond_${evt}") { true }
         return checkDeviceNumCondOk(evt)
     } else if (evt == "mode") {
-        return (settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
+        return ((List)settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
     } else if (["hsmStatus", "alarmSystemStatus"].contains(evt)) {
-        return settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
+        return (List)settings.cond_alarm ? isInAlarmMode((List)settings.cond_alarm) : true
     } else {
         return true
     }
@@ -877,9 +877,9 @@ Boolean dateCondConfigured() {
 }
 
 Boolean locationCondConfigured() {
-    if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
-    Boolean mode = (settings.cond_mode && settings.cond_mode_cmd)
-    Boolean alarm = (settings.cond_alarm)
+    if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+    Boolean mode = ((List)settings.cond_mode && settings.cond_mode_cmd)
+    Boolean alarm = ((List)settings.cond_alarm)
     return (mode || alarm)
 }
 
@@ -993,8 +993,8 @@ void updateZoneStatus(Map data) {
             Boolean ok2Send = true
             String msgTxt = active ? (settings.notif_active_message ?: sNULL) : (settings.notif_inactive_message ?: sNULL)
             if(ok2Send && msgTxt) {
-                def zoneDevices = getZoneDevices()
-                def alexaMsgDev = zoneDevices?.size() && settings.notif_alexa_mobile ? zoneDevices[0] : null
+                Map zoneDevices = getZoneDevices()
+                def alexaMsgDev = ((List)zoneDevices.devices)?.size() && settings.notif_alexa_mobile ? ((List)zoneDevices.devices)[0] : null
                 if(sendNotifMsg(getZoneName(), msgTxt, alexaMsgDev, false)) { logTrace("Sent Zone Notification...") }
             }
         }
@@ -1055,40 +1055,41 @@ public zoneCmdHandler(evt) {
     String appId = app?.getId() as String
     if(cmd && data && appId && data?.zones && data?.zones?.contains(appId) && data?.cmd) {
         // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
-        def zoneDevs = getZoneDevices()
+        Map zoneDevMap = getZoneDevices()
+        List zoneDevs = (List)zoneDevMap.devices
         Integer delay = data?.delay ?: null
-        if(cmd == "speak" && zoneDevs?.devices?.size() >= 2) { cmd = "announcement" }
+        if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" }
         switch(cmd) {
             case "speak":
-                if(!data?.message) { logWarning("Zone Command Message is missing", true); return; }
+                if(!data?.message) { logWarning("Zone Command Message is missing", true); return }
                 logDebug("Sending Speak Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 if(data?.changeVol || data?.restoreVol) {
-                    zoneDevs?.devices?.each { dev->
+                    zoneDevs?.each { dev->
                         dev?.setVolumeSpeakAndRestore(data?.changeVol, data?.message, data?.restoreVol)
                     }
                 } else {
-                    zoneDevs?.devices?.each { dev->
+                    zoneDevs?.each { dev->
                         dev?.speak(data?.message)
                     }
                 }
                 break
             case "announcement":
-                if(zoneDevs?.devices?.size() > 0 && zoneDevs?.devObj) {
+                if(zoneDevs?.size() > 0 && (List)zoneDevMap.devObj) {
                     logDebug("Sending Announcement Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                    zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol)
+                    zoneDevs[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), (List)zoneDevMap.devObj, data?.changeVol, data?.restoreVol)
                 }
                 break
 
             case "voicecmd":
                 logDebug("Sending VoiceCmdAsText Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
-                zoneDevs?.devices?.each { dev->
+                zoneDevs?.each { dev->
                     dev?.voiceCmdAsText(data?.message as String)
                 }
                 break
             case "sequence":
                 logDebug("Sending Sequence Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
-                zoneDevs?.devices?.each { dev->
+                zoneDevs?.each { dev->
                     dev?.executeSequenceCommand(data?.message as String)
                 }
                 break
@@ -1097,20 +1098,22 @@ public zoneCmdHandler(evt) {
             case "weather":
             case "playback":
                 logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
-                zoneDevs?.devices?.each { dev->
+                zoneDevs?.each { dev->
                     if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null) }
                     if(data?.cmd == "volume" && data?.changeVol) { dev?.setVolume(data?.changeVol) }
                 }
                 break
             case "sounds":
                 logDebug("Sending ${data?.cmd?.toString()?.capitalize()} | Name: ${data?.message} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
-                zoneDevs?.devices?.each { dev->
+                zoneDevs?.each { dev->
                     dev?."${data?.cmd}"(data?.message, data?.changeVol ?: null, data?.restoreVol ?: null)
                 }
                 break
             case "music":
                 logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data?.provider} | Search: ${data?.search}${delay ? " | Delay: (${delay})" : sBLANK}${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}")
-                dev?."${data?.cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol)
+                zoneDevs?.each { dev ->
+                    dev?."${data?.cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol)
+                }
                 break
         }
     }
@@ -1383,7 +1386,7 @@ private void remTsVal(key) {
     if(!data) data = state.tsDtMap ?: [:]
     if(key) {
         if(key instanceof List) { 
-                key.each { String k->
+            ((List)key).each { String k->
                     if(data.containsKey(k)) { data.remove(k) }
                 }
         } else if(data.containsKey((String)key)) { data.remove((String)key) }
@@ -1416,7 +1419,7 @@ private void remAppFlag(key) {
     Map data = atomicState?.appFlagsMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
+            ((List)key).each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
         } else { if(data?.containsKey(key)) { data?.remove(key) } }
         atomicState.appFlagsMap = data
     }
@@ -1430,12 +1433,12 @@ Boolean getAppFlag(String val) {
 
 private stateMapMigration() {
     //Timestamp State Migrations
-    Map tsItems = [:]
-    tsItems?.each { k, v-> if(state.containsKey(k)) { updTsVal(v as String, state[k as String]); state.remove(k as String); } }
+    Map<String, String> tsItems = [:]
+    tsItems?.each { k, v-> if(state.containsKey(k)) { updTsVal(v, state[k]); state.remove(k) } }
 
     //App Flag Migrations
-    Map flagItems = [:]
-    flagItems?.each { k, v-> if(state.containsKey(k)) { updAppFlag(v as String, state[k as String]); state.remove(k as String); } }
+    Map<String,String> flagItems = [:]
+    flagItems?.each { k, v-> if(state.containsKey(k)) { updAppFlag(v, state[k]); state.remove(k) } }
     updAppFlag("stateMapConverted", true)
 }
 
@@ -1460,7 +1463,7 @@ String getAppNotifDesc(Boolean hide=false) {
     if(isZoneNotifConfigured()) {
         Boolean ok = getOk2Notify()
         str += hide ? sBLANK : "Send allowed: (${ok ? okSymFLD : notOkSymFLD})\n"
-        str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
+        str += ((List)settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr((List)settings.notif_devs)} (${((List)settings.notif_devs).size()})\n" : sBLANK
         str += settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
         String res = getNotifSchedDesc(true)
         str += res ?: sBLANK
@@ -1523,7 +1526,7 @@ String getConditionsDesc(Boolean addE=true) {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Zone is Active: (${((Boolean)conditionStatus().ok == true) ? okSymFLD : notOkSymFLD})\n\n"
+        String str = "Zone is Active: (${((Boolean)conditionStatus().ok) ? okSymFLD : notOkSymFLD})\n\n"
         str += (reqAllCond()) ? " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
             str += " \u2022 Time Between Allowed: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
@@ -1531,14 +1534,14 @@ String getConditionsDesc(Boolean addE=true) {
         }
         if(dateCondConfigured()) {
             str += " \u2022 Date:\n"
-            str += settings.cond_days      ? "    - Days Allowed: (${(isDayOfWeek(settings.cond_days)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            str += settings.cond_months    ? "    - Months Allowed: (${(isMonthOfYear(settings.cond_months)) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
+            str += settings.cond_days      ? "    - Days Allowed: (${(isDayOfWeek((List)settings.cond_days)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += settings.cond_months    ? "    - Months Allowed: (${(isMonthOfYear((List)settings.cond_months)) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
         }
-        if(settings.cond_alarm || settings.cond_mode) {
+        if((List)settings.cond_alarm || (List)settings.cond_mode) {
             str += " \u2022 Location: (${locationCondOk() ? okSymFLD : notOkSymFLD})\n"
-            str += settings.cond_alarm ? "    - Alarm Modes Allowed: (${(isInAlarmMode(settings.cond_alarm)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += (List)settings.cond_alarm ? "    - Alarm Modes Allowed: (${(isInAlarmMode((List)settings.cond_alarm)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
             Boolean not = settings.cond_mode_cmd == "not"
-            str += settings.cond_mode  ? "    - Allowed Location Modes (${not? "not in" : "in"}): (${(isInMode(settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += (List)settings.cond_mode  ? "    - Allowed Location Modes (${not? "not in" : "in"}): (${(isInMode((List)settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
             [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
