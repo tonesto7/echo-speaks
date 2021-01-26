@@ -157,7 +157,7 @@ private buildTriggerEnum() {
     return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
 
-private buildActTypeEnum() {
+private static buildActTypeEnum() {
     List enumOpts = []
     Map<String, Map> buildItems = [:]
     buildItems["Speech"] = ["speak":"Speak", "announcement":"Announcement", "speak_tiered":"Speak (Tiered)", "announcement_tiered":"Announcement (Tiered)"]?.sort{ it?.key }
@@ -299,7 +299,7 @@ def actionHistoryPage() {
         section() {
             getActionHistory()
         }
-        if((getMemStoreItem("actionHistory")).size()) {
+        if( ((List)getMemStoreItem("actionHistory")).size() ) {
             section(sBLANK) {
                 input "clearActionHistory", sBOOL, title: inTS1("Clear Action History?", "reset"), description: "Clears Stored Action History.", defaultValue: false, submitOnChange: true
                 //private List getMemStoreItem(String key){
@@ -1309,7 +1309,7 @@ def actionsPage() {
                     section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("alarms")
                     if(settings.act_EchoDevices) {
-                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
+//                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
                         String rptType = null
                         def rptTypeOpts = null
                         section(sTS("Action Type Config:")) {
@@ -1344,7 +1344,7 @@ def actionsPage() {
                     section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("reminders")
                     if(settings.act_EchoDevices) {
-                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
+//                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
                         String rptType = null
                         def rptTypeOpts = null
                         section(sTS("Action Type Config:")) {
@@ -2377,7 +2377,7 @@ def scheduleTrigEvt(evt=null) {
     // log.trace "lock wait: ${aa}"
 //    Map t0 = atomicState.schedTrigMap
 //    Map sTrigMap = t0 ?: [:]
-    Map sTrigMap = getMemStoreItem("schedTrigMap", [:])
+    Map sTrigMap = (Map)getMemStoreItem("schedTrigMap", [:])
     if(!sTrigMap) sTrigMap = state.schedTrigMap ?: [:]
 
     Boolean wdOk = (days && srecur in ["Daily", "Weekly"]) ? (dateMap.dayNameShort in days && sTrigMap?.lastRun?.dayName != dateMap.dayNameShort) : true
@@ -2487,7 +2487,7 @@ def sceneEvtHandler(evt) {
     logTrace( "${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     Boolean dco = (settings.trig_scene_once == true)
     Integer dcw = settings.trig_scene_wait ?: null
-    eventCompletion(evt, "scene", dco, dcw, "sceneEvtHandler", evt?.value, evt?.displayName)
+    eventCompletion(evt, "scene", dco, dcw, "sceneEvtHandler", evt?.value, (String)evt?.displayName)
 /*    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "scene", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
     if(!evtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
@@ -2500,7 +2500,7 @@ def modeEvtHandler(evt) {
     if(evt?.value in settings.trig_mode) {
         Boolean dco = (settings.trig_mode_once == true)
         Integer dcw = settings.trig_mode_wait ?: null
-        eventCompletion(evt, "mode", dco, dcw, "modeEvtHandler", evt?.value, evt?.displayName)
+        eventCompletion(evt, "mode", dco, dcw, "modeEvtHandler", evt?.value, (String)evt?.displayName)
 /*        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "mode", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
         if(!evtWaitOk) { return }
         if(getConfStatusItem("tiers")) {
@@ -2769,7 +2769,7 @@ private processTierTrigEvt(evt, Boolean evtOk) {
     //ERS
     Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
-    Map aTierSt = getMemStoreItem("actTierState", [:])
+    Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = state.actTierState ?: [:]
 
     if (evtOk) {
@@ -2809,7 +2809,7 @@ def getTierStatusSection() {
 
         Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
         // log.trace "lock wait: ${aa}"
-        Map aTierSt = getMemStoreItem("actTierState", [:])
+        Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
         if(!aTierSt) aTierSt = state.actTierState ?: [:]
 
 //        Map tS = atomicState.actTierState
@@ -2834,7 +2834,7 @@ private void resumeTierJobs() {
     //ERS
     Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
-    Map aTierSt = getMemStoreItem("actTierState", [:])
+    Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = state.actTierState ?: [:]
 
     //if(atomicState.actTierState?.size() && (Boolean)atomicState.tierSchedActive) {
@@ -2860,7 +2860,7 @@ private tierEvtHandler(evt=null) {
     //ERS
     Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
-    Map aTierSt = getMemStoreItem("actTierState", [:])
+    Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = state.actTierState ?: [:]
 
 //    t0 = atomicState.actTierState
@@ -2911,11 +2911,11 @@ private void tierSchedHandler(data) {
         executeAction(evt, false, "tierSchedHandler", false, false, [msg: data?.tierState?.message as String, volume: data?.tierState?.volume, isFirst: (data?.tierState?.cycle == 1), isLast: (data?.tierState?.lastMsg == true)])
         if(data?.sched) {
             if(data.tierState.schedDelay && data.tierState.lastMsg == false) {
-                logDebug("Scheduling Next Tier Message for (${data.tierState?.schedDelay} seconds)");
+                logDebug("Scheduling Next Tier Message for (${data.tierState?.schedDelay} seconds)")
                 runIn(data.tierState.schedDelay, "tierEvtHandler")
             } else {
-                logDebug("Scheduling cleanup for (5 seconds) as this was the last message");
-                runIn(5, "tierEvtHandler");
+                logDebug("Scheduling cleanup for (5 seconds) as this was the last message")
+                runIn(5, "tierEvtHandler")
             }
             //ERS
             atomicState.tierSchedActive = true
@@ -3025,7 +3025,7 @@ def thermostatEvtHandler(evt) {
     } else if (execOk) { executeAction(evt, false, "thermostatEvtHandler(${evt?.name})", false, evtAd) }
 }
 
-String evtValueCleanup(val) {
+static String evtValueCleanup(val) {
     // log.debug "val(in): ${val}"
     val = (val?.toString()?.isNumber() && val?.toString()?.endsWith(".0")) ? val?.toDouble()?.round(0) : val
     // log.debug "val(out): ${val}"
@@ -3056,7 +3056,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     // log.trace "lock wait: ${aa}"
 //    Map t0 = atomicState.valEvtHistory
 //    Map evtHistMap = t0 ?: [:]
-    Map evtHistMap = getMemStoreItem("valEvtHistory", [:])
+    Map evtHistMap = (Map)getMemStoreItem("valEvtHistory", [:])
     if(!evtHistMap) evtHistMap = state.valEvtHistory ?: [:]
     // log.debug "prevDt: ${evtHistMap[n]?.dt ? parseDate(evtHistMap[n]?.dt as String) : null} | evtDt: ${evtDt}"
     if(evtHistMap.containsKey(n) && evtHistMap[n]?.dt) {
@@ -3552,7 +3552,7 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
 }
 
 public getActionHistory(Boolean asObj=false) {
-    List eHist = getMemStoreItem("actionHistory")
+    List eHist = (List)getMemStoreItem("actionHistory")
     List<String> output = []
     if(eHist.size()) {
         eHist.each { Map h->
@@ -3583,7 +3583,7 @@ private addToActHistory(evt, data, Integer max=10) {
     Boolean aa = getTheLock(sHMLF, "addToActHistory")
     // log.trace "lock wait: ${aa}"
 
-    List eData = getMemStoreItem("actionHistory")
+    List eData = (List)getMemStoreItem("actionHistory")
     if(eData == null)eData = []
     eData.push([
         dt: getDtNow(),
@@ -4686,7 +4686,7 @@ String getConditionsDesc(Boolean addE=true) {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions Allow Operation: (${((Boolean)conditionStatus().ok == true) ? okSymFLD : notOkSymFLD})\n"
+        String str = "Conditions Allow Operation: (${(Boolean)conditionStatus().ok ? okSymFLD : notOkSymFLD})\n"
         str += reqAllCond() ?  " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
             str += " • Time Between Allowed: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
@@ -4734,7 +4734,7 @@ String getConditionsDesc(Boolean addE=true) {
     }
 }
 
-String attUnit(String attr) {
+static String attUnit(String attr) {
     switch(attr) {
         case "humidity":
         case "level":
@@ -4852,7 +4852,7 @@ String randomString(Integer len) {
 def getRandomItem(items) {
     def list = new ArrayList<String>()
     items?.each { list?.add(it) }
-    return list?.get(new Random().nextInt(list?.size()));
+    return list?.get(new Random().nextInt(list?.size()))
 }
 
 Boolean showChgLogOk() { return ((Boolean)state.isInstalled && !(Boolean)state.shownChgLog) }
