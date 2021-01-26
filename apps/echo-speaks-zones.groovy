@@ -1434,11 +1434,11 @@ Boolean getAppFlag(String val) {
 private stateMapMigration() {
     //Timestamp State Migrations
     Map<String, String> tsItems = [:]
-    tsItems?.each { k, v-> if(state.containsKey(k)) { updTsVal(v, state[k]); state.remove(k) } }
+    tsItems?.each { k, v-> if(state.containsKey(k)) { updTsVal(v, (String)state[k]); state.remove(k) } }
 
     //App Flag Migrations
     Map<String,String> flagItems = [:]
-    flagItems?.each { k, v-> if(state.containsKey(k)) { updAppFlag(v, state[k]); state.remove(k) } }
+    flagItems?.each { k, v-> if(state.containsKey(k)) { updAppFlag(v, (Boolean)state[k]); state.remove(k) } }
     updAppFlag("stateMapConverted", true)
 }
 
@@ -1534,8 +1534,8 @@ String getConditionsDesc(Boolean addE=true) {
         }
         if(dateCondConfigured()) {
             str += " \u2022 Date:\n"
-            str += settings.cond_days      ? "    - Days Allowed: (${(isDayOfWeek((List)settings.cond_days)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            str += settings.cond_months    ? "    - Months Allowed: (${(isMonthOfYear((List)settings.cond_months)) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
+            str += (List)settings.cond_days      ? "    - Days Allowed: (${isDayOfWeek((List)settings.cond_days) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += (List)settings.cond_months    ? "    - Months Allowed: (${isMonthOfYear((List)settings.cond_months) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
         }
         if((List)settings.cond_alarm || (List)settings.cond_mode) {
             str += " \u2022 Location: (${locationCondOk() ? okSymFLD : notOkSymFLD})\n"
@@ -1777,19 +1777,17 @@ Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?
 Boolean minVersionFailed() {
     try {
         Integer minDevVer = parent?.minVersions()["zoneApp"]
-        if(minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer) { return true }
-        else { return false }
+        return minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer
     } catch (e) {
         return false
     }
 }
 
-Boolean isPaused() { return ((Boolean)settings.zonePause == true) }
+Boolean isPaused() { return (Boolean)settings.zonePause }
 
 static String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
 static String getAppImg(String imgName, Boolean frc=false) { return frc ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK }
 
-static String getHEPublicImg(String imgName) { return getPublicImg(imgName, true) }
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
 static String sTS(String t, String i = sNULL) { return """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
@@ -1838,7 +1836,7 @@ void logError(String msg, Boolean noHist=false, ex=null) {
     if(!noHist) { addToLogHistory("errorHistory", msg, 15) }
 }
 
-String addHead(String msg) {
+static String addHead(String msg) {
     return "Zone (v"+appVersionFLD+") | "+msg
 }
 
@@ -1848,7 +1846,7 @@ private Map getLogHistory() {
     return [ warnings: []+warn, errors: []+errs ]
 }
 
-private void clearHistory()  { historyMapFLD = [:]; mb(); }
+private void clearHistory()  { historyMapFLD = [:]; mb() }
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATE)
 @Field static Map actionExecMapFLD = [:]
@@ -1872,7 +1870,7 @@ private List getMemStoreItem(String key){
 // Memory Barrier
 @Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
 
-static void mb(String meth=sNULL){
+static void mb(/*String meth=sNULL*/){
     if((Boolean)theMBLockFLD.tryAcquire()){
         theMBLockFLD.release()
     }
