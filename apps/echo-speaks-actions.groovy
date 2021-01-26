@@ -2008,17 +2008,6 @@ private void processDuplication() {
         }
     }
     parent.childAppDuplicationFinished("actions", dupSrcId)
-/*
-    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
-    Map dupData = parent?.getChildDupeData("actions", dupSrcId)
-    // log.debug "dupData: ${dupData}"
-    if(dupData && dupData.state?.size()) {
-        dupData.state.each { String k,v-> state[k] = v }
-    }
-    if(dupData && dupData.settings?.size()) {
-        dupData.settings.each { String k, Map v-> settingUpdate(k, (v.value != null ? v.value : null), (String)v.type) }
-    }
-    parent.childAppDuplicationFinished("actions", dupSrcId) */
     logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
 }
 /*
@@ -3966,37 +3955,46 @@ public void logsDisable() {
     }
 }
 
-private void updTsVal(key, dt=null) {
-    //ERS
-    def t0 = atomicState.tsDtMap
-    def data = t0 ?: [:]
+@Field volatile static Map<String,Map> tsDtMapFLD=[:]
+
+private void updTsVal(String key, String dt=sNULL) {
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:]
+    if(!data) data = state.tsDtMap ?: [:]
     if(key) { data[key] = dt ?: getDtNow() }
-    atomicState.tsDtMap = data
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
+
+    state.tsDtMap = data
 }
 
 private void remTsVal(key) {
-    //ERS
-    def t0 = atomicState.tsDtMap
-    def data = t0 ?: [:]
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:]
+    if(!data) data = state.tsDtMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
-        } else { if(data.containsKey((String)key)) { data.remove((String)key) } }
-        atomicState.tsDtMap = data
+                key.each { String k->
+                    if(data.containsKey(k)) { data.remove(k) }
+                }
+        } else if(data.containsKey((String)key)) { data.remove((String)key) }
     }
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
+
+    state.tsDtMap = data
 }
 
-String getTsVal(String val) {
-    //ERS
-    def tsMap = atomicState.tsDtMap
-    if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
+String getTsVal(String key) {
+    String appId=app.getId()
+    Map tsMap=tsDtMapFLD[appId]
+    if(!tsMap) tsMap = state.tsDtMap ?: [:]
+    if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
     return sNULL
 }
 
 Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
-    //ERS
-    def tsMap = atomicState.tsDtMap
-    return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
+    return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
 private void updAppFlag(String key, val) {
@@ -4121,10 +4119,11 @@ Boolean getOk2Notify() {
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = settings.notif_modes ? (isInMode(settings.notif_modes)) : true
-    logTrace("getOk2Notify() | notifDevs: $notifDevs |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
-    if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
-    if(!(daysOk && modesOk && timeOk)) { return false }
-    return true
+    Boolean result = true
+    if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { result = false }
+    if(!(daysOk && modesOk && timeOk)) { result = false }
+    logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    return result
 }
 
 Boolean notifTimeOk() {
@@ -4188,7 +4187,6 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
             if(sent) {
                 state.lastNotificationMsg = flatMsg
                 updTsVal("lastNotifMsgDt")
-//                state.lastNotifMsgDt = getDtNow()
                 logDebug("sendNotifMsg: Sent ${sentSrc} (${flatMsg})")
             }
         }
@@ -4203,6 +4201,7 @@ Boolean isActNotifConfigured() {
     return (settings.notif_devs || (Boolean)settings.notif_alexa_mobile)
 }
 
+/*
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
 private getPushoverDevices(){List opts=[];Map pmd=state.pushoverManager?:[:];pmd?.apps?.each{k,v->if(v&&v?.devices&&v?.appId){Map dm=[:];v?.devices?.sort{}?.each{i->dm["${i}_${v?.appId}"]=i};addInputGrp(opts,v?.appName,dm)}};return opts}
@@ -4218,7 +4217,7 @@ public pushover_poll(){sendLocationEvent(name:"pushoverManagerCmd",value:"poll",
 public pushover_msg(List devs,Map data){if(devs&&data){sendLocationEvent(name:"pushoverManagerMsg",value:"sendMsg",data:data,isStateChange:true,descriptionText:"Sending Message to Pushover Devices: ${devs}")}}
 public pushover_handler(evt){Map pmd=state.pushoverManager?:[:];switch(evt?.value){case"refresh":def ed = evt?.jsonData;String id = ed?.appId;Map pA = pmd?.apps?.size() ? pmd?.apps : [:];if(id){pA[id]=pA?."${id}"instanceof Map?pA[id]:[:];pA[id]?.devices=ed?.devices?:[];pA[id]?.appName=ed?.appName;pA[id]?.appId=id;pmd?.apps = pA};pmd?.sounds=ed?.sounds;break;case "reset":pmd=[:];break;};state.pushoverManager=pmd;}
 //Builds Map Message object to send to Pushover Manager
-private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
+private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);} */
 
 Integer versionStr2Int(String str) { return str ? str.toString()?.replaceAll("\\.", sBLANK)?.toInteger() : null }
 Boolean minVersionFailed() {
@@ -4909,18 +4908,12 @@ String getAppDebugDesc() {
 
 private addToLogHistory(String logKey, String data, Integer max=10) {
     Boolean ssOk = true // (stateSizePerc() > 70)
-//    String appId=app.getId()
 
     Boolean aa = getTheLock(sHMLF, "addToHistory(${logKey})")
     // log.trace "lock wait: ${aa}"
 
     List<Map> eData = (List<Map>)getMemStoreItem(logKey)
-//    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
-//    List<Map> eData = (List)memStore[logKey] ?: []
     if(!(eData.find { it?.data == data })) {
-//        releaseTheLock(sHMLF)
-//        return
-//    } else {
         eData.push([dt: getDtNow(), data: data])
         Integer lsiz = eData.size()
         if (!ssOk || lsiz > max) {
@@ -4975,11 +4968,6 @@ private void clearLogHistory() {
 
     updMemStoreItem("warnHistory", [])
     updMemStoreItem("errorHistory", [])
-//    Map memStore = historyMapFLD[appId] ?: [:]
-//    memStore["warnHistory"] = []
-//    memStore["errorHistory"] = []
-//    historyMapFLD[appId] = memStore
-//    historyMapFLD = historyMapFLD
 
     releaseTheLock(sHMLF)
 }
@@ -5246,18 +5234,15 @@ public Map getSettingsAndStateMap() {
             }
         }
         ((Map<String,String>)typeObj.caps).each { ck, cv->
-            //settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
             settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv->
                 setObjs[fk] = [type: "capability", value: (fv instanceof List ? fv?.collect { it?.id?.toString() } : it?.id?.toString ) ] } //.toString().toList()
         }
         ((Map<String, String>)typeObj.dev).each { dk, dv->
-            //settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv.collect { it?.id?.toString() }] } //.toString().toList()
             settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv->
                 setObjs[fk] = [type: "device", value: (fv instanceof List ? fv.collect { it?.id?.toString() } : it?.id?.toString() ) ] } //.toString().toList()
         }
     }
     Map data = [:]
-//    data.label = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", sBLANK)
     String newlbl = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", sBLANK)
     data.label = newlbl?.replace(" (A)", sBLANK)
     data.settings = setObjs
