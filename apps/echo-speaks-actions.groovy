@@ -173,7 +173,7 @@ private buildActTypeEnum() {
 def mainPage() {
     Boolean newInstall = (!(Boolean)state.isInstalled)
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? sBLANK : "namePage"), uninstall: newInstall, install: !newInstall) {
-        Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
+        Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup == true)
         if(dup) {
             state.dupOpenedByUser = true
             section() { paragraph pTS("This Action was just created from an existing action.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
