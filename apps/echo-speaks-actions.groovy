@@ -103,7 +103,7 @@ def startPage() {
     if(parent != null) {
         if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
-            state.isParent = false
+//            state.isParent = false
             List aa = settings.act_EchoDevices
             List devIt = aa.collect { it ? it.toInteger():null }
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
@@ -184,20 +184,22 @@ private buildActTypeEnum() {
 def mainPage() {
     Boolean newInstall = (!(Boolean)state.isInstalled)
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? sBLANK : "namePage"), uninstall: newInstall, install: !newInstall) {
+        Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
+        if(dup) {
+            state.dupOpenedByUser = true
+            section() { paragraph pTS("This Action was just created from an existing action.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null, image: getAppImg("pause_orange") }
+        }
+
         if(settings.enableWebCoRE) {
             if(!webCoREFLD) webCoRE_init()
         }
         appInfoSect()
         Boolean paused = isPaused()
-        Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
         Boolean trigConf
         Boolean condConf
         Boolean actConf
         Boolean allOk
-        if(dup) {
-            state.dupOpenedByUser = true
-            section() { paragraph pTS("This Action was just created from an existing action.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null, image: getAppImg("pause_orange") }
-        }
+
         if(paused) {
             section() {
                 paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null, image: getAppImg("pause_orange")
@@ -1996,7 +1998,7 @@ def updated() {
     if(maybeDup) logInfo("updated found maybe a dup... ${settings.duplicateFlag}")
     if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
     if(!state.dupPendingSetup) initialize()
-    else logInfo("This zone is duplicated and has not had configuration completed... Please open zone and configure to complete setup...")
+    else logInfo("This action is duplicated and has not had configuration completed... Please open action and configure to complete setup...")
 }
 
 def initialize() {
@@ -2009,7 +2011,7 @@ def initialize() {
     updAppLabel()
     if(advLogsActive()) { logsEnabled() }
     runIn(3, "actionCleanup")
-    if(!isPaused()) {
+    if(!isPaused(true)) {
         runIn(7, "subscribeToEvts")
         runEvery1Hour("healthCheck")
         if(settings.enableWebCoRE){
@@ -2023,9 +2025,25 @@ def initialize() {
 
 private void processDuplication() {
     String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains(" (Dup)") ? "" : " (Dup)"}"
-    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
     app?.updateLabel(newLbl)
     state.dupPendingSetup = true
+
+    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
+    Map dupData = parent?.getChildDupeData("actions", dupSrcId)
+    log.debug "dupData: ${dupData}"
+    if(dupData && dupData.state?.size()) {
+        dupData.state.each { String k,v-> state[k] = v }
+    }
+
+    if(dupData && dupData.settings?.size()) {
+        dupData.settings.each { String k, Map v->
+           if((String)v.type == sENUM) settingRemove(k)
+            settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
+        }
+    }
+    parent.childAppDuplicationFinished("actions", dupSrcId)
+/*
+    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
     Map dupData = parent?.getChildDupeData("actions", dupSrcId)
     // log.debug "dupData: ${dupData}"
     if(dupData && dupData.state?.size()) {
@@ -2034,7 +2052,7 @@ private void processDuplication() {
     if(dupData && dupData.settings?.size()) {
         dupData.settings.each { String k, Map v-> settingUpdate(k, (v.value != null ? v.value : null), (String)v.type) }
     }
-    parent.childAppDuplicationFinished("action", dupSrcId)
+    parent.childAppDuplicationFinished("actions", dupSrcId) */
     logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
 }
 /*
@@ -2052,7 +2070,7 @@ private void updateZoneSubscriptions() {
 String getActionName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
-    String newLbl = "${settings.appLbl} (A${isPaused() ? " \u275A\u275A" : sBLANK})".replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s"," ")
+    String newLbl = "${settings.appLbl} (A${isPaused(true) ? " \u275A\u275A" : sBLANK})".replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s"," ")
     if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -2156,7 +2174,7 @@ private void actionCleanup() {
     setItems.unique()?.each { String sI-> if(settings.containsKey(sI)) { settingRemove(sI) } }
 }
 
-Boolean isPaused() { return (Boolean)settings.actionPause }
+Boolean isPaused(Boolean chkAll = false) { return (Boolean)settings.actionPause && (chkAll ? !(state.dupPendingSetup == true) : true) }
 
 public void triggerInitialize() { runIn(3, "initialize") }
 private Boolean valTrigEvt(String key) { return (key in settings.triggerEvents) }
@@ -2257,7 +2275,7 @@ Boolean schedulesConfigured() {
 }
 
 void scheduleSunriseSet() {
-    if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
+    if(isPaused(true)) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     def sun = getSunriseAndSunset()
     Long ltim = settings.trig_scheduled_type in ["Sunrise"] ? sun.sunrise.time : sun.sunset.time
     Long offset = (settings.trig_scheduled_sunState_offset ?: 0L) * 60000L // minutes
@@ -2273,7 +2291,7 @@ void scheduleSunriseSet() {
 void subscribeToEvts() {
     state.handleGuardEvents = false
     if(minVersionFailed ()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return }
-    if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
+    if(isPaused(true)) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     settings.triggerEvents?.each { String te->
         if(te == "scheduled" || settings."trig_${te}") {
             switch (te) {
@@ -3672,7 +3690,7 @@ void clearActHistory(){
 private void executeAction(evt = null, Boolean testMode=false, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
     Long startTime = now()
     logTrace( "executeAction${src ? "($src)" : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
-    if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
+    if(isPaused(true)) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
     Map condStatus = conditionStatus()
     // log.debug "condStatus: ${condStatus}"
     addToActHistory(evt, [status: condStatus, test: testMode, src: src, isRepeat: isRptAct, isTier: (tierData != null)] )
@@ -4528,15 +4546,13 @@ String getAlarmSystemName(Boolean abbr=false) {
 |    Time and Date Conversion Functions
 *******************************************/
 String formatDt(Date dt, Boolean tzChg=true) {
-    def tf = new java.text.SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-    if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
-    return (String)tf.format(dt)
+    return dateTimeFmt(dt, "E MMM dd HH:mm:ss z yyyy", tzChg)
 }
 
-String dateTimeFmt(Date dt, String fmt) {
+String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
 //    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new java.text.SimpleDateFormat(fmt)
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    if(tzChg && location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return (String)tf.format(dt)
 }
 
@@ -4557,24 +4573,22 @@ String convToDateTime(Date dt) {
     return d+', '+t
 }
 
-Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
-Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
-String strCapitalize(str) { return str ? str?.toString().capitalize() : sNULL }
-String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
+static Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
+
+static Boolean isDateToday(Date dt) { return (dt && dt.clearTime().compareTo(new Date().clearTime()) >= 0) }
+
+static String strCapitalize(str) { return str ? str.toString().capitalize() : sNULL }
+
+static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
 /*
-String parseDt(String pFormat, String dt, tzFmt=true) {
-    String result
-    Date newDt = Date.parse(pFormat.toString(), dt)
-    result = formatDt(newDt, tzFmt) // this is not right
-    //log.debug "parseDt Result: $result"
-    return result
+String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
+    Date newDt = Date.parse(pFormat, dt)
+    return formatDt(newDt, tzFmt)
 } */
 
 String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
-    def tf = new java.text.SimpleDateFormat(newFmt)
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return (String)tf?.format(newDt)
+    return dateTimeFmt(newDt, newFmt)
 }
 
 String getDtNow() {
@@ -4582,39 +4596,32 @@ String getDtNow() {
     return formatDt(now)
 }
 
-String epochToTime(Date tm) {
-    def tf = new java.text.SimpleDateFormat("h:mm a")
-    if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return (String)tf.format(tm)
+String epochToTime(Date dt) {
+    return dateTimeFmt(dt, "h:mm a")
 }
 /*
 String time2Str(String time, String fmt="h:mm a") {
     if(time) {
         Date t = timeToday(time, location?.timeZone)
-        def f = new java.text.SimpleDateFormat(fmt)
-        if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-        return (String)f?.format(t)
+        return dateTimeFmt(t, fmt)
     }
     return sNULL
 } */
 
 String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
     if(!t) return sNULL
-    Date dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t?.toString())
-    def tf = new java.text.SimpleDateFormat(fmt)
-    if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return tf?.format(dt)
+    Date dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t.toString())
+    return dateTimeFmt(dt, fmt)
 }
 
 Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
     try {
         if(lastDate?.contains("dtNow")) { return 10000 }
-        Date now = new Date()
-        Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
-        Long start = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt)).getTime()
-        Long stop = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(now)).getTime()
+        Date lastDt = parseDate(lastDate) // Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
+        Long start = lastDt.getTime()
+        Long stop = now()
         Long diff = (stop - start) / 1000L
-        return diff
+        return diff.abs()
     }
     catch (ex) {
         logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex?.message}", false, ex)
@@ -4669,7 +4676,7 @@ Boolean isTimeBetween(String startTime, String stopTime, Date curTime= new Date(
 |   App Input Description Functions
 *******************************************/
 
-Map dimmerLevelEnum() { return [100:"Set Level to 100%", 90:"Set Level to 90%", 80:"Set Level to 80%", 70:"Set Level to 70%", 60:"Set Level to 60%", 50:"Set Level to 50%", 40:"Set Level to 40%", 30:"Set Level to 30%", 20:"Set Level to 20%", 10:"Set Level to 10%"] }
+static Map dimmerLevelEnum() { return [100:"Set Level to 100%", 90:"Set Level to 90%", 80:"Set Level to 80%", 70:"Set Level to 70%", 60:"Set Level to 60%", 50:"Set Level to 50%", 40:"Set Level to 40%", 30:"Set Level to 30%", 20:"Set Level to 20%", 10:"Set Level to 10%"] }
 
 String unitStr(type) {
     switch(type) {
@@ -5397,7 +5404,7 @@ public Map getSettingsAndStateMap() {
             ev?.each { evi->
                 settings.findAll { it?.key?.endsWith(evi) }?.each { String fk, fv->
                     def vv = settings[fk] // fv
- //                   if(ek==sTIME) vv = convToTime(toDateTime(vv))
+                   if(ek==sTIME) vv = dateTimeFmt(toDateTime(vv), "HH:mm")
                     setObjs[fk] = [type: ek, value: vv]
                 }
             }
@@ -5420,8 +5427,16 @@ public Map getSettingsAndStateMap() {
     data.settings = setObjs
 
     List stskip = [
-        "isInstalled", "isParent", "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
-        "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory"
+        /* "isInstalled", "isParent", */ "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
+        "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory",
+
+// actions
+        "tierSchedActive",
+// zones
+        "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", "handleGuardEvents", "startTime", "stopTime", "alexaGuardState", "appFlagsMap",
+
+        "dupPendingSetup", "dupOpenedByUser"
+
     ]
     data.state = state?.findAll { !(it?.key in stskip) }
     return data
