@@ -27,6 +27,7 @@ import groovy.transform.Field
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sBULLET        = '\u2022'
+@Field static final String sFRNFACE       = '\u2639'
 @Field static final String okSymFLD       = "\u2713"
 @Field static final String notOkSymFLD    = "\u2715"
 @Field static final String sFALSE         = 'false'
@@ -44,6 +45,7 @@ import groovy.transform.Field
 @Field static final String sTTM           = 'Tap to modify...'
 @Field static final String sTTC           = 'Tap to configure...'
 @Field static final String sTTP           = 'Tap to proceed...'
+@Field static final String sTTVD          = 'Tap to view details...'
 @Field static final String sTTS           = 'Tap to select...'
 @Field static final String sSETTINGS      = 'settings'
 @Field static final String sRESET         = 'reset'
@@ -155,25 +157,29 @@ def mainPage() {
             deviceDetectOpts()
         } else {
             section(sTS("Alexa Guard:")) {
-                if((Boolean)state.alexaGuardSupported) {
-                    String gState = (String)state.alexaGuardState ? ((String)state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : "Unknown"
+                if((Boolean) state.alexaGuardSupported) {
+                    String gState = (String) state.alexaGuardState ? ((String) state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : "Unknown"
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
-                    href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), state: guardAutoConfigured() ? sCOMPLT : sNULL,
-                            description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : sBLANK}\n\n${sTTM}"
-                } else { paragraph pTS("Alexa Guard is not enabled or supported by any of your Echo Devices", sNULL, false, sCLRGRY) }
+                    String ad = "<p>Current Status: ${gState}</p>"
+                    ad += guardAutoConfigured() ? "<br><p>Automation: Enabled</p>" : sBLANK
+                    ad += "<br><br><p>${sTTM}</p>"
+                    href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), state: (guardAutoConfigured() ? sCOMPLT : sNULL), description: ad
+                } else { paragraph pTS("<div style='font-size: small;'>Alexa Guard is not enabled or supported by any of your Echo Devices</div>", sNULL, true, sCLRGRY) }
             }
 
             section(sTS("Alexa Devices:")) {
                 if(!newInstall) {
-                    List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : sBLANK}${it?.value?.supported == false ? " \u2639" : sBLANK}" }
                     //Map skDevs = state.skippedDevices?.findAll { (it?.value?.reason != sIN_IGNORE) }
                     //Map ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == sIN_IGNORE) }
                     List remDevs = getRemovableDevs()
                     if(remDevs?.size()) {
-                        href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: sNULL
+                        String rd = remDevs.sort().collect { """<span> ${sBULLET} ${it}</span>""" }.join("<br>")
+                        href "devCleanupPage", title: inTS("Removable Devices:"), description: "<div style='color: red; font-size: small;'>${rd}</div>", required: true, state: sNULL
                     }
-                    href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: "(${devs?.size()}) Installed\n\n${sTTM}", state: sCOMPLT
-                } else { paragraph "Device Management will be displayed after install is complete" }
+                    String devDesc = getDeviceList()?.collect { """<span>${it?.value?.name}</span>${it?.value?.online ? """<span style='color: green;'> (Online)</span>""" : sBLANK}${it?.value?.supported == false ? """<span style='color: red;'> ${sFRNFACE}</span>""" : sBLANK}""" }?.sort().join("<br>").toString()
+                    String dd = devDesc ? """<div style='font-size: small; color: #1A77C9;'>${devDesc}</div><div style='font-weight: bold;font-size: small;'><br>${sTTM}</div>""" : """<div style='font-weight: bold; font-size: small;'>${sTTC}</div"""
+                    href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: dd, state: sCOMPLT
+                } else { paragraph pTS("Device Management will be displayed after install is complete", sNull, true, "orange") }
             }
 
             section(sTS("Companion Apps:")) {
@@ -354,21 +360,24 @@ def deviceManagePage() {
         Boolean newInstall = !(Boolean)state.isInstalled
         section(sTS("Alexa Devices:")) {
             if(!newInstall) {
-                List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : sBLANK}${it?.value?.supported == false ? " \u2639" : sBLANK}" }?.sort()
+                Map devs = getDeviceList()
                 Map skDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason != sIN_IGNORE) }
                 Map ignDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason == sIN_IGNORE) }
                 if(devs?.size()) {
-                    href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: sCOMPLT
-                } else { paragraph title: "Discovered Devices:", "No Devices Available", state: sCOMPLT }
+                    String devDesc = devs?.collect { "<span>${it?.value?.name}</span>${it?.value?.online ? "<span style='color: green;'> (Online)</span>" : sBLANK}${it?.value?.supported == false ? "<span style='color: red;'> ${sFRNFACE}</span>" : sBLANK}" }?.sort().join("<br>").toString()
+                    String dd = "<div style='font-size: small; color: #1A77C9;'>${devDesc}</div><br><div style='font-weight: bold;font-size: small;'>${sTTVD}</div>"
+                    href "deviceListPage", title: inTS("Installed Devices:"), description: dd, state: sCOMPLT
+                } else { paragraph pTS("Discovered Devices:\nNo Devices Available", sNULL, false, "red"), state: sCOMPLT }
                 List remDevs = getRemovableDevs()
                 if(remDevs?.size()) {
-                    href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: sNULL
+                    String rd = remDevs.sort().collect { """<span> ${sBULLET} ${it}</span>""" }.join("<br>")
+                    href "devCleanupPage", title: inTS("Removable Devices:"), description: "<div style='color: red; font-size: small;'>${rd}</div>", required: true, state: sNULL
                 }
                 if(skDevs?.size()) {
                     String uDesc = "Unsupported: (${skDevs?.size()})"
                     uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : sBLANK
                     uDesc += (Boolean)settings.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : sBLANK
-                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details...", state: sCOMPLT
+                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "<div style='color: orange;font-size: small;'>${uDesc}</div><br><div style='font-weight: bold;font-size: small;'>${sTTVD}</div>", state: sCOMPLT
                 }
             }
             String devPrefDesc = devicePrefsDesc()
@@ -849,11 +858,16 @@ def unrecogDevicesPage() {
         Map<String, Map> unDevs = skDevMap?.findAll { (it?.value?.reason != sIN_IGNORE) }
         section(sTS("Unrecognized/Unsupported Devices:")) {
             if(unDevs?.size()) {
-                unDevs.sort { it?.value?.name }?.each { String k,Map v->
-                    String str = "Status: (${v.online ? "Online" : "Offline"})\nStyle: ${(String)v.desc}\nFamily: ${(String)v.family}\nType: ${(String)v.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
-                    str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
-                    String a = (String)v.image
-                    href "unrecogDevicesPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v.online ? sCOMPLT : sNULL)
+                unDevs.sort { it?.value?.name }?.each { String k, Map v->
+                    String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span>"
+                    str += "<br><span>Style: ${(String) v.desc}</span>"
+                    str += "<br><span>Family: ${(String)v.family}</span>"
+                    str += "<br><span>Type: ${(String)v.type}</span>"
+                    str += "<br><span>Volume Control: (${v?.volume?.toString()?.capitalize()})</span>"
+                    str += "<br><span>Text-to-Speech: (${v?.tts?.toString()?.capitalize()})</span>"
+                    str += "<br><span>Music Player: (${v?.mediaPlayer?.toString()?.capitalize()})</span>"
+                    str += "<br><span>Reason Ignored: (${v?.reason})</span>"
+                    paragraph paraTS(v.name, str, v.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? '#1A77C9' : 'gray')])
                 }
                 input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
@@ -863,8 +877,8 @@ def unrecogDevicesPage() {
         if(ignDevs?.size()) {
             section(sTS("User Ignored Devices:")) {
                 ignDevs.sort { it?.value?.name }?.each { k,v->
-                    String str = "Status: (${v.online ? "Online" : "Offline"})\nStyle: ${(String)v.desc}\nFamily: ${(String)v.family}\nType: ${(String)v.type}\nVolume Control: (${v.volume?.toString()?.capitalize()})"
-                    str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
+                    String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span><br><span>Style: ${(String)v.desc}</span><br><span>Family: ${(String)v.family}</span><br><span>Type: ${(String)v.type}</span><br><span>Volume Control: (${v?.volume?.toString()?.capitalize()})</span>"
+                    str += "<br><span>Text-to-Speech: (${v?.tts?.toString()?.capitalize()})</span><br><span>Music Player: (${v?.mediaPlayer?.toString()?.capitalize()})</span><br><span>Reason Ignored: (${v?.reason})</span"
                     String a = (String)v.image
                     href "unrecogDevicesPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v?.online ? sCOMPLT : sNULL)
                 }
@@ -3576,6 +3590,14 @@ static String sectTS(String t, String i = sNULL, Boolean bold=false) { return ""
 static String sectH3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="48"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ?: sBLANK}""" }
 
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
+
+public String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: (String) 'normal', c: (String) 'black', b: (Boolean) true, u: (Boolean) true], Map bOpts = [s:(String) 'normal', c: (String) null, b: (Boolean) false]) { 
+    String s = ""
+    s += title ? "<div style='${tOpts && tOpts.c != null ? 'color: ${tOpts.c};' : sBLANK}${tOpts && tOpts.s != null ? 'font-size: ${tOpts.s};' : sBLANK}${tOpts && tOpts.b ? 'font-weight: bold;' : sBLANK}${tOpts && tOpts.u ? 'text-decoration: underline;' : sBLANK}'>${img != null ? '<img src="${img}" width="42"> ' : sBLANK}${title}</div>" : sBLANK
+    s += body ? "<div style='${bOpts && bOpts.c != null ? 'color: ${bOpts.c};' : sBLANK}${bOpts && bOpts.s != null ? 'font-size: ${bOpts.s};' : sBLANK}${bOpts && bOpts.b ? 'font-weight: bold;' : sBLANK}'>${body}</div>" : sBLANK
+    log.debug "s: $s"
+    return s
+}
 /* """ */
 
 static String inTS1(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return inTS(t, getHEAppImg(i), color, under) }
