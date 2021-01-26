@@ -616,6 +616,8 @@ public void clearDuplicationItems() {
     state.zoneDuplicated = false
     if(settings.actionDuplicateSelect) settingRemove("actionDuplicateSelect")
     if(settings.zoneDuplicateSelect) settingRemove("zoneDuplicateSelect")
+    state.remove('actionDuplicated')
+    state.remove('zoneDuplicated')
 }
 
 public void childAppDuplicationFinished(String type, String childId) {
@@ -912,19 +914,23 @@ def notifPrefPage() {
         section(sBLANK) {
             paragraph title: "Notice:", pTS("The settings configure here are used by both the App and the Devices.", getAppImg("info", true), true, sCLR4D9), state: sCOMPLT
         }
-        if(settings.smsNumbers) settingRemove('smsNumbers')
-        if(settings.usePush) settingRemove('usePush')
         section (sTS("Notification Devices:")) {
             input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
         }
         
+//TODO REMOVE
+        if(settings.smsNumbers) settingRemove('smsNumbers')
+        if(settings.usePush) settingRemove('usePush')
         state.remove('pushoverManager')
         settingRemove('pushoverEnabled')
         settingRemove('pushoverDevices')
         settingRemove('pushoverPriority')
         settingRemove('pushoverSound')
-        if(settings?.smsNumbers?.toString()?.length()>=10 || settings.notif_devs || (Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) {
-            if(((Boolean)settings.usePush || settings.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state.pushTested && state.pushoverManager) {
+
+        //if(settings?.smsNumbers?.toString()?.length()>=10 || settings.notif_devs || (Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) {
+        if(settings.notif_devs) {
+            //if(((Boolean)settings.usePush || settings.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state.pushTested && state.pushoverManager) {
+            if((settings.notif_devs) && !state.pushTested) {
                 if(sendMsg("Info", "Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
                     state.pushTested = true
                 }
@@ -1404,6 +1410,7 @@ void appCleanup() {
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
         "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap"
     ]
+// pushTested
     items?.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     state.pollBlocked = false
     state.resumeConfig = false
@@ -3441,14 +3448,15 @@ private List codeUpdateItems(Boolean shrt=false) {
     return updItems
 }
 
+//TODO REMOVE
 //Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
 //Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? true : true ) : false }
 
 Boolean getOk2Notify() {
-    Boolean smsOk = (settings.smsNumbers?.toString()?.length()>=10)
-    Boolean pushOk = (Boolean)settings.usePush
+    Boolean smsOk // (settings.smsNumbers?.toString()?.length()>=10)
+    Boolean pushOk // (Boolean)settings.usePush
     Boolean notifDevs = (settings.notif_devs?.size())
-    Boolean pushOver = ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)
+    Boolean pushOver // ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)
     Boolean daysOk = quietDaysOk(settings.quietDays)
     Boolean timeOk = quietTimeOk()
     Boolean modesOk = quietModesOk(settings.quietModes)
