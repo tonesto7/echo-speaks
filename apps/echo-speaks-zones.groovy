@@ -131,7 +131,7 @@ def mainPage() {
                 paragraph pTS("This Zone is currently disabled...\nTo edit the please re-enable it.", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null
             }
         } else {
-            if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+            if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
             Boolean condConf = conditionsConfigured()
             section(sTS("Zone Configuration:")) {
                 href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions"), description: getConditionsDesc(), required: true, state: (condConf ? sCOMPLT: null)
@@ -199,7 +199,7 @@ def zoneHistoryPage() {
         section() {
             getZoneHistory()
         }
-        List eData = getMemStoreItem(zoneHisFLD) ?: []
+        List eData = (List)getMemStoreItem(zoneHisFLD) ?: []
         if(eData.size()) {
             section("") {
                 input "clearZoneHistory", sBOOL, title: inTS1("Clear Zone History?", sRESET), description: "Clears Stored Zone History.", defaultValue: false, submitOnChange: true
@@ -273,7 +273,7 @@ def conditionsPage() {
 
         section (sTS("Alarm Conditions")) {
             input "cond_alarm", sENUM, title: inTS1("${getAlarmSystemName()} is...", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true
-            if(settings.cond_alarm) {
+            if((List)settings.cond_alarm) {
                 input "cond_alarm_db", sBOOL, title: inTS1("Deactivate Zone immediately when Alarm condition no longer passes?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
             }
         }
@@ -546,15 +546,16 @@ private void updConfigStatusMap() {
 }
 
 Boolean devicesConfigured() { return (settings.zone_EchoDevices?.size() > 0) }
-private Boolean getConfStatusItem(String item) { Map sMap = state.configStatusMap; return (sMap?.containsKey(item) && sMap[item] == true) }
+
+//private Boolean getConfStatusItem(String item) { Map sMap = state.configStatusMap; return (sMap?.containsKey(item) && sMap[item] == true) }
 
 private void zoneCleanup() {
     // State Cleanup
-    List items = []
+    List<String> items = []
     items?.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     //Cleans up unused Zone setting items
-    List setItems = ["zone_delay"]
-    List setIgn = ["zone_EchoDeviceList", "zone_EchoDevices"]
+    List<String> setItems = ["zone_delay"]
+//    List<String> setIgn = ["zone_EchoDeviceList", "zone_EchoDevices"]
     setItems.each { String sI-> if(settings.containsKey(sI)) { settingRemove(sI) } }
 }
 
@@ -574,10 +575,10 @@ private healthCheck() {
     if(advLogsActive()) { logsDisable() }
 }
 
-private condItemSet(String key) { return (settings.containsKey("cond_${key}") && settings["cond_${key}"]) }
+//private condItemSet(String key) { return (settings.containsKey("cond_${key}") && settings["cond_${key}"]) }
 
 void scheduleCondition() {
-    if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
+    if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     Boolean tC = timeCondConfigured()
     Boolean dC = dateCondConfigured()
     if (tC || dC) {
@@ -634,8 +635,8 @@ void scheduleCondition() {
 
 void subscribeToEvts() {
 //    state.handleGuardEvents = false
-    if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return; }
-    if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return; }
+    if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return }
+    if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "securityKeypad", "shade", "valve", "door", "contact", "acceleration", sSWITCH, "battery", "level"]
 
     //SCHEDULING
@@ -655,7 +656,7 @@ void subscribeToEvts() {
                     subscribe(location, "hsmStatus", zoneEvtHandler)
                     break
                 case "mode":
-                    if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+                    if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
                     subscribe(location, si, zoneEvtHandler)
                     break
                 default:
@@ -670,7 +671,7 @@ void subscribeToEvts() {
     subscribe(location, "systemStart", zoneStartHandler)
 }
 
-String attributeConvert(String attr) {
+static String attributeConvert(String attr) {
     Map atts = ["door":"garageDoorControl", "shade":"windowShade"]
     return (atts?.containsKey(attr)) ? atts[attr] : attr
 }
@@ -681,8 +682,8 @@ String attributeConvert(String attr) {
 Boolean reqAllCond() { Boolean a = multipleConditions(); return (!a || (a && (Boolean)settings.cond_require_all) ) }
 
 Boolean timeCondOk() {
-    Date startTime = null
-    Date stopTime = null
+    Date startTime
+    Date stopTime
     Date now = new Date()
     String startType = settings.cond_time_start_type
     String stopType = settings.cond_time_stop_type
@@ -726,10 +727,10 @@ Boolean dateCondOk() {
     Boolean result = null
     Boolean dOk
     Boolean mOk
-    if(!(settings.cond_days == null && settings.cond_months == null)) {
+    if(((List)settings.cond_days || (List)settings.cond_months) ) {
         Boolean reqAll = reqAllCond()
-        dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : reqAll // true
-        mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
+        dOk = (List)settings.cond_days ? (isDayOfWeek((List)settings.cond_days)) : reqAll // true
+        mOk = (List)settings.cond_months ? (isMonthOfYear((List)settings.cond_months)) : reqAll //true
         result = reqAll ? (mOk && dOk) : (mOk || dOk)
     }
     logTrace("dateConditions | $result | monthOk: $mOk | daysOk: $dOk")
@@ -740,10 +741,10 @@ Boolean locationCondOk() {
     Boolean result = null
     Boolean mOk
     Boolean aOk
-    if(!(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null)) {
+    if((List)settings.cond_mode || settings.cond_mode_cmd || (List)settings.cond_alarm) {
         Boolean reqAll = reqAllCond()
-        mOk = (settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
-        aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
+        mOk = ((List)settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
+        aOk = (List)settings.cond_alarm ? isInAlarmMode((List)settings.cond_alarm) : reqAll //true
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
     logTrace("locationConditions | $result | modeOk: $mOk | alarmOk: $aOk")
@@ -807,9 +808,9 @@ private Boolean isConditionOk(String evt) {
         if(!settings."cond_${evt}") { true }
         return checkDeviceNumCondOk(evt)
     } else if (evt == "mode") {
-        return (settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
+        return ((List)settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
     } else if (["hsmStatus", "alarmSystemStatus"].contains(evt)) {
-        return settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : true
+        return (List)settings.cond_alarm ? isInAlarmMode((List)settings.cond_alarm) : true
     } else {
         return true
     }
@@ -820,12 +821,12 @@ Boolean deviceCondOk() {
     List passed = []
     List failed = []
     [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "water"]?.each { String i->
-        if(!settings."cond_${i}") { skipped.push(i); return; }
-        checkDeviceCondOk(i) ? passed.push(i) : failed.push(i);
+        if(!settings."cond_${i}") { skipped.push(i); return }
+        checkDeviceCondOk(i) ? passed.push(i) : failed.push(i)
     }
     ["temperature", "humidity", "illuminance", "level", "power", "battery"]?.each { String i->
-        if(!settings."cond_${i}") { skipped.push(i); return; }
-        checkDeviceNumCondOk(i) ? passed.push(i) : failed.push(i);
+        if(!settings."cond_${i}") { skipped.push(i); return }
+        checkDeviceNumCondOk(i) ? passed.push(i) : failed.push(i)
     }
     Integer cndSize = (passed.size() + failed.size())
     Boolean result = null
@@ -844,8 +845,8 @@ Map conditionStatus() {
     if(ok) {
         [sTIME, "date", "location", "device"]?.each { i->
             Boolean s = "${i}CondOk"()
-            if(s == null) { skipped.push(i); return; }
-            s ? passed.push(i) : failed.push(i);
+            if(s == null) { skipped.push(i); return }
+            s ? passed.push(i) : failed.push(i)
         }
         Integer cndSize = passed.size() + failed.size()
         ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
@@ -876,9 +877,9 @@ Boolean dateCondConfigured() {
 }
 
 Boolean locationCondConfigured() {
-    if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
-    Boolean mode = (settings.cond_mode && settings.cond_mode_cmd)
-    Boolean alarm = (settings.cond_alarm)
+    if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+    Boolean mode = ((List)settings.cond_mode && settings.cond_mode_cmd)
+    Boolean alarm = ((List)settings.cond_alarm)
     return (mode || alarm)
 }
 
@@ -948,14 +949,15 @@ private void addToZoneHistory(Map evt, Map condStatus, Integer max=10) {
 
 void checkZoneStatus(evt) {
     Map condStatus = conditionStatus()
-    Boolean active = ((Boolean)condStatus.ok == true)
+    Boolean active = (Boolean)condStatus.ok
     String delayType = active ? "active" : "inactive"
-    String msg1 = " | Call from ${evt?.name} / ${evt?.displayName}"
+    String msg1 = " | Call from ${(String)evt?.name} / ${(String)evt?.displayName}".toString()
     if((Boolean)state.zoneConditionsOk == active) { logTrace("checkZoneStatus: Zone: ${delayType} | No changes${msg1}"); return }
     Boolean bypassDelay = false
     Map data = [active: active, recheck: false, evtData: [name: evt?.name, displayName: evt?.displayName], condStatus: condStatus]
     Integer delay = settings."zone_${delayType}_delay" ?: null
-    if(!active && settings."cond_${evt?.name}_db" == true) { bypassDelay = isConditionOk(evt?.name) != true }
+    if(!active && settings."cond_${evt?.name}_db" == true) { bypassDelay = !isConditionOk(evt?.name)
+    }
     String msg = !bypassDelay && delay ? "in (${delay} sec)" : (bypassDelay ? "Bypassing Inactive Delay for (${evt?.name}) Event..." : sBLANK)
     logTrace("calling updateZoneStatus [${delayType}] "+msg+msg1)
     if(!bypassDelay && delay) {
@@ -967,7 +969,7 @@ void checkZoneStatus(evt) {
 
 void sendZoneStatus() {
     Boolean st = (Boolean)state.zoneConditionsOk
-    st = st != null ? st : ((Boolean)conditionStatus().ok == true)
+    st = st != null ? st : (Boolean)conditionStatus().ok
     sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: st, paused: isPaused()], isStateChange: true, display: false, displayed: false)
 }
 
@@ -976,23 +978,23 @@ void sendZoneRemoved() {
 }
 
 void updateZoneStatus(Map data) {
-    Boolean active = (data.active == true)
-    Map condStatus = data.condStatus
-    if(data.recheck == true) {
+    Boolean active = (Boolean)data.active
+    Map condStatus = (Map)data.condStatus
+    if((Boolean)data.recheck) {
         condStatus = conditionStatus()
-        active = ((Boolean)condStatus.ok == true)
+        active = (Boolean)condStatus.ok
     }
     if(state.zoneConditionsOk != active) {
         logInfo("Setting Zone (${getZoneName()}) Status to (${active ? "Active" : "Inactive"})")
         state.zoneConditionsOk = active
-        addToZoneHistory(data.evtData, condStatus)
+        addToZoneHistory((Map)data.evtData, condStatus)
         sendZoneStatus()
         if(isZoneNotifConfigured()) {
             Boolean ok2Send = true
             String msgTxt = active ? (settings.notif_active_message ?: sNULL) : (settings.notif_inactive_message ?: sNULL)
             if(ok2Send && msgTxt) {
-                def zoneDevices = getZoneDevices()
-                def alexaMsgDev = zoneDevices?.size() && settings.notif_alexa_mobile ? zoneDevices[0] : null
+                Map zoneDevices = getZoneDevices()
+                def alexaMsgDev = ((List)zoneDevices.devices)?.size() && settings.notif_alexa_mobile ? ((List)zoneDevices.devices)[0] : null
                 if(sendNotifMsg(getZoneName(), msgTxt, alexaMsgDev, false)) { logTrace("Sent Zone Notification...") }
             }
         }
@@ -1007,8 +1009,8 @@ void updateZoneStatus(Map data) {
 }
 
 public getZoneHistory(Boolean asObj=false) {
-    List zHist = getMemStoreItem(zoneHisFLD) ?: []
-    List output = []
+    List<Map> zHist = (List)getMemStoreItem(zoneHisFLD) ?: []
+    List<String> output = []
     if(zHist?.size()) {
         zHist.each { h->
             String str = sBLANK
@@ -1034,8 +1036,8 @@ Map getZoneDevices() {
 }
 
 public zoneRefreshHandler(evt) {
-    String cmd = evt?.value;
-    Map data = evt?.jsonData;
+    String cmd = evt?.value
+    Map data = evt?.jsonData
     switch(cmd) {
         case "checkStatus":
             checkZoneStatus([name: "zoneRefresh", displayName: "zoneRefresh"])
@@ -1048,45 +1050,46 @@ public zoneRefreshHandler(evt) {
 }
 
 public zoneCmdHandler(evt) {
-    String cmd = evt?.value;
-    Map data = evt?.jsonData;
+    String cmd = evt?.value
+    Map data = evt?.jsonData
     String appId = app?.getId() as String
     if(cmd && data && appId && data?.zones && data?.zones?.contains(appId) && data?.cmd) {
         // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
-        def zoneDevs = getZoneDevices()
+        Map zoneDevMap = getZoneDevices()
+        List zoneDevs = (List)zoneDevMap.devices
         Integer delay = data?.delay ?: null
-        if(cmd == "speak" && zoneDevs?.devices?.size() >= 2) { cmd = "announcement" }
+        if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" }
         switch(cmd) {
             case "speak":
-                if(!data?.message) { logWarning("Zone Command Message is missing", true); return; }
+                if(!data?.message) { logWarning("Zone Command Message is missing", true); return }
                 logDebug("Sending Speak Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 if(data?.changeVol || data?.restoreVol) {
-                    zoneDevs?.devices?.each { dev->
+                    zoneDevs?.each { dev->
                         dev?.setVolumeSpeakAndRestore(data?.changeVol, data?.message, data?.restoreVol)
                     }
                 } else {
-                    zoneDevs?.devices?.each { dev->
+                    zoneDevs?.each { dev->
                         dev?.speak(data?.message)
                     }
                 }
                 break
             case "announcement":
-                if(zoneDevs?.devices?.size() > 0 && zoneDevs?.devObj) {
+                if(zoneDevs?.size() > 0 && (List)zoneDevMap.devObj) {
                     logDebug("Sending Announcement Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                    zoneDevs?.devices[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), zoneDevs?.devObj, data?.changeVol, data?.restoreVol)
+                    zoneDevs[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), (List)zoneDevMap.devObj, data?.changeVol, data?.restoreVol)
                 }
                 break
 
             case "voicecmd":
                 logDebug("Sending VoiceCmdAsText Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
-                zoneDevs?.devices?.each { dev->
+                zoneDevs?.each { dev->
                     dev?.voiceCmdAsText(data?.message as String)
                 }
                 break
             case "sequence":
                 logDebug("Sending Sequence Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
-                zoneDevs?.devices?.each { dev->
+                zoneDevs?.each { dev->
                     dev?.executeSequenceCommand(data?.message as String)
                 }
                 break
@@ -1095,20 +1098,22 @@ public zoneCmdHandler(evt) {
             case "weather":
             case "playback":
                 logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
-                zoneDevs?.devices?.each { dev->
+                zoneDevs?.each { dev->
                     if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null) }
                     if(data?.cmd == "volume" && data?.changeVol) { dev?.setVolume(data?.changeVol) }
                 }
                 break
             case "sounds":
                 logDebug("Sending ${data?.cmd?.toString()?.capitalize()} | Name: ${data?.message} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
-                zoneDevs?.devices?.each { dev->
+                zoneDevs?.each { dev->
                     dev?."${data?.cmd}"(data?.message, data?.changeVol ?: null, data?.restoreVol ?: null)
                 }
                 break
             case "music":
                 logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data?.provider} | Search: ${data?.search}${delay ? " | Delay: (${delay})" : sBLANK}${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}")
-                dev?."${data?.cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol)
+                zoneDevs?.each { dev ->
+                    dev?."${data?.cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol)
+                }
                 break
         }
     }
@@ -1117,7 +1122,7 @@ public zoneCmdHandler(evt) {
 |   Restriction validators
 *******************************************/
 
-String attUnit(String attr) {
+static String attUnit(String attr) {
     switch(attr) {
         case "humidity":
         case "level":
@@ -1381,7 +1386,7 @@ private void remTsVal(key) {
     if(!data) data = state.tsDtMap ?: [:]
     if(key) {
         if(key instanceof List) { 
-                key.each { String k->
+            ((List)key).each { String k->
                     if(data.containsKey(k)) { data.remove(k) }
                 }
         } else if(data.containsKey((String)key)) { data.remove((String)key) }
@@ -1414,7 +1419,7 @@ private void remAppFlag(key) {
     Map data = atomicState?.appFlagsMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
+            ((List)key).each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
         } else { if(data?.containsKey(key)) { data?.remove(key) } }
         atomicState.appFlagsMap = data
     }
@@ -1428,12 +1433,12 @@ Boolean getAppFlag(String val) {
 
 private stateMapMigration() {
     //Timestamp State Migrations
-    Map tsItems = [:]
-    tsItems?.each { k, v-> if(state.containsKey(k)) { updTsVal(v as String, state[k as String]); state.remove(k as String); } }
+    Map<String, String> tsItems = [:]
+    tsItems?.each { k, v-> if(state.containsKey(k)) { updTsVal(v, (String)state[k]); state.remove(k) } }
 
     //App Flag Migrations
-    Map flagItems = [:]
-    flagItems?.each { k, v-> if(state.containsKey(k)) { updAppFlag(v as String, state[k as String]); state.remove(k as String); } }
+    Map<String,String> flagItems = [:]
+    flagItems?.each { k, v-> if(state.containsKey(k)) { updAppFlag(v, (Boolean)state[k]); state.remove(k) } }
     updAppFlag("stateMapConverted", true)
 }
 
@@ -1458,7 +1463,7 @@ String getAppNotifDesc(Boolean hide=false) {
     if(isZoneNotifConfigured()) {
         Boolean ok = getOk2Notify()
         str += hide ? sBLANK : "Send allowed: (${ok ? okSymFLD : notOkSymFLD})\n"
-        str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
+        str += ((List)settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr((List)settings.notif_devs)} (${((List)settings.notif_devs).size()})\n" : sBLANK
         str += settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
         String res = getNotifSchedDesc(true)
         str += res ?: sBLANK
@@ -1521,7 +1526,7 @@ String getConditionsDesc(Boolean addE=true) {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Zone is Active: (${((Boolean)conditionStatus().ok == true) ? okSymFLD : notOkSymFLD})\n\n"
+        String str = "Zone is Active: (${((Boolean)conditionStatus().ok) ? okSymFLD : notOkSymFLD})\n\n"
         str += (reqAllCond()) ? " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
             str += " \u2022 Time Between Allowed: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
@@ -1529,14 +1534,14 @@ String getConditionsDesc(Boolean addE=true) {
         }
         if(dateCondConfigured()) {
             str += " \u2022 Date:\n"
-            str += settings.cond_days      ? "    - Days Allowed: (${(isDayOfWeek(settings.cond_days)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            str += settings.cond_months    ? "    - Months Allowed: (${(isMonthOfYear(settings.cond_months)) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
+            str += (List)settings.cond_days      ? "    - Days Allowed: (${isDayOfWeek((List)settings.cond_days) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += (List)settings.cond_months    ? "    - Months Allowed: (${isMonthOfYear((List)settings.cond_months) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
         }
-        if(settings.cond_alarm || settings.cond_mode) {
+        if((List)settings.cond_alarm || (List)settings.cond_mode) {
             str += " \u2022 Location: (${locationCondOk() ? okSymFLD : notOkSymFLD})\n"
-            str += settings.cond_alarm ? "    - Alarm Modes Allowed: (${(isInAlarmMode(settings.cond_alarm)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += (List)settings.cond_alarm ? "    - Alarm Modes Allowed: (${(isInAlarmMode((List)settings.cond_alarm)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
             Boolean not = settings.cond_mode_cmd == "not"
-            str += settings.cond_mode  ? "    - Allowed Location Modes (${not? "not in" : "in"}): (${(isInMode(settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += (List)settings.cond_mode  ? "    - Allowed Location Modes (${not? "not in" : "in"}): (${(isInMode((List)settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
         if(deviceCondConfigured()) {
             [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
@@ -1772,19 +1777,17 @@ Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?
 Boolean minVersionFailed() {
     try {
         Integer minDevVer = parent?.minVersions()["zoneApp"]
-        if(minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer) { return true }
-        else { return false }
+        return minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer
     } catch (e) {
         return false
     }
 }
 
-Boolean isPaused() { return ((Boolean)settings.zonePause == true) }
+Boolean isPaused() { return (Boolean)settings.zonePause }
 
 static String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
 static String getAppImg(String imgName, Boolean frc=false) { return frc ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK }
 
-static String getHEPublicImg(String imgName) { return getPublicImg(imgName, true) }
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
 static String sTS(String t, String i = sNULL) { return """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
@@ -1833,7 +1836,7 @@ void logError(String msg, Boolean noHist=false, ex=null) {
     if(!noHist) { addToLogHistory("errorHistory", msg, 15) }
 }
 
-String addHead(String msg) {
+static String addHead(String msg) {
     return "Zone (v"+appVersionFLD+") | "+msg
 }
 
@@ -1843,7 +1846,7 @@ private Map getLogHistory() {
     return [ warnings: []+warn, errors: []+errs ]
 }
 
-private void clearHistory()  { historyMapFLD = [:]; mb(); }
+private void clearHistory()  { historyMapFLD = [:]; mb() }
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATE)
 @Field static Map actionExecMapFLD = [:]
@@ -1867,7 +1870,7 @@ private List getMemStoreItem(String key){
 // Memory Barrier
 @Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
 
-static void mb(String meth=sNULL){
+static void mb(/*String meth=sNULL*/){
     if((Boolean)theMBLockFLD.tryAcquire()){
         theMBLockFLD.release()
     }
