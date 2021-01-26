@@ -156,6 +156,7 @@ def mainPage() {
                     href "zoneNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC), state: (t0 ? sCOMPLT : null)
                 }
             }
+            updConfigStatusMap()
         }
 
         section(sTS("Zone History")) {
@@ -499,9 +500,11 @@ def initialize() {
     updAppLabel()
     if(advLogsActive()) { logsEnabled() }
     runIn(3, "zoneCleanup")
-    runIn(7, "subscribeToEvts")
-    runEvery1Hour("healthCheck")
-    updConfigStatusMap()
+    if(!isPaused()) {
+        runIn(7, "subscribeToEvts")
+        runEvery1Hour("healthCheck")
+        updConfigStatusMap()
+    }
     checkZoneStatus([name: "initialize", displayName: "initialize"])
 }
 
@@ -510,7 +513,6 @@ private void processDuplication() {
     app?.updateLabel(newLbl)
     state.dupPendingSetup = true
 
-//            if(!state.dupParentDone) {
     String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
     Map dupData = parent?.getChildDupeData("zones", dupSrcId)
     log.debug "dupData: ${dupData}"
@@ -524,26 +526,9 @@ private void processDuplication() {
             settingUpdate(k, v.value, (String)v.type)
         }
    }
-//               }
-/*
-    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
-//        fixEnumBug("zone_EchoDevices")
-    Map dupData = parent?.getChildDupeData("zones", dupSrcId)
-    // log.debug "dupData: ${dupData}"
-    if(dupData && dupData.state?.size()) {
-        dupData.state.each { String k,v-> state[k] = v }
-    }
-    if(dupData && dupData.settings?.size()) {
-        dupData.settings.each { String k, Map v-> settingUpdate(k, (v.value != null ? v.value : null), (String)v.type) }
-    }
-    parent.childAppDuplicationFinished("zones", dupSrcId)
-*/
     sendZoneStatus()
     subscribe(location, "es3ZoneRefresh", zoneRefreshHandler)
     logInfo("Duplicated Zone has been created... Please open zone and configure to complete setup...")
-        //Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
-            //state.dupOpenedByUser = true
-    //if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
 }
 
 def uninstalled() {
@@ -569,15 +554,15 @@ public guardEventHandler(guardState) {
 }
 */
 private void updConfigStatusMap() {
-    Map sMap = atomicState?.configStatusMap
+    Map sMap = state.configStatusMap
     sMap = sMap ?: [:]
     sMap.conditions = conditionsConfigured()
     sMap.devices = devicesConfigured()
-    atomicState.configStatusMap = sMap
+    state.configStatusMap = sMap
 }
 
 Boolean devicesConfigured() { return (settings.zone_EchoDevices?.size() > 0) }
-private Boolean getConfStatusItem(String item) { Map sMap = atomicState?.configStatusMap; return (sMap?.containsKey(item) && sMap[item] == true) }
+private Boolean getConfStatusItem(String item) { Map sMap = state.configStatusMap; return (sMap?.containsKey(item) && sMap[item] == true) }
 
 private void zoneCleanup() {
     // State Cleanup
@@ -1393,26 +1378,46 @@ public void logsDisable() {
     }
 }
 
+@Field volatile static Map<String,Map> tsDtMapFLD=[:]
+
 private void updTsVal(String key, String dt=sNULL) {
-    Map data = atomicState?.tsDtMap ?: [:]
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:] 
+    if(!data) data = state.tsDtMap ?: [:]
     if(key) { data[key] = dt ?: getDtNow() }
-    atomicState.tsDtMap = data
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
+    
+    state.tsDtMap = data
 }
 
 private void remTsVal(key) {
-    Map data = atomicState?.tsDtMap ?: [:]
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:] 
+    if(!data) data = state.tsDtMap ?: [:]
     if(key) {
-        if(key instanceof List) {
-            key?.each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
-        } else { if(data?.containsKey((String)key)) { data?.remove((String)key) } }
-        atomicState.tsDtMap = data
+        if(key instanceof List) { 
+                key.each { String k->
+                    if(data.containsKey(k)) { data.remove(k) }
+                }
+        } else if(data.containsKey((String)key)) { data.remove((String)key) }
     }
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
+    
+    state.tsDtMap = data
 }
 
-String getTsVal(String val) {
-    Map tsMap = atomicState.tsDtMap
-    if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
+String getTsVal(String key) {
+    String appId=app.getId()
+    Map tsMap=tsDtMapFLD[appId]
+    if(!tsMap) tsMap = state.tsDtMap ?: [:] 
+    if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
     return sNULL
+}
+
+Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
+    return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
 private void updAppFlag(String key, Boolean val) {
@@ -1446,11 +1451,6 @@ private stateMapMigration() {
     Map flagItems = [:]
     flagItems?.each { k, v-> if(state.containsKey(k)) { updAppFlag(v as String, state[k as String]); state.remove(k as String); } }
     updAppFlag("stateMapConverted", true)
-}
-
-Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
-    Map tsMap = atomicState?.tsDtMap
-    return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
 }
 
 /******************************************
