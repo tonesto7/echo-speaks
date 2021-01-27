@@ -381,7 +381,7 @@ def deviceManagePage() {
                 }
             }
             String devPrefDesc = devicePrefsDesc()
-            href "devicePrefsPage", title: inTS1("Device Detection\nPreferences", sDEVICES), description: "${devPrefDesc ? "${devPrefDesc}\n\n${sTTM}" : sTTC}", state: sCOMPLT
+            href "devicePrefsPage", title: inTS1("Device Detection\nPreferences", sDEVICES), description: (devPrefDesc ? "${devPrefDesc}${inputFooter(sTTM)}" : inputFooter(sTTC)), state: sCOMPLT
         }
     }
 }
@@ -802,12 +802,13 @@ private String devicePrefsDesc() {
     String str = sBLANK
     str += "Auto Create (${!(Boolean)settings.autoCreateDevices ? "Disabled" : "Enabled"})"
     if((Boolean)settings.autoCreateDevices) {
-        str += (Boolean) settings.createTablets ? bulletItem(str, "Tablets") : sBLANK
-        str += (Boolean) settings.createWHA ? bulletItem(str, "WHA") : sBLANK
-        str += (Boolean) settings.createOtherDevices ? bulletItem(str, "Other Devices") : sBLANK
+        str += (Boolean) settings.createTablets ? "<br><span> ${sBULLET} Tablets</span>" : sBLANK
+        str += (Boolean) settings.createWHA ? "<br><span> ${sBULLET} WHA</span>" : sBLANK
+        str += (Boolean) settings.createOtherDevices ? "<br><span> ${sBULLET} Other Devices</span>" : sBLANK
     }
-    str += (Boolean) settings.autoRenameDevices ? bulletItem(str, "Auto Rename") : sBLANK
-    str += (Boolean) settings.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : sBLANK
+    str += (Boolean) settings.autoRenameDevices ? "<br><span> ${sBULLET} Auto Rename</span>" : sBLANK
+    str += (Boolean) settings.bypassDeviceBlocks ? "<br><span> ${sBULLET} Block Bypass: (Active)</span>" : sBLANK
+    str = paraTS(null, str, null, [:], [s: 'small', c: '#1A77C9'])
     return str != sBLANK ? str : sNULL
 }
 
@@ -834,18 +835,18 @@ def deviceListPage() {
     return dynamicPage(name: "deviceListPage", install: false) {
         section(sTS("Discovered Devices:")) {
             getEchoDeviceMap()?.sort { it?.value?.name }?.each { String k,Map v->
-                String str = "Status: (${v.online ? "Online" : "Offline"})"
-                str += "\nStyle: ${v.style?.name}"
-                str += "\nFamily: ${v.family}"
-                str += "\nType: ${v.type}"
-                str += "\nVolume Control: (${v.volumeSupport?.toString()?.capitalize()})"
-                str += "\nAnnouncements: (${v.announceSupport?.toString()?.capitalize()})"
-                str += "\nText-to-Speech: (${v.ttsSupport?.toString()?.capitalize()})"
-                str += "\nMusic Player: (${v.mediaPlayer?.toString()?.capitalize()})"
-                str += v.supported != true ? "\nUnsupported Device: (True)" : sBLANK
-                str += (v.mediaPlayer == true && v.musicProviders) ? "\nMusic Providers: [${v.musicProviders}]" : sBLANK
+                String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span>"
+                str += "<br><span>Style: ${v.style?.name}</span>"
+                str += "<br><span>Family: ${v.family}</span>"
+                str += "<br><span>Type: ${v.type}</span>"
+                str += "<br><span>Volume Control: (${v.volumeSupport?.toString()?.capitalize()})</span>"
+                str += "<br><span>Announcements: (${v.announceSupport?.toString()?.capitalize()})</span>"
+                str += "<br><span>Text-to-Speech: (${v.ttsSupport?.toString()?.capitalize()})</span>"
+                str += "<br><span>Music Player: (${v.mediaPlayer?.toString()?.capitalize()})</span>"
+                str += v.supported != true ? "<br><span>Unsupported Device: (True)</span>" : sBLANK
+                str += (v.mediaPlayer == true && v.musicProviders) ? "<br><span>Music Providers: [${v.musicProviders}]</span>" : sBLANK
                 String a = (String)v.style?.image
-                href "deviceListPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v.online ? sCOMPLT : sNULL)
+                paragraph paraTS((String)v.name, str, (String)v.style?.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? '#1A77C9' : 'gray')])
             }
         }
     }
@@ -3594,12 +3595,15 @@ static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sN
 
 public String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: 'normal', c: 'black', b: true, u:true], Map bOpts = [s:'normal', c: sNULL, b: false]) { 
     String s = ""
-    s += title ? "<div style=${tOpts && (String)tOpts.c != sNULL ? "color: ${(String)tOpts.c};" : sBLANK}${tOpts && (String)tOpts.s != sNULL ? "font-size: ${(String)tOpts.s};" : sBLANK}${tOpts && (Boolean)tOpts.b ? "font-weight: bold;" : sBLANK}${tOpts && (Boolean)tOpts.u ? "text-decoration: underline;" : sBLANK}>${img != sNULL ? """<img src=${getHEAppImg(img)} width="42"> """ : sBLANK}${title}</div>" : sBLANK
-    s += body ? "<div style=${bOpts && (String)bOpts.c != sNULL ? "color: ${(String)bOpts.c};" : sBLANK}${bOpts && (String)bOpts.s != sNULL ? "font-size: ${(String)bOpts.s};" : sBLANK}${bOpts && (Boolean)bOpts.b ? "font-weight: bold;" : sBLANK}>${body}</div>" : sBLANK
-    log.debug "s: $s"
+    s += title ? "<div style='${tOpts && (String)tOpts.c != sNULL ? "color: ${(String)tOpts.c};" : sBLANK}${tOpts && (String)tOpts.s != sNULL ? "font-size: ${(String)tOpts.s};" : sBLANK}${tOpts && (Boolean)tOpts.b ? "font-weight: bold;" : sBLANK}${tOpts && (Boolean)tOpts.u ? "text-decoration: underline;" : sBLANK}'>${img != sNULL ? """<img src=${getHEAppImg(img)} width="42"> """ : sBLANK}${title}</div>" : sBLANK
+    s += body ? "<div style='${bOpts && (String)bOpts.c != sNULL ? "color: ${(String)bOpts.c};" : sBLANK}${bOpts && (String)bOpts.s != sNULL ? "font-size: ${(String)bOpts.s};" : sBLANK}${bOpts && (Boolean)bOpts.b ? "font-weight: bold;" : sBLANK}'>${body}</div>" : sBLANK
     return s
 }
 /* """ */
+
+static String inputFooter(str, color="#1A77C9") {
+    return "<br><div style='color: ${color}; font-size: small;font-weight: bold;'>${str}</div>"
+}
 
 static String inTS1(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return inTS(t, getHEAppImg(i), color, under) }
 static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} ${under ? "<u>" : sBLANK}${t?.replaceAll("\\n", " ")}${under ? "</u>" : sBLANK}${color ? "</div>" : sBLANK}""" }
