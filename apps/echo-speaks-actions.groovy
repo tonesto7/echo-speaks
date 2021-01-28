@@ -5063,6 +5063,8 @@ void releaseTheLock(String qname){
 
 static String convMusicProvider(String prov) {
     switch (prov) {
+        case "My Library":
+            return "CLOUDPLAYER"
         case "Amazon Music":
             return "AMAZON_MUSIC"
         case "Apple Music":
