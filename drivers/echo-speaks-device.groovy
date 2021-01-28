@@ -22,7 +22,7 @@ import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String devVersionFLD  = "4.0.2.0"
-@Field static final String appModifiedFLD = "2021-01-27"
+@Field static final String appModifiedFLD = "2021-01-25"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -111,7 +111,7 @@ metadata {
         command "playGoodNews", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playTraffic", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playJoke", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "playSoundByName", [[name: "Sound Name", type: "STRING", description: "Sound object name"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playSoundByName", [[name: "Sound Name", type: "STRING", description: "Sound object name"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
         command "playTellStory", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "sayGoodbye", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "sayGoodNight", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
@@ -128,15 +128,15 @@ metadata {
         command "playCalendarTomorrow", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playCalendarNext", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "stopAllDevices"
-        command "searchMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider*", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchAmazonMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchAppleMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchPandora", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchIheart", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchSiriusXm", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchSpotify", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        // command "searchTidal", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "searchTuneIn", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "searchMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider*", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO", "CLOUDPLAYER"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restore volume after playing"]]
+        command "searchAmazonMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
+        command "searchAppleMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
+        command "searchPandora", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
+        command "searchIheart", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
+        command "searchSiriusXm", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
+        command "searchSpotify", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
+        // command "searchTidal", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
+        command "searchTuneIn", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
         command "sendAlexaAppNotification", [ [name: "Notification Message*", type: "STRING", description: ""]]
         command "executeSequenceCommand", [[name: "Sequence Message Text*", type: "STRING", description: ""]]
         command "executeRoutineId", [[name: "Routine ID*", type: "STRING", description: ""]]
@@ -361,6 +361,9 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
             case "spotify":
                 warnMsg = "OOPS... Spotify is NOT Supported by this Device!!!"
                 break
+            case "cloudPlayer":
+                warnMsg = "OOPS... Cloudplayer is NOT Supported by this Device!!!"
+                break
             case "flashBriefing":
                 warnMsg = "OOPS... Flash Briefs and Good News are NOT Supported by this Device!!!"
                 break
@@ -453,7 +456,11 @@ void updateDeviceStatus(Map devData) {
         }
 
         Map musicProviders = devData?.musicProviders ?: [:]
-        String lItems = musicProviders?.collect{ it?.value }?.sort()?.join(", ")
+        String lItems = ""
+        musicProviders.each { String k, String v ->
+            if(v.size() > 0) lItems = lItems + (lItems.size() > 0 ? ", "+v : v)
+        }
+//log.warn "musicProviders is $musicProviders   lItems is $lItems"
         if(isStateChange(device, "supportedMusic", lItems?.toString())) {
             sendEvent(name: "supportedMusic", value: lItems?.toString(), display: false, displayed: false)
             chg=true
@@ -480,7 +487,7 @@ void websocketUpdEvt(List triggers) {
     logTrace("websocketEvt: $triggers")
     if((Boolean) state.isWhaDevice) { return }
     if(triggers?.size()) {
-        triggers?.each { k->
+        triggers.each { String k->
             switch(k) {
                 case "all":
                     state.fullRefreshOk = true
@@ -1174,15 +1181,11 @@ def play() {
 
 // capability audioNotification
 def playTrack(String uri, volume=null) {
-    if(isCommandTypeAllowed("TTS")) {
-        String tts = uriSpeechParser(uri)
-        if (tts) {
-            logDebug("playTrack($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
-            if(volume) {
-                setVolumeAndSpeak(volume, tts)
-            } else { speak(tts) }
-            return
-        }
+    if(isCommandTypeAllowed("mediaPlayer")) {
+        logDebug("playTrack($uri, $volume) | Attempting to play on CLOUDPLAYER...")
+        String nuri = uriTrackParser(uri)
+        doSearchMusicCmd(nuri, "CLOUDPLAYER", volume)
+        return
     }
     logWarn("Uh-Oh... The playTrack($uri, $volume) Command is NOT Supported by this Device!!!")
 }
@@ -1190,7 +1193,7 @@ def playTrack(String uri, volume=null) {
 // capability musicPlayer
 /*def playTrack(String uri) {
     if(isCommandTypeAllowed("TTS")) {
-        String tts = uriSpeechParser(uri)
+        String tts = uriTrackParser(uri)
         if (tts) {
             logDebug("playTrack($uri) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
             speak(tts)
@@ -1668,7 +1671,9 @@ def playAnnouncement(String msg, volume=null, restoreVolume=null) {
 }
 
 def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
-    if(isCommandTypeAllowed("announce")) {
+    String newMsg= "${title ? "${title}::" : sBLANK}${msg}"
+    playAnnouncement(newMsg, volume, restoreVolume)
+/*    if(isCommandTypeAllowed("announce")) {
         msg = "${title ? "${title}::" : sBLANK}${msg}"
         if(volume != null) {
             List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
@@ -1676,7 +1681,7 @@ def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) 
             sendMultiSequenceCommand(seqs, "playAnnouncement")
         } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
         sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
-    }
+    }*/
 }
 
 def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null, restoreVolume=null) {
@@ -1720,6 +1725,8 @@ static String getCommandTypeForProvider(String providerId) {
     String commandType = providerId
     // logDebug("getCommandTypeForProvider(${providerId})")
     switch (providerId) {
+        case "CLOUDPLAYER":
+            break
         case "AMAZON_MUSIC":
             commandType = "amazonMusic"
             break
@@ -1971,7 +1978,7 @@ def removeAllNotificationsByType(String type) {
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         def items = getNotifications(type, true)
         if(items?.size()) {
-            items?.each { item->
+            items.each { item->
                 if (item?.id) {
                     String t0 = sendAmazonCommand("DELETE", [
                         uri: getAmazonUrl(),
@@ -2440,8 +2447,14 @@ def playText(String msg, volume=null) {
 // capability audioNotification
 //def playTrackAndResume(String uri, duration, volume=null) {
 def playTrackAndResume(String uri, volume=null) {
-    if(isCommandTypeAllowed("TTS")) {
-        String tts = uriSpeechParser(uri)
+    if(isCommandTypeAllowed("mediaPlayer")) {
+        logDebug("playTrackAndResume($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
+        String nuri = uriTrackParser(uri)
+        doSearchMusicCmd(nuri, "CLOUDPLAYER", volume)
+        return
+    }
+/*    if(isCommandTypeAllowed("TTS")) {
+        String tts = uriTrackParser(uri)
         if (tts) {
             logDebug("playTrackAndResume($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
             if(volume) {
@@ -2450,7 +2463,7 @@ def playTrackAndResume(String uri, volume=null) {
             } else { speak(tts) }
             return
         }
-    }
+    } */
     logWarn("Uh-Oh... The playTrackAndResume($uri, $volume) Command is NOT Supported by this Device!!!")
 }
 
@@ -2465,8 +2478,14 @@ def playTextAndResume(String text, volume=null) {
 
 //def playTrackAndRestore(String uri, duration, volume=null) {
 def playTrackAndRestore(String uri, volume=null) {
-    if(isCommandTypeAllowed("TTS")) {
-        String tts = uriSpeechParser(uri)
+    if(isCommandTypeAllowed("mediaPlayer")) {
+        logDebug("playTrackAndRestore($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
+        String nuri = uriTrackParser(uri)
+        doSearchMusicCmd(nuri, "CLOUDPLAYER", volume)
+        return
+    }
+/*    if(isCommandTypeAllowed("TTS")) {
+        String tts = uriTrackParser(uri)
         if (tts) {
             logDebug("playTrackAndRestore($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
             if(volume) {
@@ -2475,8 +2494,8 @@ def playTrackAndRestore(String uri, volume=null) {
             } else { speak(tts) }
             return
         }
-    }
-    logWarn("Uh-Oh... The playTrackAndRestore(uri: $uri, duration: $duration, volume: $volume) Command is NOT Supported by this Device!!!")
+    } */
+    logWarn("Uh-Oh... The playTrackAndRestore(uri: $uri, volume: $volume) Command is NOT Supported by this Device!!!")
 }
 
 // capability audioNotification
@@ -2490,7 +2509,7 @@ def playTextAndRestore(String text, volume=null) {
 /* // this is not a command
 def playURL(uri) {
     if(isCommandTypeAllowed("TTS")) {
-        String tts = uriSpeechParser(uri)
+        String tts = uriTrackParser(uri)
         if (tts) {
             logDebug("playURL($uri) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
             speak(tts as String)
@@ -2504,16 +2523,16 @@ def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
     logWarn("Uh-Oh... The playSoundAndTrack(soundUri: $soundUri, duration: $duration, trackData: $trackData, volume: $volume) Command is NOT Supported by this Device!!!", true)
 }
 */
-String uriSpeechParser(String uri) {
+String uriTrackParser(String uri) {
     // Thanks @fkrlaframboise for this idea.  It never for one second occurred to me to parse out the trackUri...
     // log.debug "uri: $uri"
     if (uri?.toString()?.contains("/")) {
         Integer sInd = uri?.lastIndexOf("/") + 1
         uri = uri?.substring(sInd, uri?.size())?.toLowerCase()?.replaceAll("_", " ")?.replace(".mp3", sBLANK)
-        logDebug("uriSpeechParser | tts: $uri")
+        logDebug("uriTrackParser | tts: $uri")
         return uri
     }
-    return sNULL
+    return uri
 }
 
 void speechTest(String ttsMsg=sNULL) {
@@ -2631,7 +2650,7 @@ def executeSequenceCommand(String seqStr) {
         // log.debug "seqList: ${seqList}"
         List seqItems = []
         if(seqList?.size()) {
-            seqList?.each {
+            seqList.each {
                 List li = it?.toString()?.split("::")
                 // log.debug "li: $li"
                 if(li.size()) {
