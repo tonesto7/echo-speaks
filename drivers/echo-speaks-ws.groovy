@@ -20,8 +20,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.1.0"
-@Field static final String appModifiedFLD = "2021-01-22"
+@Field static final String devVersionFLD  = "4.0.2.0"
+@Field static final String appModifiedFLD = "2021-01-27"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -95,8 +95,9 @@ def initialize() {
     state.remove('warnHistory'); state.remove('errorHistory')
 
     if(settings.autoConnectWs != false) {
-        if(!state.cookie || state.cookie instanceof String) state.cookie = parent?.getCookieMap()
         String cookS = getCookieVal() //state.cookie = parent?.getCookieVal()
+        if(!cookS || !state.cookie || state.cookie instanceof String) state.cookie = (Map)parent?.getCookieMap()
+        cookS = getCookieVal()
         if(cookS) {
             if(!state.amazonDomain) {
                 state.amazonDomain = parent?.getAmazonDomain()
@@ -108,7 +109,7 @@ def initialize() {
             state.remove('messageInitCnt') // state.messageInitCnt = 0
             runIn(2,"connect")
         } else {
-            logInfo("Skipping Socket Open... Cookie Data is Missing")
+            logInfo("Skipping Socket Open... Cookie Data is Missing $cookS   $state.cookie")
         }
     } else {
         logInfo("Skipping Socket Open... autoconnect disabled")

@@ -14,17 +14,15 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  * ---------------------------------------------
-    TODO: Add Lock Code triggers
     TODO: Custom Reports for multiple builtin in routine items. Reports for home status like temp, contact, alarm status.
  */
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.1.0"
-@Field static final String appModifiedFLD = "2021-01-22"
+@Field static final String appVersionFLD  = "4.0.2.0"
+@Field static final String appModifiedFLD = "2021-01-27"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
-@Field static final Boolean isStFLD       = false
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = true
 
@@ -103,7 +101,7 @@ def startPage() {
     if(parent != null) {
         if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
-            state.isParent = false
+//            state.isParent = false
             List aa = settings.act_EchoDevices
             List devIt = aa.collect { it ? it.toInteger():null }
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
@@ -113,7 +111,7 @@ def startPage() {
 
 def codeUpdatePage () {
     return dynamicPage(name: "codeUpdatePage", title: "Update is Required", install: false, uninstall: false) {
-        section() { paragraph "Looks like your Action App needs an update\n\nPlease make sure all app and device code is updated to the most current version\n\nOnce updated your actions will resume normal operation.", required: true, state: null, image: getAppImg("exclude") }
+        section() { paragraph "Looks like your Action App needs an update\n\nPlease make sure all app and device code is updated to the most current version\n\nOnce updated your actions will resume normal operation.", required: true, state: null }
     }
 }
 
@@ -121,15 +119,14 @@ def uhOhPage () {
     return dynamicPage(name: "uhOhPage", title: "This install Method is Not Allowed", install: false, uninstall: true) {
         section() {
             paragraph "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Actions can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them.", required: true,
-            state: null, image: getAppImg("exclude")
+            state: null
         }
-//        if(isStFLD) { remove("Remove this invalid Action", "WARNING!!!", "This is a BAD install of an Action SHOULD be removed") }
     }
 }
 
 def appInfoSect()	{
     String instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
-    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: "${instDt ? "Installed: ${instDt}\n" : sBLANK}Version: ${appVersionFLD}", image: getAppImg("es_actions") }
+    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions", true)), description: "${instDt ? "Installed: ${instDt}\n" : sBLANK}Version: ${appVersionFLD}"  }
 }
 
 List cleanedTriggerList() {
@@ -148,27 +145,19 @@ private buildTriggerEnum() {
     List enumOpts = []
     Map<String,Map> buildItems = [:]
     buildItems["Date/Time"] = ["scheduled":"Scheduled Time"]?.sort{ it?.key }
-    buildItems["Location"] = ["mode":"Modes", "routineExecuted":"Routines", "pistonExecuted":"Pistons"]?.sort{ it?.key }
-    if(!isStFLD) {
-        buildItems.Location.remove("routineExecuted")
-        //TODO: Once I can find a reliable method to list the scenes and subscribe to events on Hubitat I will re-activate
-        // buildItems?.Location?.scene = "Scenes"
-    }
+    buildItems["Location"] = ["mode":"Modes", "pistonExecuted":"Pistons"]?.sort{ it?.key }
     if(!settings.enableWebCoRE) {
         buildItems.Location.remove("pistonExecuted")
     }
     buildItems["Sensor Devices"] = ["contact":"Contacts | Doors | Windows", "battery":"Battery Level", "motion":"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", "temperature":"Temperature", "humidity":"Humidity", "water":"Water", "power":"Power", "acceleration":"Accelorometers"]?.sort{ it?.value }
-    buildItems["Actionable Devices"] = ["lock":"Locks", "securityKeypad":"Keypads", "button":"Buttons", "switch":"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
-    if(!isStFLD) {
-        buildItems["Actionable Devices"].remove("button")
-        buildItems["Button Devices"] = ["pushed":"Button (Pushable)", "released":"Button (Releasable)", "held":"Button (Holdable)", "doubleTapped":"Button (Double Tapable)"]?.sort{ it?.value }
-    }
+    buildItems["Actionable Devices"] = ["lock":"Locks", "securityKeypad":"Keypads", "switch":"Switches/Outlets", "level":"Dimmers/Level", "door":"Garage Door Openers", "valve":"Valves", "shade":"Window Shades", "thermostat":"Thermostat"]?.sort{ it?.value }
+    buildItems["Button Devices"] = ["pushed":"Button (Pushable)", "released":"Button (Releasable)", "held":"Button (Holdable)", "doubleTapped":"Button (Double Tapable)"]?.sort{ it?.value }
     buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
 
-private buildActTypeEnum() {
+private static buildActTypeEnum() {
     List enumOpts = []
     Map<String, Map> buildItems = [:]
     buildItems["Speech"] = ["speak":"Speak", "announcement":"Announcement", "speak_tiered":"Speak (Tiered)", "announcement_tiered":"Announcement (Tiered)"]?.sort{ it?.key }
@@ -184,23 +173,25 @@ private buildActTypeEnum() {
 def mainPage() {
     Boolean newInstall = (!(Boolean)state.isInstalled)
     return dynamicPage(name: "mainPage", nextPage: (!newInstall ? sBLANK : "namePage"), uninstall: newInstall, install: !newInstall) {
+        Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup == true)
+        if(dup) {
+            state.dupOpenedByUser = true
+            section() { paragraph pTS("This Action was just created from an existing action.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
+        }
+
         if(settings.enableWebCoRE) {
             if(!webCoREFLD) webCoRE_init()
         }
         appInfoSect()
         Boolean paused = isPaused()
-        Boolean dup = (settings.duplicateFlag == true || state.dupPendingSetup == true)
         Boolean trigConf
         Boolean condConf
         Boolean actConf
         Boolean allOk
-        if(dup) {
-            state.dupOpenedByUser = true
-            section() { paragraph pTS("This Action was just created from an existing action.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null, image: getAppImg("pause_orange") }
-        }
+
         if(paused) {
             section() {
-                paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null, image: getAppImg("pause_orange")
+                paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null
             }
         } else {
             if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
@@ -209,7 +200,7 @@ def mainPage() {
             actConf = executionConfigured()
             allOk = (Boolean) (settings.actionType && trigConf && actConf)
             section(sTS("Configuration: Part 1")) {
-                input "actionType", sENUM, title: inTS1("Action Type", "list"), description: sBLANK, options: buildActTypeEnum(), multiple: false, required: true, submitOnChange: true, image: getAppImg("list")
+                input "actionType", sENUM, title: inTS1("Action Type", "list"), description: sBLANK, options: buildActTypeEnum(), multiple: false, required: true, submitOnChange: true
             }
             if (newInstall) {
                 section("Configuration: Part 2") {
@@ -218,40 +209,40 @@ def mainPage() {
             } else {
                 section (sTS("Configuration: Part 2")) {
                     if((String)settings.actionType) {
-                        href "triggersPage", title: inTS1("Action Triggers", "trigger"), description: getTriggersDesc(), state: (trigConf ? sCOMPLT : sBLANK), required: true, image: getAppImg("trigger")
+                        href "triggersPage", title: inTS1("Action Triggers", "trigger"), description: getTriggersDesc(), state: (trigConf ? sCOMPLT : sBLANK), required: true
                     } else { paragraph pTS("These options will be shown once the action type is configured.", getAppImg("info", true)) }
                 }
                 section(sTS("Configuration: Part 3")) {
                     if((String)settings.actionType && trigConf) {
-                        href "conditionsPage", title: inTS1("Condition/Restrictions\n(Optional)", "conditions"), description: getConditionsDesc(), state: (condConf ? sCOMPLT: sBLANK), image: getAppImg("conditions")
+                        href "conditionsPage", title: inTS1("Condition/Restrictions\n(Optional)", "conditions"), description: getConditionsDesc(), state: (condConf ? sCOMPLT: sBLANK)
                     } else { paragraph pTS("These options will be shown once the triggers are configured.", getAppImg("info", true)) }
                 }
                 section(sTS("Configuration: Part 4")) {
                     if((String)settings.actionType && trigConf) {
-                        href "actionsPage", title: inTS1("Execution Config", "es_actions"), description: getActionDesc(), state: (actConf ? sCOMPLT : sBLANK), required: true, image: getAppImg("es_actions")
+                        href "actionsPage", title: inTS1("Execution Config", "es_actions"), description: getActionDesc(), state: (actConf ? sCOMPLT : sBLANK), required: true
                     } else { paragraph pTS("These options will be shown once the triggers are configured.", getAppImg("info", true)) }
                 }
                 if(allOk) {
                     section(sTS("Notifications:")) {
                         String t0 = getAppNotifDesc()
-                        href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC), state: (t0 ? sCOMPLT : null), image: getAppImg("notification2")
+                        href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC), state: (t0 ? sCOMPLT : null)
                     }
                     // getTierStatusSection()
 
                     section(sTS("Action History")) {
-                        href "actionHistoryPage", title: inTS1("View Action History", "tasks"), description: sBLANK, image: getAppImg("tasks")
+                        href "actionHistoryPage", title: inTS1("View Action History", "tasks"), description: sBLANK
                     }
                 }
             }
         }
 
         section(sTS("Preferences")) {
-            href "prefsPage", title: inTS1("Debug/Preferences", "settings"), description: sBLANK, image: getAppImg("settings")
+            href "prefsPage", title: inTS1("Debug/Preferences", "settings"), description: sBLANK
             if(!newInstall) {
-                input "actionPause", sBOOL, title: inTS1("Pause Action?", "pause_orange"), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                input "actionPause", sBOOL, title: inTS1("Pause Action?", "pause_orange"), defaultValue: false, submitOnChange: true
                 if((Boolean)settings.actionPause) { unsubscribe() }
                 else {
-                    input "actTestRun", sBOOL, title: inTS1("Test this action?", "testing"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
+                    input "actTestRun", sBOOL, title: inTS1("Test this action?", "testing"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                     if(actTestRun) { executeActTest() }
                 }
             }
@@ -259,17 +250,17 @@ def mainPage() {
 
         if(!newInstall) {
             section(sTS("Name this Action:")) {
-                input "appLbl", sTEXT, title: inTS1("Action Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true, image: getAppImg("name_tag")
+                input "appLbl", sTEXT, title: inTS1("Action Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true
             }
             section(sTS("Remove Action:")) {
-                href "uninstallPage", title: inTS1("Remove this Action", "uninstall"), description: "Tap to Remove...", image: getAppImg("uninstall")
+                href "uninstallPage", title: inTS1("Remove this Action", "uninstall"), description: "Tap to Remove..."
             }
             if(allOk) {
                 section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
                     String issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28ACTIONS+BUG%29+&projects=echo-speaks%2F6"
                     String featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BActions+Feature+Request%5D&projects=echo-speaks%2F6"
-                    href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: "Tap to open browser", image: getAppImg("www")
-                    href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: "Tap to open browser", image: getAppImg("www")
+                    href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: "Tap to open browser"
+                    href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: "Tap to open browser"
                 }
             }
         }
@@ -279,16 +270,16 @@ def mainPage() {
 def prefsPage() {
     return dynamicPage(name: "prefsPage", install: false, uninstall: false) {
         section(sTS("Logging:")) {
-            input "logInfo",  sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logWarn",  sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enable when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logInfo",  sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+            input "logWarn",  sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+            input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
+            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enable when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
         }
         if((Boolean)state.isInstalled) {
             if(advLogsActive()) { logsEnabled() }
             section(sTS("Other:")) {
-                input "clrEvtHistory", sBOOL, title: inTS1("Clear Device Event History?", "reset"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                input "clrEvtHistory", sBOOL, title: inTS1("Clear Device Event History?", "reset"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                 if(clrEvtHistory) { clearEvtHistory() }
             }
         }
@@ -298,7 +289,7 @@ def prefsPage() {
 def namePage() {
     return dynamicPage(name: "namePage", install: true, uninstall: false) {
         section(sTS("Name this Automation:")) {
-            input "appLbl", sTEXT, title: inTS1("Label this Action", "name_tag"), description: sBLANK, required:true, submitOnChange: true, image: getAppImg("name_tag")
+            input "appLbl", sTEXT, title: inTS1("Label this Action", "name_tag"), description: sBLANK, required:true, submitOnChange: true
         }
     }
 }
@@ -308,9 +299,9 @@ def actionHistoryPage() {
         section() {
             getActionHistory()
         }
-        if((getMemStoreItem("actionHistory")).size()) {
+        if( ((List)getMemStoreItem("actionHistory")).size() ) {
             section(sBLANK) {
-                input "clearActionHistory", sBOOL, title: inTS1("Clear Action History?", "reset"), description: "Clears Stored Action History.", defaultValue: false, submitOnChange: true, image: getAppImg("reset")
+                input "clearActionHistory", sBOOL, title: inTS1("Clear Action History?", "reset"), description: "Clears Stored Action History.", defaultValue: false, submitOnChange: true
                 //private List getMemStoreItem(String key){
                 if(settings.clearActionHistory) {
                     settingUpdate("clearActionHistory", sFALSE, sBOOL)
@@ -342,7 +333,7 @@ def triggersPage() {
             }
         }
         section (sTS("Enable webCoRE Integration:")) {
-            input "enableWebCoRE", sBOOL, title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+            input "enableWebCoRE", sBOOL, title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true
         }
         if(settings.enableWebCoRE) {
             if(!webCoREFLD) webCoRE_init()
@@ -358,16 +349,16 @@ def triggersPage() {
             if (valTrigEvt("scheduled")) {
                 section(sTS("Time Based Events"), hideable: true) {
                     List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
-                    input "trig_scheduled_type", sENUM, title: inTS1("Schedule Type?", sCHKBOX), options: schedTypes, multiple: false, required: true, submitOnChange: true, image: getAppImg(sCHKBOX)
+                    input "trig_scheduled_type", sENUM, title: inTS1("Schedule Type?", sCHKBOX), options: schedTypes, multiple: false, required: true, submitOnChange: true
                     String schedType = (String)settings.trig_scheduled_type
                     if(schedType) {
                         switch(schedType) {
                             case "One-Time":
                             case "Recurring":
-                                input "trig_scheduled_time", sTIME, title: inTS1("Trigger Time?", "clock"), required: false, submitOnChange: true, image: getAppImg("clock")
+                                input "trig_scheduled_time", sTIME, title: inTS1("Trigger Time?", "clock"), required: false, submitOnChange: true
                                 if(settings.trig_scheduled_time && schedType == "Recurring") {
                                     List recurOpts = ["Daily", "Weekly", "Monthly"] // "Yearly"
-                                    input "trig_scheduled_recurrence", sENUM, title: inTS1("Recurrence?", "day_calendar"), description: sBLANK, multiple: false, required: true, submitOnChange: true, options: recurOpts, defaultValue: "Once", image: getAppImg("day_calendar")
+                                    input "trig_scheduled_recurrence", sENUM, title: inTS1("Recurrence?", "day_calendar"), description: sBLANK, multiple: false, required: true, submitOnChange: true, options: recurOpts, defaultValue: "Once"
                                     // TODO: Build out the scheduling some more with quick items like below
                                     /*
                                         At 6 pm on the last day of every month: (0 0 18 L * ?)
@@ -381,21 +372,21 @@ def triggersPage() {
                                     if(schedRecur) {
                                         switch(schedRecur) {
                                             case "Daily":
-                                                input "trig_scheduled_weekdays", sENUM, title: inTS1("Only of these Days of the Week?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: daysOfWeekMap(), image: getAppImg("day_calendar")
+                                                input "trig_scheduled_weekdays", sENUM, title: inTS1("Only of these Days of the Week?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: daysOfWeekMap()
                                                 break
 
                                             case "Weekly":
-                                                input "trig_scheduled_weekdays", sENUM, title: inTS1("Days of the Week?", "day_calendar"), description: sBLANK, multiple: true, required: true, submitOnChange: true, options: daysOfWeekMap(), image: getAppImg("day_calendar")
-                                                input "trig_scheduled_weeks", sENUM, title: inTS1("Only these Weeks on the Month?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: weeksOfMonthMap(), image: getAppImg("day_calendar")
-                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: monthMap(), image: getAppImg("day_calendar")
+                                                input "trig_scheduled_weekdays", sENUM, title: inTS1("Days of the Week?", "day_calendar"), description: sBLANK, multiple: true, required: true, submitOnChange: true, options: daysOfWeekMap()
+                                                input "trig_scheduled_weeks", sENUM, title: inTS1("Only these Weeks on the Month?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: weeksOfMonthMap()
+                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: monthMap()
                                                 break
 
                                             case "Monthly":
-                                                input "trig_scheduled_daynums", sENUM, title: inTS1("Days of the Month?", "day_calendar"), description: (!settings.trig_scheduled_weeks ? "(Optional)" : sBLANK), multiple: true, required: (!settings.trig_scheduled_weeks), submitOnChange: true, options: (1..31)?.collect { it as String }, image: getAppImg("day_calendar")
+                                                input "trig_scheduled_daynums", sENUM, title: inTS1("Days of the Month?", "day_calendar"), description: (!settings.trig_scheduled_weeks ? "(Optional)" : sBLANK), multiple: true, required: (!settings.trig_scheduled_weeks), submitOnChange: true, options: (1..31)?.collect { it as String }
                                                 if(!settings.trig_scheduled_daynums) {
-                                                    input "trig_scheduled_weeks", sENUM, title: inTS1("Weeks of the Month?", "day_calendar"), description: (!settings.trig_scheduled_daynums ? "(Optional)" : sBLANK), multiple: true, required: (!settings.trig_scheduled_daynums), submitOnChange: true, options: weeksOfMonthMap(), image: getAppImg("day_calendar")
+                                                    input "trig_scheduled_weeks", sENUM, title: inTS1("Weeks of the Month?", "day_calendar"), description: (!settings.trig_scheduled_daynums ? "(Optional)" : sBLANK), multiple: true, required: (!settings.trig_scheduled_daynums), submitOnChange: true, options: weeksOfMonthMap()
                                                 }
-                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: monthMap(), image: getAppImg("day_calendar")
+                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: monthMap()
                                                 break
                                         }
                                     }
@@ -403,7 +394,7 @@ def triggersPage() {
                                 break
                             case "Sunrise":
                             case "Sunset":
-                                input "trig_scheduled_sunState_offset", sNUMBER, range: "*..*", title: inTS1("Offset ${schedType} this number of minutes (+/-)", schedType?.toLowerCase()), required: false, image: getAppImg(schedType?.toLowerCase() + sBLANK)
+                                input "trig_scheduled_sunState_offset", sNUMBER, range: "*..*", title: inTS1("Offset ${schedType} this number of minutes (+/-)", schedType?.toLowerCase()), required: false
                                 break
                         }
                     }
@@ -412,13 +403,13 @@ def triggersPage() {
 
             if (valTrigEvt("alarm")) {
                 section (sTS("${getAlarmSystemName()} (${getAlarmSystemName(true)}) Events"), hideable: true) {
-                    input "trig_alarm", sENUM, title: inTS1("${getAlarmSystemName()} Modes", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
-                    if(!isStFLD && !("alerts" in settings.trig_alarm)) {
-                        input "trig_alarm_events", sENUM, title: inTS1("${getAlarmSystemName()} Alert Events", "alarm_home"), options: getAlarmSystemAlertOptions(), multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
+                    input "trig_alarm", sENUM, title: inTS1("${getAlarmSystemName()} Modes", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true
+                    if(!("alerts" in settings.trig_alarm)) {
+                        input "trig_alarm_events", sENUM, title: inTS1("${getAlarmSystemName()} Alert Events", "alarm_home"), options: getAlarmSystemAlertOptions(), multiple: true, required: true, submitOnChange: true
                     }
                     if(settings.trig_alarm) {
-                        // input "trig_alarm_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        // input "trig_alarm_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                        // input "trig_alarm_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", "question"), required: false, defaultValue: false, submitOnChange: true
+                        // input "trig_alarm_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                         triggerVariableDesc("alarm", false, trigItemCnt++)
                     }
                 }
@@ -426,10 +417,10 @@ def triggersPage() {
 
             if (valTrigEvt("guard")) {
                 section (sTS("Alexa Guard Events"), hideable: true) {
-                    input "trig_guard", sENUM, title: inTS1("Alexa Guard Modes", "alarm_home"), options: ["ARMED_STAY", "ARMED_AWAY", sANY], multiple: true, required: true, submitOnChange: true, image: getAppImg("alarm_home")
+                    input "trig_guard", sENUM, title: inTS1("Alexa Guard Modes", "alarm_home"), options: ["ARMED_STAY", "ARMED_AWAY", sANY], multiple: true, required: true, submitOnChange: true
                     if(settings.trig_guard) {
-                        // input "trig_guard_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        // input "trig_guard_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                        // input "trig_guard_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", "question"), required: false, defaultValue: false, submitOnChange: true
+                        // input "trig_guard_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                         triggerVariableDesc("guard", false, trigItemCnt++)
                     }
                 }
@@ -437,10 +428,10 @@ def triggersPage() {
 
             if (valTrigEvt("mode")) {
                 section (sTS("Mode Events"), hideable: true) {
-                    input "trig_mode", "mode", title: inTS1("Location Modes", "mode"), multiple: true, required: true, submitOnChange: true, image: getAppImg("mode")
+                    input "trig_mode", "mode", title: inTS1("Location Modes", "mode"), multiple: true, required: true, submitOnChange: true
                     if(settings.trig_mode) {
-                        input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                        input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true
+                        input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                         triggerVariableDesc("mode", false, trigItemCnt++)
                     }
                 }
@@ -448,11 +439,11 @@ def triggersPage() {
 
             if(valTrigEvt("pistonExecuted")) {
                 section(sTS("webCoRE Piston Executed Events"), hideable: true) {
-                    input "trig_pistonExecuted", sENUM, title: inTS("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true, image: webCore_icon()
+                    input "trig_pistonExecuted", sENUM, title: inTS("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true
                     if(settings.trig_pistonExecuted) {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
-                        input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                        input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", "question"), required: false, defaultValue: false, submitOnChange: true
+                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                         triggerVariableDesc("pistonExecuted", false, trigItemCnt++)
                     }
                 }
@@ -500,11 +491,11 @@ def triggersPage() {
 
             if (valTrigEvt("pushed")) {
                 section (sTS("Button Pushed Events"), hideable: true) {
-                    input "trig_pushed", "capability.pushableButton", title: inTS1("Pushable Buttons", "button"), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
+                    input "trig_pushed", "capability.pushableButton", title: inTS1("Pushable Buttons", "button"), required: true, multiple: true, submitOnChange: true
                     if (settings.trig_pushed) {
                         settingUpdate("trig_pushed_cmd", "pushed", sENUM)
-                        //input "trig_pushed_cmd", sENUM, title: inTS1("Pushed changes", sCOMMAND), options: ["pushed"], required: true, multiple: false, defaultValue: "pushed", submitOnChange: true, image: getAppImg(sCOMMAND)
-                        input "trig_pushed_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true,  submitOnChange: true, image: getAppImg(sCOMMAND)
+                        //input "trig_pushed_cmd", sENUM, title: inTS1("Pushed changes", sCOMMAND), options: ["pushed"], required: true, multiple: false, defaultValue: "pushed", submitOnChange: true
+                        input "trig_pushed_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true,  submitOnChange: true
                         if(settings.trig_pushed_nums) {
                             triggerVariableDesc("pushed", false, trigItemCnt++)
                         }
@@ -514,11 +505,11 @@ def triggersPage() {
 
             if (valTrigEvt("released")) {
                 section (sTS("Button Released Events"), hideable: true) {
-                    input "trig_released", "capability.releasableButton", title: inTS1("Releasable Buttons", "button"), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
+                    input "trig_released", "capability.releasableButton", title: inTS1("Releasable Buttons", "button"), required: true, multiple: true, submitOnChange: true
                     if (settings.trig_released) {
                         settingUpdate("trig_released_cmd", "released", sENUM)
-                        //input "trig_released_cmd", sENUM, title: inTS1("Released changes", sCOMMAND), options: ["released"], required: true, multiple: false, defaultValue: "released", submitOnChange: true, image: getAppImg(sCOMMAND)
-                        input "trig_released_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                        //input "trig_released_cmd", sENUM, title: inTS1("Released changes", sCOMMAND), options: ["released"], required: true, multiple: false, defaultValue: "released", submitOnChange: true
+                        input "trig_released_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true, submitOnChange: true
                         if(settings.trig_released_nums) {
                             triggerVariableDesc("released", false, trigItemCnt++)
                         }
@@ -528,11 +519,11 @@ def triggersPage() {
 
             if (valTrigEvt("held")) {
                 section (sTS("Button Held Events"), hideable: true) {
-                    input "trig_held", "capability.holdableButton", title: inTS1("Holdable Buttons", "button"), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
+                    input "trig_held", "capability.holdableButton", title: inTS1("Holdable Buttons", "button"), required: true, multiple: true, submitOnChange: true
                     if (settings.trig_held) {
                         settingUpdate("trig_held_cmd", "held", sENUM)
-                        //input "trig_held_cmd", sENUM, title: inTS1("Held changes", sCOMMAND), options: ["held"], required: true, multiple: false, defaultValue: "held", submitOnChange: true, image: getAppImg(sCOMMAND)
-                        input "trig_held_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true,  multiple: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                        //input "trig_held_cmd", sENUM, title: inTS1("Held changes", sCOMMAND), options: ["held"], required: true, multiple: false, defaultValue: "held", submitOnChange: true
+                        input "trig_held_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true,  multiple: true, submitOnChange: true
                         if(settings.trig_held_nums) {
                             triggerVariableDesc("held", false, trigItemCnt++)
                         }
@@ -542,11 +533,11 @@ def triggersPage() {
 
             if (valTrigEvt("doubleTapped")) {
                 section (sTS("Button Double Tap Events"), hideable: true) {
-                    input "trig_doubleTapped", "capability.doubleTapableButton", title: inTS1("Double Tap Buttons", "button"), required: true, multiple: true, submitOnChange: true, image: getAppImg("button")
+                    input "trig_doubleTapped", "capability.doubleTapableButton", title: inTS1("Double Tap Buttons", "button"), required: true, multiple: true, submitOnChange: true
                     if (settings.trig_doubleTapped) {
                         settingUpdate("trig_doubleTapped_cmd", "doubleTapped", sENUM)
-                        //input "trig_doubleTapped_cmd", sENUM, title: inTS1("Double Tapped changes", sCOMMAND), options: ["doubleTapped"], required: true, multiple: false, defaultValue: "doubleTapped", submitOnChange: true, image: getAppImg(sCOMMAND)
-                        input "trig_doubleTapped_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                        //input "trig_doubleTapped_cmd", sENUM, title: inTS1("Double Tapped changes", sCOMMAND), options: ["doubleTapped"], required: true, multiple: false, defaultValue: "doubleTapped", submitOnChange: true
+                        input "trig_doubleTapped_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true, submitOnChange: true
                         if(settings.trig_doubleTapped_nums) {
                             triggerVariableDesc("doubleTapped", false, trigItemCnt++)
                         }
@@ -572,12 +563,12 @@ def triggersPage() {
 
             if (valTrigEvt("carbon")) {
                 section (sTS("Carbon Monoxide Events"), hideable: true) {
-                    input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: inTS1("Carbon Monoxide Sensors", "co"), required: !(settings.trig_smoke), multiple: true, submitOnChange: true, image: getAppImg("co")
+                    input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: inTS1("Carbon Monoxide Sensors", "co"), required: !(settings.trig_smoke), multiple: true, submitOnChange: true
                     if (settings.trig_carbonMonoxide) {
-                        input "trig_carbonMonoxide_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: ["detected", "clear", sANY], required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                        input "trig_carbonMonoxide_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: ["detected", "clear", sANY], required: true, submitOnChange: true
                         if(settings.trig_carbonMonoxide_cmd) {
                             if (settings.trig_carbonMonoxide?.size() > 1 && settings.trig_carbonMonoxide_cmd != sANY) {
-                                input "trig_carbonMonoxide_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_carbonMonoxide_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
+                                input "trig_carbonMonoxide_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_carbonMonoxide_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                             }
                             triggerVariableDesc("carbonMonoxide", false, trigItemCnt++)
                         }
@@ -587,12 +578,12 @@ def triggersPage() {
 
             if (valTrigEvt("smoke")) {
                 section (sTS("Smoke Events"), hideable: true) {
-                    input "trig_smoke", "capability.smokeDetector", title: inTS1("Smoke Detectors", "smoke"), required: !(settings.trig_carbonMonoxide), multiple: true, submitOnChange: true, image: getAppImg("smoke")
+                    input "trig_smoke", "capability.smokeDetector", title: inTS1("Smoke Detectors", "smoke"), required: !(settings.trig_carbonMonoxide), multiple: true, submitOnChange: true
                     if (settings.trig_smoke) {
-                        input "trig_smoke_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: ["detected", "clear", sANY], required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                        input "trig_smoke_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: ["detected", "clear", sANY], required: true, submitOnChange: true
                         if(settings.trig_smoke_cmd) {
                             if (settings.trig_smoke?.size() > 1 && settings.trig_smoke_cmd != sANY) {
-                                input "trig_smoke_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_smoke_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
+                                input "trig_smoke_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_smoke_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                             }
                             triggerVariableDesc("smoke", false, trigItemCnt++)
                         }
@@ -614,14 +605,14 @@ def triggersPage() {
 
             if (valTrigEvt("thermostat")) {
                 section (sTS("Thermostat Events"), hideable: true) {
-                    input "trig_thermostat", "capability.thermostat", title: inTS1("Thermostat", "thermostat"), multiple: true, required: true, submitOnChange: true, image: getAppImg("thermostat")
+                    input "trig_thermostat", "capability.thermostat", title: inTS1("Thermostat", "thermostat"), multiple: true, required: true, submitOnChange: true
                     if (settings.trig_thermostat) {
-                        input "trig_thermostat_cmd", sENUM, title: inTS1("Thermostat Event is...", sCOMMAND), options: ["ambient":"Ambient Change", "setpoint":"Setpoint Change", "mode":"Mode Change", "operatingstate":"Operating State Change"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+                        input "trig_thermostat_cmd", sENUM, title: inTS1("Thermostat Event is...", sCOMMAND), options: ["ambient":"Ambient Change", "setpoint":"Setpoint Change", "mode":"Mode Change", "operatingstate":"Operating State Change"], required: true, multiple: false, submitOnChange: true
                         if (settings.trig_thermostat_cmd) {
                             if (settings.trig_thermostat_cmd == "setpoint") {
-                                input "trig_thermostat_setpoint_type", sENUM, title: inTS1("SetPoint type is...", sCOMMAND), options: ["cooling", "heating", sANY], required: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                input "trig_thermostat_setpoint_type", sENUM, title: inTS1("SetPoint type is...", sCOMMAND), options: ["cooling", "heating", sANY], required: false, submitOnChange: true
                                 if(settings.trig_thermostat_setpoint_type) {
-                                    input "trig_thermostat_setpoint_cmd", sENUM, title: inTS1("Setpoint temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                    input "trig_thermostat_setpoint_cmd", sENUM, title: inTS1("Setpoint temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
                                     if (settings.trig_thermostat_setpoint_cmd) {
                                         if (settings.trig_thermostat_setpoint_cmd in [sBETWEEN, sBELOW]) {
                                             input "trig_thermostat_setpoint_low", sNUMBER, title: inTS1("a ${trig_thermostat_setpoint_cmd == sBETWEEN ? "Low " : sBLANK}Setpoint temp of...", "low"), required: true, submitOnChange: true
@@ -636,7 +627,7 @@ def triggersPage() {
                                 }
                             }
                             if(settings.trig_thermostat_cmd == "ambient") {
-                                input "trig_thermostat_ambient_cmd", sENUM, title: inTS1("Ambient Temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                input "trig_thermostat_ambient_cmd", sENUM, title: inTS1("Ambient Temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
                                 if (settings.trig_thermostat_ambient_cmd) {
                                     if (settings.trig_thermostat_ambient_cmd in [sBETWEEN, sBELOW]) {
                                         input "trig_thermostat_ambient_low", sNUMBER, title: inTS1("a ${trig_thermostat_ambient_cmd == sBETWEEN ? "Low " : sBLANK}Ambient Temp of...", "low"), required: true, submitOnChange: true
@@ -650,13 +641,13 @@ def triggersPage() {
                                 }
                             }
                             if (settings.trig_thermostat_cmd == "mode") {
-                                input "trig_thermostat_mode_cmd", sENUM, title: inTS1("Hvac Mode changes to?", sCOMMAND), options: ["auto", "cool", " heat", "emergency heat", "off", "every mode"], required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                input "trig_thermostat_mode_cmd", sENUM, title: inTS1("Hvac Mode changes to?", sCOMMAND), options: ["auto", "cool", " heat", "emergency heat", "off", "every mode"], required: true, submitOnChange: true
                             }
                             if (settings.trig_thermostat_cmd == "operatingstate") {
-                                input "trig_thermostat_state_cmd", sENUM, title: inTS1("Operating State changes to?", sCOMMAND), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                input "trig_thermostat_state_cmd", sENUM, title: inTS1("Operating State changes to?", sCOMMAND), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true
                             }
-                            input "trig_thermostat_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: thermostat)", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                            input "trig_thermostat_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                            input "trig_thermostat_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: thermostat)", "question"), required: false, defaultValue: false, submitOnChange: true
+                            input "trig_thermostat_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                             triggerVariableDesc("thermostat", false, trigItemCnt++)
                         }
                     }
@@ -664,7 +655,7 @@ def triggersPage() {
             }
             if(triggersConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT, image: getAppImg("done")
+                    paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
                 }
             }
         }
@@ -678,7 +669,7 @@ def handleCodeSect(String typ, String lbl) {
     if(lockCodes) {
 //        section (sTS("Filter ${lbl} Code Events"), hideable: true) {
             Map codeOpts = lockCodes.collectEntries { [((String)it.key): it.value?.name ? "Name: "+(String)it.value.name : "Code Number ${(String)it.key}: (${(String)it.value?.code})"] }
-            input "trig_${typ}_Codes", sENUM, title: inTS1("Filter ${lbl} codes...", sCOMMAND), options: codeOpts, multiple: true, required: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+            input "trig_${typ}_Codes", sENUM, title: inTS1("Filter ${lbl} codes...", sCOMMAND), options: codeOpts, multiple: true, required: false, submitOnChange: true
 //        }
     }
 }
@@ -703,27 +694,27 @@ def dummy(a,b) {}
 
 def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt, devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
     section (sTS(sectStr), hideable: true) {
-        input "trig_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, required: devReq, submitOnChange: true, image: getAppImg(image)
+        input "trig_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, required: devReq, submitOnChange: true
         if (settings."trig_${inType}") {
-            input "trig_${inType}_cmd", sENUM, title: inTS1("${cmdTitle}...", sCOMMAND), options: cmdOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+            input "trig_${inType}_cmd", sENUM, title: inTS1("${cmdTitle}...", sCOMMAND), options: cmdOpts, multiple: false, required: true, submitOnChange: true
             if(settings."trig_${inType}_cmd") {
                 if (settings."trig_${inType}"?.size() > 1 && settings."trig_${inType}_cmd" != sANY) {
-                    input "trig_${inType}_all", sBOOL, title: inTS1("Require ALL ${devTitle} to be (${settings."trig_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
+                    input "trig_${inType}_all", sBOOL, title: inTS1("Require ALL ${devTitle} to be (${settings."trig_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                 }
                 extraMeth(inType, extraStr)
 
                 if(!isTierAction() && settings."trig_${inType}_cmd" in cmdAfterOpts) {
-                    input "trig_${inType}_after", sNUMBER, title: inTS1("Only after (${settings."trig_${inType}_cmd"}) for (xx) seconds?", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                    input "trig_${inType}_after", sNUMBER, title: inTS1("Only after (${settings."trig_${inType}_cmd"}) for (xx) seconds?", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                     if(settings."trig_${inType}_after") {
-                        input "trig_${inType}_after_repeat", sNUMBER, title: inTS1("Repeat every (xx) seconds until it's not ${settings."trig_${inType}_cmd"}?", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                        input "trig_${inType}_after_repeat", sNUMBER, title: inTS1("Repeat every (xx) seconds until it's not ${settings."trig_${inType}_cmd"}?", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                         if(settings."trig_${inType}_after_repeat") {
-                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: inTS1("Only repeat this many times? (Optional)", "question"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("question")
+                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: inTS1("Only repeat this many times? (Optional)", "question"), required: false, defaultValue: null, submitOnChange: true
                         }
                     }
                 }
                 if(!settings."trig_${inType}_after") {
-                    input "trig_${inType}_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: ${inType})", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                    input "trig_${inType}_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true, image: getAppImg("delay_time")
+                    input "trig_${inType}_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: ${inType})", "question"), required: false, defaultValue: false, submitOnChange: true
+                    input "trig_${inType}_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                 }
                 triggerVariableDesc(inType, true, trigItemCnt)
             }
@@ -733,27 +724,27 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
 
 def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Integer trigItemCnt, devReq=true) {
     section (sTS(sectStr), hideable: true) {
-        input "trig_${inType}", "capability.${capType}", tite: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: devReq, image: getAppImg(image)
+        input "trig_${inType}", "capability.${capType}", tite: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: devReq
         if(settings."trig_${inType}") {
-            input "trig_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+            input "trig_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
             if (settings."trig_${inType}_cmd") {
                 if (settings."trig_${inType}_cmd" in [sBETWEEN, sBELOW]) {
-                    input "trig_${inType}_low", sNUMBER, title: inTS1("a ${settings."trig_${inType}_cmd" == sBETWEEN ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true, image: getAppImg("low")
+                    input "trig_${inType}_low", sNUMBER, title: inTS1("a ${settings."trig_${inType}_cmd" == sBETWEEN ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true
                 }
                 if (settings."trig_${inType}_cmd" in [sBETWEEN, sABOVE]) {
-                    input "trig_${inType}_high", sNUMBER, title: inTS1("${settings."trig_${inType}_cmd" == sBETWEEN ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true, image: getAppImg("high")
+                    input "trig_${inType}_high", sNUMBER, title: inTS1("${settings."trig_${inType}_cmd" == sBETWEEN ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true
                 }
                 if (settings."trig_${inType}_cmd" == sEQUALS) {
-                    input "trig_${inType}_equal", sNUMBER, title: inTS1("a ${cmdTitle} of...", "equal"), required: true, submitOnChange: true, image: getAppImg("equal")
+                    input "trig_${inType}_equal", sNUMBER, title: inTS1("a ${cmdTitle} of...", "equal"), required: true, submitOnChange: true
                 }
                 if (settings."trig_${inType}"?.size() > 1) {
-                    input "trig_${inType}_all", sBOOL, title: inTS1("Require ALL devices to be (${settings."trig_${inType}_cmd"}) values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
+                    input "trig_${inType}_all", sBOOL, title: inTS1("Require ALL devices to be (${settings."trig_${inType}_cmd"}) values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                     if(!settings."trig_${inType}_all") {
-                        input "trig_${inType}_avg", sBOOL, title: inTS1("Use the average of all selected device values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
+                        input "trig_${inType}_avg", sBOOL, title: inTS1("Use the average of all selected device values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                     }
                 }
-                input "trig_${inType}_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: ${inType})", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-                input "trig_${inType}_wait", sNUMBER, title: inTS1("Wait between each report", "delay_time"), required: false, defaultValue: 120, submitOnChange: true, image: getAppImg("delay_time")
+                input "trig_${inType}_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: ${inType})", "question"), required: false, defaultValue: false, submitOnChange: true
+                input "trig_${inType}_wait", sNUMBER, title: inTS1("Wait between each report", "delay_time"), required: false, defaultValue: 120, submitOnChange: true
                 triggerVariableDesc(inType, false, trigItemCnt)
             }
         }
@@ -832,24 +823,24 @@ def conditionsPage() {
         Boolean multiConds = multipleConditions()
         section() {
             if(multiConds) {
-                input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sCHKBOX)
+                input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: true, submitOnChange: true
             }
             paragraph pTS("Notice:\n${reqAllCond() ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate."}", sNULL, false, sCLR4D9), state: sCOMPLT
         }
         section(sTS("Time/Date")) {
-            // input "test_time", sTIME, title: "Trigger Time?", required: false, submitOnChange: true, image: getAppImg("clock")
-            href "condTimePage", title: inTS1("Time Schedule", "clock"), description: getTimeCondDesc(false), state: (timeCondConfigured() ? sCOMPLT : null), image: getAppImg("clock")
-            input "cond_days", sENUM, title: inTS1("Days of the week", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum(), image: getAppImg("day_calendar")
-            input "cond_months", sENUM, title: inTS1("Months of the year", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: monthEnum(), image: getAppImg("day_calendar")
+            // input "test_time", sTIME, title: "Trigger Time?", required: false, submitOnChange: true
+            href "condTimePage", title: inTS1("Time Schedule", "clock"), description: getTimeCondDesc(false), state: (timeCondConfigured() ? sCOMPLT : null)
+            input "cond_days", sENUM, title: inTS1("Days of the week", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum()
+            input "cond_months", sENUM, title: inTS1("Months of the year", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: monthEnum()
         }
         section (sTS("Mode Conditions")) {
-            input "cond_mode", "mode", title: inTS1("Location Modes...", "mode"), multiple: true, required: false, submitOnChange: true, image: getAppImg("mode")
+            input "cond_mode", "mode", title: inTS1("Location Modes...", "mode"), multiple: true, required: false, submitOnChange: true
             if(settings.cond_mode) {
-                input "cond_mode_cmd", sENUM, title: inTS1("are...", sCOMMAND), options: ["not":"Not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+                input "cond_mode_cmd", sENUM, title: inTS1("are...", sCOMMAND), options: ["not":"Not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true
             }
         }
         section (sTS("Alarm Conditions")) {
-            input "cond_alarm", sENUM, title: inTS1("${getAlarmSystemName()} is...", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true, image: getAppImg("alarm_home")
+            input "cond_alarm", sENUM, title: inTS1("${getAlarmSystemName()} is...", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true
         }
 
         condNonNumSect(sSWITCH, sSWITCH, "Switches/Outlets Conditions", "Switches/Outlets", lONOFF, "are", sSWITCH)
@@ -890,11 +881,11 @@ def conditionsPage() {
 
 def condNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, String image) {
     section (sTS(sectStr), hideWhenEmpty: true) {
-        input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required:false, image: getAppImg(image), hideWhenEmpty: true
+        input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
         if (settings."cond_${inType}") {
-            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle}...", sCOMMAND), options: cmdOpts, multiple: false, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle}...", sCOMMAND), options: cmdOpts, multiple: false, required: true, submitOnChange: true
             if (settings."cond_${inType}_cmd" && settings."cond_${inType}"?.size() > 1) {
-                input "cond_${inType}_all", sBOOL, title: inTS1("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
+                input "cond_${inType}_all", sBOOL, title: inTS1("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
             }
         }
     }
@@ -902,23 +893,23 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
 
 def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Boolean hideable= false) {
     section (sTS(sectStr), hideWhenEmpty: true) {
-        input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: false, image: getAppImg(image), hideWhenEmpty: true
+        input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: false, hideWhenEmpty: true
         if(settings."cond_${inType}") {
-            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true, image: getAppImg(sCOMMAND)
+            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
             if (settings."cond_${inType}_cmd") {
                 if (settings."cond_${inType}_cmd" in [sBETWEEN, sBELOW]) {
-                    input "cond_${inType}_low", sNUMBER, title: inTS1("a ${settings."cond_${inType}_cmd" == sBETWEEN ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true, image: getAppImg("low")
+                    input "cond_${inType}_low", sNUMBER, title: inTS1("a ${settings."cond_${inType}_cmd" == sBETWEEN ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true
                 }
                 if (settings."cond_${inType}_cmd" in [sBETWEEN, sABOVE]) {
-                    input "cond_${inType}_high", sNUMBER, title: inTS1("${settings."cond_${inType}_cmd" == sBETWEEN ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true, image: getAppImg("high")
+                    input "cond_${inType}_high", sNUMBER, title: inTS1("${settings."cond_${inType}_cmd" == sBETWEEN ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true
                 }
                 if (settings."cond_${inType}_cmd" == sEQUALS) {
-                    input "cond_${inType}_equal", sNUMBER, title: inTS1("a ${cmdTitle} of...", "equal"), required: true, submitOnChange: true, image: getAppImg("equal")
+                    input "cond_${inType}_equal", sNUMBER, title: inTS1("a ${cmdTitle} of...", "equal"), required: true, submitOnChange: true
                 }
                 if (settings."cond_${inType}"?.size() > 1) {
-                    input "cond_${inType}_all", sBOOL, title: inTS1("Require ALL devices to be (${settings."cond_${inType}_cmd"}) values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
+                    input "cond_${inType}_all", sBOOL, title: inTS1("Require ALL devices to be (${settings."cond_${inType}_cmd"}) values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                     if(!settings."cond_${inType}_all") {
-                        input "cond_${inType}_avg", sBOOL, title: inTS1("Use the average of all selected device values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
+                        input "cond_${inType}_avg", sBOOL, title: inTS1("Use the average of all selected device values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                     }
                 }
             }
@@ -944,7 +935,7 @@ def actVariableDesc(String actType, Boolean hideUserTxt=false) {
     if(!isTierAction()) {
         if(!txtItems?.size() && state.showSpeakEvtVars && !settings."act_${actType}_txt") {
             String str = "NOTICE:\nYou can choose to leave the response field empty and generic text will be generated for each event type, or return to Step 2 and define responses for each trigger."
-            paragraph pTS(str, getAppImg("info", true), false, sCLR4D9), required: true, state: sCOMPLT, image: getAppImg("info")
+            paragraph pTS(str, getAppImg("info", true), false, sCLR4D9), required: true, state: sCOMPLT
         }
         if(!hideUserTxt) {
             if(txtItems?.size()) {
@@ -966,16 +957,16 @@ def triggerVariableDesc(String inType, Boolean showRepInputs=false, Integer item
         str += " \u2022 2. Wait till Step 4 and define a single response for all triggers selected here.\n\n"
         str += " \u2022 3. Use the response builder below and create custom responses for each individual trigger type. (Supports randomization when multiple responses are configured)"
         // str += "Custom Text is only used when Speech or Announcement action type is selected in Step 4."
-        paragraph pTS(str, getAppImg("info", true), false, sCLR4D9), required: true, state: sCOMPLT, image: getAppImg("info")
+        paragraph pTS(str, getAppImg("info", true), false, sCLR4D9), required: true, state: sCOMPLT
         //Custom Text Options
         href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: "Custom ${inType?.capitalize()} Responses\n(Optional)", state: (settings."trig_${inType}_txt" ? sCOMPLT : ''),
-                description: settings."trig_${inType}_txt" ?: "Open Response Designer...", image: getAppImg(sTEXT)
+                description: settings."trig_${inType}_txt" ?: "Open Response Designer..."
         if(showRepInputs) {
             if(settings."trig_${inType}_after_repeat") {
                 //Custom Repeat Text Options
-                paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info")
+                paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info", true), false, sCLR4D9), state: sCOMPLT
                 href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: inTS1("Custom ${inType?.capitalize()} Repeat Responses\n(Optional)", sTEXT),
-                        description: settings."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings."trig_${inType}_after_repeat_txt" ? sCOMPLT : '') , submitOnChange: true, required: false, image: getAppImg(sTEXT)
+                        description: settings."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", state: (settings."trig_${inType}_after_repeat_txt" ? sCOMPLT : '') , submitOnChange: true, required: false
             }
         }
     }
@@ -1010,26 +1001,26 @@ String actionTypeDesc() {
 def actionTiersPage() {
     return dynamicPage(name: "actionTiersPage", title: sBLANK, install: false, uninstall: false) {
         section() {
-            input "act_tier_cnt", sNUMBER, title: inTS1("Number of Tiers", "equal"), required: true, submitOnChange: true, image: getAppImg("equal")
+            input "act_tier_cnt", sNUMBER, title: inTS1("Number of Tiers", "equal"), required: true, submitOnChange: true
         }
         Integer tierCnt = (Integer)settings.act_tier_cnt
         if(tierCnt) {
             (1..tierCnt)?.each { Integer ti->
                 section(sTS("Tier Item (${ti}) Config:")) {
                     if(ti > 1) {
-                        input "act_tier_item_${ti}_delay", sNUMBER, title: inTS1("Delay after Tier ${ti-1}\n(seconds)", "equal"), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true, image: getAppImg("equal")
+                        input "act_tier_item_${ti}_delay", sNUMBER, title: inTS1("Delay after Tier ${ti-1}\n(seconds)", "equal"), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true
                     }
                     if(ti==1 || settings."act_tier_item_${ti}_delay") {
                         href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: sEXTNRL, required: true, title: inTS1("Tier Item ${ti} Response", sTEXT), state: (settings."act_tier_item_${ti}_txt" ? sCOMPLT : sBLANK),
-                                    description: settings."act_tier_item_${ti}_txt" ?: "Open Response Designer...", image: getAppImg(sTEXT)
+                                    description: settings."act_tier_item_${ti}_txt" ?: "Open Response Designer..."
                     }
-                    input "act_tier_item_${ti}_volume_change", sNUMBER, title: inTS1("Tier Item Volume", "speed_knob"), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("speed_knob")
-                    input "act_tier_item_${ti}_volume_restore", sNUMBER, title: inTS1("Tier Item Volume Restore", "speed_knob"), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("speed_knob")
+                    input "act_tier_item_${ti}_volume_change", sNUMBER, title: inTS1("Tier Item Volume", "speed_knob"), defaultValue: null, required: false, submitOnChange: true
+                    input "act_tier_item_${ti}_volume_restore", sNUMBER, title: inTS1("Tier Item Volume Restore", "speed_knob"), defaultValue: null, required: false, submitOnChange: true
                 }
             }
             if(isTierActConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS("You are all done configuring tier responses.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT, image: getAppImg("done")
+                    paragraph pTS("You are all done configuring tier responses.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
                 }
             }
         }
@@ -1097,12 +1088,12 @@ void tierItemCleanup() {
 def actTextOrTiersInput(String type) {
     if(isTierAction()) {
         String tDesc = getTierRespDesc()
-        href "actionTiersPage", title: inTS1("Create Tiered Responses?", sTEXT, (tDesc ? "#2678D9" : sCLRRED)), description: (tDesc ? "${tDesc}\n\n"+sTTM : sTTC), required: true, state: (tDesc ? sCOMPLT : null), image: getAppImg(sTEXT)
-        input "act_tier_stop_on_clear", sBOOL, title: inTS1("Stop responses when trigger is cleared?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sCHKBOX)
+        href "actionTiersPage", title: inTS1("Create Tiered Responses?", sTEXT, (tDesc ? "#2678D9" : sCLRRED)), description: (tDesc ? "${tDesc}\n\n"+sTTM : sTTC), required: true, state: (tDesc ? sCOMPLT : null)
+        input "act_tier_stop_on_clear", sBOOL, title: inTS1("Stop responses when trigger is cleared?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
-        href url: textUrl, style: (isStFLD ? "embedded" : sEXTNRL), required: false, title: inTS1("Default Action Response\n(Optional)", sTEXT), state: (settings."${type}" ? sCOMPLT : sBLANK),
-                description: settings."${type}" ?: "Open Response Designer...", image: getAppImg(sTEXT)
+        href url: textUrl, style: sEXTNRL, required: false, title: inTS1("Default Action Response\n(Optional)", sTEXT), state: (settings."${type}" ? sCOMPLT : sBLANK),
+                description: settings."${type}" ?: "Open Response Designer..."
     }
 }
 
@@ -1126,7 +1117,7 @@ def actionsPage() {
             switch(myactionType) {
                 case "speak":
                 case "speak_tiered":
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("TTS")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
                         section(sTS("Action Type Config:"), hideable: true) {
@@ -1141,7 +1132,7 @@ def actionsPage() {
 
                 case "announcement":
                 case "announcement_tiered":
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("announce")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
                         section(sTS("Action Type Config:")) {
@@ -1161,11 +1152,11 @@ def actionsPage() {
                     break
 
                 case "voicecmd":
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("TTS")
                     if(settings.act_EchoDevices) {
                         section(sTS("Action Type Config:")) {
-                            input "act_voicecmd_txt", sTEXT, title: inTS1("Enter voice command text", sTEXT), submitOnChange: true, required: false, image: getAppImg(sTEXT)
+                            input "act_voicecmd_txt", sTEXT, title: inTS1("Enter voice command text", sTEXT), submitOnChange: true, required: false
                         }
                         actionExecMap.config.voicecmd = [text: settings.act_voicecmd_txt]
                         if(settings.act_voicecmd_txt) { done = true } else { done = false }
@@ -1173,7 +1164,7 @@ def actionsPage() {
                     break
 
                 case "sequence":
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("TTS")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
                         Map seqItemsAvail = parent?.seqItemsAvail()
@@ -1203,7 +1194,7 @@ def actionsPage() {
                             paragraph pTS("Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", sNULL, false, "violet"), state: sCOMPLT
                         }
                         section(sTS("Action Type Config:")) {
-                            input "act_sequence_txt", sTEXT, title: inTS1("Enter sequence text", sTEXT), submitOnChange: true, required: false, image: getAppImg(sTEXT)
+                            input "act_sequence_txt", sTEXT, title: inTS1("Enter sequence text", sTEXT), submitOnChange: true, required: false
                         }
                         actionExecMap.config.sequence = [text: settings.act_sequence_txt]
                         if(settings.act_sequence_txt) { done = true } else { done = false }
@@ -1211,7 +1202,7 @@ def actionsPage() {
                     break
 
                 case "weather":
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("TTS")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
                         actionVolumeInputs(devices)
@@ -1221,7 +1212,7 @@ def actionsPage() {
                     break
 
                 case "playback":
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
                         Map playbackOpts = [
@@ -1229,7 +1220,7 @@ def actionsPage() {
                             "mute":"Mute", "volume":"Volume"
                         ]
                         section(sTS("Playback Config:")) {
-                            input "act_playback_cmd", sENUM, title: inTS1("Select Playback Action", sCOMMAND), description: sBLANK, options: playbackOpts, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                            input "act_playback_cmd", sENUM, title: inTS1("Select Playback Action", sCOMMAND), description: sBLANK, options: playbackOpts, required: true, submitOnChange: true
                         }
                         if(settings.act_playback_cmd == "volume") { actionVolumeInputs(devices, true) }
                         actionExecMap.config?.playback = [cmd: settings.act_playback_cmd]
@@ -1238,11 +1229,11 @@ def actionsPage() {
                     break
 
                 case "sounds":
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("TTS")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
                         section(sTS("BuiltIn Sounds Config:")) {
-                            input "act_sounds_cmd", sENUM, title: inTS1("Select Sound Type", sCOMMAND), description: sBLANK, options: parent?.getAvailableSounds()?.collect { it?.key as String }, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                            input "act_sounds_cmd", sENUM, title: inTS1("Select Sound Type", sCOMMAND), description: sBLANK, options: parent?.getAvailableSounds()?.collect { it?.key as String }, required: true, submitOnChange: true
                         }
                         actionVolumeInputs(devices)
                         actionExecMap.config.sounds = [cmd: "playSoundByName", name: settings.act_sounds_cmd]
@@ -1251,7 +1242,7 @@ def actionsPage() {
                     break
 
                 case "builtin":
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("TTS")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
                         Map builtinOpts = [
@@ -1260,7 +1251,7 @@ def actionsPage() {
                             "sayCompliment": "Give Compliment", "sayGoodMorning": "Good Morning", "sayWelcomeHome": "Welcome Home"
                         ]
                         section(sTS("BuiltIn Speech Config:")) {
-                            input "act_builtin_cmd", sENUM, title: inTS1("Select Builtin Speech Type", sCOMMAND), description: sBLANK, options: builtinOpts, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                            input "act_builtin_cmd", sENUM, title: inTS1("Select Builtin Speech Type", sCOMMAND), description: sBLANK, options: builtinOpts, required: true, submitOnChange: true
                         }
                         actionVolumeInputs(devices)
                         actionExecMap.config.builtin = [cmd: settings.act_builtin_cmd]
@@ -1269,27 +1260,27 @@ def actionsPage() {
                     break
 
                 case "music":
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("mediaPlayer")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
                         List musicProvs = devices[0]?.hasAttribute("supportedMusic") ? devices[0]?.currentValue("supportedMusic")?.split(",")?.collect { "${it?.toString()?.trim()}"} : []
                         logDebug("Music Providers: ${musicProvs}")
                         if(musicProvs) {
                             section(sTS("Music Providers:")) {
-                                input "act_music_provider", sENUM, title: inTS1("Select Music Provider", "music"), description: sBLANK, options: musicProvs, multiple: false, required: true, submitOnChange: true, image: getAppImg("music")
+                                input "act_music_provider", sENUM, title: inTS1("Select Music Provider", "music"), description: sBLANK, options: musicProvs, multiple: false, required: true, submitOnChange: true
                             }
                             if(settings.act_music_provider) {
                                 if(settings.act_music_provider == "TuneIn") {
                                     section(sTS("TuneIn Search Results:")) {
                                         paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: sCOMPLT
-                                        input "tuneinSearchQuery", sTEXT, title: inTS1("Enter search phrase for TuneIn", "tunein"), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("tunein")
+                                        input "tuneinSearchQuery", sTEXT, title: inTS1("Enter search phrase for TuneIn", "tunein"), defaultValue: null, required: false, submitOnChange: true
                                         if(settings.tuneinSearchQuery) {
-                                            href "searchTuneInResultsPage", title: inTS1("View search results!", "search"), description: sTTP, image: getAppImg("search")
+                                            href "searchTuneInResultsPage", title: inTS1("View search results!", "search"), description: sTTP
                                         }
                                     }
                                 }
                                 section(sTS("Action Type Config:")) {
-                                    input "act_music_txt", sTEXT, title: inTS1("Enter Music Search text", sTEXT), submitOnChange: true, required: false, image: getAppImg(sTEXT)
+                                    input "act_music_txt", sTEXT, title: inTS1("Enter Music Search text", sTEXT), submitOnChange: true, required: false
                                 }
                                 actionVolumeInputs(devices)
                             }
@@ -1300,12 +1291,12 @@ def actionsPage() {
                     break
 
                 case "calendar":
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("TTS")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
                         section(sTS("Action Type Config:")) {
                             input "act_calendar_cmd", sENUM, title: inTS1("Select Calendar Action", sCOMMAND), description: sBLANK, options: ["playCalendarToday":"Today", "playCalendarTomorrow":"Tomorrow", "playCalendarNext":"Next Events"],
-                                    required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                    required: true, submitOnChange: true
                         }
                         actionVolumeInputs(devices)
                         actionExecMap.config.calendar = [cmd: settings.act_calendar_cmd]
@@ -1315,31 +1306,31 @@ def actionsPage() {
 
                 case "alarm":
                     //TODO: Offer to remove alarm after event.
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("alarms")
                     if(settings.act_EchoDevices) {
-                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
+//                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
                         String rptType = null
                         def rptTypeOpts = null
                         section(sTS("Action Type Config:")) {
-                            input "act_alarm_label", sTEXT, title: inTS1("Alarm Label", "name_tag"), submitOnChange: true, required: true, image: getAppImg("name_tag")
-                            input "act_alarm_date", sTEXT, title: inTS1("Alarm Date\n(yyyy-mm-dd)", "day_calendar"), submitOnChange: true, required: true, image: getAppImg("day_calendar")
-                            input "act_alarm_time", sTIME, title: inTS1("Alarm Time", "clock"), submitOnChange: true, required: true, image: getAppImg("clock")
+                            input "act_alarm_label", sTEXT, title: inTS1("Alarm Label", "name_tag"), submitOnChange: true, required: true
+                            input "act_alarm_date", sTEXT, title: inTS1("Alarm Date\n(yyyy-mm-dd)", "day_calendar"), submitOnChange: true, required: true
+                            input "act_alarm_time", sTIME, title: inTS1("Alarm Time", "clock"), submitOnChange: true, required: true
                             // if(act_alarm_label && act_alarm_date && act_alarm_time) {
-                            //     input "act_alarm_rt", sENUM, title: inTS1("Repeat (Optional)", sCOMMAND), description: sBLANK, options: repeatOpts, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                            //     input "act_alarm_rt", sENUM, title: inTS1("Repeat (Optional)", sCOMMAND), description: sBLANK, options: repeatOpts, required: true, submitOnChange: true
                             //     if(settings."act_alarm_rt") {
                             //         rptType = settings.act_alarm_rt
                             //         if(settings."act_alarm_rt" == "daysofweek") {
-                            //             input "act_alarm_rt_wd", sENUM, title: inTS1("Weekday", sCHKBOX), description: sBLANK, options: weekDaysAbrvEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg(sCHKBOX)
+                            //             input "act_alarm_rt_wd", sENUM, title: inTS1("Weekday", sCHKBOX), description: sBLANK, options: weekDaysAbrvEnum(), multiple: true, required: true, submitOnChange: true
                             //             if(settings.act_alarm_rt_wd) rptTypeOpts = settings.act_alarm_rt_wd
                             //         }
                             //         if(settings."act_alarm_rt" == "everyxdays") {
-                            //             input "act_alarm_rt_ed", sNUMBER, title: inTS1("Every X Days", sCHKBOX), description: sBLANK, range: "1..31", required: true, submitOnChange: true, image: getAppImg(sCHKBOX)
+                            //             input "act_alarm_rt_ed", sNUMBER, title: inTS1("Every X Days", sCHKBOX), description: sBLANK, range: "1..31", required: true, submitOnChange: true
                             //             if(settings.act_alarm_rt_ed) rptTypeOpts = settings.act_alarm_rt_ed
                             //         }
                             //     }
                             // }
-                            // input "act_alarm_remove", sBOOL, title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
+                            // input "act_alarm_remove", sBOOL, title: "Remove Alarm when done", defaultValue: true, submitOnChange: true, required: false
                         }
                         actionVolumeInputs(devices, false, true)
                         def newTime = settings.act_alarm_time ? parseFmtDt("yyyy-MM-dd'T'HH:mm:ss.SSSZ", 'HH:mm', settings.act_alarm_time) : null
@@ -1350,31 +1341,31 @@ def actionsPage() {
 
                 case "reminder":
                     //TODO: Offer to remove reminder after event.
-                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                    section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                     echoDevicesInputByPerm("reminders")
                     if(settings.act_EchoDevices) {
-                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
+//                        Map repeatOpts = ["everyday":"Everyday", "weekends":"Weekends", "weekdays":"Weekdays", "daysofweek":"Days of the Week", "everyxdays":"Every Nth Day"]
                         String rptType = null
                         def rptTypeOpts = null
                         section(sTS("Action Type Config:")) {
-                            input "act_reminder_label", sTEXT, title: inTS1("Reminder Label", "name_tag"), submitOnChange: true, required: true, image: getAppImg("name_tag")
-                            input "act_reminder_date", sTEXT, title: inTS1("Reminder Date\n(yyyy-mm-dd)", "day_calendar"), submitOnChange: true, required: true, image: getAppImg("day_calendar")
-                            input "act_reminder_time", sTIME, title: inTS1("Reminder Time", "clock"), submitOnChange: true, required: true, image: getAppImg("clock")
+                            input "act_reminder_label", sTEXT, title: inTS1("Reminder Label", "name_tag"), submitOnChange: true, required: true
+                            input "act_reminder_date", sTEXT, title: inTS1("Reminder Date\n(yyyy-mm-dd)", "day_calendar"), submitOnChange: true, required: true
+                            input "act_reminder_time", sTIME, title: inTS1("Reminder Time", "clock"), submitOnChange: true, required: true
                             // if(act_reminder_label && act_reminder_date && act_reminder_time) {
-                            //     input "act_reminder_rt", sENUM, title: inTS1("Repeat (Optional)", sCOMMAND), description: sBLANK, options: repeatOpts, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                            //     input "act_reminder_rt", sENUM, title: inTS1("Repeat (Optional)", sCOMMAND), description: sBLANK, options: repeatOpts, required: true, submitOnChange: true
                             //     if(settings."act_reminder_rt") {
                             //         rptType = settings.act_reminder_rt
                             //         if(settings."act_reminder_rt" == "daysofweek") {
-                            //             input "act_reminder_rt_wd", sENUM, title: inTS1("Weekday", sCHKBOX), description: sBLANK, options: weekDaysAbrvEnum(), multiple: true, required: true, submitOnChange: true, image: getAppImg(sCHKBOX)
+                            //             input "act_reminder_rt_wd", sENUM, title: inTS1("Weekday", sCHKBOX), description: sBLANK, options: weekDaysAbrvEnum(), multiple: true, required: true, submitOnChange: true
                             //             if(settings.act_reminder_rt_wd) rptTypeOpts = settings.act_reminder_rt_wd
                             //         }
                             //         if(settings."act_reminder_rt" && settings."act_reminder_rt" == "everyxdays") {
-                            //             input "act_reminder_rt_ed", sNUMBER, title: inTS1("Every X Days (1-31)", sCHKBOX), description: sBLANK, range: "1..31", required: true, submitOnChange: true, image: getAppImg(sCHKBOX)
+                            //             input "act_reminder_rt_ed", sNUMBER, title: inTS1("Every X Days (1-31)", sCHKBOX), description: sBLANK, range: "1..31", required: true, submitOnChange: true
                             //             if(settings.act_reminder_rt_ed) rptTypeOpts = settings.act_reminder_rt_ed
                             //         }
                             //     }
                             // }
-                            // input "act_reminder_remove", sBOOL, title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false, image: getAppImg("question")
+                            // input "act_reminder_remove", sBOOL, title: "Remove Reminder when done", defaultValue: true, submitOnChange: true, required: false
                         }
                         actionVolumeInputs(devices, false, true)
                         def newTime = settings.act_reminder_time ? parseFmtDt("yyyy-MM-dd'T'HH:mm:ss.SSSZ", 'HH:mm', settings.act_reminder_time) : null
@@ -1387,9 +1378,9 @@ def actionsPage() {
                     echoDevicesInputByPerm("doNotDisturb")
                     if(settings.act_EchoDevices) {
                         Map dndOpts = ["doNotDisturbOn":"Enable", "doNotDisturbOff":"Disable"]
-                        section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                        section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                         section(sTS("Action Type Config:")) {
-                            input "act_dnd_cmd", sENUM, title: inTS1("Select Do Not Disturb Action", sCOMMAND), description: sBLANK, options: dndOpts, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                            input "act_dnd_cmd", sENUM, title: inTS1("Select Do Not Disturb Action", sCOMMAND), description: sBLANK, options: dndOpts, required: true, submitOnChange: true
                         }
                         actionExecMap.config.dnd = [cmd: settings.act_dnd_cmd]
                         if(settings.act_dnd_cmd) { done = true } else { done = false }
@@ -1399,12 +1390,12 @@ def actionsPage() {
                 case "alexaroutine":
                     echoDevicesInputByPerm("wakeWord")
                     if(settings.act_EchoDevices) {
-                        section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                        section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                         def t0 = parent?.getAlexaRoutines(null, true)
                         def routinesAvail = t0 ?: [:]
                         logDebug("routinesAvail: $routinesAvail")
                         section(sTS("Action Type Config:")) {
-                            input "act_alexaroutine_cmd", sENUM, title: inTS1("Select Alexa Routine", sCOMMAND), description: sBLANK, options: routinesAvail, multiple: false, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                            input "act_alexaroutine_cmd", sENUM, title: inTS1("Select Alexa Routine", sCOMMAND), description: sBLANK, options: routinesAvail, multiple: false, required: true, submitOnChange: true
                         }
                         actionExecMap.config.alexaroutine = [cmd: "executeRoutineId", routineId: settings.act_alexaroutine_cmd]
                         if(settings.act_alexaroutine_cmd) { done = true } else { done = false }
@@ -1416,7 +1407,7 @@ def actionsPage() {
                     if(settings.act_EchoDevices) {
                         Integer devsCnt = settings.act_EchoDevices.size() ?: 0
                         List devsObj = []
-                        section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                        section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                         if(devsCnt >= 1) {
                             List wakeWords = devices[0]?.hasAttribute("wakeWords") ? devices[0]?.currentValue("wakeWords")?.replaceAll('"', sBLANK)?.split(",") : []
                             // logDebug("WakeWords: ${wakeWords}")
@@ -1424,7 +1415,7 @@ def actionsPage() {
                                 section(sTS("${cDev?.getLabel()}:")) {
                                     if(wakeWords?.size()) {
                                         paragraph "Current Wake Word: ${cDev?.hasAttribute("alexaWakeWord") ? cDev?.currentValue("alexaWakeWord") : "Unknown"}"
-                                        input "act_wakeword_device_${cDev?.id}", sENUM, title: inTS1("New Wake Word", "list"), description: sBLANK, options: wakeWords, required: true, submitOnChange: true, image: getAppImg("list")
+                                        input "act_wakeword_device_${cDev?.id}", sENUM, title: inTS1("New Wake Word", "list"), description: sBLANK, options: wakeWords, required: true, submitOnChange: true
                                         devsObj.push([device: cDev?.id as String, wakeword: settings."act_wakeword_device_${cDev?.id}", cmd: "setWakeWord"])
                                     } else { paragraph "Oops...\nNo Wake Words have been found!  Please Remove the device from selection.", state: null, required: true }
                                 }
@@ -1442,7 +1433,7 @@ def actionsPage() {
                     if(settings.act_EchoDevices) {
                         Integer devsCnt = settings.act_EchoDevices?.size() ?: 0
                         List devsObj = []
-                        section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT, image: getAppImg("info") }
+                        section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
                         if(devsCnt >= 1) {
                             devices?.each { cDev->
                                 def btData = cDev?.hasAttribute("btDevicesPaired") ? cDev?.currentValue("btDevicesPaired") : null
@@ -1450,8 +1441,8 @@ def actionsPage() {
                                 // log.debug "btDevs: $btDevs"
                                 section(sTS("${cDev?.getLabel()}:")) {
                                     if(btDevs?.size()) {
-                                        input "act_bluetooth_device_${cDev?.id}", sENUM, title: inTS1("BT device to use", "bluetooth"), description: sBLANK, options: btDevs, required: true, submitOnChange: true, image: getAppImg("bluetooth")
-                                        input "act_bluetooth_action_${cDev?.id}", sENUM, title: inTS1("BT action to take", sCOMMAND), description: sBLANK, options: ["connectBluetooth":"connect", "disconnectBluetooth":"disconnect"], required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
+                                        input "act_bluetooth_device_${cDev?.id}", sENUM, title: inTS1("BT device to use", "bluetooth"), description: sBLANK, options: btDevs, required: true, submitOnChange: true
+                                        input "act_bluetooth_action_${cDev?.id}", sENUM, title: inTS1("BT action to take", sCOMMAND), description: sBLANK, options: ["connectBluetooth":"connect", "disconnectBluetooth":"disconnect"], required: true, submitOnChange: true
                                         devsObj?.push([device: cDev?.id as String, btDevice: settings."act_bluetooth_device_${cDev?.id}", cmd: settings."act_bluetooth_action_${cDev?.id}"])
                                     } else { paragraph "Oops...\nNo Bluetooth devices are paired to this Echo Device!  Please Remove the device from selection.", state: null, required: true }
                                 }
@@ -1463,28 +1454,28 @@ def actionsPage() {
                     } else { done = false }
                     break
                 default:
-                    paragraph pTS("Unknown Action Type Defined...", getAppImg("error", true), true, sCLRRED), required: true, state: null, image: getAppImg("error")
+                    paragraph pTS("Unknown Action Type Defined...", getAppImg("error", true), true, sCLRRED), required: true, state: null
                     break
             }
             if(done) {
                 section(sTS("Delay Config:")) {
-                    input "act_delay", sNUMBER, title: inTS1("Delay Action in Seconds\n(Optional)", "delay_time"), required: false, submitOnChange: true, image: getAppImg("delay_time")
+                    input "act_delay", sNUMBER, title: inTS1("Delay Action in Seconds\n(Optional)", "delay_time"), required: false, submitOnChange: true
                 }
                 if(isTierAct && (Integer)settings.act_tier_cnt > 1) {
                     section(sTS("Tier Action Start Tasks:")) {
-                        href "actTrigTasksPage", title: inTS1("Tiered Tasks to Perform on Tier Start?", "tasks"), description: actTaskDesc("act_tier_start_", true), params:[type: "act_tier_start_"], state: (actTaskDesc("act_tier_start_") ? sCOMPLT : null), image: getAppImg("tasks")
+                        href "actTrigTasksPage", title: inTS1("Tiered Tasks to Perform on Tier Start?", "tasks"), description: actTaskDesc("act_tier_start_", true), params:[type: "act_tier_start_"], state: (actTaskDesc("act_tier_start_") ? sCOMPLT : null)
                     }
                     section(sTS("Tier Action Stop Tasks:")) {
-                        href "actTrigTasksPage", title: inTS1("Tiered Tasks to Perform on Tier Stop?", "tasks"), description: actTaskDesc("act_tier_stop_", true), params:[type: "act_tier_stop_"], state: (actTaskDesc("act_tier_stop_") ? sCOMPLT : null), image: getAppImg("tasks")
+                        href "actTrigTasksPage", title: inTS1("Tiered Tasks to Perform on Tier Stop?", "tasks"), description: actTaskDesc("act_tier_stop_", true), params:[type: "act_tier_stop_"], state: (actTaskDesc("act_tier_stop_") ? sCOMPLT : null)
                     }
                 } else {
                     section(sTS("Action Triggered Tasks:")) {
-                        href "actTrigTasksPage", title: inTS1("Tasks to Perform when Triggered?", "tasks"), description: actTaskDesc("act_", true), params:[type: "act_"], state: (actTaskDesc("act_") ? sCOMPLT : null), image: getAppImg("tasks")
+                        href "actTrigTasksPage", title: inTS1("Tasks to Perform when Triggered?", "tasks"), description: actTaskDesc("act_", true), params:[type: "act_"], state: (actTaskDesc("act_") ? sCOMPLT : null)
                     }
                 }
                 actionSimulationSect()
                 section(sBLANK) {
-                    paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT, image: getAppImg("done")
+                    paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
                 }
                 actionExecMap.config.volume = [change: settings.act_volume_change, restore: settings.act_volume_restore, alarm: settings.act_alarm_volume]
 
@@ -1526,19 +1517,19 @@ def actTrigTasksPage(params) {
         }
         if(!settings.enableWebCoRE) {
             section (sTS("Enable webCoRE Integration:")) {
-                input "enableWebCoRE", sBOOL, title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
+                input "enableWebCoRE", sBOOL, title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true
             }
         }
         if(settings.enableWebCoRE) {
             if(!webCoREFLD) webCoRE_init()
         }
         section(sTS("Control Devices:")) {
-            input "${t}switches_on", "capability.switch", title: inTS1("Turn ON these Switches${dMap?.def}\n(Optional)", sSWITCH), multiple: true, required: false, submitOnChange: true, image: getAppImg(sSWITCH)
-            input "${t}switches_off", "capability.switch", title: inTS1("Turn OFF these Switches${dMap?.def}\n(Optional)", sSWITCH), multiple: true, required: false, submitOnChange: true, image: getAppImg(sSWITCH)
+            input "${t}switches_on", "capability.switch", title: inTS1("Turn ON these Switches${dMap?.def}\n(Optional)", sSWITCH), multiple: true, required: false, submitOnChange: true
+            input "${t}switches_off", "capability.switch", title: inTS1("Turn OFF these Switches${dMap?.def}\n(Optional)", sSWITCH), multiple: true, required: false, submitOnChange: true
         }
 
         section(sTS("Control Lights:")) {
-            input "${t}lights", "capability.switch", title: inTS1("Turn ON these Lights${dMap?.def}\n(Optional)", "light"), multiple: true, required: false, submitOnChange: true, image: getAppImg("light")
+            input "${t}lights", "capability.switch", title: inTS1("Turn ON these Lights${dMap?.def}\n(Optional)", "light"), multiple: true, required: false, submitOnChange: true
             if(settings."${t}lights") {
                 List lights = settings."${t}lights"
                 if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
@@ -1546,63 +1537,53 @@ def actTrigTasksPage(params) {
                     settingRemove("${t}lights_color".toString())
                     settingRemove("${t}lights_color_delay".toString())
                 } else {
-                    input "${t}lights_color", sENUM, title: inTS1("To this color?\n(Optional)", sCOMMAND), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true, image: getAppImg("color")
+                    input "${t}lights_color", sENUM, title: inTS1("To this color?\n(Optional)", sCOMMAND), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true
                     if(settings."${t}lights_color") {
-                        input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?\n(Optional)", "delay"), required: false, submitOnChange: true, image: getAppImg("delay")
+                        input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?\n(Optional)", "delay"), required: false, submitOnChange: true
                     }
                 }
                 if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
                     paragraph pTS("Not all selected devices support level. So level option is hidden.", sNULL, true, sCLRRED), state: null, required: true
                     settingRemove("${t}lights_level".toString())
-                } else { input "${t}lights_level", sENUM, title: inTS1("At this level?\n(Optional)", "speed_knob"), options: dimmerLevelEnum(), required: false, submitOnChange: true, image: getAppImg("speed_knob")}
+                } else { input "${t}lights_level", sENUM, title: inTS1("At this level?\n(Optional)", "speed_knob"), options: dimmerLevelEnum(), required: false, submitOnChange: true }
             }
         }
 
         section(sTS("Control Locks:")) {
-            input "${t}locks_lock", "capability.lock", title: inTS1("Lock these Locks${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
-            input "${t}locks_unlock", "capability.lock", title: inTS1("Unlock these Locks${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
+            input "${t}locks_lock", "capability.lock", title: inTS1("Lock these Locks${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true
+            input "${t}locks_unlock", "capability.lock", title: inTS1("Unlock these Locks${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true
         }
 
         section(sTS("Control Keypads:")) {
-            input "${t}securityKeypads_disarm", "capability.securityKeypad", title: inTS1("Disarm these Keypads${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
-            input "${t}securityKeypads_armHome", "capability.securityKeypad", title: inTS1("Arm Home these Keypads${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
-            input "${t}securityKeypads_armAway", "capability.securityKeypad", title: inTS1("Arm Away these Keypads${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true, image: getAppImg("lock")
+            input "${t}securityKeypads_disarm", "capability.securityKeypad", title: inTS1("Disarm these Keypads${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true
+            input "${t}securityKeypads_armHome", "capability.securityKeypad", title: inTS1("Arm Home these Keypads${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true
+            input "${t}securityKeypads_armAway", "capability.securityKeypad", title: inTS1("Arm Away these Keypads${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true
         }
 
         section(sTS("Control Doors:")) {
-            input "${t}doors_close", "capability.garageDoorControl", title: inTS1("Close these Garage Doors${dMap?.def}\n(Optional)", "garage_door"), multiple: true, required: false, submitOnChange: true, image: getAppImg("garage_door")
-            input "${t}doors_open", "capability.garageDoorControl", title: inTS1("Open these Garage Doors${dMap?.def}\n(Optional)", "garage_door"), multiple: true, required: false, submitOnChange: true, image: getAppImg("garage_door")
+            input "${t}doors_close", "capability.garageDoorControl", title: inTS1("Close these Garage Doors${dMap?.def}\n(Optional)", "garage_door"), multiple: true, required: false, submitOnChange: true
+            input "${t}doors_open", "capability.garageDoorControl", title: inTS1("Open these Garage Doors${dMap?.def}\n(Optional)", "garage_door"), multiple: true, required: false, submitOnChange: true
         }
 
         section(sTS("Control Siren:")) {
-            input "${t}sirens", "capability.alarm", title: inTS1("Activate these Sirens${dMap?.def}\n(Optional)", "siren"), multiple: true, required: false, submitOnChange: true, image: getAppImg("siren")
+            input "${t}sirens", "capability.alarm", title: inTS1("Activate these Sirens${dMap?.def}\n(Optional)", "siren"), multiple: true, required: false, submitOnChange: true
             if(settings."${t}sirens") {
-                input "${t}siren_cmd", sENUM, title: inTS1("Alarm action to take${dMap?.def}\n(Optional)", sCOMMAND), options: ["both": "Siren & Stobe", "strobe":"Strobe Only", "siren":"Siren Only"], multiple: false, required: true, submitOnChange: true, image: getAppImg(sCOMMAND)
-                input "${t}siren_time", sNUMBER, title: inTS1("Stop after (x) seconds...", "delay"), required: true, submitOnChange: true, image: getAppImg("delay")
+                input "${t}siren_cmd", sENUM, title: inTS1("Alarm action to take${dMap?.def}\n(Optional)", sCOMMAND), options: ["both": "Siren & Stobe", "strobe":"Strobe Only", "siren":"Siren Only"], multiple: false, required: true, submitOnChange: true
+                input "${t}siren_time", sNUMBER, title: inTS1("Stop after (x) seconds...", "delay"), required: true, submitOnChange: true
             }
         }
         section(sTS("Location Actions:")) {
-            input "${t}mode_run", sENUM, title: inTS1("Set Location Mode${dMap?.def}\n(Optional)", "mode"), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true, image: getAppImg("mode")
-            if(!isStFLD) {
-                input "${t}alarm_run", sENUM, title: inTS1("Set ${getAlarmSystemName()} mode${dMap?.def}\n(Optional)", "alarm_home"), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true, image: getAppImg("alarm_home")
-            }
+            input "${t}mode_run", sENUM, title: inTS1("Set Location Mode${dMap?.def}\n(Optional)", "mode"), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true
+            input "${t}alarm_run", sENUM, title: inTS1("Set ${getAlarmSystemName()} mode${dMap?.def}\n(Optional)", "alarm_home"), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true
 
             if(settings.enableWebCoRE) {
-//                section (sTS("Execute a webCoRE Piston:")) {
-/*                input "enableWebCoRE", sBOOL, title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true, image: (isStFLD ? webCore_icon() : sBLANK)
-                if(settings.enableWebCoRE) {
-                    if(!webCoREFLD) {
-                        webCoRE_init()
-                    } else { */
-                        input "${t}piston_run", sENUM, title: inTS("Execute a piston${dMap?.def}\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true, image: (isStFLD ? webCore_icon : sBLANK)
-//                    }
-//                }
+                input "${t}piston_run", sENUM, title: inTS("Execute a piston${dMap?.def}\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true
             }
         }
 
         if(actTasksConfiguredByType(t)) {
             section("Delay before running Tasks: ") {
-                input "${t}tasks_delay", sNUMBER, title: inTS1("Delay running ${dMap?.delay} in Seconds\n(Optional)", "delay_time"), required: false, submitOnChange: true, image: getAppImg("delay_time")
+                input "${t}tasks_delay", sNUMBER, title: inTS1("Delay running ${dMap?.delay} in Seconds\n(Optional)", "delay_time"), required: false, submitOnChange: true
             }
         }
     }
@@ -1624,7 +1605,6 @@ private executeTaskCommands(data) {
     if(settings."${p}mode_run") { setLocationMode(settings."${p}mode_run" as String) }
     if(settings."${p}alarm_run") { sendLocationEvent(name: "hsmSetArm", value: settings."${p}alarm_run" as String) }
     if(settings.enableWebCoRE && settings."${p}piston_run") { webCoRE_execute(settings."${p}piston_run") }
-//    if(isStFLD && settings."${p}routine_run") { execRoutineById(settings."${p}routine_run" as String) }
 
     if(settings."${p}switches_off") { settings."${p}switches_off"*.off() }
     if(settings."${p}switches_on") { settings."${p}switches_on"*.on() }
@@ -1732,8 +1712,8 @@ Boolean isActDevContConfigured() {
 
 def actionSimulationSect() {
     section(sTS("Simulate Action")) {
-        paragraph pTS("Toggle this to execute the action and see the results.\nWhen global text is not defined, this will generate a random event based on your trigger selections.${act_EchoZones ? "\nTesting with zones requires you to save the app and come back in to test." : sBLANK}", getAppImg("info", true), false, sCLR4D9), image: getAppImg("info")
-        input "actTestRun", sBOOL, title: inTS1("Test this action?", "testing"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("testing")
+        paragraph pTS("Toggle this to execute the action and see the results.\nWhen global text is not defined, this will generate a random event based on your trigger selections.${act_EchoZones ? "\nTesting with zones requires you to save the app and come back in to test." : sBLANK}", getAppImg("info", true), false, sCLR4D9)
+        input "actTestRun", sBOOL, title: inTS1("Test this action?", "testing"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
         if(actTestRun) { executeActTest() }
     }
 }
@@ -1753,35 +1733,24 @@ def actNotifPage() {
             Boolean custMsgReq = customMsgRequired()
             // if(custMsgReq && !settings.notif_use_custom) { settingUpdate("notif_use_custom", sTRUE, sBOOL) }
             paragraph pTS("When using speak and announcements you can leave this off and a notification will be sent with speech text.  For other action types a custom message is required", sNULL, false, sCLRGRY)
-            input "notif_use_custom", sBOOL, title: inTS1("Send a custom notification...", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+            input "notif_use_custom", sBOOL, title: inTS1("Send a custom notification...", "question"), required: false, defaultValue: false, submitOnChange: true
             if(settings.notif_use_custom || custMsgReq) {
-                input "notif_custom_message", sTEXT, title: inTS1("Enter custom message...", sTEXT), required: custMsgReq, submitOnChange: true, image: getAppImg(sTEXT)
+                input "notif_custom_message", sTEXT, title: inTS1("Enter custom message...", sTEXT), required: custMsgReq, submitOnChange: true
             }
         }
-/*
-        if(isStFLD) {
-            section (sTS("Push Messages:")) {
-                input "notif_send_push", sBOOL, title: inTS1("Send Push Notifications...", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
-            }
-            section (sTS("Text Messages:"), hideWhenEmpty: true) {
-                paragraph pTS("To send to multiple numbers separate the number by a comma\n\nE.g. 8045551122,8046663344", getAppImg("info", true), false, sCLRGRY)
-                paragraph pTS("SMS Support will soon be removed from Hubitat and SmartThings (UK)", getAppImg("info", true), false, sCLRGRY)
-                input "notif_sms_numbers", sTEXT, title: inTS1("Send SMS Text to...", "sms_phone"), required: false, submitOnChange: true, image: getAppImg("sms_phone")
-            }
-        } */
 
         section (sTS("Notification Devices:")) {
-            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
+            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
         }
         section (sTS("Alexa Mobile Notification:")) {
             paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
-            input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("notification")
+            input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true
         }
 
         if(isActNotifConfigured()) {
             section(sTS("Notification Restrictions:")) {
                 String nsd = getNotifSchedDesc()
-                href "actNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : null), image: getAppImg("restriction")
+                href "actNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : null)
             }
             if(!state.notif_message_tested) {
                 def actDevices = (Boolean)settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
@@ -1804,26 +1773,26 @@ def actNotifTimePage() {
         String pre = "notif"
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
         section(sTS("Quiet Start Time:")) {
-            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(settings."${pre}_time_start_type" == sTIME) {
-                input "${pre}_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
+                input "${pre}_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true
             } else if(settings."${pre}_time_start_type" in lSUNRISESET) {
-                input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
+                input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true
             }
         }
         section(sTS("Quiet Stop Time:")) {
-            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(settings."${pre}_time_stop_type" == sTIME) {
-                input "${pre}_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
+                input "${pre}_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true
             } else if(settings."${pre}_time_stop_type" in lSUNRISESET) {
-                input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
+                input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true
             }
         }
         section(sTS("Allowed Days:")) {
-            input "${pre}_days", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
+            input "${pre}_days", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
         }
         section(sTS("Allowed Modes:")) {
-            input "${pre}_modes", "mode", title: inTS1("Only in these Modes", "mode"), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
+            input "${pre}_modes", "mode", title: inTS1("Only in these Modes", "mode"), multiple: true, submitOnChange: true, required: false
         }
     }
 }
@@ -1834,11 +1803,11 @@ def ssmlInfoSection() {
     String ssmlSoundsUrl = "https://developer.amazon.com/docs/custom-skills/ask-soundlibrary.html"
     String ssmlSpeechConsUrl = "https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-english-us.html"
     section(sTS("SSML Documentation:"), hideable: true, hidden: true) {
-        paragraph title: "What is SSML?", pTS("SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", sNULL, false, sCLR4D9), state: sCOMPLT, image: getAppImg("info")
-        href url: ssmlDocsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon SSML Docs", "www"), description: "Tap to open browser", image: getAppImg("www")
-        href url: ssmlSoundsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Sound Library", "www"), description: "Tap to open browser", image: getAppImg("www")
-        href url: ssmlSpeechConsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon SpeechCons", "www"), description: "Tap to open browser", image: getAppImg("www")
-        href url: ssmlTestUrl, style: sEXTNRL, required: false, title: inTS1("SSML Designer and Tester", "www"), description: "Tap to open browser", image: getAppImg("www")
+        paragraph title: "What is SSML?", pTS("SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", sNULL, false, sCLR4D9), state: sCOMPLT
+        href url: ssmlDocsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon SSML Docs", "www"), description: "Tap to open browser"
+        href url: ssmlSoundsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Sound Library", "www"), description: "Tap to open browser"
+        href url: ssmlSpeechConsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon SpeechCons", "www"), description: "Tap to open browser"
+        href url: ssmlTestUrl, style: sEXTNRL, required: false, title: inTS1("SSML Designer and Tester", "www"), description: "Tap to open browser"
     }
 }
 /*
@@ -1907,7 +1876,7 @@ private echoDevicesInputByPerm(String type) {
 //    section(sTS("Alexa Devices${echoZones?.size() ? " & Zones" : sBLANK}:")) {
         if(echoZones?.size()) {
             if(!settings.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions in the zone (Motion, presence, etc).\nWhen both Zones and Echo devices are selected, the zone will take priority over the echo device setting.", sNULL, false) }
-            input "act_EchoZones", sENUM, title: inTS1("Zone(s) to Use", "es_groups"), description: "Select the Zone(s)", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings.act_EchoDevices), submitOnChange: true, image: getAppImg("es_groups")
+            input "act_EchoZones", sENUM, title: inTS1("Zone(s) to Use", "es_groups"), description: "Select the Zone(s)", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings.act_EchoDevices), submitOnChange: true
         }
         if(settings.act_EchoZones?.size() && echoDevs?.size() && !settings.act_EchoDevices?.size()) {
             paragraph pTS("There may be scenarios when none of your zones are active at the triggered action execution.\nYou have the option to select echo devices to use when no zones are available.", sNULL, false, "#2678D9")
@@ -1915,7 +1884,7 @@ private echoDevicesInputByPerm(String type) {
         if(echoDevs?.size()) {
             Boolean devsOpt = (settings.act_EchoZones?.size())
             def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-            input "act_EchoDevices", sENUM, title: inTS1("Echo Speaks Devices${devsOpt ? "\n(Optional backup)" : sBLANK}", "echo_gen1"), description: (devsOpt ? "These devices are used when all zones are inactive." : "Select your devices"), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true, image: getAppImg("echo_gen1")
+            input "act_EchoDevices", sENUM, title: inTS1("Echo Speaks Devices${devsOpt ? "\n(Optional backup)" : sBLANK}", "echo_gen1"), description: (devsOpt ? "These devices are used when all zones are inactive." : "Select your devices"), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true
             List aa = settings.act_EchoDevices
             List devIt = aa.collect { it ? it.toInteger():null }
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
@@ -1927,7 +1896,7 @@ private echoDevicesInputByPerm(String type) {
 private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmVol=false) {
     if(showAlrmVol) {
         section(sTS("Volume Options:")) {
-            input "act_alarm_volume", sNUMBER, title: inTS1("Alarm Volume\n(Optional)", "speed_knob"), range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
+            input "act_alarm_volume", sNUMBER, title: inTS1("Alarm Volume\n(Optional)", "speed_knob"), range: "0..100", required: false, submitOnChange: true
         }
     } else {
         if((devices || settings.act_EchoZones) && (String)settings.actionType in ["speak", "announcement", "weather", "sounds", "builtin", "music", "calendar", "playback"]) {
@@ -1937,8 +1906,8 @@ private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmV
             section(sTS("Volume Options:")) {
                 if(volMapSiz > 0 && volMapSiz < devSiz) { paragraph "Some of the selected devices do not support volume control" }
                 else if(devSiz == volMapSiz) { paragraph "Some of the selected devices do not support volume control"; return }
-                input "act_volume_change", sNUMBER, title: inTS1("Volume Level\n(Optional)", "speed_knob"), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob")
-                if(!showVolOnly) { input "act_volume_restore", sNUMBER, title: inTS1("Restore Volume\n(Optional)", "speed_knob"), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true, image: getAppImg("speed_knob") }
+                input "act_volume_change", sNUMBER, title: inTS1("Volume Level\n(Optional)", "speed_knob"), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
+                if(!showVolOnly) { input "act_volume_restore", sNUMBER, title: inTS1("Restore Volume\n(Optional)", "speed_knob"), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true }
             }
         }
     }
@@ -1948,19 +1917,19 @@ def condTimePage() {
     return dynamicPage(name:"condTimePage", title: sBLANK, install: false, uninstall: false) {
         Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
         section(sTS("Condition Start Time:")) {
-            input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("start_time")
+            input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(settings.cond_time_start_type  == sTIME) {
-                input "cond_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("start_time")
+                input "cond_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true
             } else if(settings.cond_time_start_type in lSUNRISESET) {
-                input "cond_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
+                input "cond_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true
             }
         }
         section(sTS("Condition Stop Time:")) {
-            input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true, image: getAppImg("stop_time")
+            input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(settings.cond_time_stop_type == sTIME) {
-                input "cond_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true, image: getAppImg("stop_time")
+                input "cond_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true
             } else if(settings.cond_time_stop_type in lSUNRISESET) {
-                input "cond_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true, image: getAppImg("threshold")
+                input "cond_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true
             }
         }
     }
@@ -1969,7 +1938,6 @@ def condTimePage() {
 def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
         section(sBLANK) { paragraph "This will delete this Echo Speaks Action." }
-//        if(isStFLD) { remove("Remove ${app?.label} Action", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nThis Action will be removed") }
     }
 }
 
@@ -1996,7 +1964,7 @@ def updated() {
     if(maybeDup) logInfo("updated found maybe a dup... ${settings.duplicateFlag}")
     if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
     if(!state.dupPendingSetup) initialize()
-    else logInfo("This zone is duplicated and has not had configuration completed... Please open zone and configure to complete setup...")
+    else logInfo("This action is duplicated and has not had configuration completed... Please open action and configure to complete setup...")
 }
 
 def initialize() {
@@ -2009,7 +1977,7 @@ def initialize() {
     updAppLabel()
     if(advLogsActive()) { logsEnabled() }
     runIn(3, "actionCleanup")
-    if(!isPaused()) {
+    if(!isPaused(true)) {
         runIn(7, "subscribeToEvts")
         runEvery1Hour("healthCheck")
         if(settings.enableWebCoRE){
@@ -2023,18 +1991,23 @@ def initialize() {
 
 private void processDuplication() {
     String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains(" (Dup)") ? "" : " (Dup)"}"
-    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
     app?.updateLabel(newLbl)
     state.dupPendingSetup = true
+
+    String dupSrcId = settings.duplicateSrcId ? (String)settings.duplicateSrcId : sNULL
     Map dupData = parent?.getChildDupeData("actions", dupSrcId)
-    // log.debug "dupData: ${dupData}"
+    log.debug "dupData: ${dupData}"
     if(dupData && dupData.state?.size()) {
         dupData.state.each { String k,v-> state[k] = v }
     }
+
     if(dupData && dupData.settings?.size()) {
-        dupData.settings.each { String k, Map v-> settingUpdate(k, (v.value != null ? v.value : null), (String)v.type) }
+        dupData.settings.each { String k, Map v->
+           if((String)v.type == sENUM) settingRemove(k)
+            settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
+        }
     }
-    parent.childAppDuplicationFinished("action", dupSrcId)
+    parent.childAppDuplicationFinished("actions", dupSrcId)
     logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
 }
 /*
@@ -2052,7 +2025,7 @@ private void updateZoneSubscriptions() {
 String getActionName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
-    String newLbl = "${settings.appLbl} (A${isPaused() ? " \u275A\u275A" : sBLANK})".replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s"," ")
+    String newLbl = "${settings.appLbl} (A${isPaused(true) ? " \u275A\u275A" : sBLANK})".replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s"," ")
     if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) }
 }
 
@@ -2088,7 +2061,6 @@ private void actionCleanup() {
     //Cleans up unused action setting items
     List setItems = []
     List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_piston_run", "act_mode_run", "act_alarm_run"]
-//    if (isStFLD) setIgn.push("act_routine_run")
     if(settings.act_EchoZones) { setIgn.push("act_EchoZones"); Map a = getActiveZones() } // to fill in FLD
     else if(settings.act_EchoDevices) { setIgn.push("act_EchoDevices"); setIgn.push("act_EchoDeviceList") }
 
@@ -2156,7 +2128,7 @@ private void actionCleanup() {
     setItems.unique()?.each { String sI-> if(settings.containsKey(sI)) { settingRemove(sI) } }
 }
 
-Boolean isPaused() { return (Boolean)settings.actionPause }
+Boolean isPaused(Boolean chkAll = false) { return (Boolean)settings.actionPause && (chkAll ? !(state.dupPendingSetup == true) : true) }
 
 public void triggerInitialize() { runIn(3, "initialize") }
 private Boolean valTrigEvt(String key) { return (key in settings.triggerEvents) }
@@ -2257,7 +2229,7 @@ Boolean schedulesConfigured() {
 }
 
 void scheduleSunriseSet() {
-    if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
+    if(isPaused(true)) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     def sun = getSunriseAndSunset()
     Long ltim = settings.trig_scheduled_type in ["Sunrise"] ? sun.sunrise.time : sun.sunset.time
     Long offset = (settings.trig_scheduled_sunState_offset ?: 0L) * 60000L // minutes
@@ -2273,7 +2245,7 @@ void scheduleSunriseSet() {
 void subscribeToEvts() {
     state.handleGuardEvents = false
     if(minVersionFailed ()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return }
-    if(isPaused()) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
+    if(isPaused(true)) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     settings.triggerEvents?.each { String te->
         if(te == "scheduled" || settings."trig_${te}") {
             switch (te) {
@@ -2293,9 +2265,9 @@ void subscribeToEvts() {
                     break
                 case "alarm":
                     // Location Alarm Events
-                    subscribe(location, (!isStFLD ? "hsmStatus" : "alarmSystemStatus"), alarmEvtHandler)
+                    subscribe(location, "hsmStatus", alarmEvtHandler)
     // ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarm":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
-                    if(!isStFLD && ("alerts" in settings.trig_alarm)) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
+                    if("alerts" in settings.trig_alarm) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
                     break
                 case "mode":
                     // Location Mode Events
@@ -2304,10 +2276,6 @@ void subscribeToEvts() {
                     break
                 case "pistonExecuted":
                     break
-/*                case "routineExecuted":
-                    // Routine Execution Events
-                    if(isStFLD) subscribe(location, "routineExecuted", routineEvtHandler)
-                    break */
                 case "thermostat":
                     // Thermostat Events
                     subscribe(settings."trig_${te}", attributeConvert(te), thermostatEvtHandler)
@@ -2334,32 +2302,11 @@ private getDevEvtHandlerName(String type) {
 @Field volatile static Map<String,Map> zoneStatusMapFLD = [:]
 
 def zoneStateHandler(evt) {
-    // String id = evt?.value?.toString()
-    // Map data = evt?.jsonData
-    // // log.debug "zoneStateHandler: ${id} | data: ${data}"
-    // if(settings.act_EchoZones && id && data && (id in settings.act_EchoZones)) {
-    //     Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
-    //     Map t0 = zoneStatusMapFLD
-    //     Map zoneMap = t0 ?: [:]
-    //     zoneMap[id] = [name: data?.name, active: data?.active]
-    //     zoneStatusMapFLD = zoneMap
-    //     zoneStatusMapFLD = zoneStatusMapFLD
-    //     releaseTheLock(sHMLF)
-    // }
+    // This is here as placeholder to prevent flooding the logs with errors after upgrading to v4.0
 }
 
 def zoneRemovedHandler(evt) {
-    // String id = evt?.value?.toString()
-    // Map data = evt?.jsonData
-    // log.trace "zone removed: ${id} | Data: $data"
-    // if(data && id) {
-    //     Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
-    //     Map t0 = zoneStatusMapFLD
-    //     Map zoneMap = t0 ?: [:]
-    //     if(zoneMap.containsKey(id)) { zoneMap.remove(id) }
-    //     zoneStatusMapFLD = zoneMap
-    //     releaseTheLock(sHMLF)
-    // }
+    // This is here as placeholder to prevent flooding the logs with errors after upgrading to v4.0
 }
 
 // private requestZoneRefresh() {
@@ -2430,7 +2377,7 @@ def scheduleTrigEvt(evt=null) {
     // log.trace "lock wait: ${aa}"
 //    Map t0 = atomicState.schedTrigMap
 //    Map sTrigMap = t0 ?: [:]
-    Map sTrigMap = getMemStoreItem("schedTrigMap", [:])
+    Map sTrigMap = (Map)getMemStoreItem("schedTrigMap", [:])
     if(!sTrigMap) sTrigMap = state.schedTrigMap ?: [:]
 
     Boolean wdOk = (days && srecur in ["Daily", "Weekly"]) ? (dateMap.dayNameShort in days && sTrigMap?.lastRun?.dayName != dateMap.dayNameShort) : true
@@ -2540,7 +2487,7 @@ def sceneEvtHandler(evt) {
     logTrace( "${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     Boolean dco = (settings.trig_scene_once == true)
     Integer dcw = settings.trig_scene_wait ?: null
-    eventCompletion(evt, "scene", dco, dcw, "sceneEvtHandler", evt?.value, evt?.displayName)
+    eventCompletion(evt, "scene", dco, dcw, "sceneEvtHandler", evt?.value, (String)evt?.displayName)
 /*    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "scene", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
     if(!evtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
@@ -2553,7 +2500,7 @@ def modeEvtHandler(evt) {
     if(evt?.value in settings.trig_mode) {
         Boolean dco = (settings.trig_mode_once == true)
         Integer dcw = settings.trig_mode_wait ?: null
-        eventCompletion(evt, "mode", dco, dcw, "modeEvtHandler", evt?.value, evt?.displayName)
+        eventCompletion(evt, "mode", dco, dcw, "modeEvtHandler", evt?.value, (String)evt?.displayName)
 /*        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "mode", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
         if(!evtWaitOk) { return }
         if(getConfStatusItem("tiers")) {
@@ -2822,7 +2769,7 @@ private processTierTrigEvt(evt, Boolean evtOk) {
     //ERS
     Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
-    Map aTierSt = getMemStoreItem("actTierState", [:])
+    Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = state.actTierState ?: [:]
 
     if (evtOk) {
@@ -2862,7 +2809,7 @@ def getTierStatusSection() {
 
         Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
         // log.trace "lock wait: ${aa}"
-        Map aTierSt = getMemStoreItem("actTierState", [:])
+        Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
         if(!aTierSt) aTierSt = state.actTierState ?: [:]
 
 //        Map tS = atomicState.actTierState
@@ -2887,7 +2834,7 @@ private void resumeTierJobs() {
     //ERS
     Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
-    Map aTierSt = getMemStoreItem("actTierState", [:])
+    Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = state.actTierState ?: [:]
 
     //if(atomicState.actTierState?.size() && (Boolean)atomicState.tierSchedActive) {
@@ -2913,7 +2860,7 @@ private tierEvtHandler(evt=null) {
     //ERS
     Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
-    Map aTierSt = getMemStoreItem("actTierState", [:])
+    Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = state.actTierState ?: [:]
 
 //    t0 = atomicState.actTierState
@@ -2964,11 +2911,11 @@ private void tierSchedHandler(data) {
         executeAction(evt, false, "tierSchedHandler", false, false, [msg: data?.tierState?.message as String, volume: data?.tierState?.volume, isFirst: (data?.tierState?.cycle == 1), isLast: (data?.tierState?.lastMsg == true)])
         if(data?.sched) {
             if(data.tierState.schedDelay && data.tierState.lastMsg == false) {
-                logDebug("Scheduling Next Tier Message for (${data.tierState?.schedDelay} seconds)");
+                logDebug("Scheduling Next Tier Message for (${data.tierState?.schedDelay} seconds)")
                 runIn(data.tierState.schedDelay, "tierEvtHandler")
             } else {
-                logDebug("Scheduling cleanup for (5 seconds) as this was the last message");
-                runIn(5, "tierEvtHandler");
+                logDebug("Scheduling cleanup for (5 seconds) as this was the last message")
+                runIn(5, "tierEvtHandler")
             }
             //ERS
             atomicState.tierSchedActive = true
@@ -3078,7 +3025,7 @@ def thermostatEvtHandler(evt) {
     } else if (execOk) { executeAction(evt, false, "thermostatEvtHandler(${evt?.name})", false, evtAd) }
 }
 
-String evtValueCleanup(val) {
+static String evtValueCleanup(val) {
     // log.debug "val(in): ${val}"
     val = (val?.toString()?.isNumber() && val?.toString()?.endsWith(".0")) ? val?.toDouble()?.round(0) : val
     // log.debug "val(out): ${val}"
@@ -3109,7 +3056,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     // log.trace "lock wait: ${aa}"
 //    Map t0 = atomicState.valEvtHistory
 //    Map evtHistMap = t0 ?: [:]
-    Map evtHistMap = getMemStoreItem("valEvtHistory", [:])
+    Map evtHistMap = (Map)getMemStoreItem("valEvtHistory", [:])
     if(!evtHistMap) evtHistMap = state.valEvtHistory ?: [:]
     // log.debug "prevDt: ${evtHistMap[n]?.dt ? parseDate(evtHistMap[n]?.dt as String) : null} | evtDt: ${evtDt}"
     if(evtHistMap.containsKey(n) && evtHistMap[n]?.dt) {
@@ -3452,7 +3399,6 @@ Map getRandomTrigEvt() {
         motion: getRandomItem(lACTINACT),
         valve: getRandomItem(lOPNCLS),
         shade: getRandomItem(lOPNCLS),
-//        button: getRandomItem(["pushed", "held"]),
         pushed: getRandomItem(["pushed"]),
         released: getRandomItem(["released"]),
         held: getRandomItem(["held"]),
@@ -3468,7 +3414,6 @@ Map getRandomTrigEvt() {
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
-//        routineExecuted: (isStFLD ? getRandomItem(getLocationRoutines()) : null),
         pistonExecuted: getRandomItem(getLocationPistons())
     ]
     Map evt = [:]
@@ -3607,7 +3552,7 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
 }
 
 public getActionHistory(Boolean asObj=false) {
-    List eHist = getMemStoreItem("actionHistory")
+    List eHist = (List)getMemStoreItem("actionHistory")
     List<String> output = []
     if(eHist.size()) {
         eHist.each { Map h->
@@ -3638,7 +3583,7 @@ private addToActHistory(evt, data, Integer max=10) {
     Boolean aa = getTheLock(sHMLF, "addToActHistory")
     // log.trace "lock wait: ${aa}"
 
-    List eData = getMemStoreItem("actionHistory")
+    List eData = (List)getMemStoreItem("actionHistory")
     if(eData == null)eData = []
     eData.push([
         dt: getDtNow(),
@@ -3672,7 +3617,7 @@ void clearActHistory(){
 private void executeAction(evt = null, Boolean testMode=false, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
     Long startTime = now()
     logTrace( "executeAction${src ? "($src)" : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
-    if(isPaused()) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
+    if(isPaused(true)) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
     Map condStatus = conditionStatus()
     // log.debug "condStatus: ${condStatus}"
     addToActHistory(evt, [status: condStatus, test: testMode, src: src, isRepeat: isRptAct, isTier: (tierData != null)] )
@@ -3728,13 +3673,9 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                             //Speak Command Logic
                             if(actDevSiz) {
                                 if(changeVol || restoreVol) {
-                                    if(isStFLD && actDelayMs) {
-                                        actDevices.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol, [delay: actDelayMs]) }
-                                    } else { actDevices.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) } }
+                                    actDevices.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) }
                                 } else {
-                                    if(isStFLD && actDelayMs) {
-                                        actDevices.each { dev-> dev?.speak(txt, [delay: actDelayMs]) }
-                                    } else { actDevices.each { dev-> dev?.speak(txt) } }
+                                    actDevices.each { dev-> dev?.speak(txt) }
                                 }
                                 logDebug("Sending Speech Text: (${txt}) to ${actDevices}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                             }
@@ -3745,14 +3686,10 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                             if(actDevSiz > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
                                 //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                                 //def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
-                                if(isStFLD && actDelayMs) {
-                                    actDevices[0]?.sendAnnouncementToDevices(txt, bn, actConf[actType]?.deviceObjs, changeVol, restoreVol, [delay: actDelayMs])
-                                } else { actDevices[0]?.sendAnnouncementToDevices(txt, bn, actConf[actType]?.deviceObjs, changeVol, restoreVol) }
+                                actDevices[0]?.sendAnnouncementToDevices(txt, bn, actConf[actType]?.deviceObjs, changeVol, restoreVol)
                             } else {
                                 actDevices?.each { dev->
-                                    if(isStFLD && actDelayMs) {
-                                        dev?.playAnnouncement(txt, bn, changeVol, restoreVol, [delay: actDelayMs])
-                                    } else { dev?.playAnnouncement(txt, bn, changeVol, restoreVol) }
+                                    dev?.playAnnouncement(txt, bn, changeVol, restoreVol)
                                 }
                             }
                             logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
@@ -3767,9 +3704,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         log.debug("Sending VoiceCmdAsText Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isStFLD && actDelayMs) {
-                                dev?.voiceCmdAsText(actConf[actType].text as String, [delay: actDelayMs])
-                            } else { dev?.voiceCmdAsText(actConf[actType].text as String) }
+                            dev?.voiceCmdAsText(actConf[actType].text as String)
                         }
                         logDebug("Sending VoiceCmdAsText Command to Zones: (${actConf[actType].text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     }
@@ -3783,9 +3718,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         logDebug("Sending Sequence Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isStFLD && actDelayMs) {
-                                dev?.executeSequenceCommand(actConf[actType].text as String, [delay: actDelayMs])
-                            } else { dev?.executeSequenceCommand(actConf[actType].text as String) }
+                            dev?.executeSequenceCommand(actConf[actType].text as String)
                         }
                         logDebug("Sending Sequence Command to Zones: (${actConf[actType].text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     }
@@ -3800,15 +3733,9 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sbLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isStFLD && actDelayMs) {
-                                if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"([delay: actDelayMs]) }
-                                else if(actConf[actType]?.cmd == "volume") { dev?.setVolume(changeVol, [delay: actDelayMs]) }
-                                if(changeVol) { dev?.volume(changeVol, [delay: actDelayMs]) }
-                            } else {
-                                if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"() }
-                                else if(actConf[actType]?.cmd == "volume") { dev?.setVolume(changeVol) }
-                                if(changeVol) { dev?.volume(changeVol) }
-                            }
+                            if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"() }
+                            else if(actConf[actType]?.cmd == "volume") { dev?.setVolume(changeVol) }
+                            if(changeVol) { dev?.volume(changeVol) }
                         }
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}")
                     }
@@ -3824,9 +3751,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isStFLD && actDelayMs) {
-                                dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol, [delay: actDelayMs])
-                            } else { dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol) }
+                            dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol)
                         }
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
@@ -3840,9 +3765,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isStFLD && actDelayMs) {
-                                dev?."${actConf[actType]?.cmd}"(actConf[actType]?.name ,onchangeVol, restoreVol, [delay: actDelayMs])
-                            } else { dev?."${actConf[actType]?.cmd}"(actConf[actType]?.name, changeVol, restoreVol) }
+                            dev?."${actConf[actType]?.cmd}"(actConf[actType]?.name, changeVol, restoreVol)
                         }
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
@@ -3853,16 +3776,8 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             case "reminder":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.label && actConf[actType]?.date && actConf[actType]?.time) {
                     actDevices?.each { dev->
-                        if(isStFLD && actDelayMs) {
-                            dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, [delay: actDelayMs])
-                        } else {
-                            dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time)
-                        }
-                        // if(isStFLD && actDelayMs) {
-                        //     dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt, [delay: actDelayMs])
-                        // } else {
-                        //     dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt)
-                        // }
+                        dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time)
+                        // dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt)
                     }
                     logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}")
                 }
@@ -3876,9 +3791,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(isStFLD && actDelayMs) {
-                                dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol, [delay: actDelayMs])
-                            } else { dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol) }
+                            dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol)
                         }
                         logDebug("Sending ${actType?.toString()?.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
@@ -3897,9 +3810,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                     actConf[actType]?.devices?.each { d->
                         def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
                         if(aDev) {
-                            if(isStFLD && actDelayMs) {
-                                aDev?."${d?.cmd}"(d?.wakeword, [delay: actDelayMs])
-                            } else { aDev?."${d?.cmd}"(d?.wakeword) }
+                            aDev?."${d?.cmd}"(d?.wakeword)
                             logDebug("Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                         }
                     }
@@ -3912,13 +3823,9 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
                         if(aDev) {
                             if(d?.cmd == "disconnectBluetooth") {
-                                if(isStFLD && actDelayMs) {
-                                    aDev?."${d?.cmd}"([delay: actDelayMs])
-                                } else { aDev?."${d?.cmd}"() }
+                                aDev?."${d?.cmd}"()
                             } else {
-                                if(isStFLD && actDelayMs) {
-                                    aDev?."${d?.cmd}"(d?.btDevice, [delay: actDelayMs])
-                                } else { aDev?."${d?.cmd}"(d?.btDevice) }
+                                aDev?."${d?.cmd}"(d?.btDevice)
                             }
                             logDebug("Sending ${d?.cmd} | Bluetooth Device: ${d?.btDevice} to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                         }
@@ -4048,37 +3955,46 @@ public void logsDisable() {
     }
 }
 
-private void updTsVal(key, dt=null) {
-    //ERS
-    def t0 = atomicState.tsDtMap
-    def data = t0 ?: [:]
+@Field volatile static Map<String,Map> tsDtMapFLD=[:]
+
+private void updTsVal(String key, String dt=sNULL) {
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:]
+    if(!data) data = state.tsDtMap ?: [:]
     if(key) { data[key] = dt ?: getDtNow() }
-    atomicState.tsDtMap = data
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
+
+    state.tsDtMap = data
 }
 
 private void remTsVal(key) {
-    //ERS
-    def t0 = atomicState.tsDtMap
-    def data = t0 ?: [:]
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:]
+    if(!data) data = state.tsDtMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
-        } else { if(data.containsKey((String)key)) { data.remove((String)key) } }
-        atomicState.tsDtMap = data
+                key.each { String k->
+                    if(data.containsKey(k)) { data.remove(k) }
+                }
+        } else if(data.containsKey((String)key)) { data.remove((String)key) }
     }
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
+
+    state.tsDtMap = data
 }
 
-String getTsVal(String val) {
-    //ERS
-    def tsMap = atomicState.tsDtMap
-    if(val && tsMap && tsMap[val]) { return (String)tsMap[val] }
+String getTsVal(String key) {
+    String appId=app.getId()
+    Map tsMap=tsDtMapFLD[appId]
+    if(!tsMap) tsMap = state.tsDtMap ?: [:]
+    if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
     return sNULL
 }
 
 Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
-    //ERS
-    def tsMap = atomicState.tsDtMap
-    return (val && tsMap && tsMap[val]) ? GetTimeDiffSeconds((String)tsMap[val]).toInteger() : nullVal
+    return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
 private void updAppFlag(String key, val) {
@@ -4126,7 +4042,7 @@ void settingUpdate(String name, value, String type=sNULL) {
 
 void settingRemove(String name) {
     logTrace("settingRemove($name)...")
-    if(name && settings.containsKey(name)) { /* isStFLD ? app?.deleteSetting(name) : */ app?.removeSetting(name) }
+    if(name && settings.containsKey(name)) { app?.removeSetting(name) }
 }
 
 static List weekDaysEnum() { return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] }
@@ -4137,7 +4053,7 @@ static Map weeksOfMonthMap() { return ["1":"1st Week", "2":"2nd Week", "3":"3rd 
 static Map monthMap() { return ["1":"January", "2":"February", "3":"March", "4":"April", "5":"May", "6":"June", "7":"July", "8":"August", "9":"September", "10":"October", "11":"November", "12":"December"] }
 
 static Map getAlarmTrigOpts() {
-    return /* isStFLD ? ["away":"Armed Away","stay":"Armed Home","off":"Disarmed"] : */ ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarmed":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
+    return ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarmed":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
 }
 
 private static Map getAlarmSystemAlertOptions(){
@@ -4188,25 +4104,26 @@ public Map getActionMetrics() {
     return out
 }
 
-//String pushStatus() { return (isStFLD && (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover)) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : sNULL }
+// String pushStatus() { return (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : sNULL }
 
 Integer getLastNotifMsgSec() { return getLastTsValSec("lastNotifMsgDt") }
 //Integer getLastChildInitRefreshSec() { return getLastTsValSec("lastChildInitRefreshDt", 3600) }
 //Integer getLastNotifMsgSec() { return !state.lastNotifMsgDt ? 100000 : GetTimeDiffSeconds(state.lastNotifMsgDt, "getLastMsgSec").toInteger() }
 
 Boolean getOk2Notify() {
-    Boolean smsOk // = (isStFLD && settings.notif_sms_numbers?.toString()?.length()>=10)
-    Boolean pushOk // = (isStFLD && settings.notif_send_push)
-    Boolean pushOver // = (isStFLD && settings.notif_pushover && settings.notif_pushover_devices)
+    Boolean smsOk // = (settings.notif_sms_numbers?.toString()?.length()>=10)
+    Boolean pushOk // = (settings.notif_send_push)
+    Boolean pushOver // = (settings.notif_pushover && settings.notif_pushover_devices)
     Boolean alexaMsg = ((Boolean)settings.notif_alexa_mobile)
     Boolean notifDevsOk = (settings.notif_devs?.size())
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = settings.notif_modes ? (isInMode(settings.notif_modes)) : true
-    logTrace("getOk2Notify() | notifDevs: $notifDevs |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
-    if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { return false }
-    if(!(daysOk && modesOk && timeOk)) { return false }
-    return true
+    Boolean result = true
+    if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { result = false }
+    if(!(daysOk && modesOk && timeOk)) { result = false }
+    logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    return result
 }
 
 Boolean notifTimeOk() {
@@ -4255,36 +4172,8 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
         String flatMsg = newMsg.replaceAll("\n", sSPACE)
         if(!getOk2Notify()) {
             logInfo( "sendNotifMsg: Notification not configured or Message Skipped During Quiet Time ($flatMsg)")
-//            if(isStFLD && showEvt) { sendNotificationEvent(newMsg) }
+//            if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
-/*            if(isStFLD) {
-                if(settings.notif_send_push) {
-                    sentSrc.push("Push Message")
-                    if(showEvt) {
-                        sendPush(newMsg)	// sends push and notification feed
-                    } else { sendPushMessage(newMsg) } // sends push
-                    sent = true
-                }
-                if(settings.notif_pushover && settings.notif_pushover_devices) {
-                    sentSrc.push("Pushover Message")
-                    Map msgObj = [title: msgTitle, message: msg, priority: (settings.notif_pushover_priority?:0)]
-                    if(settings.notif_pushover_sound) { msgObj.sound = settings.notif_pushover_sound }
-                    buildPushMessage(settings.notif_pushover_devices, msgObj, true)
-                    sent = true
-                }
-                String smsPhones = settings.notif_sms_numbers?.toString() ?: sNULL
-                if(smsPhones) {
-                    List phones = smsPhones?.toString()?.tokenize(",")
-                    for (phone in phones) {
-                        String t0 = newMsg.take(140)
-                        if(showEvt) {
-                            sendSms(phone?.trim(), t0)	// send SMS and notification feed
-                        } else { sendSmsMessage(phone?.trim(), t0) } // send SMS
-                    }
-                    sentSrc.push("SMS Message to [${phones}]".toString())
-                    sent = true
-                }
-            } */
             if(settings.notif_devs) {
                 sentSrc.push("Notification Devices")
                 settings.notif_devs?.each { it?.deviceNotification(newMsg) }
@@ -4298,7 +4187,6 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
             if(sent) {
                 state.lastNotificationMsg = flatMsg
                 updTsVal("lastNotifMsgDt")
-//                state.lastNotifMsgDt = getDtNow()
                 logDebug("sendNotifMsg: Sent ${sentSrc} (${flatMsg})")
             }
         }
@@ -4310,13 +4198,10 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
 
 Boolean isActNotifConfigured() {
     if(customMsgRequired() && !(settings.notif_use_custom && settings.notif_custom_message)) { return false }
-/*    if(isStFLD) {
-        return (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_devs || (Boolean)settings.notif_alexa_mobile || (settings.notif_pushover && settings.notif_pushover_devices))
-    } else { */
-        return (settings.notif_devs || (Boolean)settings.notif_alexa_mobile)
-//   }
+    return (settings.notif_devs || (Boolean)settings.notif_alexa_mobile)
 }
 
+/*
 //PushOver-Manager Input Generation Functions
 private getPushoverSounds(){return (Map) state?.pushoverManager?.sounds?:[:]}
 private getPushoverDevices(){List opts=[];Map pmd=state.pushoverManager?:[:];pmd?.apps?.each{k,v->if(v&&v?.devices&&v?.appId){Map dm=[:];v?.devices?.sort{}?.each{i->dm["${i}_${v?.appId}"]=i};addInputGrp(opts,v?.appName,dm)}};return opts}
@@ -4332,7 +4217,7 @@ public pushover_poll(){sendLocationEvent(name:"pushoverManagerCmd",value:"poll",
 public pushover_msg(List devs,Map data){if(devs&&data){sendLocationEvent(name:"pushoverManagerMsg",value:"sendMsg",data:data,isStateChange:true,descriptionText:"Sending Message to Pushover Devices: ${devs}")}}
 public pushover_handler(evt){Map pmd=state.pushoverManager?:[:];switch(evt?.value){case"refresh":def ed = evt?.jsonData;String id = ed?.appId;Map pA = pmd?.apps?.size() ? pmd?.apps : [:];if(id){pA[id]=pA?."${id}"instanceof Map?pA[id]:[:];pA[id]?.devices=ed?.devices?:[];pA[id]?.appName=ed?.appName;pA[id]?.appId=id;pmd?.apps = pA};pmd?.sounds=ed?.sounds;break;case "reset":pmd=[:];break;};state.pushoverManager=pmd;}
 //Builds Map Message object to send to Pushover Manager
-private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);}
+private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);} */
 
 Integer versionStr2Int(String str) { return str ? str.toString()?.replaceAll("\\.", sBLANK)?.toInteger() : null }
 Boolean minVersionFailed() {
@@ -4440,27 +4325,11 @@ List getLocationModes(Boolean sorted=false) {
     // log.debug "modes: ${modes}"
     return (sorted) ? modes?.sort() : modes
 }
-/*
-List getLocationRoutines() {
-   return (isStFLD) ? location.helloHome?.getPhrases()*.label?.sort() : []
-} */
 
 List<String> getLocationPistons() {
-//    List aa = webCoRE_list()
     List aa = (webCoREFLD?.pistons ?: []).findAll { it.id }.collect { (String)it.id }
     return aa ?: []
 }
-/*
-def getRoutineById(rId) {
-    return (isStFLD) ? location?.helloHome?.getPhrases()?.find{it?.id == rId} : null
-} */
-/*
-def execRoutineById(rId) {
-    if(rId && isStFLD) {
-        def nId = getRoutineById(rId)
-        if(nId && nId?.label) { location.helloHome?.execute(nId?.label) }
-    }
-} */
 
 def getModeById(mId) {
     return location?.getModes()?.find{it?.id == mId}
@@ -4522,21 +4391,19 @@ Boolean devCapValEqual(List devs, String devId, String cap, val) {
 }
 
 String getAlarmSystemName(Boolean abbr=false) {
-    return /* isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : */ (abbr ? "HSM" : "Hubitat Safety Monitor")
+    return (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
 String formatDt(Date dt, Boolean tzChg=true) {
-    def tf = new java.text.SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-    if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
-    return (String)tf.format(dt)
+    return dateTimeFmt(dt, "E MMM dd HH:mm:ss z yyyy", tzChg)
 }
 
-String dateTimeFmt(Date dt, String fmt) {
+String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
 //    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new java.text.SimpleDateFormat(fmt)
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    if(tzChg && location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return (String)tf.format(dt)
 }
 
@@ -4557,24 +4424,22 @@ String convToDateTime(Date dt) {
     return d+', '+t
 }
 
-Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
-Boolean isDateToday(Date dt) { return (dt && dt?.clearTime().compareTo(new Date()?.clearTime()) >= 0) }
-String strCapitalize(str) { return str ? str?.toString().capitalize() : sNULL }
-String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
+static Date parseDate(dt) { return Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) }
+
+static Boolean isDateToday(Date dt) { return (dt && dt.clearTime().compareTo(new Date().clearTime()) >= 0) }
+
+static String strCapitalize(str) { return str ? str.toString().capitalize() : sNULL }
+
+static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
 /*
-String parseDt(String pFormat, String dt, tzFmt=true) {
-    String result
-    Date newDt = Date.parse(pFormat.toString(), dt)
-    result = formatDt(newDt, tzFmt) // this is not right
-    //log.debug "parseDt Result: $result"
-    return result
+String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
+    Date newDt = Date.parse(pFormat, dt)
+    return formatDt(newDt, tzFmt)
 } */
 
 String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
-    def tf = new java.text.SimpleDateFormat(newFmt)
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return (String)tf?.format(newDt)
+    return dateTimeFmt(newDt, newFmt)
 }
 
 String getDtNow() {
@@ -4582,39 +4447,32 @@ String getDtNow() {
     return formatDt(now)
 }
 
-String epochToTime(Date tm) {
-    def tf = new java.text.SimpleDateFormat("h:mm a")
-    if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return (String)tf.format(tm)
+String epochToTime(Date dt) {
+    return dateTimeFmt(dt, "h:mm a")
 }
 /*
 String time2Str(String time, String fmt="h:mm a") {
     if(time) {
         Date t = timeToday(time, location?.timeZone)
-        def f = new java.text.SimpleDateFormat(fmt)
-        if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-        return (String)f?.format(t)
+        return dateTimeFmt(t, fmt)
     }
     return sNULL
 } */
 
 String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
     if(!t) return sNULL
-    Date dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t?.toString())
-    def tf = new java.text.SimpleDateFormat(fmt)
-    if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
-    return tf?.format(dt)
+    Date dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t.toString())
+    return dateTimeFmt(dt, fmt)
 }
 
 Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
     try {
         if(lastDate?.contains("dtNow")) { return 10000 }
-        Date now = new Date()
-        Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
-        Long start = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt)).getTime()
-        Long stop = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(now)).getTime()
+        Date lastDt = parseDate(lastDate) // Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
+        Long start = lastDt.getTime()
+        Long stop = now()
         Long diff = (stop - start) / 1000L
-        return diff
+        return diff.abs()
     }
     catch (ex) {
         logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex?.message}", false, ex)
@@ -4659,9 +4517,8 @@ Boolean isMonthOfYear(List opts) {
 
 Boolean isTimeBetween(String startTime, String stopTime, Date curTime= new Date()) {
     if(!startTime && !stopTime) { return true }
-    Date st
-    Date et
-    if(!isStFLD) { st = toDateTime(startTime); et = toDateTime(stopTime) }
+    Date st = toDateTime(startTime)
+    Date et = toDateTime(stopTime)
     return timeOfDayIsBetween(st, et, curTime, location?.timeZone)
 }
 
@@ -4669,7 +4526,7 @@ Boolean isTimeBetween(String startTime, String stopTime, Date curTime= new Date(
 |   App Input Description Functions
 *******************************************/
 
-Map dimmerLevelEnum() { return [100:"Set Level to 100%", 90:"Set Level to 90%", 80:"Set Level to 80%", 70:"Set Level to 70%", 60:"Set Level to 60%", 50:"Set Level to 50%", 40:"Set Level to 40%", 30:"Set Level to 30%", 20:"Set Level to 20%", 10:"Set Level to 10%"] }
+static Map dimmerLevelEnum() { return [100:"Set Level to 100%", 90:"Set Level to 90%", 80:"Set Level to 80%", 70:"Set Level to 70%", 60:"Set Level to 60%", 50:"Set Level to 50%", 40:"Set Level to 40%", 30:"Set Level to 30%", 20:"Set Level to 20%", 10:"Set Level to 10%"] }
 
 String unitStr(type) {
     switch(type) {
@@ -4687,11 +4544,6 @@ String getAppNotifDesc(Boolean hide=false) {
     if(isActNotifConfigured()) {
         Boolean ok = getOk2Notify()
         str += hide ? sBLANK : "Send allowed: (${ok ? okSymFLD : notOkSymFLD})\n"
-/*        if(isStFLD) {
-            str += settings.notif_sms_numbers ? " \u2022 (${settings.notif_sms_numbers?.tokenize(",")?.size()} SMS Numbers)\n" : sBLANK
-            str += settings.notif_send_push ? " \u2022 (Push Message)\n" : sBLANK
-            str += (settings.notif_pushover && settings.notif_pushover_devices?.size()) ? " \u2022 Pushover Device${pluralizeStr(settings.notif_pushover_devices)} (${settings.notif_pushover_devices?.size()})\n" : sBLANK
-        } */
         str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
         str += (Boolean)settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
         String res = getNotifSchedDesc(true)
@@ -4834,7 +4686,7 @@ String getConditionsDesc(Boolean addE=true) {
 //    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions Allow Operation: (${((Boolean)conditionStatus().ok == true) ? okSymFLD : notOkSymFLD})\n"
+        String str = "Conditions Allow Operation: (${(Boolean)conditionStatus().ok ? okSymFLD : notOkSymFLD})\n"
         str += reqAllCond() ?  " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
         if(timeCondConfigured()) {
             str += " • Time Between Allowed: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
@@ -4882,7 +4734,7 @@ String getConditionsDesc(Boolean addE=true) {
     }
 }
 
-String attUnit(String attr) {
+static String attUnit(String attr) {
     switch(attr) {
         case "humidity":
         case "level":
@@ -5000,27 +4852,27 @@ String randomString(Integer len) {
 def getRandomItem(items) {
     def list = new ArrayList<String>()
     items?.each { list?.add(it) }
-    return list?.get(new Random().nextInt(list?.size()));
+    return list?.get(new Random().nextInt(list?.size()))
 }
 
 Boolean showChgLogOk() { return ((Boolean)state.isInstalled && !(Boolean)state.shownChgLog) }
 
 static String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
-static String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK }
+static String getAppImg(String imgName, Boolean frc=false) { return frc ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK }
 
-static String getPublicImg(String imgName) { return isStFLD ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : sBLANK }
+static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
-static String sTS(String t, String i = sNULL, Boolean bold=false) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
+static String sTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 /* """ */
 
-static String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return isStFLD ? t : """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
+static String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
 /* """ */
 
-static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 /* """ */
 
 static String inTS1(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return inTS(t, getHEAppImg(i), color, under) }
-static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
+static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
 /* """ */
 
 static String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
@@ -5056,18 +4908,12 @@ String getAppDebugDesc() {
 
 private addToLogHistory(String logKey, String data, Integer max=10) {
     Boolean ssOk = true // (stateSizePerc() > 70)
-//    String appId=app.getId()
 
     Boolean aa = getTheLock(sHMLF, "addToHistory(${logKey})")
     // log.trace "lock wait: ${aa}"
 
     List<Map> eData = (List<Map>)getMemStoreItem(logKey)
-//    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
-//    List<Map> eData = (List)memStore[logKey] ?: []
     if(!(eData.find { it?.data == data })) {
-//        releaseTheLock(sHMLF)
-//        return
-//    } else {
         eData.push([dt: getDtNow(), data: data])
         Integer lsiz = eData.size()
         if (!ssOk || lsiz > max) {
@@ -5122,11 +4968,6 @@ private void clearLogHistory() {
 
     updMemStoreItem("warnHistory", [])
     updMemStoreItem("errorHistory", [])
-//    Map memStore = historyMapFLD[appId] ?: [:]
-//    memStore["warnHistory"] = []
-//    memStore["errorHistory"] = []
-//    historyMapFLD[appId] = memStore
-//    historyMapFLD = historyMapFLD
 
     releaseTheLock(sHMLF)
 }
@@ -5258,24 +5099,14 @@ def searchTuneInResultsPage() {
                                 str += "ContentType: (${item2?.contentType})"
                                 str += "\nId: (${item2?.id})"
                                 str += "\nDescription: ${item2?.description}"
-/*
-                                if(isStFLD) {
-                                    paragraph title: pTS(item2?.name?.take(75), (isStFLD ? sNULL : item2?.image)), str, required: true, state: (!item2?.name?.contains("Not Supported") ? sCOMPLT : sNULL), image: item2?.image ?: sBLANK
-                                } else { */
-                                    href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), item2?.image), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? sCOMPLT : sNULL)
-//                              }
+                                href "searchTuneInResultsPage", title: pTS(item2?.name?.take(75), item2?.image), description: str, required: true, state: (!item2?.name?.contains("Not Supported") ? sCOMPLT : sNULL)
                             }
                         } else {
                             String str = sBLANK
                             str += "ContentType: (${item?.contentType})"
                             str += "\nId: (${item?.id})"
                             str += "\nDescription: ${item?.description}"
-/*
-                            if(isStFLD) {
-                                paragraph title: pTS(item?.name?.take(75), (isStFLD ? sNULL : item?.image)), str, required: true, state: (!item?.name?.contains("Not Supported") ? sCOMPLT : sNULL), image: item?.image ?: sBLANK
-                            } else { */
-                                href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), (isStFLD ? sNULL : item?.image)), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? sCOMPLT : null)
-//                            }
+                            href "searchTuneInResultsPage", title: pTS(item?.name?.take(75), item?.image), description: str, required: true, state: (!item?.name?.contains("Not Supported") ? sCOMPLT : null)
                         }
                     }
                 }
@@ -5397,31 +5228,36 @@ public Map getSettingsAndStateMap() {
             ev?.each { evi->
                 settings.findAll { it?.key?.endsWith(evi) }?.each { String fk, fv->
                     def vv = settings[fk] // fv
- //                   if(ek==sTIME) vv = convToTime(toDateTime(vv))
+                   if(ek==sTIME) vv = dateTimeFmt(toDateTime(vv), "HH:mm")
                     setObjs[fk] = [type: ek, value: vv]
                 }
             }
         }
         ((Map<String,String>)typeObj.caps).each { ck, cv->
-            //settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability.${cv}" as String, value: fv?.collect { it?.id?.toString() }] } //.toString().toList()
             settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv->
                 setObjs[fk] = [type: "capability", value: (fv instanceof List ? fv?.collect { it?.id?.toString() } : it?.id?.toString ) ] } //.toString().toList()
         }
         ((Map<String, String>)typeObj.dev).each { dk, dv->
-            //settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device.${dv}" as String, value: fv.collect { it?.id?.toString() }] } //.toString().toList()
             settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv->
                 setObjs[fk] = [type: "device", value: (fv instanceof List ? fv.collect { it?.id?.toString() } : it?.id?.toString() ) ] } //.toString().toList()
         }
     }
     Map data = [:]
-//    data.label = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", sBLANK)
     String newlbl = app?.getLabel()?.toString()?.replace(" (A \u275A\u275A)", sBLANK)
     data.label = newlbl?.replace(" (A)", sBLANK)
     data.settings = setObjs
 
     List stskip = [
-        "isInstalled", "isParent", "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
-        "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory"
+        /* "isInstalled", "isParent", */ "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
+        "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory",
+
+// actions
+        "tierSchedActive",
+// zones
+        "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", "handleGuardEvents", "startTime", "stopTime", "alexaGuardState", "appFlagsMap",
+
+        "dupPendingSetup", "dupOpenedByUser"
+
     ]
     data.state = state?.findAll { !(it?.key in stskip) }
     return data

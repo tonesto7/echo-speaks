@@ -16,18 +16,18 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.1.0"
-@Field static final String appModifiedFLD = "2021-01-22"
+@Field static final String appVersionFLD  = "4.0.2.0"
+@Field static final String appModifiedFLD = "2021-01-27"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
-@Field static final Boolean isStFLD       = false
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = true
-@Field static final Map minVersionsFLD    = [echoDevice: 4010, wsDevice: 4010, actionApp: 4010, zoneApp: 4010, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4020, wsDevice: 4020, actionApp: 4020, zoneApp: 4020, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sBULLET        = '\u2022'
+@Field static final String sFRNFACE       = '\u2639'
 @Field static final String okSymFLD       = "\u2713"
 @Field static final String notOkSymFLD    = "\u2715"
 @Field static final String sFALSE         = 'false'
@@ -45,6 +45,7 @@ import groovy.transform.Field
 @Field static final String sTTM           = 'Tap to modify...'
 @Field static final String sTTC           = 'Tap to configure...'
 @Field static final String sTTP           = 'Tap to proceed...'
+@Field static final String sTTVD          = 'Tap to view details...'
 @Field static final String sTTS           = 'Tap to select...'
 @Field static final String sSETTINGS      = 'settings'
 @Field static final String sRESET         = 'reset'
@@ -156,49 +157,51 @@ def mainPage() {
             deviceDetectOpts()
         } else {
             section(sTS("Alexa Guard:")) {
-                if((Boolean)state.alexaGuardSupported) {
-                    String gState = (String)state.alexaGuardState ? ((String)state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : "Unknown"
+                if((Boolean) state.alexaGuardSupported) {
+                    String gState = (String) state.alexaGuardState ? ((String) state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : "Unknown"
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
-                    href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), image: getAppImg(gStateIcon), state: guardAutoConfigured() ? sCOMPLT : sNULL,
-                            description: "Current Status: ${gState}${guardAutoConfigured() ? "\nAutomation: Enabled" : sBLANK}\n\n${sTTM}"
-                } else if ((Boolean) isStFLD && (Boolean)state.guardDataOverMaxSize) {
-                    paragraph pTS("Because you have a lot of devices attached to your Alexa account the response size is larger than ST allows.  The request is being made using your server... On next page load you should see the status.\n\nPlease make sure you are running server version 2.3 or higher.", sNULL, false, sCLRGRY)
-                } else { paragraph pTS("Alexa Guard is not enabled or supported by any of your Echo Devices", sNULL, false, sCLRGRY) }
+                    String ad = "<p>Current Status: ${gState}</p>"
+                    ad += guardAutoConfigured() ? "<br><p>Automation: Enabled</p>" : sBLANK
+                    ad += "<br><br><p>${sTTM}</p>"
+                    href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), state: (guardAutoConfigured() ? sCOMPLT : sNULL), description: ad
+                } else { paragraph pTS("<div style='font-size: small;'>Alexa Guard is not enabled or supported by any of your Echo Devices</div>", sNULL, true, sCLRGRY) }
             }
 
             section(sTS("Alexa Devices:")) {
                 if(!newInstall) {
-                    List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : sBLANK}${it?.value?.supported == false ? " \u2639" : sBLANK}" }
                     //Map skDevs = state.skippedDevices?.findAll { (it?.value?.reason != sIN_IGNORE) }
                     //Map ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == sIN_IGNORE) }
                     List remDevs = getRemovableDevs()
                     if(remDevs?.size()) {
-                        href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: sNULL
+                        String rd = remDevs.sort().collect { """<span> ${sBULLET} ${it}</span>""" }.join("<br>")
+                        href "devCleanupPage", title: inTS("Removable Devices:"), description: "<div style='color: red; font-size: small;'>${rd}</div>", required: true, state: sNULL
                     }
-                    href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: "(${devs?.size()}) Installed\n\n${sTTM}", state: sCOMPLT, image: getAppImg(sDEVICES)
-                } else { paragraph "Device Management will be displayed after install is complete" }
+                    String devDesc = getDeviceList()?.collect { """<span>${it?.value?.name}</span>${it?.value?.online ? """<span style='color: green;'> (Online)</span>""" : sBLANK}${it?.value?.supported == false ? """<span style='color: red;'> ${sFRNFACE}</span>""" : sBLANK}""" }?.sort().join("<br>").toString()
+                    String dd = devDesc ? """<div style='font-size: small; color: #1A77C9;'>${devDesc}</div><div style='font-weight: bold;font-size: small;'><br>${sTTM}</div>""" : """<div style='font-weight: bold; font-size: small;'>${sTTC}</div"""
+                    href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: dd, state: sCOMPLT
+                } else { paragraph pTS("Device Management will be displayed after install is complete", sNull, true, "orange") }
             }
 
             section(sTS("Companion Apps:")) {
                 List zones = getZoneApps()
                 List acts = getActionApps()
-                href "zonesPage", title: inTS1("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > 1 ? "Zones" : "Zone"})" : sBLANK}", "es_groups"), description: getZoneDesc(), state: (zones?.size() ? sCOMPLT : sNULL), image: getAppImg("es_groups")
-                href "actionsPage", title: inTS1("Manage Actions${acts?.size() ? " (${acts?.size()} ${acts?.size() > 1 ? "Actions" : "Action"})" : sBLANK}", "es_actions"), description: getActionsDesc(), state: (acts?.size() ? sCOMPLT : sNULL), image: getAppImg("es_actions")
+                href "zonesPage", title: inTS1("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > 1 ? "Zones" : "Zone"})" : sBLANK}", "es_groups"), description: getZoneDesc(), state: (zones?.size() ? sCOMPLT : sNULL)
+                href "actionsPage", title: inTS1("Manage Actions${acts?.size() ? " (${acts?.size()} ${acts?.size() > 1 ? "Actions" : "Action"})" : sBLANK}", "es_actions"), description: getActionsDesc(), state: (acts?.size() ? sCOMPLT : sNULL)
             }
 
             section(sTS("Alexa Login Service:")) {
                 String ls = getLoginStatusDesc()
-                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}\n\n${sTTM}" : sTTC), state: (ls ? sCOMPLT : sNULL), image: getAppImg(sSETTINGS)
+                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}${inputFooter(sTTM)}" : sTTC), state: (ls ? sCOMPLT : sNULL)
             }
             if(!(Boolean)state.shownDevSharePage) { showDevSharePrefs() }
         }
         section(sTS("Notifications:")) {
             String t0 = getAppNotifConfDesc()
-            href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL), image: getAppImg("notification2")
+            href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}${inputFooter(sTTM)}" : inputFooter(sTTC)), state: (t0 ? sCOMPLT : sNULL)
         }
         section(sTS("Documentation & Settings:")) {
-            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, image: getAppImg("documentation")
-            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: "${sTTM}", image: getAppImg(sSETTINGS)
+            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP
+            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: "${sTTM}"
         }
 
 //        if((Boolean)state.isInstalled) {
@@ -208,20 +211,20 @@ def mainPage() {
 
         if(!newInstall) {
             section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: "Test Speech, Announcements, and Sequences Builder\n\n${sTTP}", image: getAppImg("testing")
-                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: "Test music queries\n\n${sTTP}", image: getAppImg("music")
+                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: "Test Speech, Announcements, and Sequences Builder\n\n${sTTP}"
+                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: "Test music queries\n\n${sTTP}"
             }
             section(sTS("Donations:")) {
-                href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: "Tap to open browser", image: getAppImg("donate")
+                href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: "Tap to open browser"
             }
             section(sTS("Remove Everything:")) {
-                href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: "Tap to Remove...", image: getAppImg("uninstall")
+                href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: "Tap to Remove..."
             }
             section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
                 def issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28BUG%29+&projects=echo-speaks%2F6"
                 def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BFeature+Request%5D&projects=echo-speaks%2F6"
-                href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: "Tap to open browser", image: getAppImg("www")
-                href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: "Tap to open browser", image: getAppImg("www")
+                href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: "Tap to open browser"
+                href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: "Tap to open browser"
             }
         } else {
             showDevSharePrefs()
@@ -258,19 +261,18 @@ def authStatusPage() {
 
             section(sTS("Cookie Tools: (Tap to show)", getHEAppImg("cookie")), hideable: true, hidden: true) {
                 String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
-                input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true, image: getAppImg("day_calendar")
+                input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true
                 if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
                 if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
-//                if(!isStFLD) { paragraph pTS("in Days (1-5 max)", sNULL, false, sCLRGRY) }
                 // Refreshes the cookie
-                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET), state: (pastDayChkOk ? sBLANK : sNULL)
-                if(!isStFLD) { paragraph pTS(ckDesc, sNULL, false, pastDayChkOk ? sNULL : sCLRRED) }
+                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, state: (pastDayChkOk ? sBLANK : sNULL)
+                paragraph pTS(ckDesc, sNULL, false, pastDayChkOk ? sNULL : sCLRRED)
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", sNULL, false, sCLR4D9), state: sCOMPLT
                 // Clears cookies for app and devices
-                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET), description: "Clear all stored cookie data from the app and devices.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
-                if(!isStFLD) { paragraph pTS("Clear all stored cookie data from the app and devices.", sNULL, false, sCLRGRY) }
-                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
-                if(!isStFLD) { paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, sCLRGRY) }
+                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET), description: "Clear all stored cookie data from the app and devices.", required: false, defaultValue: false, submitOnChange: true
+                paragraph pTS("Clear all stored cookie data from the app and devices.", sNULL, false, sCLRGRY)
+                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true
+                paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, sCLRGRY)
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", sFALSE, sBOOL); runIn(2, "runCookieRefresh") }
                 if(settings.resetCookies) { clearCookieData("resetCookieToggle", false) }
                 if((Boolean)settings.refreshDevCookies) { refreshDevCookies() }
@@ -279,7 +281,7 @@ def authStatusPage() {
 
         section(sTS("Cookie Service Management")) {
             String t0 = getServiceConfDesc()
-            href "servPrefPage", title: inTS1("Manage Cookie Login Service", sSETTINGS), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL), image: getAppImg(sSETTINGS)
+            href "servPrefPage", title: inTS1("Manage Cookie Login Service", sSETTINGS), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL)
         }
     }
 }
@@ -288,25 +290,23 @@ def servPrefPage() {
     Boolean newInstall = !(Boolean)state.isInstalled
     Boolean resumeConf = (Boolean)state.resumeConfig
     return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : sBLANK), uninstall: !(Boolean)state.serviceConfigured) {
-//        Boolean hasChild = ((isStFLD ? app?.getChildDevices(true) : getChildDevices())?.size())
-//        Boolean onHeroku = (isStFLD || (Boolean)settings.useHeroku != false)
+//        Boolean hasChild = (getChildDevices())?.size()
+//        Boolean onHeroku = ((Boolean)settings.useHeroku != false)
         Boolean authValid = (Boolean)state.authValid
 
-        if(!isStFLD && settings.useHeroku == null) settingUpdate("useHeroku", sTRUE, sBOOL)
+        if(settings.useHeroku == null) settingUpdate("useHeroku", sTRUE, sBOOL)
         if(settings.amazonDomain == null) settingUpdate("amazonDomain", "amazon.com", sENUM)
         if(settings.regionLocale == null) settingUpdate("regionLocale", "en-US", sENUM)
 
         if(!(Boolean)state.serviceConfigured) {
-            if(!isStFLD) {
-                section(sTS("Cookie Server Deployment Option:")) {
-                    input "useHeroku", sBOOL, title: inTS1("Deploy server to Heroku?", sHEROKU), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sHEROKU)
-                    if(!(Boolean)settings.useHeroku) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
-                }
+            section(sTS("Cookie Server Deployment Option:")) {
+                input "useHeroku", sBOOL, title: inTS1("Deploy server to Heroku?", sHEROKU), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true
+                if(!(Boolean)settings.useHeroku) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
             }
             section() { paragraph pTS("To proceed with the server setup.\nTap on 'Begin Server Setup' below", sNULL, true, sCLR4D9), state: sCOMPLT }
             srvcPrefOpts(true)
             section(sTS("Deploy the Server:")) {
-                href (url: getAppEndpointUrl("config"), style: sEXTNRL, title: inTS1("Begin Server Setup", "upload"), description: sTTP, required: false, state: sCOMPLT, image: getAppImg("upload"))
+                href (url: getAppEndpointUrl("config"), style: sEXTNRL, title: inTS1("Begin Server Setup", "upload"), description: sTTP, required: false, state: sCOMPLT)
             }
         } else {
             String myUrl = "${getServerHostURL()}/config"
@@ -314,28 +314,28 @@ def servPrefPage() {
             if(!authValid) {
                 section(sTS("Authentication:")) {
                     paragraph pTS("You still need to Login to Amazon to complete the setup", sNULL, true, sCLRRED), required: true, state: sNULL
-                    href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP, image: getAppImg(sAMAZONORNG)
+                    href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP
                 }
             } else {
                 Boolean oH = (Boolean)getServerItem("onHeroku")
                     section(sTS("Server Management:")) {
                         if(oH && (String)state.herokuName) { paragraph pTS("Heroku Name:\n \u2022 ${(String)state.herokuName}", sNULL, true, sCLR4D9), state: sCOMPLT }
-                        href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP, image: getAppImg(sAMAZONORNG)
-                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, required: false, title: inTS1("Heroku App Settings", sHEROKU), description: sTTP, image: getAppImg(sHEROKU)
-                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, required: false, title: inTS1("Heroku App Logs", sHEROKU), description: sTTP, image: getAppImg(sHEROKU)
+                        href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP
+                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, required: false, title: inTS1("Heroku App Settings", sHEROKU), description: sTTP
+                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, required: false, title: inTS1("Heroku App Logs", sHEROKU), description: sTTP
                     }
             }
             srvcPrefOpts()
         }
         section(sTS("Reset Options (Tap to show):"), hideable: true, hidden: true) {
             input "resetService", sBOOL, title: inTS1("Reset Service Data?", sRESET), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
-                required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
-            if(!isStFLD) { paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, sCLRGRY) }
+                required: false, defaultValue: false, submitOnChange: true
+            paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, sCLRGRY)
             if(settings?.resetService) { clearCloudConfig() }
         }
 /*        section(sTS("Documentation & Settings:")) {
-            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, image: getAppImg("documentation")
-            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: sTTM, image: getAppImg(sSETTINGS)
+            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP
+            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: sTTM
         } */
         state.resumeConfig = false
     }
@@ -344,13 +344,13 @@ def servPrefPage() {
 def srvcPrefOpts(Boolean req=false) {
     section(sTS("${req ? "Required " : sBLANK}Amazon Locale Settings"), hideable: false, hidden: false) {
         if(req) {
-            input "amazonDomain", sENUM, title: inTS1("Select your Amazon Domain?", sAMAZONORNG), description: sBLANK, required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true, image: getAppImg(sAMAZONORNG)
-            input "regionLocale", sENUM, title: inTS1("Select your Locale?", "www"), description: sBLANK, required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true, image: getAppImg("www")
+            input "amazonDomain", sENUM, title: inTS1("Select your Amazon Domain?", sAMAZONORNG), description: sBLANK, required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true
+            input "regionLocale", sENUM, title: inTS1("Select your Locale?", "www"), description: sBLANK, required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true
         } else {
             String s = sBLANK
             s += settings.amazonDomain ? "Amazon Domain: (${settings.amazonDomain})" : sBLANK
             s += settings.regionLocale ? "\nLocale Region: (${settings.regionLocale})" : sBLANK
-            paragraph pTS(s, getHEAppImg(sAMAZONORNG), false, sCLR4D9), state: sCOMPLT, image: getAppImg(sAMAZONORNG)
+            paragraph pTS(s, getHEAppImg(sAMAZONORNG), false, sCLR4D9), state: sCOMPLT
         }
     }
 }
@@ -360,25 +360,28 @@ def deviceManagePage() {
         Boolean newInstall = !(Boolean)state.isInstalled
         section(sTS("Alexa Devices:")) {
             if(!newInstall) {
-                List devs = getDeviceList()?.collect { "${it?.value?.name}${it?.value?.online ? " (Online)" : sBLANK}${it?.value?.supported == false ? " \u2639" : sBLANK}" }?.sort()
+                Map devs = getDeviceList()
                 Map skDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason != sIN_IGNORE) }
                 Map ignDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason == sIN_IGNORE) }
                 if(devs?.size()) {
-                    href "deviceListPage", title: inTS("Installed Devices:"), description: "${devs?.join("\n")}\n\nTap to view details...", state: sCOMPLT
-                } else { paragraph title: "Discovered Devices:", "No Devices Available", state: sCOMPLT }
+                    String devDesc = devs?.collect { "<span>${it?.value?.name}</span>${it?.value?.online ? "<span style='color: green;'> (Online)</span>" : sBLANK}${it?.value?.supported == false ? "<span style='color: red;'> ${sFRNFACE}</span>" : sBLANK}" }?.sort().join("<br>").toString()
+                    String dd = "<div style='font-size: small; color: #1A77C9;'>${devDesc}</div><br><div style='font-weight: bold;font-size: small;'>${sTTVD}</div>"
+                    href "deviceListPage", title: inTS("Installed Devices:"), description: dd, state: sCOMPLT
+                } else { paragraph pTS("Discovered Devices:\nNo Devices Available", sNULL, false, "red"), state: sCOMPLT }
                 List remDevs = getRemovableDevs()
                 if(remDevs?.size()) {
-                    href "devCleanupPage", title: inTS("Removable Devices:"), description: "${remDevs?.sort()?.join("\n")}", required: true, state: sNULL
+                    String rd = remDevs.sort().collect { """<span> ${sBULLET} ${it}</span>""" }.join("<br>")
+                    href "devCleanupPage", title: inTS("Removable Devices:"), description: "<div style='color: red; font-size: small;'>${rd}</div>", required: true, state: sNULL
                 }
                 if(skDevs?.size()) {
                     String uDesc = "Unsupported: (${skDevs?.size()})"
                     uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : sBLANK
                     uDesc += (Boolean)settings.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : sBLANK
-                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "${uDesc}\n\nTap to view details...", state: sCOMPLT
+                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "<div style='color: orange;font-size: small;'>${uDesc}</div><br><div style='font-weight: bold;font-size: small;'>${sTTVD}</div>", state: sCOMPLT
                 }
             }
             String devPrefDesc = devicePrefsDesc()
-            href "devicePrefsPage", title: inTS1("Device Detection\nPreferences", sDEVICES), description: "${devPrefDesc ? "${devPrefDesc}\n\n${sTTM}" : sTTC}", state: sCOMPLT, image: getAppImg(sDEVICES)
+            href "devicePrefsPage", title: inTS1("Device Detection\nPreferences", sDEVICES), description: (devPrefDesc ? "${devPrefDesc}${inputFooter(sTTM)}" : inputFooter(sTTC)), state: sCOMPLT
         }
     }
 }
@@ -389,7 +392,7 @@ def alexaGuardPage() {
         String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
         String gStateTitle = (gState == "Unknown" || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
         section(sTS("Alexa Guard Control")) {
-            input "alexaGuardAwayToggle", sBOOL, title: inTS1(gStateTitle, gStateIcon), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true, image: getAppImg(gStateIcon)
+            input "alexaGuardAwayToggle", sBOOL, title: inTS1(gStateTitle, gStateIcon), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true
         }
         if(settings?.alexaGuardAwayToggle != state.alexaGuardAwayToggle) {
             setGuardState(settings.alexaGuardAwayToggle == true ? sARM_AWAY : sARM_STAY)
@@ -397,7 +400,7 @@ def alexaGuardPage() {
         state.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
         section(sTS("Automate Guard Control")) {
             String t0 = guardAutoDesc()
-            href "alexaGuardAutoPage", title: inTS1("Automate Guard Changes", "alarm_disarm"), description: t0, image: getAppImg("alarm_disarm"), state: (t0==sTTC ? sNULL : sCOMPLT)
+            href "alexaGuardAutoPage", title: inTS1("Automate Guard Changes", "alarm_disarm"), description: t0, state: (t0==sTTC ? sNULL : sCOMPLT)
         }
     }
 }
@@ -410,31 +413,31 @@ def alexaGuardAutoPage() {
         Boolean modeReq = (settings.guardAwayModes || settings.guardHomeModes)
         // Boolean swReq = (settings?.guardAwaySw || settings?.guardHomeSw)
         section(sTS("Set Guard Using ${asn}")) {
-            input "guardHomeAlarm", sENUM, title: inTS1("Home in ${asn} modes.", "alarm_home"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_home")
-            input "guardAwayAlarm", sENUM, title: inTS1("Away in ${asn} modes.", "alarm_away"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true, image: getAppImg("alarm_away")
+            input "guardHomeAlarm", sENUM, title: inTS1("Home in ${asn} modes.", "alarm_home"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true
+            input "guardAwayAlarm", sENUM, title: inTS1("Away in ${asn} modes.", "alarm_away"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true
         }
 
         section(sTS("Set Guard Using Modes")) {
-            input "guardHomeModes", "mode", title: inTS1("Home in these Modes?", "mode"), description: sTTS, required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
-            input "guardAwayModes", "mode", title: inTS1("Away in these Modes?", "mode"), description: sTTS, required: modeReq, multiple: true, submitOnChange: true, image: getAppImg("mode")
+            input "guardHomeModes", "mode", title: inTS1("Home in these Modes?", "mode"), description: sTTS, required: modeReq, multiple: true, submitOnChange: true
+            input "guardAwayModes", "mode", title: inTS1("Away in these Modes?", "mode"), description: sTTS, required: modeReq, multiple: true, submitOnChange: true
         }
 
         section(sTS("Set Guard Using Switches:")) {
-            input "guardHomeSwitch", "capability.switch", title: inTS1("Home when any of these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg(sSWITCH)
-            input "guardAwaySwitch", "capability.switch", title: inTS1("Away when any of these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg(sSWITCH)
+            input "guardHomeSwitch", "capability.switch", title: inTS1("Home when any of these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
+            input "guardAwaySwitch", "capability.switch", title: inTS1("Away when any of these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
         }
 
         section(sTS("Set Guard using Presence")) {
-            input "guardAwayPresence", "capability.presenceSensor", title: inTS1("Away when these devices are All away?", "presence"), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg("presence")
+            input "guardAwayPresence", "capability.presenceSensor", title: inTS1("Away when these devices are All away?", "presence"), description: sTTS, multiple: true, required: false, submitOnChange: true
         }
         if(guardAutoConfigured()) {
             section(sTS("Delay:")) {
-                input "guardAwayDelay", "number", title: inTS1("Delay before arming Away?\n(in seconds)", "delay_time"), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true, image: getAppImg("delay_time")
+                input "guardAwayDelay", "number", title: inTS1("Delay before arming Away?\n(in seconds)", "delay_time"), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true
             }
         }
         section(sTS("Restrict Guard Changes (Optional):")) {
-            input "guardRestrictOnSwitch", "capability.switch", title: inTS1("Only when these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg(sSWITCH)
-            input "guardRestrictOffSwitch", "capability.switch", title: inTS1("Only when these are Off?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true, image: getAppImg(sSWITCH)
+            input "guardRestrictOnSwitch", "capability.switch", title: inTS1("Only when these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
+            input "guardRestrictOffSwitch", "capability.switch", title: inTS1("Only when these are Off?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
         }
     }
 }
@@ -520,31 +523,31 @@ def actionsPage() {
         if(actApps) { /*Nothing to add here yet*/ }
         else { section(sBLANK) { paragraph pTS("You haven't created any Actions yet!\nTap Create New Action to get Started") } }
         section() {
-            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Action", "es_actions"), image: getAppImg("es_actions"))
+            app(name: "actionApp", appName: actChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Action", "es_actions"))
             if(actApps?.size()) {
-                input "actionDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Action", "es_actions"), description: sTTS, options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_actions")
+                input "actionDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Action", "es_actions"), description: sTTS, options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true
                 if(settings.actionDuplicateSelect) {
-                    href "actionDuplicationPage", title: inTS1("Create Duplicate Action?", "question"), description: sTTP, image: getAppImg("question")
+                    href "actionDuplicationPage", title: inTS1("Create Duplicate Action?", "question"), description: sTTP
                 }
             }
         }
         if(actApps?.size()) {
             section (sTS("Action History:")) {
-                href "viewActionHistory", title: inTS1("View Action History", "tasks"), description: "(Grouped by Action)", image: getAppImg("tasks"), state: sCOMPLT
+                href "viewActionHistory", title: inTS1("View Action History", "tasks"), description: "(Grouped by Action)", state: sCOMPLT
             }
 
             section (sTS("Global Actions Management:"), hideable: true, hidden: true) {
                 if(activeActions?.size()) {
                     input "pauseChildActions", sBOOL, title: inTS1("Pause all actions?", "pause_orange"), description: "When pausing all Actions you can either restore all or open each action and manually unpause it.",
-                            defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                            defaultValue: false, submitOnChange: true
                     if((Boolean)settings.pauseChildActions) { settingUpdate("pauseChildActions", sFALSE, sBOOL); runIn(3, "executeActionPause") }
-                    if(!isStFLD) { paragraph pTS("When pausing all Actions you can either restore all or open each action and manually unpause it.", sNULL, false, sCLRGRY) }
+                    paragraph pTS("When pausing all Actions you can either restore all or open each action and manually unpause it.", sNULL, false, sCLRGRY)
                 }
                 if(pausedActions?.size()) {
-                    input "unpauseChildActions", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                    input "unpauseChildActions", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true
                     if(settings.unpauseChildActions) { settingUpdate("unpauseChildActions", sFALSE, sBOOL); runIn(3, "executeActionUnpause") }
                 }
-                input "reinitChildActions", sBOOL, title: inTS1("Force Refresh all actions?", sRESET), defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
+                input "reinitChildActions", sBOOL, title: inTS1("Force Refresh all actions?", sRESET), defaultValue: false, submitOnChange: true
                 if(settings.reinitChildActions) { settingUpdate("reinitChildActions", sFALSE, sBOOL); runIn(3, "executeActionUpdate") }
             }
         }
@@ -622,6 +625,8 @@ public void clearDuplicationItems() {
     state.zoneDuplicated = false
     if(settings.actionDuplicateSelect) settingRemove("actionDuplicateSelect")
     if(settings.zoneDuplicateSelect) settingRemove("zoneDuplicateSelect")
+    state.remove('actionDuplicated')
+    state.remove('zoneDuplicated')
 }
 
 public void childAppDuplicationFinished(String type, String childId) {
@@ -644,31 +649,31 @@ def zonesPage() {
             section(sBLANK) { paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started") }
         }
         section() {
-            app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Zone", "es_groups"), image: getAppImg("es_groups"))
+            app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Zone", "es_groups"))
             if(zApps?.size()) {
-                input "zoneDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Zone", "es_groups"), description: sTTS, options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true, image: getAppImg("es_groups")
+                input "zoneDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Zone", "es_groups"), description: sTTS, options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true
                 if(settings.zoneDuplicateSelect) {
-                    href "zoneDuplicationPage", title: inTS1("Create Duplicate Zone?", "question"), description: sTTP, image: getAppImg("question")
+                    href "zoneDuplicationPage", title: inTS1("Create Duplicate Zone?", "question"), description: sTTP
                 }
             }
         }
         if(zApps?.size()) {
             section (sTS("Zone History:")) {
-                href "viewZoneHistory", title: inTS1("View Zone History", "tasks"), description: "(Grouped by Zone)", image: getAppImg("tasks"), state: sCOMPLT
+                href "viewZoneHistory", title: inTS1("View Zone History", "tasks"), description: "(Grouped by Zone)", state: sCOMPLT
             }
         }
         section (sTS("Zone Management:"), hideable: true, hidden: true) {
             if(activeZones?.size()) {
                 input "pauseChildZones", sBOOL, title: inTS1("Pause all Zones?", "pause_orange"), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
-                        defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                        defaultValue: false, submitOnChange: true
                 if(settings.pauseChildZones) { settingUpdate("pauseChildZones", sFALSE, sBOOL); runIn(3, "executeZonePause") }
-                if(!isStFLD) { paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", sNULL, false, sCLRGRY) }
+                paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", sNULL, false, sCLRGRY)
             }
             if(pausedZones?.size()) {
-                input "unpauseChildZone", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true, image: getAppImg("pause_orange")
+                input "unpauseChildZone", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true
                 if(settings?.unpauseChildZones) { settingUpdate("unpauseChildZones", sFALSE, sBOOL); runIn(3, "executeZoneUnpause") }
             }
-            input "reinitChildZones", sBOOL, title: inTS1("Clear Zones Status and force a full status refresh for all zones?", sRESET), defaultValue: false, submitOnChange: true, image: getAppImg(sRESET)
+            input "reinitChildZones", sBOOL, title: inTS1("Clear Zones Status and force a full status refresh for all zones?", sRESET), defaultValue: false, submitOnChange: true
             if(settings?.reinitChildZones) { settingUpdate("reinitChildZones", sFALSE, sBOOL); runIn(3, "executeZoneUpdate") }
         }
         state.childInstallOkFlag = true
@@ -744,15 +749,15 @@ private deviceDetectOpts() {
 //    Boolean newInstall = !(Boolean) state.isInstalled
 //    Boolean resumeConf = (Boolean) state.resumeConfig
     section(sTS("Device Detection Preferences")) {
-        input "autoCreateDevices", sBOOL, title: inTS1("Auto Create New Devices?", sDEVICES), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEVICES)
-        input "createTablets", sBOOL, title: inTS1("Create Devices for Tablets?", "amazon_tablet"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("amazon_tablet")
-        input "createWHA", sBOOL, title: inTS1("Create Multiroom Devices?", "echo_wha"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("echo_wha")
-        input "createOtherDevices", sBOOL, title: inTS1("Create Other Alexa Enabled Devices?", sDEVICES), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEVICES)
-        input "autoRenameDevices", sBOOL, title: inTS1("Rename Devices to Match Amazon Echo Name?", "name_tag"), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
-        input "addEchoNamePrefix", sBOOL, title: inTS1("Add 'Echo - ' Prefix to label?", "name_tag"), description: sBLANK, required: false, defaultValue: true, submitOnChange: true, image: getAppImg("name_tag")
+        input "autoCreateDevices", sBOOL, title: inTS1("Auto Create New Devices?", sDEVICES), description: sBLANK, required: false, defaultValue: true, submitOnChange: true
+        input "createTablets", sBOOL, title: inTS1("Create Devices for Tablets?", "amazon_tablet"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+        input "createWHA", sBOOL, title: inTS1("Create Multiroom Devices?", "echo_wha"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+        input "createOtherDevices", sBOOL, title: inTS1("Create Other Alexa Enabled Devices?", sDEVICES), description: "FireTV (Cube, Stick), Sonos, etc.", required: false, defaultValue: false, submitOnChange: true
+        input "autoRenameDevices", sBOOL, title: inTS1("Rename Devices to Match Amazon Echo Name?", "name_tag"), description: sBLANK, required: false, defaultValue: true, submitOnChange: true
+        input "addEchoNamePrefix", sBOOL, title: inTS1("Add 'Echo - ' Prefix to label?", "name_tag"), description: sBLANK, required: false, defaultValue: true, submitOnChange: true
         Map devs = getAllDevices(true)
         if(devs?.size()) {
-            input "echoDeviceFilter", sENUM, title: inTS1("Don't Use these Devices", "exclude"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true, image: getAppImg("exclude")
+            input "echoDeviceFilter", sENUM, title: inTS1("Don't Use these Devices", "exclude"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             paragraph title:"Notice:", pTS("To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use these devices input above before removing.", getAppImg("info", true), false)
         }
     }
@@ -779,7 +784,7 @@ private devCleanupSect() {
 private List getRemovableDevs() {
     Map eDevs = getEchoDeviceMap()
     eDevs = eDevs  ?: [:]
-    List cDevs = (isStFLD ? app?.getChildDevices(true) : app?.getChildDevices())
+    List cDevs = app?.getChildDevices()
     List remDevs = []
     String myId=app.getId()
     String nmS = 'echoSpeaks_websocket'
@@ -797,29 +802,30 @@ private String devicePrefsDesc() {
     String str = sBLANK
     str += "Auto Create (${!(Boolean)settings.autoCreateDevices ? "Disabled" : "Enabled"})"
     if((Boolean)settings.autoCreateDevices) {
-        str += (Boolean) settings.createTablets ? bulletItem(str, "Tablets") : sBLANK
-        str += (Boolean) settings.createWHA ? bulletItem(str, "WHA") : sBLANK
-        str += (Boolean) settings.createOtherDevices ? bulletItem(str, "Other Devices") : sBLANK
+        str += (Boolean) settings.createTablets ? "<br><span> ${sBULLET} Tablets</span>" : sBLANK
+        str += (Boolean) settings.createWHA ? "<br><span> ${sBULLET} WHA</span>" : sBLANK
+        str += (Boolean) settings.createOtherDevices ? "<br><span> ${sBULLET} Other Devices</span>" : sBLANK
     }
-    str += (Boolean) settings.autoRenameDevices ? bulletItem(str, "Auto Rename") : sBLANK
-    str += (Boolean) settings.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : sBLANK
+    str += (Boolean) settings.autoRenameDevices ? "<br><span> ${sBULLET} Auto Rename</span>" : sBLANK
+    str += (Boolean) settings.bypassDeviceBlocks ? "<br><span> ${sBULLET} Block Bypass: (Active)</span>" : sBLANK
+    str = paraTS(null, str, null, [:], [s: 'small', c: '#1A77C9'])
     return str != sBLANK ? str : sNULL
 }
 
 def settingsPage() {
     return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
         section(sTS("Logging:")) {
-            input "logInfo", sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logWarn", sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEBUG)
-            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sDEBUG)
+            input "logInfo", sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+            input "logWarn", sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+            input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
+            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
         }
         if(advLogsActive()) { logsEnabled() }
         showDevSharePrefs()
         section(sTS("Diagnostic Data:")) {
             paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", sNULL, false, sCLRGRY)
-            input "diagShareSensitveData", sBOOL, title: inTS1("Share Cookie Data?", "question"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("question")
+            input "diagShareSensitveData", sBOOL, title: inTS1("Share Cookie Data?", "question"), required: false, defaultValue: false, submitOnChange: true
             href url: getAppEndpointUrl("diagData"), style: sEXTNRL, title: inTS("Diagnostic Data"), description: "Tap to view"
         }
     }
@@ -829,20 +835,18 @@ def deviceListPage() {
     return dynamicPage(name: "deviceListPage", install: false) {
         section(sTS("Discovered Devices:")) {
             getEchoDeviceMap()?.sort { it?.value?.name }?.each { String k,Map v->
-                String str = "Status: (${v.online ? "Online" : "Offline"})"
-                str += "\nStyle: ${v.style?.name}"
-                str += "\nFamily: ${v.family}"
-                str += "\nType: ${v.type}"
-                str += "\nVolume Control: (${v.volumeSupport?.toString()?.capitalize()})"
-                str += "\nAnnouncements: (${v.announceSupport?.toString()?.capitalize()})"
-                str += "\nText-to-Speech: (${v.ttsSupport?.toString()?.capitalize()})"
-                str += "\nMusic Player: (${v.mediaPlayer?.toString()?.capitalize()})"
-                str += v.supported != true ? "\nUnsupported Device: (True)" : sBLANK
-                str += (v.mediaPlayer == true && v.musicProviders) ? "\nMusic Providers: [${v.musicProviders}]" : sBLANK
+                String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span>"
+                str += "<br><span>Style: ${v.style?.name}</span>"
+                str += "<br><span>Family: ${v.family}</span>"
+                str += "<br><span>Type: ${v.type}</span>"
+                str += "<br><span>Volume Control: (${v.volumeSupport?.toString()?.capitalize()})</span>"
+                str += "<br><span>Announcements: (${v.announceSupport?.toString()?.capitalize()})</span>"
+                str += "<br><span>Text-to-Speech: (${v.ttsSupport?.toString()?.capitalize()})</span>"
+                str += "<br><span>Music Player: (${v.mediaPlayer?.toString()?.capitalize()})</span>"
+                str += v.supported != true ? "<br><span>Unsupported Device: (True)</span>" : sBLANK
+                str += (v.mediaPlayer == true && v.musicProviders) ? "<br><span>Music Providers: [${v.musicProviders}]</span>" : sBLANK
                 String a = (String)v.style?.image
-                if(isStFLD) {
-                    paragraph title: pTS((String)v.name, getAppImg(a, true), false, sCLR4D9), str, required: true, state: (v.online ? sCOMPLT : sNULL), image: getAppImg(a)
-                } else { href "deviceListPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v.online ? sCOMPLT : sNULL), image: getAppImg(a) }
+                paragraph paraTS((String)v.name, str, (String)v.style?.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? '#1A77C9' : 'gray')])
             }
         }
     }
@@ -855,13 +859,17 @@ def unrecogDevicesPage() {
         Map<String, Map> unDevs = skDevMap?.findAll { (it?.value?.reason != sIN_IGNORE) }
         section(sTS("Unrecognized/Unsupported Devices:")) {
             if(unDevs?.size()) {
-                unDevs.sort { it?.value?.name }?.each { String k,Map v->
-                    String str = "Status: (${v.online ? "Online" : "Offline"})\nStyle: ${(String)v.desc}\nFamily: ${(String)v.family}\nType: ${(String)v.type}\nVolume Control: (${v?.volume?.toString()?.capitalize()})"
-                    str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
-                    String a = (String)v.image
-                    if(isStFLD) {
-                        paragraph title: pTS((String)v.name, getAppImg(a, true), false), str, required: true, state: (v.online ? sCOMPLT : sNULL), image: getAppImg(a)
-                    } else { href "unrecogDevicesPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v.online ? sCOMPLT : sNULL), image: getAppImg(a) }
+                unDevs.sort { it?.value?.name }?.each { String k, Map v->
+                    log.debug "v: $v"
+                    String str = "<span>Status: (${(Boolean)v.online ? "Online" : "Offline"})</span>"
+                    str += "<br><span>Style: ${(String) v.desc}</span>"
+                    str += "<br><span>Family: ${(String)v.family}</span>"
+                    str += "<br><span>Type: ${(String)v.type}</span>"
+                    str += "<br><span>Volume Control: (${v?.volume?.toString()?.capitalize()})</span>"
+                    str += "<br><span>Text-to-Speech: (${v?.tts?.toString()?.capitalize()})</span>"
+                    str += "<br><span>Music Player: (${v?.mediaPlayer?.toString()?.capitalize()})</span>"
+                    str += "<br><span>Reason Ignored: (${v?.reason})</span>"
+                    paragraph paraTS((String)v.name, str, (String)v.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? '#1A77C9' : 'gray')])
                 }
                 input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
@@ -871,12 +879,10 @@ def unrecogDevicesPage() {
         if(ignDevs?.size()) {
             section(sTS("User Ignored Devices:")) {
                 ignDevs.sort { it?.value?.name }?.each { k,v->
-                    String str = "Status: (${v.online ? "Online" : "Offline"})\nStyle: ${(String)v.desc}\nFamily: ${(String)v.family}\nType: ${(String)v.type}\nVolume Control: (${v.volume?.toString()?.capitalize()})"
-                    str += "\nText-to-Speech: (${v?.tts?.toString()?.capitalize()})\nMusic Player: (${v?.mediaPlayer?.toString()?.capitalize()})\nReason Ignored: (${v?.reason})"
+                    String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span><br><span>Style: ${(String)v.desc}</span><br><span>Family: ${(String)v.family}</span><br><span>Type: ${(String)v.type}</span><br><span>Volume Control: (${v?.volume?.toString()?.capitalize()})</span>"
+                    str += "<br><span>Text-to-Speech: (${v?.tts?.toString()?.capitalize()})</span><br><span>Music Player: (${v?.mediaPlayer?.toString()?.capitalize()})</span><br><span>Reason Ignored: (${v?.reason})</span"
                     String a = (String)v.image
-                    if(isStFLD) {
-                        paragraph title: pTS((String)v.name, getAppImg(a, true), false, sCLR4D9), str, required: true, state: (v?.online ? sCOMPLT : sNULL), image: getAppImg(a)
-                    } else { href "unrecogDevicesPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v?.online ? sCOMPLT : sNULL), image: getAppImg(a) }
+                    href "unrecogDevicesPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v?.online ? sCOMPLT : sNULL)
                 }
             }
         }
@@ -886,13 +892,13 @@ def unrecogDevicesPage() {
 def showDevSharePrefs() {
     section(sTS("Share Data with Developer:")) {
         paragraph title: "What is this used for?", pTS("These options send non-user identifiable information and error data to diagnose catch trending issues.", sNULL, false)
-        input ("optOutMetrics", sBOOL, title: inTS1("Do Not Share Data?", "analytics"), required: false, defaultValue: false, submitOnChange: true, image: getAppImg("analytics"))
+        input ("optOutMetrics", sBOOL, title: inTS1("Do Not Share Data?", "analytics"), required: false, defaultValue: false, submitOnChange: true)
 //        if(!(Boolean)settings.optOutMetrics) {
-            href url: getAppEndpointUrl("renderMetricData"), style: (isStFLD ? "embedded" : sEXTNRL), title: inTS1("View the Data shared with Developer", "view"), description: "Tap to view Data", required: false, image: getAppImg("view")
+            href url: getAppEndpointUrl("renderMetricData"), style: sEXTNRL, title: inTS1("View the Data shared with Developer", "view"), description: "Tap to view Data", required: false
  //       }
     }
     if(!(Boolean)settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
-        section() { input "sendMetricsNow", sBOOL, title: inTS1("Send Metrics Now?", sRESET), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg(sRESET) }
+        section() { input "sendMetricsNow", sBOOL, title: inTS1("Send Metrics Now?", sRESET), description: sBLANK, required: false, defaultValue: false, submitOnChange: true }
         if(sendMetricsNow) { sendInstallData() }
     }
     state.shownDevSharePage = true
@@ -924,69 +930,46 @@ def notifPrefPage() {
         section(sBLANK) {
             paragraph title: "Notice:", pTS("The settings configure here are used by both the App and the Devices.", getAppImg("info", true), true, sCLR4D9), state: sCOMPLT
         }
-        if(isStFLD) {
-            section(sTS("Push Messages:")) {
-                input "usePush", sBOOL, title: inTS1("Send Push Notitifications\n(Optional)", "notification"), required: false, submitOnChange: true, defaultValue: false, image: getAppImg("notification")
-            }
-            section(sTS("SMS Text Messaging:")) {
-                paragraph pTS("To send to multiple numbers separate the number by a comma\nE.g. 8045551122,8046663344", sNULL, false)
-                input "smsNumbers", "text", title: inTS1("Send SMS Text to...\n(Optional)", "sms_phone"), required: false, submitOnChange: true, image: getAppImg("sms_phone")
-            }
-        } else { settingRemove('smsNumbers'); settingRemove('usePush') }
         section (sTS("Notification Devices:")) {
-            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true, image: getAppImg("notification")
+            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
         }
-        if(isStFLD) {
-            section(sTS("Pushover Support:")) {
-                input ("pushoverEnabled", sBOOL, title: inTS1("Use Pushover Integration", "pushover"), description: "requires Pushover Manager app.", required: false, defaultValue: false, submitOnChange: true, image: getAppImg("pushover"))
-                if((Boolean) settings.pushoverEnabled) {
-                    if(!state.pushoverManager) {
-                        paragraph "If this is the first time enabling Pushover than leave this page and come back if the devices list is empty"
-                        pushover_init()
-                    } else {
-                        input "pushoverDevices", sENUM, title: inTS("Select Pushover Devices"), description: sTTS, groupedOptions: getPushoverDevices(), multiple: true, required: false, submitOnChange: true
-                        if(settings.pushoverDevices) {
-                            Map t0 = ["-2":"Lowest", "-1":"Low", "0":"Normal", "1":"High", "2":"Emergency"]
-                            input "pushoverPriority", sENUM, title: inTS("Notification Priority (Optional)"), description: sTTS, defaultValue: "0", required: false, multiple: false, submitOnChange: true, options: t0
-                            input "pushoverSound", sENUM, title: inTS("Notification Sound (Optional)"), description: sTTS, defaultValue: "pushover", required: false, multiple: false, submitOnChange: true, options: getPushoverSounds()
-                        }
-                    }
-//                    if((Boolean)state.isInstalled) {
-//                    } else { paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
-                }
-            }
-        } else {
-            state.remove('pushoverManager')
-            settingRemove('pushoverEnabled')
-            settingRemove('pushoverDevices')
-            settingRemove('pushoverPriority')
-            settingRemove('pushoverSound')
-        }
-        if(settings?.smsNumbers?.toString()?.length()>=10 || settings.notif_devs || (Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) {
-            if(((Boolean)settings.usePush || settings.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state.pushTested && state.pushoverManager) {
+        
+//TODO REMOVE
+        if(settings.smsNumbers) settingRemove('smsNumbers')
+        if(settings.usePush) settingRemove('usePush')
+        state.remove('pushoverManager')
+        settingRemove('pushoverEnabled')
+        settingRemove('pushoverDevices')
+        settingRemove('pushoverPriority')
+        settingRemove('pushoverSound')
+
+        //if(settings?.smsNumbers?.toString()?.length()>=10 || settings.notif_devs || (Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) {
+        if(settings.notif_devs) {
+            //if(((Boolean)settings.usePush || settings.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state.pushTested && state.pushoverManager) {
+            if((settings.notif_devs) && !state.pushTested) {
                 if(sendMsg("Info", "Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
                     state.pushTested = true
                 }
             }
             section(sTS("Notification Restrictions:")) {
                 String t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (t1 ? "${t1}\n\n${sTTM}" : sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("restriction")
+                href "setNotificationTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (t1 ? "${t1}\n\n${sTTM}" : sTTC), state: (t1 ? sCOMPLT : sNULL)
             }
             section(sTS("Missed Poll Alerts:")) {
-                input (name: "sendMissedPollMsg", type: sBOOL, title: inTS1("Send Missed Checkin Alerts?", "late"), defaultValue: true, submitOnChange: true, image: getAppImg("late"))
+                input (name: "sendMissedPollMsg", type: sBOOL, title: inTS1("Send Missed Checkin Alerts?", "late"), defaultValue: true, submitOnChange: true)
                 if((Boolean)settings.sendMissedPollMsg) {
-                    input (name: "misPollNotifyWaitVal", type: sENUM, title: inTS1("Time Past the Missed Checkin?", "delay_time"), description: "Default: 45 Minutes", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true, image: getAppImg("delay_time"))
-                    input (name: "misPollNotifyMsgWaitVal", type: sENUM, title: inTS1("Send Reminder After?", "reminder"), description: "Default: 1 Hour", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
+                    input (name: "misPollNotifyWaitVal", type: sENUM, title: inTS1("Time Past the Missed Checkin?", "delay_time"), description: "Default: 45 Minutes", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true)
+                    input (name: "misPollNotifyMsgWaitVal", type: sENUM, title: inTS1("Send Reminder After?", "reminder"), description: "Default: 1 Hour", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true)
                 }
             }
             section(sTS("Cookie Alerts:")) {
-                input (name: "sendCookieRefreshMsg", type: sBOOL, title: inTS1("Send on Refreshed Cookie?", "cookie"), defaultValue: false, submitOnChange: true, image: getAppImg("cookie"))
-                input (name: "sendCookieInvalidMsg", type: sBOOL, title: inTS1("Send on Invalid Cookie?", "cookie"), defaultValue: true, submitOnChange: true, image: getAppImg("cookie"))
+                input (name: "sendCookieRefreshMsg", type: sBOOL, title: inTS1("Send on Refreshed Cookie?", "cookie"), defaultValue: false, submitOnChange: true)
+                input (name: "sendCookieInvalidMsg", type: sBOOL, title: inTS1("Send on Invalid Cookie?", "cookie"), defaultValue: true, submitOnChange: true)
             }
             section(sTS("Code Update Alerts:")) {
-                input "sendAppUpdateMsg", sBOOL, title: inTS1("Send for Updates...", "update"), defaultValue: true, submitOnChange: true, image: getAppImg("update")
+                input "sendAppUpdateMsg", sBOOL, title: inTS1("Send for Updates...", "update"), defaultValue: true, submitOnChange: true
                 if((Boolean)settings.sendAppUpdateMsg) {
-                    input (name: "updNotifyWaitVal", type: sENUM, title: inTS1("Send Reminders After?", "reminder"), description: "Default: 12 Hours", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true, image: getAppImg("reminder"))
+                    input (name: "updNotifyWaitVal", type: sENUM, title: inTS1("Send Reminders After?", "reminder"), description: "Default: 12 Hours", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true)
                 }
             }
         } else { state.pushTested = false }
@@ -1004,16 +987,16 @@ def setNotificationTimePage() {
          }
         Boolean timeReq = settings["qStartTime"] || settings["qStopTime"]
         section() {
-            input "qStartInput", sENUM, title: inTS1("Starting at", "start_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("start_time")
+            input "qStartInput", sENUM, title: inTS1("Starting at", "start_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false
             if(settings["qStartInput"] == "A specific time") {
-                input "qStartTime", "time", title: inTS1("Start time", "start_time"), required: timeReq, image: getAppImg("start_time")
+                input "qStartTime", "time", title: inTS1("Start time", "start_time"), required: timeReq
             }
-            input "qStopInput", sENUM, title: inTS1("Stopping at", "stop_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false, image: getAppImg("stop_time")
+            input "qStopInput", sENUM, title: inTS1("Stopping at", "stop_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false
             if(settings?."qStopInput" == "A specific time") {
-                input "qStopTime", "time", title: inTS1("Stop time", "stop_time"), required: timeReq, image: getAppImg("stop_time")
+                input "qStopTime", "time", title: inTS1("Stop time", "stop_time"), required: timeReq
             }
-            input "quietDays", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, image: getAppImg("day_calendar"), options: weekDaysEnum()
-            input "quietModes", "mode", title: inTS1("When these modes are Active", "mode"), multiple: true, submitOnChange: true, required: false, image: getAppImg("mode")
+            input "quietDays", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
+            input "quietModes", "mode", title: inTS1("When these modes are Active", "mode"), multiple: true, submitOnChange: true, required: false
         }
     }
 }
@@ -1021,7 +1004,6 @@ def setNotificationTimePage() {
 def uninstallPage() {
     dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
         section(sBLANK) { paragraph "This will remove the app, all devices, all actions, all zones.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
-        if(isStFLD) { remove("Remove App, Devices, Actions, and Zones!", "WARNING!!!", "Last Chance to Stop!\nThis action is not reversible\n\nAll items will be removed") }
     }
 }
 
@@ -1032,9 +1014,9 @@ def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
         String t1 = sNULL
         section(sBLANK) {
-            href "speechPage", title: inTS1("Speech Test", "broadcast"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("broadcast")
-            href "announcePage", title: inTS1("Announcement Test","announcement"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("announcement")
-            href "sequencePage", title: inTS1("Sequence Creator Test", "sequence"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL), image: getAppImg("sequence")
+            href "speechPage", title: inTS1("Speech Test", "broadcast"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL)
+            href "announcePage", title: inTS1("Announcement Test","announcement"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL)
+            href "sequencePage", title: inTS1("Sequence Creator Test", "sequence"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL)
         }
     }
 }
@@ -1241,13 +1223,13 @@ def musicSearchTestPage() {
         section("Test a Music Search on Device:") {
             paragraph "Use this to test the search you discovered above directly on a device.", state: sCOMPLT
             Map testEnum = ["CLOUDPLAYER": "My Library", "AMAZON_MUSIC": "Amazon Music", "I_HEART_RADIO": "iHeartRadio", "PANDORA": "Pandora", "APPLE_MUSIC": "Apple Music", "TUNEIN": "TuneIn", "SIRIUSXM": "siriusXm", "SPOTIFY": "Spotify"]
-            input "test_musicProvider", sENUM, title: inTS1("Select Music Provider to perform test", "music"), defaultValue: null, required: false, options: testEnum, multiple: false, submitOnChange: true, image: getAppImg("music")
+            input "test_musicProvider", sENUM, title: inTS1("Select Music Provider to perform test", "music"), defaultValue: null, required: false, options: testEnum, multiple: false, submitOnChange: true
             if((String)settings.test_musicProvider) {
-                input "test_musicQuery", "text", title: inTS1("Music Search term to test on Device", "search2"), defaultValue: null, required: false, submitOnChange: true, image: getAppImg("search2")
+                input "test_musicQuery", "text", title: inTS1("Music Search term to test on Device", "search2"), defaultValue: null, required: false, submitOnChange: true
                 if((String)settings.test_musicQuery) {
-                    input "test_musicDevice", "device.EchoSpeaksDevice", title: inTS1("Select a Device to Test Music Search", "echo_speaks_3.1x"), description: sTTS, multiple: false, required: false, submitOnChange: true, image: getAppImg("echo_speaks_3.1x")
+                    input "test_musicDevice", "device.EchoSpeaksDevice", title: inTS1("Select a Device to Test Music Search", "echo_speaks_3.1x"), description: sTTS, multiple: false, required: false, submitOnChange: true
                     if(settings.test_musicDevice) {
-                        input "test_musicSearchRun", sBOOL, title: inTS1("Perform the Music Search Test?", "music"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true, image: getAppImg("music")
+                        input "test_musicSearchRun", sBOOL, title: inTS1("Perform the Music Search Test?", "music"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                         if((Boolean)settings.test_musicSearchRun) { executeMusicSearchTest() }
                     }
                 }
@@ -1255,9 +1237,9 @@ def musicSearchTestPage() {
         }
         section(sTS("TuneIn Search Results:")) {
             paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: sCOMPLT
-            input "test_tuneinSearchQuery", "text", title: inTS1("Enter search phrase for TuneIn", "tunein"), defaultValue: sNULL, required: false, submitOnChange: true, image: getAppImg("tunein")
+            input "test_tuneinSearchQuery", "text", title: inTS1("Enter search phrase for TuneIn", "tunein"), defaultValue: sNULL, required: false, submitOnChange: true
             if((String)settings.test_tuneinSearchQuery) {
-                href "searchTuneInResultsPage", title: inTS1("View search results!", "search2"), description: sTTP, image: getAppImg("search2")
+                href "searchTuneInResultsPage", title: inTS1("View search results!", "search2"), description: sTTP
             }
         }
     }
@@ -1292,37 +1274,35 @@ def dumpBrowseItem(Map item) {
     String a = (String)item.image ?: sNULL
     String b = ((String)item.name).take(75)
     Boolean c = !item.name?.contains("Not Supported")
-    if(isStFLD) {
-        paragraph title: pTS(b, a, false), str, required: true, state: (c ? sCOMPLT : sNULL), image: a
-    } else { href "searchTuneInResultsPage", title: pTS(b, a, false), description: str, required: true, state: (c ? sCOMPLT : sNULL), image: a }
+    href "searchTuneInResultsPage", title: pTS(b, a, false), description: str, required: true, state: (c ? sCOMPLT : sNULL)
 }
 
 private getChildDeviceBySerial(String serial) {
-    List childDevs = isStFLD ? app?.getChildDevices(true) : app?.getChildDevices()
+    List childDevs = app?.getChildDevices()
     def a = childDevs?.find { it?.deviceNetworkId?.tokenize("|")?.contains(serial) }
     return a ?: null
 }
 
 public getChildDeviceByCap(String cap) {
-    List childDevs = isStFLD ? app?.getChildDevices(true) : app?.getChildDevices()
+    List childDevs = app?.getChildDevices()
     def a= childDevs?.find { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) }
     return a ?: null
 }
 
 public List getDevicesFromList(List ids) {
-    List cDevs = isStFLD ? app?.getChildDevices(true) : app?.getChildDevices()
+    List cDevs = app?.getChildDevices()
     List a = cDevs?.findAll { it?.id in ids }
     return a ?: null
 }
 
 public getDeviceFromId(String id) {
-    List cDevs = isStFLD ? app?.getChildDevices(true) : app?.getChildDevices()
+    List cDevs = app?.getChildDevices()
     def a = cDevs?.find { it?.id == id }
     return a ?: null
 }
 
 public List getChildDevicesByCap(String cap) {
-    List childDevs = isStFLD ? app?.getChildDevices(true) : app?.getChildDevices()
+    List childDevs = app?.getChildDevices()
     List a = childDevs?.findAll { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) }
     return a ?: null
 }
@@ -1338,7 +1318,7 @@ def donationPage() {
 
             str += "\n\nThanks again for using Echo Speaks"
             paragraph str, required: true, state: sNULL
-            href url: textDonateLink(), style: sEXTNRL, required: false, title: "Donations", description: "Tap to open in browser", state: sCOMPLT, image: getAppImg("donate")
+            href url: textDonateLink(), style: sEXTNRL, required: false, title: "Donations", description: "Tap to open in browser", state: sCOMPLT
         }
         updInstData("shownDonation", true)
     }
@@ -1371,7 +1351,7 @@ def initialize() {
     subscribe(location, "systemStart", startHandler)
     if(guardAutoConfigured()) {
         if(settings.guardAwayAlarm && settings.guardHomeAlarm) {
-            subscribe(location, "${!isStFLD ? "hsmStatus" : "alarmSystemStatus"}", guardTriggerEvtHandler)
+            subscribe(location, "hsmStatus", guardTriggerEvtHandler)
         }
         if(settings.guardAwayModes && settings.guardHomeModes) {
             subscribe(location, "mode", guardTriggerEvtHandler)
@@ -1406,10 +1386,8 @@ void startHandler(evt){
 }
 
 void restartSocket(){
-    if(!isStFLD){
-        def dev= getSocketDevice()
-        if(!(Boolean)dev?.isSocketActive()) { dev?.triggerInitialize() }
-    }
+    def dev= getSocketDevice()
+    if(!(Boolean) dev?.isSocketActive()) { dev?.triggerInitialize() }
 }
 
 void stateMigrationChk() {
@@ -1448,6 +1426,7 @@ void appCleanup() {
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
         "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap"
     ]
+// pushTested
     items?.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     state.pollBlocked = false
     state.resumeConfig = false
@@ -1615,7 +1594,7 @@ List getActionApps() {
 }
 
 List getEsDevices() {
-    return (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.findAll { it?.isWS() == false }
+    return getChildDevices()?.findAll { it?.isWS() == false }
 }
 
 def getSocketDevice() {
@@ -1654,7 +1633,7 @@ String getEnvParamsStr() {
     envParams["smartThingsUrl"] = getAppEndpointUrl("receiveData")
     envParams["appCallbackUrl"] = getAppEndpointUrl("receiveData")
     envParams["hubPlatform"] = platformFLD
-    envParams["useHeroku"] = (isStFLD || (Boolean)settings.useHeroku).toString()
+    envParams["useHeroku"] = ((Boolean)settings.useHeroku).toString()
     envParams["serviceDebug"] = sFALSE
     envParams["serviceTrace"] = sFALSE
     envParams["amazonDomain"] = (String)settings.amazonDomain ?: "amazon.com"
@@ -1695,15 +1674,13 @@ Boolean checkIfCodeUpdated() {
             codeUpdated = true
         }
     }
-    if(!isStFLD) {
-        def wsDev = getSocketDevice()
-        if(wsDev) {
-            String ver = (String)wsDev?.devVersion()
-            if((String)codeVer.wsDevice != ver) {
-                chgs.push("wsDevice")
-                updCodeVerMap("wsDevice", ver)
-                codeUpdated = true
-            }
+    def wsDev = getSocketDevice()
+    if(wsDev) {
+        String ver = (String)wsDev?.devVersion()
+        if((String)codeVer.wsDevice != ver) {
+            chgs.push("wsDevice")
+            updCodeVerMap("wsDevice", ver)
+            codeUpdated = true
         }
     }
     List cApps = getActionApps()
@@ -1766,8 +1743,8 @@ def processData() {
     Map data = request?.JSON as Map
     if(data) {
         if(data?.version) {
-            updServerItem("onHeroku", (isStFLD || data?.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
-            updServerItem("isLocal", (!isStFLD && data?.isLocal == true))
+            updServerItem("onHeroku", (data?.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
+            updServerItem("isLocal", (data?.isLocal == true))
             updServerItem("serverHost", ((String)data?.serverUrl ?: sNULL))
             logTrace("processData Received | Version: ${data?.version} | onHeroku: ${data?.onHeroku} | serverUrl: ${data?.serverUrl}")
             updCodeVerMap("server", (String)data?.version)
@@ -1835,8 +1812,8 @@ def storeCookieData() {
     }
 
     if(data) {
-        updServerItem("isLocal", (!isStFLD && data.isLocal == true))
-        updServerItem("onHeroku", (isStFLD || data.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
+        updServerItem("isLocal", (data.isLocal == true))
+        updServerItem("onHeroku", (data.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
         updServerItem("serverHost", ((String)data.serverUrl ?: sNULL))
         updCodeVerMap("server", (String)data.version)
     }
@@ -1898,7 +1875,7 @@ Boolean refreshDevCookies() {
 
 void updateChildAuth(Boolean isValid) {
     Map cook = getCookieMap()
-    (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { (isValid) ? it?.updateCookies(cook) : it?.removeCookies(true) }
+    getChildDevices()?.each { (isValid) ? it?.updateCookies(cook) : it?.removeCookies(true) }
 }
 
 @Field volatile static Map<String,List> authValidMapFLD             = [:]
@@ -2219,10 +2196,8 @@ public updChildVers() {
     updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
     updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
     updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
-    if(!isStFLD) {
-        def wDevs = getSocketDevice()
-        updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
-    }
+    def wDevs = getSocketDevice()
+    updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
 }
 
 Map getMusicProviders(Boolean frc=false) {
@@ -2931,16 +2906,14 @@ void receiveEventData(Map evtData, String src) {
             List updRequiredItems = updReqMap?.updItems
 
             String myId=app.getId()
-            if(!isStFLD) {
-                String wsChildHandlerName = "Echo Speaks WS"
-                String nmS = 'echoSpeaks_websocket'
-                def oldWsDev = getChildDevice(nmS)
-                if(oldWsDev) { isStFLD ? deleteChildDevice(nmS, true) : deleteChildDevice(nmS) }
-                nmS = myId+'|'+nmS
-                def wsDevice = getChildDevice(nmS)
-                if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, nmS, null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
-                updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
-            }
+            String wsChildHandlerName = "Echo Speaks WS"
+            String nmS = 'echoSpeaks_websocket'
+            def oldWsDev = getChildDevice(nmS)
+            if(oldWsDev) { deleteChildDevice(nmS) }
+            nmS = myId+'|'+nmS
+            def wsDevice = getChildDevice(nmS)
+            if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, nmS, null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
+            updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
 
             if (evtData?.echoDevices?.size()) {
                 Long execTime = evtData?.execDt ? (now()-(Long)evtData.execDt) : 0L
@@ -3137,8 +3110,7 @@ public static Map minVersions() {
 private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
-    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones"]
-    if(!isStFLD) { codeItems.wsDevice = "Echo Speaks Websocket" }
+    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", wsDevice: "Echo Speaks Websocket", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones"]
     Map codeVers = (Map)state.codeVersions ?: [:]
     codeVers.each { String k,String v->
         if(codeItems.containsKey(k) && v != sNULL && (versionStr2Int(v) < minVersionsFLD[k])) { updRequired = true; updItems.push(codeItems[k]) }
@@ -3202,8 +3174,7 @@ void removeDevices(Boolean all=false) {
         List<String> items = app.getChildDevices()?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : sNULL }
         logWarn("removeDevices(${all ? "all" : sBLANK}) | In Use: (${all ? 0 : devList.size()}) | Removing: (${items.size()})", true)
         if(items.size() > 0) {
-            Boolean isST = isStFLD
-            items.each {  String it -> isST ? deleteChildDevice(it, true) : deleteChildDevice(it) }
+            items.each {  String it -> deleteChildDevice(it) }
         }
     } catch (ex) { logError("Device Removal Failed: ${ex}", false, ex) }
 }
@@ -3287,10 +3258,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
 void execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
     if(method && callbackHandler && params) {
         String m = method?.toString()?.toLowerCase()
-        if(isStFLD) {
-            include 'asynchttp_v1'
-            asynchttp_v1."${m}"(callbackHandler, params, otherData)
-        } else { "asynchttp${m?.capitalize()}"("${callbackHandler}", params, otherData) }
+        "asynchttp${m?.capitalize()}"("${callbackHandler}", params, otherData)
     } else { logError("execAsyncCmd Error | Missing a required parameter") }
 }
 
@@ -3436,7 +3404,7 @@ void missPollNotify(Boolean on, Integer wait) {
             updTsVal("lastMissedPollMsgDt")
         }
 /*        if((Boolean)state.authValid) {
-            (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
+            (getChildDevices())?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
         } */
     }
 }
@@ -3496,14 +3464,15 @@ private List codeUpdateItems(Boolean shrt=false) {
     return updItems
 }
 
+//TODO REMOVE
 //Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
 //Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? true : true ) : false }
 
 Boolean getOk2Notify() {
-    Boolean smsOk = (settings.smsNumbers?.toString()?.length()>=10)
-    Boolean pushOk = (Boolean)settings.usePush
+    Boolean smsOk // (settings.smsNumbers?.toString()?.length()>=10)
+    Boolean pushOk // (Boolean)settings.usePush
     Boolean notifDevs = (settings.notif_devs?.size())
-    Boolean pushOver = ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)
+    Boolean pushOver // ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)
     Boolean daysOk = quietDaysOk(settings.quietDays)
     Boolean timeOk = quietTimeOk()
     Boolean modesOk = quietModesOk(settings.quietModes)
@@ -3607,26 +3576,37 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
 Boolean childInstallOk() { return (Boolean)state.childInstallOkFlag }
 
 static String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
-static String getAppImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK}
+static String getAppImg(String imgName, Boolean frc=false) { return (frc) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK}
 
 static String getHEPublicImg(String imgName) { return getPublicImg(imgName, true) }
-static String getPublicImg(String imgName, Boolean frc=false) { return (frc || isStFLD) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : sBLANK}
+static String getPublicImg(String imgName, Boolean frc=false) { return (frc) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : sBLANK}
 
-String sTS(String t, String i = sNULL, Boolean bold=false) { return isStFLD ? t : """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
+String sTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 /* """ */
 
-String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return isStFLD ? t : """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
+String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
 /* """ */
 
 static String sectTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="48"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 
 static String sectH3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="48"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ?: sBLANK}""" }
 
-static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return isStFLD ? t : "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
+static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
+
+public String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: 'normal', c: 'black', b: true, u:true], Map bOpts = [s:'normal', c: sNULL, b: false]) { 
+    String s = ""
+    s += title ? "<div style='${tOpts && (String)tOpts.c != sNULL ? "color: ${(String)tOpts.c};" : sBLANK}${tOpts && (String)tOpts.s != sNULL ? "font-size: ${(String)tOpts.s};" : sBLANK}${tOpts && (Boolean)tOpts.b ? "font-weight: bold;" : sBLANK}${tOpts && (Boolean)tOpts.u ? "text-decoration: underline;" : sBLANK}'>${img != sNULL ? """<img src=${getHEAppImg(img)} width="42"> """ : sBLANK}${title}</div>" : sBLANK
+    s += body ? "<div style='${bOpts && (String)bOpts.c != sNULL ? "color: ${(String)bOpts.c};" : sBLANK}${bOpts && (String)bOpts.s != sNULL ? "font-size: ${(String)bOpts.s};" : sBLANK}${bOpts && (Boolean)bOpts.b ? "font-weight: bold;" : sBLANK}'>${body}</div>" : sBLANK
+    return s
+}
 /* """ */
 
+static String inputFooter(str, color="#1A77C9") {
+    return "<br><div style='color: ${color}; font-size: small;font-weight: bold;'>${str}</div>"
+}
+
 static String inTS1(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return inTS(t, getHEAppImg(i), color, under) }
-static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return isStFLD ? t : """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} ${under ? "<u>" : sBLANK}${t?.replaceAll("\\n", " ")}${under ? "</u>" : sBLANK}${color ? "</div>" : sBLANK}""" }
+static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} ${under ? "<u>" : sBLANK}${t?.replaceAll("\\n", " ")}${under ? "</u>" : sBLANK}${color ? "</div>" : sBLANK}""" }
 /* """ */
 
 static String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
@@ -3642,9 +3622,9 @@ static String actChildName(){ return "Echo Speaks - Actions" }
 static String zoneChildName(){ return "Echo Speaks - Zones" }
 static String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
-def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, state: sCOMPLT, image: getAppImg("documentation")}
+def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, state: sCOMPLT}
 
-String getAppEndpointUrl(subPath)   { return isStFLD ? "${apiServerUrl("/api/smartapps/installations/${app.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}")}" : "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString() }
+String getAppEndpointUrl(subPath)   { return "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString() }
 
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}" }
 
@@ -3751,7 +3731,6 @@ void processFirebaseResponse(resp, Map data) {
         } else if(resp?.status == 400) {
             logError(mName+": 'Bad Request': ${resp?.status}")
         } else { logWarn(mName+": 'Unexpected' Response: ${resp?.status}") }
-//        if (isStFLD && resp?.hasError()) { logError(mName+": errorData: ${resp?.errorData} | errorMessage: ${resp?.errorMessage}") }
     } catch(ex) {
         logError(mName+" (type: $typeDesc) Exception: ${ex}", false, ex)
     }
@@ -3777,7 +3756,7 @@ String createMetricsDataJson() {
         Map swVer = (Map)state.codeVersions
         Map deviceUsageMap = [:]
         Map deviceErrorMap = [:]
-        (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { d->
+        getChildDevices()?.each { d->
             Map obj = d?.getDeviceMetrics()
             if(obj?.usage?.size()) { obj?.usage?.each { k,v-> deviceUsageMap[k as String] = (deviceUsageMap[k as String] ? deviceUsageMap[k as String] + v : v) } }
             if(obj?.errors?.size()) { obj?.errors?.each { k,v-> deviceErrorMap[k as String] = (deviceErrorMap[k as String] ? deviceErrorMap[k as String] + v : v) } }
@@ -3848,12 +3827,12 @@ Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
     return result
 }
 
-Boolean appUpdAvail() { return (state.appData?.versions && state.codeVersions?.mainApp && codeUpdIsAvail(state.appData?.versions?.mainApp?.ver, state.codeVersions?.mainApp, "main_app")) }
-Boolean actionUpdAvail() { return (state.appData?.versions && state.codeVersions?.actionApp && codeUpdIsAvail(state.appData?.versions?.actionApp?.ver, state.codeVersions?.actionApp, "action_app")) }
-Boolean zoneUpdAvail() { return (state.appData?.versions && state.codeVersions?.zoneApp && codeUpdIsAvail(state.appData?.versions?.zoneApp?.ver, state.codeVersions?.zoneApp, "zone_app")) }
-Boolean echoDevUpdAvail() { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
-Boolean socketUpdAvail() { return (!isStFLD && state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
-Boolean serverUpdAvail() { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
+Boolean appUpdAvail()       { return (state.appData?.versions && state.codeVersions?.mainApp && codeUpdIsAvail(state.appData?.versions?.mainApp?.ver, state.codeVersions?.mainApp, "main_app")) }
+Boolean actionUpdAvail()    { return (state.appData?.versions && state.codeVersions?.actionApp && codeUpdIsAvail(state.appData?.versions?.actionApp?.ver, state.codeVersions?.actionApp, "action_app")) }
+Boolean zoneUpdAvail()      { return (state.appData?.versions && state.codeVersions?.zoneApp && codeUpdIsAvail(state.appData?.versions?.zoneApp?.ver, state.codeVersions?.zoneApp, "zone_app")) }
+Boolean echoDevUpdAvail()   { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
+Boolean socketUpdAvail()    { return (state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
+Boolean serverUpdAvail()    { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
 Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
 void checkVersionData(Boolean now = false) { //This reads a JSON file from GitHub with version numbers
@@ -4384,14 +4363,14 @@ private getInstData(String key) {
 @Field volatile static Map<String,Map> tsDtMapFLD=[:]
 
 private void updTsVal(String key, String dt=sNULL) {
-        String val = dt ?: getDtNow()
-        if(key == "lastCookieRrshDt") { updServerItem(key, val); return }
+    String val = dt ?: getDtNow()
+    if(key == "lastCookieRrshDt") { updServerItem(key, val); return }
 
-        String appId=app.getId()
-        Map data=tsDtMapFLD[appId] ?: [:]
-        if(key) data[key]=val
-        tsDtMapFLD[appId]=data
-        tsDtMapFLD=tsDtMapFLD
+    String appId=app.getId()
+    Map data=tsDtMapFLD[appId] ?: [:]
+    if(key) data[key]=val
+    tsDtMapFLD[appId]=data
+    tsDtMapFLD=tsDtMapFLD
 }
 
 private void remTsVal(key) {
@@ -4413,13 +4392,17 @@ private void remTsVal(key) {
 }
 
 private String getTsVal(String key) {
-        if(key == "lastCookieRrshDt") {
-            return (String)getServerItem(key)
-        }
-        String appId=app.getId()
-        Map tsMap=tsDtMapFLD[appId]
-        if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
-        return sNULL
+    if(key == "lastCookieRrshDt") {
+        return (String)getServerItem(key)
+    }
+    String appId=app.getId()
+    Map tsMap=tsDtMapFLD[appId]
+    if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
+    return sNULL
+}
+
+Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
+        return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
 @Field volatile static Map<String,Map> serverDataMapFLD=[:]
@@ -4511,10 +4494,6 @@ void stateMapMigration() {
     updAppFlag("stateMapConverted", true)
 }
 
-Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
-        return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
-}
-
 void settingUpdate(String name, value, String type=sNULL) {
     if(name && type) {
         app.updateSetting(name, [type: type, value: value])
@@ -4524,7 +4503,7 @@ void settingUpdate(String name, value, String type=sNULL) {
 
 void settingRemove(String name) {
     logTrace("settingRemove($name)...")
-    if(name && settings.containsKey(name)) { isStFLD ? app?.deleteSetting(name) : app?.removeSetting(name) }
+    if(name && settings.containsKey(name)) { app?.removeSetting(name) }
 }
 
 void updCodeVerMap(String key, String val) {
@@ -4557,14 +4536,14 @@ String getAppNotifConfDesc() {
     Integer notifDevs = settings.notif_devs?.size()
     if(notifDevs) { //pushStatus()) {
         Boolean ok = getOk2Notify()
-        str += "Send Notifications Allowed: (${ok ? okSymFLD : notOkSymFLD})"
+        str += "<span style='font-weight: bold;'>Send Notifications Allowed:</span> ${ok ? "<span style='color: green;'>(${okSymFLD})</span>" : "<span style='color: orange;'>(${notOkSymFLD})</span>"}"
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
-        str += notifDevs ? bulletItem(str, "Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})") : sBLANK
-        str += (ap) ? "${str != sBLANK ? "\n\n" : sBLANK}Enabled Alerts:\n${ap}" : sBLANK
-        str += (ap && nd) ? "${str != sBLANK ? "\n" : sBLANK}\n${nd}" : sBLANK
+        str += notifDevs ? "<br><span style=''> ${sBULLET} Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})</span><br>" : sBLANK
+        str += (ap) ? "${str != sBLANK ? "<br>" : sBLANK}<span style='font-weight: bold;'>Enabled Alerts:</span><br>${ap}<br>" : sBLANK
+        str += (ap && nd) ? "${str != sBLANK ? "<br>" : sBLANK}<br>${nd}" : sBLANK
     }
-    return str != sBLANK ? str : sNULL
+    return str != sBLANK ? "<div style='color: #1A77C9; font-size: small;'>${str}</div>" : sNULL
 }
 
 List getQuietDays() {
@@ -4586,17 +4565,17 @@ String getNotifSchedDesc(Boolean min=false) {
         startTime = startType == 'A specific time' && settings.qStartTime ? toDateTime(settings.qStartTime) : null
         stopTime = stopType == 'A specific time' && settings.qStopTime ? toDateTime(settings.qStopTime) : null
     }
-    if(startType in ["Sunrise","Sunset"] || stopType in ["Sunrise","Sunset"]) {
+    if(startType in ["Sunrise", "Sunset"] || stopType in ["Sunrise", "Sunset"]) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        if(startType in ["Sunrise","Sunset"]) {
+        if(startType in ["Sunrise", "Sunset"]) {
             Long startl = (startType == 'Sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
         }
-        if(stopType in ["Sunrise","Sunset"]) {
+        if(stopType in ["Sunrise", "Sunset"]) {
             Long stopl = (stopType == 'Sunrise' ? lsunrise : lsunset) + stopoffset
             stopTime = new Date(stopl)
         }
@@ -4613,8 +4592,8 @@ String getNotifSchedDesc(Boolean min=false) {
     str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
     a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
     str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
-    str = str ? " \u2022 Restrictions: (${rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
-    return (str != sBLANK) ? str : sNULL
+    str = str ? "<span style='font-weight: bold;'>Restrictions:</span> ${rest ? "<span style='color: green;'>(${okSymFLD})</span>" : "<span style='color: orange;'>(${notOkSymFLD})</span>"}<br>${str}" : sBLANK
+    return (str != sBLANK) ? "<div style='color: #1A77C9; font-size: small;'>${str}</div>" : sNULL
 }
 
 String getServiceConfDesc() {
@@ -4627,10 +4606,11 @@ String getServiceConfDesc() {
 }
 
 String getLoginStatusDesc() {
-    String s = """<span style="color: gray;">Login Status:</b> ${(Boolean) state.authValid ? """<div style="color: green;">(Valid)</div>""" : """<div style="color: red;">(Invalid)</div>"""}</span>"""
-    
-    s += (getTsVal("lastCookieRrshDt")) ? "\nCookie Updated:\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})" : sBLANK
-    return s
+    String s = sBLANK
+    s += "<span style='font-weight: bold;'>Login Status:</span>"
+    s += (Boolean) state.authValid ? "<span style='color: green;'> (Valid)</span>" : "<span style='color: red;'> (Invalid)</span>"
+    s += (getTsVal("lastCookieRrshDt")) ? "<br><span style='font-weight: bold;'>Cookie Updated:</span> <span style='color: gray;'>(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})</span>" : sBLANK
+    return "<div style='font-size: small;color: #1A77C9;'>${s}<br></div>"
 }
 
 String getAppNotifDesc() {
@@ -4643,28 +4623,24 @@ String getAppNotifDesc() {
 }
 
 String getActionsDesc() {
-    List<String> actActs = getActiveActionNames()?.sort()?.collect { bulletItem(sBLANK, it) }
-    List<String> inactActs = getInActiveActionNames()?.sort()?.collect { bulletItem(sBLANK, it) }
-    Integer a = actActs?.size()
-    Integer b = inactActs?.size()
+    List<String> actActs = getActiveActionNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (A)', sBLANK)}</span>" + "<span style='color: green;'> (Active)</span>" }
+    List<String> inactActs = getInActiveActionNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (A ❚❚)', sBLANK)}</span>" + "<span style='color: orange;'> (Paused)</span>" }
+    List<String> acts = (actActs + inactActs).sort()
+    Integer a = acts?.size()
     String str = sBLANK
-    str += a ? "Active Actions:\n${actActs?.join("\n")}\n" : sBLANK
-    str += a && b ? "\n" : sBLANK
-    str += b ? "Paused Actions:\n${inactActs?.join("\n")}\n" : sBLANK
-    str += a || b ? "\n${sTTM}" : "Tap to create actions using device/location events to perform advanced actions using your Alexa devices."
+    str += a ? "<div style='color: #1A77C9; font-size: small;'><span style='font-weight: bold;'>Action Status:</span><br><span>${acts?.join("<br>")}</span></div>" : sBLANK
+    str += a ? inputFooter(sTTM) : inputFooter("Tap to create actions using device/location events to perform advanced actions using your Alexa devices.")
     return str
 }
 
 String getZoneDesc() {
-    List<String> actZones = getActiveZoneNames()?.sort()?.collect { bulletItem(sBLANK, it) }
-    List<String> inactZones = getInActiveZoneNames()?.sort()?.collect { bulletItem(sBLANK, it) }
+    List<String> actZones = getActiveZoneNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (Z)', sBLANK)}</span>" + "<span style='color: green;'> (Active)</span>" }
+    List<String> inactZones = getInActiveZoneNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (Z)', sBLANK)}</span>" + "<span style='color: gray;'> (Inactive)</span>" }
+    List<String> zones = (actZones + inactZones).sort()
     String str = sBLANK
-    Integer a = actZones?.size()
-    Integer b = inactZones?.size()
-    str += a ? "Active Zones:\n${actZones?.join("\n")}\n" : sBLANK
-    str += a && b ? "\n" : sBLANK
-    str += b ? "\nInActive or Paused Zones:\n${inactZones?.join("\n")}\n" : sBLANK
-    str += a || b ? "\n${sTTM}" : "Tap to create alexa device zones based on motion, presence, and other criteria."
+    Integer a = zones?.size()
+    str += a ? "<div style='color: #1A77C9; font-size: small;'><span style='font-weight: bold;'>Zone Status:</span><br><span>${zones?.join("<br>")}</span></div>" : sBLANK
+    str += a ? inputFooter(sTTM) : inputFooter("Tap to create alexa device zones based on motion, presence, and other criteria.", 'gray')
     return str
 }
 
@@ -4743,7 +4719,7 @@ def appInfoSect() {
         section() {
             Map params = [ assignees: "tonesto7", labels: "add_device_support", title: "[ADD DEVICE SUPPORT] (${unkDevs?.size()}) Devices", body: "Requesting device support from the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "${k}: ${v}" }?.join("\n") }?.join("\n\n")?.toString() ]
             def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?${UrlParamBuilder(params)}"
-            href url: featUrl, style: sEXTNRL, required: false, title: inTS1("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", "info"), description: "Tap to open browser", image: getAppImg("info")
+            href url: featUrl, style: sEXTNRL, required: false, title: inTS1("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", "info"), description: "Tap to open browser"
         }
     }
 }
@@ -4777,16 +4753,14 @@ Boolean getAccessToken() {
 }
 
 private getTextEditChild(id) {
-    if(!isStFLD) {
-        Long longId = id as Long
-        def a = getChildAppById(longId)
-        return a ?: null
-    } else { def a = getActionApps()?.find { it?.id == id }; return a ?: null }
+    Long longId = id as Long
+    def a = getChildAppById(longId)
+    return a ?: null
 }
 
 def renderConfig() {
     String title = "Echo Speaks"
-    Boolean heroku = (isStFLD || (settings.useHeroku == null || (Boolean)settings.useHeroku != false))
+    Boolean heroku = (settings.useHeroku == null || (Boolean)settings.useHeroku != false)
     String oStr = !heroku ? """
         <div id="localServerDiv" class="w-100 mb-3">
             <div class="my-2 text-left">
@@ -5509,20 +5483,15 @@ Boolean isInAlarmMode(modes) {
 }
 
 String getAlarmSystemName(Boolean abbr=false) {
-    return isStFLD ? (abbr ? "SHM" : "Smart Home Monitor") : (abbr ? "HSM" : "Hubitat Safety Monitor")
+    return (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 
 List getAlarmModes() {
-    return isStFLD ? ["off", "stay", "away"] : ["armedAway", "armingAway", "armedHome", "armingHome", "armedNight", "armingNight", "disarmed", "allDisarmed"]
+    return ["armedAway", "armingAway", "armedHome", "armingHome", "armedNight", "armingNight", "disarmed", "allDisarmed"]
 }
 
 String getAlarmSystemStatus() {
-    if(isStFLD) {
-        String cur = location?.currentState("alarmSystemStatus")?.value
-        def inc = getShmIncidents()
-        if(inc != null && inc?.size()) { cur = 'alarm_active' }
-        return cur ?: "disarmed"
-    } else { return location?.hsmStatus ?: "disarmed" }
+    return location?.hsmStatus ?: "disarmed"
 }
 
 def getShmIncidents() {
@@ -5532,28 +5501,26 @@ def getShmIncidents() {
 
 // This is incomplete (and currently unused)
 public setAlarmSystemMode(mode) {
-    if(!isStFLD) {
-        switch(mode) {
-            case "armAway":
-            case "away":
-                mode = "armAway"
-                break
-            case "armHome":
-            case "stay":
-                mode = "armHome"
-                break
-            case "armNight":
-            case "night":
-                mode = "armNight"
-                break
-            case "disarm":
-            case "off":
-                mode = "disarm"
-                break
-        }
+    switch(mode) {
+        case "armAway":
+        case "away":
+            mode = "armAway"
+            break
+        case "armHome":
+        case "stay":
+            mode = "armHome"
+            break
+        case "armNight":
+        case "night":
+            mode = "armNight"
+            break
+        case "disarm":
+        case "off":
+            mode = "disarm"
+            break
     }
     logInfo("Setting the ${getAlarmSystemName()} Mode to (${mode})...")
-    sendLocationEvent(name: (isStFLD ? 'alarmSystemStatus' : 'hsmSetArm'), value: mode.toString())
+    sendLocationEvent(name: "hsmSetArm", value: mode.toString())
 }
 
 Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j.length() }
@@ -5619,7 +5586,7 @@ void clearDiagLogs(String type="all") {
     if(type=="all") {
         clearHistory()
         getActionApps()?.each { ca-> ca?.clearLogHistory() }
-        (isStFLD ? app?.getChildDevices(true) : getChildDevices())?.each { cd-> cd?.clearLogHistory() }
+        getChildDevices()?.each { cd-> cd?.clearLogHistory() }
     }
 }
 
