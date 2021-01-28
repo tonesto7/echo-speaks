@@ -89,11 +89,14 @@ metadata {
 	    
 	attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
 
+/* // these are part of audioNotification
         command "playText", ["STRING"] //This command is deprecated in ST but will work
+        command "playTextAndRestore"
         command "playTextAndResume"
+        command "playTrack", ["STRING"]
         command "playTrackAndResume"
         command "playTrackAndRestore"
-        command "playTextAndRestore"
+*/
         command "replayText"
         command "doNotDisturbOn"
         command "doNotDisturbOff"
@@ -687,6 +690,8 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
         if(playerInfo.mainArt?.url) { trackData.albumArtUrl = playerInfo.mainArt?.url }
         if(playerInfo.provider?.providerName) { trackData.mediaSource = playerInfo.provider?.providerName }
         //log.debug(trackData)
+        sendEvent(name: "trackData", value: new groovy.json.JsonOutput().toJson(trackData), display: false, displayed: false)
+// non-standard:
         sendEvent(name: "audioTrackData", value: new groovy.json.JsonOutput().toJson(trackData), display: false, displayed: false)
     }
 
@@ -1152,6 +1157,7 @@ def searchTest() {
             Device Command FUNCTIONS
 *******************************************************************/
 
+// capability musicPlayer
 def play() {
     logTrace("play() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
@@ -1166,7 +1172,23 @@ def play() {
     logWarn("Uh-Oh... The play Command is NOT Supported by this Device!!!")
 }
 
-def playTrack(uri) {
+// capability audioNotification
+def playTrack(String uri, volume=null) {
+    if(isCommandTypeAllowed("TTS")) {
+        String tts = uriSpeechParser(uri)
+        if (tts) {
+            logDebug("playTrack($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
+            if(volume) {
+                setVolumeAndSpeak(volume, tts)
+            } else { speak(tts) }
+            return
+        }
+    }
+    logWarn("Uh-Oh... The playTrack($uri, $volume) Command is NOT Supported by this Device!!!")
+}
+
+// capability musicPlayer
+/*def playTrack(String uri) {
     if(isCommandTypeAllowed("TTS")) {
         String tts = uriSpeechParser(uri)
         if (tts) {
@@ -1176,8 +1198,9 @@ def playTrack(uri) {
         }
     }
     logWarn("Uh-Oh... The playTrack($uri) Command is NOT Supported by this Device!!!")
-}
+} */
 
+// capability musicPlayer
 def pause() {
     logTrace("pause() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
@@ -1192,6 +1215,7 @@ def pause() {
     logWarn("Uh-Oh... The pause Command is NOT Supported by this Device!!!")
 }
 
+// capability musicPlayer
 def stop() {
     logTrace("stop() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
@@ -1219,6 +1243,7 @@ def stopAllDevices() {
     triggerDataRrsh('stopAllDevices')
 }
 
+// capability musicPlayer
 def previousTrack() {
     logTrace("previousTrack() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
@@ -1226,6 +1251,7 @@ def previousTrack() {
     }
 }
 
+// capability musicPlayer
 def nextTrack() {
     logTrace("nextTrack() command received...")
     if(isCommandTypeAllowed("mediaPlayer")) {
@@ -1233,10 +1259,12 @@ def nextTrack() {
     }
 }
 
+// capability musicPlayer, audioVolume
 def mute() {
     logTrace("mute() command received...")
     if(isCommandTypeAllowed("volumeControl")) {
-        state.muteLevel = device?.currentValue("level")?.toInteger()
+        def t0= device?.currentValue("level")?.toInteger()
+        if( (!state.muteLevel && t0) ) state.muteLevel = t0
         if(isStateChange(device, "mute", "muted")) {
             sendEvent(name: "mute", value: "muted", descriptionText: "Mute is set to muted", display: true, displayed: true)
         }
@@ -1258,16 +1286,17 @@ def shuffle() {
     }
 }
 
+// capability musicPlayer, audioVolume
 def unmute() {
     logTrace("unmute() command received...")
     if(isCommandTypeAllowed("volumeControl")) {
-        if(state?.muteLevel) {
-            setLevel(state?.muteLevel)
-            state?.muteLevel = null
+        if(state.muteLevel) {
+            setLevel(state.muteLevel)
+            state.muteLevel = null
             if(isStateChange(device, "mute", "unmuted")) {
                 sendEvent(name: "mute", value: "unmuted", descriptionText: "Mute is set to unmuted", display: true, displayed: true)
             }
-        }
+        } else logTrace("no previous volume level found")
     }
 }
 
@@ -1275,6 +1304,7 @@ def setMute(muteState) {
     if(muteState) { (muteState == "muted") ? mute() : unmute() }
 }
 
+// capability musicPlayer
 def setLevel(level) {
     logTrace("setVolume($level) command received...")
     if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
@@ -1305,31 +1335,39 @@ def setAlarmVolume(vol) {
     }
 }
 
+// capability audioVolume
 def setVolume(vol) {
-    if(vol) { setLevel(vol?.toInteger()) }
+    if(vol) { setLevel(vol.toInteger()) }
 }
 
+// capability audioVolume
 def volumeUp() {
     def t0 = device?.currentValue('level')
     def curVol = t0 ?: 1
-    if(curVol >= 0 && curVol < 100) { setVolume(curVol?.toInteger()+5) }
+    if(curVol >= 0 && curVol <= 95) { setVolume(curVol.toInteger()+5) }
+    else if(t0 > 95) setVolume(100)
 }
 
+// capability audioVolume
 def volumeDown() {
     def t0 = device?.currentValue('level')
     def curVol = t0 ?: 1
-    if(curVol > 0) { setVolume(curVol?.toInteger()-5) }
+    if(curVol >= 5) { setVolume(curVol.toInteger()-5) }
+    else if(t0 > 0) setVolume(0)
 }
 
+// capability musicPlayer
 def setTrack(String uri, String metaData=sBLANK) {
     logWarn("Uh-Oh... The setTrack(uri: $uri, meta: $metaData) Command is NOT Supported by this Device!!!", true)
 }
 
-def resumeTrack() {
+// capability musicPlayer
+def resumeTrack(uri) {
     logWarn("Uh-Oh... The resumeTrack() Command is NOT Supported by this Device!!!", true)
 }
 
-def restoreTrack() {
+// capability musicPlayer
+def restoreTrack(uri) {
     logWarn("Uh-Oh... The restoreTrack() Command is NOT Supported by this Device!!!", true)
 }
 
@@ -1393,38 +1431,53 @@ def deviceNotification(String msg) {
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with deviceNotification($msg) command", true); return }
         // logTrace("deviceNotification(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
-        if(settings?.sendDevNotifAsAnnouncement == true) { playAnnouncement(msg as String) } else { speak(msg as String) }
+        if(settings?.sendDevNotifAsAnnouncement == true) { playAnnouncement(msg) } else { speak(msg) }
     }
 }
 
 def setVolumeAndSpeak(volume, String msg) {
     logTrace("setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
     if(volume != null && permissionOk("volumeControl")) {
-        state?.newVolume = volume
+        state.newVolume = volume
+        state.oldVolume = null // does not put old value back
     }
     speak(msg)
 }
 
 def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     logTrace("setVolumeSpeakAndRestore(volume: $volume, msg: $msg, $restVolume) command received...")
+    Boolean volChg = false
+    Boolean stored = false
     if(msg) {
         if(volume != null && permissionOk("volumeControl")) {
             state.newVolume = volume?.toInteger()
             if(restVolume != null) {
                 state.oldVolume = restVolume as Integer
+                stored = true
             } else {
-                storeCurrentVolume()
+                stored = mstoreCurrentVolume()
             }
+            volChg = true
         }
         speak(msg)
+        if(volChg && stored) state.oldVolume = null 
     }
 }
 
 def storeCurrentVolume() {
+    Boolean a= mstoreCurrentVolume()
+}
+
+Boolean mstoreCurrentVolume() {
     Integer t0 = device?.currentValue("level")
-    Integer curVol = t0 ?: 1
-    logTrace("storeCurrentVolume(${curVol}) command received...")
-    if(curVol != null) { state?.oldVolume = curVol as Integer }
+    Integer curVol = t0 //  ?: 1
+    if(curVol != null) {
+        state.oldVolume = curVol
+        logTrace("storeCurrentVolume(${curVol}) command received...")
+        return true
+    }
+    logTrace("storeCurrentVolume(${curVol}) command failed...")
+    return false
 }
 
 public restoreLastVolume() {
@@ -2364,18 +2417,35 @@ def replayText() {
     if(lastText) { speak(lastText) } else { log.warn "Last Text was not found" }
 }
 
-def playText(String msg) {
-    logTrace("playText(msg: $msg) command received...")
-    speak(msg)
+// capability audioNotification
+def playText(String msg, volume=null) {
+    if(isCommandTypeAllowed("TTS")) {
+        if (msg) {
+            logDebug("playText($msg, $volume)")
+            if(volume) {
+                setVolumeAndSpeak(volume, msg)
+            } else { speak(msg) }
+            return
+        }
+    }
+    logWarn("Uh-Oh... The playText($msg, $volume) Command is NOT Supported by this Device!!!")
 }
 
-def playTrackAndResume(uri, duration, volume=null) {
+// capability musicPlayer
+/*def playText(String msg) {
+    logTrace("playText(msg: $msg) command received...")
+    speak(msg)
+} */
+
+// capability audioNotification
+//def playTrackAndResume(String uri, duration, volume=null) {
+def playTrackAndResume(String uri, volume=null) {
     if(isCommandTypeAllowed("TTS")) {
         String tts = uriSpeechParser(uri)
         if (tts) {
             logDebug("playTrackAndResume($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
             if(volume) {
-                Integer restVolume = device?.currentValue("level")?.toInteger()
+                Integer restVolume // = device?.currentValue("level")?.toInteger()
                 setVolumeSpeakAndRestore(volume as Integer, tts, restVolume)
             } else { speak(tts) }
             return
@@ -2384,21 +2454,23 @@ def playTrackAndResume(uri, duration, volume=null) {
     logWarn("Uh-Oh... The playTrackAndResume($uri, $volume) Command is NOT Supported by this Device!!!")
 }
 
-def playTextAndResume(text, volume=null) {
+// capability audioNotification
+def playTextAndResume(String text, volume=null) {
     logTrace("The playTextAndResume(text: $text, volume: $volume) command received...")
-    def restVolume = device?.currentValue("level")?.toInteger()
     if (volume != null) {
+        def restVolume // = device?.currentValue("level")?.toInteger()
         setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
     } else { speak(text as String) }
 }
 
-def playTrackAndRestore(uri, duration, volume=null) {
+//def playTrackAndRestore(String uri, duration, volume=null) {
+def playTrackAndRestore(String uri, volume=null) {
     if(isCommandTypeAllowed("TTS")) {
         String tts = uriSpeechParser(uri)
         if (tts) {
             logDebug("playTrackAndRestore($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
             if(volume) {
-                Integer restVolume = device?.currentValue("level")?.toInteger()
+                Integer restVolume // = device?.currentValue("level")?.toInteger()
                 setVolumeSpeakAndRestore(volume as Integer, tts, restVolume)
             } else { speak(tts) }
             return
@@ -2407,14 +2479,15 @@ def playTrackAndRestore(uri, duration, volume=null) {
     logWarn("Uh-Oh... The playTrackAndRestore(uri: $uri, duration: $duration, volume: $volume) Command is NOT Supported by this Device!!!")
 }
 
-def playTextAndRestore(text, volume=null) {
+// capability audioNotification
+def playTextAndRestore(String text, volume=null) {
     logTrace("The playTextAndRestore($text, $volume) command received...")
-    def restVolume = device?.currentValue("level")?.toInteger()
     if (volume != null) {
+        def restVolume // = device?.currentValue("level")?.toInteger()
         setVolumeSpeakAndRestore(volume as Integer, text as String, restVolume as Integer)
     } else { speak(text as String) }
 }
-
+/* // this is not a command
 def playURL(uri) {
     if(isCommandTypeAllowed("TTS")) {
         String tts = uriSpeechParser(uri)
@@ -2430,8 +2503,8 @@ def playURL(uri) {
 def playSoundAndTrack(soundUri, duration, trackData, volume=null) {
     logWarn("Uh-Oh... The playSoundAndTrack(soundUri: $soundUri, duration: $duration, trackData: $trackData, volume: $volume) Command is NOT Supported by this Device!!!", true)
 }
-
-String uriSpeechParser(uri) {
+*/
+String uriSpeechParser(String uri) {
     // Thanks @fkrlaframboise for this idea.  It never for one second occurred to me to parse out the trackUri...
     // log.debug "uri: $uri"
     if (uri?.toString()?.contains("/")) {
@@ -2467,7 +2540,7 @@ void speak(String msg) {
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with speak($msg) command", true) }
         // msg = cleanString(msg, true)
-        speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state?.newVolume ?: null), oldVolume: (state?.oldVolume ?: null), cmdDt: now()])
+        speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state.newVolume ?: null), oldVolume: (state.oldVolume ?: null), cmdDt: now()])
         return
     }
     logWarn("Uh-Oh... The speak($msg) Command is NOT Supported by this Device!!!")
