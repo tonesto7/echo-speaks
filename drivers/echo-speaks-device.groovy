@@ -22,7 +22,7 @@ import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String devVersionFLD  = "4.0.2.0"
-@Field static final String appModifiedFLD = "2021-01-25"
+@Field static final String appModifiedFLD = "2021-01-27"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -121,7 +121,7 @@ metadata {
         command "sayWelcomeHome", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         // command "playCannedRandomTts", ["string", "number", "number"]
         // command "playCannedTts", ["string", "string", "number", "number"]
-        command "playAnnouncement", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+//        command "playAnnouncement", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playAnnouncement", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playAnnouncementAll", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"]]
         command "playCalendarToday", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
@@ -152,10 +152,10 @@ metadata {
         command "togglePlayback"
         command "setVolumeAndSpeak", [[name: "Volume*", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""]]
         command "setVolumeSpeakAndRestore", [[name: "Volume*", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""],[name: "Restore Volume*", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        command "volumeUp"
-        command "volumeDown"
+//        command "volumeUp"
+//        command "volumeDown"
         command "speechTest"
-        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""]]
+//        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""]]
         command "sendTestAnnouncement"
         command "sendTestAnnouncementAll"
         command "getDeviceActivity"
@@ -1685,7 +1685,7 @@ def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) 
 }
 
 def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null, restoreVolume=null) {
-    // log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: devObj, volume: $volume, restoreVolume: $restoreVolume)"
+    // log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: $devObj, volume: $volume, restoreVolume: $restoreVolume)"
     if(isCommandTypeAllowed("announce") && devObj) {
         def devJson = new groovy.json.JsonOutput().toJson(devObj)
         msg = "${title ?: "Echo Speaks"}::${msg}::${devJson?.toString()}"
@@ -1716,9 +1716,14 @@ public playAnnouncementAll(String msg, String title=sNULL) {
 
 def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
     logDebug("searchMusic(${searchPhrase}, ${providerId})")
-    if(isCommandTypeAllowed(getCommandTypeForProvider(providerId))) {
-        doSearchMusicCmd(searchPhrase, providerId, volume, sleepSeconds)
-    } else { logWarn("searchMusic not supported for ${providerId}", true) }
+    if(isCommandTypeAllowed("mediaPlayer")) {
+        String a = getCommandTypeForProvider(providerId)
+        if(isCommandTypeAllowed(a) || a == "CLOUDPLAYER") {
+            doSearchMusicCmd(searchPhrase, providerId, volume, sleepSeconds)
+            return
+        }
+    }
+    logWarn("searchMusic not supported for ${providerId}", true)
 }
 
 static String getCommandTypeForProvider(String providerId) {
@@ -1811,7 +1816,7 @@ private void doSequenceCmd(String cmdType, String seqCmd, String seqVal=sBLANK) 
 }
 
 private void doSearchMusicCmd(String searchPhrase, String musicProvId, volume=null, sleepSeconds=null) {
-    if((String)state.serialNumber && searchPhrase && musicProvId) {
+    if((String)state.serialNumber && searchPhrase && musicProvId) { 
         playMusicProvider(searchPhrase, musicProvId, volume, sleepSeconds)
     } else { logWarn("doSearchMusicCmd Error | You are missing one of the following... SerialNumber: ${(String)state.serialNumber} | searchPhrase: ${searchPhrase} | musicProvider: ${musicProvId}", true) }
 }
