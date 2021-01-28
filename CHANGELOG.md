@@ -1,3 +1,21 @@
+## _**(January 27th, 2021)**_
+### _**Echo Speaks App (v4.0.2.0)**_
+- [UPDATE] Slowly modifying the app UI to use HTML.
+- [FIX] bug fixes.
+
+### _**Echo Speaks Actions (v4.0.2.0)**_
+- [FIX] bug fixes.
+
+### _**Echo Speaks Zones (v4.0.2.0)**_
+- [FIX] bug fixes.
+
+### _**Echo Speaks Device (v4.0.2.0)**_
+- [FIX] Fix for NullPointer error on Hubitat v2.2.5.120
+- [FIX] bug fixes.
+
+### _**Echo Speaks WebSocket (v4.0.2.0)**_
+- [FIX] bug fixes.
+
 ## _**(January 22nd, 2021)**_
 ### _**Echo Speaks App (v4.0.1.0)**_
 - [UPDATE] Updated minimum code versions for Echo Device and WebSocket.

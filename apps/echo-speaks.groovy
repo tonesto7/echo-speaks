@@ -17,7 +17,7 @@
 
 import groovy.transform.Field
 @Field static final String appVersionFLD  = "4.0.2.0"
-@Field static final String appModifiedFLD = "2021-01-25"
+@Field static final String appModifiedFLD = "2021-01-27"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
@@ -191,13 +191,13 @@ def mainPage() {
 
             section(sTS("Alexa Login Service:")) {
                 String ls = getLoginStatusDesc()
-                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}\n\n${sTTM}" : sTTC), state: (ls ? sCOMPLT : sNULL)
+                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}${inputFooter(sTTM)}" : sTTC), state: (ls ? sCOMPLT : sNULL)
             }
             if(!(Boolean)state.shownDevSharePage) { showDevSharePrefs() }
         }
         section(sTS("Notifications:")) {
             String t0 = getAppNotifConfDesc()
-            href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL)
+            href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}${inputFooter(sTTM)}" : inputFooter(sTTC)), state: (t0 ? sCOMPLT : sNULL)
         }
         section(sTS("Documentation & Settings:")) {
             href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP
@@ -4536,14 +4536,14 @@ String getAppNotifConfDesc() {
     Integer notifDevs = settings.notif_devs?.size()
     if(notifDevs) { //pushStatus()) {
         Boolean ok = getOk2Notify()
-        str += "Send Notifications Allowed: (${ok ? okSymFLD : notOkSymFLD})"
+        str += "<span style='font-weight: bold;'>Send Notifications Allowed:</span> ${ok ? "<span style='color: green;'>(${okSymFLD})</span>" : "<span style='color: orange;'>(${notOkSymFLD})</span>"}"
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
-        str += notifDevs ? bulletItem(str, "Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})") : sBLANK
-        str += (ap) ? "${str != sBLANK ? "\n\n" : sBLANK}Enabled Alerts:\n${ap}" : sBLANK
-        str += (ap && nd) ? "${str != sBLANK ? "\n" : sBLANK}\n${nd}" : sBLANK
+        str += notifDevs ? "<br><span style=''> ${sBULLET} Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})</span><br>" : sBLANK
+        str += (ap) ? "${str != sBLANK ? "<br>" : sBLANK}<span style='font-weight: bold;'>Enabled Alerts:</span><br>${ap}<br>" : sBLANK
+        str += (ap && nd) ? "${str != sBLANK ? "<br>" : sBLANK}<br>${nd}" : sBLANK
     }
-    return str != sBLANK ? str : sNULL
+    return str != sBLANK ? "<div style='color: #1A77C9; font-size: small;'>${str}</div>" : sNULL
 }
 
 List getQuietDays() {
@@ -4565,17 +4565,17 @@ String getNotifSchedDesc(Boolean min=false) {
         startTime = startType == 'A specific time' && settings.qStartTime ? toDateTime(settings.qStartTime) : null
         stopTime = stopType == 'A specific time' && settings.qStopTime ? toDateTime(settings.qStopTime) : null
     }
-    if(startType in ["Sunrise","Sunset"] || stopType in ["Sunrise","Sunset"]) {
+    if(startType in ["Sunrise", "Sunset"] || stopType in ["Sunrise", "Sunset"]) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        if(startType in ["Sunrise","Sunset"]) {
+        if(startType in ["Sunrise", "Sunset"]) {
             Long startl = (startType == 'Sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
         }
-        if(stopType in ["Sunrise","Sunset"]) {
+        if(stopType in ["Sunrise", "Sunset"]) {
             Long stopl = (stopType == 'Sunrise' ? lsunrise : lsunset) + stopoffset
             stopTime = new Date(stopl)
         }
@@ -4592,8 +4592,8 @@ String getNotifSchedDesc(Boolean min=false) {
     str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
     a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
     str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
-    str = str ? " \u2022 Restrictions: (${rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
-    return (str != sBLANK) ? str : sNULL
+    str = str ? "<span style='font-weight: bold;'>Restrictions:</span> ${rest ? "<span style='color: green;'>(${okSymFLD})</span>" : "<span style='color: orange;'>(${notOkSymFLD})</span>"}<br>${str}" : sBLANK
+    return (str != sBLANK) ? "<div style='color: #1A77C9; font-size: small;'>${str}</div>" : sNULL
 }
 
 String getServiceConfDesc() {
@@ -4606,10 +4606,11 @@ String getServiceConfDesc() {
 }
 
 String getLoginStatusDesc() {
-    String s = """<span style="color: gray;">Login Status:</b> ${(Boolean) state.authValid ? """<div style="color: green;">(Valid)</div>""" : """<div style="color: red;">(Invalid)</div>"""}</span>"""
-    
-    s += (getTsVal("lastCookieRrshDt")) ? "\nCookie Updated:\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})" : sBLANK
-    return s
+    String s = sBLANK
+    s += "<span style='font-weight: bold;'>Login Status:</span>"
+    s += (Boolean) state.authValid ? "<span style='color: green;'> (Valid)</span>" : "<span style='color: red;'> (Invalid)</span>"
+    s += (getTsVal("lastCookieRrshDt")) ? "<br><span style='font-weight: bold;'>Cookie Updated:</span> <span style='color: gray;'>(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})</span>" : sBLANK
+    return "<div style='font-size: small;color: #1A77C9;'>${s}<br></div>"
 }
 
 String getAppNotifDesc() {
@@ -4622,28 +4623,24 @@ String getAppNotifDesc() {
 }
 
 String getActionsDesc() {
-    List<String> actActs = getActiveActionNames()?.sort()?.collect { bulletItem(sBLANK, it) }
-    List<String> inactActs = getInActiveActionNames()?.sort()?.collect { bulletItem(sBLANK, it) }
-    Integer a = actActs?.size()
-    Integer b = inactActs?.size()
+    List<String> actActs = getActiveActionNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (A)', sBLANK)}</span>" + "<span style='color: green;'> (Active)</span>" }
+    List<String> inactActs = getInActiveActionNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (A ❚❚)', sBLANK)}</span>" + "<span style='color: orange;'> (Paused)</span>" }
+    List<String> acts = (actActs + inactActs).sort()
+    Integer a = acts?.size()
     String str = sBLANK
-    str += a ? "Active Actions:\n${actActs?.join("\n")}\n" : sBLANK
-    str += a && b ? "\n" : sBLANK
-    str += b ? "Paused Actions:\n${inactActs?.join("\n")}\n" : sBLANK
-    str += a || b ? "\n${sTTM}" : "Tap to create actions using device/location events to perform advanced actions using your Alexa devices."
+    str += a ? "<div style='color: #1A77C9; font-size: small;'><span style='font-weight: bold;'>Action Status:</span><br><span>${acts?.join("<br>")}</span></div>" : sBLANK
+    str += a ? inputFooter(sTTM) : inputFooter("Tap to create actions using device/location events to perform advanced actions using your Alexa devices.")
     return str
 }
 
 String getZoneDesc() {
-    List<String> actZones = getActiveZoneNames()?.sort()?.collect { bulletItem(sBLANK, it) }
-    List<String> inactZones = getInActiveZoneNames()?.sort()?.collect { bulletItem(sBLANK, it) }
+    List<String> actZones = getActiveZoneNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (Z)', sBLANK)}</span>" + "<span style='color: green;'> (Active)</span>" }
+    List<String> inactZones = getInActiveZoneNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (Z)', sBLANK)}</span>" + "<span style='color: gray;'> (Inactive)</span>" }
+    List<String> zones = (actZones + inactZones).sort()
     String str = sBLANK
-    Integer a = actZones?.size()
-    Integer b = inactZones?.size()
-    str += a ? "Active Zones:\n${actZones?.join("\n")}\n" : sBLANK
-    str += a && b ? "\n" : sBLANK
-    str += b ? "\nInActive or Paused Zones:\n${inactZones?.join("\n")}\n" : sBLANK
-    str += a || b ? "\n${sTTM}" : "Tap to create alexa device zones based on motion, presence, and other criteria."
+    Integer a = zones?.size()
+    str += a ? "<div style='color: #1A77C9; font-size: small;'><span style='font-weight: bold;'>Zone Status:</span><br><span>${zones?.join("<br>")}</span></div>" : sBLANK
+    str += a ? inputFooter(sTTM) : inputFooter("Tap to create alexa device zones based on motion, presence, and other criteria.", 'gray')
     return str
 }
 
