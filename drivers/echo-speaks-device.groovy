@@ -54,7 +54,7 @@ metadata {
         attribute "alarmVolume", "number"
         // attribute "alexaNotifications", "JSON_OBJECT"
         attribute "alexaPlaylists", "JSON_OBJECT"
-        // attribute "alexaGuardStatus", "string"
+        attribute "alexaGuardStatus", "string"
         attribute "alexaWakeWord", "string"
         attribute "btDeviceConnected", "string"
         attribute "btDevicesPaired", "JSON_OBJECT"
@@ -863,8 +863,15 @@ void getBluetoothDevices() {
 
 void updGuardStatus(String val=sNULL) {
     //TODO: Update this because it's not working
-    String t0 = val ?: (state?.permissions?.guardSupported ? parent?.getAlexaGuardStatus() : sNULL)
-    String gState = val ?: (state?.permissions?.guardSupported ? (t0 ?: "Unknown") : "Not Supported")
+//    String t0 = val ?: (state?.permissions?.guardSupported ? parent?.getAlexaGuardStatus() : sNULL)
+    Boolean guardSup = (Boolean)state.permissions?.guardSupported
+    String t0 = guardSup ? (val ?: parent?.getAlexaGuardStatus() ) : "Not Supported"
+    String gState = t0 ?: "Unknown"
+    if(guardSup) {
+        //TODO: Guard is location based ?  ie we may be seeing multiple locations, each with different Guard status?
+        // get something from the parent to check this device or location's guard status
+        // we may really need a new virtual device at each location that is that location's guard status if guard is present at that location
+    }
     if(isStateChange(device, "alexaGuardStatus", gState)) {
         sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)
         logDebug("Alexa Guard Status: (${gState})")
@@ -914,7 +921,7 @@ private getPlaylists() {
     }
 }
 
-private getNotifications(type="Reminder", all=false) {
+private List getNotifications(type="Reminder", all=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications",
@@ -1981,7 +1988,7 @@ def removeNotification(String id) {
 def removeAllNotificationsByType(String type) {
     logTrace("removeAllNotificationsByType($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
-        def items = getNotifications(type, true)
+        List items = getNotifications(type, true)
         if(items?.size()) {
             items.each { item->
                 if (item?.id) {
@@ -1996,7 +2003,7 @@ def removeAllNotificationsByType(String type) {
                 } else { logWarn("removeAllNotificationByType($type) Unable to Find ID for ${item?.id}", true) }
             }
         }// else { logWarn("removeAllNotificationByType($type) is Missing the Required (id) Parameter!!!", true) }
-        state?.remove("createdNotifications")
+        state.remove("createdNotifications")
     }
 }
 
