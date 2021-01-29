@@ -177,6 +177,7 @@ def mainPage() {
                         href "devCleanupPage", title: inTS("Removable Devices:"), description: "<div style='color: red; font-size: small;'>${rd}</div>", required: true, state: sNULL
                     }
                     String devDesc = getDeviceList()?.collect { """<span>${it?.value?.name}</span>${it?.value?.online ? """<span style='color: green;'> (Online)</span>""" : sBLANK}${it?.value?.supported == false ? """<span style='color: red;'> ${sFRNFACE}</span>""" : sBLANK}""" }?.sort().join("<br>").toString()
+/* """ */
                     String dd = devDesc ? """<div style='font-size: small; color: #1A77C9;'>${devDesc}</div><div style='font-weight: bold;font-size: small;'><br>${sTTM}</div>""" : """<div style='font-weight: bold; font-size: small;'>${sTTC}</div"""
                     href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: dd, state: sCOMPLT
                 } else { paragraph pTS("Device Management will be displayed after install is complete", sNull, true, "orange") }
@@ -331,7 +332,7 @@ def servPrefPage() {
             input "resetService", sBOOL, title: inTS1("Reset Service Data?", sRESET), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
                 required: false, defaultValue: false, submitOnChange: true
             paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, sCLRGRY)
-            if(settings?.resetService) { clearCloudConfig() }
+            if(settings.resetService) { clearCloudConfig() }
         }
 /*        section(sTS("Documentation & Settings:")) {
             href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP
@@ -394,10 +395,10 @@ def alexaGuardPage() {
         section(sTS("Alexa Guard Control")) {
             input "alexaGuardAwayToggle", sBOOL, title: inTS1(gStateTitle, gStateIcon), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true
         }
-        if(settings?.alexaGuardAwayToggle != state.alexaGuardAwayToggle) {
+        if(settings.alexaGuardAwayToggle != state.alexaGuardAwayToggle) {
             setGuardState(settings.alexaGuardAwayToggle == true ? sARM_AWAY : sARM_STAY)
         }
-        state.alexaGuardAwayToggle = settings?.alexaGuardAwayToggle
+        state.alexaGuardAwayToggle = settings.alexaGuardAwayToggle
         section(sTS("Automate Guard Control")) {
             String t0 = guardAutoDesc()
             href "alexaGuardAutoPage", title: inTS1("Automate Guard Changes", "alarm_disarm"), description: t0, state: (t0==sTTC ? sNULL : sCOMPLT)
@@ -411,7 +412,7 @@ def alexaGuardAutoPage() {
         List amo = getAlarmModes()
         Boolean alarmReq = (settings.guardAwayAlarm || settings.guardHomeAlarm)
         Boolean modeReq = (settings.guardAwayModes || settings.guardHomeModes)
-        // Boolean swReq = (settings?.guardAwaySw || settings?.guardHomeSw)
+        // Boolean swReq = (settings.guardAwaySw || settings.guardHomeSw)
         section(sTS("Set Guard Using ${asn}")) {
             input "guardHomeAlarm", sENUM, title: inTS1("Home in ${asn} modes.", "alarm_home"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true
             input "guardAwayAlarm", sENUM, title: inTS1("Away in ${asn} modes.", "alarm_away"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true
@@ -503,7 +504,7 @@ def guardTriggerEvtHandler(evt) {
             setGuardHome()
         }
         if(newState == sARM_AWAY) {
-            if(settings?.guardAwayDelay) { logWarn("Setting Alexa Guard Mode to Away in (${settings?.guardAwayDelay} seconds)", true); runIn(settings?.guardAwayDelay, "setGuardAway") }
+            if(settings.guardAwayDelay) { logWarn("Setting Alexa Guard Mode to Away in (${settings.guardAwayDelay} seconds)", true); runIn(settings.guardAwayDelay, "setGuardAway") }
             else { setGuardAway(); logWarn("Setting Alexa Guard Mode to Away...", true) }
         }
     }
@@ -664,17 +665,16 @@ def zonesPage() {
         }
         section (sTS("Zone Management:"), hideable: true, hidden: true) {
             if(activeZones?.size()) {
-                input "pauseChildZones", sBOOL, title: inTS1("Pause all Zones?", "pause_orange"), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.",
-                        defaultValue: false, submitOnChange: true
+                input "pauseChildZones", sBOOL, title: inTS1("Pause all Zones?", "pause_orange"), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.", defaultValue: false, submitOnChange: true
                 if(settings.pauseChildZones) { settingUpdate("pauseChildZones", sFALSE, sBOOL); runIn(3, "executeZonePause") }
                 paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", sNULL, false, sCLRGRY)
             }
             if(pausedZones?.size()) {
                 input "unpauseChildZone", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true
-                if(settings?.unpauseChildZones) { settingUpdate("unpauseChildZones", sFALSE, sBOOL); runIn(3, "executeZoneUnpause") }
+                if(settings.unpauseChildZone) { settingUpdate("unpauseChildZone", sFALSE, sBOOL); runIn(3, "executeZoneUnpause") }
             }
             input "reinitChildZones", sBOOL, title: inTS1("Clear Zones Status and force a full status refresh for all zones?", sRESET), defaultValue: false, submitOnChange: true
-            if(settings?.reinitChildZones) { settingUpdate("reinitChildZones", sFALSE, sBOOL); runIn(3, "executeZoneUpdate") }
+            if(settings.reinitChildZones) { settingUpdate("reinitChildZones", sFALSE, sBOOL); runIn(3, "executeZoneUpdate") }
         }
         state.childInstallOkFlag = true
         state.zoneDuplicated = false
@@ -1347,7 +1347,7 @@ def updated() {
 def initialize() {
     logInfo("running initialize...")
     //if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
-    if((Boolean)settings.optOutMetrics && (String)state.appGuid) { if(removeInstallData()) { state.appGuid = sNULL } }
+    if((Boolean)settings.optOutMetrics && (String)state.appGuid) { if(removeInstallData()) { state.appGuid = sNULL; state.remove('appGuid') } }
     subscribe(location, "systemStart", startHandler)
     if(guardAutoConfigured()) {
         if(settings.guardAwayAlarm && settings.guardHomeAlarm) {
@@ -1427,7 +1427,7 @@ void appCleanup() {
         "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap"
     ]
 // pushTested
-    items?.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
+    items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     state.pollBlocked = false
     state.resumeConfig = false
     state.missPollRepair = false
@@ -1435,8 +1435,8 @@ void appCleanup() {
 
     // Settings Cleanup
     List setItems = ["performBroadcast", "stHub", "cookieRefreshDays"]
-    settings?.each { si-> ["music", "tunein", "announce", "perform", "broadcast", "sequence", "speech", "test_"]?.each { swi-> if(si?.key?.startsWith(swi as String)) { setItems?.push(si?.key as String) } } }
-    setItems?.unique()?.sort()?.each { sI-> if(settings?.containsKey(sI as String)) { settingRemove(sI as String) } }
+    settings?.each { si-> ["music", "tunein", "announce", "perform", "broadcast", "sequence", "speech", "test_"].each { String swi-> if(si.key?.startsWith(swi)) { setItems.push(si?.key as String) } } }
+    setItems.unique().sort().each { String sI-> if(settings?.containsKey(sI)) { settingRemove(sI) } }
     cleanUpdVerMap()
 }
 
@@ -1903,6 +1903,7 @@ void authEvtHandler(Boolean isAuth, String src=sNULL) {
     Boolean stC = ((Boolean)state.authValid != isAuth)
     logDebug "authEvtHandler(${isAuth},$src) stateChange: ${stC}"
     state.authValid = isAuth
+    state.remove('authEvtClearReason')
     if(!isAuth && !(Boolean)state.noAuthActive) {
         state.noAuthActive = true
         clearCookieData('authHandler', true)
@@ -2923,7 +2924,7 @@ void receiveEventData(Map evtData, String src) {
                 List unknownDevices = []
                 List curDevFamily = []
 //                Integer cnt = 0
-                String devAcctId = (String)null
+                String devAcctId = sNULL
                 evtData?.echoDevices?.each { String echoKey, echoValue->
                     devAcctId = echoValue?.deviceAccountId
                     logTrace("echoDevice | $echoKey | ${echoValue}")
@@ -2973,7 +2974,7 @@ void receiveEventData(Map evtData, String src) {
                     echoValue["amazonDomain"] = (settings.amazonDomain ?: "amazon.com")
                     echoValue["regionLocale"] = (settings.regionLocale ?: "en-US")
                     echoValue["cookie"] = getCookieMap()
-                    echoValue["deviceAccountId"] = echoValue?.deviceAccountId as String ?: (String)null
+                    echoValue["deviceAccountId"] = echoValue?.deviceAccountId as String ?: sNULL
                     echoValue["deviceStyle"] = deviceStyleData
                     // log.debug "deviceStyle: ${echoValue?.deviceStyle}"
 
@@ -4058,7 +4059,7 @@ private getDiagDataJson(Boolean asObj = false) {
                 cookieValidHistory: (List)state.authValidHistory,
                 cookieLastRefreshDate: getTsVal("lastCookieRrshDt") ?: null,
                 cookieLastRefreshDur: getTsVal("lastCookieRrshDt") ? seconds2Duration(getLastTsValSecs("lastCookieRrshDt")) : null,
-                cookieInvalidReason: (!(Boolean)state.authValid && state.authEvtClearReason) ? state.authEvtClearReason : (String)null,
+                cookieInvalidReason: (!(Boolean)state.authValid && state.authEvtClearReason) ? state.authEvtClearReason : sNULL,
                 cookieRefreshDays: (Integer)settings.refreshCookieDays,
                 cookieItems: [
                     hasLocalCookie: (state.cookieData && state.cookieData.localCookie),
@@ -5577,7 +5578,7 @@ void logError(String msg, Boolean noHist=false, ex=null) {
     if(!noHist) { addToLogHistory("errorHistory", msg, 15) }
 }
 
-String addHead(String msg) {
+static String addHead(String msg) {
     return "EchoApp (v"+appVersionFLD+") | "+msg
 }
 
