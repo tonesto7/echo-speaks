@@ -34,6 +34,7 @@ import groovy.transform.Field
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
 @Field static final String sENUM          = 'enum'
+@Field static final String sTIME          = 'time'
 @Field static final String sAPPJSON       = 'application/json'
 @Field static final String sIN_IGNORE     = 'In Ignore Device Input'
 @Field static final String sARM_AWAY      = 'ARMED_AWAY'
@@ -989,11 +990,11 @@ def setNotificationTimePage() {
         section() {
             input "qStartInput", sENUM, title: inTS1("Starting at", "start_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false
             if(settings["qStartInput"] == "A specific time") {
-                input "qStartTime", "time", title: inTS1("Start time", "start_time"), required: timeReq
+                input "qStartTime", sTIME, title: inTS1("Start time", "start_time"), required: timeReq
             }
             input "qStopInput", sENUM, title: inTS1("Stopping at", "stop_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false
             if(settings?."qStopInput" == "A specific time") {
-                input "qStopTime", "time", title: inTS1("Stop time", "stop_time"), required: timeReq
+                input "qStopTime", sTIME, title: inTS1("Stop time", "stop_time"), required: timeReq
             }
             input "quietDays", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
             input "quietModes", "mode", title: inTS1("When these modes are Active", "mode"), multiple: true, submitOnChange: true, required: false
