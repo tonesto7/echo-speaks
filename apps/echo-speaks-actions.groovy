@@ -19,12 +19,12 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.2.0"
-@Field static final String appModifiedFLD = "2021-01-27"
+@Field static final String appVersionFLD  = "4.0.3.0"
+@Field static final String appModifiedFLD = "2021-01-29"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
-@Field static final Boolean devModeFLD    = true
+@Field static final Boolean devModeFLD    = false
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1773,7 +1773,7 @@ def actNotifTimePage() {
         String pre = "notif"
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
         section(sTS("Quiet Start Time:")) {
-            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
+            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [(sTIME):"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(settings."${pre}_time_start_type" == sTIME) {
                 input "${pre}_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true
             } else if(settings."${pre}_time_start_type" in lSUNRISESET) {
@@ -1781,7 +1781,7 @@ def actNotifTimePage() {
             }
         }
         section(sTS("Quiet Stop Time:")) {
-            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
+            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [(sTIME):"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(settings."${pre}_time_stop_type" == sTIME) {
                 input "${pre}_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true
             } else if(settings."${pre}_time_stop_type" in lSUNRISESET) {
@@ -1917,7 +1917,7 @@ def condTimePage() {
     return dynamicPage(name:"condTimePage", title: sBLANK, install: false, uninstall: false) {
         Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
         section(sTS("Condition Start Time:")) {
-            input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
+            input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [(sTIME):"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(settings.cond_time_start_type  == sTIME) {
                 input "cond_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true
             } else if(settings.cond_time_start_type in lSUNRISESET) {
@@ -1925,7 +1925,7 @@ def condTimePage() {
             }
         }
         section(sTS("Condition Stop Time:")) {
-            input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [sTIME:"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
+            input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [(sTIME):"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(settings.cond_time_stop_type == sTIME) {
                 input "cond_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true
             } else if(settings.cond_time_stop_type in lSUNRISESET) {
@@ -5063,6 +5063,8 @@ void releaseTheLock(String qname){
 
 static String convMusicProvider(String prov) {
     switch (prov) {
+        case "My Library":
+            return "CLOUDPLAYER"
         case "Amazon Music":
             return "AMAZON_MUSIC"
         case "Apple Music":
