@@ -21,7 +21,7 @@ import groovy.transform.Field
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
-@Field static final Boolean devModeFLD    = true
+@Field static final Boolean devModeFLD    = false
 @Field static final Map minVersionsFLD    = [echoDevice: 4020, wsDevice: 4020, actionApp: 4020, zoneApp: 4020, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
@@ -1425,10 +1425,10 @@ void appCleanup() {
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
-        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap"
+        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "guardData", "guardDataSrc", "guardDataOverMaxSize"
     ]
-// pushTested
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
+
     state.pollBlocked = false
     state.resumeConfig = false
     state.missPollRepair = false
@@ -1442,7 +1442,7 @@ void appCleanup() {
 }
 
 void wsEvtHandler(evt) {
-    // log.trace("wsEvtHandler evt: ${evt}")
+    if(devModeFLD) logTrace("wsEvtHandler evt: ${evt}")
     if(evt && evt.id && (evt.attributes?.size() || evt.triggers?.size())) {
         if("bluetooth" in evt.triggers) { runIn(2, "getBluetoothRunIn") } // getBluetoothDevices(true)
         if("activity" in evt.triggers) { runIn(1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
@@ -2548,7 +2548,7 @@ void checkGuardSupportResponse(response, data) {
             } else {
                 logWarn("Can't check for Guard Support because server version is out of date...  Please update to the latest version...")
             }
-            state.guardDataOverMaxSize = true
+            state.alexaGuardDataOverMaxSize = true
             return
         }
         Map resp = response?.data ? parseJson(response?.data?.toString()) : null
@@ -2557,10 +2557,14 @@ void checkGuardSupportResponse(response, data) {
             Map locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
             if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
                 def guardKey = locDetails?.applianceDetails?.applianceDetails?.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+// could there be multiple Guards?
+                def guardKeys = locDetails?.applianceDetails?.applianceDetails?.findAll { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+                if(devModeFLD) logTrace("Guardkeys: ${guardKeys.size()}")
                 def guardData = locDetails?.applianceDetails?.applianceDetails[guardKey?.key]
-                // log.debug "Guard: ${guardData}"
+                if(devModeFLD) logTrace("Guard: ${guardData}")
                 if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
-                    state.guardData = [
+//TODO: we really need to match guardData to devices (and really locations)  ie guard can be on some devices/locations and not on others
+                    state.alexaGuardData = [
                         entityId: guardData?.entityId,
                         applianceId: guardData?.applianceId,
                         friendlyName: guardData?.friendlyName,
@@ -2574,7 +2578,7 @@ void checkGuardSupportResponse(response, data) {
     }
     state.alexaGuardSupported = guardSupported
     updTsVal("lastGuardSupChkDt")
-    state.guardDataSrc = "app"
+    state.alexaGuardDataSrc = "app"
     if(guardSupported) getGuardState()
 }
 
@@ -2603,7 +2607,7 @@ void checkGuardSupportServerResponse(response, data) {
             if(resp) {
                 if(resp.guardData) {
                     log.debug "AGS Server Resp: ${resp?.guardData}"
-                    state.guardData = resp.guardData
+                    state.alexaGuardData = resp.guardData
                     guardSupported = true
                 }
             } else { logError("checkGuardSupportServerResponse Error | No data received..."); return }
@@ -2613,8 +2617,8 @@ void checkGuardSupportServerResponse(response, data) {
         return
     }
     state.alexaGuardSupported = guardSupported
-    state.guardDataOverMaxSize = guardSupported
-    state.guardDataSrc = "server"
+    state.alexaGuardDataOverMaxSize = guardSupported
+    state.alexaGuardDataSrc = "server"
     updTsVal("lastGuardSupChkDt")
     if(guardSupported) getGuardState()
 }
@@ -2628,7 +2632,7 @@ void getGuardState() {
         headers: getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
-        body: [ stateRequests: [ [entityId: state.guardData?.applianceId, entityType: "APPLIANCE" ] ] ]
+        body: [ stateRequests: [ [entityId: state.alexaGuardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
     try {
         logTrace("getGuardState")
@@ -2636,8 +2640,12 @@ void getGuardState() {
             if(resp?.status != 200) logWarn("${resp?.status} $params")
             if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
             Map respData = resp?.data ?: null
+
+            if(devModeFLD) log.debug "GuardState resp: ${respData}"
+
             if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
                 def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
+                if(devModeFLD) logTrace("guardState: ${guardStateData}")
                 String curState = (String)state.alexaGuardState ?: sNULL
                 state.alexaGuardState = guardStateData?.value[0] ? (String)guardStateData?.value[0] : (String)guardStateData?.value
                 settingUpdate("alexaGuardAwayToggle", (((String)state.alexaGuardState == sARM_AWAY) ? sTRUE : sFALSE), sBOOL)
@@ -2645,7 +2653,6 @@ void getGuardState() {
                 if(curState != (String)state.alexaGuardState) updGuardActionTrig()
                 updTsVal("lastGuardStateChkDt")
             }
-            // log.debug "GuardState resp: ${respData}"
         }
     } catch (ex) {
         respExceptionHandler(ex, "getGuardState", true)
@@ -2659,7 +2666,7 @@ void setGuardState(String guardState) {
     guardState = guardStateConv(guardState)
     logDebug("setAlexaGuard($guardState)")
     try {
-        String body = new groovy.json.JsonOutput()?.toJson([ controlRequests: [ [ entityId: state.guardData?.applianceId as String, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ])
+        String body = new groovy.json.JsonOutput()?.toJson([ controlRequests: [ [ entityId: state.alexaGuardData?.applianceId as String, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ])
         Map params = [
             uri: getAmazonUrl(),
             path: "/api/phoenix/state",
@@ -4079,11 +4086,11 @@ private getDiagDataJson(Boolean asObj = false) {
             alexaGuard: [
                 supported: (Boolean)state.alexaGuardSupported,
                 status: (String)state.alexaGuardState,
-                dataSrc: (String)state.guardDataSrc,
+                dataSrc: (String)state.alexaGuardDataSrc,
                 lastSupportCheck: getTsVal("lastGuardSupChkDt"),
                 lastStateCheck: getTsVal("lastGuardStateChkDt"),
                 lastStateUpd: getTsVal("lastGuardStateUpdDt"),
-                stRespLimit: (Boolean)state.guardDataOverMaxSize
+                stRespLimit: (Boolean)state.alexaGuardDataOverMaxSize
             ],
             server: [
                 version: state.codeVersions?.server ?: null,
