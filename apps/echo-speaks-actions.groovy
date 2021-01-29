@@ -19,12 +19,12 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.2.0"
-@Field static final String appModifiedFLD = "2021-01-27"
+@Field static final String appVersionFLD  = "4.0.3.0"
+@Field static final String appModifiedFLD = "2021-01-29"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
-@Field static final Boolean devModeFLD    = true
+@Field static final Boolean devModeFLD    = false
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
