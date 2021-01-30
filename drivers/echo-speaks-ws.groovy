@@ -95,9 +95,8 @@ def initialize() {
     state.remove('warnHistory'); state.remove('errorHistory')
 
     if(settings.autoConnectWs != false) {
+        if(!state.cookie || !(state.cookie instanceof Map)) state.cookie = (Map)parent?.getCookieMap()
         String cookS = getCookieVal() //state.cookie = parent?.getCookieVal()
-        if(!cookS || !state.cookie || state.cookie instanceof String) state.cookie = (Map)parent?.getCookieMap()
-        cookS = getCookieVal()
         if(cookS) {
             if(!state.amazonDomain) {
                 state.amazonDomain = parent?.getAmazonDomain()
