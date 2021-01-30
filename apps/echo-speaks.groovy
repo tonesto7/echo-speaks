@@ -3433,8 +3433,8 @@ void appUpdateNotify() {
     Boolean on=false
     if(res) {
         on = ((Boolean)settings.sendAppUpdateMsg)
-        updW = settings.updNotifyWaitVal
-        if(updW == null) { updW = 43200; settingUpdate("updNotifyWaitVal", 43200) }
+        updW = settings.updNotifyWaitVal?.toInteger()
+        if(updW == null) { updW = 43200; settingUpdate("updNotifyWaitVal", "43200", sENUM) }
         secs=getLastTsValSecs("lastUpdMsgDt")
         if(secs > updW && on) {
             String str = sBLANK
