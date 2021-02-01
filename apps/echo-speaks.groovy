@@ -2489,7 +2489,7 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
                         }
                     }
                     // log.debug "routine items: $items"
-                    return items
+                    rtResp = items
                 }
             }
         }
