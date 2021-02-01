@@ -2448,7 +2448,7 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
     if(!isAuthValid("getAlexaRoutines")) { return [:]}
     Map params = [
         uri: getAmazonUrl(),
-        path: "/api/behaviors/automations${autoId ? "/${autoId}" : sBLANK}",
+        path: "/api/behaviors/v2/automations${autoId ? "/${autoId}" : sBLANK}",
         query: [ limit: 100 ],
         headers: getCookieMap(),
         contentType: sAPPJSON,
@@ -2461,41 +2461,43 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
         httpGet(params) { response ->
             if(response?.status != 200) logWarn("${response?.status} $params")
             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            rtResp = response?.data ?: [:]
-            // log.debug "alexaRoutines: $rtResp"
-            if(rtResp) {
+            def listOrMap = response?.data
+            // log.debug "alexaRoutines: $listOrMap"
+            if(listOrMap instanceof Map) {
+		rtResp = listOrMap ?: [:]
                 if(autoId) {
                     return rtResp
-                } else {
-                    Map items = [:]
-                    Integer cnt = 1
-                    if(rtResp.size()) {
-                        rtResp.findAll { it?.status == "ENABLED" }?.each { item->
-                            String myK = item?.automationId?.toString()
-                            if(item?.name != null) {
-                                items[myK] = item?.name
-                            } else {
-                                if(item?.triggers?.size()) {
-                                    item?.triggers?.each { trg->
-                                        if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
-                                            items[myK] = trg?.payload?.utterance as String
-                                        } else {
-                                            items[myK] = "Unlabeled Routine ($cnt)"
-                                            cnt++
-                                        }
+                }
+            } else if(listOrMap instanceof List) {
+                List myList = listOrMap ?: []
+                Map items = [:]
+                Integer cnt = 1
+                if(myList.size()) {
+                    myList.findAll { it?.status == "ENABLED" }?.each { Map item->
+                        String myK = item.automationId.toString()
+                        if(item.name != null) {
+                            items[myK] = item.name
+                        } else {
+                            if(item.triggers?.size()) {
+                                item.triggers.each { trg->
+                                    if(trg.payload?.containsKey("utterance") && trg.payload?.utterance != null) {
+                                        items[myK] = (String)trg.payload.utterance
+                                    } else {
+                                        items[myK] = "Unlabeled Routine ($cnt)"
+                                        cnt++
                                     }
                                 }
                             }
                         }
                     }
-                    // log.debug "routine items: $items"
-                    return items
                 }
+                rtResp = items
             }
         }
     } catch (ex) {
         respExceptionHandler(ex, "getAlexaRoutines", true)
     }
+    // log.debug "routines: $rtResp"
     return rtResp
 }
 
