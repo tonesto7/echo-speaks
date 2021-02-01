@@ -483,7 +483,7 @@ public void updSocketStatus(Boolean active) {
     state.websocketActive = active
 }
 
-void websocketUpdEvt(List triggers) {
+void websocketUpdEvt(List<String> triggers) {
     logTrace("websocketEvt: $triggers")
     if((Boolean) state.isWhaDevice) { return }
     if(triggers?.size()) {
@@ -921,7 +921,7 @@ private getPlaylists() {
     }
 }
 
-private List getNotifications(type="Reminder", all=false) {
+private List getNotifications(String type="Reminder", all=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications",
@@ -937,11 +937,11 @@ private List getNotifications(type="Reminder", all=false) {
             def sData = response?.data ?: null
             if(sData?.size()) {
                 List s = ["ON"]
-                if(all) s?.push("OFF")
-                List items = sData?.notifications ? sData?.notifications?.findAll { (it?.status in s) && (it?.type == type) && it?.deviceSerialNumber == (String)state.serialNumber } : []
+                if(all) s.push("OFF")
+                List items = sData.notifications ? sData.notifications.findAll { (it.status in s) && (it.type == type) && it?.deviceSerialNumber == (String)state.serialNumber } : []
                 items?.each { item->
                     Map li = [:]
-                    item?.keySet()?.each { String key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration', 'status']) { li[key] = item[key] } }
+                    item.keySet()?.each { String key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration', 'status']) { li[key] = item[key] } }
                     newList?.push(li)
                 }
             }
@@ -1085,7 +1085,7 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
     return sNULL
 }
 
-private void sendSequenceCommand(type, command, value) {
+private void sendSequenceCommand(String type, command, value) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
     Map seqObj = sequenceBuilder(command, value)
     String t0 = sendAmazonCommand("POST", [
@@ -1098,13 +1098,13 @@ private void sendSequenceCommand(type, command, value) {
     ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
-private void sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=false) {
+private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
     List nodeList = []
-    commands?.each { cmdItem->
-        if(cmdItem?.command instanceof Map) {
-            nodeList?.push(cmdItem?.command)
-        } else { nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value, cmdItem?.devType ?: null, cmdItem?.devSerial ?: null)) }
+    commands.each { cmdItem->
+        if(cmdItem.command instanceof Map) {
+            nodeList.push(cmdItem.command)
+        } else { nodeList.push(createSequenceNode((String)cmdItem.command, cmdItem?.value, (String)cmdItem?.devType ?: sNULL, (String)cmdItem?.devSerial ?: sNULL)) }
     }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     sendSequenceCommand("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}", seqJson, null)
@@ -1320,8 +1320,8 @@ def setLevel(level) {
     if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
         if(level != device?.currentValue('level')) {
             sendSequenceCommand("VolumeCommand", "volume", level)
-            sendEvent(name: "level", value: level?.toInteger(), display: true, displayed: true)
-            sendEvent(name: "volume", value: level?.toInteger(), display: true, displayed: true)
+            sendEvent(name: "level", value: level.toInteger(), display: true, displayed: true)
+            sendEvent(name: "volume", value: level.toInteger(), display: true, displayed: true)
         }
     }
 }
@@ -1500,52 +1500,40 @@ public restoreLastVolume() {
     } else { logWarn("Unable to restore Last Volume!!! restoreVolume State Value not found...", true) }
 }
 
-def sayWelcomeHome(volume=null, restoreVolume=null) {
+void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) {
     if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "iamhome"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayWelcomeHome")
-    } else { doSequenceCmd("sayWelcomeHome", "cannedtts_random", "iamhome") }
+        List seqs = [[command: "volume", value: volume], [command: cmd, value: val]]
+        if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs, cmdType)
+    } else { doSequenceCmd(cmdType, cmd, val) }
+}
+
+void seqHelper_c(String val, String cmdType, volume, restoreVolume){
+    seqHelper_a("cannedtts_random", val, cmdType, volume, restoreVolume)
+}
+
+def sayWelcomeHome(volume=null, restoreVolume=null) {
+    seqHelper_c("iamhome", "sayWelcomHome", volume, restoreVolume)
 }
 
 def sayCompliment(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "compliments"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayCompliment")
-    } else { doSequenceCmd("sayCompliment", "cannedtts_random", "compliments") }
+    seqHelper_c("compliments", "sayCompliment", volume, restoreVolume)
 }
 
 def sayBirthday(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "birthday"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayBirthday")
-    } else { doSequenceCmd("sayBirthday", "cannedtts_random", "birthday") }
+    seqHelper_c("birthday", "sayBirthday", volume, restoreVolume)
 }
 
 def sayGoodNight(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "goodnight"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayGoodNight")
-    } else { doSequenceCmd("sayGoodNight", "cannedtts_random", "goodnight") }
+    seqHelper_c("goodnight", "sayGoodNight", volume, restoreVolume)
 }
 
 def sayGoodMorning(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "goodmorning"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayGoodMorning")
-    } else { doSequenceCmd("sayGoodMorning", "cannedtts_random", "goodmorning") }
+    seqHelper_c("goodmorning", "sayGoodMorning", volume, restoreVolume)
 }
 
 def sayGoodbye(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "goodbye"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayGoodbye")
-    } else { doSequenceCmd("sayGoodbye", "cannedtts_random", "goodbye") }
+    seqHelper_c("goodbye", "sayGoodBye", volume, restoreVolume)
 }
 
 def executeRoutineId(String rId) {
@@ -1557,138 +1545,81 @@ def executeRoutineId(String rId) {
     }
 }
 
-def playWeather(volume=null, restoreVolume=null) {
+void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
     if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "weather"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playWeather")
-    } else { doSequenceCmd("playWeather", "weather") }
+        List seqs = [[command: "volume", value: volume], [command: cmd]]
+        if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs, cmdType)
+    } else { doSequenceCmd(cmdType, cmd) }
+}
+
+def playWeather(volume=null, restoreVolume=null) {
+    seqHelper_s("weather", "playWeather", volume, restoreVolume)
 }
 
 def playTraffic(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "traffic"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playTraffic")
-    } else { doSequenceCmd("playTraffic", "traffic") }
+    seqHelper_s("traffic", "playTraffic", volume, restoreVolume)
 }
 
 def playSingASong(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "singasong"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playSingASong")
-    } else { doSequenceCmd("playSingASong", "singasong") }
+    seqHelper_s("singasong", "playSingASong", volume, restoreVolume)
 }
 
 def playFlashBrief(volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("flashBriefing")) {
-        if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "flashbriefing"]]
-            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "playFlashBrief")
-        } else { doSequenceCmd("playFlashBrief", "flashbriefing") }
+        seqHelper_s("flashbriefing", "playFlashBrief", volume, restoreVolume)
     }
 }
 
 def playGoodNews(volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("flashBriefing")) {
-        if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "goodnews"]]
-            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "playGoodNews")
-        } else { doSequenceCmd("playGoodNews", "goodnews") }
+        seqHelper_s("goodnews", "playGoodNews", volume, restoreVolume)
     }
 }
 
 def playTellStory(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "tellstory"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playTellStory")
-    } else { doSequenceCmd("playTellStory", "tellstory") }
+    seqHelper_s("tellstory", "playTellStory", volume, restoreVolume)
 }
 
 def playFunFact(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "funfact"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playFunFact")
-    } else { doSequenceCmd("playFunFact", "funfact") }
+    seqHelper_s("funfact", "playFunFact", volume, restoreVolume)
 }
 
 def playJoke(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "joke"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playJoke")
-    } else { doSequenceCmd("playJoke", "joke") }
+    seqHelper_s("joke", "playJoke", volume, restoreVolume)
 }
 
 def playCalendarToday(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "calendartoday"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playCalendarToday")
-    } else { doSequenceCmd("playCalendarToday", "calendartoday") }
+    seqHelper_s("calendartoday", "playCalendarToday", volume, restoreVolume)
 }
 
 def playCalendarTomorrow(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "calendartomorrow"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playCalendarTomorrow")
-    } else { doSequenceCmd("playCalendarTomorrow", "calendartomorrow") }
+    seqHelper_s("calendartomorrow", "playCalendarTomorrow", volume, restoreVolume)
 }
 
 def playCalendarNext(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "calendarnext"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playCalendarNext")
-    } else { doSequenceCmd("playCalendarNext", "calendarnext") }
+    seqHelper_s("calendarnext", "playCalendarNext", volume, restoreVolume)
 }
 
 def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: type]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playCannedRandomTts($type)")
-    } else { doSequenceCmd("playCannedRandomTts($type)", "cannedtts_random", type) }
+    seqHelper_c(type, "playCannedRandomTts($type)", volume, restoreVolume)
 }
 
 def playSoundByName(String name, volume=null, restoreVolume=null) {
     log.debug "sound name: ${name}"
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "sound", value: name]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playSoundByName($name)")
-    } else { doSequenceCmd("playSoundByName($name)", "sound", name) }
+    seqHelper_a("sound", name, "playSoundByName($name)", volume, restoreVolume)
 }
 
 def playAnnouncement(String msg, volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("announce")) {
-        if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
-            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "playAnnouncement")
-        } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
+        seqHelper_a("announcement", msg, "playAnnouncement", volume, restoreVolume)
         sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
     }
 }
 
 def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
-    String newMsg= "${title ? "${title}::" : sBLANK}${msg}"
+    String newMsg= "${title ? "${title}::" : sBLANK}${msg}".toString()
     playAnnouncement(newMsg, volume, restoreVolume)
-/*    if(isCommandTypeAllowed("announce")) {
-        msg = "${title ? "${title}::" : sBLANK}${msg}"
-        if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
-            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "playAnnouncement")
-        } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
-        sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
-    }*/
 }
 
 def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volume=null, restoreVolume=null) {
@@ -1697,11 +1628,11 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
         String devJson = new groovy.json.JsonOutput().toJson(devObj)
         msg = "${title ?: "Echo Speaks"}::${msg}::${devJson}"
         // log.debug "sendAnnouncementToDevices | msg: ${msg}"
-        if(volume || restoreVolume) {
+        if(volume != null) {
             List mainSeq = []
-            if(volume) { devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) } }
+            devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
             mainSeq.push([command: "announcement_devices", value: msg])
-            if(restoreVolume) { devObj.each { dev-> mainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) } }
+            if(restoreVolume!=null) { devObj.each { dev-> mainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) } }
             // log.debug "mainSeq: $mainSeq"
             sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
         } else { doSequenceCmd("sendAnnouncementToDevices", "announcement_devices", msg) }
@@ -2896,7 +2827,7 @@ def testMultiCmd() {
     sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]], "testMultiCmd")
 }
 
-private void speechCmd(Map headers=[:], Boolean isQueueCmd=false) {
+private void speechCmd(Map headers=[:], Boolean isQueueCmd=true) {
     // if(isQueueCmd) log.warn "QueueBlocked: ${state.q_blocked} | cycleCnt: ${state.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
 
     if(!headers) { logError("speechCmd | Error | headers are missing"); return }
@@ -3230,7 +3161,7 @@ public Map getDeviceMetrics() {
 }
 
 Map sequenceBuilder(cmd, val) {
-    Map seqJson = null
+    Map seqJson
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
@@ -3241,13 +3172,13 @@ Map sequenceBuilder(cmd, val) {
 Map multiSequenceBuilder(List commands, Boolean parallel=false) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
     List nodeList = []
-    commands?.each { cmdItem-> nodeList.push(createSequenceNode(cmdItem?.command, cmdItem?.value)) }
+    commands.each { cmdItem-> nodeList.push(createSequenceNode((String)cmdItem.command, cmdItem.value)) }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     Map seqObj = sequenceBuilder(seqJson, null)
     return seqObj
 }
 
-Map createSequenceNode(command, value, String devType=null, String devSerial=null) {
+Map createSequenceNode(String command, value, String devType=sNULL, String devSerial=sNULL) {
     try {
         Boolean remDevSpecifics = false
         Map seqNode = [
@@ -3259,7 +3190,7 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                 "customerId": (String)state.deviceOwnerCustomerId
             ]
         ]
-        switch (command?.toString()?.toLowerCase()) {
+        switch (command.toLowerCase()) {
             case "weather":
                 seqNode.type = "Alexa.Weather.Play"
                 break
@@ -3386,15 +3317,15 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
             case "announcement_devices":
                 remDevSpecifics = true
                 seqNode.type = "AlexaAnnouncement"
-                seqNode.operationPayload?.expireAfter = "PT5S"
+                seqNode.operationPayload.expireAfter = "PT5S"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
                 // log.debug "valObj(size: ${valObj?.size()}): $valObj"
                 // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
                 // log.debug "valObj[1]: ${valObj[1]}"
-                seqNode.operationPayload?.content = [[ locale: ((String)state.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
-                seqNode.operationPayload?.target = [ customerId : (String)state.deviceOwnerCustomerId ]
+                seqNode.operationPayload.content = [[ locale: ((String)state.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
+                seqNode.operationPayload.target = [ customerId : (String)state.deviceOwnerCustomerId ]
                 if(!(command in ["announcementall", "announcement_devices"])) {
-                    seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ] ]
+                    seqNode.operationPayload.target.devices = [ [ deviceTypeId: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ] ]
                 } else if(command == "announcement_devices" && valObj?.size() && valObj[2] != null) {
                     List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
                     seqNode.operationPayload.target.devices = devObjs
