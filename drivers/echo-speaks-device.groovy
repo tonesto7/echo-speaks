@@ -163,7 +163,7 @@ metadata {
         command "connectBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
         command "disconnectBluetooth"
         command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
-        command "sendAnnouncementToDevices", ["string", "string", "string", "number", "number"]
+        command "sendAnnouncementToDevices", ["string", "string", "object", "number", "number"]
         command "voiceCmdAsText", [[name: "Voice Command as Text*", type: "STRING", description: ""]]
     }
 
@@ -1691,17 +1691,17 @@ def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) 
     }*/
 }
 
-def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null, restoreVolume=null) {
+def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volume=null, restoreVolume=null) {
     // log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: $devObj, volume: $volume, restoreVolume: $restoreVolume)"
     if(isCommandTypeAllowed("announce") && devObj) {
-        def devJson = new groovy.json.JsonOutput().toJson(devObj)
-        msg = "${title ?: "Echo Speaks"}::${msg}::${devJson?.toString()}"
+        String devJson = new groovy.json.JsonOutput().toJson(devObj)
+        msg = "${title ?: "Echo Speaks"}::${msg}::${devJson}"
         // log.debug "sendAnnouncementToDevices | msg: ${msg}"
         if(volume || restoreVolume) {
             List mainSeq = []
-            if(volume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: volume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
-            mainSeq?.push([command: "announcement_devices", value: msg])
-            if(restoreVolume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: restoreVolume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
+            if(volume) { devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) } }
+            mainSeq.push([command: "announcement_devices", value: msg])
+            if(restoreVolume) { devObj.each { dev-> mainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) } }
             // log.debug "mainSeq: $mainSeq"
             sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
         } else { doSequenceCmd("sendAnnouncementToDevices", "announcement_devices", msg) }
@@ -2587,15 +2587,15 @@ String cleanString(String str, Boolean frcTrans=false) {
 }
 
 private String textTransform(String str, Boolean force=false) {
-    if(!force && settings?.disableTextTransform == true) { return str }
+    if(!force && (Boolean)settings.disableTextTransform) { return str }
     // Converts F temp values to readable text "19F"
-    str = str?.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
-    str = str?.replaceAll(/(\sWSW\s)/, " west southwest ")?.replaceAll(/(\sWNW\s)/, " west northwest ")?.replaceAll(/(\sESE\s)/, " east southeast ")?.replaceAll(/(\sENE\s)/, " east northeast ")
-    str = str?.replaceAll(/(\sSSE\s)/, " south southeast ")?.replaceAll(/(\sSSW\s)/, " south southwest ")?.replaceAll(/(\sNNE\s)/, " north northeast ")?.replaceAll(/(\sNNW\s)/, " north northwest ")
-    str = str?.replaceAll(/(\sNW\s)/, " northwest ")?.replaceAll(/(\sNE\s)/, " northeast ")?.replaceAll(/(\sSW\s)/, " southwest ")?.replaceAll(/(\sSE\s)/, " southeast ")
-    str = str?.replaceAll(/(\sE\s)/," east ")?.replaceAll(/(\sS\s)/," south ")?.replaceAll(/(\sN\s)/," north ")?.replaceAll(/(\sW\s)/," west ")
-    str = str?.replaceAll("%"," percent ")
-    str = str?.replaceAll("°"," degree ")
+    str = str.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
+    str = str.replaceAll(/(\sWSW\s)/, " west southwest ")?.replaceAll(/(\sWNW\s)/, " west northwest ")?.replaceAll(/(\sESE\s)/, " east southeast ")?.replaceAll(/(\sENE\s)/, " east northeast ")
+    str = str.replaceAll(/(\sSSE\s)/, " south southeast ")?.replaceAll(/(\sSSW\s)/, " south southwest ")?.replaceAll(/(\sNNE\s)/, " north northeast ")?.replaceAll(/(\sNNW\s)/, " north northwest ")
+    str = str.replaceAll(/(\sNW\s)/, " northwest ")?.replaceAll(/(\sNE\s)/, " northeast ")?.replaceAll(/(\sSW\s)/, " southwest ")?.replaceAll(/(\sSE\s)/, " southeast ")
+    str = str.replaceAll(/(\sE\s)/," east ")?.replaceAll(/(\sS\s)/," south ")?.replaceAll(/(\sN\s)/," north ")?.replaceAll(/(\sW\s)/," west ")
+    str = str.replaceAll("%"," percent ")
+    str = str.replaceAll("°"," degrees ")
     return str
 }
 
@@ -2605,17 +2605,17 @@ private List msgSeqBuilder(String str) {
     // log.debug "msgSeqBuilder: $str"
     List seqCmds = []
     List strArr = []
-    Boolean isSSML = (str?.toString()?.startsWith("<speak>") && str?.toString()?.endsWith("</speak>"))
-    if(str?.toString()?.length() < 450) {
-        seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: str as String])
+    Boolean isSSML = (str.startsWith("<speak>") && str.endsWith("</speak>"))
+    if(str.length() < 450) {
+        seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str])
     } else {
-        List msgItems = str?.split()
-        msgItems?.each { wd->
-            if((getStringLen(strArr?.join(" ")) + wd?.length()) <= 430) {
-                // log.debug "CurArrLen: ${(getStringLen(strArr?.join(" ")))} | CurStrLen: (${wd?.length()})"
-                strArr?.push(wd as String)
-            } else { seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: strArr?.join(" ")]); strArr = []; strArr?.push(wd as String) }
-            if(wd == msgItems?.last()) { seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: strArr?.join(" ")]) }
+        List msgItems = str.split()
+        msgItems.each { String wd->
+            if((getStringLen(strArr.join(" ")) + wd.length()) <= 430) {
+                // log.debug "CurArrLen: ${(getStringLen(strArr.join(" ")))} | CurStrLen: (${wd.length()})"
+                strArr.push(wd)
+            } else { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]); strArr = []; strArr.push(wd) }
+            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]) }
         }
     }
     // log.debug "seqCmds: $seqCmds"
@@ -2750,7 +2750,7 @@ private void stateCleanup() {
 void resetQueue(String src=sBLANK) {
     logTrace("resetQueue($src)")
     Map cmdQueue = ((Map<String,Object>)state).findAll { it?.key?.toString()?.startsWith("qItem_") }
-    cmdQueue.each { cmdKey, cmdData -> state?.remove(cmdKey) }
+    cmdQueue.each { cmdKey, cmdData -> state.remove(cmdKey) }
     unschedule("queueCheck")
     unschedule("checkQueue")
     state.q_blocked = false
@@ -2769,14 +2769,14 @@ void resetQueue(String src=sBLANK) {
     state.q_lastMsg = null
 }
 
-Integer getNextQueueIndex() { return state.q_cmdIndexNum ? state?.q_cmdIndexNum+1 : 1 }
-Integer getCurrentQueueIndex() { return state.q_cmdIndexNum ?: 1 }
+Integer getNextQueueIndex() { return state.q_cmdIndexNum ? (Integer)state.q_cmdIndexNum+1 : 1 }
+Integer getCurrentQueueIndex() { return (Integer)state.q_cmdIndexNum ?: 1 }
 String getAmazonDomain() { return (String)state.amazonDomain ?: (String)parent?.settings?.amazonDomain } // does this work for parent call on HE?
 String getAmazonUrl() {return "https://alexa.${getAmazonDomain()}".toString() }
 Map getQueueItems() { return ((Map<String,Object>)state).findAll { it?.key?.toString()?.startsWith("qItem_") } }
 
 private void queueCheckSchedHealth() {
-    Integer cmdCnt = state?.q_cmdCycleCnt
+    Integer cmdCnt = (Integer)state.q_cmdCycleCnt
     Integer lastChk = getLastQueueCheckSec()
     Integer qSize = getQueueSize()
     logDebug("queueCheckSchedHealth | Qsize: ${qSize} | LastChk: ${lastChk}")
@@ -2792,16 +2792,16 @@ private void schedQueueCheck(Integer delay=30, Boolean overwrite=true, data=null
     if(data) { opts["data"] = data }
     runIn(delay, "queueCheck", opts)
     state.q_recheckScheduled = true
-    logDebug("Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | q_recheckScheduled: (${state?.q_recheckScheduled}) | Source: (${src})")
+    logDebug("Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | q_recheckScheduled: (${(Boolean)state.q_recheckScheduled}) | Source: (${src})")
 }
 
             //queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
 public void queueEchoCmd(String type, Integer msgLen, Map headers, body=null, Boolean firstRun=false) {
     Integer qSize = getQueueSize()
-    if((Boolean)state.q_blocked == true) { log.warn "│ Queue Temporarily Blocked (${qSize} Items): | Working: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled})"; return }
+    if((Boolean)state.q_blocked) { log.warn "│ Queue Temporarily Blocked (${qSize} Items): | Working: (${(Boolean)state.q_cmdWorking}) | Recheck: (${(Boolean)state.q_recheckScheduled})"; return }
     List logItems = []
     Map dupItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers.message }
-    logItems.push("│ Queue Active: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled}) ")
+    logItems.push("│ Queue Active: (${(Boolean)state.q_cmdWorking}) | Recheck: (${(Boolean)state.q_recheckScheduled}) ")
     if(dupItems?.size()) {
         if(headers.message) { logItems.push("│ Message(${msgLen} char): ${headers.message?.take(190)?.trim()}${msgLen > 190 ? "..." : sBLANK}") }
         logItems.push("│ Ignoring (${headers.cmdType}) Command... It Already Exists in QUEUE!!!")
@@ -2819,7 +2819,7 @@ public void queueEchoCmd(String type, Integer msgLen, Map headers, body=null, Bo
     if(headers.volume)  {  logItems.push("│ Volume (${headers.volume})") }
     if(headers.message) {  logItems.push("│ Message(Len: ${headers.message?.toString()?.length()}): ${headers.message?.take(200)?.trim()}${headers.message?.toString()?.length() > 200 ? "..." : sBLANK}") }
     if(headers.cmdType) {  logItems.push("│ CmdType: (${headers.cmdType})") }
-                            logItems.push("┌───── Added Echo Queue Item (${state.q_cmdIndexNum}) ─────")
+                            logItems.push("┌───── Added Echo Queue Item (${(Integer)state.q_cmdIndexNum}) ─────")
     // queueCheckSchedHealth()
     if(!firstRun) {
         processLogItems("trace", logItems, false, true)
@@ -2844,7 +2844,7 @@ private void queueCheck(data) {
             }
         } else { state.q_blocked = false }
         if(data && data?.rateLimited == true) {
-            Integer delay = data?.delay as Integer ?: getRecheckDelay(state.q_curMsgLen)
+            Integer delay = data?.delay as Integer ?: getRecheckDelay((Integer)state.q_curMsgLen)
             schedQueueCheck(delay, true, null, "queueCheck(rate-limit)")
             logDebug("queueCheck | Scheduling Queue Check for (${delay} sec) | Recheck for RateLimiting")
         }
@@ -2859,7 +2859,7 @@ private void queueCheck(data) {
 
 void processCmdQueue() {
     state.q_cmdWorking = true
-    Integer q_cmdCycleCnt = state.q_cmdCycleCnt
+    Integer q_cmdCycleCnt = (Integer)state.q_cmdCycleCnt
     state.q_cmdCycleCnt = q_cmdCycleCnt ? q_cmdCycleCnt+1 : 1
     Map cmdQueue = getQueueItems()
     if(cmdQueue?.size()) {
@@ -2868,17 +2868,17 @@ void processCmdQueue() {
         Map cmdData = state[cmdKey as String]
         // logDebug("processCmdQueue | Key: ${cmdKey} | Queue Items: (${getQueueItems()})")
         cmdData.headers["queueKey"] = cmdKey
-        Integer q_loopChkCnt = state.q_loopChkCnt ?: 0
+        Integer q_loopChkCnt = (Integer)state.q_loopChkCnt ?: 0
         if(state.q_lastTtsMsg == cmdData.headers?.message && (getLastTtsCmdSec() <= 10)) { state.q_loopChkCnt = (q_loopChkCnt >= 1) ? q_loopChkCnt+1 : 1 }
         // log.debug "q_loopChkCnt: ${state.q_loopChkCnt}"
-        if(state.q_loopChkCnt && (state.q_loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
+        if((Integer)state.q_loopChkCnt && ((Integer)state.q_loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
             state.remove(cmdKey as String)
             logWarn("processCmdQueue | Possible loop detected... Last message was the same as message sent <10 seconds ago. This message will be removed from the queue")
             schedQueueCheck(2, true, null, "processCmdQueue(removed duplicate)")
             state.q_cmdWorking = false
         } else {
             state.q_lastMsg = cmdData?.headers?.message
-            speechCmd(cmdData?.headers, true)
+            speechCmd((Map)cmdData.headers, true)
         }
     } else { state.q_cmdWorking = false }
 }
@@ -2896,53 +2896,55 @@ def testMultiCmd() {
     sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]], "testMultiCmd")
 }
 
-private void speechCmd(headers=[:], Boolean isQueueCmd=false) {
+private void speechCmd(Map headers=[:], Boolean isQueueCmd=false) {
     // if(isQueueCmd) log.warn "QueueBlocked: ${state.q_blocked} | cycleCnt: ${state.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
-    state.q_speakingNow = true
-    String tr = "speechCmd (${headers.cmdDesc}) | Msg: ${headers.message}"
-    tr += headers.newVolume ? " | SetVolume: (${headers.newVolume})" :sBLANK
-    tr += headers.oldVolume ? " | Restore Volume: (${headers.oldVolume})" :sBLANK
-    tr += headers.msgDelay  ? " | RecheckSeconds: (${headers.msgDelay})" :sBLANK
-    tr += headers.queueKey  ? " | QueueItem: [${headers.queueKey}]" :sBLANK
-    tr += headers.cmdDt     ? " | CmdDt: (${headers.cmdDt})" :sBLANK
-    logTrace("${tr}")
 
-    def random = new Random()
-    def randCmdId = random?.nextInt(300)
+    if(!headers) { logError("speechCmd | Error | headers are missing"); return }
+    String healthStatus = getHealthStatus()
+    if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is current in OFFLINE State", true); return }
+
+//    state.q_speakingNow = true
+    if(settings.logTrace){
+        String tr = "speechCmd (${headers.cmdDesc}) | Msg: ${headers.message}"
+        tr += headers.newVolume ? " | SetVolume: (${headers.newVolume})" :sBLANK
+        tr += headers.oldVolume ? " | Restore Volume: (${headers.oldVolume})" :sBLANK
+        tr += headers.msgDelay  ? " | RecheckSeconds: (${headers.msgDelay})" :sBLANK
+        tr += headers.queueKey  ? " | QueueItem: [${headers.queueKey}]" :sBLANK
+        tr += headers.cmdDt     ? " | CmdDt: (${headers.cmdDt})" :sBLANK
+        logTrace("${tr}")
+    }
+
 
     Map queryMap = [:]
     List logItems = []
-    String healthStatus = getHealthStatus()
-    if(!headers || !(healthStatus in ["ACTIVE", "ONLINE"])) {
-        if(!headers) { logError("speechCmd | Error${!headers ? " | headers are missing" : sBLANK} ") }
-        if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("Command Ignored... Device is current in OFFLINE State", true) }
-        return
-    }
-    Boolean isTTS = true
+
     // headers?.message = cleanString(headers?.message)
-    Integer lastTtsCmdSec = getLastTtsCmdSec()
-    Integer msgLen = headers?.message?.toString()?.length()
+    Integer msgLen = ((String)headers.message)?.length()
     Integer recheckDelay = getRecheckDelay(msgLen)
     headers["msgDelay"] = recheckDelay
+    Random random = new Random()
+    Integer randCmdId = random.nextInt(300)
     headers["cmdId"] = randCmdId
-    if(!settings.disableQueue) {
-        logItems.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
 
-        Boolean isFirstCmd = (state.q_firstCmdFlag != true)
+    Integer lastTtsCSec = getLastTtsCmdSec()
+    if(!settings.disableQueue) {
+        logItems.push("│ Last TTS Sent: (${lastTtsCSec} seconds) ")
+
+        Boolean isFirstCmd = ((Boolean)state.q_firstCmdFlag != true)
         if(isFirstCmd) {
-            logItems?.push("│ First Command: (${isFirstCmd})")
+            logItems.push("│ First Command: (${isFirstCmd})")
             headers["queueKey"] = "qItem_1"
             state.q_firstCmdFlag = true
         }
-        Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state.q_speakingNow == true))
-        if(!isQueueCmd) { logItems?.push("│ SentToQueue: (${sendToQueue})") }
-        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | QueueSize: (${getQueueSize()}) | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
+        Boolean sendToQueue = (isFirstCmd || (lastTtsCSec < 3) /* ||  (!isQueueCmd && (Boolean)state.q_speakingNow) */ )
+        if(!isQueueCmd) { logItems.push("│ SentToQueue: (${sendToQueue})") }
+        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | QueueSize: (${getQueueSize()}) | lastTtsCSec: [${lastTtsCSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
             queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
             runIn((settings?.autoResetQueue ?: 180), "resetQueue")
             if(!isFirstCmd) {
-                // log.debug "lastTtsCmdSec: ${getLastTtsCmdSec()} | Last Delay: ${state.q_lastTtsCmdDelay}"
-                if(state.q_lastTtsCmdDelay && getLastTtsCmdSec() > state.q_lastTtsCmdDelay + 15) schedQueueCheck(3, true, null, "speechCmd(QueueStuck)")
+                // log.debug "lastTtsCSec: ${getLastTtsCmdSec()} | Last Delay: ${state.q_lastTtsCmdDelay}"
+                if((Integer)state.q_lastTtsCmdDelay && getLastTtsCmdSec() > (Integer)state.q_lastTtsCmdDelay + 15) schedQueueCheck(3, true, null, "speechCmd(QueueStuck)")
                 return
             }
         }
@@ -2951,7 +2953,7 @@ private void speechCmd(headers=[:], Boolean isQueueCmd=false) {
         Map headerMap = getCookieMap()
         headers.each { k,v-> headerMap[k] = v }
         Integer qSize = getQueueSize()
-        logItems.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${state?.q_cmdWorking})")
+        logItems.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${(Boolean)state.q_cmdWorking})")
 
         if(headers.message) {
             state.q_curMsgLen = msgLen
@@ -2967,63 +2969,72 @@ private void speechCmd(headers=[:], Boolean isQueueCmd=false) {
         logItems.push("│ Current Volume: (${device?.currentValue("volume")}%)")
         Boolean isSSML = (headers?.message?.toString()?.startsWith("<speak>") && headers?.message?.toString()?.endsWith("</speak>"))
         logItems.push("│ Command: (SpeakCommand)${isSSML ? " | (SSML)" : sBLANK}")
-        try {
-            String bodyObj = sNULL
-            List seqCmds = []
-            if(headerMap.newVolume) { seqCmds.push([command: "volume", value: headerMap.newVolume]) }
-            seqCmds = seqCmds + msgSeqBuilder(headerMap?.message)
-            if(headerMap.oldVolume) { seqCmds.push([command: "volume", value: headerMap.oldVolume]) }
-            bodyObj = new groovy.json.JsonOutput().toJson(multiSequenceBuilder(seqCmds))
 
-            Map params = [
-                uri: getAmazonUrl(),
-                path: "/api/behaviors/preview",
-                headers: headerMap,
-                contentType: sAPPJSON,
-                timeout: 20,
-                body: bodyObj
-            ]
-            Map extData = [
-                cmdDt:(headerMap.cmdDt ?: null), queueKey: (headerMap.queueKey ?: null), cmdDesc: (headerMap.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap.msgDelay ?: null),
-                message: (headerMap.message ? headerMap.message : null), newVolume: (headerMap.newVolume ?: null), oldVolume: (headerMap.oldVolume ?: null), cmdId: (headerMap.cmdId ?: null),
-                qId: (headerMap.qId ?: null)
-            ]
+        String bodyObj = sNULL
+        List seqCmds = []
+        if(headerMap.newVolume) { seqCmds.push([command: "volume", value: headerMap.newVolume]) }
+        seqCmds = seqCmds + msgSeqBuilder((String)headerMap.message)
+        if(headerMap.oldVolume) { seqCmds.push([command: "volume", value: headerMap.oldVolume]) }
+        bodyObj = new groovy.json.JsonOutput().toJson(multiSequenceBuilder(seqCmds))
+
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/behaviors/preview",
+            headers: headerMap,
+            contentType: sAPPJSON,
+            timeout: 20,
+            body: bodyObj
+        ]
+        Map extData = [
+            cmdDt:(headerMap.cmdDt ?: null), queueKey: (headerMap.queueKey ?: null), cmdDesc: (headerMap.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap.msgDelay ?: null),
+            message: (headerMap.message ? headerMap.message : null), newVolume: (headerMap.newVolume ?: null), oldVolume: (headerMap.oldVolume ?: null), cmdId: (headerMap.cmdId ?: null),
+            qId: (headerMap.qId ?: null)
+        ]
+        logItems.push("┌─────── Echo Command ${isQueueCmd && !settings.disableQueue ? " (From Queue) " : sBLANK} ────────")
+        processLogItems("debug", logItems)
+        try {
+            state.q_speakingNow = true
             httpPost(params) { response->
                 def sData = response?.data ?: null
                 extData["amznReqId"] = response?.headers["x-amz-rid"] ?: null
                 postCmdProcess(sData, response?.status, extData)
             }
         } catch (ex) {
-            respExceptionHandler(ex, "speechCmd")
+            if(ex instanceof groovyx.net.http.HttpResponseException ) {
+                Integer sCode = ex?.getResponse()?.getStatus()
+                def respData = ex?.getResponse()?.getData()
+//                String errMsg = ex?.getMessage()
+                postCmdProcess(respData, sCode, extData)
+            } else respExceptionHandler(ex, "speechCmd")
         }
-        logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : sBLANK} ────────")
-        processLogItems("debug", logItems)
     } catch (ex) {
-        logError("speechCmd Exception: ${ex}")
+        logError("speechCmd Exception: ${ex}", false, ex)
     }
 }
 
 private postCmdProcess(resp, statusCode, Map data) {
-    if(data && data?.deviceId && (data?.deviceId == device?.getDeviceNetworkId())) {
+    if(data && data.deviceId && (data.deviceId == device?.getDeviceNetworkId())) {
         String respMsg = resp?.message ?: null
         String respMsgLow = resp?.message ? resp?.message?.toString()?.toLowerCase() : null
         if(statusCode == 200) {
-            Long execTime = data?.cmdDt ? (now()-data?.cmdDt) : 0L
-            if(data?.queueKey) {
-                logDebug("Command Completed | Removing Queue Item: ${data?.queueKey}")
-                state.remove(data?.queueKey as String)
+            Long execTime = data.cmdDt ? (now()-data.cmdDt) : 0L
+            if(data.queueKey) {
+                logDebug("Command Completed | Removing Queue Item: ${data.queueKey}")
+                state.remove(data.queueKey as String)
             }
-            String pi = data?.cmdDesc ?: "Command"
-            pi += data?.isSSML ? " (SSML)" :sBLANK
-            pi += " Sent"
-            pi += " | (${data?.message})"
-            pi += logDebug && !logInfo && data?.msgLen ? " | Length: (${data?.msgLen}) " :sBLANK
-            pi += data?.msgDelay ? " | Runtime: (${data?.msgDelay} sec)" :sBLANK
-            pi += logDebug && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" :sBLANK
-            pi += logDebug && data?.qId ? " | QueueID: (${data?.qId})" :sBLANK
-            pi += " | QueueItems: (${getQueueSize()})"
-            // pi += " | Time to Execute Msg: (${execTime}ms)"
-            logInfo(pi)
+            if ((Boolean)settings.logInfo != false) {
+                String pi = data.cmdDesc ?: "Command"
+                pi += data.isSSML ? " (SSML)" :sBLANK
+                pi += " Sent"
+                pi += " | (${data.message})"
+                pi += (Boolean)settings.logDebug && data.msgLen ? " | Length: (${data.msgLen}) " :sBLANK
+                pi += data.msgDelay ? " | Runtime: (${data.msgDelay} sec)" :sBLANK
+                pi += (Boolean)settings.logDebug && data.amznReqId ? " | Amazon Request ID: ${data.amznReqId}" :sBLANK
+                pi += (Boolean)settings.logDebug && data.qId ? " | QueueID: (${data.qId})" :sBLANK
+                pi += " | QueueItems: (${getQueueSize()})"
+                pi += (Boolean)settings.logDebug && execTime ? " | Time to Execute Msg: (${execTime}ms)" : sBLANK
+                logInfo(pi)
+            }
 
             if(data?.cmdDesc && data.cmdDesc == "SpeakCommand" && data?.message) {
                 state.lastTtsCmdDt = getDtNow()
@@ -3034,7 +3045,7 @@ private postCmdProcess(resp, statusCode, Map data) {
                     sendEvent(name: "level", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: true, displayed: true)
                     sendEvent(name: "volume", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: true, displayed: true)
                 }
-                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), data?.msgDelay), true, null, "postCmdProcess(adjDelay)")
+                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), data.msgDelay), true, null, "postCmdProcess(adjDelay)")
                 logSpeech(data?.message, statusCode, null)
             }
             return
@@ -3043,12 +3054,12 @@ private postCmdProcess(resp, statusCode, Map data) {
                 case "rate exceeded":
                     Integer rDelay = 3
                     logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
-                    schedQueueCheck(rDelay, true, [rateLimited: true, delay: data?.msgDelay], "postCmdProcess(Rate-Limited)")
+                    schedQueueCheck(rDelay, true, [rateLimited: true, delay: data.msgDelay], "postCmdProcess(Rate-Limited)")
                     break
                 case "too many requests":
                     Integer rDelay = 5
                     logWarn("You've sent too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
-                    schedQueueCheck(rDelay, true, [rateLimited: false, delay: data?.msgDelay], "postCmdProcess(Too-Many-Requests)")
+                    schedQueueCheck(rDelay, true, [rateLimited: false, delay: data.msgDelay], "postCmdProcess(Too-Many-Requests)")
                     break
             }
             logSpeech(data?.message, statusCode, respMsg)
@@ -3300,8 +3311,8 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                 remDevSpecifics = true
                 seqNode.type = "Alexa.DeviceControls.Stop"
                 seqNode.skillId = "amzn1.ask.1p.alexadevicecontrols"
-                seqNode.operationPayload?.devices = [ [deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber] ]
-                seqNode.operationPayload?.isAssociatedDevice = false
+                seqNode.operationPayload.devices = [ [deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber] ]
+                seqNode.operationPayload.isAssociatedDevice = false
                 break
             case "stopalldevices":
                 remDevSpecifics = true
@@ -3332,17 +3343,17 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                     sndName = sounds[value]
                 }
                 seqNode.type = "Alexa.Sound"
-                seqNode.operationPayload?.soundStringId = sndName
+                seqNode.operationPayload.soundStringId = sndName
                 break
             case "wait":
                 remDevSpecifics = true
                 seqNode.operationPayload?.remove('customerId')
                 seqNode.type = "Alexa.System.Wait"
-                seqNode.operationPayload?.waitTimeInSeconds = value?.toInteger() ?: 5
+                seqNode.operationPayload.waitTimeInSeconds = value?.toInteger() ?: 5
                 break
             case "volume":
                 seqNode.type = "Alexa.DeviceControls.Volume"
-                seqNode.operationPayload?.value = value
+                seqNode.operationPayload.value = value
                 break
             case "dnd_duration":
             case "dnd_time":
@@ -3366,8 +3377,8 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                 break
             case "speak":
                 seqNode.type = "Alexa.Speak"
-                value = cleanString(value as String)
-                seqNode.operationPayload?.textToSpeak = value as String
+                value = cleanString(value.toString())
+                seqNode.operationPayload.textToSpeak = (String)value
                 break
             case "ssml":
             case "announcement":
@@ -3386,24 +3397,27 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                     seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ] ]
                 } else if(command == "announcement_devices" && valObj?.size() && valObj[2] != null) {
                     List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
-                    seqNode.operationPayload?.target?.devices = devObjs
+                    seqNode.operationPayload.target.devices = devObjs
                 }
                 break
             case "pushnotification":
                 remDevSpecifics = true
                 seqNode.type = "Alexa.Notifications.SendMobilePush"
                 seqNode.skillId = "amzn1.ask.1p.alexanotifications"
-                seqNode.operationPayload?.notificationMessage = value as String
-                seqNode.operationPayload?.alexaUrl = "#v2/behaviors"
-                seqNode.operationPayload?.title = "Echo Speaks"
+                seqNode.operationPayload.notificationMessage = value as String
+                seqNode.operationPayload.alexaUrl = "#v2/behaviors"
+                seqNode.operationPayload.title = "Echo Speaks"
+                seqNode.operationPayload.remove("deviceType")
+                seqNode.operationPayload.remove("deviceSerialNumber")
+                seqNode.operationPayload.remove("locale")
                 break
             case "email":
                 seqNode.type = "Alexa.Operation.SkillConnections.Email.EmailSummary"
                 seqNode.skillId = "amzn1.ask.1p.email"
-                seqNode.operationPayload?.targetDevice = [deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ]
-                seqNode.operationPayload?.connectionRequest = [uri: "connection://AMAZON.Read.EmailSummary/amzn1.alexa-speechlet-client.DOMAIN:ALEXA_CONNECT", input: [:] ]
-                seqNode.operationPayload?.remove('deviceType')
-                seqNode.operationPayload?.remove('deviceSerialNumber')
+                seqNode.operationPayload.targetDevice = [deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ]
+                seqNode.operationPayload.connectionRequest = [uri: "connection://AMAZON.Read.EmailSummary/amzn1.alexa-speechlet-client.DOMAIN:ALEXA_CONNECT", input: [:] ]
+                seqNode.operationPayload.remove('deviceType')
+                seqNode.operationPayload.remove('deviceSerialNumber')
                 break
             case "goodnews":
                 seqNode.type = "Alexa.GoodNews.Play"
@@ -3412,15 +3426,15 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
             case "voicecmdtxt":
                 seqNode.type = "Alexa.TextCommand"
                 seqNode.skillId = "amzn1.ask.1p.tellalexa"
-                seqNode.operationPayload.text = value
+                seqNode.operationPayload.text = value.toString()
                 break
             default:
                 return null
         }
         if(remDevSpecifics) {
-            seqNode.operationPayload?.remove('deviceType')
-            seqNode.operationPayload?.remove('deviceSerialNumber')
-            seqNode.operationPayload?.remove('locale')
+            seqNode.operationPayload.remove('deviceType')
+            seqNode.operationPayload.remove('deviceSerialNumber')
+            seqNode.operationPayload.remove('locale')
         }
         return seqNode
     } catch (ex) {
