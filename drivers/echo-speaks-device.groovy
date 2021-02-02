@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.3.0"
-@Field static final String appModifiedFLD = "2021-01-29"
+@Field static final String devVersionFLD  = "4.0.4.0"
+@Field static final String appModifiedFLD = "2021-02-02"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -163,7 +163,7 @@ metadata {
         command "connectBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
         command "disconnectBluetooth"
         command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
-        command "sendAnnouncementToDevices", ["string", "string", "string", "number", "number"]
+        command "sendAnnouncementToDevices", ["string", "string", "object", "number", "number"]
         command "voiceCmdAsText", [[name: "Voice Command as Text*", type: "STRING", description: ""]]
     }
 
@@ -483,7 +483,7 @@ public void updSocketStatus(Boolean active) {
     state.websocketActive = active
 }
 
-void websocketUpdEvt(List triggers) {
+void websocketUpdEvt(List<String> triggers) {
     logTrace("websocketEvt: $triggers")
     if((Boolean) state.isWhaDevice) { return }
     if(triggers?.size()) {
@@ -921,7 +921,7 @@ private getPlaylists() {
     }
 }
 
-private List getNotifications(type="Reminder", all=false) {
+private List getNotifications(String type="Reminder", all=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications",
@@ -937,11 +937,11 @@ private List getNotifications(type="Reminder", all=false) {
             def sData = response?.data ?: null
             if(sData?.size()) {
                 List s = ["ON"]
-                if(all) s?.push("OFF")
-                List items = sData?.notifications ? sData?.notifications?.findAll { (it?.status in s) && (it?.type == type) && it?.deviceSerialNumber == (String)state.serialNumber } : []
+                if(all) s.push("OFF")
+                List items = sData.notifications ? sData.notifications.findAll { (it.status in s) && (it.type == type) && it?.deviceSerialNumber == (String)state.serialNumber } : []
                 items?.each { item->
                     Map li = [:]
-                    item?.keySet()?.each { String key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration', 'status']) { li[key] = item[key] } }
+                    item.keySet()?.each { String key-> if(key in ['id', 'reminderLabel', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration', 'status']) { li[key] = item[key] } }
                     newList?.push(li)
                 }
             }
@@ -1085,7 +1085,7 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
     return sNULL
 }
 
-private void sendSequenceCommand(type, command, value) {
+private void sendSequenceCommand(String type, command, value) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
     Map seqObj = sequenceBuilder(command, value)
     String t0 = sendAmazonCommand("POST", [
@@ -1098,13 +1098,13 @@ private void sendSequenceCommand(type, command, value) {
     ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
-private void sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=false) {
+private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
     List nodeList = []
-    commands?.each { cmdItem->
-        if(cmdItem?.command instanceof Map) {
-            nodeList?.push(cmdItem?.command)
-        } else { nodeList?.push(createSequenceNode(cmdItem?.command, cmdItem?.value, cmdItem?.devType ?: null, cmdItem?.devSerial ?: null)) }
+    commands.each { cmdItem->
+        if(cmdItem.command instanceof Map) {
+            nodeList.push(cmdItem.command)
+        } else { nodeList.push(createSequenceNode((String)cmdItem.command, cmdItem?.value, (String)cmdItem?.devType ?: sNULL, (String)cmdItem?.devSerial ?: sNULL)) }
     }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     sendSequenceCommand("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}", seqJson, null)
@@ -1320,8 +1320,8 @@ def setLevel(level) {
     if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
         if(level != device?.currentValue('level')) {
             sendSequenceCommand("VolumeCommand", "volume", level)
-            sendEvent(name: "level", value: level?.toInteger(), display: true, displayed: true)
-            sendEvent(name: "volume", value: level?.toInteger(), display: true, displayed: true)
+            sendEvent(name: "level", value: level.toInteger(), display: true, displayed: true)
+            sendEvent(name: "volume", value: level.toInteger(), display: true, displayed: true)
         }
     }
 }
@@ -1500,52 +1500,40 @@ public restoreLastVolume() {
     } else { logWarn("Unable to restore Last Volume!!! restoreVolume State Value not found...", true) }
 }
 
-def sayWelcomeHome(volume=null, restoreVolume=null) {
+void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) {
     if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "iamhome"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayWelcomeHome")
-    } else { doSequenceCmd("sayWelcomeHome", "cannedtts_random", "iamhome") }
+        List seqs = [[command: "volume", value: volume], [command: cmd, value: val]]
+        if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs, cmdType)
+    } else { doSequenceCmd(cmdType, cmd, val) }
+}
+
+void seqHelper_c(String val, String cmdType, volume, restoreVolume){
+    seqHelper_a("cannedtts_random", val, cmdType, volume, restoreVolume)
+}
+
+def sayWelcomeHome(volume=null, restoreVolume=null) {
+    seqHelper_c("iamhome", "sayWelcomHome", volume, restoreVolume)
 }
 
 def sayCompliment(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "compliments"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayCompliment")
-    } else { doSequenceCmd("sayCompliment", "cannedtts_random", "compliments") }
+    seqHelper_c("compliments", "sayCompliment", volume, restoreVolume)
 }
 
 def sayBirthday(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "birthday"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayBirthday")
-    } else { doSequenceCmd("sayBirthday", "cannedtts_random", "birthday") }
+    seqHelper_c("birthday", "sayBirthday", volume, restoreVolume)
 }
 
 def sayGoodNight(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "goodnight"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayGoodNight")
-    } else { doSequenceCmd("sayGoodNight", "cannedtts_random", "goodnight") }
+    seqHelper_c("goodnight", "sayGoodNight", volume, restoreVolume)
 }
 
 def sayGoodMorning(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "goodmorning"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayGoodMorning")
-    } else { doSequenceCmd("sayGoodMorning", "cannedtts_random", "goodmorning") }
+    seqHelper_c("goodmorning", "sayGoodMorning", volume, restoreVolume)
 }
 
 def sayGoodbye(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: "goodbye"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "sayGoodbye")
-    } else { doSequenceCmd("sayGoodbye", "cannedtts_random", "goodbye") }
+    seqHelper_c("goodbye", "sayGoodBye", volume, restoreVolume)
 }
 
 def executeRoutineId(String rId) {
@@ -1557,151 +1545,94 @@ def executeRoutineId(String rId) {
     }
 }
 
-def playWeather(volume=null, restoreVolume=null) {
+void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
     if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "weather"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playWeather")
-    } else { doSequenceCmd("playWeather", "weather") }
+        List seqs = [[command: "volume", value: volume], [command: cmd]]
+        if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs, cmdType)
+    } else { doSequenceCmd(cmdType, cmd) }
+}
+
+def playWeather(volume=null, restoreVolume=null) {
+    seqHelper_s("weather", "playWeather", volume, restoreVolume)
 }
 
 def playTraffic(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "traffic"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playTraffic")
-    } else { doSequenceCmd("playTraffic", "traffic") }
+    seqHelper_s("traffic", "playTraffic", volume, restoreVolume)
 }
 
 def playSingASong(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "singasong"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playSingASong")
-    } else { doSequenceCmd("playSingASong", "singasong") }
+    seqHelper_s("singasong", "playSingASong", volume, restoreVolume)
 }
 
 def playFlashBrief(volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("flashBriefing")) {
-        if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "flashbriefing"]]
-            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "playFlashBrief")
-        } else { doSequenceCmd("playFlashBrief", "flashbriefing") }
+        seqHelper_s("flashbriefing", "playFlashBrief", volume, restoreVolume)
     }
 }
 
 def playGoodNews(volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("flashBriefing")) {
-        if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "goodnews"]]
-            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "playGoodNews")
-        } else { doSequenceCmd("playGoodNews", "goodnews") }
+        seqHelper_s("goodnews", "playGoodNews", volume, restoreVolume)
     }
 }
 
 def playTellStory(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "tellstory"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playTellStory")
-    } else { doSequenceCmd("playTellStory", "tellstory") }
+    seqHelper_s("tellstory", "playTellStory", volume, restoreVolume)
 }
 
 def playFunFact(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "funfact"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playFunFact")
-    } else { doSequenceCmd("playFunFact", "funfact") }
+    seqHelper_s("funfact", "playFunFact", volume, restoreVolume)
 }
 
 def playJoke(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "joke"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playJoke")
-    } else { doSequenceCmd("playJoke", "joke") }
+    seqHelper_s("joke", "playJoke", volume, restoreVolume)
 }
 
 def playCalendarToday(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "calendartoday"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playCalendarToday")
-    } else { doSequenceCmd("playCalendarToday", "calendartoday") }
+    seqHelper_s("calendartoday", "playCalendarToday", volume, restoreVolume)
 }
 
 def playCalendarTomorrow(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "calendartomorrow"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playCalendarTomorrow")
-    } else { doSequenceCmd("playCalendarTomorrow", "calendartomorrow") }
+    seqHelper_s("calendartomorrow", "playCalendarTomorrow", volume, restoreVolume)
 }
 
 def playCalendarNext(volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "calendarnext"]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playCalendarNext")
-    } else { doSequenceCmd("playCalendarNext", "calendarnext") }
+    seqHelper_s("calendarnext", "playCalendarNext", volume, restoreVolume)
 }
 
 def playCannedRandomTts(String type, volume=null, restoreVolume=null) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "cannedtts_random", value: type]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playCannedRandomTts($type)")
-    } else { doSequenceCmd("playCannedRandomTts($type)", "cannedtts_random", type) }
+    seqHelper_c(type, "playCannedRandomTts($type)", volume, restoreVolume)
 }
 
 def playSoundByName(String name, volume=null, restoreVolume=null) {
     log.debug "sound name: ${name}"
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: "sound", value: name]]
-        if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, "playSoundByName($name)")
-    } else { doSequenceCmd("playSoundByName($name)", "sound", name) }
+    seqHelper_a("sound", name, "playSoundByName($name)", volume, restoreVolume)
 }
 
 def playAnnouncement(String msg, volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("announce")) {
-        if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
-            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "playAnnouncement")
-        } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
+        seqHelper_a("announcement", msg, "playAnnouncement", volume, restoreVolume)
         sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
     }
 }
 
 def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
-    String newMsg= "${title ? "${title}::" : sBLANK}${msg}"
+    String newMsg= "${title ? "${title}::" : sBLANK}${msg}".toString()
     playAnnouncement(newMsg, volume, restoreVolume)
-/*    if(isCommandTypeAllowed("announce")) {
-        msg = "${title ? "${title}::" : sBLANK}${msg}"
-        if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: "announcement", value: msg]]
-            if(restoreVolume != null) { seqs?.push([command: "volume", value: restoreVolume]) }
-            sendMultiSequenceCommand(seqs, "playAnnouncement")
-        } else { doSequenceCmd("playAnnouncement", "announcement", msg) }
-        sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
-    }*/
 }
 
-def sendAnnouncementToDevices(String msg, String title=null, devObj, volume=null, restoreVolume=null) {
+def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volume=null, restoreVolume=null) {
     // log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: $devObj, volume: $volume, restoreVolume: $restoreVolume)"
     if(isCommandTypeAllowed("announce") && devObj) {
-        def devJson = new groovy.json.JsonOutput().toJson(devObj)
-        msg = "${title ?: "Echo Speaks"}::${msg}::${devJson?.toString()}"
+        String devJson = new groovy.json.JsonOutput().toJson(devObj)
+        msg = "${title ?: "Echo Speaks"}::${msg}::${devJson}"
         // log.debug "sendAnnouncementToDevices | msg: ${msg}"
-        if(volume || restoreVolume) {
+        if(volume != null) {
             List mainSeq = []
-            if(volume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: volume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
-            mainSeq?.push([command: "announcement_devices", value: msg])
-            if(restoreVolume) { devObj?.each { dev-> mainSeq?.push([command: "volume", value: restoreVolume, devType: dev?.deviceTypeId, devSerial: dev?.deviceSerialNumber]) } }
+            devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+            mainSeq.push([command: "announcement_devices", value: msg])
+            if(restoreVolume!=null) { devObj.each { dev-> mainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) } }
             // log.debug "mainSeq: $mainSeq"
             sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
         } else { doSequenceCmd("sendAnnouncementToDevices", "announcement_devices", msg) }
@@ -2587,15 +2518,15 @@ String cleanString(String str, Boolean frcTrans=false) {
 }
 
 private String textTransform(String str, Boolean force=false) {
-    if(!force && settings?.disableTextTransform == true) { return str }
+    if(!force && (Boolean)settings.disableTextTransform) { return str }
     // Converts F temp values to readable text "19F"
-    str = str?.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
-    str = str?.replaceAll(/(\sWSW\s)/, " west southwest ")?.replaceAll(/(\sWNW\s)/, " west northwest ")?.replaceAll(/(\sESE\s)/, " east southeast ")?.replaceAll(/(\sENE\s)/, " east northeast ")
-    str = str?.replaceAll(/(\sSSE\s)/, " south southeast ")?.replaceAll(/(\sSSW\s)/, " south southwest ")?.replaceAll(/(\sNNE\s)/, " north northeast ")?.replaceAll(/(\sNNW\s)/, " north northwest ")
-    str = str?.replaceAll(/(\sNW\s)/, " northwest ")?.replaceAll(/(\sNE\s)/, " northeast ")?.replaceAll(/(\sSW\s)/, " southwest ")?.replaceAll(/(\sSE\s)/, " southeast ")
-    str = str?.replaceAll(/(\sE\s)/," east ")?.replaceAll(/(\sS\s)/," south ")?.replaceAll(/(\sN\s)/," north ")?.replaceAll(/(\sW\s)/," west ")
-    str = str?.replaceAll("%"," percent ")
-    str = str?.replaceAll("°"," degree ")
+    str = str.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
+    str = str.replaceAll(/(\sWSW\s)/, " west southwest ")?.replaceAll(/(\sWNW\s)/, " west northwest ")?.replaceAll(/(\sESE\s)/, " east southeast ")?.replaceAll(/(\sENE\s)/, " east northeast ")
+    str = str.replaceAll(/(\sSSE\s)/, " south southeast ")?.replaceAll(/(\sSSW\s)/, " south southwest ")?.replaceAll(/(\sNNE\s)/, " north northeast ")?.replaceAll(/(\sNNW\s)/, " north northwest ")
+    str = str.replaceAll(/(\sNW\s)/, " northwest ")?.replaceAll(/(\sNE\s)/, " northeast ")?.replaceAll(/(\sSW\s)/, " southwest ")?.replaceAll(/(\sSE\s)/, " southeast ")
+    str = str.replaceAll(/(\sE\s)/," east ")?.replaceAll(/(\sS\s)/," south ")?.replaceAll(/(\sN\s)/," north ")?.replaceAll(/(\sW\s)/," west ")
+    str = str.replaceAll("%"," percent ")
+    str = str.replaceAll("°"," degrees ")
     return str
 }
 
@@ -2605,17 +2536,17 @@ private List msgSeqBuilder(String str) {
     // log.debug "msgSeqBuilder: $str"
     List seqCmds = []
     List strArr = []
-    Boolean isSSML = (str?.toString()?.startsWith("<speak>") && str?.toString()?.endsWith("</speak>"))
-    if(str?.toString()?.length() < 450) {
-        seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: str as String])
+    Boolean isSSML = (str.startsWith("<speak>") && str.endsWith("</speak>"))
+    if(str.length() < 450) {
+        seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str])
     } else {
-        List msgItems = str?.split()
-        msgItems?.each { wd->
-            if((getStringLen(strArr?.join(" ")) + wd?.length()) <= 430) {
-                // log.debug "CurArrLen: ${(getStringLen(strArr?.join(" ")))} | CurStrLen: (${wd?.length()})"
-                strArr?.push(wd as String)
-            } else { seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: strArr?.join(" ")]); strArr = []; strArr?.push(wd as String) }
-            if(wd == msgItems?.last()) { seqCmds?.push([command: (isSSML ? "ssml": "speak"), value: strArr?.join(" ")]) }
+        List msgItems = str.split()
+        msgItems.each { String wd->
+            if((getStringLen(strArr.join(" ")) + wd.length()) <= 430) {
+                // log.debug "CurArrLen: ${(getStringLen(strArr.join(" ")))} | CurStrLen: (${wd.length()})"
+                strArr.push(wd)
+            } else { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]); strArr = []; strArr.push(wd) }
+            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]) }
         }
     }
     // log.debug "seqCmds: $seqCmds"
@@ -2750,7 +2681,7 @@ private void stateCleanup() {
 void resetQueue(String src=sBLANK) {
     logTrace("resetQueue($src)")
     Map cmdQueue = ((Map<String,Object>)state).findAll { it?.key?.toString()?.startsWith("qItem_") }
-    cmdQueue.each { cmdKey, cmdData -> state?.remove(cmdKey) }
+    cmdQueue.each { cmdKey, cmdData -> state.remove(cmdKey) }
     unschedule("queueCheck")
     unschedule("checkQueue")
     state.q_blocked = false
@@ -2769,14 +2700,14 @@ void resetQueue(String src=sBLANK) {
     state.q_lastMsg = null
 }
 
-Integer getNextQueueIndex() { return state.q_cmdIndexNum ? state?.q_cmdIndexNum+1 : 1 }
-Integer getCurrentQueueIndex() { return state.q_cmdIndexNum ?: 1 }
+Integer getNextQueueIndex() { return state.q_cmdIndexNum ? (Integer)state.q_cmdIndexNum+1 : 1 }
+Integer getCurrentQueueIndex() { return (Integer)state.q_cmdIndexNum ?: 1 }
 String getAmazonDomain() { return (String)state.amazonDomain ?: (String)parent?.settings?.amazonDomain } // does this work for parent call on HE?
 String getAmazonUrl() {return "https://alexa.${getAmazonDomain()}".toString() }
 Map getQueueItems() { return ((Map<String,Object>)state).findAll { it?.key?.toString()?.startsWith("qItem_") } }
 
 private void queueCheckSchedHealth() {
-    Integer cmdCnt = state?.q_cmdCycleCnt
+    Integer cmdCnt = (Integer)state.q_cmdCycleCnt
     Integer lastChk = getLastQueueCheckSec()
     Integer qSize = getQueueSize()
     logDebug("queueCheckSchedHealth | Qsize: ${qSize} | LastChk: ${lastChk}")
@@ -2792,16 +2723,16 @@ private void schedQueueCheck(Integer delay=30, Boolean overwrite=true, data=null
     if(data) { opts["data"] = data }
     runIn(delay, "queueCheck", opts)
     state.q_recheckScheduled = true
-    logDebug("Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | q_recheckScheduled: (${state?.q_recheckScheduled}) | Source: (${src})")
+    logDebug("Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | q_recheckScheduled: (${(Boolean)state.q_recheckScheduled}) | Source: (${src})")
 }
 
             //queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
 public void queueEchoCmd(String type, Integer msgLen, Map headers, body=null, Boolean firstRun=false) {
     Integer qSize = getQueueSize()
-    if((Boolean)state.q_blocked == true) { log.warn "│ Queue Temporarily Blocked (${qSize} Items): | Working: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled})"; return }
+    if((Boolean)state.q_blocked) { log.warn "│ Queue Temporarily Blocked (${qSize} Items): | Working: (${(Boolean)state.q_cmdWorking}) | Recheck: (${(Boolean)state.q_recheckScheduled})"; return }
     List logItems = []
     Map dupItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers.message }
-    logItems.push("│ Queue Active: (${state?.q_cmdWorking}) | Recheck: (${state?.q_recheckScheduled}) ")
+    logItems.push("│ Queue Active: (${(Boolean)state.q_cmdWorking}) | Recheck: (${(Boolean)state.q_recheckScheduled}) ")
     if(dupItems?.size()) {
         if(headers.message) { logItems.push("│ Message(${msgLen} char): ${headers.message?.take(190)?.trim()}${msgLen > 190 ? "..." : sBLANK}") }
         logItems.push("│ Ignoring (${headers.cmdType}) Command... It Already Exists in QUEUE!!!")
@@ -2819,7 +2750,7 @@ public void queueEchoCmd(String type, Integer msgLen, Map headers, body=null, Bo
     if(headers.volume)  {  logItems.push("│ Volume (${headers.volume})") }
     if(headers.message) {  logItems.push("│ Message(Len: ${headers.message?.toString()?.length()}): ${headers.message?.take(200)?.trim()}${headers.message?.toString()?.length() > 200 ? "..." : sBLANK}") }
     if(headers.cmdType) {  logItems.push("│ CmdType: (${headers.cmdType})") }
-                            logItems.push("┌───── Added Echo Queue Item (${state.q_cmdIndexNum}) ─────")
+                            logItems.push("┌───── Added Echo Queue Item (${(Integer)state.q_cmdIndexNum}) ─────")
     // queueCheckSchedHealth()
     if(!firstRun) {
         processLogItems("trace", logItems, false, true)
@@ -2844,7 +2775,7 @@ private void queueCheck(data) {
             }
         } else { state.q_blocked = false }
         if(data && data?.rateLimited == true) {
-            Integer delay = data?.delay as Integer ?: getRecheckDelay(state.q_curMsgLen)
+            Integer delay = data?.delay as Integer ?: getRecheckDelay((Integer)state.q_curMsgLen)
             schedQueueCheck(delay, true, null, "queueCheck(rate-limit)")
             logDebug("queueCheck | Scheduling Queue Check for (${delay} sec) | Recheck for RateLimiting")
         }
@@ -2859,7 +2790,7 @@ private void queueCheck(data) {
 
 void processCmdQueue() {
     state.q_cmdWorking = true
-    Integer q_cmdCycleCnt = state.q_cmdCycleCnt
+    Integer q_cmdCycleCnt = (Integer)state.q_cmdCycleCnt
     state.q_cmdCycleCnt = q_cmdCycleCnt ? q_cmdCycleCnt+1 : 1
     Map cmdQueue = getQueueItems()
     if(cmdQueue?.size()) {
@@ -2868,17 +2799,17 @@ void processCmdQueue() {
         Map cmdData = state[cmdKey as String]
         // logDebug("processCmdQueue | Key: ${cmdKey} | Queue Items: (${getQueueItems()})")
         cmdData.headers["queueKey"] = cmdKey
-        Integer q_loopChkCnt = state.q_loopChkCnt ?: 0
+        Integer q_loopChkCnt = (Integer)state.q_loopChkCnt ?: 0
         if(state.q_lastTtsMsg == cmdData.headers?.message && (getLastTtsCmdSec() <= 10)) { state.q_loopChkCnt = (q_loopChkCnt >= 1) ? q_loopChkCnt+1 : 1 }
         // log.debug "q_loopChkCnt: ${state.q_loopChkCnt}"
-        if(state.q_loopChkCnt && (state.q_loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
+        if((Integer)state.q_loopChkCnt && ((Integer)state.q_loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
             state.remove(cmdKey as String)
             logWarn("processCmdQueue | Possible loop detected... Last message was the same as message sent <10 seconds ago. This message will be removed from the queue")
             schedQueueCheck(2, true, null, "processCmdQueue(removed duplicate)")
             state.q_cmdWorking = false
         } else {
             state.q_lastMsg = cmdData?.headers?.message
-            speechCmd(cmdData?.headers, true)
+            speechCmd((Map)cmdData.headers, true)
         }
     } else { state.q_cmdWorking = false }
 }
@@ -2896,53 +2827,55 @@ def testMultiCmd() {
     sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]], "testMultiCmd")
 }
 
-private void speechCmd(headers=[:], Boolean isQueueCmd=false) {
+private void speechCmd(Map headers=[:], Boolean isQueueCmd=true) {
     // if(isQueueCmd) log.warn "QueueBlocked: ${state.q_blocked} | cycleCnt: ${state.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
-    state.q_speakingNow = true
-    String tr = "speechCmd (${headers.cmdDesc}) | Msg: ${headers.message}"
-    tr += headers.newVolume ? " | SetVolume: (${headers.newVolume})" :sBLANK
-    tr += headers.oldVolume ? " | Restore Volume: (${headers.oldVolume})" :sBLANK
-    tr += headers.msgDelay  ? " | RecheckSeconds: (${headers.msgDelay})" :sBLANK
-    tr += headers.queueKey  ? " | QueueItem: [${headers.queueKey}]" :sBLANK
-    tr += headers.cmdDt     ? " | CmdDt: (${headers.cmdDt})" :sBLANK
-    logTrace("${tr}")
 
-    def random = new Random()
-    def randCmdId = random?.nextInt(300)
+    if(!headers) { logError("speechCmd | Error | headers are missing"); return }
+    String healthStatus = getHealthStatus()
+    if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is current in OFFLINE State", true); return }
+
+//    state.q_speakingNow = true
+    if(settings.logTrace){
+        String tr = "speechCmd (${headers.cmdDesc}) | Msg: ${headers.message}"
+        tr += headers.newVolume ? " | SetVolume: (${headers.newVolume})" :sBLANK
+        tr += headers.oldVolume ? " | Restore Volume: (${headers.oldVolume})" :sBLANK
+        tr += headers.msgDelay  ? " | RecheckSeconds: (${headers.msgDelay})" :sBLANK
+        tr += headers.queueKey  ? " | QueueItem: [${headers.queueKey}]" :sBLANK
+        tr += headers.cmdDt     ? " | CmdDt: (${headers.cmdDt})" :sBLANK
+        logTrace("${tr}")
+    }
+
 
     Map queryMap = [:]
     List logItems = []
-    String healthStatus = getHealthStatus()
-    if(!headers || !(healthStatus in ["ACTIVE", "ONLINE"])) {
-        if(!headers) { logError("speechCmd | Error${!headers ? " | headers are missing" : sBLANK} ") }
-        if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("Command Ignored... Device is current in OFFLINE State", true) }
-        return
-    }
-    Boolean isTTS = true
+
     // headers?.message = cleanString(headers?.message)
-    Integer lastTtsCmdSec = getLastTtsCmdSec()
-    Integer msgLen = headers?.message?.toString()?.length()
+    Integer msgLen = ((String)headers.message)?.length()
     Integer recheckDelay = getRecheckDelay(msgLen)
     headers["msgDelay"] = recheckDelay
+    Random random = new Random()
+    Integer randCmdId = random.nextInt(300)
     headers["cmdId"] = randCmdId
-    if(!settings.disableQueue) {
-        logItems.push("│ Last TTS Sent: (${lastTtsCmdSec} seconds) ")
 
-        Boolean isFirstCmd = (state.q_firstCmdFlag != true)
+    Integer lastTtsCSec = getLastTtsCmdSec()
+    if(!settings.disableQueue) {
+        logItems.push("│ Last TTS Sent: (${lastTtsCSec} seconds) ")
+
+        Boolean isFirstCmd = ((Boolean)state.q_firstCmdFlag != true)
         if(isFirstCmd) {
-            logItems?.push("│ First Command: (${isFirstCmd})")
+            logItems.push("│ First Command: (${isFirstCmd})")
             headers["queueKey"] = "qItem_1"
             state.q_firstCmdFlag = true
         }
-        Boolean sendToQueue = (isFirstCmd || (lastTtsCmdSec < 3) || (!isQueueCmd && state.q_speakingNow == true))
-        if(!isQueueCmd) { logItems?.push("│ SentToQueue: (${sendToQueue})") }
-        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | QueueSize: (${getQueueSize()}) | lastTtsCmdSec: [${lastTtsCmdSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
+        Boolean sendToQueue = (isFirstCmd || (lastTtsCSec < 3) /* ||  (!isQueueCmd && (Boolean)state.q_speakingNow) */ )
+        if(!isQueueCmd) { logItems.push("│ SentToQueue: (${sendToQueue})") }
+        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | QueueSize: (${getQueueSize()}) | lastTtsCSec: [${lastTtsCSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
         if(sendToQueue) {
             queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
             runIn((settings?.autoResetQueue ?: 180), "resetQueue")
             if(!isFirstCmd) {
-                // log.debug "lastTtsCmdSec: ${getLastTtsCmdSec()} | Last Delay: ${state.q_lastTtsCmdDelay}"
-                if(state.q_lastTtsCmdDelay && getLastTtsCmdSec() > state.q_lastTtsCmdDelay + 15) schedQueueCheck(3, true, null, "speechCmd(QueueStuck)")
+                // log.debug "lastTtsCSec: ${getLastTtsCmdSec()} | Last Delay: ${state.q_lastTtsCmdDelay}"
+                if((Integer)state.q_lastTtsCmdDelay && getLastTtsCmdSec() > (Integer)state.q_lastTtsCmdDelay + 15) schedQueueCheck(3, true, null, "speechCmd(QueueStuck)")
                 return
             }
         }
@@ -2951,7 +2884,7 @@ private void speechCmd(headers=[:], Boolean isQueueCmd=false) {
         Map headerMap = getCookieMap()
         headers.each { k,v-> headerMap[k] = v }
         Integer qSize = getQueueSize()
-        logItems.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${state?.q_cmdWorking})")
+        logItems.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${(Boolean)state.q_cmdWorking})")
 
         if(headers.message) {
             state.q_curMsgLen = msgLen
@@ -2967,63 +2900,72 @@ private void speechCmd(headers=[:], Boolean isQueueCmd=false) {
         logItems.push("│ Current Volume: (${device?.currentValue("volume")}%)")
         Boolean isSSML = (headers?.message?.toString()?.startsWith("<speak>") && headers?.message?.toString()?.endsWith("</speak>"))
         logItems.push("│ Command: (SpeakCommand)${isSSML ? " | (SSML)" : sBLANK}")
-        try {
-            String bodyObj = sNULL
-            List seqCmds = []
-            if(headerMap.newVolume) { seqCmds.push([command: "volume", value: headerMap.newVolume]) }
-            seqCmds = seqCmds + msgSeqBuilder(headerMap?.message)
-            if(headerMap.oldVolume) { seqCmds.push([command: "volume", value: headerMap.oldVolume]) }
-            bodyObj = new groovy.json.JsonOutput().toJson(multiSequenceBuilder(seqCmds))
 
-            Map params = [
-                uri: getAmazonUrl(),
-                path: "/api/behaviors/preview",
-                headers: headerMap,
-                contentType: sAPPJSON,
-                timeout: 20,
-                body: bodyObj
-            ]
-            Map extData = [
-                cmdDt:(headerMap.cmdDt ?: null), queueKey: (headerMap.queueKey ?: null), cmdDesc: (headerMap.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap.msgDelay ?: null),
-                message: (headerMap.message ? headerMap.message : null), newVolume: (headerMap.newVolume ?: null), oldVolume: (headerMap.oldVolume ?: null), cmdId: (headerMap.cmdId ?: null),
-                qId: (headerMap.qId ?: null)
-            ]
+        String bodyObj = sNULL
+        List seqCmds = []
+        if(headerMap.newVolume) { seqCmds.push([command: "volume", value: headerMap.newVolume]) }
+        seqCmds = seqCmds + msgSeqBuilder((String)headerMap.message)
+        if(headerMap.oldVolume) { seqCmds.push([command: "volume", value: headerMap.oldVolume]) }
+        bodyObj = new groovy.json.JsonOutput().toJson(multiSequenceBuilder(seqCmds))
+
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/behaviors/preview",
+            headers: headerMap,
+            contentType: sAPPJSON,
+            timeout: 20,
+            body: bodyObj
+        ]
+        Map extData = [
+            cmdDt:(headerMap.cmdDt ?: null), queueKey: (headerMap.queueKey ?: null), cmdDesc: (headerMap.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap.msgDelay ?: null),
+            message: (headerMap.message ? headerMap.message : null), newVolume: (headerMap.newVolume ?: null), oldVolume: (headerMap.oldVolume ?: null), cmdId: (headerMap.cmdId ?: null),
+            qId: (headerMap.qId ?: null)
+        ]
+        logItems.push("┌─────── Echo Command ${isQueueCmd && !settings.disableQueue ? " (From Queue) " : sBLANK} ────────")
+        processLogItems("debug", logItems)
+        try {
+            state.q_speakingNow = true
             httpPost(params) { response->
                 def sData = response?.data ?: null
                 extData["amznReqId"] = response?.headers["x-amz-rid"] ?: null
                 postCmdProcess(sData, response?.status, extData)
             }
         } catch (ex) {
-            respExceptionHandler(ex, "speechCmd")
+            if(ex instanceof groovyx.net.http.HttpResponseException ) {
+                Integer sCode = ex?.getResponse()?.getStatus()
+                def respData = ex?.getResponse()?.getData()
+//                String errMsg = ex?.getMessage()
+                postCmdProcess(respData, sCode, extData)
+            } else respExceptionHandler(ex, "speechCmd")
         }
-        logItems?.push("┌─────── Echo Command ${isQueueCmd && !settings?.disableQueue ? " (From Queue) " : sBLANK} ────────")
-        processLogItems("debug", logItems)
     } catch (ex) {
-        logError("speechCmd Exception: ${ex}")
+        logError("speechCmd Exception: ${ex}", false, ex)
     }
 }
 
 private postCmdProcess(resp, statusCode, Map data) {
-    if(data && data?.deviceId && (data?.deviceId == device?.getDeviceNetworkId())) {
+    if(data && data.deviceId && (data.deviceId == device?.getDeviceNetworkId())) {
         String respMsg = resp?.message ?: null
         String respMsgLow = resp?.message ? resp?.message?.toString()?.toLowerCase() : null
         if(statusCode == 200) {
-            Long execTime = data?.cmdDt ? (now()-data?.cmdDt) : 0L
-            if(data?.queueKey) {
-                logDebug("Command Completed | Removing Queue Item: ${data?.queueKey}")
-                state.remove(data?.queueKey as String)
+            Long execTime = data.cmdDt ? (now()-data.cmdDt) : 0L
+            if(data.queueKey) {
+                logDebug("Command Completed | Removing Queue Item: ${data.queueKey}")
+                state.remove(data.queueKey as String)
             }
-            String pi = data?.cmdDesc ?: "Command"
-            pi += data?.isSSML ? " (SSML)" :sBLANK
-            pi += " Sent"
-            pi += " | (${data?.message})"
-            pi += logDebug && !logInfo && data?.msgLen ? " | Length: (${data?.msgLen}) " :sBLANK
-            pi += data?.msgDelay ? " | Runtime: (${data?.msgDelay} sec)" :sBLANK
-            pi += logDebug && data?.amznReqId ? " | Amazon Request ID: ${data?.amznReqId}" :sBLANK
-            pi += logDebug && data?.qId ? " | QueueID: (${data?.qId})" :sBLANK
-            pi += " | QueueItems: (${getQueueSize()})"
-            // pi += " | Time to Execute Msg: (${execTime}ms)"
-            logInfo(pi)
+            if ((Boolean)settings.logInfo != false) {
+                String pi = data.cmdDesc ?: "Command"
+                pi += data.isSSML ? " (SSML)" :sBLANK
+                pi += " Sent"
+                pi += " | (${data.message})"
+                pi += (Boolean)settings.logDebug && data.msgLen ? " | Length: (${data.msgLen}) " :sBLANK
+                pi += data.msgDelay ? " | Runtime: (${data.msgDelay} sec)" :sBLANK
+                pi += (Boolean)settings.logDebug && data.amznReqId ? " | Amazon Request ID: ${data.amznReqId}" :sBLANK
+                pi += (Boolean)settings.logDebug && data.qId ? " | QueueID: (${data.qId})" :sBLANK
+                pi += " | QueueItems: (${getQueueSize()})"
+                pi += (Boolean)settings.logDebug && execTime ? " | Time to Execute Msg: (${execTime}ms)" : sBLANK
+                logInfo(pi)
+            }
 
             if(data?.cmdDesc && data.cmdDesc == "SpeakCommand" && data?.message) {
                 state.lastTtsCmdDt = getDtNow()
@@ -3034,7 +2976,7 @@ private postCmdProcess(resp, statusCode, Map data) {
                     sendEvent(name: "level", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: true, displayed: true)
                     sendEvent(name: "volume", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: true, displayed: true)
                 }
-                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), data?.msgDelay), true, null, "postCmdProcess(adjDelay)")
+                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), data.msgDelay), true, null, "postCmdProcess(adjDelay)")
                 logSpeech(data?.message, statusCode, null)
             }
             return
@@ -3043,12 +2985,12 @@ private postCmdProcess(resp, statusCode, Map data) {
                 case "rate exceeded":
                     Integer rDelay = 3
                     logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
-                    schedQueueCheck(rDelay, true, [rateLimited: true, delay: data?.msgDelay], "postCmdProcess(Rate-Limited)")
+                    schedQueueCheck(rDelay, true, [rateLimited: true, delay: data.msgDelay], "postCmdProcess(Rate-Limited)")
                     break
                 case "too many requests":
                     Integer rDelay = 5
                     logWarn("You've sent too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
-                    schedQueueCheck(rDelay, true, [rateLimited: false, delay: data?.msgDelay], "postCmdProcess(Too-Many-Requests)")
+                    schedQueueCheck(rDelay, true, [rateLimited: false, delay: data.msgDelay], "postCmdProcess(Too-Many-Requests)")
                     break
             }
             logSpeech(data?.message, statusCode, respMsg)
@@ -3219,7 +3161,7 @@ public Map getDeviceMetrics() {
 }
 
 Map sequenceBuilder(cmd, val) {
-    Map seqJson = null
+    Map seqJson
     if (cmd instanceof Map) {
         seqJson = cmd?.sequence ?: cmd
     } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
@@ -3230,13 +3172,13 @@ Map sequenceBuilder(cmd, val) {
 Map multiSequenceBuilder(List commands, Boolean parallel=false) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
     List nodeList = []
-    commands?.each { cmdItem-> nodeList.push(createSequenceNode(cmdItem?.command, cmdItem?.value)) }
+    commands.each { cmdItem-> nodeList.push(createSequenceNode((String)cmdItem.command, cmdItem.value)) }
     Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
     Map seqObj = sequenceBuilder(seqJson, null)
     return seqObj
 }
 
-Map createSequenceNode(command, value, String devType=null, String devSerial=null) {
+Map createSequenceNode(String command, value, String devType=sNULL, String devSerial=sNULL) {
     try {
         Boolean remDevSpecifics = false
         Map seqNode = [
@@ -3248,7 +3190,7 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                 "customerId": (String)state.deviceOwnerCustomerId
             ]
         ]
-        switch (command?.toString()?.toLowerCase()) {
+        switch (command.toLowerCase()) {
             case "weather":
                 seqNode.type = "Alexa.Weather.Play"
                 break
@@ -3300,8 +3242,8 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                 remDevSpecifics = true
                 seqNode.type = "Alexa.DeviceControls.Stop"
                 seqNode.skillId = "amzn1.ask.1p.alexadevicecontrols"
-                seqNode.operationPayload?.devices = [ [deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber] ]
-                seqNode.operationPayload?.isAssociatedDevice = false
+                seqNode.operationPayload.devices = [ [deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber] ]
+                seqNode.operationPayload.isAssociatedDevice = false
                 break
             case "stopalldevices":
                 remDevSpecifics = true
@@ -3332,17 +3274,17 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                     sndName = sounds[value]
                 }
                 seqNode.type = "Alexa.Sound"
-                seqNode.operationPayload?.soundStringId = sndName
+                seqNode.operationPayload.soundStringId = sndName
                 break
             case "wait":
                 remDevSpecifics = true
                 seqNode.operationPayload?.remove('customerId')
                 seqNode.type = "Alexa.System.Wait"
-                seqNode.operationPayload?.waitTimeInSeconds = value?.toInteger() ?: 5
+                seqNode.operationPayload.waitTimeInSeconds = value?.toInteger() ?: 5
                 break
             case "volume":
                 seqNode.type = "Alexa.DeviceControls.Volume"
-                seqNode.operationPayload?.value = value
+                seqNode.operationPayload.value = value
                 break
             case "dnd_duration":
             case "dnd_time":
@@ -3366,8 +3308,8 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
                 break
             case "speak":
                 seqNode.type = "Alexa.Speak"
-                value = cleanString(value as String)
-                seqNode.operationPayload?.textToSpeak = value as String
+                value = cleanString(value.toString())
+                seqNode.operationPayload.textToSpeak = (String)value
                 break
             case "ssml":
             case "announcement":
@@ -3375,35 +3317,38 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
             case "announcement_devices":
                 remDevSpecifics = true
                 seqNode.type = "AlexaAnnouncement"
-                seqNode.operationPayload?.expireAfter = "PT5S"
+                seqNode.operationPayload.expireAfter = "PT5S"
                 List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
                 // log.debug "valObj(size: ${valObj?.size()}): $valObj"
                 // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
                 // log.debug "valObj[1]: ${valObj[1]}"
-                seqNode.operationPayload?.content = [[ locale: ((String)state.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
-                seqNode.operationPayload?.target = [ customerId : (String)state.deviceOwnerCustomerId ]
+                seqNode.operationPayload.content = [[ locale: ((String)state.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
+                seqNode.operationPayload.target = [ customerId : (String)state.deviceOwnerCustomerId ]
                 if(!(command in ["announcementall", "announcement_devices"])) {
-                    seqNode?.operationPayload?.target?.devices = [ [ deviceTypeId: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ] ]
+                    seqNode.operationPayload.target.devices = [ [ deviceTypeId: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ] ]
                 } else if(command == "announcement_devices" && valObj?.size() && valObj[2] != null) {
                     List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
-                    seqNode.operationPayload?.target?.devices = devObjs
+                    seqNode.operationPayload.target.devices = devObjs
                 }
                 break
             case "pushnotification":
                 remDevSpecifics = true
                 seqNode.type = "Alexa.Notifications.SendMobilePush"
                 seqNode.skillId = "amzn1.ask.1p.alexanotifications"
-                seqNode.operationPayload?.notificationMessage = value as String
-                seqNode.operationPayload?.alexaUrl = "#v2/behaviors"
-                seqNode.operationPayload?.title = "Echo Speaks"
+                seqNode.operationPayload.notificationMessage = value as String
+                seqNode.operationPayload.alexaUrl = "#v2/behaviors"
+                seqNode.operationPayload.title = "Echo Speaks"
+                seqNode.operationPayload.remove("deviceType")
+                seqNode.operationPayload.remove("deviceSerialNumber")
+                seqNode.operationPayload.remove("locale")
                 break
             case "email":
                 seqNode.type = "Alexa.Operation.SkillConnections.Email.EmailSummary"
                 seqNode.skillId = "amzn1.ask.1p.email"
-                seqNode.operationPayload?.targetDevice = [deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ]
-                seqNode.operationPayload?.connectionRequest = [uri: "connection://AMAZON.Read.EmailSummary/amzn1.alexa-speechlet-client.DOMAIN:ALEXA_CONNECT", input: [:] ]
-                seqNode.operationPayload?.remove('deviceType')
-                seqNode.operationPayload?.remove('deviceSerialNumber')
+                seqNode.operationPayload.targetDevice = [deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ]
+                seqNode.operationPayload.connectionRequest = [uri: "connection://AMAZON.Read.EmailSummary/amzn1.alexa-speechlet-client.DOMAIN:ALEXA_CONNECT", input: [:] ]
+                seqNode.operationPayload.remove('deviceType')
+                seqNode.operationPayload.remove('deviceSerialNumber')
                 break
             case "goodnews":
                 seqNode.type = "Alexa.GoodNews.Play"
@@ -3412,15 +3357,15 @@ Map createSequenceNode(command, value, String devType=null, String devSerial=nul
             case "voicecmdtxt":
                 seqNode.type = "Alexa.TextCommand"
                 seqNode.skillId = "amzn1.ask.1p.tellalexa"
-                seqNode.operationPayload.text = value
+                seqNode.operationPayload.text = value.toString()
                 break
             default:
                 return null
         }
         if(remDevSpecifics) {
-            seqNode.operationPayload?.remove('deviceType')
-            seqNode.operationPayload?.remove('deviceSerialNumber')
-            seqNode.operationPayload?.remove('locale')
+            seqNode.operationPayload.remove('deviceType')
+            seqNode.operationPayload.remove('deviceSerialNumber')
+            seqNode.operationPayload.remove('locale')
         }
         return seqNode
     } catch (ex) {

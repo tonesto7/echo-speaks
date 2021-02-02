@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.3.0"
-@Field static final String appModifiedFLD = "2021-01-29"
+@Field static final String appVersionFLD  = "4.0.4.0"
+@Field static final String appModifiedFLD = "2021-02-02"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4030, wsDevice: 4030, actionApp: 4030, zoneApp: 4030, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4040, wsDevice: 4040, actionApp: 4040, zoneApp: 4040, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1444,18 +1444,19 @@ void appCleanup() {
 void wsEvtHandler(evt) {
     if(devModeFLD) logTrace("wsEvtHandler evt: ${evt}")
     if(evt && evt.id && (evt.attributes?.size() || evt.triggers?.size())) {
-        if("bluetooth" in evt.triggers) { runIn(2, "getBluetoothRunIn") } // getBluetoothDevices(true)
-        if("activity" in evt.triggers) { runIn(1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
+        List<String> trigs = evt.triggers
+        if("bluetooth" in trigs) { runIn(2, "getBluetoothRunIn") } // getBluetoothDevices(true)
+        if("activity" in trigs) { runIn(1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
         if(evt.all == true) {
             getEsDevices()?.each { eDev->
                 if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) } }
-                if(evt.triggers?.size()) { eDev.websocketUpdEvt(evt.triggers) }
+                if(trigs?.size()) { eDev.websocketUpdEvt(trigs) }
             }
         } else {
             def eDev = findEchoDevice((String)evt.id)
             if(eDev) {
                 evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) }
-                if(evt.triggers?.size()) { eDev?.websocketUpdEvt(evt.triggers) }
+                if(trigs?.size()) { eDev?.websocketUpdEvt(trigs) }
             }
         }
     }
@@ -2448,7 +2449,7 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
     if(!isAuthValid("getAlexaRoutines")) { return [:]}
     Map params = [
         uri: getAmazonUrl(),
-        path: "/api/behaviors/automations${autoId ? "/${autoId}" : sBLANK}",
+        path: "/api/behaviors/v2/automations${autoId ? "/${autoId}" : sBLANK}",
         query: [ limit: 100 ],
         headers: getCookieMap(),
         contentType: sAPPJSON,
@@ -2461,41 +2462,43 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
         httpGet(params) { response ->
             if(response?.status != 200) logWarn("${response?.status} $params")
             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            rtResp = response?.data ?: [:]
-            // log.debug "alexaRoutines: $rtResp"
-            if(rtResp) {
+            def listOrMap = response?.data
+            // log.debug "alexaRoutines: $listOrMap"
+            if(listOrMap instanceof Map) {
+		rtResp = listOrMap ?: [:]
                 if(autoId) {
                     return rtResp
-                } else {
-                    Map items = [:]
-                    Integer cnt = 1
-                    if(rtResp.size()) {
-                        rtResp.findAll { it?.status == "ENABLED" }?.each { item->
-                            String myK = item?.automationId?.toString()
-                            if(item?.name != null) {
-                                items[myK] = item?.name
-                            } else {
-                                if(item?.triggers?.size()) {
-                                    item?.triggers?.each { trg->
-                                        if(trg?.payload?.containsKey("utterance") && trg?.payload?.utterance != null) {
-                                            items[myK] = trg?.payload?.utterance as String
-                                        } else {
-                                            items[myK] = "Unlabeled Routine ($cnt)"
-                                            cnt++
-                                        }
+                }
+            } else if(listOrMap instanceof List) {
+                List myList = listOrMap ?: []
+                Map items = [:]
+                Integer cnt = 1
+                if(myList.size()) {
+                    myList.findAll { it?.status == "ENABLED" }?.each { Map item->
+                        String myK = item.automationId.toString()
+                        if(item.name != null) {
+                            items[myK] = item.name
+                        } else {
+                            if(item.triggers?.size()) {
+                                item.triggers.each { trg->
+                                    if(trg.payload?.containsKey("utterance") && trg.payload?.utterance != null) {
+                                        items[myK] = (String)trg.payload.utterance
+                                    } else {
+                                        items[myK] = "Unlabeled Routine ($cnt)"
+                                        cnt++
                                     }
                                 }
                             }
                         }
                     }
-                    // log.debug "routine items: $items"
-                    return items
                 }
+                rtResp = items
             }
         }
     } catch (ex) {
         respExceptionHandler(ex, "getAlexaRoutines", true)
     }
+    // log.debug "routines: $rtResp"
     return rtResp
 }
 
