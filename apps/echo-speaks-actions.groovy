@@ -1723,21 +1723,12 @@ Boolean customMsgConfigured() { return (settings.notif_use_custom && settings.no
 
 def actNotifPage() {
     return dynamicPage(name: "actNotifPage", title: "Action Notifications", install: false, uninstall: false) {
+                        //href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC), state: (t0 ? sCOMPLT : null)
         String a = getAppNotifDesc()
-         if(a) {
-             section() {
-                 paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
-             }
+         if(!a) a= "Notifications not enabled"
+         section() {
+             paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
          }
-        section (sTS("Message Customization:")) {
-            Boolean custMsgReq = customMsgRequired()
-            // if(custMsgReq && !settings.notif_use_custom) { settingUpdate("notif_use_custom", sTRUE, sBOOL) }
-            paragraph pTS("When using speak and announcements you can leave this off and a notification will be sent with speech text.  For other action types a custom message is required", sNULL, false, sCLRGRY)
-            input "notif_use_custom", sBOOL, title: inTS1("Send a custom notification...", "question"), required: false, defaultValue: false, submitOnChange: true
-            if(settings.notif_use_custom || custMsgReq) {
-                input "notif_custom_message", sTEXT, title: inTS1("Enter custom message...", sTEXT), required: custMsgReq, submitOnChange: true
-            }
-        }
 
         section (sTS("Notification Devices:")) {
             input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
@@ -1747,17 +1738,36 @@ def actNotifPage() {
             input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true
         }
 
+        if(settings.notif_devs || (Boolean)settings.notif_alexa_mobile) {
+            section (sTS("Message Customization:")) {
+                Boolean custMsgReq = customMsgRequired()
+                if(custMsgReq) {
+                    paragraph pTS("The selected action (${settings.actionType}) requires a custom notification message if notifications are enabled.", sNULL, false, sCLRGRY)
+                    if(!settings.notif_use_custom) { settingUpdate("notif_use_custom", sTRUE, sBOOL) }
+                } else {
+                    paragraph pTS("When using speak or announcement actions custom notification is optional and a notification will be sent with speech text.", sNULL, false, sCLRGRY)
+                }
+                input "notif_use_custom", sBOOL, title: inTS1("Send a custom notification...", "question"), required: false, defaultValue: false, submitOnChange: true
+                if(settings.notif_use_custom || custMsgReq) {
+                    input "notif_custom_message", sTEXT, title: inTS1("Enter custom message...", sTEXT), required: custMsgReq, submitOnChange: true
+                }
+            }
+        } else {
+            List sets = settings.findAll { it?.key?.startsWith("notif_") }?.collect { it?.key as String }
+            sets?.each { String sI-> settingRemove(sI) }
+        }
+
         if(isActNotifConfigured()) {
             section(sTS("Notification Restrictions:")) {
                 String nsd = getNotifSchedDesc()
                 href "actNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : null)
             }
-            if(!state.notif_message_tested) {
+            if(!(Boolean)state.notif_message_tested) {
                 def actDevices = (Boolean)settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
                 def aMsgDev = actDevices?.size() && (Boolean)settings.notif_alexa_mobile ? actDevices[0] : null
                 if(sendNotifMsg("Info", "Action Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state.notif_message_tested = true }
             }
-        } else { state.notif_message_tested = false }
+        } else state.remove("notif_message_tested")
     }
 }
 
