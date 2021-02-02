@@ -1391,9 +1391,9 @@ def actionsPage() {
                     echoDevicesInputByPerm("wakeWord")
                     if(settings.act_EchoDevices) {
                         section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
-                        def t0 = parent?.getAlexaRoutines(null, true)
-                        def routinesAvail = t0 ?: [:]
-                        logDebug("routinesAvail: $routinesAvail")
+                        Map t0 = parent?.getAlexaRoutines(null, true)
+                        Map routinesAvail = t0 ?: [:]
+                        // logDebug("routinesAvail: $routinesAvail")
                         section(sTS("Action Type Config:")) {
                             input "act_alexaroutine_cmd", sENUM, title: inTS1("Select Alexa Routine", sCOMMAND), description: sBLANK, options: routinesAvail, multiple: false, required: true, submitOnChange: true
                         }
@@ -1592,7 +1592,7 @@ def actTrigTasksPage(params) {
 Boolean actTasksConfiguredByType(String pType) {
     String p = pType
     return (
-        settings."${p}mode_run" || settings."${p}alarm_run" || settings."${p}routine_run" || settings."${p}switches_off" || settings."${p}switches_on" ||
+        settings."${p}mode_run" || settings."${p}alarm_run" /* || settings."${p}routine_run"*/ || settings."${p}switches_off" || settings."${p}switches_on" ||
                 (settings.enableWebCoRE && settings."${p}piston_run") ||
                 settings."${p}lights" || settings."${p}locks_lock" || settings."${p}locks_unlock" || settings."${p}sirens" || settings."${p}doors_close" || settings."${p}doors_open" ||
                 settings."${p}securityKeypads_disarm" || settings."${p}securityKeypads_armHome" || settings."${p}securityKeypads_armAway"
@@ -3425,7 +3425,7 @@ Map getRandomTrigEvt() {
 static String convEvtType(String type) {
     Map typeConv = [
         "pistonExecuted": "Piston",
-        "routineExecuted": "Routine",
+//        "routineExecuted": "Routine",
         "alarmSystemStatus": "Alarm system",
         "hsmStatus": "Alarm system",
         "hsmAlert": "Alarm system"
@@ -3513,8 +3513,8 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
                     return  "The location mode is now set to ${evt?.value}"
                 case "pistonExecuted":
                     return  "The ${evt?.displayName} piston was just executed!."
-                case "routineExecuted":
-                    return  "The ${evt?.displayName} routine was just executed!."
+//                case "routineExecuted":
+//                    return  "The ${evt?.displayName} routine was just executed!."
                 case "scene":
                     return  "The ${evt?.value} scene was just executed!."
                 case "alarm":
@@ -3799,9 +3799,9 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                 break
 
             case "alexaroutine":
-                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.routineId) {
-                    actDevices[0]?."${actConf[actType]?.cmd}"(actConf[actType]?.routineId as String)
-                    logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) | RoutineId: ${actConf[actType]?.routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                if(actConf[actType] && actConf[actType].cmd && actConf[actType].routineId) {
+                    actDevices[0]?."${actConf[actType].cmd}"((String)actConf[actType].routineId)
+                    logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) | RoutineId: ${actConf[actType].routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                 }
                 break
 
@@ -4635,10 +4635,10 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addE=true) {
                         str += settings."${sPre}${evt}_once" ? "    \u25E6 Once a Day: (${settings."${sPre}${evt}_once"})\n" : sBLANK
                         break
                     case "pistonExecuted":
-                    case "routineExecuted":
+//                    case "routineExecuted":
                     case "mode":
                     case "scene":
-                        str += " \u2022 ${evt == "routineExecuted" ? "Routines" : evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
+                        str += " \u2022 ${evt == "pistonExecuted" ? "Piston" : evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
                         str += settings."${sPre}${evt}_once" ? "    \u25E6 Once a Day: (${settings."${sPre}${evt}_once"})\n" : sBLANK
                         break
                     case "pushed":
