@@ -379,38 +379,43 @@ def condTimePage() {
 def zoneNotifPage() {
     return dynamicPage(name: "zoneNotifPage", title: "Zone Notifications", install: false, uninstall: false) {
         String a = getAppNotifDesc()
-        if(a) {
-            section() {
-                paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
-            }
-        }
-        section (sTS("Message Customization:")) {
-            input "notif_active_message", sTEXT, title: inTS1("Active Message?", sTEXT), required: false, submitOnChange: true
-            input "notif_inactive_message", sTEXT, title: inTS1("Inactive Message?", sTEXT), required: false, submitOnChange: true
-        }
-        if(settings.notif_active_message || settings.notif_inactive_message) {
-            section (sTS("Notification Devices:")) {
-                input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
-            }
-            section (sTS("Alexa Mobile Notification:")) {
-                paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
-                input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true
-            }
+         if(!a) a= "Notifications not enabled"
+         section() {
+             paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
+         }
 
-            if(isZoneNotifConfigured()) {
-                section(sTS("Notification Restrictions:")) {
-                    String nsd = getNotifSchedDesc()
-                    href "zoneNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : sNULL)
-                }
-                if(!state.notif_message_tested) {
-                    List actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDevices) : []
-                    def aMsgDev = actDevices?.size() && settings.notif_alexa_mobile ? actDevices[0] : null
-                    if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state?.notif_message_tested = true }
-                }
-            } else { state.notif_message_tested = false }
-        } else {
-            section() { paragraph pTS("Configure either an Active or Inactive message to configure remaining notification options.", sNULL, false, sCLR4D9), state: sCOMPLT }
+        section (sTS("Notification Devices:")) {
+            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
         }
+        section (sTS("Alexa Mobile Notification:")) {
+            paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
+            input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true
+        }
+
+        Boolean active = (settings.notif_devs || (Boolean)settings.notif_alexa_mobile)
+        if(active) {
+            section (sTS("Message Customization:")) {
+                paragraph pTS("Configure either an Active or Inactive message to complete notification configuration.", sNULL, false, sCLR4D9), state: sCOMPLT
+                Boolean req = !(settings.notif_active_message || settings.notif_inactive_message)
+                input "notif_active_message", sTEXT, title: inTS1("Active Message?", sTEXT), required: req, submitOnChange: true
+                input "notif_inactive_message", sTEXT, title: inTS1("Inactive Message?", sTEXT), required: req, submitOnChange: true
+            }
+        } else {
+            List sets = settings.findAll { it?.key?.startsWith("notif_") }?.collect { it?.key as String }
+            sets?.each { String sI-> settingRemove(sI) }
+        }
+
+        if(isZoneNotifConfigured()) {
+            section(sTS("Notification Restrictions:")) {
+                String nsd = getNotifSchedDesc()
+                href "zoneNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : sNULL)
+            }
+            if(!(Boolean)state.notif_message_tested) {
+                List actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDevices) : []
+                def aMsgDev = actDevices?.size() && settings.notif_alexa_mobile ? actDevices[0] : null
+                if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state.notif_message_tested = true }
+            }
+        } else { state.remove("notif_message_tested") }
     }
 }
 
