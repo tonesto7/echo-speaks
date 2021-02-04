@@ -1959,30 +1959,37 @@ static Boolean wordInString(String findStr, String fullStr) {
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
-    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
-    if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
-    if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
-        runIn(3, "processDuplication")
+    if((Boolean)settings.duplicateFlag && !(Boolean)state.dupPendingSetup) {
+        Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
+        if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
+        runIn(2, "processDuplication")
     } else {
-        if(!maybeDup && !state.dupPendingSetup) initialize()
+        if(!(Boolean)state.dupPendingSetup) initialize()
     }
 }
 
 def updated() {
     logInfo("Updated Event Received...")
     Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
-    if(maybeDup) logInfo("updated found maybe a dup... ${settings.duplicateFlag}")
-    if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
-    if(!state.dupPendingSetup) initialize()
-    else logInfo("This action is duplicated and has not had configuration completed... Please open action and configure to complete setup...")
+    if((Boolean)settings.duplicateFlag) {
+        if((Boolean)state.dupOpenedByUser) { state.dupPendingSetup = false }
+        if((Boolean)state.dupPendingSetup){
+            logInfo("This action is duplicated and has not had configuration completed... Please open action and configure to complete setup...")
+            return
+        }
+        logInfo("removing duplicate status")
+        settingRemove('duplicateFlag'); settingRemove('duplicateSrcId')
+        state.remove('dupOpenedByUser'); state.remove('dupPendingSetup')
+    }
+    initialize()
 }
 
 def initialize() {
     logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
-    state.afterEvtCheckWatcherSched = false
     state.isInstalled = true
+    state.afterEvtCheckWatcherSched = false
     atomicState.tierSchedActive = false
     updAppLabel()
     if(advLogsActive()) { logsEnabled() }
